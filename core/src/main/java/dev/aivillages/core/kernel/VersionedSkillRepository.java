@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * World-owned authoritative skill storage, manifest schema 1.
@@ -67,7 +69,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
     private final FaultInjector faults;
     private final FileChannel writerChannel;
     private final FileLock writerLock;
-    private volatile RuntimeSnapshot runtime;
+    private final AtomicReference<RuntimeVersion> runtime = new AtomicReference<>();
     private volatile Snapshot snapshot = new Snapshot(0, Map.of(), false, "OK");
     private volatile int orphanBodies;
     private volatile long accountedDiskBytes;
@@ -100,6 +102,49 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
             Objects.requireNonNull(capabilities);
             Objects.requireNonNull(primitives);
         }
+    }
+
+    private record RuntimeVersion(RuntimeSnapshot snapshot, long revision) { }
+
+    /** Metadata epoch; runtime replacement invalidates derived compatibility without changing admission. */
+    public record CatalogRevision(long catalog, long runtime, boolean available) { }
+
+    /** A captured owner snapshot. Read bounded batches on a background worker, never the server tick. */
+    public final class MetadataSnapshot {
+        private final Snapshot records;
+        private final RuntimeVersion environment;
+        private final Iterator<ArtifactRef> remaining;
+
+        private MetadataSnapshot(Snapshot records, RuntimeVersion environment) {
+            this.records = records;
+            this.environment = environment;
+            this.remaining = records.records().keySet().iterator();
+        }
+        public CatalogRevision revision() {
+            return new CatalogRevision(records.revision(), environment.revision(), !records.readOnly());
+        }
+        public int size() { return records.records().size(); }
+        public boolean complete() { return !remaining.hasNext(); }
+        public List<Candidate> next(int maximum) {
+            if (maximum < 1 || maximum > 128) throw new IllegalArgumentException("Metadata batch");
+            List<Candidate> result = new ArrayList<>();
+            while (result.size() < maximum && remaining.hasNext()) {
+                ArtifactRef ref = remaining.next();
+                Stored stored = records.records().get(ref);
+                Compatibility assessed = compatibility(ref, records, environment.snapshot(),
+                        new HashSet<>(), 0, new int[] {0}, false);
+                result.add(new Candidate(ref, stored.admission().status(), assessed, stored.integrity()));
+            }
+            return List.copyOf(result);
+        }
+    }
+
+    /** O(1), I/O-free capture of immutable repository state; no executable bodies/private origins copied. */
+    public MetadataSnapshot metadataSnapshot() { return new MetadataSnapshot(snapshot, runtime.get()); }
+    public CatalogRevision catalogRevision() {
+        Snapshot current = snapshot;
+        RuntimeVersion environment = runtime.get();
+        return new CatalogRevision(current.revision(), environment.revision(), !current.readOnly());
     }
 
     public record EvidenceBundle(EvidenceRef staticCheck, EvidenceRef fixtureCheck,
@@ -233,7 +278,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         this.quarantine = root.resolve("quarantine");
         this.manifest = root.resolve("manifest.json");
         this.previous = root.resolve("manifest.previous.json");
-        this.runtime = Objects.requireNonNull(runtime);
+        this.runtime.set(new RuntimeVersion(Objects.requireNonNull(runtime), 0));
         this.limits = Objects.requireNonNull(limits);
         this.authority = Objects.requireNonNull(authority);
         this.visibility = Objects.requireNonNull(visibility);
@@ -267,7 +312,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
 
     /** Bounded and I/O-free. Private origins are intentionally absent from the shared body view. */
     public ArtifactView resolve(ArtifactRef ref) {
-        return resolve(ref, snapshot, runtime);
+        return resolve(ref, snapshot, runtime.get().snapshot());
     }
 
     private ArtifactView resolve(ArtifactRef ref, Snapshot current, RuntimeSnapshot environment) {
@@ -290,7 +335,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
                 && !afterSha256.matches("[0-9a-f]{64}")))
             throw new IllegalArgumentException("Page bound/cursor");
         Snapshot current = snapshot;
-        RuntimeSnapshot environment = runtime;
+        RuntimeSnapshot environment = runtime.get().snapshot();
         List<ArtifactRef> matches = current.records().keySet().stream()
                 .filter(ref -> ref.capability().equals(capability))
                 .sorted(Comparator.comparing(ArtifactRef::sha256)).toList();
@@ -330,7 +375,12 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
                 orphanBodies, current.readOnly(), current.recoveryState());
     }
 
-    public void updateRuntime(RuntimeSnapshot replacement) { runtime = Objects.requireNonNull(replacement); }
+    /** Replace immutable capability/primitive providers whenever their policy changes. Derived metadata observes this epoch. */
+    public void updateRuntime(RuntimeSnapshot replacement) {
+        Objects.requireNonNull(replacement);
+        runtime.updateAndGet(current -> new RuntimeVersion(replacement,
+                Math.incrementExact(current.revision())));
+    }
 
     public CompletableFuture<PublishResult> publishAsync(SkillArtifact artifact,
             AdmissionDecision decision, Provenance provenance, Executor worker) {
@@ -352,7 +402,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
             return result(PublishStatus.UNAUTHORIZED, ref, false);
         if (artifact == null || provenance == null)
             return result(PublishStatus.EVIDENCE_REQUIRED, ref, false);
-        RuntimeSnapshot environment = runtime;
+        RuntimeSnapshot environment = runtime.get().snapshot();
         CapabilitySpec spec = environment.capabilities().find(ref.capability()).orElse(null);
         if (spec == null || !provenance.actualDependencies().equals(artifact.descriptor().dependencies())
                 || !provenance.evidence().containsAll(List.of(decision.evidence().staticCheck(),
@@ -564,6 +614,13 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
     private Compatibility compatibility(ArtifactRef ref, Snapshot current,
                                         RuntimeSnapshot environment, Set<ArtifactRef> active,
                                         int depth, int[] work) {
+        return compatibility(ref, current, environment, active, depth, work, true);
+    }
+
+    /** Metadata checks use verified descriptors; executable consumption still recompiles the pinned body. */
+    private Compatibility compatibility(ArtifactRef ref, Snapshot current,
+                                        RuntimeSnapshot environment, Set<ArtifactRef> active,
+                                        int depth, int[] work, boolean validateBody) {
         Stored stored = current.records().get(ref);
         if (stored == null || stored.integrity() == Integrity.CORRUPT)
             return incompatible(ref, Reason.ARTIFACT_INVALID, environment);
@@ -593,20 +650,22 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         }
         for (ArtifactRef dependency : stored.body().descriptor().dependencies()) {
             Compatibility nested = compatibility(dependency, current, environment, active,
-                    depth + 1, work);
+                    depth + 1, work, validateBody);
             if (nested.status() != CompatibilityStatus.COMPATIBLE) {
                 active.remove(ref);
                 return incompatible(ref, Reason.DEPENDENCY_INCOMPATIBLE, environment);
             }
         }
         active.remove(ref);
-        SkillCompiler.CompileResult compiled = new SkillCompiler(environment.capabilities(),
-                environment.primitives(), dep -> Optional.ofNullable(current.records().get(dep))
-                        .map(Stored::body).map(RepositoryCodec.Body::descriptor))
-                .compile(stored.body().canonicalIr());
-        if (!(compiled instanceof SkillCompiler.Success success)
-                || !success.skill().artifact().descriptor().equals(stored.body().descriptor()))
-            return incompatible(ref, Reason.ARTIFACT_INVALID, environment);
+        if (validateBody) {
+            SkillCompiler.CompileResult compiled = new SkillCompiler(environment.capabilities(),
+                    environment.primitives(), dep -> Optional.ofNullable(current.records().get(dep))
+                            .map(Stored::body).map(RepositoryCodec.Body::descriptor))
+                    .compile(stored.body().canonicalIr());
+            if (!(compiled instanceof SkillCompiler.Success success)
+                    || !success.skill().artifact().descriptor().equals(stored.body().descriptor()))
+                return incompatible(ref, Reason.ARTIFACT_INVALID, environment);
+        }
         return new Compatibility(ref, CompatibilityStatus.COMPATIBLE, List.of(),
                 environment.gameTarget());
     }

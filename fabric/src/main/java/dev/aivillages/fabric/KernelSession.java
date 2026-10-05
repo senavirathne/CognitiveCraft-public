@@ -38,7 +38,7 @@ public final class KernelSession implements AutoCloseable {
                           VersionedSkillRepository repository,
                           ResearchAdmissionController.DecisionGuard guard,
                           CitizenIdentityStore identities, CitizenRegistry.Snapshot initialIdentities,
-                          boolean identityReadOnly) { }
+                          boolean identityReadOnly, CapabilityRetrievalIndex retrieval) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -92,6 +92,7 @@ public final class KernelSession implements AutoCloseable {
             BootstrapJournal journal = null;
             CitizenIdentityStore identities = null;
             VersionedSkillRepository repository = null;
+            CapabilityRetrievalIndex retrieval = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -109,9 +110,17 @@ public final class KernelSession implements AutoCloseable {
                                 capabilities, GatewayPrimitives.instance()),
                         VersionedSkillRepository.Limits.defaults(), guard,
                         TrustedContext::equals, VersionedSkillRepository.FaultInjector.none());
+                var lookups = new CapabilityRetrievalIndex.LookupRegistry(
+                        Map.of("harvest wheat", CropDelivery.ID, "deliver wheat", CropDelivery.ID),
+                        Map.of(CropDelivery.ID, java.util.Set.of("farming", "wheat")), capabilities);
+                retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
+                        new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
+                        CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
+                        capabilities, CapabilityRetrievalIndex.Limits.defaults(), () -> System.nanoTime() / 1_000_000);
                 return new Loaded(journal, journal.state(), repository, guard, identities,
-                        identities.snapshot(), identities.readOnly() || journal.readOnly());
+                        identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval);
             } catch (Exception failure) {
+                if (retrieval != null) retrieval.close();
                 if (repository != null) try { repository.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (identities != null) try { identities.close(); }
@@ -140,6 +149,7 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        loaded.retrieval().maintain(worker);
         refreshAvailability();
         if (pendingEnrollmentEntity != null && citizens.ready()) pendingEnrollmentEntity = null;
         language.tick();
@@ -178,7 +188,7 @@ public final class KernelSession implements AutoCloseable {
                 gateway::releaseRun, clock, () -> server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8, 16, 32, 64));
         var resolver = new CapabilityResolver.Engine(capabilities, primitives,
-                CapabilityResolver.exactCatalog(repository), null,
+                loaded.retrieval().candidates(), loaded.retrieval().authoritativeFallback(),
                 CapabilityResolver.cropDeliverySupport(), control,
                 CapabilityResolver.enrolledWorldSkills(control), authority,
                 CapabilityResolver.cropPrerequisites(),
@@ -563,19 +573,22 @@ public final class KernelSession implements AutoCloseable {
         if (needle != null) needle.close();
         interpretingPlayer = null;
         opening.whenComplete((opened, failed) -> {
-            if (opened != null) worker.execute(() -> {
-                Exception failedClose = null;
-                for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal())) {
-                    try { store.close(); }
-                    catch (Exception closeFailure) {
-                        AiVillages.LOG.error("Kernel close failed", closeFailure);
-                        if (failedClose == null) failedClose = closeFailure;
-                        else failedClose.addSuppressed(closeFailure);
+            if (opened != null) {
+                opened.retrieval().close();
+                worker.execute(() -> {
+                    Exception failedClose = null;
+                    for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal())) {
+                        try { store.close(); }
+                        catch (Exception closeFailure) {
+                            AiVillages.LOG.error("Kernel close failed", closeFailure);
+                            if (failedClose == null) failedClose = closeFailure;
+                            else failedClose.addSuppressed(closeFailure);
+                        }
                     }
-                }
-                if (failedClose == null) storeClosure.complete(null);
-                else storeClosure.completeExceptionally(failedClose);
-            });
+                    if (failedClose == null) storeClosure.complete(null);
+                    else storeClosure.completeExceptionally(failedClose);
+                });
+            }
             else storeClosure.complete(null);
             worker.shutdown();
         });

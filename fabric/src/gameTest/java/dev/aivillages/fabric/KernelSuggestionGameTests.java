@@ -114,12 +114,14 @@ public final class KernelSuggestionGameTests {
                 }
                 case 5 -> {
                     terminal(other, foreignTerminal);
+                    ready();
                     var submitted = harvest(owner, ownActor);
-                    require(submitted.accepted(), "Owner scoped fixture request rejected");
+                    require(submitted.accepted(), "Owner scoped fixture request rejected: " + submitted.reason());
                     ownTerminal = submitted.id(); phase = 6;
                 }
                 case 6 -> {
                     terminal(owner, ownTerminal);
+                    ready();
                     foreignTicket = session.ask(other, text()).id();
                     require(session.interpretationStatus(other, foreignTicket).phase() == LanguageRequests.Phase.UNAVAILABLE,
                             "Expected retained unavailable foreign ticket");
