@@ -2,11 +2,35 @@ name: Local generation smoke
 
 on:
   push:
-    branches: [imp-005-local-generation-adapter]
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'providers/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - '.github/workflows/local-generation-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'providers/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - '.github/workflows/local-generation-smoke.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: cognitivecraft-generation-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   local-model:
@@ -35,9 +59,58 @@ jobs:
         timeout-minutes: 8
         env:
           COGNITIVECRAFT_OLLAMA_MODEL: qwen2.5:1.5b-instruct
-        run: bash ./gradlew --no-daemon --stacktrace :providers:runGenerationLiveSmoke
+        run: |
+          set -o pipefail
+          mkdir -p providers/build/generation-smoke-evidence
+          bash ./gradlew --no-daemon --stacktrace :providers:runGenerationLiveSmoke \
+            | tee providers/build/generation-smoke-evidence/cold-warm.log
+      - name: Verify both bounded real-model phases and retain evidence
+        run: |
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+          root = Path('providers/build/generation-smoke-evidence')
+          pattern = re.compile(
+              r'^(cold|warm) attempts=(\d+) model=(\S+) digest=([0-9a-f]{64}) '
+              r'latencyMs=(\d+) candidateSha256=([0-9a-f]{64}) '
+              r'inputBytes=(\d+) outputBytes=(\d+) promptTokens=(-?\d+) '
+              r'outputTokens=(-?\d+) precision=(\S+)$')
+          phases = {}
+          for line in (root / 'cold-warm.log').read_text().splitlines():
+              match = pattern.fullmatch(line)
+              if match is None:
+                  continue
+              phase, attempts, model, digest, latency, candidate, input_bytes, output_bytes, prompt_tokens, output_tokens, precision = match.groups()
+              if phase in phases:
+                  raise SystemExit('Duplicate real-model evidence: ' + phase)
+              if model != 'qwen2.5:1.5b-instruct' or not 1 <= int(attempts) <= 2:
+                  raise SystemExit('Unexpected model or unbounded attempts: ' + line)
+              if not 0 < int(input_bytes) <= 32768 or not 0 < int(output_bytes) <= 8192:
+                  raise SystemExit('Candidate input/output exceeded declared allowance: ' + line)
+              phases[phase] = {
+                  'attempts': int(attempts), 'model': model, 'modelDigest': digest,
+                  'latencyMillis': int(latency), 'candidateSha256': candidate,
+                  'inputBytes': int(input_bytes), 'outputBytes': int(output_bytes),
+                  'promptTokens': int(prompt_tokens), 'outputTokens': int(output_tokens),
+                  'tokenPrecision': precision,
+              }
+          if set(phases) != {'cold', 'warm'}:
+              raise SystemExit('Expected one successful cold and one successful warm real-model phase')
+          if phases['cold']['modelDigest'] != phases['warm']['modelDigest']:
+              raise SystemExit('Model identity changed between cold and warm phases')
+          (root / 'acceptance.json').write_text(json.dumps({'schema': 1, 'phases': phases}, indent=2) + '\n')
+          print('Verified bounded cold/warm local generation: ' + json.dumps(phases))
+          PY
       - name: Report installed model and host storage
         if: always()
         run: |
           docker exec cognitivecraft-ollama ollama list || true
           docker inspect cognitivecraft-ollama --format='{{.Config.Image}}' || true
+      - name: Preserve local-generation smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: providers/build/generation-smoke-evidence/

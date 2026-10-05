@@ -29,14 +29,19 @@ installed or configured by the workflows. No paid model endpoint is used.
 | `default-nearest.yml` | Test tracing through `JAVA_TOOL_OPTIONS` |
 | `needle-language.yml` | `NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`; `COGNITIVECRAFT_NEEDLE_DIR` points to assets installed under the automatically supplied `RUNNER_TEMP`; test tracing |
 | `research-live-trial.yml` | `COGNITIVECRAFT_OLLAMA_MODEL=qwen3:4b-instruct-2507-q4_K_M`; cold/warm bootstrap fixture selectors |
-| `local-generation-smoke.yml` | `COGNITIVECRAFT_OLLAMA_MODEL=qwen2.5:1.5b-instruct`; standalone optional adapter smoke |
+| `local-generation-smoke.yml` | `COGNITIVECRAFT_OLLAMA_MODEL=qwen2.5:1.5b-instruct`; real adapter cold/warm smoke |
 
 The IMP-010 branch push starts full verification and retrieval acceptance. A pull
 request against `main` also starts identity, nearest, actual Needle/outage and
 genuine Qwen acquisition/restart acceptance. Their existing test assertions,
 toolchain/model pins and finite budgets are preserved. Artifacts contain JUnit
 reports, disposable-world evidence and built JARs as configured in each workflow.
-The standalone adapter smoke is available through `workflow_dispatch`.
+The standalone adapter smoke also runs on relevant `main` pushes and pull requests,
+and remains available through `workflow_dispatch`. It requires successful cold and
+warm phases using the unchanged pinned model and finite adapter budgets, retains
+the candidate/model digests and usage measurements, and uploads bounded evidence.
+The source failure audit and corresponding public coverage are recorded in
+[CI_FAILURE_AUDIT.md](CI_FAILURE_AUDIT.md).
 
 ## Public snapshot regression
 
