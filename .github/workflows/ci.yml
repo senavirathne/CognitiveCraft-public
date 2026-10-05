@@ -740,7 +740,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import shutil, xml.etree.ElementTree as ET
+          import json, shutil, xml.etree.ElementTree as ET
           root = Path('fabric/build/gametest-run')
           cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
                    if c.get('name', '').startswith('ai_villages_tests:')]
@@ -754,7 +754,26 @@ jobs:
           evidence = Path('fabric/build/gametest-evidence')
           shutil.copy2(root/'gametest-results.xml', evidence/'nearest-fake.xml')
           shutil.copy2(root/'logs/latest.log', evidence/'nearest-fake.log')
-          print('Verified 47 distinct project GameTests / 73 successful executions, including injected-NLU nearest binding')
+          counts = {'cold':14,'warm':14,'gateway-cold':10,'gateway-warm':10,'controller':20,
+                    'interruption-cold':1,'interruption-warm':1,'hardkill-setup':1,'hardkill-warm':1,
+                    'identity-cold':1,'identity-warm':1,'nearest-fake':1}
+          names, executions = set(), 0
+          for phase, expected in counts.items():
+              phase_cases = [c for c in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
+                             if c.get('name', '').startswith('ai_villages_tests:')]
+              phase_names = {c.get('name') for c in phase_cases}
+              if (len(phase_cases) != expected or len(phase_names) != expected
+                      or any(c.find(tag) is not None for c in phase_cases
+                             for tag in ('failure','error','skipped'))):
+                  raise SystemExit('Missing, duplicate or unsuccessful final coverage in ' + phase)
+              names.update(phase_names)
+              executions += len(phase_cases)
+          if len(names) != 48 or executions != 75:
+              raise SystemExit('Expected 48 distinct / 75 successful project GameTest executions')
+          summary = {'schema':1, 'distinctCases':len(names), 'successfulExecutions':executions,
+                     'phaseCounts':counts, 'caseNames':sorted(names)}
+          (evidence / 'coverage-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          print(f'Verified {len(names)} distinct project GameTests / {executions} successful executions, including injected-NLU nearest binding')
           PY
       - name: Preserve verified IMP-008 mod JAR
         uses: actions/upload-artifact@v4

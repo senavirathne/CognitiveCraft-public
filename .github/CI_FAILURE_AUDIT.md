@@ -42,7 +42,13 @@ acquisition/restart PR gates passed as well. See
 [PR #1](https://github.com/senavirathne/CognitiveCraft-public/pull/1) for the exact
 successful runs and artifact evidence.
 
-This follow-up changes CI triggers and evidence collection only. It retains all
+The merged public main run also exposed stale final CI reporting: its nearest
+step printed 47 distinct cases / 73 executions after the saved reports had reached
+48 / 75. The final verifier now reads every successful phase XML, requires those
+actual totals with no missing, duplicate, failed or skipped cases, and uploads
+`coverage-summary.json`. Earlier per-fixture and process-boundary checks remain.
+
+This follow-up changes CI triggers and evidence verification only. It retains all
 production/test Java, toolchain versions, model pins and existing generation
 assertions. The newly automated adapter gate requires exactly one successful cold
 and warm phase, stable model digest, finite attempts and bounded input/output;

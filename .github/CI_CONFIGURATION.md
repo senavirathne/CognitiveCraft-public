@@ -42,6 +42,8 @@ warm phases using the unchanged pinned model and finite adapter budgets, retains
 the candidate/model digests and usage measurements, and uploads bounded evidence.
 The source failure audit and corresponding public coverage are recorded in
 [CI_FAILURE_AUDIT.md](CI_FAILURE_AUDIT.md).
+Full verification's final saved XML aggregate requires 48 distinct Minecraft
+fixtures and 75 successful executions and retains `coverage-summary.json`.
 
 ## Public snapshot regression
 
