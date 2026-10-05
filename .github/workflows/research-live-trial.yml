@@ -1,0 +1,184 @@
+name: Research local-model physical trial
+
+on:
+  push:
+    branches: [imp-006-research-admission, imp-008-citizen-identity, imp-009-needle-intent]
+    paths:
+      - 'core/**'
+      - 'providers/**'
+      - 'fabric/**'
+      - '.github/workflows/research-live-trial.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'providers/**'
+      - 'fabric/**'
+      - '.github/workflows/research-live-trial.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognitivecraft-live-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-model-trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - name: Select the isolated research acquisition proof
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          testmod['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.ResearchGameTests']
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          print('Model workflow GameTests:', testmod['entrypoints']['fabric-gametest'])
+          PY
+      - name: Start pinned local Ollama and acquire explicit test model
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:11434/api/version && break
+            sleep 2
+          done
+          docker exec cognitivecraft-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+          curl --fail --silent http://127.0.0.1:11434/api/tags | python3 -c 'import json,sys; data=json.load(sys.stdin); assert any(m["name"]=="qwen3:4b-instruct-2507-q4_K_M" for m in data["models"])'
+          curl --fail --silent --show-error http://127.0.0.1:11434/api/generate \
+            --header 'Content-Type: application/json' \
+            --data '{"model":"qwen3:4b-instruct-2507-q4_K_M","stream":false,"keep_alive":"30m"}' \
+            | python3 -c 'import json,sys; assert json.load(sys.stdin)["done"]'
+      - name: Genuine research acquisition and physical admission
+        timeout-minutes: 16
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify and retain isolated research evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, shutil, xml.etree.ElementTree as ET
+          root = Path('fabric/build/gametest-run')
+          report = root/'gametest-results.xml'
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or not cases[0].get('name','').endswith('research_game_tests_research_admits_only_after_physical_delivery') or any(
+                  c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected one passing genuine research acquisition case')
+          log = (root/'logs/latest.log').read_text()
+          if 'IMP-006 local model response: role=INITIAL outcome=CANDIDATE' not in log or 'IMP-006 physical trial: model=qwen3:4b-instruct-2507-q4_K_M' not in log:
+              raise SystemExit('Missing actual generation and physical admission evidence')
+          evidence = Path('fabric/build/research-evidence'); evidence.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(report,evidence/'research-cold.xml')
+          shutil.copy2(root/'logs/latest.log',evidence/'research-cold.log')
+          print('research evidence phase=research-cold cases=1 xmlSha256='+hashlib.sha256(report.read_bytes()).hexdigest())
+          shutil.move(str(root),'fabric/build/research-only-gametest-run')
+          PY
+      - name: Select bootstrap acquisition and saved-world probe
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          metadata = json.loads(path.read_text())
+          metadata['entrypoints']['fabric-gametest'] = [
+              'dev.aivillages.fabric.BootstrapGameTests',
+              'dev.aivillages.fabric.ServerRestartProbeGameTests',
+          ]
+          path.write_text(json.dumps(metadata,indent=2)+'\n')
+          PY
+      - name: Synthesize and admit in a fresh bootstrap Minecraft server
+        timeout-minutes: 16
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+          COGNITIVECRAFT_RESTART_PROBE: cold
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify and retain model-backed bootstrap acquisition
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, shutil, xml.etree.ElementTree as ET
+          root = Path('fabric/build/gametest-run')
+          report = root/'gametest-results.xml'
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name','').startswith('ai_villages_tests:')]
+          name = 'bootstrap_game_tests_bootstrap_physical_acquisition_and_owner_reload_reuse'
+          if len(cases)!=2 or not any(c.get('name','').endswith(name) for c in cases) or any(
+                  c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected bootstrap acquisition and restart probe to pass')
+          evidence = Path('fabric/build/research-evidence')
+          shutil.copy2(report,evidence/'bootstrap-cold.xml')
+          shutil.copy2(root/'logs/latest.log',evidence/'bootstrap-cold.log')
+          print('research evidence phase=bootstrap-cold cases=2 xmlSha256='+hashlib.sha256(report.read_bytes()).hexdigest())
+          PY
+      - name: Stop and verify local model service is unavailable
+        run: |
+          docker exec cognitivecraft-ollama ollama list
+          docker exec cognitivecraft-ollama du -sb /root/.ollama/models
+          docker stop cognitivecraft-ollama
+          test "$(docker inspect --format='{{.State.Running}}' cognitivecraft-ollama)" = false
+          if curl --silent --max-time 2 http://127.0.0.1:11434/api/version >/dev/null; then
+            echo 'Model endpoint is still reachable' >&2
+            exit 1
+          fi
+      - name: Restart Minecraft with the model unavailable and reuse admitted knowledge
+        timeout-minutes: 10
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: warm
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify model-free physical reuse after process restart
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, shutil, xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          root = ET.parse(report).getroot()
+          name = 'bootstrap_game_tests_bootstrap_physical_acquisition_and_owner_reload_reuse'
+          cases = [c for c in root.iter('testcase') if c.get('name', '').endswith(name)]
+          if len(cases) != 1 or any(c.find('failure') is not None or c.find('error') is not None
+                                    or c.find('skipped') is not None for c in cases):
+              raise SystemExit(f'Model-free restart proof did not pass: {name} ({len(cases)})')
+          print('Verified separate-server, model-free GameTest:', cases[0].get('name'))
+          project = [c for c in root.iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(project)!=2 or any(c.find(t) is not None for c in project for t in ('failure','error','skipped')):
+              raise SystemExit('Expected model-free bootstrap reuse and saved-world probe to pass')
+          evidence = Path('fabric/build/research-evidence')
+          shutil.copy2(report,evidence/'bootstrap-warm.xml')
+          shutil.copy2(report.parent/'logs/latest.log',evidence/'bootstrap-warm.log')
+          print('research evidence phase=bootstrap-warm cases=2 xmlSha256='+hashlib.sha256(report.read_bytes()).hexdigest())
+          PY
+      - name: Preserve logs and model identity
+        if: always()
+        run: |
+          docker inspect cognitivecraft-ollama --format='{{.Config.Image}}' || true
+          docker inspect cognitivecraft-ollama --format='running={{.State.Running}}' || true
+          docker logs --tail 80 cognitivecraft-ollama || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: research-trial-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            fabric/build/research-evidence/
+            fabric/build/research-only-gametest-run/gametest-results.xml
+            fabric/build/research-only-gametest-run/logs/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/
+            fabric/build/gametest-run/crash-reports/

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "ai_villages_tests",
+  "version": "0.1.0",
+  "name": "AI Villages GameTests",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": [
+      "dev.aivillages.fabric.FarmingGameTests",
+      "dev.aivillages.fabric.GatewayGameTests",
+      "dev.aivillages.fabric.ResearchGameTests",
+      "dev.aivillages.fabric.BootstrapGameTests",
+      "dev.aivillages.fabric.BootstrapAcceptanceGameTests",
+      "dev.aivillages.fabric.BootstrapStorageGameTests",
+      "dev.aivillages.fabric.BootstrapInterruptionGameTests",
+      "dev.aivillages.fabric.ServerRestartProbeGameTests",
+      "dev.aivillages.fabric.KernelCommandGameTests",
+      "dev.aivillages.fabric.KernelSuggestionGameTests",
+      "dev.aivillages.fabric.BootstrapRecoveryGameTests",
+      "dev.aivillages.fabric.BootstrapHardKillGameTests",
+      "dev.aivillages.fabric.BootstrapBlockerGameTests",
+      "dev.aivillages.fabric.CitizenIdentityGameTests",
+      "dev.aivillages.fabric.NeedleLanguageGameTests",
+      "dev.aivillages.fabric.WorldReferenceGameTests"
+    ]
+  },
+  "depends": {
+    "ai_villages": "*",
+    "fabric-gametest-api-v1": "*"
+  }
+}

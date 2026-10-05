@@ -1,0 +1,43 @@
+name: Local generation smoke
+
+on:
+  push:
+    branches: [imp-005-local-generation-adapter]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - name: Start pinned Ollama runtime and acquire explicit test model
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:11434/api/version && break
+            sleep 2
+          done
+          docker exec cognitivecraft-ollama ollama pull qwen2.5:1.5b-instruct
+          curl --fail --silent http://127.0.0.1:11434/api/tags | python3 -c 'import json,sys; data=json.load(sys.stdin); assert any(m["name"]=="qwen2.5:1.5b-instruct" for m in data["models"])'
+      - name: Genuine cold and warm structured candidates
+        timeout-minutes: 8
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen2.5:1.5b-instruct
+        run: bash ./gradlew --no-daemon --stacktrace :providers:runGenerationLiveSmoke
+      - name: Report installed model and host storage
+        if: always()
+        run: |
+          docker exec cognitivecraft-ollama ollama list || true
+          docker inspect cognitivecraft-ollama --format='{{.Config.Image}}' || true
