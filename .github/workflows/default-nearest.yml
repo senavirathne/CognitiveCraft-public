@@ -1,7 +1,7 @@
 name: Default nearest physical acceptance
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feature/default-nearest-world-references]
     paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
   workflow_dispatch:
 permissions:

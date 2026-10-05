@@ -3,7 +3,7 @@ on:
   push:
     branches: [imp-009-needle-intent]
   pull_request:
-    branches: [main]
+    branches: [main, feature/default-nearest-world-references]
     paths: ['core/**', 'providers/**', 'fabric/**', 'tools/needle/**', '.github/workflows/needle-language.yml']
   workflow_dispatch:
 permissions:

@@ -9,7 +9,7 @@ on:
       - 'fabric/**'
       - '.github/workflows/research-live-trial.yml'
   pull_request:
-    branches: [main]
+    branches: [main, feature/default-nearest-world-references]
     paths:
       - 'core/**'
       - 'providers/**'

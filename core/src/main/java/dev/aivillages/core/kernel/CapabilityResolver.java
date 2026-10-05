@@ -52,6 +52,8 @@ public final class CapabilityResolver {
         Page page(CapabilityId capability, String afterSha256, int pageSize);
         Optional<ArtifactDescriptor> descriptor(ArtifactRef ref);
         long revision();
+        /** Limiting evidence for an empty incomplete page; it never establishes a synthesis gap. */
+        default Reason incompleteReason() { return Reason.STORAGE_UNAVAILABLE; }
     }
     public static CandidateSource exactCatalog(VersionedSkillRepository repository) {
         Objects.requireNonNull(repository);
@@ -303,6 +305,12 @@ public final class CapabilityResolver {
                     int size = Math.min(limits.pageSize(), limits.maxCandidates() - counter.work);
                     Page page = source.page(id, cursor, size);
                     counter.queries++;
+                    if (page != null && page.revision()>=0 && page.candidates().isEmpty() && !page.complete()) {
+                        Reason reason = source.incompleteReason();
+                        if (reason != Reason.STORAGE_UNAVAILABLE && reason != Reason.BUDGET_EXHAUSTED
+                                && reason != Reason.STALE_OBSERVATION) reason = Reason.STORAGE_UNAVAILABLE;
+                        return new Scan(source, List.of(), page.revision(), false, reason);
+                    }
                     if (page == null || page.candidates().size() > size || page.candidates().isEmpty()
                             && !page.complete() || page.revision() < 0
                             || revision >= 0 && revision != page.revision())
