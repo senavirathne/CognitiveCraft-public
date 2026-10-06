@@ -311,7 +311,9 @@ public final class CitizenIdentityGameTests {
                     session = new KernelSession(h.getLevel().getServer(), world); phase = 21;
                 }
                 case 21 -> {
-                    identityReady(); duplicateAndPrivacy(true);
+                    identityReady();
+                    if (jobsMode) h.assertTrue(session.jobsReady(),"Waiting for durable job interruption publication");
+                    duplicateAndPrivacy(true);
                     require(session.citizen(owner, actor.citizenId()).owner().equals(ownerContext)
                             && session.citizen(other, actorB.citizenId()).owner().equals(foreignContext),
                             "Saved owner scope changed");

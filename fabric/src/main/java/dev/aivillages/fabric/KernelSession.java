@@ -550,6 +550,7 @@ public final class KernelSession implements AutoCloseable {
     public CitizenRegistry.Addresses address(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.address(citizenId, caller(player));
     }
+    boolean jobsReady() { return jobs != null && jobs.ready(); }
     boolean identityReady() { return citizens != null && citizens.ready(); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.query(citizenId, caller(player));

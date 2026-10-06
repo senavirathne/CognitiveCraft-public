@@ -317,7 +317,7 @@ public final class BootstrapController {
             jobs.tick();
             if (jobs.unavailableReason() == Reason.STORAGE_UNAVAILABLE && !storageFailed) failStorage();
             if (!jobs.ready()) return;
-            if (active != null && active.cancelRequested && !active.cancelPending && !active.finishing) {
+            if (active != null && active.cancelRequested && !active.cancelPending && !active.cancelRequested && !active.finishing) {
                 var job = jobs.query(active.jobId, active.owner);
                 var cancelled = jobs.cancel(job.id(), job.guard(), active.owner);
                 if (cancelled.accepted()) active.cancelPending = true;
@@ -484,7 +484,7 @@ public final class BootstrapController {
 
     public List<UUID> cancellableRunIds(TrustedContext caller) {
         thread(); Objects.requireNonNull(caller);
-        return active != null && active.phase != Phase.TERMINAL && !active.cancelPending && !active.finishing
+        return active != null && active.phase != Phase.TERMINAL && !active.cancelPending && !active.cancelRequested && !active.finishing
                 && owned(active.marker.citizenId(), caller) ? List.of(active.id) : List.of();
     }
 
