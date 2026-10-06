@@ -258,12 +258,15 @@ final class JobLifecycleStoreTest {
         var s=new Scene(); var leaves=new ArrayList<Job>(); var branches=new ArrayList<Job>();
         for(int i=0;i<8;i++)leaves.add(s.create(1));
         for(int i=0;i<7;i++)branches.add(s.create(1,leaves.stream().map(Job::id).toList()));
-        UUID id=UUID.randomUUID(); Snapshot before=s.store.snapshot();
-        var allowed=s.store.create(id,id,request(s.actor,1),s.owner,observation(),limits(11_000),branches.stream().map(Job::id).toList());
-        assertTrue(allowed.accepted(),allowed.toString()); assertTrue(allowed.inspectedEdges()<=64); s.settle();
-        Job extra=s.create(1,leaves.stream().map(Job::id).toList()); Job root=s.store.query(id,s.owner); before=s.store.snapshot();
-        var rejected=s.store.addDependency(id,root.guard(),extra.id(),s.owner);
-        assertEquals(Reason.BUDGET_EXHAUSTED,rejected.reason()); assertTrue(rejected.inspectedEdges()<=64);
+        var exact=new ArrayList<UUID>(branches.stream().map(Job::id).toList());exact.add(leaves.getFirst().id());
+        UUID id=UUID.randomUUID();
+        var allowed=s.store.create(id,id,request(s.actor,1),s.owner,observation(),limits(11_000),exact);
+        assertTrue(allowed.accepted(),allowed.toString());assertEquals(64,allowed.inspectedEdges());s.settle();
+        Job extra=s.create(1,List.of(leaves.getFirst().id()));
+        var excess=new ArrayList<UUID>(branches.stream().map(Job::id).toList());excess.add(extra.id());
+        Snapshot before=s.store.snapshot();UUID rejectedId=UUID.randomUUID();
+        var rejected=s.store.create(rejectedId,rejectedId,request(s.actor,1),s.owner,observation(),limits(11_000),excess);
+        assertEquals(Reason.BUDGET_EXHAUSTED,rejected.reason());assertEquals(64,rejected.inspectedEdges());
         assertEquals(before,s.store.snapshot());
     }
     @Test void parentChargesSurviveChildCancellationSiblingCreationAndRetry() {
