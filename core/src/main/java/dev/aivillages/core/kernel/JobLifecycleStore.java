@@ -495,7 +495,7 @@ public final class JobLifecycleStore {
         if (written != null) {
             if (pending == null || written.error() != null || !pending.equals(written.snapshot())
                     || written.completedAt() > deadline) {
-                fenced = true; failure = Reason.STORAGE_UNAVAILABLE; pending = null; afterWrite = null; return;
+                fenced = true; failure = Reason.STORAGE_UNAVAILABLE; afterWrite = null; return;
             }
             state = pending; pending = null;
             Runnable after = afterWrite; afterWrite = null;
@@ -504,7 +504,7 @@ public final class JobLifecycleStore {
             return;
         }
         if (pending != null) {
-            if (clock.millis() >= deadline) { fenced = true; pending = null; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE; }
+            if (clock.millis() >= deadline) { fenced = true; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE; }
             return;
         }
         for (Job job : state.jobs()) if (job.state() == State.CANCELLING && job.current() != null
@@ -539,7 +539,7 @@ public final class JobLifecycleStore {
                     writes.add(new Written(value, error, clock.millis())));
             return new Change(Code.PENDING, changed, null, inspectedEdges);
         } catch (RuntimeException error) {
-            fenced = true; pending = null; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE;
+            fenced = true; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE;
             return new Change(Code.REJECTED, null, failure, inspectedEdges);
         }
     }
@@ -638,6 +638,8 @@ public final class JobLifecycleStore {
     private void cascade(Map<UUID, Job> rows, UUID id, State terminal, Work work, Set<UUID> visited) {
         if (!visited.add(id)) return;
         Job job = rows.get(id); if (job.state().terminal()) return;
+        if (job.cancellationOutcome() == State.FAILED) terminal = State.FAILED;
+        if (job.state() == State.CANCELLING && job.cancellationOutcome() == terminal) return;
         for (UUID child : job.children()) { work.edge(); cascade(rows, child, terminal, work, visited); }
         boolean open = job.current() != null && job.current().open()
                 || job.children().stream().anyMatch(child -> !rows.get(child).state().terminal());
@@ -728,6 +730,31 @@ public final class JobLifecycleStore {
                 || snapshot.jobs().stream().filter(j -> !j.state().terminal()).count() > settings.active()
                 || snapshot.allocations().size() > settings.allocations()) throw new IllegalArgumentException("Job quota");
         Map<UUID, Job> rows = new HashMap<>(); snapshot.jobs().forEach(j -> rows.put(j.id(), j));
+        for (Allocation allocation : snapshot.allocations()) {
+            Job producer = rows.get(allocation.producer()), demand = rows.get(allocation.demand());
+            if (producer == null || demand == null || producer.id().equals(demand.id())
+                    || !sameBindings(producer.request(), demand.request()))
+                throw new IllegalArgumentException("Allocation scope/bindings");
+            Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt()))
+                    .findFirst().orElseThrow(() -> new IllegalArgumentException("Allocation attempt"));
+            var receipt = attempt.receipts().stream().filter(r -> r.receiptId().equals(allocation.receipt()))
+                    .findFirst().orElseThrow(() -> new IllegalArgumentException("Allocation receipt"));
+            if (attempt.open() || receipt.stage() != CropDelivery.Stage.DEPOSIT)
+                throw new IllegalArgumentException("Unobserved allocation");
+            long receiptSpent = 0, batchSpent = 0, demandSpent = 0;
+            for (Allocation other : snapshot.allocations()) {
+                if (other.receipt().equals(receipt.receiptId())) receiptSpent = Math.addExact(receiptSpent, other.quantity());
+                if (other.producer().equals(producer.id()) && other.attempt().equals(attempt.id())) {
+                    var source = attempt.receipts().stream().filter(r -> r.receiptId().equals(other.receipt())).findFirst();
+                    if (source.isPresent() && source.get().batchId().equals(receipt.batchId())
+                            && source.get().runId().equals(receipt.runId())) batchSpent = Math.addExact(batchSpent, other.quantity());
+                }
+                if (other.demand().equals(demand.id())) demandSpent = Math.addExact(demandSpent, other.quantity());
+            }
+            if (receiptSpent > receipt.wheat() || batchSpent > batchQuantity(attempt.receipts(), receipt.runId(), receipt.batchId())
+                    || Math.addExact(demandSpent, demand.fulfilled()) > ((IntValue)demand.request().request().arguments().get("amount")).value())
+                throw new IllegalArgumentException("Allocation overspent");
+        }
         Set<UUID> attempts = new HashSet<>(), receipts = new HashSet<>(), openWorkers = new HashSet<>();
         for (Job job : snapshot.jobs()) {
             if (!job.request().request().capability().equals(CropDelivery.ID)
@@ -737,7 +764,7 @@ public final class JobLifecycleStore {
                     || !(job.request().request().arguments().get("source") instanceof AreaValue)
                     || !(job.request().request().arguments().get("destination") instanceof ContainerValue))
                 throw new IllegalArgumentException("Bound job request");
-            validateGraphLoad(job.id(), rows, new HashSet<>(), 0, settings.depth());
+            validateGraphLoad(job.id(), rows, new HashSet<>(), 0, settings.depth(), new int[]{0}, settings.edges());
             for (UUID child : job.children())
                 if (!job.dependencies().contains(child) || !job.id().equals(rows.get(child).parent())
                         || !job.origin().equals(rows.get(child).origin())) throw new IllegalArgumentException("Child linkage");
@@ -776,12 +803,14 @@ public final class JobLifecycleStore {
                 throw new IllegalArgumentException("Unattributed job success");
         }
     }
-    private static void validateGraphLoad(UUID id, Map<UUID, Job> rows, Set<UUID> path, int depth, int maximum) {
+    private static void validateGraphLoad(UUID id, Map<UUID, Job> rows, Set<UUID> path, int depth, int maximum, int[] edges, int edgeLimit) {
         if (depth > maximum || !path.add(id)) throw new IllegalArgumentException("Job graph cycle/depth");
         Job job = rows.get(id);
         for (UUID dependency : job.dependencies()) {
             if (!job.origin().equals(rows.get(dependency).origin())) throw new IllegalArgumentException("Foreign dependency");
-            validateGraphLoad(dependency, rows, path, depth + 1, maximum);
+            if (edges[0] == edgeLimit) throw new IllegalArgumentException("Job graph work");
+            edges[0]++;
+            validateGraphLoad(dependency, rows, path, depth + 1, maximum, edges, edgeLimit);
         }
         path.remove(id);
     }

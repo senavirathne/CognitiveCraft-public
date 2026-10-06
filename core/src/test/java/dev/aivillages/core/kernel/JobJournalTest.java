@@ -118,9 +118,11 @@ final class JobJournalTest {
                 State.SUCCEEDED,null,null,job.allowance(),Map.of(),0,List.of(),job.events());
         assertThrows(IllegalArgumentException.class,()->JobLifecycleStore.validateSnapshot(
                 new Snapshot(scene.world,1,List.of(forged),List.of()),Settings.defaults()));
-        var withUnknownRequest=encoded.replace("\"schema\":1,\"version\":1","\"schema\":9,\"version\":1");
-        assertTrue(encoded.contains("\"request\"")); // Nested request decoding owns its exact schema.
-        if(!withUnknownRequest.equals(encoded))assertThrows(Exception.class,()->JobCodec.job(StrictJson.object(withUnknownRequest)));
+        var changed = StrictJson.object(encoded);
+        @SuppressWarnings("unchecked") var bound = (Map<String,Object>) changed.get("request");
+        @SuppressWarnings("unchecked") var request = (Map<String,Object>) bound.get("request");
+        request.put("schema",9L);
+        assertThrows(StrictJson.Invalid.class,()->JobCodec.job(changed));
     }
     @Test void schemaAndDependencyReferencesRoundTripWithoutExecutingOrCallingProviders() throws Exception {
         var scene=new JobLifecycleStoreTest.Scene();Job dependency=scene.create(1);scene.create(1,List.of(dependency.id()));
