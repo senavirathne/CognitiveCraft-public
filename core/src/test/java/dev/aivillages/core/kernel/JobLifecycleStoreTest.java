@@ -595,4 +595,18 @@ final class JobLifecycleStoreTest {
         assertEquals(before,s.store.snapshot());assertTrue(s.store.protectedRoots().artifacts().isEmpty());
     }
 
+    @Test void parentAccountingAndObservedChildTerminationPublishOneGuardedRevision() {
+        var s=new Scene();Job parent=s.create(5);UUID child=UUID.randomUUID();
+        commit(s,s.store.addChildren(parent.id(),parent.guard(),List.of(new Child(child,request(s.actor,5),
+                observation(),limits(11_000),List.of())),s.owner));
+        Job assigned=s.assign(s.store.query(child,s.owner));parent=s.current(parent);
+        commit(s,s.store.cancel(parent.id(),parent.guard(),s.owner));parent=s.current(parent);
+        long before=parent.revision();
+        s.report(s.current(assigned),2,ExecutionStatus.CANCELLED);
+        Job observed=s.current(parent);
+        assertEquals(State.CANCELLED,observed.state());assertEquals(before+1,observed.revision());
+        assertEquals(1,observed.usage().get(Budgets.Kind.CALLS));assertEquals(2,s.current(assigned).fulfilled());
+        assertTrue(observed.events().stream().allMatch(e->e.revision()<=observed.revision()));
+    }
+
 }

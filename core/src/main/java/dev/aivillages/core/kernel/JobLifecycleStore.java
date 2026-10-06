@@ -535,13 +535,26 @@ public final class JobLifecycleStore {
                            Runnable after, int inspectedEdges) {
         try {
             if (!ready()) return new Change(Code.REJECTED, null, unavailableReason(), inspectedEdges);
+            // Propagation can update accounting and state in the same transaction.
+            // Publish one revision per changed job, including its bounded event summaries.
+            for (Job prior : state.jobs()) {
+                Job updated = rows.get(prior.id());
+                if (updated != null && updated.revision() > Math.addExact(prior.revision(),1)) {
+                    long revision = Math.addExact(prior.revision(),1);
+                    var events = updated.events().stream().map(event -> event.revision() > prior.revision()
+                            ? new Event(revision,event.kind(),event.attempt(),event.generation()) : event).toList();
+                    rows.put(updated.id(),new Job(updated.id(),updated.submissionId(),revision,updated.request(),updated.parent(),
+                            updated.dependencies(),updated.children(),updated.state(),updated.reason(),updated.cancellationOutcome(),
+                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events));
+                }
+            }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
                     List.copyOf(rows.values()), allocations);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
             pending = next; afterWrite = after;
             storage.replace(state, next).whenComplete((value, error) ->
                     writes.add(new Written(value, error, clock.millis())));
-            return new Change(Code.PENDING, changed, null, inspectedEdges);
+            return new Change(Code.PENDING, changed == null ? null : rows.get(changed.id()), null, inspectedEdges);
         } catch (RuntimeException error) {
             fenced = true; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE;
             return new Change(Code.REJECTED, null, failure, inspectedEdges);
