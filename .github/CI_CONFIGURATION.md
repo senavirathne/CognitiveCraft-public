@@ -25,10 +25,11 @@ installed or configured by the workflows. No paid model endpoint is used.
 | --- | --- |
 | `capability-retrieval.yml` | None; retrieval and its resolver/repository tests run without models |
 | `ci.yml` | `COGNITIVECRAFT_RESTART_PROBE`, `COGNITIVECRAFT_BOOTSTRAP_RESTART`, `COGNITIVECRAFT_BOOTSTRAP_CRASH`, `COGNITIVECRAFT_IDENTITY_RESTART` select cold/warm disposable-world fixtures; `JAVA_TOOL_OPTIONS` enables test tracing |
+| `job-lifecycle.yml` | `COGNITIVECRAFT_JOB_RESTART=cold/warm` selects two separate model-disabled Minecraft processes; `JAVA_TOOL_OPTIONS` enables tracing; no secrets or repository variables |
 | `citizen-identity.yml` | `COGNITIVECRAFT_IDENTITY_RESTART=cold/warm`; test tracing |
 | `default-nearest.yml` | Test tracing through `JAVA_TOOL_OPTIONS` |
 | `needle-language.yml` | `NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`; `COGNITIVECRAFT_NEEDLE_DIR` points to assets installed under the automatically supplied `RUNNER_TEMP`; test tracing |
-| `research-live-trial.yml` | `COGNITIVECRAFT_OLLAMA_MODEL=qwen3:4b-instruct-2507-q4_K_M`; cold/warm bootstrap fixture selectors |
+| `research-live-trial.yml` | `COGNITIVECRAFT_OLLAMA_MODEL=qwen3:4b-instruct-2507-q4_K_M`; cold/warm bootstrap fixture selectors; navigation tracing through `JAVA_TOOL_OPTIONS` |
 | `local-generation-smoke.yml` | `COGNITIVECRAFT_OLLAMA_MODEL=qwen2.5:1.5b-instruct`; real adapter cold/warm smoke |
 
 The IMP-010 branch push starts full verification and retrieval acceptance. A pull
@@ -65,8 +66,10 @@ existing owners.
 
 ## Next implementation gate
 
-IMP-011 (Job Lifecycle Store) remains pending. Subsequent pending P1 boundaries are
-IMP-012 leases, IMP-013 dispatch, IMP-014 AI brokerage, IMP-015 compatibility,
+IMP-011 introduces the bounded Job Lifecycle Store and architecture extension 0.2.
+Its exports and downstream bindings are in [IMP-011-contracts.md](implementation/IMP-011-contracts.md);
+validation and completion evidence are in [IMP-011-report.md](implementation/IMP-011-report.md).
+The next gate is IMP-012 leases, IMP-013 dispatch, IMP-014 AI brokerage, IMP-015 compatibility,
 IMP-016 retention and IMP-029 citizen lifecycle reconciliation. Later P2/P3 work
 depends on those contracts. Run only the applicable bounded task and acceptance
 gates against this public repository; historical source checks are evidence for

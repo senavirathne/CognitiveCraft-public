@@ -124,7 +124,7 @@ public final class KernelSuggestionGameTests {
                     ready();
                     foreignTicket = session.ask(other, text()).id();
                     require(session.interpretationStatus(other, foreignTicket).phase() == LanguageRequests.Phase.UNAVAILABLE,
-                            "Expected retained unavailable foreign ticket");
+                            "Expected retained unavailable foreign ticket: " + session.interpretationStatus(other, foreignTicket));
                     session.inference(true);
                     cancelledTicket = ask();
                     require(command(ownerSource, "aivillage kernel cancel " + cancelledTicket) == 1,

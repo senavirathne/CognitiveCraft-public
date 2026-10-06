@@ -38,7 +38,8 @@ public final class KernelSession implements AutoCloseable {
                           VersionedSkillRepository repository,
                           ResearchAdmissionController.DecisionGuard guard,
                           CitizenIdentityStore identities, CitizenRegistry.Snapshot initialIdentities,
-                          boolean identityReadOnly, CapabilityRetrievalIndex retrieval) { }
+                          boolean identityReadOnly, CapabilityRetrievalIndex retrieval,
+                          JobJournal jobs, Jobs.Snapshot initialJobs, boolean jobsReadOnly) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -58,6 +59,7 @@ public final class KernelSession implements AutoCloseable {
     private SurvivalGateway gateway;
     private FabricGatewayWorld worldAccess;
     private CitizenRegistry citizens;
+    private JobLifecycleStore jobs;
     private final Map<UUID, CitizenRegistry.Availability> availabilityFacts = new LinkedHashMap<>();
     private UUID pendingEnrollmentEntity;
     private int availabilityCursor;
@@ -90,6 +92,7 @@ public final class KernelSession implements AutoCloseable {
                 ? Optional.of(CropDelivery.SPEC) : Optional.empty();
         opening = CompletableFuture.supplyAsync(() -> {
             BootstrapJournal journal = null;
+            JobJournal jobs = null;
             CitizenIdentityStore identities = null;
             VersionedSkillRepository repository = null;
             CapabilityRetrievalIndex retrieval = null;
@@ -104,6 +107,7 @@ public final class KernelSession implements AutoCloseable {
                         throw new IllegalStateException("Referenced citizen registry is missing");
                     journal.migrateIdentity(identities.snapshot());
                 }
+                jobs = JobJournal.open(world, journal.state().worldId());
                 var guard = new ResearchAdmissionController.DecisionGuard();
                 repository = VersionedSkillRepository.open(world,
                         new VersionedSkillRepository.RuntimeSnapshot("minecraft-26.3",
@@ -118,10 +122,13 @@ public final class KernelSession implements AutoCloseable {
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
                         capabilities, CapabilityRetrievalIndex.Limits.defaults(), () -> System.nanoTime() / 1_000_000);
                 return new Loaded(journal, journal.state(), repository, guard, identities,
-                        identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval);
+                        identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
+                        jobs, jobs.snapshot(), jobs.readOnly());
             } catch (Exception failure) {
                 if (retrieval != null) retrieval.close();
                 if (repository != null) try { repository.close(); }
+                catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
+                if (jobs != null) try { jobs.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (identities != null) try { identities.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
@@ -199,7 +206,21 @@ public final class KernelSession implements AutoCloseable {
                     return model.generate(request, limits, usage);
                 }, new CropFixtureRunner(staging, capabilities, primitives,
                         CapabilityResolver.enrolledWorldSkills(control), worker, clock),
-                new ResearchAdmissionController.ExecutorTrialPort(executor), staging, grants,
+                new ResearchAdmissionController.TrialPort() {
+                    final ResearchAdmissionController.ExecutorTrialPort delegate =
+                            new ResearchAdmissionController.ExecutorTrialPort(executor);
+                    @Override public boolean prepare(ValidatedRequest request, RunCorrelation correlation,
+                                                     List<ArtifactRef> pinned) {
+                        return controller.prepareTrial(request, correlation, pinned);
+                    }
+                    @Override public BoundedSkillExecutor.Start start(ValidatedRequest request, ArtifactRef ref,
+                            RunCorrelation correlation, Budgets.ExecutionLimits limits, Budgets.Ledger usage,
+                            BoundedSkillExecutor.TrialPermit permit) {
+                        return delegate.start(request, ref, correlation, limits, usage, permit);
+                    }
+                    @Override public BoundedSkillExecutor.Progress tick(TrustedContext owner) { return delegate.tick(owner); }
+                    @Override public BoundedSkillExecutor.Progress cancel(TrustedContext owner) { return delegate.cancel(owner); }
+                }, staging, grants,
                 ResearchAdmissionController.repositoryPublication(repository, worker),
                 loaded.guard(), resolver, control, authority, clock, worker,
                 new ResearchAdmissionController.Settings(2, 8, 2_048));
@@ -222,6 +243,13 @@ public final class KernelSession implements AutoCloseable {
                 return gatewayWorld().container(destination).status() != ObservationStatus.UNKNOWN;
             }
         };
+        jobs = new JobLifecycleStore(loaded.initialJobs(), (expected, next) ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return loaded.jobs().replace(expected, next); }
+                    catch (Exception failure) { throw new IllegalStateException(failure); }
+                }, worker), JobLifecycleStore.privateJobs(this::controls),
+                cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
+                clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
         controller = new BootstrapController(loaded.initialState(),
                 (expected, enrollment, runs) -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -243,7 +271,12 @@ public final class KernelSession implements AutoCloseable {
                             return attempt.cancel(owner);
                         }
                     };
-                }, (bound, ref, id, limits, usage) -> {
+                }, new BootstrapController.Execution() {
+                    @Override public List<ArtifactRef> pinned(ArtifactRef ref) {
+                        return JobArtifactPins.closure(repository.find(ref).orElseThrow(), repository);
+                    }
+                    @Override public BootstrapController.Execution.Start start(ValidatedRequest bound, ArtifactRef ref,
+                            UUID id, Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
                     var started = executor.startAdmitted(bound, ref,
                             new RunCorrelation(id, ref, null), limits, usage);
                     if (started instanceof BoundedSkillExecutor.Rejected rejected)
@@ -264,7 +297,7 @@ public final class KernelSession implements AutoCloseable {
                                     return run.interrupt(owner);
                                 }
                             }, null);
-                }, environment, capabilities, this::researchLimits, this::executionLimits, clock, citizens);
+                }}, environment, capabilities, this::researchLimits, this::executionLimits, clock, citizens, jobs);
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
             @Override public List<String> references(TrustedContext caller) {
@@ -395,6 +428,11 @@ public final class KernelSession implements AutoCloseable {
         return actor;
     }
     public BootstrapJournal.Enrollment enrollment() { ready(); return controller.enrollment(); }
+    /** Scoped responsibility view corresponding to a submitted run; no identifier grants access. */
+    public Optional<Jobs.Job> job(UUID submission, TrustedContext caller) {
+        ready(); return jobs.bySubmission(submission, caller);
+    }
+    public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
     public String scope(UUID principal) {
         ready();
         return loaded.initialState().worldId() + "/" + principal;
@@ -512,6 +550,7 @@ public final class KernelSession implements AutoCloseable {
     public CitizenRegistry.Addresses address(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.address(citizenId, caller(player));
     }
+    boolean jobsReady() { return jobs != null && jobs.ready(); }
     boolean identityReady() { return citizens != null && citizens.ready(); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.query(citizenId, caller(player));
@@ -577,7 +616,7 @@ public final class KernelSession implements AutoCloseable {
                 opened.retrieval().close();
                 worker.execute(() -> {
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal())) {
+                    for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal(), opened.jobs())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);
