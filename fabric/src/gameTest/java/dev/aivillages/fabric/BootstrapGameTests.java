@@ -477,8 +477,8 @@ public final class BootstrapGameTests {
                     h.assertTrue(!controller.inferenceEnabled(), "Reload must default inference off");
                     h.assertTrue("ADMITTED".equals(controller.status(runId, owner).marker().outcome()),
                             "First fulfillment did not survive reload");
-                    // Fixture relocation places the unchanged actor beside patch B. The
-                    // generated four-primitive method has no movement operation.
+                    // Fixture relocation places the unchanged actor beside patch B.
+                    // Live candidates may navigate, so submission waits for ground contact.
                     var next = absolute(REUSE_POSITION);
                     villager.setPos(next.getX() + 0.5, next.getY(), next.getZ() + 0.5);
                     villager.getNavigation().stop();
@@ -487,6 +487,8 @@ public final class BootstrapGameTests {
                 case 6 -> {
                     h.assertTrue(loadBindings(CROP_B, CROP_B_MAX, CHEST_B),
                             "Waiting for changed-binding chunks to tick");
+                    h.assertTrue(villager.onGround(),
+                            "Waiting for relocated actor to land before offline navigation");
                     warmStartedNanos = System.nanoTime();
                     var submitted = controller.submit(request(6, CROP_B, CROP_B_MAX, CHEST_B), owner);
                     if (!submitted.accepted()) fail("Reuse rejected: " + submitted.reason());
