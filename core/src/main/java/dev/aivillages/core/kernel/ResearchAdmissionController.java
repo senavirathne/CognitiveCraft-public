@@ -33,7 +33,7 @@ public final class ResearchAdmissionController {
             + "as separate calls. Do not transfer before pickup or use any effect twice. "
             + "Give each call a distinct into name. End with result={param:amount}. ";
     public enum Phase {
-        QUARANTINING, GENERATING, VALIDATING, FIXTURING, TRIALING,
+        QUARANTINING, GENERATING, VALIDATING, FIXTURING, PREPARING_TRIAL, TRIALING,
         PUBLISHING, CANCELLING, TERMINAL
     }
     public record Settings(int maxCandidates, int maxDiagnostics, int maxContextBytes) {
@@ -60,6 +60,8 @@ public final class ResearchAdmissionController {
     }
     /** The implementation drives IMP-003's restricted trial on the server thread. */
     public interface TrialPort {
+        default boolean prepare(ValidatedRequest request, RunCorrelation correlation,
+                                List<ArtifactRef> pinned) { return true; }
         BoundedSkillExecutor.Start start(ValidatedRequest request, ArtifactRef ref,
                 RunCorrelation correlation, Budgets.ExecutionLimits limits, Budgets.Ledger usage,
                 BoundedSkillExecutor.TrialPermit permit);
@@ -354,6 +356,7 @@ public final class ResearchAdmissionController {
         private SkillCompiler.CompiledSkill compiled;
         private FixtureEvidence fixture;
         private BoundedSkillExecutor.Summary trialSummary;
+        private RunCorrelation pendingTrial;
         private UUID publicationDecision;
         private UUID quarantineDecision;
         private boolean quarantinePending;
@@ -457,6 +460,7 @@ public final class ResearchAdmissionController {
                 stop(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED);
                 return status(caller);
             }
+            if (phase == Phase.PREPARING_TRIAL) { startPreparedTrial(); return status(caller); }
             if (phase == Phase.TRIALING) {
                 BoundedSkillExecutor.Progress progress = trials.tick(bound.context());
                 if (progress.phase() == BoundedSkillExecutor.Phase.TERMINAL) {
@@ -571,6 +575,14 @@ public final class ResearchAdmissionController {
             if (publication.revision() != catalogRevision) {
                 finish(ResearchStatus.BLOCKED, Reason.STALE_OBSERVATION); return;
             }
+            pendingTrial = new RunCorrelation(UUID.randomUUID(), compiled.artifact().descriptor().ref(), id);
+            phase = Phase.PREPARING_TRIAL;
+            startPreparedTrial();
+        }
+        private void startPreparedTrial() {
+            List<ArtifactRef> pinned = JobArtifactPins.closure(compiled.artifact().descriptor(), artifacts);
+            try { if (!trials.prepare(bound, pendingTrial, List.copyOf(pinned))) return; }
+            catch (RuntimeException failed) { finish(ResearchStatus.BLOCKED, Reason.STORAGE_UNAVAILABLE); return; }
             try { total.debit(Kind.TRIALS, 1); }
             catch (Budgets.Exhausted exhausted) {
                 finish(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED); return;
@@ -586,7 +598,7 @@ public final class ResearchAdmissionController {
                 BoundedSkillExecutor.TrialPermit permit = grants.issue(artifact.descriptor().ref(), bound,
                         limits.trial());
                 BoundedSkillExecutor.Start started = trials.start(bound, artifact.descriptor().ref(),
-                        new RunCorrelation(UUID.randomUUID(), artifact.descriptor().ref(), id),
+                        pendingTrial,
                         limits.trial(), trialUsage, permit);
                 grants.revoke();
                 if (started instanceof BoundedSkillExecutor.Rejected rejected) {

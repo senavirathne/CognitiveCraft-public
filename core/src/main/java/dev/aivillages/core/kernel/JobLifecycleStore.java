@@ -397,7 +397,7 @@ public final class JobLifecycleStore {
                     : reconciliation ? EventKind.RECONCILED : EventKind.OBSERVED, settings.events());
             rows.put(id, changed);
             // The assignment usage was updated once; ancestor aggregates include the same delta once.
-            for (Job ancestor : ancestors(id, rows)) {
+            if (!delta.isEmpty()) for (Job ancestor : ancestors(id, rows)) {
                 var charged = new Edit(rows.get(ancestor.id()));
                 var amounts = new EnumMap<Budgets.Kind, Long>(Budgets.Kind.class);
                 amounts.putAll(charged.usage);
