@@ -1,0 +1,58 @@
+name: Job lifecycle acceptance
+on:
+  push:
+    branches: [main, feature/imp011-job-lifecycle]
+    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+  pull_request:
+    branches: [main]
+    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cognitivecraft-jobs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  jobs:
+    name: GP-13 durable lifecycle and owner integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Job unit and persistence tests; Fabric build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :fabric:build
+      - name: Require all lifecycle and persistence matrices to execute
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = Path('core/build/test-results/test')
+          counts = {}
+          for suite, minimum in [('JobLifecycleStoreTest', 80), ('JobJournalTest', 14)]:
+              path = root / ('TEST-dev.aivillages.core.kernel.' + suite + '.xml')
+              cases = list(ET.parse(path).getroot().iter('testcase'))
+              if len(cases) < minimum or any(c.find(t) is not None for c in cases for t in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Missing successful job matrix: ' + suite)
+              counts[suite] = len(cases)
+          evidence = Path('core/build/job-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          result = {'schema': 1, 'architectureExtension': '0.2', 'jobSchema': 1, 'cases': counts}
+          (evidence / 'acceptance.json').write_text(json.dumps(result, indent=2) + '\n')
+          print('IMP-011 pure job acceptance ' + json.dumps(result))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: job-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/
+            core/build/job-evidence/
+            fabric/build/libs/
