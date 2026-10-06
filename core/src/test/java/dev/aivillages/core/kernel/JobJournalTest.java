@@ -14,6 +14,7 @@ import java.util.*;
 
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Jobs.*;
+import static dev.aivillages.core.kernel.Outcomes.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class JobJournalTest {
@@ -136,4 +137,20 @@ final class JobJournalTest {
             assertEquals(2,journal.snapshot().jobs().size());assertEquals(0,scene.notices.size());
         }
     }
+    @Test void forgedAllocationCannotSpendMoreThanActualAttributableOutput() throws Exception {
+        var scene=new JobLifecycleStoreTest.Scene();
+        Job producer=scene.report(scene.assign(scene.create(5)),5,ExecutionStatus.SUCCEEDED);
+        Job demand=scene.create(6);var attempt=producer.current();
+        var deposit=attempt.receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).findFirst().orElseThrow();
+        var forged=new Snapshot(scene.world,scene.memory.state.revision()+1,scene.memory.state.jobs(),
+                List.of(new Allocation(UUID.randomUUID(),producer.id(),attempt.id(),deposit.receiptId(),demand.id(),6)));
+        assertThrows(IllegalArgumentException.class,()->JobLifecycleStore.validateSnapshot(forged,Settings.defaults()));
+        try(var journal=JobJournal.open(world,scene.world)) {
+            var before=journal.snapshot();
+            var bad=new Snapshot(scene.world,1,forged.jobs(),forged.allocations());
+            assertThrows(IllegalArgumentException.class,()->journal.replace(before,bad));
+            assertEquals(before,journal.snapshot());
+        }
+    }
+
 }

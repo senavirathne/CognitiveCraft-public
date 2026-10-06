@@ -52,9 +52,16 @@ public final class CitizenIdentityGameTests {
         });
     }
 
+    /** GP-13 reuses the real scoped command/citizen fixture, adding live job cancellation and uncertain restart. */
+    static void runJobs(GameTestHelper h, boolean warm) {
+        var driver = new Driver(h, warm, true);
+        h.failIfEver(() -> { if (driver.fatal != null) h.fail(driver.fatal); });
+        h.succeedWhen(() -> { driver.step(); h.assertTrue(driver.phase == 30, "Waiting for job phase=" + driver.phase); });
+    }
+
     private static final class Driver {
         final GameTestHelper h;
-        final boolean warm;
+        final boolean warm, jobsMode;
         final Path world;
         final CompletableFuture<Proof> metadata;
         final long startedTick;
@@ -76,14 +83,23 @@ public final class CitizenIdentityGameTests {
         long peakHeapBytes, maxKernelTickNanos;
         int phase, lastReported = -1;
         String fatal;
+        UUID partialCancelled, uncertainRun;
+        long jobQuietUntil;
+        Map<String,Object> jobProof;
+        CompletableFuture<Map<String,Object>> openingJobProof;
         boolean waitingBindings;
 
-        Driver(GameTestHelper h, boolean warm) {
-            this.h = h; this.warm = warm;
+        Driver(GameTestHelper h, boolean warm) { this(h, warm, false); }
+        Driver(GameTestHelper h, boolean warm, boolean jobsMode) {
+            this.h = h; this.warm = warm; this.jobsMode = jobsMode;
             startedTick = h.getLevel().getGameTime();
             world = h.getLevel().getServer().getWorldPath(LevelResource.ROOT)
                     .resolve("cognitivecraft-citizen-identity-fixture");
             metadata = warm ? CompletableFuture.supplyAsync(() -> readProof(world)) : null;
+            if (warm && jobsMode) openingJobProof = CompletableFuture.supplyAsync(() -> {
+                try { return StrictJson.object(Files.readString(world.resolve("job-restart.json"))); }
+                catch (Exception e) { throw new IllegalStateException(e); }
+            });
             if (warm) { phase = 20; return; }
             origin = h.absolutePos(OFFSET);
             BootstrapGameTests.forceFixtureChunks(h, origin);
@@ -243,6 +259,43 @@ public final class CitizenIdentityGameTests {
                     proof = new Proof(actor, actor2, actorB, ownerContext, foreignContext, acquired,
                             namedRun, secondRun, otherRun, cancelled, artifact, origin, archiveDigest.join(),
                             0, ProcessHandle.current().pid());
+                    if (jobsMode) {
+                        plantJobSource(); park(first,7,1); park(second,2,4); park(foreign,2,3);
+                        active = submitJob(); partialCancelled = active; phase = 16;
+                    } else { session.close(); closing = session.storeClosure(); phase = 28; }
+                }
+                case 16 -> {
+                    h.assertTrue(stock(CHEST_B) >= 5, "Waiting for real delivery 2/5 before cancellation");
+                    require(stock(CHEST_B) == 5, "Partial cancellation fixture exceeded two deposits");
+                    require(session.job(active,ownerContext).orElseThrow().state() == Jobs.State.ACTIVE,
+                            "Attempt stopped before durable cancellation");
+                    require(command(ownerSource,"cancel " + active) == 1,"Physical partial cancel rejected");
+                    phase = 17;
+                }
+                case 17 -> {
+                    var status = session.status(owner,active);
+                    h.assertTrue(status.phase() == BootstrapController.Phase.TERMINAL,"Waiting for observed cessation");
+                    var job = session.job(active,ownerContext).orElseThrow();
+                    require(job.state() == Jobs.State.CANCELLED && job.fulfilled() == 2 && job.effects() >= 6
+                            && !job.current().open(),"Partial cancellation lost attributable output or stopped-owner evidence");
+                    require(stock(CHEST_B) == 5,"Cancelled execution kept depositing");
+                    require(session.job(active,foreignContext).isEmpty(),"Guessed job leaked across scopes");
+                    jobQuietUntil = h.getLevel().getGameTime() + 40; phase = 18;
+                }
+                case 18 -> {
+                    h.assertTrue(h.getLevel().getGameTime() >= jobQuietUntil,"Checking cancelled work stays stopped");
+                    require(stock(CHEST_B) == 5,"Cancelled work resumed");
+                    plantJobSource(); active = submitJob(); uncertainRun = active; phase = 19;
+                }
+                case 19 -> {
+                    h.assertTrue(stock(CHEST_B) >= 7,"Waiting for physical effects newer than job metadata");
+                    require(stock(CHEST_B) == 7,"Mismatch fixture exceeded two deposits");
+                    var job = session.job(active,ownerContext).orElseThrow();
+                    require(job.state() == Jobs.State.ACTIVE && job.fulfilled() == 0 && job.current().receipts().isEmpty(),
+                            "Expected committed effects with no terminal metadata acknowledgement");
+                    require(session.jobRoots().artifacts().contains(artifact),"Missing live artifact root");
+                    jobProof = Map.of("schema",1L,"cancelled",partialCancelled.toString(),"uncertain",uncertainRun.toString(),
+                            "job",job.id().toString(),"artifact",artifact.sha256(),"delivered",7L,"process",ProcessHandle.current().pid());
                     session.close(); closing = session.storeClosure(); phase = 28;
                 }
                 case 20 -> {
@@ -267,11 +320,27 @@ public final class CitizenIdentityGameTests {
                     terminal(owner, secondRun, "SUCCEEDED", 0, false);
                     terminal(other, otherRun, "SUCCEEDED", 0, false);
                     terminal(owner, cancelled, "CANCELLED", 0, false);
-                    require(stock(CHEST_A) == 4 && stock(CHEST_B) == 3,
+                    require(stock(CHEST_A) == 4 && stock(CHEST_B) == (jobsMode ? 7 : 3),
                             "Cold physical stock did not survive Minecraft save/reload");
                     require(h.getLevel().getBlockState(origin.offset(FIRST)).isAir()
                             && h.getLevel().getBlockState(origin.offset(LAST)).isAir(), "Cold source reset on reload");
                     require(session.catalog(owner).contains("inference=false"), "Reload enabled inference");
+                    if (jobsMode) {
+                        await(openingJobProof,"Reading durable job mismatch proof"); jobProof=openingJobProof.join();
+                        require(((Number)jobProof.get("process")).longValue()!=ProcessHandle.current().pid(),"Jobs restart reused a JVM");
+                        uncertainRun=UUID.fromString((String)jobProof.get("uncertain"));
+                        partialCancelled=UUID.fromString((String)jobProof.get("cancelled"));
+                        var interrupted=session.job(uncertainRun,ownerContext).orElseThrow();
+                        require(interrupted.state()==Jobs.State.INTERRUPTED && interrupted.current().uncertain()
+                                && interrupted.fulfilled()==0 && interrupted.current().receipts().isEmpty(),
+                                "Reload inferred output from final inventory or released an uncertain reservation");
+                        var cancelledJob=session.job(partialCancelled,ownerContext).orElseThrow();
+                        require(cancelledJob.state()==Jobs.State.CANCELLED && cancelledJob.fulfilled()==2,"Reload lost cancellation accounting");
+                        require(session.job(uncertainRun,foreignContext).isEmpty(),"Reload shared a private job");
+                        require(session.jobRoots().artifacts().contains(artifact),"Reload lost exact artifact root");
+                        require(session.jobRoots().runs().contains(uncertainRun),"Reload lost execution root");
+                        jobQuietUntil=h.getLevel().getGameTime()+80; phase=24; return;
+                    }
                     park(foreign, 2, 3);
                     park(first, 7, 1);
                     active = submit(owner, actor, 7, 1); phase = 22;
@@ -288,9 +357,30 @@ public final class CitizenIdentityGameTests {
                     terminal(owner, cancelled, "CANCELLED", 0, false);
                     session.close(); closing = session.storeClosure(); phase = 28;
                 }
+                case 24 -> {
+                    h.assertTrue(h.getLevel().getGameTime()>=jobQuietUntil,"Observing model-disabled restart without replay");
+                    require(stock(CHEST_B)==7,"Reload replayed uncertain or cancelled physical effects");
+                    require(session.job(uncertainRun,ownerContext).orElseThrow().state()==Jobs.State.INTERRUPTED,
+                            "Uncertain work silently became ready");
+                    session.close();closing=session.storeClosure();phase=28;
+                }
                 case 28 -> {
                     await(closing, "Closing production identity owners");
-                    closing = CompletableFuture.runAsync(() -> verifyFiles(world, proof, warm)); phase = 29;
+                    closing = CompletableFuture.runAsync(() -> {
+                        verifyFiles(world, proof, warm);
+                        if (jobsMode) try {
+                            if (!warm) Files.writeString(world.resolve("job-restart.json"),StrictJson.canonical(jobProof));
+                            try (var journal=JobJournal.open(world,ownerContext.scope().worldId())) {
+                                JobLifecycleStore.validateSnapshot(journal.snapshot(),Jobs.Settings.defaults());
+                                if(journal.readOnly())throw new IllegalStateException("Job snapshot could not recover");
+                                System.out.println("IMP-011 physical accepted warm=" + warm
+                                        + " scopes=2 serialJobs=3 cancelledCredit=2 uncertainCredit=0 delivered=7"
+                                        + " noReplay=true exactRoots=true generationCalls=0 jobSchema=1 architecture=0.2"
+                                        + " jobRecords=" + journal.snapshot().jobs().size()
+                                        + " jobBytes=" + Files.size(world.resolve(JobJournal.WORLD_RELATIVE_PATH).resolve("state.jsonl")));
+                            }
+                        } catch(Exception e) { throw new IllegalStateException(e); }
+                    }); phase = 29;
                 }
                 case 29 -> {
                     await(closing, "Verifying durable schema, migration and history evidence");
@@ -308,6 +398,18 @@ public final class CitizenIdentityGameTests {
             }
         }
 
+        void plantJobSource() {
+            for(int x=6;x<=7;x++)for(int z=1;z<=3;z++) {
+                h.getLevel().setBlockAndUpdate(origin.offset(x,0,z),Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE,7));
+                h.getLevel().setBlockAndUpdate(origin.offset(x,1,z),Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE,7));
+            }
+        }
+        UUID submitJob() {
+            var from=origin.offset(6,1,1);var last=origin.offset(7,1,3);var box=origin.offset(CHEST_B);
+            var result=session.harvest(owner,actor.citizenId(),5,from.getX(),from.getY(),from.getZ(),
+                    last.getX(),last.getY(),last.getZ(),box.getX(),box.getY(),box.getZ());
+            require(result.accepted(),"Bound job request rejected: " + result.reason());return result.id();
+        }
         void players(UUID ownerId, UUID otherId) {
             owner = h.makeMockServerPlayerInLevel(); other = h.makeMockServerPlayerInLevel();
             owner.setUUID(ownerId); other.setUUID(otherId);
@@ -366,6 +468,13 @@ public final class CitizenIdentityGameTests {
             h.assertTrue(status.phase() == BootstrapController.Phase.TERMINAL && status.marker() != null,
                     "Waiting for terminal identity run " + id);
             require(outcome.equals(status.marker().outcome()), "Wrong run outcome: " + status);
+            if(!acquisition) {
+                var context=caller.getUUID().equals(ownerContext.principal().id())?ownerContext:foreignContext;
+                var job=session.job(id,context).orElseThrow();
+                require(job.origin().equals(context) && job.submissionId().equals(id),"Orchestration did not preserve job origin");
+                require(job.state()==("CANCELLED".equals(outcome)?Jobs.State.CANCELLED:Jobs.State.SUCCEEDED),"Job/result state diverged");
+                if(delivered>0)require(job.fulfilled()==delivered,"Job did not credit actual physical receipts");
+            }
             require(acquisition || status.marker().modelCalls() == 0, "Naming/reuse invoked a generation model");
             if (!"CANCELLED".equals(outcome)) require(artifact.sha256().equals(status.marker().artifactSha256()),
                     "Naming changed the acquired artifact reference");
