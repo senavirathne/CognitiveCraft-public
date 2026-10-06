@@ -257,6 +257,10 @@ public final class JobLifecycleStore {
                     if (allowance.maximum(kind) > available(ancestor.id(), kind, rows()))
                         return reject(Reason.BUDGET_EXHAUSTED, work);
             ValidatedRequest bound = remainingRequest(job, worker);
+            var validated = RequestValidator.validate(bound.request(), job.origin(), bound.observation(), capabilities, environment);
+            if (validated instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
+            if (artifact != null && !artifact.capability().equals(bound.request().capability()))
+                return reject(Reason.REQUEST_INVALID, work);
             var references = artifact == null ? List.<ExecutionReference>of()
                     : List.of(new ExecutionReference(attemptId, artifact, pinned));
             long generation = Math.addExact(job.generation(), 1);
@@ -719,6 +723,9 @@ public final class JobLifecycleStore {
             stages[receipt.stage().ordinal()] = Math.addExact(stages[receipt.stage().ordinal()], receipt.wheat());
         return Math.min(stages[0], Math.min(stages[1], stages[2]));
     }
+    private static Map<String,Value> withWorker(Map<String,Value> original, ActorRef worker) {
+        var values = new HashMap<>(original); values.put("actor",new ActorValue(worker)); return values;
+    }
     private static boolean sameBindings(ValidatedRequest a, ValidatedRequest b) {
         var left = new HashMap<>(a.request().arguments()); var right = new HashMap<>(b.request().arguments());
         left.remove("amount"); right.remove("amount");
@@ -769,6 +776,14 @@ public final class JobLifecycleStore {
                     || !(job.request().request().arguments().get("source") instanceof AreaValue)
                     || !(job.request().request().arguments().get("destination") instanceof ContainerValue))
                 throw new IllegalArgumentException("Bound job request");
+            var syntax = RequestValidator.validate(job.request().request(), job.origin(), job.request().observation(),
+                    id -> id.equals(CropDelivery.ID) ? Optional.of(CropDelivery.SPEC) : Optional.empty(),
+                    new RequestEnvironment() {
+                        public boolean enrolled(ActorRef actor, TrustedContext caller) { return true; }
+                        public boolean loaded(Cuboid source, ObservationRef observation) { return true; }
+                        public boolean available(ContainerRef target, ObservationRef observation) { return true; }
+                    });
+            if (!(syntax instanceof RequestValidator.Accepted)) throw new IllegalArgumentException("Malformed job bindings");
             validateGraphLoad(job.id(), rows, new HashSet<>(), 0, settings.depth(), new int[]{0}, settings.edges());
             for (UUID child : job.children())
                 if (!job.dependencies().contains(child) || !job.id().equals(rows.get(child).parent())
@@ -779,6 +794,10 @@ public final class JobLifecycleStore {
                 if (!attempts.add(attempt.id()) || attempt.open() && !openWorkers.add(attempt.worker().entityId()))
                     throw new IllegalArgumentException("Duplicate assignment");
                 envelope(attempt.allowance(), job.allowance());
+                if (!sameBindings(attempt.bound(), new ValidatedRequest(new CapabilityRequest(job.request().request().capability(),
+                        withWorker(job.request().request().arguments(),attempt.worker())),job.origin(),job.request().observation()))
+                        || attempt.executions().stream().anyMatch(r -> !r.artifact().capability().equals(job.request().request().capability())))
+                    throw new IllegalArgumentException("Changed assignment bindings");
                 for (var receipt : attempt.receipts()) {
                     validateReceipt(attempt, receipt);
                     if (!receipts.add(receipt.receiptId())) throw new IllegalArgumentException("Duplicate receipt ownership");

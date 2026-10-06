@@ -585,4 +585,14 @@ final class JobLifecycleStoreTest {
         assertFalse(s.store.transition(job.id(),job.guard(),to,to==State.INTERRUPTED?Reason.INTERRUPTED:Reason.ACTION_FAILED,s.owner).accepted());
         assertEquals(before,s.store.snapshot());assertEquals(from,job.state());
     }
+    @Test void assignmentsCannotChangeDimensionOrCapabilityAndFailureIsAtomic() {
+        var s=new Scene();Job job=s.create(1);Snapshot before=s.store.snapshot();
+        var otherDimension=new ActorRef(UUID.randomUUID(),UUID.randomUUID(),"minecraft:the_nether");
+        assertFalse(s.store.assign(job.id(),job.guard(),UUID.randomUUID(),otherDimension,REF,List.of(REF),limits(11_000),s.owner).accepted());
+        var otherCapability=new ArtifactRef(new CapabilityId("cognitivecraft:unregistered",1),"a".repeat(64));
+        assertEquals(Reason.REQUEST_INVALID,s.store.assign(job.id(),job.guard(),UUID.randomUUID(),s.actor,otherCapability,
+                List.of(otherCapability),limits(11_000),s.owner).reason());
+        assertEquals(before,s.store.snapshot());assertTrue(s.store.protectedRoots().artifacts().isEmpty());
+    }
+
 }

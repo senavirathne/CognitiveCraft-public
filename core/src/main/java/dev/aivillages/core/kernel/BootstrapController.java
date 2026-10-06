@@ -532,7 +532,7 @@ public final class BootstrapController {
             var progress = run.execution.cancel(caller);
             run.effects = progress.summary().committedEffects();
             run.receipts = progress.summary().receipts();
-        run.usage = progress.summary().usage();
+            run.usage = progress.summary().usage();
             run.executionOutcome = progress.summary().outcome();
             terminate(run, "CANCELLED", Reason.CANCELLED);
         }
