@@ -317,7 +317,7 @@ public final class BootstrapController {
             jobs.tick();
             if (jobs.unavailableReason() == Reason.STORAGE_UNAVAILABLE && !storageFailed) failStorage();
             if (!jobs.ready()) return;
-            if (active != null && active.cancelRequested && !active.cancelPending && !active.cancelRequested && !active.finishing) {
+            if (active != null && active.cancelRequested && !active.cancelPending && !active.finishing) {
                 var job = jobs.query(active.jobId, active.owner);
                 var cancelled = jobs.cancel(job.id(), job.guard(), active.owner);
                 if (cancelled.accepted()) active.cancelPending = true;

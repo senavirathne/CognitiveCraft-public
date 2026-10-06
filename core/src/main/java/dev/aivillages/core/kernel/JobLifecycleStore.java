@@ -757,6 +757,11 @@ public final class JobLifecycleStore {
         }
         Set<UUID> attempts = new HashSet<>(), receipts = new HashSet<>(), openWorkers = new HashSet<>();
         for (Job job : snapshot.jobs()) {
+            if (job.children().size() > settings.children() || job.dependencies().size() > settings.children()
+                    || job.attempts().size() > settings.attempts() || job.events().size() > settings.events()
+                    || job.attempts().stream().mapToInt(a -> a.receipts().size()).sum() > settings.receipts()
+                    || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
+                throw new IllegalArgumentException("Configured job bounds");
             if (!job.request().request().capability().equals(CropDelivery.ID)
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
                     || quantity.value() < 1 || quantity.value() > 64

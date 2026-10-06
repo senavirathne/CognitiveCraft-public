@@ -36,7 +36,7 @@ jobs:
           import xml.etree.ElementTree as ET
           root = Path('core/build/test-results/test')
           counts = {}
-          for suite, minimum in [('JobLifecycleStoreTest', 80), ('JobJournalTest', 14), ('JobExecutorIntegrationTest', 5)]:
+          for suite, minimum in [('JobLifecycleStoreTest', 80), ('JobJournalTest', 14), ('JobExecutorIntegrationTest', 5), ('JobResourceBoundsTest', 1)]:
               path = root / ('TEST-dev.aivillages.core.kernel.' + suite + '.xml')
               cases = list(ET.parse(path).getroot().iter('testcase'))
               if len(cases) < minimum or any(c.find(t) is not None for c in cases for t in ('failure', 'error', 'skipped')):

@@ -90,6 +90,28 @@ jobs and allocation sources/targets. Incomplete recovery roots prohibit
 collection. IMP-012, IMP-013, IMP-016, IMP-029 and later job consumers must use
 this owner and its guarded operations, not an independent work ledger.
 
+## Runtime exports and downstream bindings
+
+`Jobs` publishes immutable schema-1 Job, Attempt, Guard, ExecutionReference,
+Allocation, Snapshot, Report and finite Settings. `JobLifecycleStore` is the
+single game-thread owner; Storage publishes immutable snapshots on the existing
+world worker. `JobJournal` and `JobCodec` own the strict durable encoding.
+`JobArtifactPins` resolves an I/O-free, exact closure of at most 16 artifacts.
+`BootstrapController`'s optional job-owner constructor preserves existing ports
+while production `KernelSession` uses it for submitted typed/NLU work. The
+executor still owns live state. Research TrialPort.prepare may defer start until
+the exact run/artifact pin is acknowledged; no grant, trial debit or physical
+trial starts while it waits.
+
+IMP-012 must consume guarded assignments and cancellation/reconciliation rather
+than treating IDs as lease grants. IMP-013 must select an explicit currently
+controlled worker and reserve a remaining allowance through assign; it cannot
+reset deadlines or revive a stopped Run. IMP-016 must include protectedRoots and
+freeze collection when complete=false, including pending/fenced publications.
+IMP-029 must supply actual stopped-owner observations to reconcile; final stock
+is insufficient. Later prerequisite, planning, accomplishment, delegation and
+organization consumers retain the original scope and bounded output allocation.
+
 ## GP-13 binding for this unit
 
 Use JobLifecycleStore with the real BoundedSkillExecutor and SurvivalGateway,
@@ -98,3 +120,13 @@ duplicate/stale notifications, and a separate saved-world restart with all
 models disabled. Test resource allocation bookkeeping without implementing
 IMP-012 leases or IMP-013 dispatch. Those later units complete the overlapping
 multi-worker/lease portion of GP-13.
+
+The executable cloud binding is `.github/workflows/job-lifecycle.yml`. It runs
+JobLifecycleGameTests in cold/warm Minecraft JVMs through real KernelSession,
+commands, identity, executor, SurvivalGateway and JobJournal. It reuses the
+citizen fixture's test-only acquisition (one fake proposal, actual physical
+trial/admission) before model-disabled production jobs. It separately checks
+partial cancellation, scopes and world-save mismatch, and preserves XML,
+logs, both job snapshots and structured byte/count evidence. No completed IR or
+setup fixture is included in the release JAR. The normal CI aggregate remains
+48 distinct/75 successful Minecraft executions; the job lane adds two executions.
