@@ -26,7 +26,7 @@ owner and checked against current citizen control.
 
 Special transitions use assignment/result/cancel/reconcile operations, not an
 unguarded status setter. Every mutation checks expected job revision and assignment
-generation. A revision conflict commits nothing. Assignment generations increase
+generation. Each atomic publication advances a changed job by one revision, even when accounting and state propagation both update it. A revision conflict commits nothing. Assignment generations increase
 monotonically; an old run/generation can record attributable late effects but
 cannot complete or release the current assignment.
 
@@ -75,7 +75,7 @@ World-relative directory: data/cognitivecraft/jobs/v1. A bounded JSON-lines
 snapshot has a schema-1 header and individually strict schema-1 records, a payload
 digest, a single writer, staged/fsynced publication, an old committed backup and
 atomic replacement. Serialization and disk I/O run on the storage worker.
-Recovered/corrupt/future data stays preserved and inactive. Reload marks live or
+Individual rows retain the strict 64 KiB / 4,096-token caps; the snapshot is capped at 2 MiB / 192 records. Recovered/corrupt/future data stays preserved and inactive. Reload marks live or
 uncertain work INTERRUPTED; it never dispatches, replays an action, or infers
 success from inventory.
 
