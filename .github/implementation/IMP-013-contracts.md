@@ -51,6 +51,9 @@ bounded diagnostic history per retained job. Monitoring examines at most half
 the job slice (minimum one) in circular order. Job and worker cursors are coupled:
 a blocked job cohort advances after a complete bounded worker sweep, preventing
 modular page alignment from permanently hiding the last eligible worker.
+An inspected job with controlled workers remaining beyond its current page returns
+DEFERRED evidence naming the next bounded slice while retaining the last blocker.
+A valid admission held by the slice's start cap also returns DEFERRED evidence.
 
 For a finite, non-replenishing, continuously eligible cohort, one-tick owner
 acknowledgements and one-tick known executions, the calculated single-scope bound is:

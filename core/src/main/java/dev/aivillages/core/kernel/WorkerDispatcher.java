@@ -212,6 +212,9 @@ public final class WorkerDispatcher {
                 catch(RuntimeException unavailable){last=new Decision(job.id(),actor,Code.BLOCKED,null,Reason.STORAGE_UNAVAILABLE,List.of(),"UUID circular order");}
             }
             remember(last,work);
+            if(chosen==null && cursor.scannedWorkers<workers.total())
+                remember(new Decision(job.id(),last.worker(),Code.DEFERRED,last.routing(),last.reason(),
+                        last.alternatives(),"UUID worker page; remaining controlled workers deferred to the next bounded slice"),work);
             // Charge reconsideration through the actual job owner. No retry replenishes this allowance.
             var charged=jobs.charge(job.id(),job.guard(),Map.of(Budgets.Kind.INSTRUCTIONS,1L),job.origin());
             if(!charged.accepted()) { remember(new Decision(job.id(),selected,Code.DEFERRED,last.routing(),charged.reason(),last.alternatives(),last.tieBreak()),work);continue; }
@@ -330,6 +333,9 @@ public final class WorkerDispatcher {
                         if(started.handle()==null)stop(l,started.rejected(),false);
                         else { l.handle=started.handle();l.phase=Phase.RUNNING;work.starts++;remember(decision(job,l.worker,Code.STARTED,l.resolution,null),work); }
                     }
+                    return;
+                }else if(l.handle==null) {
+                    remember(decision(job,l.worker,Code.DEFERRED,l.resolution,Reason.BUDGET_EXHAUSTED),work);
                     return;
                 }
             }

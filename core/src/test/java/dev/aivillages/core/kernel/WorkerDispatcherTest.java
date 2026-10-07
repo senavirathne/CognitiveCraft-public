@@ -166,7 +166,17 @@ class WorkerDispatcherTest {
     @ParameterizedTest @ValueSource(longs={0,1201,Long.MAX_VALUE}) void timeoutRejectsZeroOversizeAndOverflow(long value){assertThrows(IllegalArgumentException.class,()->new WorkerDispatcher.Settings(4,3,2,2,8,16,value,10000));}
     @ParameterizedTest @ValueSource(longs={0,15001,Long.MAX_VALUE}) void actionDeadlineRejectsZeroOversizeAndOverflow(long value){assertThrows(IllegalArgumentException.class,()->new WorkerDispatcher.Settings(4,3,2,2,8,16,20,value));}
     @Test void documentedMaximumSettingsAndFairnessCohortAreFinite(){assertEquals(1200,WorkerDispatcher.Settings.production().assignmentTicks());assertEquals(4,WorkerDispatcher.Settings.fixture().jobs());assertTrue(WorkerDispatcher.fairnessBound(64,64,WorkerDispatcher.Settings.production())<100000);assertThrows(IllegalArgumentException.class,()->WorkerDispatcher.fairnessBound(65,1,WorkerDispatcher.Settings.fixture()));}
-    @Test void lastWorkerPageCannotHideAnEligibleWorkerFromLaterJobs(){var s=new Scene(6);for(int n=0;n<5;n++){s.citizens.observeAvailability(s.workers.get(n).citizenId(),CitizenRegistry.Availability.UNLOADED);s.citizens.tick();}var jobs=new ArrayList<Job>();for(int n=0;n<12;n++)jobs.add(s.add(n,1));s.until(()->jobs.stream().allMatch(j->s.current(j).state()==State.SUCCEEDED));assertTrue(jobs.stream().allMatch(j->s.current(j).current().worker().equals(actor(105))));}
+    @Test void lastWorkerPageCannotHideAnEligibleWorkerFromLaterJobs(){
+        var s=new Scene(6);
+        for(int n=0;n<5;n++){s.citizens.observeAvailability(s.workers.get(n).citizenId(),CitizenRegistry.Availability.UNLOADED);s.citizens.tick();}
+        var jobs=new ArrayList<Job>();for(int n=0;n<12;n++)jobs.add(s.add(n,1));
+        var first=s.step();assertEquals(3,first.workersInspected());assertTrue(s.starts.isEmpty());
+        var deferred=s.dispatcher.diagnostics(jobs.getFirst().id(),OWNER).getFirst();
+        assertEquals(WorkerDispatcher.Code.DEFERRED,deferred.code());
+        assertTrue(deferred.tieBreak().contains("next bounded slice"));
+        s.until(()->jobs.stream().allMatch(j->s.current(j).state()==State.SUCCEEDED));
+        assertTrue(jobs.stream().allMatch(j->s.current(j).current().worker().equals(actor(105))));
+    }
     @Test void busyWorkerDoesNotReceiveASecondConcurrentJob(){var s=new Scene(1);s.automatic=false;var a=s.add(1,1);var b=s.add(2,1);for(int n=0;n<18;n++)s.step();assertEquals(1,s.starts.size());assertEquals(1,s.jobs.snapshot().jobs().stream().flatMap(j->j.attempts().stream()).filter(Attempt::open).count());}
     @Test void aCitizenPublicationAfterSelectionFencesTheOldGeneration(){var s=new Scene(1);var j=s.add(1,1);boolean[] changed={false};s.afterResolve=()->{if(!changed[0]){changed[0]=true;s.citizens.rename(actor(100).citizenId(),"updated",OWNER);}};s.step();s.step();assertTrue(s.starts.isEmpty());assertTrue(s.claims.isEmpty());assertEquals(0,s.current(j).generation());}
     @Test void cancellationAfterChargeBeforeAssignmentCommitsNoRun(){var s=new Scene(1);var j=s.add(1,1);s.step();s.jobs.tick();var c=s.current(j);assertTrue(s.jobs.cancel(c.id(),c.guard(),OWNER).accepted());for(int n=0;n<8;n++)s.step();assertTrue(s.starts.isEmpty());assertTrue(s.claims.isEmpty());assertEquals(State.CANCELLED,s.current(j).state());}
