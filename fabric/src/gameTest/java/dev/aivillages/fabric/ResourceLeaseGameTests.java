@@ -166,9 +166,12 @@ public final class ResourceLeaseGameTests {
         }
         SkillArtifact compile() {
             var actor=Map.<String,Object>of("actor",Map.of("param","actor"));
-            List<Object> cycle=List.of(call(Operation.HARVEST_NEXT_WHEAT,Map.of("actor",Map.of("param","actor"),"source",Map.of("param","source")),"harvested"),
+            var boundSource=Map.<String,Object>of("actor",Map.of("param","actor"),"source",Map.of("param","source"));
+            var boundDestination=Map.<String,Object>of("actor",Map.of("param","actor"),"destination",Map.of("param","destination"));
+            List<Object> cycle=List.of(call(Operation.MOVE_TO_SOURCE,boundSource,"approached"),call(Operation.HARVEST_NEXT_WHEAT,boundSource,"harvested"),
                     Map.of("op","repeat","count",Map.of("int",30),"body",List.of(call(Operation.OBSERVE_INVENTORY,actor,"stock"))),
                     call(Operation.PICKUP_TRACKED_WHEAT,actor,"picked"),
+                    call(Operation.MOVE_TO_DESTINATION,boundDestination,"arrived"),
                     call(Operation.TRANSFER_WHEAT,Map.of("actor",Map.of("param","actor"),"destination",Map.of("param","destination"),"amount",Map.of("int",1)),"delivered"));
             String text=new Gson().toJson(Map.of("schema",1,"capability",CropDelivery.ID.name(),"capabilityVersion",1,
                     "dependencies",List.of(),"body",List.of(Map.of("op","repeat","count",Map.of("param","amount"),"body",cycle),

@@ -34,8 +34,11 @@ class LeasedGatewayIntegrationTest {
         Scene(int amount,int claim) {
             for(int n=0;n<5;n++)world.crops.put(new SurvivalGateway.Cell(DIM,n,64,0),true);
             var actor=Map.<String,Object>of("actor",Map.of("param","actor"));
-            List<Object> cycle=List.of(call(Operation.HARVEST_NEXT_WHEAT,Map.of("actor",Map.of("param","actor"),"source",Map.of("param","source")),"h"),
+            var boundSource=Map.<String,Object>of("actor",Map.of("param","actor"),"source",Map.of("param","source"));
+            var boundDestination=Map.<String,Object>of("actor",Map.of("param","actor"),"destination",Map.of("param","destination"));
+            List<Object> cycle=List.of(call(Operation.MOVE_TO_SOURCE,boundSource,"approached"),call(Operation.HARVEST_NEXT_WHEAT,boundSource,"h"),
                     call(Operation.PICKUP_TRACKED_WHEAT,actor,"p"),
+                    call(Operation.MOVE_TO_DESTINATION,boundDestination,"arrived"),
                     call(Operation.TRANSFER_WHEAT,Map.of("actor",Map.of("param","actor"),"destination",Map.of("param","destination"),"amount",Map.of("int",1L)),"d"));
             artifact=f.compile(CropDelivery.ID,List.of(Map.of("op","repeat","count",Map.of("param","amount"),"body",cycle),
                     Map.of("op","result","value",Map.of("param","amount"))),List.of(),AdmissionStatus.ADMITTED);
@@ -82,15 +85,15 @@ class LeasedGatewayIntegrationTest {
     @Test void wholeGroupAcknowledgementPrecedesEveryPhysicalEffectAndCompletionConservesStock() {
         var s=new Scene(3,3);s.hold=true;s.until(()->s.held!=null);
         for(int n=0;n<5;n++)s.step();assertEquals(0,s.world.harvests);assertEquals(0,s.world.pickups);assertEquals(0,s.world.transfers);
-        assertEquals(2,s.leases.protectedRoots().jobs().size()+1);assertFalse(s.leases.ready());
+        assertEquals(Set.of(s.jobId),s.leases.protectedRoots().jobs());assertFalse(s.leases.ready());
         s.release();s.until(s::terminal);var progress=s.run.progress(OWNER);
-        assertEquals(ExecutionStatus.SUCCEEDED,progress.summary().outcome().status());
+        assertEquals(ExecutionStatus.SUCCEEDED,progress.summary().outcome().status(),progress.summary().toString());
         assertEquals(3,s.world.harvests);assertEquals(3,s.world.containerWheat);assertEquals(2,s.world.crops.size());
         assertEquals(9,progress.summary().committedEffects());assertEquals(9,progress.summary().receipts().size());
         s.until(()->s.leases.ready()&&s.leases.snapshot().leases().stream().noneMatch(l->l.state()==State.ACTIVE));
     }
     @Test void pendingConsumptionKeepsActualHarvestEvidenceButPreventsNextEffect() {
-        var s=new Scene(3,3);s.until(()->s.leases.snapshot().leases().size()==2);s.hold=true;
+        var s=new Scene(3,3);s.until(()->!s.leases.ready()&&s.disk.leases().size()==2&&s.world.harvests==0);s.hold=true;
         s.until(()->s.world.harvests==1);assertNotNull(s.held);
         for(int n=0;n<5;n++)s.step();assertEquals(0,s.world.pickups);assertEquals(0,s.world.transfers);
         var partial=s.run.progress(OWNER);assertEquals(1,partial.summary().committedEffects());assertEquals(1,partial.summary().receipts().size());
@@ -104,10 +107,10 @@ class LeasedGatewayIntegrationTest {
         assertEquals(0,s.world.harvests);assertTrue(s.world.leases.isEmpty());
     }
     @Test void externalStockLossAndCurrentPermissionPreventTheFirstEffect() {
-        var s=new Scene(3,3);s.until(()->s.leases.snapshot().leases().size()==2);
+        var s=new Scene(3,3);s.until(()->!s.leases.ready()&&s.disk.leases().size()==2&&s.world.harvests==0);
         s.world.crops.clear();s.until(s::terminal);assertEquals(0,s.world.harvests);
         assertEquals(Reason.RESOURCE_MISSING,s.run.progress(OWNER).summary().outcome().reason());
-        var permission=new Scene(3,3);permission.until(()->permission.leases.snapshot().leases().size()==2);
+        var permission=new Scene(3,3);permission.until(()->!permission.leases.ready()&&permission.disk.leases().size()==2&&permission.world.harvests==0);
         permission.world.deny=true;permission.until(permission::terminal);assertEquals(0,permission.world.harvests);
         assertEquals(Reason.AUTHORITY_DENIED,permission.run.progress(OWNER).summary().outcome().reason());
     }
