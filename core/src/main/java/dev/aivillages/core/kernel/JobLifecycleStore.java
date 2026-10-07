@@ -101,6 +101,13 @@ public final class JobLifecycleStore {
             throw new SecurityException("Job unavailable in your scope");
         return job;
     }
+    /** Coordination consumers obtain no grant from a guessed ID or read-only sharing. */
+    public boolean mayControl(UUID id, long generation, TrustedContext caller) {
+        thread(); Job job=find(id);
+        ActorRef worker=job==null?null:job.current()==null?job.responsible():job.current().worker();
+        return job!=null && job.generation()==generation && sameWorld(caller)
+                && policy.mayControl(caller,job) && policy.controls(worker,job.origin());
+    }
     public Optional<Job> bySubmission(UUID submission, TrustedContext caller) {
         thread();
         return state.jobs().stream().filter(j -> j.submissionId().equals(submission)

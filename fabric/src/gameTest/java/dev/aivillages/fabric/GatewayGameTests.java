@@ -481,10 +481,15 @@ public final class GatewayGameTests {
                         +started.reason());
                 h.assertTrue(v.getNavigation().getPath()!=null,
                         "Waiting for Minecraft to accept a route");
+                var ownedPath = v.getNavigation().getPath();
                 v.getNavigation().recomputePath();
                 v.getNavigation().recomputePath();
-                h.assertTrue(accessor.cognitivecraft$getHasDelayedRecomputation(),
-                        "Fixture did not queue a native recomputation");
+                h.assertTrue(v.getNavigation().getPath()==ownedPath
+                                && !accessor.cognitivecraft$getHasDelayedRecomputation(),
+                        "Vanilla recomputation replaced the gateway's budgeted path");
+                // Simulate delayed work queued before gateway custody or by an
+                // older runtime: cancellation must still clear that native flag.
+                accessor.cognitivecraft$setHasDelayedRecomputation(true);
                 cancelled[0] = first.gateway.cancel(action);
                 cancelledTick[0] = h.getLevel().getGameTime();
                 h.assertTrue(cancelled[0].reason()==Reason.CANCELLED
@@ -508,6 +513,15 @@ public final class GatewayGameTests {
                     "Cancelled handle resumed after late native work");
             next[0].gateway.releaseRun(next[0].runId);
             h.assertTrue(!AiVillages.controls(v),"Vanilla control was not restored");
+            var vanillaPath = v.getNavigation().createPath(h.absolutePos(CROP),0);
+            h.assertTrue(vanillaPath!=null && v.getNavigation().moveTo(vanillaPath,0.65),
+                    "Released worker could not resume native navigation");
+            v.getNavigation().recomputePath();
+            v.getNavigation().recomputePath();
+            h.assertTrue(accessor.cognitivecraft$getHasDelayedRecomputation(),
+                    "Unowned vanilla recomputation was suppressed");
+            v.getNavigation().stop();
+            accessor.cognitivecraft$setHasDelayedRecomputation(false);
         });
     }
 }

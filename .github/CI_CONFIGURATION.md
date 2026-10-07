@@ -26,6 +26,7 @@ installed or configured by the workflows. No paid model endpoint is used.
 | `capability-retrieval.yml` | None; retrieval and its resolver/repository tests run without models |
 | `ci.yml` | `COGNITIVECRAFT_RESTART_PROBE`, `COGNITIVECRAFT_BOOTSTRAP_RESTART`, `COGNITIVECRAFT_BOOTSTRAP_CRASH`, `COGNITIVECRAFT_IDENTITY_RESTART` select cold/warm disposable-world fixtures; `JAVA_TOOL_OPTIONS` enables test tracing |
 | `job-lifecycle.yml` | `COGNITIVECRAFT_JOB_RESTART=cold/warm` selects two separate model-disabled Minecraft processes; `JAVA_TOOL_OPTIONS` enables tracing; no secrets or repository variables |
+| `resource-leases.yml` | `COGNITIVECRAFT_LEASE_RESTART=cold/warm` selects two separate model-disabled Minecraft processes; `JAVA_TOOL_OPTIONS` enables tracing; no secrets or repository variables |
 | `citizen-identity.yml` | `COGNITIVECRAFT_IDENTITY_RESTART=cold/warm`; test tracing |
 | `default-nearest.yml` | Test tracing through `JAVA_TOOL_OPTIONS` |
 | `needle-language.yml` | `NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`; `COGNITIVECRAFT_NEEDLE_DIR` points to assets installed under the automatically supplied `RUNNER_TEMP`; test tracing |
@@ -69,7 +70,13 @@ existing owners.
 IMP-011 introduces the bounded Job Lifecycle Store and architecture extension 0.2.
 Its exports and downstream bindings are in [IMP-011-contracts.md](implementation/IMP-011-contracts.md);
 validation and completion evidence are in [IMP-011-report.md](implementation/IMP-011-report.md).
-The next gate is IMP-012 leases, IMP-013 dispatch, IMP-014 AI brokerage, IMP-015 compatibility,
+IMP-012 adds the bounded Resource Lease Service and architecture extension 0.3.
+Its exports and downstream bindings are in [IMP-012-contracts.md](implementation/IMP-012-contracts.md);
+its completion and cloud evidence are in [IMP-012-report.md](implementation/IMP-012-report.md).
+The lease lane requires executed policy, owner, persistence, interpreter and bound
+matrices plus two real Minecraft processes. The test-only two-client fixture has
+no model endpoint, proposal port, production skill seed or worker dispatcher.
+The next gate is IMP-013 dispatch, IMP-014 AI brokerage, IMP-015 compatibility,
 IMP-016 retention and IMP-029 citizen lifecycle reconciliation. Later P2/P3 work
 depends on those contracts. Run only the applicable bounded task and acceptance
 gates against this public repository; historical source checks are evidence for

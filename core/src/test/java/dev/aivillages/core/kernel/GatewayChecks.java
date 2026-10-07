@@ -28,7 +28,7 @@ public final class GatewayChecks {
         @Override public Instant instant() { return Instant.ofEpochMilli(millis); }
         @Override public long millis() { return millis; }
     }
-    private static final class FakeWorld implements WorldAccess {
+    static final class FakeWorld implements WorldAccess {
         final Map<Cell, Boolean> crops = new HashMap<>();
         final Map<UUID, DropSim> drops = new HashMap<>();
         final Map<UUID, UUID> leases = new HashMap<>();
