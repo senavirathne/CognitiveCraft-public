@@ -91,6 +91,29 @@ final class KernelCommands {
                 .then(argument("actor-id", StringArgumentType.word())
                         .suggests(this::suggestCitizenIds)
                         .then(argument("amount", IntegerArgumentType.integer()).then(coords))));
+        ArgumentBuilder<CommandSourceStack, ?> queueCoords=argument(names[8],IntegerArgumentType.integer())
+                .executes(c->safe(c,(ctx,session)->{
+                    int[] at=new int[9];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,names[i]);
+                    var player=ctx.getSource().getPlayerOrException();var dimension=player.level().dimension().identifier().toString();
+                    var queued=session.queueHarvest(player,uuid(ctx,"actor-id"),IntegerArgumentType.getInteger(ctx,"amount"),
+                            new dev.aivillages.core.kernel.Contracts.Cuboid(dimension,at[0],at[1],at[2],at[3],at[4],at[5]),
+                            new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[6],at[7],at[8]));
+                    tell(ctx,"job="+queued.id()+" accepted="+queued.accepted()+(queued.reason()==null?"":" reason="+queued.reason()));
+                    return queued.accepted()?1:0;
+                }));
+        for(int i=names.length-2;i>=0;i--)queueCoords=argument(names[i],IntegerArgumentType.integer()).then(queueCoords);
+        kernel.then(literal("queue").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
+                .then(argument("amount",IntegerArgumentType.integer()).then(queueCoords))));
+        kernel.then(literal("job-status").then(argument("job-id",StringArgumentType.word())
+                .suggests((c,b)->suggestJobIds(c,b,false)).executes(c->safe(c,(ctx,session)->{
+                    var job=session.queuedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
+                    tell(ctx,"job="+job.id()+" state="+job.state()+" delivered="+job.fulfilled()+" reason="+job.reason());return 1;
+                }))));
+        kernel.then(literal("job-cancel").then(argument("job-id",StringArgumentType.word())
+                .suggests((c,b)->suggestJobIds(c,b,true)).executes(c->safe(c,(ctx,session)->{
+                    var change=session.cancelQueuedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
+                    tell(ctx,"job="+uuid(ctx,"job-id")+" cancellation="+change.accepted()+" reason="+change.reason());return change.accepted()?1:0;
+                }))));
         kernel.then(literal("status").then(argument("run-id", StringArgumentType.word())
                 .suggests((context, builder) -> suggestRunOrTicketIds(context, builder, false))
                 .executes(c -> safe(c, (ctx, session) -> {
@@ -152,6 +175,11 @@ final class KernelCommands {
                     return view.phase() == dev.aivillages.core.kernel.LanguageRequests.Phase.INTERPRETING ? 1 : 0;
                 }))));
         root.then(kernel);
+    }
+    private CompletableFuture<Suggestions> suggestJobIds(CommandContext<CommandSourceStack> context,SuggestionsBuilder builder,boolean cancellable){
+        var session=sessions.get();if(session==null)return builder.buildFuture();
+        try{return UuidSuggestions.suggest(builder,session.queuedJobIds(context.getSource().getPlayerOrException(),cancellable));}
+        catch(CommandSyntaxException|IllegalStateException|SecurityException unavailable){return builder.buildFuture();}
     }
     private CompletableFuture<Suggestions> suggestCitizenIds(
             CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {

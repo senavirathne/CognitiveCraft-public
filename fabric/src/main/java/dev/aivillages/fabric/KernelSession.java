@@ -64,6 +64,11 @@ public final class KernelSession implements AutoCloseable {
     private JobLifecycleStore jobs;
     private ResourceLeaseService leases;
     private LeasedGateway leasedGateway;
+    private LeasedGateway dispatchGateway;
+    private WorkerDispatcher dispatcher;
+    private List<TrustedContext> dispatchScopes=List.of();
+    private long dispatchRevision=-1;
+    private int dispatchScopeCursor;
     private final Map<UUID, CitizenRegistry.Availability> availabilityFacts = new LinkedHashMap<>();
     private UUID pendingEnrollmentEntity;
     private int availabilityCursor;
@@ -173,6 +178,18 @@ public final class KernelSession implements AutoCloseable {
         leases.tick();
         leasedGateway.tick();
         controller.tick();
+        dispatchGateway.tick();
+        if(dispatchRevision!=jobs.snapshot().revision()) {
+            dispatchScopes=jobs.snapshot().jobs().stream().filter(j->!controller.ownsSubmission(j.submissionId()))
+                    .map(Jobs.Job::origin).distinct().sorted(java.util.Comparator.comparing(c->c.principal().id().toString()
+                            +":"+c.scope().domainId())).toList();
+            dispatchRevision=jobs.snapshot().revision();
+        }
+        if(!dispatchScopes.isEmpty()) {
+            dispatchScopeCursor%=dispatchScopes.size();
+            dispatcher.step(dispatchScopes.get(dispatchScopeCursor));
+            dispatchScopeCursor=(dispatchScopeCursor+1)%dispatchScopes.size();
+        }
     }
 
     private void compose() {
@@ -199,7 +216,7 @@ public final class KernelSession implements AutoCloseable {
         // The gateway owns actor control; one world-wide service owns resource coordination.
         worldAccess = new FabricGatewayWorld(server.overworld());
         gateway = new SurvivalGateway(worldAccess, authority,
-                new SurvivalGateway.Limits(1, 512, 64, 16, 256, 1, 200, 32), clock);
+                new SurvivalGateway.Limits(8, 512, 64, 16, 256, 1, 200, 32), clock);
         leases = new ResourceLeaseService(loaded.initialLeases(), (expected, next) ->
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.leases().replace(expected, next); }
@@ -318,6 +335,18 @@ public final class KernelSession implements AutoCloseable {
                                 }
                             }, null);
                 }}, environment, capabilities, this::researchLimits, this::executionLimits, clock, citizens, jobs);
+
+        dispatchGateway=new LeasedGateway(gateway,leases,
+                (request,run)->LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run),
+                ()->server.overworld().getGameTime(),1200,200,8,512);
+        var dispatchExecutor=new BoundedSkillExecutor(staging,capabilities,primitives,
+                CapabilityResolver.enrolledWorldSkills(control),grants,runControl,dispatchGateway,
+                dispatchGateway::releaseRun,clock,()->server.overworld().getGameTime(),
+                new BoundedSkillExecutor.Settings(8,16,32,64));
+        dispatcher=new WorkerDispatcher(jobs,citizens,this::observe,resolver::resolve,
+                WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
+                job->!controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
+                WorkerDispatcher.Settings.production());
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
             @Override public List<String> references(TrustedContext caller) {
@@ -507,6 +536,30 @@ public final class KernelSession implements AutoCloseable {
         return controller.submit(request, owner);
     }
     public long languageCalls() { return needle == null ? 0 : needle.calls(); }
+    long generationCalls() { ready();return controller.modelCalls(); }
+    /** Model-independent durable queue; the actor is a responsibility anchor, not forced worker selection. */
+    public BootstrapController.Submission queueHarvest(ServerPlayer player, UUID citizenId, int amount,
+                                                       Cuboid source, ContainerRef destination) {
+        ready();TrustedContext owner=caller(player);UUID id=UUID.randomUUID();
+        var citizen=citizens.query(citizenId,owner);
+        var actor=citizen.actor();
+        if(villager(actor)==null || villager(actor).level()!=player.level())
+            return new BootstrapController.Submission(id,false,Reason.ACTOR_UNAVAILABLE);
+        var request=new CapabilityRequest(CropDelivery.ID,Map.of("actor",new ActorValue(actor),"amount",new IntValue(amount),
+                "source",new AreaValue(source),"destination",new ContainerValue(destination)));
+        var observation=observe(request,actor);
+        var change=jobs.create(id,id,request,owner,observation.reference(),executionLimits(clock.millis()).total(),List.of());
+        return new BootstrapController.Submission(id,change.accepted(),change.reason());
+    }
+    public Jobs.Job queuedJob(ServerPlayer player,UUID id){ready();return jobs.query(id,caller(player));}
+    public List<UUID> queuedJobIds(ServerPlayer player,boolean cancellable){
+        ready();var origin=caller(player);
+        return jobs.snapshot().jobs().stream().filter(j->j.origin().equals(origin)&&!controller.ownsSubmission(j.submissionId()))
+                .filter(j->!cancellable||!j.state().terminal()).map(Jobs.Job::id).toList();
+    }
+    public Jobs.Change cancelQueuedJob(ServerPlayer player,UUID id){ready();var owner=caller(player);var job=jobs.query(id,owner);return jobs.cancel(id,job.guard(),owner);}
+    public List<WorkerDispatcher.Decision> dispatchDiagnostics(ServerPlayer player,UUID id){ready();return dispatcher.diagnostics(id,caller(player));}
+    void clearDispatchCache(){ready();dispatcher.clearPolicyCache();dispatchRevision=-1;dispatchScopes=List.of();}
     public LanguageRequests.View ask(ServerPlayer player, String message) {
         ready();
         var view = language.ask(message, caller(player));
@@ -628,6 +681,7 @@ public final class KernelSession implements AutoCloseable {
     @Override public void close() {
         if (closeRequested) return;
         closeRequested = true;
+        if(dispatcher!=null)dispatcher.close();
         closed = true;
         if (model != null) model.close();
         if (language != null) language.close();

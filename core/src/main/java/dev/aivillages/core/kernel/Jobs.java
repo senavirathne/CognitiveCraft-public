@@ -178,6 +178,10 @@ public final class Jobs {
     public record ReadyPage(List<Job> jobs, int nextOffset, boolean more, int inspectedEdges) {
         public ReadyPage { jobs = List.copyOf(jobs); }
     }
+    /** Private circular owner page, including inactive rows so inspection work is measurable. */
+    public record DispatchPage(List<Job> jobs, int total) {
+        public DispatchPage { jobs = List.copyOf(jobs); }
+    }
     public record Roots(Set<ArtifactRef> artifacts, Set<UUID> runs, Set<UUID> jobs, boolean complete) {
         public Roots {
             artifacts = Set.copyOf(artifacts); runs = Set.copyOf(runs); jobs = Set.copyOf(jobs);

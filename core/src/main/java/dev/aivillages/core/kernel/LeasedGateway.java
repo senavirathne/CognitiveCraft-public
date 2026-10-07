@@ -66,6 +66,58 @@ public final class LeasedGateway implements GatewayPort {
         return new Binding(owners.byRun(request,run),List.of(new Demand(Resource.space(world,source),1),
                 new Demand(Resource.facility(world,destination),1)));
     }
+    public static Binding cropWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
+        Binding spaces=workspaces(owners,request,run);
+        var demands=new ArrayList<>(spaces.demands());
+        demands.add(new Demand(Resource.crops(request.context().scope().worldId(),
+                ((AreaValue)request.request().arguments().get("source")).value()),
+                ((IntValue)request.request().arguments().get("amount")).value()));
+        return new Binding(spaces.owner(),demands);
+    }
+    /** Advisory owner inspection avoids consuming assignment generations for a known conflict. */
+    public Result preflight(Jobs.Job job,ValidatedRequest request) {
+        checkThread();UUID world=job.origin().scope().worldId();
+        // A historical responsibility anchor is not the prospective worker. The real grant
+        // must use the new durable assignment, especially after loss of the previous actor.
+        ActorRef anchor=job.current()==null?job.responsible():job.current().worker();
+        if(!anchor.equals(((ActorValue)request.request().arguments().get("actor")).value()))
+            return new Result(Code.VALID,null,null,List.of(),0,0);
+        Cuboid source=((AreaValue)request.request().arguments().get("source")).value();
+        ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
+        var demands=List.of(new Demand(Resource.crops(world,source),((IntValue)request.request().arguments().get("amount")).value()),
+                new Demand(Resource.space(world,source),1),new Demand(Resource.facility(world,destination),1));
+        int inspected=0;
+        for(Demand demand:demands) {
+            Result current=leases.inspect(new Owner(job.id(),job.generation()),demand.resource(),job.origin());
+            inspected+=current.inspected();
+            if(!current.usable())return current;
+            if(current.available()<demand.quantity())return new Result(Code.CONFLICT,Reason.TARGET_UNAVAILABLE,null,List.of(),current.available(),inspected);
+        }
+        return new Result(Code.VALID,null,null,List.of(),0,inspected);
+    }
+    /** Preflight coordination for an already durable assignment, before interpreter start. */
+    public Result prepare(ValidatedRequest request,RunCorrelation correlation) {
+        checkThread();
+        Run run=runs.get(correlation.runId());
+        if(run==null) {
+            if(runs.size()>=maxRuns)return new Result(Code.REJECTED,Reason.BUDGET_EXHAUSTED,null,List.of(),0,0);
+            run=new Run(request,correlation,bindings.bind(request,correlation));runs.put(correlation.runId(),run);
+        }
+        if(run.released || !run.request.equals(request) || !run.correlation.equals(correlation)
+                || !run.binding.equals(bindings.bind(request,correlation)))
+            return new Result(Code.REJECTED,Reason.AUTHORITY_DENIED,null,List.of(),0,0);
+        if(!leases.ready())return new Result(Code.PENDING,leases.failure(),null,List.of(),0,0);
+        if(run.acquisition==null)run.acquisition=leases.acquire(run.binding.owner(),run.binding.demands(),duration,request.context());
+        if(run.acquisition.group()==null)return run.acquisition;
+        return leases.group(run.acquisition.group(),run.binding.owner(),request.context());
+    }
+    public Result validate(ValidatedRequest request,RunCorrelation correlation) {
+        Result group=prepare(request,correlation);
+        if(!group.usable())return group;
+        for(Ref ref:group.leases()) { Result valid=leases.validate(ref,request.context());if(!valid.usable())return valid; }
+        return group;
+    }
+    public boolean released(UUID run) { checkThread();return !runs.containsKey(run); }
     @Override public ActionHandle start(ValidatedRequest request,RunCorrelation correlation,
                                        PrimitiveRequirement primitive,Map<String,Value> arguments,Budgets.Ledger usage) {
         checkThread();Objects.requireNonNull(request);Objects.requireNonNull(correlation);

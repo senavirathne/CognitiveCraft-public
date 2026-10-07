@@ -94,6 +94,12 @@ public final class BootstrapController {
     private BootstrapJournal.Enrollment enrolling;
     private final ArrayDeque<View> recent = new ArrayDeque<>();
 
+    /** Trusted composition ownership check; dispatch must not steal this controller's submission. */
+    public boolean ownsSubmission(UUID submission) {
+        thread();
+        return active!=null && active.id.equals(submission) || persisted.runs().stream().anyMatch(r->r.id().equals(submission));
+    }
+
     public BootstrapController(BootstrapJournal.State initial, Storage storage, Observer observer,
             Resolver resolver, Research research, Execution execution,
             RequestEnvironment environment, CapabilityCatalog capabilities,

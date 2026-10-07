@@ -55,6 +55,8 @@ public final class JobLifecycleStore {
     private long deadline;
     private boolean fenced, readOnly;
     private Reason failure;
+    private Snapshot indexed;
+    private Map<TrustedContext, List<Job>> dispatchIndex = Map.of();
 
     public JobLifecycleStore(Snapshot initial, Storage storage, Policy policy,
                              CancellationPort cancellations, CapabilityCatalog capabilities,
@@ -94,6 +96,59 @@ public final class JobLifecycleStore {
     /** Trusted composition/retention seam, not an unscoped player query. */
     public Snapshot snapshot() { thread(); return state; }
     public Settings settings() { return settings; }
+
+    /** Disposable private index; rebuilt only when the authoritative publication changes. */
+    public DispatchPage dispatchPage(TrustedContext caller, UUID after, int maximum) {
+        thread();
+        if (!sameWorld(caller)) throw new SecurityException("Dispatch scope");
+        if (maximum < 1 || maximum > 4) throw new IllegalArgumentException("Dispatch page bound");
+        if (indexed != state) {
+            var groups = new HashMap<TrustedContext, List<Job>>();
+            for (Job job : state.jobs()) groups.computeIfAbsent(job.origin(), ignored -> new ArrayList<>()).add(job);
+            dispatchIndex = Map.copyOf(groups); indexed = state;
+        }
+        List<Job> own = dispatchIndex.getOrDefault(caller, List.of());
+        if (own.isEmpty()) return new DispatchPage(List.of(), 0);
+        int at = 0;
+        if (after != null) {
+            int low = 0, high = own.size();
+            while (low < high) { int mid = (low + high) >>> 1;
+                if (own.get(mid).id().toString().compareTo(after.toString()) <= 0) low = mid + 1; else high = mid; }
+            at = low % own.size();
+        }
+        var found = new ArrayList<Job>();
+        for (int n = 0; n < Math.min(maximum, own.size()); n++) {
+            Job job = own.get((at + n) % own.size());
+            if (policy.mayRead(caller, job) && policy.mayControl(caller, job)) found.add(job);
+        }
+        return new DispatchPage(found, own.size());
+    }
+    /** Preview only: the assign operation revalidates this binding and never trusts a preview. */
+    public ValidatedRequest bindWorker(UUID id, Guard expected, ActorRef worker, TrustedContext caller) {
+        thread(); Job job = controlled(id, caller);
+        if (job == null || !job.guard().equals(expected) || !policy.controls(worker, job.origin()))
+            throw new SecurityException("Current assignment authority required");
+        return remainingRequest(job, worker);
+    }
+    /** Remaining inherited envelope, including open reservations and ancestor consumption. */
+    public Budgets.Limits remainingAllowance(UUID id, TrustedContext caller) {
+        thread(); Job job = controlled(id, caller);
+        if (job == null) throw new SecurityException("Job budget unavailable");
+        var maxima = new EnumMap<Budgets.Kind, Long>(Budgets.Kind.class);
+        var rows = rows();
+        for (Budgets.Kind kind : Budgets.Kind.values()) {
+            long value = Long.MAX_VALUE;
+            for (Job ancestor : ancestors(id, rows)) value = Math.min(value, available(ancestor.id(), kind, rows));
+            maxima.put(kind, Math.max(0, value));
+        }
+        return new Budgets.Limits(maxima, job.allowance().deadlineEpochMillis());
+    }
+    /** Returns no foreign assignment metadata. The guarded assign still repeats this test. */
+    public boolean workerAvailable(ActorRef worker, TrustedContext origin) {
+        thread();
+        return policy.controls(worker, origin) && state.jobs().stream().flatMap(j -> j.attempts().stream())
+                .noneMatch(a -> a.open() && a.worker().entityId().equals(worker.entityId()));
+    }
 
     public Job query(UUID id, TrustedContext caller) {
         thread(); Job job = find(id);
