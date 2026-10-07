@@ -84,8 +84,13 @@ jobs:
           state=path/'data/cognitivecraft/leases/v1/state.jsonl'
           rows=[json.loads(line) for line in state.read_text().splitlines()]
           if sum(r['state']=='ACTIVE' for r in rows[1:])!=1: raise SystemExit('Saved active lease was not tested')
+          jobs=[json.loads(line) for line in (path/'data/cognitivecraft/jobs/v1/state.jsonl').read_text().splitlines()]
+          proof=json.loads(markers[0].read_text())
+          states={j['id']:j['state'] for j in jobs[1:]}
+          if len(states)!=4 or states.get(proof['jobC'])!='READY' or states.get(proof['jobD'])!='ACTIVE':
+              raise SystemExit('Saved READY and assigned jobs were not acknowledged')
           for source,name in [(root/'gametest-results.xml','dispatch-cold.xml'),(root/'logs/latest.log','dispatch-cold.log'),
-                              (markers[0],'dispatch-restart.json'),(state,'dispatch-cold.jsonl'),(path/'dispatch-cold-evidence.json','physical-cold.json')]:
+                              (markers[0],'dispatch-restart.json'),(path/'data/cognitivecraft/jobs/v1/state.jsonl','jobs-cold.jsonl'),(state,'dispatch-cold.jsonl'),(path/'dispatch-cold-evidence.json','physical-cold.json')]:
               shutil.copy2(source,evidence/name)
           PY
       - name: Separate Minecraft JVM, inactive restoration, original epoch fenced

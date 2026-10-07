@@ -106,6 +106,8 @@ Cancellation, worker loss, authority loss, expiry or shutdown calls the executio
 owner to stop. A terminal outcome alone is insufficient: `Run.stopped` also requires
 a terminal cancellation receipt for an outstanding action. Unconfirmed cessation
 MUST retain the open assignment and exclude overlapping replacements. Claims are
+retained while attributable partial receipts and usage continue to be published
+through the job owner without falsely declaring terminal disposition. Claims are
 released only after confirmed cessation. Terminal handles MUST NOT reacquire claims
 while asynchronous release acknowledgement is pending.
 

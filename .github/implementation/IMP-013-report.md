@@ -69,8 +69,15 @@ calculated **576-tick** bound. Observed maxima: **4 jobs**, **3 citizens**, **1 
 and reassignment retains the original inherited deadline and budget. Fixture
 assignment timeout is 20 ticks; production uses 1200.
 
-Exact final suite counts, GameTest results, workflow IDs and production JAR audit
-will be appended from the final checked implementation rather than inferred here.
+The full local suite executed **663 cases**: core 592, providers 48 and Fabric 23,
+with zero failures, errors or skips. The new dispatch matrix comprises **65 policy
+cases and 7 actual-owner integration cases**. The production KernelSession GameTest
+passed locally in 23.653 seconds, exercising two principals, two real queued jobs,
+the actual queue/status commands, two physical deliveries and cache deletion.
+One explicit fake acquisition seeds its known method before production dispatch;
+dispatch then records zero additional generation calls and zero language calls.
+Final native workflow IDs and release-JAR evidence are recorded below after the
+final implementation head is checked.
 
 ## Relevant historical failures and regressions
 
@@ -88,6 +95,9 @@ terminal run awaited asynchronous release. Dedicated policy coverage checks that
 terminal cleanup performs no new acquisition. Delayed assignment publication is now awaited instead of misclassified as stale;
 a dedicated regression holds that acknowledgement across six ticks. Post-assignment observation failures
 and revoked read access now stop safely instead of abandoning a live execution.
+Unconfirmed terminal stop now preserves attributable partial receipts while keeping
+the assignment open; its regression observes two delivered units and six committed
+effects in the actual durable job owner before cancellation is confirmed.
 
 ## Explicit finite limits
 

@@ -342,17 +342,12 @@ public final class WorkerDispatcher {
                 stop(l,Reason.STALE_OBSERVATION,false);return;
             }
             if(progress.summary().outcome()==null) {
-                var summary=progress.summary();
-                if(jobs.ready() && (summary.committedEffects()!=attempt.effects() || !summary.usage().equals(attempt.usage())
-                        || !summary.receipts().equals(attempt.receipts()))) {
-                    jobs.recordExecutionResult(job.id(),job.guard(),new Jobs.Report(l.run,l.generation,summary.committedEffects(),
-                            summary.usage(),summary.receipts(),null),l.origin);
-                }
+                preserveProgress(l,job,attempt,progress.summary());
                 return;
             }
             // Terminal execution must never reacquire claims while an asynchronous release is pending.
             l.phase=Phase.STOPPING;
-            if(!l.handle.stopped(l.origin))return;
+            if(!l.handle.stopped(l.origin)){preserveProgress(l,job,attempt,progress.summary());return;}
         }else if(l.phase!=Phase.STOPPING)return;
         if(!l.released){claims.release(l.run);l.released=true;}
         // Release acknowledgements are part of confirmed disposition, never presumed from a notification.
@@ -370,6 +365,12 @@ public final class WorkerDispatcher {
         }
         var change=jobs.recordExecutionResult(job.id(),job.guard(),l.report,l.origin);
         if(change.accepted()){l.phase=Phase.PUBLISHING;remember(decision(job,l.worker,Code.OBSERVED,l.resolution,l.failure),work);}
+    }
+    private void preserveProgress(Live l,Jobs.Job job,Jobs.Attempt attempt,BoundedSkillExecutor.Summary summary) {
+        if(jobs.ready()&&(summary.committedEffects()!=attempt.effects()||!summary.usage().equals(attempt.usage())
+                ||!summary.receipts().equals(attempt.receipts())))
+            jobs.recordExecutionResult(job.id(),job.guard(),new Jobs.Report(l.run,l.generation,summary.committedEffects(),
+                    summary.usage(),summary.receipts(),null),l.origin);
     }
     private void stop(Live l,Reason reason,boolean cancel){l.failure=reason;l.cancel|=cancel;l.phase=Phase.STOPPING;}
     private Decision decision(Jobs.Job j,ActorRef a,Code code,CapabilityResolver.Decision d,Reason reason) {

@@ -1,1 +1,0 @@
-{"schemaVersion":1,"id":"ai_villages","version":"${version}","name":"AI Villages","description":"Persistent villagers with safe reusable farming skills and optional AI planning.","environment":"*","entrypoints":{"main":["dev.aivillages.fabric.AiVillages"]},"mixins":["ai-villages.mixins.json"],"depends":{"fabricloader":">=0.19.5","minecraft":"26.3","java":">=25","fabric-api":"*"}}
