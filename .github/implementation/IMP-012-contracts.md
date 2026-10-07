@@ -78,6 +78,8 @@ publishes each debit before another action. Fully consumed stock still permits
 pickup and deposit, but blocks another harvest before physical mutation.
 The execution's typed request, authority and current pinned run must match the
 durable assignment. Routing may refresh its observation reference.
+The current execution pin is checked on every poll, including when a new trial
+pin supersedes a run within the same job generation.
 
 ## Publication, recovery and bounds
 

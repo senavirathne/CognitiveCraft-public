@@ -113,7 +113,7 @@ public final class ResourceLeaseGameTests {
         Villager spawn(int x,int z){
             BlockPos p=origin.offset(x,1,z);
             BlockPos rel=p.subtract(h.absolutePos(BlockPos.ZERO));
-            Villager v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,rel.getX(),rel.getY(),rel.getZ());v.setNoAi(true);v.setPersistenceRequired();return v;
+            Villager v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,rel.getX(),rel.getY(),rel.getZ());v.setNoAi(false);v.setPersistenceRequired();return v;
         }
         boolean control(ActorRef actor,TrustedContext caller){return !revoked&&citizens.controls(actor,caller);}
         void compose() {
@@ -200,6 +200,8 @@ public final class ResourceLeaseGameTests {
         }
         void start(UUID id,TrustedContext caller) {
             var a=job(id,caller).current();var reference=a.executions().getLast();
+            Villager actor=(Villager)h.getLevel().getEntity(a.worker().entityId());
+            require(actor!=null,"Assigned physical actor disappeared");actor.setNoAi(false);
             var started=executor.startAdmitted(a.bound(),reference.artifact(),new RunCorrelation(reference.runId(),reference.artifact(),null),
                     new Budgets.ExecutionLimits(a.allowance(),10_000),new Budgets.Ledger(a.allowance(),clock));
             require(started instanceof BoundedSkillExecutor.Started,"Actual executor refused "+started);run=((BoundedSkillExecutor.Started)started).run();
@@ -211,7 +213,7 @@ public final class ResourceLeaseGameTests {
         }
         void step() {
             if(phase==30)return;
-            java.util.concurrent.locks.LockSupport.parkNanos(phase==0||warm&&phase==20?50_000_000:1_000_000);
+            java.util.concurrent.locks.LockSupport.parkNanos(phase<=2||warm&&phase==20?50_000_000:1_000_000);
             if(lastReported!=phase){System.out.println("IMP-012 fixture phase="+phase+" warm="+warm);lastReported=phase;}
             long before=System.nanoTime();
             if(citizens!=null){citizens.tick();jobs.tick();raw.tick();leases.tick();gateway.tick();}
@@ -229,7 +231,8 @@ public final class ResourceLeaseGameTests {
                 case 1 -> {require(citizens.ready()&&leases.ready(),"Acknowledging enrollment and runtime epoch");
                     var c=citizens.enroll(second.getUUID(),source.dimension(),b);require(c.accepted(),"Enrollment B refused");actorB=c.citizen().actor();phase=2;}
                 case 2 -> {require(citizens.ready(),"Acknowledging enrollment B");require(first.onGround()&&second.onGround(),"Waiting for real actors to tick");
-                    require(citizens.controls(actorA,a)&&citizens.controls(actorB,b),"Two actual enrolled workers required");idA=create(actorA,a);phase=3;}
+                    require(citizens.controls(actorA,a)&&citizens.controls(actorB,b),"Two actual enrolled workers required");
+                    second.setNoAi(true);idA=create(actorA,a);phase=3;}
                 case 3 -> {require(jobs.ready(),"Acknowledging job A");idB=create(actorB,b);phase=4;}
                 case 4 -> {require(jobs.ready(),"Acknowledging job B");assign(idA,a);phase=5;}
                 case 5 -> {require(jobs.ready(),"Acknowledging exact execution pin");start(idA,a);phase=6;}
@@ -243,7 +246,7 @@ public final class ResourceLeaseGameTests {
                     }
                     long delivered=progress.summary().receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).mapToLong(CropDelivery.CropReceipt::wheat).sum();
                     if(delivered==2) {
-                        require(conflict,"Second client was never checked");var stopped=run.cancel(a);report(idA,a,stopped);phase=7;return;
+                        require(conflict,"Second client was never checked");var stopped=run.cancel(a);first.setNoAi(true);report(idA,a,stopped);phase=7;return;
                     }
                     require(progress.phase()!=BoundedSkillExecutor.Phase.TERMINAL,"Worker A terminated early "+progress.summary().outcome());
                 }

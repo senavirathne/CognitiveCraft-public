@@ -319,6 +319,33 @@ class ResourceLeaseServiceTest {
         assertEquals(before,f.service.snapshot());assertTrue(f.service.validate(ref,f.a).usable());
         assertEquals(2,f.service.inspect(f.bob,source,f.b).available());
     }
+    @Test void fullyConsumedCropClaimAllowsPickupButStillRequiresFreshEvidence() {
+        var f=new Fixture();Resource source=Resource.crops(WORLD,new Cuboid(DIM,0,1,0,0,1,0));
+        Ref ref=f.one(f.alice(source,1));OwnerFacts actor=f.owners.get(f.alice.job());
+        var receipt=new CropDelivery.CropReceipt(UUID.randomUUID(),actor.run(),UUID.randomUUID(),actor.worker(),source.area(),
+                new ContainerRef(DIM,1,1,1),CropDelivery.Stage.HARVEST,1);
+        f.quantities.put(source,0L);assertEquals(Code.PENDING,f.service.consumed(ref,receipt,f.a).code());f.ack();
+        assertTrue(f.service.validate(ref,f.a).usable());assertTrue(f.service.consumed(ref,receipt,f.a).usable());
+        f.tick=1;f.stale=0;assertEquals(Reason.STALE_OBSERVATION,f.service.validate(ref,f.a).reason());
+    }
+    @Test void restoredAtomicGroupsCannotContainMixedTerminalStatesOrExceedConfiguration() {
+        var f=new Fixture();Result grant=f.acquire(f.alice,f.a,List.of(new Demand(f.facility(1),1),new Demand(f.facility(2),1)),100);
+        Lease a=f.disk.leases().getFirst(),b=f.disk.leases().getLast();
+        Lease ended=new Lease(b.id(),b.group(),b.epoch(),b.generation(),b.owner(),b.origin(),b.resource(),b.quantity(),b.remaining(),
+                b.identity(),b.granted(),b.renewed(),b.expires(),b.renewals(),State.RELEASED,Reason.CANCELLED,b.consumed());
+        Snapshot mixed=new Snapshot(WORLD,f.disk.epoch(),f.disk.revision(),f.disk.generation(),List.of(a,ended));
+        assertThrows(IllegalArgumentException.class,()->ResourceLeaseService.validateSnapshot(mixed,Settings.fixture()));
+        Lease longDuration=new Lease(a.id(),a.group(),a.epoch(),a.generation(),a.owner(),a.origin(),a.resource(),a.quantity(),a.remaining(),
+                a.identity(),a.granted(),a.renewed(),a.renewed()+101,a.renewals(),a.state(),a.reason(),a.consumed());
+        Snapshot tooLong=new Snapshot(WORLD,f.disk.epoch(),1,f.disk.generation(),List.of(longDuration));
+        assertThrows(IllegalArgumentException.class,()->ResourceLeaseService.validateSnapshot(tooLong,Settings.fixture()));
+        Resource wide=Resource.space(WORLD,new Cuboid(DIM,0,1,0,16,1,0));
+        Lease tooWide=new Lease(a.id(),a.group(),a.epoch(),a.generation(),a.owner(),a.origin(),wide,1,1,
+                a.identity(),a.granted(),a.renewed(),a.expires(),a.renewals(),a.state(),a.reason(),Map.of());
+        Snapshot oversized=new Snapshot(WORLD,f.disk.epoch(),1,f.disk.generation(),List.of(tooWide));
+        assertThrows(IllegalArgumentException.class,()->ResourceLeaseService.validateSnapshot(oversized,Settings.fixture()));
+        assertTrue(f.service.group(grant.group(),f.alice,f.a).usable());
+    }
     static Stream<Arguments> invalidSettings(){
         Settings d=Settings.fixture();List<Arguments> rows=new ArrayList<>();
         long[] good={d.active(),d.retained(),d.perJob(),d.group(),d.duration(),d.renewalInterval(),d.renewals(),

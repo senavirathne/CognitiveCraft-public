@@ -89,6 +89,12 @@ public final class LeasedGateway implements GatewayPort {
         if(action.polled<action.started || action.polled-action.started>waitingTicks)return fail(action,Reason.ACTION_TIMEOUT);
         if(leases.failure()!=null)return fail(action,leases.failure());
         if(!leases.ready())return waitForPublication(action);
+        // A new research execution pin may supersede a run without changing the job generation.
+        // Rebind against the current job owner before any further native effect or accounting.
+        try {
+            if(!action.run.binding.equals(bindings.bind(action.run.request,action.run.correlation)))
+                return fail(action,Reason.AUTHORITY_DENIED);
+        }catch(SecurityException denied){return fail(action,Reason.AUTHORITY_DENIED);}
         if(action.consumption!=null) {
             Result result=leases.consumed(action.consuming,action.consumption,action.run.request.context());
             if(result.code()==Code.PENDING)return waitForPublication(action);

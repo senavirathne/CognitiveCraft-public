@@ -131,4 +131,12 @@ class LeasedGatewayIntegrationTest {
         assertEquals(1,s.world.containerWheat);assertEquals(1,s.world.harvests);
         assertEquals(3,s.run.progress(OWNER).summary().committedEffects());
     }
+    @Test void aNewResearchPinFencesThePreviousRunEvenWithinTheSameJobGeneration() {
+        var s=new Scene(3,3);s.until(()->!s.leases.ready()&&s.disk.leases().size()==2&&s.world.harvests==0);
+        var before=s.jobs.query(s.jobId,OWNER);var ref=s.artifact.descriptor().ref();
+        assertTrue(s.jobs.pin(before.id(),before.guard(),new Jobs.ExecutionReference(UUID.randomUUID(),ref,List.of(ref)),OWNER).accepted());
+        s.jobs.tick();assertEquals(before.generation(),s.jobs.query(s.jobId,OWNER).generation());
+        s.until(s::terminal);assertEquals(Reason.AUTHORITY_DENIED,s.run.progress(OWNER).summary().outcome().reason());
+        assertEquals(0,s.world.harvests);assertEquals(0,s.world.containerWheat);
+    }
 }

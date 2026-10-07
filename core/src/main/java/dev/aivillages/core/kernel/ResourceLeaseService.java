@@ -133,7 +133,9 @@ public final class ResourceLeaseService {
         OwnerFacts facts=facts(row.owner(),caller);
         Observation seen=observe(row.resource(),facts,tick);
         Reason reason=row.resource().kind()==Kind.STOCK && row.remaining()==0
-                && seen.status()==ObservationStatus.ABSENT && seen.reason()==null?null:observationReason(seen,tick);
+                && seen.status()==ObservationStatus.ABSENT && seen.reason()==null
+                ? seen.tick()>tick || tick-seen.tick()>settings.observationAge()?Reason.STALE_OBSERVATION:null
+                : observationReason(seen,tick);
         if(reason==null && !seen.identity().equals(row.identity()))reason=Reason.TARGET_INVALID;
         if(reason==null && row.resource().kind()==Kind.STOCK
                 && held(row.resource(),state.leases(),tick)>seen.quantity())reason=Reason.RESOURCE_MISSING;
@@ -381,13 +383,21 @@ public final class ResourceLeaseService {
         if(s.leases().size()>settings.retained() || active.size()>settings.active())throw new IllegalArgumentException("Lease quota");
         Map<UUID,Long> jobs=new HashMap<>();Map<UUID,List<Lease>> groups=new HashMap<>();
         for(Lease l:s.leases())groups.computeIfAbsent(l.group(),ignored->new ArrayList<>()).add(l);
+        for(Lease l:s.leases()) {
+            Cuboid a=l.resource().area();
+            if(cells(a)>settings.cells() || (long)a.maxX()-a.minX()+1>settings.axis()
+                    || (long)a.maxY()-a.minY()+1>settings.axis() || (long)a.maxZ()-a.minZ()+1>settings.axis()
+                    || l.expires()-l.renewed()>settings.duration() || l.renewals()>settings.renewals())
+                throw new IllegalArgumentException("Persisted lease configuration bounds");
+        }
         for(List<Lease> group:groups.values()) {
             Lease first=group.getFirst();
             if(group.size()>settings.group() || group.stream().map(Lease::resource).distinct().count()!=group.size()
                     || group.stream().anyMatch(l->!l.owner().equals(first.owner())||!l.origin().equals(first.origin())
                             || !l.epoch().equals(first.epoch()) || l.generation()!=first.generation()
                             || l.granted()!=first.granted() || l.renewed()!=first.renewed()
-                            || l.expires()!=first.expires() || l.renewals()!=first.renewals()))
+                            || l.expires()!=first.expires() || l.renewals()!=first.renewals()
+                            || l.state()!=first.state() || l.reason()!=first.reason()))
                 throw new IllegalArgumentException("Atomic lease group");
         }
         for(Lease l:active) {
