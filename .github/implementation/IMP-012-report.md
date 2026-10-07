@@ -125,7 +125,7 @@ measured scale/resource JSON. Its warm lease snapshot has nine records, 6,939
 bytes and SHA-256
 `5fca983bdc3790ffe739012a5214b7c157121acf5f93d163c86f03a7dfbd8067`.
 
-The built release JAR is 1,022,664 bytes, SHA-256
+The accepted lease-evidence release JAR, before the navigation follow-up below, is 1,022,664 bytes, SHA-256
 `e67a515e29dcd8e68f7aa860a1bf0c987f84cb841f034eb4a6a2c093c9181f36`.
 The workflow inspects its archive and rejects inclusion of any GameTest class.
 
@@ -149,6 +149,32 @@ row at 64 KiB / 4,096 tokens. Witnesses cap at 128 without eviction; adapter wor
 caps at 256 inspected cells/slots. One publication is outstanding and its
 acknowledgement cap is 30 seconds. Gateway runs/handles and original action
 waiting are finite; neither conflicts nor delayed storage reset a budget.
+
+## Inherited navigation regression
+
+The final full regression passed all 48 distinct physical GameTests (75
+successful cold/warm executions). The separately pinned genuine-Qwen lane
+[then exposed a warm offline reuse failure](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37594332716):
+Minecraft's automatic recomputation replaced the gateway-owned path just
+outside the crop-approach threshold, after two genuine delivered units.
+The strict route policy correctly rejected the replacement. Lease acceptance
+and cold generation had already passed; this failure cannot be accepted as
+successful delivery.
+
+The follow-up suppresses native `recomputePath` only while that villager is
+under gateway custody and clears native delayed recomputation. Explicit
+gateway `createPath` calls still obey the original counted attempts, stall,
+elapsed and travel budgets. Missing, changed, stalled or replaced paths still
+fail under the unchanged route policy. Unowned villagers retain vanilla
+replanning. The existing physical cancellation regression now verifies stable
+owned path identity, cleanup of a pre-existing delayed flag, no next-run
+revival, and restored native replanning after release. No model pin, delivery
+assertion, fixture geometry, route threshold or execution budget is relaxed.
+
+The nine workflow families must pass again on this final code, including
+the pinned genuine-Qwen cold generation and offline warm reuse. Final-head
+packaging is verified independently by those workflows; the artifact/JAR
+measurements above identify the earlier accepted lease-evidence source.
 
 ## Recovery, compatibility and follow-on gates
 
