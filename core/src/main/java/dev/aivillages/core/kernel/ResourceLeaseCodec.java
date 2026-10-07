@@ -22,7 +22,8 @@ final class ResourceLeaseCodec {
         row.put("quantity",l.quantity());row.put("remaining",l.remaining());row.put("identity",l.identity());
         row.put("granted",l.granted());row.put("renewed",l.renewed());row.put("expires",l.expires());
         row.put("renewals",(long)l.renewals());row.put("state",l.state().name());
-        row.put("reason",l.reason()==null?null:l.reason().name());
+        // StrictJson's data grammar excludes null; the empty string means no failure reason.
+        row.put("reason",l.reason()==null?"":l.reason().name());
         var receipts=new TreeMap<String,Long>();l.consumed().forEach((id,qty)->receipts.put(id.toString(),qty));
         row.put("consumed",receipts);return StrictJson.canonical(row);
     }
@@ -44,14 +45,13 @@ final class ResourceLeaseCodec {
             if(!(entry.getValue() instanceof Long qty))throw new StrictJson.Invalid("$","QUANTITY");
             consumed.put(UUID.fromString(entry.getKey()),qty);
         }
-        Object reason=row.get("reason");
-        if(reason!=null && !(reason instanceof String))throw new StrictJson.Invalid("$","REASON");
+        String reason=string(row,"reason","$");
         return new Lease(id(row,"id"),id(row,"group"),id(row,"epoch"),number(row,"generation","$"),
                 new Owner(id(row,"job"),number(row,"jobGeneration","$")),context,resource,
                 number(row,"quantity","$"),number(row,"remaining","$"),string(row,"identity","$"),
                 number(row,"granted","$"),number(row,"renewed","$"),number(row,"expires","$"),
                 Math.toIntExact(number(row,"renewals","$")),State.valueOf(string(row,"state","$")),
-                reason==null?null:Reason.valueOf((String)reason),consumed);
+                reason.isEmpty()?null:Reason.valueOf(reason),consumed);
     }
     private static UUID id(Map<String,Object> row,String key) throws StrictJson.Invalid { return UUID.fromString(string(row,key,"$")); }
     private static int[] coordinates(Object value) throws StrictJson.Invalid {
