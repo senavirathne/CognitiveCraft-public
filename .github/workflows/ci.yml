@@ -1,0 +1,816 @@
+name: CognitiveCraft verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognitivecraft-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Java 25 / Fabric verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Configure Gradle cache and validate wrapper
+        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Core, provider and Fabric tests; Fabric build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Verify required policy JUnit actually executed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for suite, expected in (('NavigationRouteTest', 6), ('KernelRunStatusTest', 4), ('WheatContainerCapacityTest', 6), ('UuidSuggestionsTest', 3)):
+              report = Path(f'fabric/build/test-results/test/TEST-dev.aivillages.fabric.{suite}.xml')
+              cases = list(ET.parse(report).getroot().iter('testcase'))
+              if len(cases) < expected or any(case.find(tag) is not None
+                                               for case in cases for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit(f'{suite} expected at least {expected} passing cases; found {len(cases)}')
+              print(f'Verified {len(cases)} Fabric policy JUnit cases in {suite}')
+          for suite, required in {
+              'LanguageRequestsTest': ('ticketIdsAreExactScopedSnapshotsAndCancellationExcludesTerminalTickets',
+                                      'pendingResolutionIsSuggestedOnlyWhileCancellationCanFenceIt',
+                                      'submittedTicketIsCancellableOnlyWhileItsScopedRunIsCancellable',
+                                      'ticketIdReadsPreserveRetentionBoundsAndKeepPendingWork'),
+              'BootstrapControllerTest': ('runIdReadsAreExactScopedAndSeparateRetainedFromCancellableRuns',
+                                          'finishingWriteIsRetainedForStatusButNotSuggestedForCancellation',
+                                          'runIdReadsPreserveRetentionLimitsAndExcludeAlreadyRequestedCancellation',
+                                          'runIdReadsRejectWorkerThreadCalls')
+          }.items():
+              report = Path(f'core/build/test-results/test/TEST-dev.aivillages.core.kernel.{suite}.xml')
+              cases = list(ET.parse(report).getroot().iter('testcase'))
+              for name in required:
+                  selected = [case for case in cases if case.get('name') == name + '()']
+                  if len(selected) != 1 or any(selected[0].find(tag) is not None
+                                              for tag in ('failure', 'error', 'skipped')):
+                      raise SystemExit('Missing passing scoped UUID regression: ' + name)
+              print(f'Verified {len(required)} scoped UUID read regressions in {suite}')
+          report = Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResolverJUnitTest.xml')
+          cases = [case for case in ET.parse(report).getroot().iter('testcase')
+                   if case.get('name', '').startswith('unreadableRepositoryCannotProveMissingImplementation')]
+          if len(cases) != 1 or any(case.find(tag) is not None
+                                   for case in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected the passing unreadable-repository resolver regression')
+          print('Verified unreadable repository cannot invite synthesis')
+          report = Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.BootstrapControllerTest.xml')
+          cases = list(ET.parse(report).getroot().iter('testcase'))
+          for name in ('activeWriteExpiresAtBoundAndLateAcknowledgementCannotRoute',
+                       'acknowledgementAtDeadlineRemainsValidWhenPolledLater',
+                       'acknowledgementAfterDeadlineCannotStartExecutionBeforeExpiryPoll',
+                       'terminalWriteExpiryRetainsFulfillmentAndFencesLateCommit',
+                       'enrollmentExpiryCannotPublishLiveControlFromLateCommit',
+                       'overflowingStorageDeadlineRejectsBeforeDispatch',
+                       'reconciliationExpiryPreservesCheckpointStatusWithoutReplayOrLateUnlock'):
+              matched = [c for c in cases if c.get('name', '').startswith(name + '(')]
+              if len(matched) != 1 or any(c.find(tag) is not None
+                                        for c in matched for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Missing storage-deadline regression ' + name)
+          print('Verified seven bounded storage acknowledgement regressions')
+          report = Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.BootstrapJournalTest.xml')
+          cases = list(ET.parse(report).getroot().iter('testcase'))
+          for name in ('exactInputByteLimitRemainsReadable',
+                       'excessiveInputRecoversPriorStateWithoutReplacingEvidence',
+                       'sparseFileBeyondJvmArrayLimitStillRecoversReadOnly',
+                       'twoOversizedCopiesStayPreservedAndInactive'):
+              matched = [c for c in cases if c.get('name', '').startswith(name + '(')]
+              if len(matched) != 1 or any(c.find(tag) is not None
+                                        for c in matched for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Missing bounded journal-read regression ' + name)
+          print('Verified four bounded journal-read and preserved-evidence regressions')
+          for suite, expected in (('CitizenRegistryTest', 20), ('CitizenIdentityStoreTest', 9)):
+              report = Path(f'core/build/test-results/test/TEST-dev.aivillages.core.kernel.{suite}.xml')
+              cases = list(ET.parse(report).getroot().iter('testcase'))
+              if len(cases) < expected or any(c.find(tag) is not None
+                                            for c in cases for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit(f'Missing passing identity coverage: {suite} ({len(cases)})')
+              print(f'Verified {len(cases)} identity JUnit cases in {suite}')
+          report = Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.BootstrapControllerTest.xml')
+          cases = list(ET.parse(report).getroot().iter('testcase'))
+          for name in ('registryRenamePreservesKnownExecutionAndCannotReviveCancellation',
+                       'registryScopesEachRunAcrossSerialCitizensAndKeepsOneActiveAttempt',
+                       'registryModeRefusesEnrollmentAndMismatchedSchemaAcknowledgement'):
+              matched = [c for c in cases if c.get('name', '').startswith(name + '(')]
+              if len(matched) != 1 or any(c.find(tag) is not None
+                                        for c in matched for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Missing registry/controller integration regression ' + name)
+          print('Verified registry-backed offline controller, privacy, single-run and cancellation integration')
+          PY
+      - name: Verify production packaging excludes test knowledge and model weights
+        run: |
+          python3 - <<'PY'
+          import hashlib, io, json
+          from pathlib import Path
+          from zipfile import ZipFile
+          jars = [p for p in Path('fabric/build/libs').glob('*.jar') if not p.name.endswith('-sources.jar')]
+          if len(jars) != 1:
+              raise SystemExit('Expected exactly one production mod JAR')
+          test_root = Path('fabric/src/gameTest/java')
+          excluded = [str(p.relative_to(test_root)).removesuffix('.java') for p in test_root.rglob('*.java')]
+          if not excluded:
+              raise SystemExit('Packaging check found no GameTest sources to exclude')
+          checked = []
+          def audit(data, label, depth=0):
+              if depth > 4:
+                  raise SystemExit('Unexpected production nested-JAR depth')
+              with ZipFile(io.BytesIO(data)) as archive:
+                  entries = archive.infolist()
+                  if len(entries) > 10000 or sum(e.file_size for e in entries) > 32 * 1024 * 1024:
+                      raise SystemExit('Unexpected production archive work/byte count')
+                  for entry in entries:
+                      name = entry.filename
+                      if (any(name == prefix + '.class' or name.startswith(prefix + '$') for prefix in excluded)
+                              or name.lower().endswith(('.gguf', '.safetensors', '.pth', '.pt', '.cact'))):
+                          raise SystemExit('Test-only class/model asset shipped in ' + label + ': ' + name)
+                      if name.endswith('fabric.mod.json'):
+                          if json.loads(archive.read(entry)).get('id') == 'ai_villages_tests':
+                              raise SystemExit('GameTest mod metadata shipped in production')
+                      if name.endswith('.jar'):
+                          audit(archive.read(entry), label + '!' + name, depth + 1)
+                  checked.append({'archive': label, 'entries': len(entries), 'bytes': len(data),
+                                  'sha256': hashlib.sha256(data).hexdigest()})
+          data = jars[0].read_bytes()
+          audit(data, jars[0].name)
+          result = {'schema': 1, 'jar': jars[0].name, 'bytes': len(data),
+                    'sha256': hashlib.sha256(data).hexdigest(), 'archives': checked,
+                    'excludedGameTestSources': len(excluded), 'testModExcluded': True,
+                    'testClassesExcluded': True, 'modelWeightsExcluded': True}
+          Path('fabric/build/release-audit.json').write_text(json.dumps(result, indent=2) + '\n')
+          print('Verified production packaging:', json.dumps(result))
+          PY
+      - name: Report compiled mod bytes
+        run: |
+          find fabric/build/libs -maxdepth 1 -type f -name '*.jar' -printf '%f %s bytes\n'
+          du -sb "$(readlink -f "$JAVA_HOME")" | awk '{print "JDK bytes=" $1}'
+      - name: Select bootstrap and farming regression suites
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          for suite in ('GatewayGameTests', 'BootstrapAcceptanceGameTests', 'BootstrapStorageGameTests',
+                        'BootstrapInterruptionGameTests', 'BootstrapRecoveryGameTests', 'BootstrapHardKillGameTests',
+                        'BootstrapBlockerGameTests', 'CitizenIdentityGameTests', 'NeedleLanguageGameTests', 'WorldReferenceGameTests'):
+              testmod['entrypoints']['fabric-gametest'].remove('dev.aivillages.fabric.' + suite)
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          print('Regression suites:', testmod['entrypoints']['fabric-gametest'])
+          PY
+      - name: Fabric server GameTests and saved-world phase
+        timeout-minutes: 10
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: cold
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify registered commands and preserve cold evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          root = ET.parse(report).getroot()
+          project = [case for case in root.iter('testcase')
+                     if case.get('name', '').startswith('ai_villages_tests:')]
+          if len(project) != 14 or any(case.find(tag) is not None
+                                       for case in project for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit(f'Expected 14 passing cold bootstrap/farming GameTests; found {len(project)}')
+          cases = [case for case in project
+                   if 'kernel_command_game_tests_player_source_commands_reject_invalid_and_foreign_work'
+                   in case.get('name', '')]
+          if len(cases) != 1 or any(case.find(tag) is not None
+                                    for case in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit(f'Expected one passing cold command fixture; found {len(cases)}')
+          print('Verified registered server-player command fixture in cold Minecraft process')
+          completions = [case for case in project
+                         if 'kernel_suggestion_game_tests_player_scoped_uuid_suggestions'
+                         in case.get('name', '')]
+          if len(completions) != 1:
+              raise SystemExit('Missing production two-player UUID completion GameTest')
+          logs = (report.parent / 'logs/latest.log').read_text().splitlines()
+          if not any('UUID completion acceptance: players=2 ownCitizens=2 foreignCitizens=1 privacy=true prefix=true executionUnchanged=true'
+                     in line for line in logs):
+              raise SystemExit('Missing UUID completion privacy/prefix/execution evidence')
+          commands = [line for line in logs if 'IMP-007 command acceptance: ' in line]
+          required = ('maxAmount=64 maxSourceCells=256 acceptedBounds=true',
+                      'sourceOverLimit=257 sourceOverflowRejected=true',
+                      'syntaxOverflowRejected=true invalidAmounts=5 replayBusyRejections=2',
+                      'explicitRoleAllowed=1 permissionDenials=3 foreignPrivateDenials=8',
+                      'scopeUnderStalledJournal=true journalMonitorTimeouts=0',
+                      'initialModelCalls=0 cancelEffects=0 stableLateTicks=20')
+          if len(commands) != 1 or any(token not in commands[0] for token in required):
+              raise SystemExit('Missing command grant/revocation, boundary, replay or stalled-journal evidence')
+          evidence = Path('fabric/build/gametest-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(report, evidence / 'cold.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'cold.log')
+          PY
+      - name: Restart Minecraft server and verify saved world
+        timeout-minutes: 10
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: warm
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify saved-world evidence and preserve bootstrap world
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          root = ET.parse(report).getroot()
+          cases = [case for case in root.iter('testcase')
+                   if case.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 14:
+              raise SystemExit(f'Expected 14 bootstrap/farming GameTests; found {len(cases)}')
+          if any(case.find('failure') is not None or case.find('error') is not None
+                 or case.find('skipped') is not None for case in cases):
+              raise SystemExit('CognitiveCraft GameTests failed or were skipped')
+          evidence = Path('fabric/build/gametest-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(report, evidence / 'warm.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'warm.log')
+          shutil.move(str(report.parent), 'fabric/build/bootstrap-gametest-run')
+          print(f'Verified {len(cases)} bootstrap/farming GameTests in the restarted Minecraft process')
+          PY
+      - name: Select gateway regression suite in a separate world
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          testmod['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.GatewayGameTests']
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          print('Gateway suite:', testmod['entrypoints']['fabric-gametest'])
+          PY
+      - name: Gateway movement and effect GameTests
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify and preserve cold gateway evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [case for case in ET.parse(report).getroot().iter('testcase')
+                   if case.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 10 or any(case.find(tag) is not None
+                                     for case in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit(f'Expected ten passing cold gateway GameTests; found {len(cases)}')
+          if any(not case.get('name', '').startswith('ai_villages_tests:gateway_game_tests_')
+                 for case in cases):
+              raise SystemExit('Unexpected case in the isolated gateway suite')
+          evidence = Path('fabric/build/gametest-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(report, evidence / 'gateway-cold.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'gateway-cold.log')
+          print('Verified ten isolated gateway GameTests in the cold Minecraft process')
+          PY
+      - name: Repeat gateway GameTests after server restart
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify and preserve warm gateway evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [case for case in ET.parse(report).getroot().iter('testcase')
+                   if case.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 10 or any(case.find(tag) is not None
+                                     for case in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit(f'Expected ten passing warm gateway GameTests; found {len(cases)}')
+          evidence = Path('fabric/build/gametest-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(report, evidence / 'gateway-warm.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'gateway-warm.log')
+          print('Verified ten isolated gateway GameTests in the restarted Minecraft process')
+          PY
+      - name: Select controller acceptance suites
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          testmod['entrypoints']['fabric-gametest'] = [
+              'dev.aivillages.fabric.BootstrapAcceptanceGameTests',
+              'dev.aivillages.fabric.BootstrapStorageGameTests',
+              'dev.aivillages.fabric.BootstrapRecoveryGameTests',
+              'dev.aivillages.fabric.BootstrapBlockerGameTests',
+          ]
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          print('Controller suites:', testmod['entrypoints']['fabric-gametest'])
+          PY
+      - name: Controller delivery, interference and storage GameTests
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify all controller acceptance evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          root = ET.parse(report).getroot()
+          cases = [case for case in root.iter('testcase')
+                   if case.get('name', '').startswith('ai_villages_tests:')]
+          fixtures = (
+              'bootstrap_acceptance_game_tests_cancel_after_first_delivery_preserves_partial_progress',
+              'bootstrap_acceptance_game_tests_external_stock_never_replaces_attributed_delivery',
+              'bootstrap_acceptance_game_tests_changed_worker_inventory_blocks_further_credit',
+              'bootstrap_acceptance_game_tests_partial_chest_capacity_terminates_without_replay',
+              'bootstrap_acceptance_game_tests_authority_revoked_after_resolution_prevents_first_effect',
+              'bootstrap_acceptance_game_tests_authority_revoked_after_pickup_prevents_transfer',
+              'bootstrap_storage_game_tests_failed_body_write_keeps_delivered_work_unadmitted',
+              'bootstrap_storage_game_tests_failed_manifest_write_keeps_orphan_unadmitted',
+              'bootstrap_storage_game_tests_committed_manifest_survives_lost_publication_acknowledgement',
+              'bootstrap_storage_game_tests_admission_quota_preserves_physical_fulfillment',
+              'bootstrap_storage_game_tests_failed_terminal_marker_requires_explicit_recovery_request',
+              'bootstrap_storage_game_tests_delayed_terminal_write_preserves_live_fulfillment_without_replay',
+              'bootstrap_storage_game_tests_expired_terminal_write_fences_late_commit_without_losing_fulfillment',
+              'bootstrap_recovery_game_tests_authoritative_copy_reuses_knowledge_after_cache_deletion',
+              'bootstrap_recovery_game_tests_corrupt_body_is_quarantined_without_physical_replay',
+              'bootstrap_recovery_game_tests_future_body_preserves_admission_without_execution',
+              'bootstrap_recovery_game_tests_future_manifest_blocks_research_without_downgrade',
+              'bootstrap_recovery_game_tests_future_bootstrap_journal_fences_work_without_overwriting_original',
+              'bootstrap_blocker_game_tests_insufficient_mature_crops_preserve_partial_work_until_new_request',
+              'bootstrap_blocker_game_tests_unrelated_stock_without_mature_crops_cannot_fulfill_request',
+          )
+          for fixture in fixtures:
+              matched = [case for case in cases
+                         if case.get('name', '').endswith(fixture)]
+              if len(matched) != 1 or any(case.find(tag) is not None
+                                          for case in matched for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit(f'Expected one passing controller fixture {fixture}; found {len(matched)}')
+          if len(cases) != 20:
+              raise SystemExit(f'Expected twenty controller cases; found {len(cases)}')
+          evidence = Path('fabric/build/gametest-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(report, evidence / 'controller.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'controller.log')
+          import re
+          logs = (evidence / 'controller.log').read_text().splitlines()
+          for scenario in ('TERMINAL_MARKER', 'TERMINAL_DELAY', 'TERMINAL_TIMEOUT'):
+              prefix = 'IMP-007 storage progress case=' + scenario + ' '
+              samples = [line.split(prefix, 1)[1] for line in logs if prefix in line]
+              if not 1 <= len(samples) <= 64 or any(len(sample) > 1024 for sample in samples):
+                  raise SystemExit('Missing or unbounded per-run storage diagnostics for ' + scenario)
+          held = [line for line in logs if 'IMP-007 terminal persistence stage=held ' in line]
+          released = [line for line in logs if 'IMP-007 terminal persistence stage=released ' in line]
+          if len(held) != 1 or len(released) != 1:
+              raise SystemExit('Missing exact pending-terminal persistence barriers')
+          def number(line, key):
+              return int(re.search(r'\b' + key + r'=(\d+)', line).group(1))
+          for line in (held[0], released[0]):
+              for token in ('phase=PERSISTING', 'outcome=SUCCEEDED reason=null',
+                            'effectsAtCheckpoint=0', ' effects=9', 'receipts=9',
+                            'journalFailures=0', 'failedTerminalWrites=1',
+                            'delayedTerminalWrites=1', 'terminalGateReleased=false'):
+                  if token not in line:
+                      raise SystemExit('Held write did not preserve truthful state: ' + token)
+          held_run = re.search(r' run=([^ ]+)', held[0]).group(1)
+          if (held_run != re.search(r' run=([^ ]+)', released[0]).group(1)
+                  or number(released[0], 'gameTick') - number(held[0], 'gameTick') < 40
+                  or any(number(held[0], key) != number(released[0], key)
+                         for key in ('writeRequests', 'journalStarted', 'journalFinished'))):
+              raise SystemExit('Pending write ran or changed identity before explicit gate release')
+          finished = [line for line in logs if 'IMP-007 storage acceptance case=TERMINAL_DELAY ' in line]
+          if len(finished) != 1 or any(token not in finished[0] for token in (
+                  'continuation=' + held_run, 'continuationReceipts=9',
+                  'delayedTerminalWrites=1', 'pendingBusyRejections=2', 'foreignPendingDenials=2',
+                  'quietPendingWrite=40', 'fakeCalls=1', 'markerFaults=1', 'chestWheat=24')):
+              raise SystemExit('Released terminal write lost fulfillment, scope or explicit recovery')
+          expired = [line for line in logs if 'IMP-007 storage timeout acceptance: ' in line]
+          if len(expired) != 1 or any(token not in expired[0] for token in (
+                  'maxWaitMillis=30000', 'liveOutcome=SUCCEEDED liveEffects=9 checkpointEffects=0 receipts=9',
+                  'storageError=STORAGE_UNAVAILABLE lateCommitObserved=true',
+                  'nextWorkDenied=true modelCalls=0')):
+              raise SystemExit('Missing bounded storage expiry and fenced late-commit proof')
+          for mature, amount, effects in ((2, 6, 6), (0, 4, 0)):
+              blockers = [line for line in logs if f'IMP-007 crop blocker acceptance: initialMature={mature} ' in line]
+              tokens = (f'requested={amount}', 'result=BLOCKED reason=RESOURCE_MISSING',
+                        f'harvested={mature} picked={mature} deposited={mature}',
+                        f'effects={effects} receipts={effects}',
+                        'continuationEffects=3 continuationReceipts=3 reuseCalls=0 fakeCalls=1',
+                        f'actorWheat=7 chestWheat={21 + mature} droppedWheat=13 matureCrops=3',
+                        'quietAfterRestore=40 quietAfterNewRequest=40 custodyReleased=true')
+              if len(blockers) != 1 or any(token not in blockers[0] for token in tokens):
+                  raise SystemExit('Missing exact crop-shortage/attribution/new-request proof')
+          def passed_names(phase):
+              phase_cases = [case for case in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
+                             if case.get('name', '').startswith('ai_villages_tests:')]
+              if any(case.find(tag) is not None for case in phase_cases
+                     for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit(f'Failed or skipped case in preserved {phase} evidence')
+              names = {case.get('name') for case in phase_cases}
+              if len(names) != len(phase_cases):
+                  raise SystemExit(f'Duplicate case in preserved {phase} evidence')
+              return names
+          cold, warm = passed_names('cold'), passed_names('warm')
+          gateway_cold, gateway_warm = passed_names('gateway-cold'), passed_names('gateway-warm')
+          controller = passed_names('controller')
+          if cold != warm or gateway_cold != gateway_warm or cold & gateway_cold:
+              raise SystemExit('Regression coverage changed across Minecraft processes')
+          regression = cold | gateway_cold
+          if len(regression) != 24 or len(controller) != 20 or regression & controller:
+              raise SystemExit('Expected 24 repeated regressions and twenty distinct controller cases')
+          print('Verified all 24 regression GameTests in both cold and restarted processes')
+          print('Verified twenty controller acceptance cases including physical crop deficits; interruption proof follows')
+          PY
+      - name: Select interrupted-delivery suite in a fresh world
+        run: |
+          python3 - <<'PY'
+          import json
+          import shutil
+          from pathlib import Path
+          shutil.move('fabric/build/gametest-run', 'fabric/build/gateway-gametest-run')
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          testmod['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.BootstrapInterruptionGameTests']
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          print('Interruption suite:', testmod['entrypoints']['fabric-gametest'])
+          PY
+      - name: Preserve partial delivery with an active marker before server exit
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify and preserve interrupted cold evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          fixture = 'bootstrap_interruption_game_tests_interrupted_partial_delivery_requires_explicit_request_after_server_restart'
+          if len(cases) != 1 or not cases[0].get('name', '').endswith(fixture) or any(
+                  c.find(tag) is not None for c in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected one passing cold interrupted-delivery fixture')
+          evidence = Path('fabric/build/gametest-evidence')
+          shutil.copy2(report, evidence / 'interruption-cold.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'interruption-cold.log')
+          print('Verified partial delivery with a durable ACTIVE marker before the first server exited')
+          PY
+      - name: Restart and require explicit offline recovery of remaining crops
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify separate-process interruption and total coverage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          fixture = 'bootstrap_interruption_game_tests_interrupted_partial_delivery_requires_explicit_request_after_server_restart'
+          if len(cases) != 1 or not cases[0].get('name', '').endswith(fixture) or any(
+                  c.find(tag) is not None for c in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected one passing warm interrupted-delivery fixture')
+          evidence = Path('fabric/build/gametest-evidence')
+          shutil.copy2(report, evidence / 'interruption-warm.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'interruption-warm.log')
+          def names(phase):
+              phase_cases = [c for c in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
+                             if c.get('name', '').startswith('ai_villages_tests:')]
+              if any(c.find(tag) is not None for c in phase_cases
+                     for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Failed or skipped preserved phase ' + phase)
+              result = {c.get('name') for c in phase_cases}
+              if len(result) != len(phase_cases):
+                  raise SystemExit('Duplicate case in phase ' + phase)
+              return result
+          cold, warm = names('interruption-cold'), names('interruption-warm')
+          original = names('cold') | names('gateway-cold') | names('controller')
+          if cold != warm or len(cold) != 1 or cold & original or len(original | cold) != 45:
+              raise SystemExit('Expected matching interruption cases and all 45 distinct project GameTests')
+          print('Verified partial-effect interruption across different Minecraft processes and explicit zero-call recovery')
+          print('Verified all 45 distinct project GameTests; original 24 regressions still execute twice')
+          PY
+      - name: Select fresh saved-world setup for hard-kill acceptance
+        run: |
+          python3 - <<'PY'
+          import shutil
+          shutil.move('fabric/build/gametest-run', 'fabric/build/interruption-gametest-run')
+          print('Preserved the controlled-interruption world; hard-kill setup uses a fresh world')
+          PY
+      - name: Save one physical delivery and its active marker for hard-kill setup
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_BOOTSTRAP_RESTART: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify setup and select the hard-kill case
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          fixture = 'bootstrap_interruption_game_tests_interrupted_partial_delivery_requires_explicit_request_after_server_restart'
+          if len(cases) != 1 or not cases[0].get('name', '').endswith(fixture) or any(
+                  c.find(tag) is not None for c in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected a passing independently saved hard-kill setup')
+          evidence = Path('fabric/build/gametest-evidence')
+          shutil.copy2(report, evidence / 'hardkill-setup.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'hardkill-setup.log')
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          testmod['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.BootstrapHardKillGameTests']
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          print('Verified saved partial work; only the hard-kill case is selected')
+          PY
+      - name: SIGKILL the owned Minecraft JVM before interrupted-journal replacement
+        timeout-minutes: 6
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: |
+          python3 scripts/verify-hardkill-recovery.py
+          cp fabric/build/gametest-run/logs/latest.log fabric/build/gametest-evidence/hardkill-killed.log
+      - name: Restart after SIGKILL and require explicit offline recovery
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_BOOTSTRAP_CRASH: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true -Dcognitivecraft.gametest.hardKillReady=${{ github.workspace }}/fabric/build/gametest-evidence/hardkill-ready.json
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify actual SIGKILL evidence and all successful coverage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          fixture = 'bootstrap_hard_kill_game_tests_killed_reconciliation_requires_explicit_offline_request'
+          if len(cases) != 1 or not cases[0].get('name', '').endswith(fixture) or any(
+                  c.find(tag) is not None for c in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected a passing recovery GameTest after actual SIGKILL')
+          evidence = Path('fabric/build/gametest-evidence')
+          ready = json.loads((evidence / 'hardkill-ready.json').read_text())
+          killed = json.loads((evidence / 'hardkill-verification.json').read_text())
+          if (killed.get('signal') != 'SIGKILL' or not killed.get('observedTermination')
+                  or not killed.get('sourceFilesUnchanged') or killed.get('launcherExit') == 0
+                  or killed.get('process') != ready.get('process')):
+              raise SystemExit('Unverified process termination')
+          shutil.copy2(report, evidence / 'hardkill-warm.xml')
+          shutil.copy2(report.parent / 'logs/latest.log', evidence / 'hardkill-warm.log')
+          counts = {'cold': 14, 'warm': 14, 'gateway-cold': 10, 'gateway-warm': 10,
+                    'controller': 20, 'interruption-cold': 1, 'interruption-warm': 1,
+                    'hardkill-setup': 1, 'hardkill-warm': 1}
+          names, executions = set(), 0
+          for phase, expected in counts.items():
+              phase_cases = [c for c in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
+                             if c.get('name', '').startswith('ai_villages_tests:')]
+              if len(phase_cases) != expected or any(c.find(tag) is not None
+                      for c in phase_cases for tag in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Unexpected successful coverage in ' + phase)
+              names.update(c.get('name') for c in phase_cases)
+              executions += len(phase_cases)
+          if len(names) != 46 or executions != 72:
+              raise SystemExit('Expected 46 distinct cases / 72 successful project executions')
+          print('Verified SIGKILL at the held reconciliation boundary, protected files and explicit offline recovery')
+          print('Verified 46 distinct project GameTests / 72 successful executions in ten Minecraft JVMs')
+          print('The deliberately killed setup has no passing XML and is excluded from successful execution counts')
+          PY
+      - name: Select isolated citizen identity saved-world fixture
+        run: |
+          mv fabric/build/gametest-run fabric/build/hardkill-gametest-run
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          testmod = json.loads(path.read_text())
+          testmod['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.CitizenIdentityGameTests']
+          path.write_text(json.dumps(testmod, indent=2) + '\n')
+          PY
+      - name: Citizen identity names, scopes and physical serial tasks
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_IDENTITY_RESTART: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify cold identity acceptance and preserve saved-world evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          fixture = 'citizen_identity_game_tests_named_citizens_preserve_scoped_identity_and_offline_tasks_after_server_reload'
+          if len(cases) != 1 or not cases[0].get('name', '').endswith(fixture) or any(
+                  c.find(tag) is not None for c in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected one passing GP-09 cold identity case')
+          evidence = Path('fabric/build/gametest-evidence')
+          log = report.parent / 'logs/latest.log'
+          text = log.read_text()
+          for token in ('IMP-008 identity accepted warm=false', 'candidates=2 foreignCandidates=1',
+                        'serialCitizens=3 cancelledEffects=0 newModelCalls=0 delivered=3',
+                        'identitySchema=1 journalSchema=2', 'migrationOnce=true warm=false'):
+              if token not in text: raise SystemExit('Missing identity acceptance marker: ' + token)
+          shutil.copy2(report, evidence / 'identity-cold.xml')
+          shutil.copy2(log, evidence / 'identity-cold.log')
+          markers = list(report.parent.rglob('identity-restart.json'))
+          if len(markers) != 1: raise SystemExit('Expected one durable identity restart marker')
+          world = markers[0].parent
+          shutil.copy2(markers[0], evidence / 'identity-restart.json')
+          shutil.copy2(world / 'data/cognitivecraft/citizens/v1/state.json', evidence / 'identity-cold-state.json')
+          shutil.copy2(world / 'data/cognitivecraft/bootstrap/v1/state.json', evidence / 'identity-cold-runs.json')
+          shutil.copy2(world / 'data/cognitivecraft/bootstrap/v1/state.legacy-v1.json', evidence / 'identity-legacy-v1.json')
+          print('Verified three named citizens, two scoped principals and actual offline physical tasks')
+          PY
+      - name: Restart Minecraft and reuse named citizens with inference disabled
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_IDENTITY_RESTART: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify stable saved identities and all required coverage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, shutil
+          import xml.etree.ElementTree as ET
+          report = Path('fabric/build/gametest-run/gametest-results.xml')
+          cases = [c for c in ET.parse(report).getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 1 or any(c.find(tag) is not None for c in cases for tag in ('failure', 'error', 'skipped')):
+              raise SystemExit('Expected one passing GP-09 warm identity case')
+          evidence = Path('fabric/build/gametest-evidence')
+          log = report.parent / 'logs/latest.log'
+          text = log.read_text()
+          for token in ('IMP-008 identity accepted warm=true', 'candidates=2 foreignCandidates=1',
+                        'serialCitizens=3 cancelledEffects=0 newModelCalls=0 delivered=5',
+                        'identitySchema=1 journalSchema=2', 'migrationOnce=true warm=true'):
+              if token not in text: raise SystemExit('Missing reload acceptance marker: ' + token)
+          shutil.copy2(report, evidence / 'identity-warm.xml')
+          shutil.copy2(log, evidence / 'identity-warm.log')
+          markers = list(report.parent.rglob('identity-restart.json'))
+          if len(markers) != 1: raise SystemExit('Missing saved identity marker')
+          world = markers[0].parent
+          for source, target in (('citizens/v1/state.json','identity-warm-state.json'),
+                                 ('bootstrap/v1/state.json','identity-warm-runs.json')):
+              shutil.copy2(world / 'data/cognitivecraft' / source, evidence / target)
+          original = (evidence / 'identity-legacy-v1.json').read_bytes()
+          current = (world / 'data/cognitivecraft/bootstrap/v1/state.legacy-v1.json').read_bytes()
+          if current != original: raise SystemExit('Reload rewrote legacy migration source')
+          proof = json.loads((evidence / 'identity-restart.json').read_text())
+          if hashlib.sha256(current).hexdigest() != proof['legacySha256']:
+              raise SystemExit('Legacy source digest does not match acceptance marker')
+          cold = json.loads((evidence / 'identity-cold-state.json').read_text())
+          warm = json.loads((evidence / 'identity-warm-state.json').read_text())
+          if cold['bootstrapMigration'] != warm['bootstrapMigration'] or len(warm['citizens']) != 3:
+              raise SystemExit('Migration repeated or duplicated identities')
+          if cold['citizens'] != warm['citizens']:
+              raise SystemExit('Names, control scopes, entity bindings or availability changed on reload')
+          counts = {'cold':14,'warm':14,'gateway-cold':10,'gateway-warm':10,'controller':20,
+                    'interruption-cold':1,'interruption-warm':1,'hardkill-setup':1,'hardkill-warm':1,
+                    'identity-cold':1,'identity-warm':1}
+          names, executions = set(), 0
+          for phase, expected in counts.items():
+              phase_cases = [c for c in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
+                             if c.get('name', '').startswith('ai_villages_tests:')]
+              if len(phase_cases) != expected or any(c.find(tag) is not None
+                      for c in phase_cases for tag in ('failure','error','skipped')):
+                  raise SystemExit('Missing successful coverage in ' + phase)
+              names.update(c.get('name') for c in phase_cases); executions += len(phase_cases)
+          if len(names) != 47 or executions != 74:
+              raise SystemExit('Expected 47 distinct / 74 successful project GameTest executions')
+          print('Verified GP-09 in separate saved-world Minecraft JVMs with stable identities/history and zero new model calls')
+          print('Verified 47 distinct project GameTests / 74 successful executions in twelve Minecraft JVMs')
+          PY
+      - name: Select deterministic nearest-reference fixture in a fresh disposable world
+        run: |
+          python3 - <<'PY'
+          import json, shutil
+          from pathlib import Path
+          root = Path('fabric/build/gametest-run')
+          shutil.move(str(root), 'fabric/build/identity-gametest-run')
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          metadata = json.loads(path.read_text())
+          metadata['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.WorldReferenceGameTests']
+          path.write_text(json.dumps(metadata, indent=2) + '\n')
+          PY
+      - name: Registered naming and changed nearest references with injected NLU and real mechanics
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify and preserve deterministic nearest physical evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, shutil, xml.etree.ElementTree as ET
+          root = Path('fabric/build/gametest-run')
+          cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected one passing injected-NLU nearest physical case')
+          text = (root/'logs/latest.log').read_text()
+          for marker in ('actualNeedle=false namingForms=5 excludedCitizens=true', 'coordinateFreeRuns=2 delivered=8',
+                         'physicalMovement=true changedLocations=true sameArtifact=',
+                         'generationCalls=0 fakeInterpretations=7 registeredCommand=aivillage'):
+              if marker not in text: raise SystemExit('Missing nearest evidence: ' + marker)
+          evidence = Path('fabric/build/gametest-evidence')
+          shutil.copy2(root/'gametest-results.xml', evidence/'nearest-fake.xml')
+          shutil.copy2(root/'logs/latest.log', evidence/'nearest-fake.log')
+          counts = {'cold':14,'warm':14,'gateway-cold':10,'gateway-warm':10,'controller':20,
+                    'interruption-cold':1,'interruption-warm':1,'hardkill-setup':1,'hardkill-warm':1,
+                    'identity-cold':1,'identity-warm':1,'nearest-fake':1}
+          names, executions = set(), 0
+          for phase, expected in counts.items():
+              phase_cases = [c for c in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
+                             if c.get('name', '').startswith('ai_villages_tests:')]
+              phase_names = {c.get('name') for c in phase_cases}
+              if (len(phase_cases) != expected or len(phase_names) != expected
+                      or any(c.find(tag) is not None for c in phase_cases
+                             for tag in ('failure','error','skipped'))):
+                  raise SystemExit('Missing, duplicate or unsuccessful final coverage in ' + phase)
+              names.update(phase_names)
+              executions += len(phase_cases)
+          if len(names) != 48 or executions != 75:
+              raise SystemExit('Expected 48 distinct / 75 successful project GameTest executions')
+          summary = {'schema':1, 'distinctCases':len(names), 'successfulExecutions':executions,
+                     'phaseCounts':counts, 'caseNames':sorted(names)}
+          (evidence / 'coverage-summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          print(f'Verified {len(names)} distinct project GameTests / {executions} successful executions, including injected-NLU nearest binding')
+          PY
+      - name: Preserve verified IMP-008 mod JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: cognitivecraft-imp008-${{ github.sha }}-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            fabric/build/libs/ai-villages-0.1.0.jar
+            fabric/build/release-audit.json
+      - name: Preserve test reports and diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            core/build/reports/tests/
+            core/build/test-results/
+            providers/build/reports/tests/
+            providers/build/test-results/
+            fabric/build/reports/
+            fabric/build/test-results/
+            fabric/build/release-audit.json
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-evidence/
+            fabric/build/gametest-run/logs/
+            fabric/build/gametest-run/crash-reports/
+            fabric/build/bootstrap-gametest-run/gametest-results.xml
+            fabric/build/bootstrap-gametest-run/logs/
+            fabric/build/bootstrap-gametest-run/crash-reports/
+            fabric/build/gateway-gametest-run/gametest-results.xml
+            fabric/build/gateway-gametest-run/logs/
+            fabric/build/gateway-gametest-run/crash-reports/
+            fabric/build/interruption-gametest-run/gametest-results.xml
+            fabric/build/interruption-gametest-run/logs/
+            fabric/build/hardkill-gametest-run/gametest-results.xml
+            fabric/build/hardkill-gametest-run/logs/
+            fabric/build/hardkill-gametest-run/crash-reports/

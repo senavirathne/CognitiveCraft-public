@@ -1,0 +1,138 @@
+name: Job lifecycle acceptance
+on:
+  push:
+    branches: [main, feature/imp011-job-lifecycle]
+    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+  pull_request:
+    branches: [main]
+    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cognitivecraft-jobs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  jobs:
+    name: GP-13 durable lifecycle and owner integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Job unit and persistence tests; Fabric build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :fabric:build
+      - name: Require all lifecycle and persistence matrices to execute
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = Path('core/build/test-results/test')
+          counts = {}
+          for suite, minimum in [('JobLifecycleStoreTest', 80), ('JobJournalTest', 14), ('JobExecutorIntegrationTest', 5), ('JobResourceBoundsTest', 1)]:
+              path = root / ('TEST-dev.aivillages.core.kernel.' + suite + '.xml')
+              cases = list(ET.parse(path).getroot().iter('testcase'))
+              if len(cases) < minimum or any(c.find(t) is not None for c in cases for t in ('failure', 'error', 'skipped')):
+                  raise SystemExit('Missing successful job matrix: ' + suite)
+              counts[suite] = len(cases)
+          evidence = Path('core/build/job-evidence')
+          evidence.mkdir(parents=True, exist_ok=True)
+          result = {'schema': 1, 'architectureExtension': '0.2', 'jobSchema': 1, 'cases': counts}
+          (evidence / 'acceptance.json').write_text(json.dumps(result, indent=2) + '\n')
+          print('IMP-011 pure job acceptance ' + json.dumps(result))
+          PY
+      - name: Select isolated model-disabled job saved-world fixture
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          manifest = json.loads(path.read_text())
+          manifest['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.JobLifecycleGameTests']
+          path.write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+      - name: Real commands and executor; cancel 2 of 5; persist uncertain effects
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_JOB_RESTART: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Preserve cold job and actual Minecraft evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, shutil, xml.etree.ElementTree as ET
+          root = Path('fabric/build/gametest-run')
+          cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected one passing cold GP-13 job fixture')
+          text = (root/'logs/latest.log').read_text()
+          for token in ('IMP-011 physical accepted warm=false', 'cancelledCredit=2 uncertainCredit=0 delivered=7',
+                        'noReplay=true exactRoots=true generationCalls=0 jobSchema=1 architecture=0.2'):
+              if token not in text: raise SystemExit('Missing physical evidence: ' + token)
+          markers = list(root.rglob('job-restart.json'))
+          if len(markers) != 1: raise SystemExit('Expected one saved job mismatch proof')
+          evidence = Path('core/build/job-evidence')
+          for source,target in ((root/'gametest-results.xml','jobs-cold.xml'),(root/'logs/latest.log','jobs-cold.log'),
+                                (markers[0],'job-restart.json'),(markers[0].parent/'data/cognitivecraft/jobs/v1/state.jsonl','jobs-cold.jsonl')):
+              shutil.copy2(source,evidence/target)
+          PY
+      - name: Separate Minecraft restart with models disabled and no replay
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_JOB_RESTART: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify conservative recovery, private scope and retained exact references
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, shutil, xml.etree.ElementTree as ET
+          root = Path('fabric/build/gametest-run')
+          cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected one passing warm GP-13 job fixture')
+          text = (root/'logs/latest.log').read_text()
+          for token in ('IMP-011 physical accepted warm=true','scopes=2 serialJobs=3 cancelledCredit=2 uncertainCredit=0 delivered=7',
+                        'noReplay=true exactRoots=true generationCalls=0 jobSchema=1 architecture=0.2'):
+              if token not in text: raise SystemExit('Missing recovery evidence: ' + token)
+          evidence=Path('core/build/job-evidence')
+          marker=list(root.rglob('job-restart.json'))
+          if len(marker)!=1: raise SystemExit('Missing job restart marker')
+          state=marker[0].parent/'data/cognitivecraft/jobs/v1/state.jsonl'
+          rows=[json.loads(line) for line in state.read_text().splitlines()]
+          jobs=[r for r in rows[1:] if r['kind']=='job']
+          proof=json.loads(marker[0].read_text())
+          interrupted=[j for j in jobs if j['submission']==proof['uncertain']]
+          cancelled=[j for j in jobs if j['submission']==proof['cancelled']]
+          if len(interrupted)!=1 or interrupted[0]['state']!='INTERRUPTED' or not interrupted[0]['attempts'][-1]['uncertain']:
+              raise SystemExit('Uncertain job became active or lost its reservation')
+          if len(cancelled)!=1 or cancelled[0]['state']!='CANCELLED' or cancelled[0]['attempts'][-1]['credited']!=2:
+              raise SystemExit('Cancellation lost physical completion credit')
+          if state.stat().st_size>2097152 or len(jobs)>64 or any(len(j['events'])>16 for j in jobs):
+              raise SystemExit('Job evidence exceeds fixture storage bounds')
+          for source,target in ((root/'gametest-results.xml','jobs-warm.xml'),(root/'logs/latest.log','jobs-warm.log'),(state,'jobs-warm.jsonl')):
+              shutil.copy2(source,evidence/target)
+          result={'schema':1,'successfulMinecraftExecutions':2,'modelCalls':0,'physicalWheat':7,
+                  'cancelledCredit':2,'uncertainCredit':0,'jobRecords':len(jobs),'snapshotBytes':state.stat().st_size,
+                  'sha256':hashlib.sha256(state.read_bytes()).hexdigest()}
+          (evidence/'physical-acceptance.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('IMP-011 saved-world acceptance '+json.dumps(result))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: job-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/
+            core/build/job-evidence/
+            fabric/build/libs/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/latest.log

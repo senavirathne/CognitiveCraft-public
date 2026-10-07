@@ -1,0 +1,90 @@
+name: Default nearest physical acceptance
+on:
+  pull_request:
+    branches: [main, feature/default-nearest-world-references]
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cognitivecraft-nearest-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  nearest:
+    name: Injected NLU / registered commands / real physical nearest binding
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Core, provider and Fabric JUnit and production build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Select only injected-NLU reference acceptance
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          metadata = json.loads(path.read_text())
+          metadata['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.WorldReferenceGameTests']
+          path.write_text(json.dumps(metadata, indent=2) + '\n')
+          PY
+      - name: Registered naming and changed nearest references in Minecraft
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify physical evidence and executed Fabric policy tests
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import xml.etree.ElementTree as ET
+          for module in ('core','providers','fabric'):
+              reports = sorted(Path(module+'/build/test-results/test').glob('TEST-*.xml'))
+              total = 0
+              digest = hashlib.sha256()
+              for report in reports:
+                  raw = report.read_bytes()
+                  cases = list(ET.fromstring(raw).iter('testcase'))
+                  if any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                      raise SystemExit('JUnit case did not pass: '+str(report))
+                  total += len(cases)
+                  digest.update(report.name.encode()); digest.update(raw)
+              if not reports: raise SystemExit('No JUnit reports for '+module)
+              print('nearest JUnit module='+module+' cases='+str(total)+' xmlSha256='+digest.hexdigest())
+          root = Path('fabric/build/gametest-run')
+          cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected one passing injected-NLU physical reference case')
+          text = (root/'logs/latest.log').read_text()
+          for marker in ('actualNeedle=false namingForms=5 excludedCitizens=true', 'coordinateFreeRuns=2 delivered=8',
+                         'physicalMovement=true changedLocations=true sameArtifact=',
+                         'generationCalls=0 fakeInterpretations=7 registeredCommand=aivillage'):
+              if marker not in text: raise SystemExit('Missing nearest evidence: ' + marker)
+          report = Path('fabric/build/test-results/test/TEST-dev.aivillages.fabric.WheatContainerCapacityTest.xml')
+          cases = list(ET.parse(report).getroot().iter('testcase'))
+          if len(cases) != 6 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Six Fabric capacity-policy cases must actually execute')
+          print('Verified injected NLU, five registry naming forms, two changed physical runs, same artifact and zero generation')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nearest-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/
+            providers/build/test-results/
+            fabric/build/test-results/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/
+            fabric/build/gametest-run/**/cognitivecraft-reference-fixture/data/cognitivecraft/

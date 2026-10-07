@@ -1,0 +1,15 @@
+dependencies { api project(':core') }
+
+tasks.register('runGenerationLiveSmoke', JavaExec) {
+    group = 'verification'
+    description = 'Explicit live local Ollama structured candidate smoke (not a JUnit fake).'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.GenerationLiveSmoke'
+}
+
+tasks.register('runNeedleLiveSmoke', JavaExec) {
+    group = 'verification'
+    description = 'Explicit pinned actual local Needle held-out extraction benchmark.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.NeedleLiveSmoke'
+}

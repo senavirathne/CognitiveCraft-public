@@ -1,0 +1,100 @@
+name: Needle language acceptance
+on:
+  push:
+    branches: [imp-009-needle-intent]
+  pull_request:
+    branches: [main, feature/default-nearest-world-references]
+    paths: ['core/**', 'providers/**', 'fabric/**', 'tools/needle/**', '.github/workflows/needle-language.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cognitivecraft-needle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  language:
+    name: GP-10 live Needle and GP-11 outage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEEDLE_TELEMETRY: '0'
+      DO_NOT_TRACK: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install immutable actual Needle assets
+        run: python3 tools/needle/install.py "$RUNNER_TEMP/needle"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Unit and production build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Verify schema against actual Needle
+        run: |
+          export COGNITIVECRAFT_NEEDLE_DIR="$RUNNER_TEMP/needle"
+          python3 tools/needle/probe.py
+      - name: Actual Needle held-out benchmark
+        run: |
+          export COGNITIVECRAFT_NEEDLE_DIR="$RUNNER_TEMP/needle"
+          bash ./gradlew --no-daemon --stacktrace :providers:runNeedleLiveSmoke
+      - name: Select GP-10/11 production integration fixture
+        run: |
+          python3 - <<'PYTEST'
+          import json
+          from pathlib import Path
+          path = Path('fabric/src/gameTest/resources/fabric.mod.json')
+          metadata = json.loads(path.read_text())
+          metadata['entrypoints']['fabric-gametest'] = ['dev.aivillages.fabric.NeedleLanguageGameTests']
+          path.write_text(json.dumps(metadata, indent=2) + '\n')
+          PYTEST
+      - name: Actual language execution and disconnected structured fallback
+        timeout-minutes: 5
+        run: |
+          export COGNITIVECRAFT_NEEDLE_DIR="$RUNNER_TEMP/needle"
+          export JAVA_TOOL_OPTIONS=-Dcognitivecraft.gametest.trace=true
+          bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify physical acceptance and preserve evidence
+        run: |
+          python3 - <<'PYTEST'
+          import shutil, xml.etree.ElementTree as ET
+          from pathlib import Path
+          root = Path('fabric/build/gametest-run')
+          cases = [c for c in ET.parse(root / 'gametest-results.xml').getroot().iter('testcase')
+                   if c.get('name', '').startswith('ai_villages_tests:')]
+          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected one passing actual Needle GP-10/11 physical case')
+          text = (root / 'logs/latest.log').read_text()
+          for marker in ('IMP-009 GP-10/11 accepted actualNeedle=true', 'languageRuns=4 languageDelivered=16',
+                         'implicitNaming=true coordinateFree=true physicalMovement=true nearestDistractors=true changedLocations=true',
+                         'offlineDelivered=4 cancelledEffects=0 generationCalls=0',
+                         'duplicateCandidates=2 missingChestClarified=true', 'assetsDisconnected=true'):
+              if marker not in text: raise SystemExit('Missing physical proof: ' + marker)
+          evidence = Path('fabric/build/needle-evidence'); evidence.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(root/'gametest-results.xml', evidence/'language-physical.xml')
+          shutil.copy2(root/'logs/latest.log', evidence/'language-physical.log')
+          PYTEST
+      - name: Verify actual runner protocol
+        run: |
+          mkdir -p fabric/build/needle-evidence
+          "$RUNNER_TEMP/needle/needle.disabled" --help > fabric/build/needle-evidence/help.txt 2>&1 || true
+          cp "$RUNNER_TEMP/needle/manifest.json" fabric/build/needle-evidence/manifest.json
+          cat fabric/build/needle-evidence/help.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: needle-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            fabric/build/needle-evidence/
+            providers/build/needle-evidence/
+            core/build/test-results/
+            providers/build/test-results/
+            fabric/build/test-results/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/
+            fabric/build/gametest-run/crash-reports/
+            fabric/build/gametest-run/**/cognitivecraft-needle-fixture/data/cognitivecraft/
