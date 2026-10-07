@@ -46,6 +46,7 @@ jobs:
           evidence.mkdir(parents=True,exist_ok=True)
           (evidence/'acceptance.json').write_text(json.dumps({'schema':1,'architecture':'0.3','leaseSchema':1,'cases':counts},indent=2)+'\n')
           print('IMP-012 pure acceptance '+json.dumps(counts))
+          print('IMP-012 scale '+json.dumps(json.loads((evidence/'scale.json').read_text())))
           PY
       - name: Select isolated two-client fixture with all models disabled
         run: |
@@ -126,6 +127,29 @@ jobs:
                   'sha256':hashlib.sha256(state.read_bytes()).hexdigest()}
           (evidence/'physical-acceptance.json').write_text(json.dumps(result,indent=2)+'\n')
           print('IMP-012 saved-world acceptance '+json.dumps(result))
+          print('IMP-012 warm resources '+(path/'lease-warm-evidence.json').read_text().strip())
+          print('IMP-012 cold resources '+(path/'lease-cold-evidence.json').read_text().strip())
+          import zipfile
+          tests={p.stem for p in Path('fabric/src/gameTest/java').rglob('*.java')}
+          for jar in Path('fabric/build/libs').glob('*.jar'):
+              if jar.name.endswith('-sources.jar'): continue
+              with zipfile.ZipFile(jar) as archive:
+                  if any(p.split('/')[-1].split('
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lease-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/
+            fabric/build/test-results/
+            core/build/lease-evidence/
+            fabric/build/libs/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/latest.log
+)[0].removesuffix('.class') in tests for p in archive.namelist() if p.endswith('.class')):
+                      raise SystemExit('GameTest classes leaked into '+jar.name)
+              print('IMP-012 release jar '+json.dumps({'name':jar.name,'bytes':jar.stat().st_size,'sha256':hashlib.sha256(jar.read_bytes()).hexdigest()}))
           PY
       - uses: actions/upload-artifact@v4
         if: always()

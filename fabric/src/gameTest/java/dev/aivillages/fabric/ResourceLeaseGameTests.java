@@ -86,7 +86,7 @@ public final class ResourceLeaseGameTests {
                 for(int x=1;x<=4;x++)for(int z=1;z<=5;z++)
                     if((x==1||x==4||z==1||z==5)&&!(x==4&&z==4))block(x,1,z,Blocks.STONE.defaultBlockState());
                 block(4,1,4,Blocks.CHEST.defaultBlockState());block(7,1,0,Blocks.CHEST.defaultBlockState());
-                first=spawn(3,3);second=spawn(2,4);geometry();
+                first=spawn(3,3);second=spawn(7,5);geometry();
                 Map<String,Object> initial=Map.of("world",world.toString());
                 opening=async(()->open(initial));
             } else opening=async(()-> {
@@ -213,7 +213,7 @@ public final class ResourceLeaseGameTests {
         }
         void step() {
             if(phase==30)return;
-            java.util.concurrent.locks.LockSupport.parkNanos(phase<=2||warm&&phase==20?50_000_000:1_000_000);
+            java.util.concurrent.locks.LockSupport.parkNanos(phase<=2||phase==8||warm&&phase==20?50_000_000:1_000_000);
             if(lastReported!=phase){System.out.println("IMP-012 fixture phase="+phase+" warm="+warm);lastReported=phase;}
             long before=System.nanoTime();
             if(citizens!=null){citizens.tick();jobs.tick();raw.tick();leases.tick();gateway.tick();}
@@ -252,8 +252,14 @@ public final class ResourceLeaseGameTests {
                 }
                 case 7 -> {require(jobs.ready()&&leases.ready(),"Acknowledging cancellation and release");
                     require(job(idA,a).state()==Jobs.State.CANCELLED&&job(idA,a).fulfilled()==2,"Cancellation lost two real deliveries");
-                    require(stock(destination)==2&&mature()==3,"Cancellation minted or lost wheat");assign(idB,b);phase=8;}
-                case 8 -> {require(jobs.ready(),"Acknowledging second assignment");start(idB,b);phase=9;}
+                    require(stock(destination)==2&&mature()==3,"Cancellation minted or lost wheat");
+                    // Test-only handoff: keep the unleased client outside tracked-drop pickup range.
+                    // A claim cannot prevent another physical villager from taking a drop.
+                    BlockPos idle=origin.offset(7,1,5),active=origin.offset(3,1,3);
+                    first.setPos(idle.getX()+0.5,idle.getY(),idle.getZ()+0.5);
+                    second.setPos(active.getX()+0.5,active.getY(),active.getZ()+0.5);
+                    second.setNoAi(false);assign(idB,b);phase=8;}
+                case 8 -> {require(jobs.ready()&&second.onGround(),"Acknowledging second assignment and physical landing");start(idB,b);phase=9;}
                 case 9 -> {var progress=run.tick(b);if(progress.phase()==BoundedSkillExecutor.Phase.TERMINAL){
                     require(progress.summary().outcome().status()==ExecutionStatus.SUCCEEDED,"Worker B failed "+progress.summary().outcome());report(idB,b,progress);phase=10;}}
                 case 10 -> {require(jobs.ready()&&leases.ready(),"Acknowledging second completion");
