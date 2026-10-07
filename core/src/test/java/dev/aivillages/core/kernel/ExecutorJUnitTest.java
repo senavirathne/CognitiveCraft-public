@@ -75,7 +75,7 @@ class ExecutorJUnitTest {
         final List<ArtifactRef> callerArtifacts = new ArrayList<>();
         final Map<ActionHandle, ActionReceipt> last = new HashMap<>();
         boolean stall, receipts = true, duplicate, cancelPartial;
-        boolean unknownObservation;
+        boolean unknownObservation, cancelUnconfirmed, cancelThrows;
         Reason failure;
         int cancellation, polls;
         ValidatedRequest request;
@@ -117,7 +117,8 @@ class ExecutorJUnitTest {
         }
         @Override public ActionReceipt cancel(ActionHandle h) {
             cancellation++;
-            return new ActionReceipt(h, true, cancelPartial ? 1 : 0, List.of(), Reason.CANCELLED);
+            if (cancelThrows) throw new IllegalStateException("Cancellation acknowledgement unavailable");
+            return new ActionReceipt(h, !cancelUnconfirmed, cancelPartial ? 1 : 0, List.of(), Reason.CANCELLED);
         }
     }
     static final class Fixture {
@@ -269,6 +270,27 @@ class ExecutorJUnitTest {
         assertEquals(3, p.summary().committedEffects());
         assertEquals(1, f.released.size());
         assertTrue(p.trace().size() <= 12);
+    }
+    @Test void unconfirmedCancellationRetainsOwnerReleaseAndPartialEvidence() {
+        for (boolean throwsCancellation : List.of(false, true)) {
+            Fixture f = new Fixture();
+            f.gateway.stall = true;
+            f.gateway.cancelPartial = true;
+            f.gateway.cancelUnconfirmed = true;
+            f.gateway.cancelThrows = throwsCancellation;
+            SkillArtifact root = f.rootDirect(List.of(primitive(Operation.HARVEST_WHEAT, "h"),
+                    result(param("amount"))), AdmissionStatus.ADMITTED);
+            BoundedSkillExecutor.Run run = f.run(root);
+            assertEquals(BoundedSkillExecutor.Phase.WAITING, run.tick(OWNER).phase());
+            BoundedSkillExecutor.Progress stopped = run.interrupt(OWNER);
+            assertEquals(ExecutionStatus.INTERRUPTED, stopped.summary().outcome().status());
+            assertEquals(throwsCancellation ? 0 : 1, stopped.summary().committedEffects());
+            assertFalse(run.stopped(OWNER));
+            for (int n = 0; n < 4; n++) { run.tick(OWNER); run.cancel(OWNER); }
+            assertTrue(f.released.isEmpty(), "Unconfirmed cessation released owner protection");
+            assertEquals(1, f.gateway.cancellation);
+            assertEquals(1, f.gateway.calls.size());
+        }
     }
     @Test void trialRootSkipsEligibilityOnFixtureWorker() throws Exception {
         Thread serverThread = Thread.currentThread();

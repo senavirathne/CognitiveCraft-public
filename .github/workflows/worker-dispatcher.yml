@@ -33,7 +33,7 @@ jobs:
           from pathlib import Path
           import json, xml.etree.ElementTree as ET
           counts={}
-          for module,suite,minimum in [('core','WorkerDispatcherTest',65),('core','DispatcherOwnersIntegrationTest',7),
+          for module,suite,minimum in [('core','WorkerDispatcherTest',65),('core','DispatcherOwnersIntegrationTest',7),('core','ExecutorJUnitTest',20),
                                      ('core','ResourceLeaseServiceTest',50),('core','JobLifecycleStoreTest',50)]:
               package='dev.aivillages.'+('core.kernel' if module=='core' else 'fabric')
               cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-'+package+'.'+suite+'.xml')).getroot().iter('testcase'))

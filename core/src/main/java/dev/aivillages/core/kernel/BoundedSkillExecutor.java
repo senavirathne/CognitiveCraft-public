@@ -458,7 +458,7 @@ public final class BoundedSkillExecutor {
                     status == ExecutionStatus.SUCCEEDED ?
                             new EvidenceRef(correlation.runId().toString(), "crop-delivery:1",
                                     request.context().scope().domainId().toString()) : null);
-            try { release.release(correlation.runId()); }
+            try { if (stopConfirmed) release.release(correlation.runId()); }
             finally { record(status.name(), correlation.artifact()); }
         }
         private boolean stopConfirmed = true;

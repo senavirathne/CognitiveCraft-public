@@ -69,7 +69,7 @@ calculated **576-tick** bound. Observed maxima: **4 jobs**, **3 citizens**, **1 
 and reassignment retains the original inherited deadline and budget. Fixture
 assignment timeout is 20 ticks; production uses 1200.
 
-The full local suite executed **663 cases**: core 592, providers 48 and Fabric 23,
+The full local suite executed **664 cases**: core 593, providers 48 and Fabric 23,
 with zero failures, errors or skips. The new dispatch matrix comprises **65 policy
 cases and 7 actual-owner integration cases**. The production KernelSession GameTest
 passed locally in 23.653 seconds, exercising two principals, two real queued jobs,
@@ -98,6 +98,9 @@ and revoked read access now stop safely instead of abandoning a live execution.
 Unconfirmed terminal stop now preserves attributable partial receipts while keeping
 the assignment open; its regression observes two delivered units and six committed
 effects in the actual durable job owner before cancellation is confirmed.
+The existing executor also retains its release callback after an unconfirmed or
+throwing gateway cancellation. A direct executor regression covers both cases,
+partial evidence and repeated terminal calls; the executor suite executes 20 cases.
 
 ## Explicit finite limits
 
