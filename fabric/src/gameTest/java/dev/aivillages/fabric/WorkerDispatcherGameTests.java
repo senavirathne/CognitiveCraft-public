@@ -59,7 +59,7 @@ public final class WorkerDispatcherGameTests {
         WorkerDispatcher dispatcher;
         CapabilityRetrievalIndex retrieval;
         Jobs.Report stale;
-        int scopeCursor, debugSlices;
+        int scopeCursor;
         TrustedContext a,b;
         ActorRef actorA,actorB;
         Villager first,second;
@@ -78,6 +78,7 @@ public final class WorkerDispatcherGameTests {
         Driver(GameTestHelper h,boolean warm) {
             this.h=h;this.warm=warm;
             root=h.getLevel().getServer().getWorldPath(LevelResource.ROOT).resolve("cognitivecraft-dispatch-fixture");
+            System.out.println("IMP-013 fixture storage root="+root.toAbsolutePath()+" warm="+warm);
             if(!warm) {
                 world=UUID.randomUUID();a=context(world);b=context(world);
                 origin=h.absolutePos(new BlockPos(8,0,8));
@@ -261,9 +262,14 @@ public final class WorkerDispatcherGameTests {
             if(lastReported!=phase){System.out.println("IMP-013 fixture phase="+phase+" warm="+warm);lastReported=phase;}
             long before=System.nanoTime();
             if(citizens!=null){citizens.tick();jobs.tick();raw.tick();leases.tick();gateway.tick();retrieval.maintain(io);
+                // Submit the external cancellation at the next acknowledged owner boundary,
+                // before this tick can issue the third harvest. The trigger is actual chest stock.
+                if(phase==6&&stock(destination)==2&&jobs.ready()) {
+                    require(conflict,"Second client was never checked");
+                    require(jobs.cancel(idA,job(idA,a).guard(),a).accepted(),"Owner cancellation refused");phase=7;
+                }
                 if((phase>=5 && phase<=10) || (warm && phase>=20 && phase<=26)) {
-                    var slice=dispatcher.step(phase<=5 || phase==7?a:(scopeCursor++ & 1)==0?a:b);
-                    if(phase==6&&debugSlices++<16)System.out.println("IMP-013 dispatch trace "+slice+" A="+job(idA,a).state()+" ready="+jobs.ready());
+                    dispatcher.step(phase<=5 || phase==7?a:(scopeCursor++ & 1)==0?a:b);
                 }
             }
             maxSlice=Math.max(maxSlice,System.nanoTime()-before);
@@ -393,8 +399,10 @@ public final class WorkerDispatcherGameTests {
             var evidence=Map.<String,Object>of("schema",1,"architecture","0.4","leaseSchema",1,"warm",warm,"modelCalls",0,
                     "physicalWheat",stock(destination),"cancelledCredit",2,"succeededCredit",3,"peakHeapBytes",peakHeap,"maxOwnerSliceNanos",maxSlice);
             retrieval.close();
+            Jobs.Snapshot expectedJobs=jobs.snapshot();
             closing=async(()-> {
                 try {
+                    if(!stores.jobs().snapshot().equals(expectedJobs))throw new IllegalStateException("Job journal acknowledgement differs from owner snapshot");
                     if(!warm)Files.writeString(root.resolve(MARKER),StrictJson.canonical(proof)+"\n");
                     Files.writeString(root.resolve(warm?"dispatch-warm-evidence.json":"dispatch-cold-evidence.json"),StrictJson.canonical(evidence)+"\n");
                     stores.leases().close();stores.jobs().close();stores.citizens().close();return null;

@@ -85,7 +85,8 @@ The latest baseline's workflow families were green at audit.
 New owner integration exposed and fixed attempted-assignment churn during resource
 contention. Physical dispatch exposed and fixed reacquisition of claims while a
 terminal run awaited asynchronous release. Dedicated policy coverage checks that
-terminal cleanup performs no new acquisition. Post-assignment observation failures
+terminal cleanup performs no new acquisition. Delayed assignment publication is now awaited instead of misclassified as stale;
+a dedicated regression holds that acknowledgement across six ticks. Post-assignment observation failures
 and revoked read access now stop safely instead of abandoning a live execution.
 
 ## Explicit finite limits

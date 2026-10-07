@@ -35,13 +35,14 @@ class WorkerDispatcherTest {
         ResolutionStatus resolution=ResolutionStatus.RESOLVED;
         Runnable afterResolve=()->{};
         Scene(int count) {this(count,false);}
-        Scene(int count,boolean reverse) {
+        Scene(int count,boolean reverse) {this(count,reverse,false);}
+        Scene(int count,boolean reverse,boolean shareAddresses) {
             var rows=new ArrayList<CitizenRegistry.Citizen>();
             for(int n=0;n<count;n++) { var a=actor(100+n);workers.add(a);rows.add(new CitizenRegistry.Citizen(a,OWNER,null,CitizenRegistry.Availability.UNKNOWN)); }
             rows.add(new CitizenRegistry.Citizen(actor(200),OTHER,"private",CitizenRegistry.Availability.UNKNOWN));
             if(reverse)Collections.reverse(rows);
             citizens=new CitizenRegistry(new CitizenRegistry.Snapshot(WORLD,0,rows,null),
-                    (expected,next)->CompletableFuture.completedFuture(next),CitizenRegistry.privateAddresses(),clock,false);
+                    (expected,next)->CompletableFuture.completedFuture(next),(caller,citizen)->shareAddresses,clock,false);
             for(var a:workers){citizens.observeAvailability(a.citizenId(),CitizenRegistry.Availability.LOADED);citizens.tick();}
             citizens.observeAvailability(actor(200).citizenId(),CitizenRegistry.Availability.LOADED);citizens.tick();
             jobs=new JobLifecycleStore(disk.state,disk,new JobLifecycleStore.Policy(){
@@ -138,6 +139,13 @@ class WorkerDispatcherTest {
     }
     @ParameterizedTest @EnumSource(CitizenRegistry.Availability.class) void availabilityIsNeverAssumed(CitizenRegistry.Availability availability){var s=new Scene(1);var j=s.add(1,1);s.citizens.observeAvailability(s.workers.getFirst().citizenId(),availability);s.citizens.tick();for(int n=0;n<15;n++)s.step();assertEquals(availability==CitizenRegistry.Availability.LOADED?1:0,s.starts.size());}
     @ParameterizedTest @EnumSource(ResolutionStatus.class) void allSevenResolutionDecisionsSurvive(ResolutionStatus outcome){var s=new Scene(1);s.resolution=outcome;var j=s.add(1,1);for(int n=0;n<15;n++)s.step();assertEquals(outcome==ResolutionStatus.RESOLVED?1:0,s.starts.size());assertEquals(outcome,s.dispatcher.diagnostics(j.id(),OWNER).getFirst().routing().status());}
+    @Test void explicitPublicAddressSharingNeverRecruitsAnotherPrincipalsCitizen(){
+        var s=new Scene(1,false,true);var j=s.add(1,1);
+        assertEquals(CitizenRegistry.AddressStatus.FOUND,s.citizens.address(actor(200).citizenId(),OWNER).status());
+        assertFalse(s.citizens.controls(actor(200),OWNER));
+        s.citizens.observeAvailability(s.workers.getFirst().citizenId(),CitizenRegistry.Availability.UNLOADED);s.citizens.tick();
+        for(int n=0;n<12;n++)s.step();assertTrue(s.starts.isEmpty());assertEquals(OWNER,s.current(j).origin());
+    }
     @Test void foreignCitizenAndDiagnosticsArePrivate(){var s=new Scene(1);var j=s.add(1,1);s.citizens.observeAvailability(s.workers.getFirst().citizenId(),CitizenRegistry.Availability.UNLOADED);s.citizens.tick();for(int n=0;n<12;n++)s.step();assertTrue(s.starts.isEmpty());assertThrows(SecurityException.class,()->s.dispatcher.diagnostics(j.id(),OTHER));assertTrue(s.step(OTHER).decisions().isEmpty());}
     @Test void revokedAuthorityBetweenRankingAndCommitCannotStart(){var s=new Scene(1);var j=s.add(1,1);s.afterResolve=()->s.control=false;for(int n=0;n<12;n++)s.step();assertTrue(s.starts.isEmpty());assertTrue(s.claims.isEmpty());}
     @Test void twoDispatchersCannotReserveOneWorkerTwice(){var s=new Scene(1);var a=s.add(1,1);var b=s.add(2,1);var second=s.createDispatcher();for(int n=0;n<100;n++){s.step();second.step(OWNER);}assertTrue(s.starts.values().stream().allMatch(n->n==1));assertEquals(1,s.current(a).attempts().size());assertEquals(1,s.current(b).attempts().size());}
