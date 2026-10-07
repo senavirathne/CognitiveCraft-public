@@ -39,7 +39,9 @@ public final class KernelSession implements AutoCloseable {
                           ResearchAdmissionController.DecisionGuard guard,
                           CitizenIdentityStore identities, CitizenRegistry.Snapshot initialIdentities,
                           boolean identityReadOnly, CapabilityRetrievalIndex retrieval,
-                          JobJournal jobs, Jobs.Snapshot initialJobs, boolean jobsReadOnly) { }
+                          JobJournal jobs, Jobs.Snapshot initialJobs, boolean jobsReadOnly,
+                          ResourceLeaseJournal leases, ResourceLeases.Snapshot initialLeases,
+                          boolean leasesReadOnly) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -60,6 +62,8 @@ public final class KernelSession implements AutoCloseable {
     private FabricGatewayWorld worldAccess;
     private CitizenRegistry citizens;
     private JobLifecycleStore jobs;
+    private ResourceLeaseService leases;
+    private LeasedGateway leasedGateway;
     private final Map<UUID, CitizenRegistry.Availability> availabilityFacts = new LinkedHashMap<>();
     private UUID pendingEnrollmentEntity;
     private int availabilityCursor;
@@ -93,6 +97,7 @@ public final class KernelSession implements AutoCloseable {
         opening = CompletableFuture.supplyAsync(() -> {
             BootstrapJournal journal = null;
             JobJournal jobs = null;
+            ResourceLeaseJournal leases = null;
             CitizenIdentityStore identities = null;
             VersionedSkillRepository repository = null;
             CapabilityRetrievalIndex retrieval = null;
@@ -108,6 +113,7 @@ public final class KernelSession implements AutoCloseable {
                     journal.migrateIdentity(identities.snapshot());
                 }
                 jobs = JobJournal.open(world, journal.state().worldId());
+                leases = ResourceLeaseJournal.open(world, journal.state().worldId());
                 var guard = new ResearchAdmissionController.DecisionGuard();
                 repository = VersionedSkillRepository.open(world,
                         new VersionedSkillRepository.RuntimeSnapshot("minecraft-26.3",
@@ -123,12 +129,14 @@ public final class KernelSession implements AutoCloseable {
                         capabilities, CapabilityRetrievalIndex.Limits.defaults(), () -> System.nanoTime() / 1_000_000);
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
-                        jobs, jobs.snapshot(), jobs.readOnly());
+                        jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly());
             } catch (Exception failure) {
                 if (retrieval != null) retrieval.close();
                 if (repository != null) try { repository.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (jobs != null) try { jobs.close(); }
+                catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
+                if (leases != null) try { leases.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (identities != null) try { identities.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
@@ -162,6 +170,8 @@ public final class KernelSession implements AutoCloseable {
         language.tick();
         if (!language.pending()) interpretingPlayer = null;
         gateway.tick();
+        leases.tick();
+        leasedGateway.tick();
         controller.tick();
     }
 
@@ -186,13 +196,23 @@ public final class KernelSession implements AutoCloseable {
             @Override public boolean mayCancel(TrustedContext caller, TrustedContext owner,
                                                UUID runId) { return owner.equals(caller); }
         };
-        // One enrolled actor per world. The gateway still owns effect-time worker leases.
+        // The gateway owns actor control; one world-wide service owns resource coordination.
         worldAccess = new FabricGatewayWorld(server.overworld());
         gateway = new SurvivalGateway(worldAccess, authority,
                 new SurvivalGateway.Limits(1, 512, 64, 16, 256, 1, 200, 32), clock);
+        leases = new ResourceLeaseService(loaded.initialLeases(), (expected, next) ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return loaded.leases().replace(expected, next); }
+                    catch (Exception failure) { throw new IllegalStateException(failure); }
+                }, worker), (owner, caller) -> new JobLeaseOwners(jobs, clock).inspect(owner, caller),
+                new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
+                () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
+        leasedGateway = new LeasedGateway(gateway, leases,
+                (request, run) -> LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
+                () -> server.overworld().getGameTime(), 1200, 200, 64, 512);
         var executor = new BoundedSkillExecutor(staging, capabilities, primitives,
-                CapabilityResolver.enrolledWorldSkills(control), grants, runControl, gateway,
-                gateway::releaseRun, clock, () -> server.overworld().getGameTime(),
+                CapabilityResolver.enrolledWorldSkills(control), grants, runControl, leasedGateway,
+                leasedGateway::releaseRun, clock, () -> server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8, 16, 32, 64));
         var resolver = new CapabilityResolver.Engine(capabilities, primitives,
                 loaded.retrieval().candidates(), loaded.retrieval().authoritativeFallback(),
@@ -551,6 +571,8 @@ public final class KernelSession implements AutoCloseable {
         ready(); return citizens.address(citizenId, caller(player));
     }
     boolean jobsReady() { return jobs != null && jobs.ready(); }
+    boolean leasesReady() { return leases != null && leases.ready(); }
+    ResourceLeaseService leaseOwner() { return leases; }
     boolean identityReady() { return citizens != null && citizens.ready(); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.query(citizenId, caller(player));
@@ -616,7 +638,7 @@ public final class KernelSession implements AutoCloseable {
                 opened.retrieval().close();
                 worker.execute(() -> {
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal(), opened.jobs())) {
+                    for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);

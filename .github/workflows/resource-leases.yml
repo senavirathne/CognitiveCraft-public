@@ -1,0 +1,38 @@
+name: Resource lease acceptance
+on:
+  push:
+    branches: [main, feature/imp012-resource-leases]
+    paths: ['core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
+  pull_request:
+    branches: [main]
+    paths: ['core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cognitivecraft-leases-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  leases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Lease policy, persistence and adapter regression; Fabric build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :fabric:test :fabric:build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lease-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/
+            fabric/build/test-results/
+            core/build/lease-evidence/
+            fabric/build/libs/
