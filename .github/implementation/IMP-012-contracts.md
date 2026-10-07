@@ -27,7 +27,9 @@ never another principal's job, goal, worker, scope or lease IDs.
 
 ## Resource forms and atomic groups
 
-Stock is a quantity of one supported item in an identified container block.
+Stock is a quantity of one supported item in an identified container block,
+or mature wheat in one bounded crop cuboid. Identical crop pools sum quantities;
+different overlapping crop pools conflict conservatively.
 Equipment is one supported non-stackable item in a specific container slot.
 Facilities are exclusive installed storage or crafting blocks. Spaces are
 canonical inclusive integer voxel cuboids. Stock claims sum checked outstanding
@@ -36,10 +38,10 @@ at least one shared voxel: equal end coordinates overlap; adjacent non-overlappi
 cells may touch faces and coexist. Conflicts compare physical identities across
 scopes. Separate worlds/dimensions remain distinct.
 
-The Fabric binding supports wheat stock, iron-hoe equipment, storage facilities
+The Fabric binding supports container wheat and mature crop stock, iron-hoe equipment, storage facilities
 and crafting tables, plus bounded loaded spaces. A facility claim implements no
 new crafting or inventory primitive. Unsupported or ambiguous targets are
-rejected. Joined chest identities are conservatively normalized or rejected
+rejected. Joined chest identities are conservatively rejected
 before grant, never treated as two allocations of the same inventory.
 
 Repeated stock keys are summed with checked arithmetic before evaluation;
@@ -71,6 +73,12 @@ or owner loss fences the claim before another effect. Actual receipts survive
 revocation. Stock consumption can reduce a claim only through guarded trusted
 owner accounting; claiming does not move or mint stock.
 
+The gateway debits crop stock through actual HARVEST receipts and durably
+publishes each debit before another action. Fully consumed stock still permits
+pickup and deposit, but blocks another harvest before physical mutation.
+The execution's typed request, authority and current pinned run must match the
+durable assignment. Routing may refresh its observation reference.
+
 ## Publication, recovery and bounds
 
 Only one immutable snapshot publication is outstanding. Pending claims reserve
@@ -81,6 +89,9 @@ Journal serialization, fsync and atomic replacement run on the world storage
 worker. Recovery keeps originals and backups; corrupt/future data stays inactive
 and read-only. No migration from the prototype's ephemeral crop reservations is
 asserted.
+
+Strict JSON excludes null. The required lease row reason is an empty string for
+an active claim with no failure; terminal reasons use the shared reason enum.
 
 Fixture limits: 8 leases/job, 4 resources/group, maximum duration 100 fake ticks,
 minimum renewal interval 10 ticks, 8 renewals, 8 reconciliations/slice, 64 active /

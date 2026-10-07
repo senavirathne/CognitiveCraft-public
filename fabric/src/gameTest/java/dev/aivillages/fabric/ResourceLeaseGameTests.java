@@ -238,7 +238,7 @@ public final class ResourceLeaseGameTests {
                         var privateRef=leases.snapshot().leases().getFirst().ref();
                         require(leases.validate(privateRef,b).reason()==Reason.AUTHORITY_DENIED,"Foreign lease became authority");conflict=true;
                     }
-                    long delivered=progress.summary().receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).mapToLong(CropDelivery.CropReceipt::quantity).sum();
+                    long delivered=progress.summary().receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).mapToLong(CropDelivery.CropReceipt::wheat).sum();
                     if(delivered==2) {
                         require(conflict,"Second client was never checked");var stopped=run.cancel(a);report(idA,a,stopped);phase=7;return;
                     }

@@ -24,7 +24,8 @@ class ResourceLeaseBoundsTest {
                 var granted=f.acquire(owners.get(n),f.a,demands,100);assertTrue(granted.usable(),granted.toString());grants.add(granted);
             }
             assertEquals(64,f.service.snapshot().leases().stream().filter(l->l.state()==State.ACTIVE).count());
-            assertEquals(Reason.STORAGE_LIMIT_REACHED,f.service.acquire(owners.get(8),List.of(new Demand(f.facility(++serial),1)),100,f.a).reason());
+            assertEquals(cycle==0?Reason.BUDGET_EXHAUSTED:Reason.STORAGE_LIMIT_REACHED,
+                    f.service.acquire(owners.get(8),List.of(new Demand(f.facility(++serial),1)),100,f.a).reason());
             for(var grant:grants){assertEquals(Code.PENDING,f.service.release(grant.leases(),f.a).code());f.ack();}
         }
         assertEquals(128,f.service.snapshot().leases().size());Snapshot before=f.service.snapshot();
