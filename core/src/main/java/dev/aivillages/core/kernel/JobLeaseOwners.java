@@ -33,7 +33,11 @@ public final class JobLeaseOwners implements ResourceLeaseService.Owners {
             Jobs.ExecutionReference current=attempt==null || attempt.executions().isEmpty()
                     ? null:attempt.executions().getLast();
             if(current!=null && current.runId().equals(correlation.runId())
-                    && attempt.bound().equals(request) && current.artifact().equals(correlation.artifact())
+                    // Routing refreshes observation evidence after the job is durably created.
+                    // Its typed arguments and authority must still match the current assignment.
+                    && attempt.bound().request().equals(request.request())
+                    && attempt.bound().context().equals(request.context())
+                    && current.artifact().equals(correlation.artifact())
                     && jobs.mayControl(job.id(),job.generation(),request.context()))
                 return new Owner(job.id(),job.generation());
         }

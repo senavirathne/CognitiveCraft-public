@@ -107,6 +107,15 @@ public final class LeasedGateway implements GatewayPort {
             Result valid=leases.validate(ref,run.request.context());
             if(!valid.usable())return valid.code()==Code.PENDING?waitForPublication(action):fail(action,valid.reason());
         }
+        var operation=GatewayPrimitives.instance().operation(action.primitive).orElse(null);
+        if(operation==GatewayPrimitives.Operation.HARVEST_WHEAT
+                || operation==GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT) {
+            for(Ref ref:granted.leases()) {
+                Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
+                if(claim.resource().item().equals("minecraft:mature_wheat") && claim.remaining()<1)
+                    return fail(action,Reason.RESOURCE_MISSING);
+            }
+        }
         if(action.nativeHandle==null)
             action.nativeHandle=delegate.start(run.request,run.correlation,action.primitive,action.arguments,action.usage);
         ActionReceipt answer=delegate.poll(action.nativeHandle);
