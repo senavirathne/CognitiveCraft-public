@@ -7,6 +7,8 @@ dependencies {
     if (headless) {
         compileOnly files(project.property('serverJar'))
         compileOnly fileTree(dir: project.property('serverLibraries'), include: '*.jar')
+        testImplementation files(project.property('serverJar'))
+        testImplementation fileTree(dir: project.property('serverLibraries'), include: '*.jar')
     } else {
         minecraft 'com.mojang:minecraft:26.3'
         implementation 'net.fabricmc:fabric-loader:0.19.5'

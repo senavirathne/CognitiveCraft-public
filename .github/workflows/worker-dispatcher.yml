@@ -1,0 +1,187 @@
+name: Worker dispatcher acceptance
+on:
+  push:
+    branches: [main, feature/imp013-worker-dispatcher]
+    paths: ['core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
+  pull_request:
+    branches: [main]
+    paths: ['core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cognitivecraft-dispatch-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Dispatcher policy, owner integration and affected regression suites; Fabric build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Require executed dispatcher and owner matrices
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          counts={}
+          for module,suite,minimum in [('core','WorkerDispatcherTest',65),('core','DispatcherOwnersIntegrationTest',7),('core','ExecutorJUnitTest',20),
+                                     ('core','ResourceLeaseServiceTest',50),('core','JobLifecycleStoreTest',50)]:
+              package='dev.aivillages.'+('core.kernel' if module=='core' else 'fabric')
+              cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-'+package+'.'+suite+'.xml')).getroot().iter('testcase'))
+              if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Missing successful dispatch matrix: '+suite)
+              counts[suite]=len(cases)
+          evidence=Path('core/build/dispatch-evidence')
+          evidence.mkdir(parents=True,exist_ok=True)
+          (evidence/'acceptance.json').write_text(json.dumps({'schema':1,'architecture':'0.4','leaseSchema':1,'cases':counts},indent=2)+'\n')
+          print('IMP-013 pure acceptance '+json.dumps(counts))
+          scale=json.loads((evidence/'scale.json').read_text())
+          if scale['ticks']>scale['fairnessBound'] or scale['maxJobs']>4 or scale['maxWorkers']>3 or scale['maxStarts']>2 or scale['maxRetries']>2:
+              raise SystemExit('Dispatcher exceeded declared finite bounds')
+          print('IMP-013 scale '+json.dumps(scale))
+          PY
+      - name: Select isolated two-client fixture with all models disabled
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('fabric/src/gameTest/resources/fabric.mod.json')
+          manifest=json.loads(path.read_text())
+          manifest['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.WorkerDispatcherGameTests']
+          path.write_text(json.dumps(manifest,indent=2)+'\n')
+          PY
+      - name: Five actual units, two claims of three, cancellation, expiry and mutation
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_DISPATCH_RESTART: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Preserve physical cold evidence and active lease snapshot
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('One passing cold dispatch fixture required')
+          log=(root/'logs/latest.log').read_text()
+          if 'IMP-013 physical accepted warm=false' not in log or 'modelCalls=0 leaseSchema=1 architecture=0.4' not in log:
+              raise SystemExit('Missing cold physical dispatch proof')
+          markers=list(root.rglob('dispatch-restart.json'))
+          if len(markers)!=1: raise SystemExit('One saved lease restart marker required')
+          evidence=Path('core/build/dispatch-evidence')
+          path=markers[0].parent
+          state=path/'data/cognitivecraft/leases/v1/state.jsonl'
+          rows=[json.loads(line) for line in state.read_text().splitlines()]
+          if sum(r['state']=='ACTIVE' for r in rows[1:])!=1: raise SystemExit('Saved active lease was not tested')
+          jobs=[json.loads(line) for line in (path/'data/cognitivecraft/jobs/v1/state.jsonl').read_text().splitlines()]
+          proof=json.loads(markers[0].read_text())
+          states={j['id']:j['state'] for j in jobs[1:]}
+          if len(states)!=4 or states.get(proof['jobC'])!='READY' or states.get(proof['jobD'])!='ACTIVE':
+              raise SystemExit('Saved READY and assigned jobs were not acknowledged')
+          for source,name in [(root/'gametest-results.xml','dispatch-cold.xml'),(root/'logs/latest.log','dispatch-cold.log'),
+                              (markers[0],'dispatch-restart.json'),(path/'data/cognitivecraft/jobs/v1/state.jsonl','jobs-cold.jsonl'),(state,'dispatch-cold.jsonl'),(path/'dispatch-cold-evidence.json','physical-cold.json')]:
+              shutil.copy2(source,evidence/name)
+          PY
+      - name: Separate Minecraft JVM, inactive restoration, original epoch fenced
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_DISPATCH_RESTART: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify physical conservation, recovery, privacy and bounded snapshots
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('One passing warm dispatch fixture required')
+          text=(root/'logs/latest.log').read_text()
+          for token in ('IMP-013 physical accepted warm=true','scopes=2 workers=2 requests=3+3 initialStock=5',
+                        'cancelledCredit=2 succeededCredit=3 physicalWheat=5','noReplay=true oldEpochFenced=true staleCompletionFenced=true dispatcher=true modelCalls=0'):
+              if token not in text: raise SystemExit('Missing lease evidence: '+token)
+          markers=list(root.rglob('dispatch-restart.json'))
+          if len(markers)!=1: raise SystemExit('Missing saved dispatch proof')
+          path=markers[0].parent
+          proof=json.loads(markers[0].read_text())
+          state=path/'data/cognitivecraft/leases/v1/state.jsonl'
+          rows=[json.loads(line) for line in state.read_text().splitlines()]
+          old=[r for r in rows[1:] if r['id']==proof['lease']]
+          if len(old)!=1 or old[0]['state']!='INTERRUPTED' or rows[0]['epoch']==proof['epoch'] or any(r['state']=='ACTIVE' for r in rows[1:]):
+              raise SystemExit('Restored leases admitted effects or lost old epoch fencing')
+          if len(rows)>129 or state.stat().st_size>1048576: raise SystemExit('Lease storage exceeded declared bound')
+          evidence=Path('core/build/dispatch-evidence')
+          for source,name in [(root/'gametest-results.xml','dispatch-warm.xml'),(root/'logs/latest.log','dispatch-warm.log'),
+                              (state,'dispatch-warm.jsonl'),(path/'dispatch-warm-evidence.json','physical-warm.json'),
+                              (path/'data/cognitivecraft/jobs/v1/state.jsonl','physical-jobs.jsonl'),
+                              (path/'data/cognitivecraft/citizens/v1/state.json','physical-citizens.json')]:
+              shutil.copy2(source,evidence/name)
+          result={'schema':1,'successfulMinecraftExecutions':2,'modelCalls':0,'physicalWheat':5,'cancelledCredit':2,
+                  'succeededCredit':3,'leaseRecords':len(rows)-1,'snapshotBytes':state.stat().st_size,
+                  'sha256':hashlib.sha256(state.read_bytes()).hexdigest()}
+          (evidence/'physical-acceptance.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('IMP-013 saved-world acceptance '+json.dumps(result))
+          print('IMP-013 warm resources '+(path/'dispatch-warm-evidence.json').read_text().strip())
+          print('IMP-013 cold resources '+(path/'dispatch-cold-evidence.json').read_text().strip())
+          import zipfile
+          tests={p.stem for p in Path('fabric/src/gameTest/java').rglob('*.java')}
+          for jar in Path('fabric/build/libs').glob('*.jar'):
+              if jar.name.endswith('-sources.jar'): continue
+              with zipfile.ZipFile(jar) as archive:
+                  if any(p.split('/')[-1].split('$')[0].removesuffix('.class') in tests for p in archive.namelist() if p.endswith('.class')):
+                      raise SystemExit('GameTest classes leaked into '+jar.name)
+              print('IMP-013 release jar '+json.dumps({'name':jar.name,'bytes':jar.stat().st_size,'sha256':hashlib.sha256(jar.read_bytes()).hexdigest()}))
+          PY
+      - name: Select production composition and actual queue commands
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('fabric/src/gameTest/resources/fabric.mod.json')
+          manifest=json.loads(path.read_text())
+          manifest['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.WorkerDispatchWiringGameTests']
+          path.write_text(json.dumps(manifest,indent=2)+'\n')
+          PY
+      - name: Actual KernelSession, two scopes and model-disabled known dispatch
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require physical production wiring proof
+        run: |
+          python3 - <<'PY'
+          import shutil, xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('One passing production dispatch fixture required')
+          if 'IMP-013 production wiring accepted scopes=2 workers=2 queuedJobs=2 selectedRuns=2 delivered=2 generationCalls=0 languageCalls=0 cacheDeleted=true architecture=0.4' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Missing production composition proof')
+          evidence=Path('core/build/dispatch-evidence')
+          shutil.copy2(root/'gametest-results.xml',evidence/'production-wiring.xml')
+          shutil.copy2(root/'logs/latest.log',evidence/'production-wiring.log')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dispatch-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/
+            fabric/build/test-results/
+            core/build/dispatch-evidence/
+            fabric/build/libs/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/latest.log

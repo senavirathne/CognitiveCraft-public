@@ -446,16 +446,25 @@ public final class BoundedSkillExecutor {
         private void finish(ExecutionStatus status, Reason reason) {
             if (terminal != null) return;
             if (pending != null) {
-                try { account(gateway.cancel(pending.handle())); }
-                catch (RuntimeException ignored) { /* uncertain effects require caller reconciliation */ }
+                try {
+                    ActionReceipt stopped = gateway.cancel(pending.handle());
+                    account(stopped);
+                    stopConfirmed = stopped.terminal();
+                }
+                catch (RuntimeException ignored) { stopConfirmed = false; }
                 pending = null;
             }
             terminal = new Execution(status, reason, effects,
                     status == ExecutionStatus.SUCCEEDED ?
                             new EvidenceRef(correlation.runId().toString(), "crop-delivery:1",
                                     request.context().scope().domainId().toString()) : null);
-            try { release.release(correlation.runId()); }
+            try { if (stopConfirmed) release.release(correlation.runId()); }
             finally { record(status.name(), correlation.artifact()); }
+        }
+        private boolean stopConfirmed = true;
+        /** An uncertain cancellation may not be used as evidence permitting reassignment. */
+        public boolean stopped(TrustedContext caller) {
+            thread(); inspect(caller); return terminal != null && stopConfirmed;
         }
         private void inspect(TrustedContext caller) {
             if (!control.mayInspect(caller, request.context(), correlation.runId()))

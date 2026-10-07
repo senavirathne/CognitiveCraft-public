@@ -105,6 +105,35 @@ public final class CitizenRegistry implements BootstrapController.Identity {
     private Snapshot state, pending;
     private long deadline;
     private boolean fenced;
+    private Snapshot controlIndexed;
+    private Map<TrustedContext, List<Citizen>> controlIndex = Map.of();
+
+    public record ControlPage(List<Address> citizens, int total, long revision) {
+        public ControlPage { citizens = List.copyOf(citizens); }
+    }
+    /** A private, circular bounded view; address-sharing is deliberately not a recruitment grant. */
+    public ControlPage controlPage(TrustedContext caller, UUID after, int maximum) {
+        thread();
+        if (caller == null || !caller.scope().worldId().equals(state.worldId())) throw new SecurityException("Citizen scope");
+        if (maximum < 1 || maximum > 3) throw new IllegalArgumentException("Worker page bound");
+        if (controlIndexed != state) {
+            var groups = new HashMap<TrustedContext, List<Citizen>>();
+            for (Citizen c : state.citizens()) groups.computeIfAbsent(c.owner(), ignored -> new ArrayList<>()).add(c);
+            controlIndex = Map.copyOf(groups); controlIndexed = state;
+        }
+        List<Citizen> own = controlIndex.getOrDefault(caller, List.of());
+        if (own.isEmpty()) return new ControlPage(List.of(), 0, state.revision());
+        int at = 0;
+        if (after != null) {
+            int low = 0, high = own.size();
+            while (low < high) { int mid = (low + high) >>> 1;
+                if (own.get(mid).actor().citizenId().toString().compareTo(after.toString()) <= 0) low = mid + 1; else high = mid; }
+            at = low % own.size();
+        }
+        var found = new ArrayList<Address>();
+        for (int n = 0; n < Math.min(maximum, own.size()); n++) found.add(address(own.get((at + n) % own.size())));
+        return new ControlPage(found, own.size(), state.revision());
+    }
 
     public CitizenRegistry(Snapshot initial, Storage storage, AddressPolicy addressing,
                            Clock clock, boolean readOnly) {
