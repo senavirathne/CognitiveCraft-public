@@ -5,7 +5,7 @@ import sys
 
 for argument in sys.argv[1:]:
     root = Path(argument)
-    for pattern in ("results.json", "metadata.json", "**/stdout.log", "*-launcher.log", "**/response.json"):
+    for pattern in ("results.json", "metadata.json", "**/stdout.log", "*-launcher.log", "**/response.json", "server/snapshot.json"):
         for path in root.glob(pattern):
             print("\nDIAGNOSTIC", path)
             lines = path.read_text(errors="replace").splitlines()

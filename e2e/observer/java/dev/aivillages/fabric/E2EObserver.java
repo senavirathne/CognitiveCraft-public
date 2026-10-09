@@ -97,6 +97,10 @@ public final class E2EObserver implements ModInitializer {
                         var view = kernel.status(player, id);
                         var record = JSON.toJsonTree(view).getAsJsonObject();
                         record.addProperty("description", KernelRunStatus.describe(view));
+                        if (view.marker() != null) {
+                            var owner = kernel.citizen(player, view.marker().citizenId()).owner();
+                            kernel.job(id, owner).ifPresent(job -> record.add("responsibility", JSON.toJsonTree(job)));
+                        }
                         runs.add(id.toString(), record);
                     }
                 }

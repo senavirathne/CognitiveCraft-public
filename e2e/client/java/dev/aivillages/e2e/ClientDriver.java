@@ -90,7 +90,15 @@ public final class ClientDriver implements ClientModInitializer {
                     new ServerData("E2E", address, ServerData.Type.OTHER), false, null);
             reply(id, Map.of("connecting", address)); return;
         }
-        if (action.equals("snapshot")) { reply(id, snapshot(mc)); return; }
+        if (action.equals("snapshot")) {
+            var observation = snapshot(mc);
+            try {
+                Files.writeString(BOX.resolve("observations.jsonl"), JSON.toJson(Map.of(
+                        "time", System.currentTimeMillis(), "request", id, "state", observation)) + "\n",
+                        StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (Exception failure) { throw new IllegalStateException("Client observation evidence", failure); }
+            reply(id, observation); return;
+        }
         if (action.equals("disconnect")) {
             releaseKeys(mc); mc.disconnect(new TitleScreen(), false);
             reply(id, Map.of("disconnected", true)); return;
@@ -204,6 +212,7 @@ public final class ClientDriver implements ClientModInitializer {
         for (var entity : mc.level.entitiesForRendering()) {
             if (entity.distanceToSqr(mc.player) > 4096) continue;
             entities.add(JSON.toJsonTree(Map.of("uuid", entity.getUUID().toString(),
+                    "networkId", entity.getId(), "name", entity.getName().getString(),
                     "type", BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
                     "pos", List.of(entity.getX(), entity.getY(), entity.getZ()))));
             if (entities.size() == 128) break;

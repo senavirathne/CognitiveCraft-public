@@ -454,22 +454,39 @@ def privacy(h: Harness):
     return {"records": evidence, "operatorA": True, "operatorB": True, "generationCalls": h.snapshot()["generationCalls"]}
 
 
-def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=None, acquisition=False):
+def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=None, acquisition=False, language=False):
     started = time.time() * 1000
     source = source or ARENA["source"]; destination = destination or ARENA["destination"]
     before = h.container(destination)
     actor_before = next(x["pos"] for x in h.snapshot()["actors"] if x["uuid"] == h.entities[player])
     calls_before = h.snapshot()["generationCalls"]
     h.actions_active = True
-    run = h.submit(player, amount, source, destination)
+    ticket = None
+    if language:
+        message = f"Ada, harvest {amount} wheat from {','.join(map(str,source[:3]))} through {','.join(map(str,source[3:]))} and deliver it to the container at {','.join(map(str,destination))}."
+        answer = h.command(player, "/aivillage kernel ask " + message, "interpretation=" + UUID_PATTERN)
+        ticket = re.search("interpretation=(" + UUID_PATTERN + ")", answer).group(1)
+        interpreted = h.wait(lambda: (v if (v := h.run_view(player, ticket)) and v["phase"] not in
+                                ("INTERPRETING", "RESOLVING") else None), "Actual Needle acquisition request", 40)
+        require(interpreted["phase"] == "SUBMITTED", "Needle did not submit the supported request: " + str(interpreted))
+        run = interpreted["runId"]
+    else:
+        run = h.submit(player, amount, source, destination)
     view = h.terminal(player, run, 650 if acquisition else 140)
+    h.event("physical-terminal", {"run": run, "view": view})
     h.command(player, "/aivillage kernel status " + run, "phase=TERMINAL")
     wanted = "ADMITTED" if acquisition else "SUCCEEDED"
-    require(wanted in view["description"], "Requested physical outcome failed: " + view["description"])
+    require(wanted in view["description"], "Requested physical outcome failed: " + view["description"] +
+            " usage=" + str(view.get("responsibility", {}).get("usage")))
     quantities = {stage: h.receipts(view, stage) for stage in ("HARVEST", "PICKUP", "DEPOSIT")}
     require(all(v >= amount for v in quantities.values()), "Missing trusted physical stage receipts")
     require(quantities["DEPOSIT"] == amount and h.container(destination) == before + amount, "Incorrect or duplicated wheat delivery")
     require(len({r["receiptId"] for r in view["receipts"]}) == len(view["receipts"]), "Duplicate receipt identities")
+    for receipt in view["receipts"]:
+        require(receipt["actor"]["citizenId"] == h.citizens[player] and receipt["actor"]["entityId"] == h.entities[player],
+                "Foreign actor credited to delivery")
+        require([receipt["source"][key] for key in ("minX","minY","minZ","maxX","maxY","maxZ")] == source and
+                [receipt["destination"][key] for key in ("x","y","z")] == destination, "Wrong source or destination receipt")
     movement = [a["pos"] for line in (h.root / "server/observations.jsonl").read_text().splitlines()
                 for observation in [json.loads(line)] if observation["time"] >= started
                 for a in observation["actors"] if a["uuid"] == h.entities[player]]
@@ -488,7 +505,7 @@ def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=No
     calls_after = current["generationCalls"]
     require(calls_after > calls_before if acquisition else calls_after == calls_before, "Wrong generation dependence")
     h.actions_active = False
-    return {"run": run, "artifact": view.get("marker", {}).get("artifactSha256"),
+    return {"run": run, "ticket": ticket, "artifact": view.get("marker", {}).get("artifactSha256"),
             "quantities": quantities, "clientWheat": observed, "generationCalls": calls_after - calls_before}
 
 
@@ -547,13 +564,27 @@ def legacy(h: Harness):
 def cancellation(h: Harness):
     variants = []
     for partial in (False, True):
-        h.fresh(known=True); h.release_gate(); h.actions_active = True
-        run = h.submit(amount=6)
+        h.fresh(known=True)
+        source = ARENA["source"]
+        amount = 6
+        if partial:
+            source = [5,201,6,8,201,9]; amount = 16
+            setup = []
+            for x in range(5,9):
+                for z in range(6,10):
+                    setup += [f"setblock {x} 200 {z} minecraft:farmland[moisture=7]",
+                              f"setblock {x} 201 {z} minecraft:wheat[age=7]"]
+            h.console(setup)
+            h.wait(lambda: sum("wheat[age=7]" in h.snapshot()["blocks"][f"{x},201,{z}"]
+                              for x in range(5,9) for z in range(6,10)) == 16, "Larger real partial-cancellation stock")
+        h.release_gate(); h.actions_active = True
+        run = h.submit(amount=amount, source=source)
         def boundary():
             view = h.run_view("PlayerA", run)
             if not view or view["phase"] == "TERMINAL": return None
             return view if (h.receipts(view, "DEPOSIT") > 0 if partial else view["phase"] == "EXECUTING") else None
         view = h.wait(boundary, "Committed partial cancellation boundary" if partial else "Travel cancellation boundary", 60)
+        require(run in h.suggestions("PlayerA", "/aivillage kernel cancel "), "Active run missing from real cancel suggestions")
         h.command("PlayerA", "/aivillage kernel cancel " + run, "run=" + run)
         final = h.terminal("PlayerA", run)
         require("CANCELLED" in final["description"], "Network cancellation did not terminate correctly")
@@ -562,6 +593,12 @@ def cancellation(h: Harness):
         require(h.container(ARENA["destination"]) == count and h.run_view("PlayerA", run)["receipts"] == receipts, "Effects continued after cancellation")
         require(not next(a for a in h.snapshot()["actors"] if a["uuid"] == h.entities["PlayerA"])["controlled"], "Villager control not released")
         require(not partial or count > 0, "Committed partial progress disappeared")
+        require(run in h.suggestions("PlayerA", "/aivillage kernel status ") and
+                run not in h.suggestions("PlayerA", "/aivillage kernel cancel "), "Terminal control suggestions did not refresh")
+        h.disconnect("PlayerA"); h.action("PlayerA", "connect", address=f"127.0.0.1:{h.port}")
+        h.wait(lambda: h.client_snapshot("PlayerA"), "Cancelled run reconnect")
+        h.command("PlayerA", "/aivillage kernel status " + run, "CANCELLED")
+        require(h.menu_count("PlayerA", ARENA["destination"]) == count, "Cancelled stock disappeared from fresh client menu")
         variants.append({"partial": partial, "run": run, "conservedWheat": count}); h.actions_active = False
     return {"variants": variants}
 
@@ -733,7 +770,7 @@ def acquire_real_skill(h: Harness):
     h.fresh(two=True); h.enroll(); h.enroll("PlayerB", "Mira"); h.release_gate()
     require("catalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "F2 contains pre-admitted knowledge")
     h.command("PlayerA", "/aivillage kernel inference true", "admission=true")
-    acquisition = delivery(h, acquisition=True)
+    acquisition = delivery(h, acquisition=True, language=True)
     require(acquisition["artifact"], "No durably admitted artifact identifier")
     require(h.snapshot()["brokerStats"], "Missing actual IMP-014 broker integration evidence")
     h.compose("stop", "ollama")
@@ -767,9 +804,9 @@ def natural_language(h: Harness):
                 ticket not in h.suggestions("PlayerB", "/aivillage kernel status "), "Private interpretation ticket leaked")
         h.command("PlayerB", "/aivillage kernel status " + ticket, "[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
         return ticket, result
-    naming = ask("Name this villager Ada.", {"NAMED"})
+    naming = ask("I name you Ada", {"NAMED"})
     h.release_gate(); h.actions_active = True
-    ticket, interpreted = ask("Ada, harvest 4 wheat from the nearest field and deliver it to the nearest chest.", {"SUBMITTED"})
+    ticket, interpreted = ask("Ada, harvest 4 wheat", {"SUBMITTED"})
     run = interpreted["runId"]; view = h.terminal("PlayerA", run)
     require("SUCCEEDED" in view["description"] and h.container(ARENA["destination"]) == 4, "NLU nearest request did not physically complete")
     require(h.menu_count("PlayerA", ARENA["destination"]) == 4, "NLU client menu convergence failed")
