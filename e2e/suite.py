@@ -29,7 +29,8 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001")],
             "ai": ["E2E-AI-001", "E2E-NLU-001"],
             "acquire": ["E2E-AI-001"], "nlu": ["E2E-NLU-001"],
-            "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"], "all": FAMILIES}
+            "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
+            "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 
 
@@ -218,6 +219,13 @@ class Harness:
         state = self.snapshot()
         require(all("open=false" in state["blocks"][f"{x},201,4"] for x in ([2, 15] if two else [2])), "Closed pen gates")
         require(all(201 <= a["pos"][1] < 202 for a in state["actors"]), "Villagers safely on floating platform")
+        require(all(a["alive"] and not a["baby"] and not a["noAI"] for a in state["actors"]), "Adult villagers must retain normal AI")
+        for player, x in [("PlayerA", 2)] + ([("PlayerB", 15)] if two else []):
+            self.wait(lambda: (s if (s := self.client_snapshot(player)) and
+                              math.dist(s["pos"], [x+.5, 201, 5.5]) < .5 else None), "Synchronized arena spawn " + player)
+            candidates = [a for a in state["actors"] if math.dist(a["pos"], [x+.5,201,5.5]) <= 6]
+            require(len(candidates) == 1 and x < candidates[0]["pos"][0] < x+1,
+                    "Exactly one eligible villager must remain in this player's enclosure")
 
     def enroll(self, player="PlayerA", name="Ada"):
         text = self.command(player, "/aivillage kernel enroll", "Kernel actor=" + UUID_PATTERN)
@@ -287,7 +295,8 @@ class Harness:
         self.start("server"); self.start("PlayerA")
         if two: self.start("PlayerB")
         if known:
-            self.console(["tp PlayerA 2.5 201 5.5 180 0"] + (["tp PlayerB 15.5 201 5.5 180 0"] if two else []))
+            self.console(["op PlayerA", "tp PlayerA 2.5 201 5.5 180 0"] +
+                         (["op PlayerB", "tp PlayerB 15.5 201 5.5 180 0"] if two else []))
             self.wait(lambda: self.citizens["PlayerA"] in self.command("PlayerA", "/aivillage kernel citizens", "citizens="), "Restored F1 identities")
         else:
             self.setup(two, legacy)
@@ -325,9 +334,12 @@ class Harness:
         return self.wait(arrived, "Ordinary player walking " + player, 40)
 
     def menu_count(self, player, destination, item="minecraft:wheat"):
+        expected = self.container(destination, item)
         self.walk(player, destination)
         self.action(player, "open", pos=destination)
-        state = self.wait(lambda: (s if (s := self.client_snapshot(player))["menu"] > 0 else None), "Client received container menu")
+        state = self.wait(lambda: (s if (s := self.client_snapshot(player))["menu"] > 0 and
+                          sum(slot["count"] for slot in s["slots"] if not slot["playerInventory"] and
+                              slot["item"] == item) == expected else None), "Client received synchronized container contents")
         result = sum(slot["count"] for slot in state["slots"] if not slot["playerInventory"] and slot["item"] == item)
         self.action(player, "close-menu")
         return result
@@ -351,7 +363,7 @@ def smoke(h: Harness):
     h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
     h.command("PlayerA", "/aivillage kernel catalog", "recentModelCalls=0")
     h.command("PlayerA", f"/aivillage kernel name {citizen} " + "x" * 49, "Name: REQUEST_INVALID")
-    h.command("PlayerA", f"/aivillage kernel name {uuid.uuid4()} Unknown", "Name:|not found|Unknown|unknown|Kernel:")
+    h.command("PlayerA", f"/aivillage kernel name {uuid.uuid4()} Unknown", "Name: AUTHORITY_DENIED")
     h.disconnect("PlayerA")
     h.action("PlayerA", "connect", address=f"127.0.0.1:{h.port}")
     require(h.wait(lambda: h.client_snapshot("PlayerA"), "Reconnect")["uuid"] == h.players["PlayerA"], "Reconnect identity changed")
@@ -420,6 +432,7 @@ def privacy(h: Harness):
 
 
 def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=None, acquisition=False):
+    started = time.time() * 1000
     source = source or ARENA["source"]; destination = destination or ARENA["destination"]
     before = h.container(destination)
     actor_before = next(x["pos"] for x in h.snapshot()["actors"] if x["uuid"] == h.entities[player])
@@ -435,7 +448,8 @@ def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=No
     require(quantities["DEPOSIT"] == amount and h.container(destination) == before + amount, "Incorrect or duplicated wheat delivery")
     require(len({r["receiptId"] for r in view["receipts"]}) == len(view["receipts"]), "Duplicate receipt identities")
     movement = [a["pos"] for line in (h.root / "server/observations.jsonl").read_text().splitlines()
-                for a in json.loads(line)["actors"] if a["uuid"] == h.entities[player]]
+                for observation in [json.loads(line)] if observation["time"] >= started
+                for a in observation["actors"] if a["uuid"] == h.entities[player]]
     require(any(math.dist(actor_before, pos) > .5 for pos in movement), "No observed physical villager travel")
     observed = h.menu_count(player, destination)
     require(observed == h.container(destination), "Connected client menu differs from authoritative chest")
@@ -463,7 +477,7 @@ def physical(h: Harness):
     for variant, source, amount in [("immature", [4,201,10,4,201,10], 1), ("shortage", ARENA["source"], 7),
                                    ("unloaded", [1000,201,1000,1001,201,1001], 4),
                                    ("full", ARENA["source"], 4), ("removed", ARENA["source"], 4),
-                                   ("unavailable", ARENA["source"], 4)]:
+                                   ("unavailable", ARENA["source"], 4), ("obstructed", ARENA["source"], 4)]:
         h.fresh(known=True); h.release_gate()
         if variant == "full":
             items = ",".join('{Slot:'+str(i)+'b,id:"minecraft:stone",count:64}' for i in range(27))
@@ -474,9 +488,10 @@ def physical(h: Harness):
             h.wait(lambda: "air" in h.snapshot()["blocks"]["9,201,7"], "Absent destination fixture")
         if variant == "unavailable":
             h.console(["kill " + h.entities["PlayerA"]])
-            h.wait(lambda: not h.snapshot()["actors"], "Unavailable actor fixture")
+            h.wait(lambda: all(a["uuid"] != h.entities["PlayerA"] for a in h.snapshot()["actors"]), "Unavailable actor fixture")
         h.actions_active = True
-        run = h.submit(amount=amount, source=source, allow_rejection=True)
+        run = h.submit(amount=amount, source=source,
+                       destination=ARENA["unreachableDestination"] if variant == "obstructed" else None, allow_rejection=True)
         if "accepted=false" in h.last_submission:
             description = h.last_submission
         else:
@@ -686,6 +701,12 @@ def acquire_real_skill(h: Harness):
     descriptor = h.wait(tags, "Actual pinned local model available", 60)
     require(any(x["name"] == h.env["COGNITIVECRAFT_OLLAMA_MODEL"] for x in descriptor["models"]), "Wrong generation model descriptor")
     h.event("models", {"ollama": descriptor, "needle": read(private_needle / "manifest.json")})
+    warm = urllib.request.Request("http://127.0.0.1:11434/api/generate", data=json.dumps({
+            "model": h.env["COGNITIVECRAFT_OLLAMA_MODEL"], "stream": False, "keep_alive": "30m"}).encode(),
+            headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(warm, timeout=120) as response:
+        require(json.load(response)["done"], "Actual model prewarm failed")
+    h.event("model-prewarm", {"done": True, "model": h.env["COGNITIVECRAFT_OLLAMA_MODEL"]})
     h.fresh(two=True); h.enroll(); h.enroll("PlayerB", "Mira"); h.release_gate()
     require("catalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "F2 contains pre-admitted knowledge")
     h.command("PlayerA", "/aivillage kernel inference true", "admission=true")
@@ -745,7 +766,8 @@ def report(h: Harness, profile: str):
     results = {r["id"]: r for r in h.results}
     for family in FAMILIES:
         if family not in results:
-            results[family] = {"id": family, "status": "NOT_EXECUTED", "reason": "Outside selected profile"}
+            results[family] = {"id": family, "status": "NOT_EXECUTED", "reason":
+                               "Not reached after earlier failure" if family in selected else "Outside selected profile"}
     atomic(h.root / "results.json", {"schema": 1, "profile": profile, "results": list(results.values())})
     xml = ET.Element("testsuite", name="CognitiveCraft connected-client " + profile,
                      tests=str(len(selected)), failures=str(sum(results[x]["status"] != "PASS" for x in selected)), skipped="0")

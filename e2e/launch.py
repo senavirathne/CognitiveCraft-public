@@ -45,7 +45,7 @@ def main() -> None:
         (directory / "eula.txt").write_text("# Isolated automated test server\neula=true\n")
         properties = directory / "server.properties"
         if not properties.exists():
-            properties.write_text("online-mode=false\nenforce-secure-profile=false\nserver-ip=127.0.0.1\n"
+            properties.write_text("online-mode=false\nenforce-secure-profile=false\nwhite-list=false\nenforce-whitelist=false\nserver-ip=127.0.0.1\n"
                                   f"server-port={args.port}\nspawn-protection=0\nview-distance=4\nsimulation-distance=4\n"
                                   "level-type=minecraft:flat\ngenerate-structures=false\ndifficulty=peaceful\n"
                                   "sync-chunk-writes=true\nmax-players=4\n")

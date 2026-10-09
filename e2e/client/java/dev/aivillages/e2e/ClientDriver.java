@@ -18,6 +18,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.nio.file.*;
@@ -142,6 +143,17 @@ public final class ClientDriver implements ClientModInitializer {
                 reply(id, Map.of("walkingTicks", moveTicks));
             }
             case "stop-move" -> { releaseKeys(mc); moveTicks = 0; reply(id, Map.of("stopped", true)); }
+            case "interact-entity", "attack" -> {
+                releaseKeys(mc); mc.gui.setScreen(null);
+                UUID uuid = UUID.fromString(request.get("uuid").getAsString());
+                var entity = java.util.stream.StreamSupport.stream(mc.level.entitiesForRendering().spliterator(), false)
+                        .filter(e -> e.getUUID().equals(uuid)).findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("Entity is not synchronized to this client"));
+                if (mc.player.distanceToSqr(entity) > 9) throw new IllegalArgumentException("Entity outside ordinary reach");
+                if (action.equals("attack")) mc.gameMode.attack(mc.player, entity);
+                else mc.gameMode.interact(mc.player, entity, new EntityHitResult(entity), InteractionHand.MAIN_HAND);
+                reply(id, Map.of("entityInteractionSent", uuid.toString(), "action", action));
+            }
             case "use", "open", "place" -> {
                 releaseKeys(mc); mc.gui.setScreen(null);
                 BlockPos pos = position(request);

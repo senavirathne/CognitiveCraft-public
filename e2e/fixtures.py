@@ -10,7 +10,8 @@ ARENA = {"floorY": 200, "bounds": [-2, 199, -2, 22, 205, 16],
          "gateA": [2, 201, 4], "gateB": [15, 201, 4],
          "source": [6, 201, 6, 7, 201, 8], "destination": [9, 201, 7],
          "reuseSource": [6, 201, 10, 7, 201, 12], "reuseDestination": [9, 201, 12],
-         "destinationB": [17, 201, 7], "matureUnits": 6, "reuseUnits": 6}
+         "destinationB": [17, 201, 7], "partialDestination": [18, 201, 10],
+         "unreachableDestination": [20, 201, 13], "matureUnits": 6, "reuseUnits": 6}
 
 
 def commands(two: bool = True, legacy: bool = False) -> list[str]:
@@ -36,7 +37,11 @@ def commands(two: bool = True, legacy: bool = False) -> list[str]:
     result += ["setblock 8 200 7 minecraft:water", "setblock 8 200 11 minecraft:water",
                "setblock 9 201 7 minecraft:chest", "setblock 9 201 12 minecraft:chest",
                "setblock 17 201 7 minecraft:chest", "setblock 4 200 10 minecraft:farmland[moisture=7]",
-               "setblock 4 201 10 minecraft:wheat[age=2]"]
+               "setblock 4 201 10 minecraft:wheat[age=2]",
+               'setblock 18 201 10 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",count:3}]}',
+               "fill 11 201 9 11 202 10 minecraft:stone",
+               "fill 19 201 12 21 204 14 minecraft:stone",
+               "setblock 20 201 13 minecraft:chest", "setblock 20 202 13 minecraft:air"]
     return result
 
 

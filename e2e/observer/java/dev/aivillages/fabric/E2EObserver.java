@@ -68,6 +68,8 @@ public final class E2EObserver implements ModInitializer {
                 inventory.addProperty(type, (inventory.has(type) ? inventory.get(type).getAsInt() : 0) + item.getCount());
             }
             var actor = new JsonObject(); actor.addProperty("uuid", villager.getUUID().toString());
+            actor.addProperty("alive", villager.isAlive()); actor.addProperty("baby", villager.isBaby());
+            actor.addProperty("noAI", villager.isNoAi());
             actor.add("pos", JSON.toJsonTree(List.of(villager.getX(), villager.getY(), villager.getZ())));
             actor.add("inventory", inventory); actor.addProperty("controlled", AiVillages.gatewayControls(villager));
             actors.add(actor);
