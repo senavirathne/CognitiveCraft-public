@@ -28,6 +28,7 @@ FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001"
 PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x not in
             ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001")],
             "ai": ["E2E-AI-001", "E2E-NLU-001"],
+            "acquire": ["E2E-AI-001"], "nlu": ["E2E-NLU-001"],
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"], "all": FAMILIES}
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 
@@ -459,8 +460,22 @@ def physical(h: Harness):
     result = delivery(h)
     # Invalid, immature and shortage variants use fresh isolated F1 copies.
     negatives = []
-    for source, amount in [([4,201,10,4,201,10], 1), (ARENA["source"], 7), ([1000,201,1000,1001,201,1001], 4)]:
-        h.fresh(known=True); h.release_gate(); h.actions_active = True
+    for variant, source, amount in [("immature", [4,201,10,4,201,10], 1), ("shortage", ARENA["source"], 7),
+                                   ("unloaded", [1000,201,1000,1001,201,1001], 4),
+                                   ("full", ARENA["source"], 4), ("removed", ARENA["source"], 4),
+                                   ("unavailable", ARENA["source"], 4)]:
+        h.fresh(known=True); h.release_gate()
+        if variant == "full":
+            items = ",".join('{Slot:'+str(i)+'b,id:"minecraft:stone",count:64}' for i in range(27))
+            h.console(['data merge block 9 201 7 {Items:['+items+']}'])
+            h.wait(lambda: h.container(ARENA["destination"], "minecraft:stone") == 1728, "Full fixture verified")
+        if variant == "removed":
+            h.console(["setblock 9 201 7 minecraft:air"])
+            h.wait(lambda: "air" in h.snapshot()["blocks"]["9,201,7"], "Absent destination fixture")
+        if variant == "unavailable":
+            h.console(["kill " + h.entities["PlayerA"]])
+            h.wait(lambda: not h.snapshot()["actors"], "Unavailable actor fixture")
+        h.actions_active = True
         run = h.submit(amount=amount, source=source, allow_rejection=True)
         if "accepted=false" in h.last_submission:
             description = h.last_submission
@@ -468,7 +483,7 @@ def physical(h: Harness):
             view = h.terminal("PlayerA", run); description = view["description"]
         require("SUCCEEDED" not in description and h.container(ARENA["destination"]) == 0, "Negative request falsely delivered")
         require(h.snapshot()["generationCalls"] == 0, "Known environmental blocker invited inference")
-        negatives.append(description); h.actions_active = False
+        negatives.append({"variant": variant, "outcome": description}); h.actions_active = False
     return {"delivery": result, "negativeVariants": negatives}
 
 

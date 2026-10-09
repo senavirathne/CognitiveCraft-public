@@ -58,12 +58,15 @@ def main() -> None:
     else:
         os.environ["COGNITIVECRAFT_E2E_PLAYER"] = args.player
         os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
-        if not os.environ.get("DISPLAY"):
+        os.environ.setdefault("SDL_VIDEO_DRIVER", "offscreen")
+        os.environ.setdefault("XDG_CACHE_HOME", str(directory / "cache"))
+        Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
+        if os.environ["SDL_VIDEO_DRIVER"] == "x11" and not os.environ.get("DISPLAY"):
             number = "97" if args.player == "PlayerA" else "98"
             display = subprocess.Popen(["Xvfb", ":" + number, "-ac", "-screen", "0", "800x600x24",
                                         "-nolisten", "unix", "-listen", "tcp", "+extension", "GLX", "+render", "-noreset"])
             os.environ["DISPLAY"] = "127.0.0.1:" + number
-        (directory / "options.txt").write_text("renderDistance:3\nsimulationDistance:3\nmaxFps:30\n"
+        (directory / "options.txt").write_text("renderDistance:3\nsimulationDistance:5\nmaxFps:30\n"
                                                 "graphicsMode:0\nenableVsync:false\nfullscreen:false\n"
                                                 "soundCategory_master:0.0\nautoJump:false\npauseOnLostFocus:false\n"
                                                 "onboardAccessibility:false\n")
