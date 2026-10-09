@@ -1,0 +1,36 @@
+name: cognitivecraft-e2e
+x-runtime: &runtime
+  build:
+    context: ..
+    dockerfile: e2e/Dockerfile
+  image: cognitivecraft-e2e:java25
+  network_mode: host
+  init: true
+  volumes:
+    - ..:/repo:ro
+    - ${E2E_RUN_DIR:?Set E2E_RUN_DIR}:/evidence:rw
+  environment:
+    COGNITIVECRAFT_OLLAMA_MODEL: ${COGNITIVECRAFT_OLLAMA_MODEL:-}
+    COGNITIVECRAFT_NEEDLE_DIR: ${COGNITIVECRAFT_NEEDLE_DIR:-}
+services:
+  minecraft:
+    <<: *runtime
+    command: [server, --root, /evidence, --port, "${E2E_PORT:-25565}"]
+    mem_limit: 2g
+    stop_grace_period: 40s
+  client-a:
+    <<: *runtime
+    command: [client, --root, /evidence, --player, PlayerA]
+    mem_limit: 2g
+  client-b:
+    <<: *runtime
+    command: [client, --root, /evidence, --player, PlayerB]
+    mem_limit: 2g
+  ollama:
+    image: ollama/ollama:0.12.10
+    profiles: [ai]
+    ports: ["127.0.0.1:11434:11434"]
+    volumes: [ollama-models:/root/.ollama]
+    mem_limit: 7g
+volumes:
+  ollama-models:
