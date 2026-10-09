@@ -1,0 +1,375 @@
+{
+  "schema": 1,
+  "scope": "IMP-001 through IMP-014; IMP-028 foundational only",
+  "implementationBaseline": "b5ccd06b9c6a6dd8cfde6f344fc34e1a953f2d3d",
+  "brokerRecheck": "IMP-014 is merged in public PR 6; archived absent status is superseded",
+  "units": [
+    {
+      "unit": "IMP-001",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-CANCEL-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/KernelJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.KernelJUnitTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ExecutorJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ExecutorJUnitTest"
+        }
+      ],
+      "happyPath": "Typed requests and trusted completion",
+      "negative": "Invalid quantities and false completion",
+      "authorization": "Exact scoped run control",
+      "recovery": "Cancelled receipts remain truthful",
+      "aiDependency": "none for known implementation"
+    },
+    {
+      "unit": "IMP-002",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-MUTATION-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/GatewayJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.GatewayJUnitTest"
+        }
+      ],
+      "happyPath": "Navigation, mature harvest, pickup, deposit",
+      "negative": "Immature, full, removed and obstructed targets",
+      "authorization": "Actor and effect-time resource authority",
+      "recovery": "Control release and receipt conservation",
+      "aiDependency": "none"
+    },
+    {
+      "unit": "IMP-003",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-CANCEL-001",
+        "E2E-RECOVERY-002"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ExecutorJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ExecutorJUnitTest"
+        }
+      ],
+      "happyPath": "Bounded instruction execution",
+      "negative": "Progress failure and finite budgets",
+      "authorization": "No prompt-derived authority",
+      "recovery": "Network cancellation and uncertain interruption",
+      "aiDependency": "none"
+    },
+    {
+      "unit": "IMP-004",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/RepositoryJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.RepositoryJUnitTest"
+        }
+      ],
+      "happyPath": "Durable admitted exact artifact",
+      "negative": "Corrupt/incompatible publication rejected below E2E",
+      "authorization": "Artifacts grant no actor authority",
+      "recovery": "Saved-world artifact identity and reuse",
+      "aiDependency": "actual generation to produce F1, none for reuse"
+    },
+    {
+      "unit": "IMP-005",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "providers/src/test/java/dev/aivillages/providers/GenerationJUnitTest.java",
+          "suite": "dev.aivillages.providers.GenerationJUnitTest"
+        },
+        {
+          "source": "providers/src/test/java/dev/aivillages/providers/BrokerAdapterIntegrationTest.java",
+          "suite": "dev.aivillages.providers.BrokerAdapterIntegrationTest"
+        }
+      ],
+      "happyPath": "Actual local provider model descriptor and candidate",
+      "negative": "Backend unavailable and bounded transport below E2E",
+      "authorization": "No provider world mutations",
+      "recovery": "Backend shutdown and no replay",
+      "aiDependency": "actual Ollama"
+    },
+    {
+      "unit": "IMP-006",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResearchJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ResearchJUnitTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BrokerResearchIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.BrokerResearchIntegrationTest"
+        }
+      ],
+      "happyPath": "Validation, bounded physical trial, admission",
+      "negative": "Invalid candidate rejection below E2E",
+      "authorization": "Trial remains under trusted caller and normal gateway",
+      "recovery": "Admission persistence after restart",
+      "aiDependency": "actual local generation"
+    },
+    {
+      "unit": "IMP-007",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-CONN-001",
+        "E2E-PHYSICAL-001",
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BootstrapControllerTest.java",
+          "suite": "dev.aivillages.core.kernel.BootstrapControllerTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BootstrapJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.BootstrapJournalTest"
+        }
+      ],
+      "happyPath": "Real-player bootstrap and physical task",
+      "negative": "Missing knowledge without inference does not fabricate success",
+      "authorization": "Private submission scope",
+      "recovery": "Stable saved identity and model-free changed bindings",
+      "aiDependency": "actual generation only for fresh gap"
+    },
+    {
+      "unit": "IMP-008",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-CONN-001",
+        "E2E-SUGGEST-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CitizenRegistryTest.java",
+          "suite": "dev.aivillages.core.kernel.CitizenRegistryTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CitizenIdentityStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.CitizenIdentityStoreTest"
+        }
+      ],
+      "happyPath": "Nearest enrollment, Tab and durable name",
+      "negative": "Invalid names and guessed identifiers",
+      "authorization": "Own citizens only, including operators",
+      "recovery": "Reconnect and server restart",
+      "aiDependency": "none"
+    },
+    {
+      "unit": "IMP-009",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-NLU-001",
+        "E2E-SUGGEST-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/LanguageRequestsTest.java",
+          "suite": "dev.aivillages.core.kernel.LanguageRequestsTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/LanguageReferenceClassifierTest.java",
+          "suite": "dev.aivillages.core.kernel.LanguageReferenceClassifierTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorldReferenceResolverTest.java",
+          "suite": "dev.aivillages.core.kernel.WorldReferenceResolverTest"
+        }
+      ],
+      "happyPath": "Actual Needle supported naming and grounded delivery",
+      "negative": "Ambiguous/unsupported references and outage",
+      "authorization": "Private interpretation tickets and owned references",
+      "recovery": "Pending cancellation and removed caller fencing",
+      "aiDependency": "actual Needle"
+    },
+    {
+      "unit": "IMP-010",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CapabilityRetrievalIndexTest.java",
+          "suite": "dev.aivillages.core.kernel.CapabilityRetrievalIndexTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResolverJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ResolverJUnitTest"
+        }
+      ],
+      "happyPath": "Exact compatible known skill with changed bindings",
+      "negative": "Environmental blockers never authorize research",
+      "authorization": "Current authority checked during resolution",
+      "recovery": "Index rebuilt from admitted repository",
+      "aiDependency": "zero model calls for known execution"
+    },
+    {
+      "unit": "IMP-011",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-LEASE-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/JobLifecycleStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.JobLifecycleStoreTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/JobJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.JobJournalTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/JobExecutorIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.JobExecutorIntegrationTest"
+        }
+      ],
+      "happyPath": "Durable client-submitted job/status",
+      "negative": "Partial failure and cancellation",
+      "authorization": "Exact originating private scope",
+      "recovery": "Interrupted ACTIVE jobs do not replay",
+      "aiDependency": "none"
+    },
+    {
+      "unit": "IMP-012",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-LEASE-001",
+        "E2E-MUTATION-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResourceLeaseServiceTest.java",
+          "suite": "dev.aivillages.core.kernel.ResourceLeaseServiceTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResourceLeaseJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.ResourceLeaseJournalTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/LeasedGatewayIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.LeasedGatewayIntegrationTest"
+        }
+      ],
+      "happyPath": "World-wide limited-stock claims",
+      "negative": "External stock/capacity changes",
+      "authorization": "Claims confer no foreign citizen control",
+      "recovery": "Recovered claims remain inactive until reconciled",
+      "aiDependency": "none"
+    },
+    {
+      "unit": "IMP-013",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-LEASE-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorkerDispatcherTest.java",
+          "suite": "dev.aivillages.core.kernel.WorkerDispatcherTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/DispatcherOwnersIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.DispatcherOwnersIntegrationTest"
+        }
+      ],
+      "happyPath": "Multiple queued jobs and owned-worker dispatch",
+      "negative": "Unavailable workers, competing stock and bounded waiting",
+      "authorization": "Never recruit another principal worker",
+      "recovery": "Conservative assignment recovery",
+      "aiDependency": "none"
+    },
+    {
+      "unit": "IMP-014",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001",
+        "E2E-NLU-001",
+        "E2E-LEASE-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/AIWorkBrokerTest.java",
+          "suite": "dev.aivillages.core.kernel.AIWorkBrokerTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BrokerResearchIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.BrokerResearchIntegrationTest"
+        },
+        {
+          "source": "providers/src/test/java/dev/aivillages/providers/BrokerAdapterIntegrationTest.java",
+          "suite": "dev.aivillages.providers.BrokerAdapterIntegrationTest"
+        }
+      ],
+      "happyPath": "Actual generation routed through installed broker; known jobs model free",
+      "negative": "Queue, fairness, coalescing, backpressure, outages and budget permutations below E2E",
+      "authorization": "Private subscribers and scoped public run/status",
+      "recovery": "Subscriber cancellation, unconfirmed cessation and shutdown fencing below E2E",
+      "aiDependency": "actual generation for observable provider integration"
+    },
+    {
+      "unit": "IMP-028",
+      "role": "foundational dependency",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResolverJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ResolverJUnitTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CapabilityRetrievalIndexTest.java",
+          "suite": "dev.aivillages.core.kernel.CapabilityRetrievalIndexTest"
+        }
+      ],
+      "happyPath": "Foundational missing versus compatible implementation resolution",
+      "negative": "Unknown observation and environmental blocker distinction",
+      "authorization": "Current eligibility and parameter bounds",
+      "recovery": "Exact persisted closure revalidated",
+      "aiDependency": "none for known, real generation for genuine missing"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import socket
 import subprocess
 import time
 import traceback
+import threading
 import uuid
 import xml.etree.ElementTree as ET
 
@@ -83,6 +84,24 @@ class Harness:
                     "minecraft": "26.3", "loader": "0.19.5", "fabricApi": "0.161.0+26.3",
                     "runtime": read(SDK / "integrity.json"), "started": time.time()}
         atomic(self.root / "metadata.json", metadata)
+        self.sampling_stop = threading.Event()
+        self.sampler = threading.Thread(target=self.sample_resources, name="e2e-resource-observer", daemon=True)
+        self.sampler.start()
+
+    def sample_resources(self):
+        while not self.sampling_stop.is_set():
+            try:
+                data = {"time": time.time(), "hostLoad": os.getloadavg(),
+                        "hostMemory": Path("/proc/meminfo").read_text()}
+                if self.topology == "compose":
+                    sampled = subprocess.run(["docker", "stats", "--no-stream", "--format", "{{json .}}"],
+                                             capture_output=True, text=True, timeout=10)
+                    data["containers"] = [json.loads(line) for line in sampled.stdout.splitlines()]
+                with (self.root / "resources.jsonl").open("a") as output:
+                    output.write(json.dumps(data) + "\n")
+            except Exception as error:
+                self.event("resource-observation-error", str(error))
+            self.sampling_stop.wait(10)
 
     def event(self, kind: str, data: object):
         with (self.root / "supervisor.jsonl").open("a") as out:
@@ -297,6 +316,9 @@ class Harness:
         if known:
             self.console(["op PlayerA", "tp PlayerA 2.5 201 5.5 180 0"] +
                          (["op PlayerB", "tp PlayerB 15.5 201 5.5 180 0"] if two else []))
+            for player, x in [("PlayerA", 2)] + ([("PlayerB", 15)] if two else []):
+                self.wait(lambda: math.dist(self.client_snapshot(player)["pos"], [x+.5,201,5.5]) < .5,
+                          "Restored fixture synchronized spawn " + player)
             self.wait(lambda: self.citizens["PlayerA"] in self.command("PlayerA", "/aivillage kernel citizens", "citizens="), "Restored F1 identities")
         else:
             self.setup(two, legacy)
@@ -349,6 +371,7 @@ class Harness:
         self.wait(lambda: self.snapshot()["tick"] >= start + tick_count, "Post-boundary effect fence", 20)
 
     def finish(self):
+        self.sampling_stop.set(); self.sampler.join(timeout=12)
         for component in list(self.booted):
             with contextlib.suppress(Exception): self.stop(component)
         if self.topology == "compose":
