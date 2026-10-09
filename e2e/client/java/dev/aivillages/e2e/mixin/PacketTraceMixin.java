@@ -10,6 +10,9 @@ import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -42,6 +45,14 @@ public abstract class PacketTraceMixin {
     @Inject(method="handleRemoveEntities", at=@At("TAIL"))
     private void entitiesRemoved(ClientboundRemoveEntitiesPacket packet, CallbackInfo ci) {
         ClientDriver.event("entity-remove", Map.of("networkIds", packet.entityIds().toIntArray()));
+    }
+    @Inject(method="handleSetEntityData", at=@At("TAIL"))
+    private void itemMetadata(ClientboundSetEntityDataPacket packet, CallbackInfo ci) {
+        var level = Minecraft.getInstance().level;
+        if (level != null && level.getEntity(packet.id()) instanceof ItemEntity item)
+            ClientDriver.event("item-state", Map.of("networkId", packet.id(), "uuid", item.getUUID().toString(),
+                    "item", BuiltInRegistries.ITEM.getKey(item.getItem().getItem()).toString(),
+                    "count", item.getItem().getCount(), "pos", List.of(item.getX(),item.getY(),item.getZ())));
     }
     @Inject(method="handleBlockUpdate", at=@At("TAIL"))
     private void blockUpdated(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {

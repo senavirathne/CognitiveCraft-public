@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.phys.AABB;
@@ -25,6 +26,7 @@ public final class E2EObserver implements ModInitializer {
         var thread = new Thread(r, "e2e-observation-writer"); thread.setDaemon(true); return thread;
     });
     private long ticks;
+    private final Map<UUID,ServerPlayer> observedPlayers = new LinkedHashMap<>();
 
     @Override public void onInitialize() {
         writer.scheduleWithFixedDelay(this::flush, 0, 100, TimeUnit.MILLISECONDS);
@@ -41,6 +43,8 @@ public final class E2EObserver implements ModInitializer {
         out.addProperty("pid", ProcessHandle.current().pid());
         out.addProperty("java", System.getProperty("java.version"));
         var level = server.overworld();
+        out.addProperty("arenaLoaded",level.hasChunkAt(new BlockPos(2,201,5)));
+        out.addProperty("arenaTicking",level.getChunkSource().isPositionTicking(0L));
         var blocks = new JsonObject(); var containers = new JsonObject();
         for (int x = -1; x <= 20; x++) for (int z = -1; z <= 14; z++) {
             var pos = new BlockPos(x, 201, z); String key = x + ",201," + z;
@@ -75,7 +79,7 @@ public final class E2EObserver implements ModInitializer {
             actors.add(actor);
         }
         out.add("actors", actors);
-        var players = new JsonObject();
+        var players = new JsonObject(); var knownPlayers = new JsonObject();
         var kernel = AiVillages.kernel();
         if (kernel != null) try {
             out.addProperty("needleCalls", kernel.languageCalls());
@@ -83,7 +87,13 @@ public final class E2EObserver implements ModInitializer {
             out.add("brokerStats", JSON.toJsonTree(kernel.inferenceBroker().stats()));
         } catch (IllegalStateException loading) { out.addProperty("kernelLoading", true); }
         for (var player : server.getPlayerList().getPlayers()) {
+            if (observedPlayers.size() < 4 || observedPlayers.containsKey(player.getUUID()))
+                observedPlayers.put(player.getUUID(),player);
+        }
+        for (var player : observedPlayers.values()) {
             var data = new JsonObject();
+            boolean online = server.getPlayerList().getPlayer(player.getUUID()) == player;
+            data.addProperty("online",online);
             data.addProperty("uuid", player.getUUID().toString());
             data.add("pos", JSON.toJsonTree(List.of(player.getX(), player.getY(), player.getZ())));
             if (kernel != null) try {
@@ -116,9 +126,10 @@ public final class E2EObserver implements ModInitializer {
             } catch (IllegalStateException | SecurityException unavailable) {
                 data.addProperty("unavailable", unavailable.getMessage());
             }
-            players.add(player.getGameProfile().name(), data);
+            knownPlayers.add(player.getGameProfile().name(),data);
+            if (online) players.add(player.getGameProfile().name(), data);
         }
-        out.add("players", players);
+        out.add("players", players); out.add("knownPlayers",knownPlayers);
         return out;
     }
 
