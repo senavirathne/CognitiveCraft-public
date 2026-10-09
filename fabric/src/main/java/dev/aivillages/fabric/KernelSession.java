@@ -52,6 +52,8 @@ public final class KernelSession implements AutoCloseable {
     });
     private final CompletableFuture<Loaded> opening;
     private final LocalGenerationAdapter model;
+    private final GenerationPort generationSource;
+    private AIWorkBroker broker;
     private final LocalNeedleAdapter needle;
     private final LanguageRequests.Port languagePort;
     private LanguageRequests language;
@@ -87,11 +89,22 @@ public final class KernelSession implements AutoCloseable {
 
     /** Deterministic interpretation fixtures reuse the production binding and controller owners. */
     KernelSession(MinecraftServer server, Path world, LanguageRequests.Port injectedLanguage) {
+        this(server, world, injectedLanguage, null);
+    }
+    /** Controlled generation fixture retains the production broker/research composition. */
+    KernelSession(MinecraftServer server, Path world, LanguageRequests.Port injectedLanguage,
+                  GenerationPort injectedGeneration) {
         this.server = server;
         String configured = System.getenv("COGNITIVECRAFT_OLLAMA_MODEL");
-        model = configured == null || configured.isBlank() ? null
+        model = injectedGeneration != null || configured == null || configured.isBlank() ? null
                 : new LocalGenerationAdapter(new LocalGenerationAdapter.Config(
                         URI.create("http://127.0.0.1:11434/api/chat"), configured, true, 3_072));
+        generationSource = injectedGeneration != null ? injectedGeneration : model != null ? model : new GenerationPort() {
+            @Override public Generation.Handle generate(Generation.Request request, Budgets.InferenceLimits limits,
+                                                         Budgets.Ledger usage) { throw new IllegalStateException("No local model configured"); }
+            @Override public Generation.Descriptor descriptor() { return new Generation.Descriptor("ollama-chat-v1", "unconfigured-local", null); }
+            @Override public Generation.Status status() { return new Generation.Status(Generation.State.UNAVAILABLE, 0, null, Generation.Compute.NOT_STARTED, false, false); }
+        };
         String needleDir = System.getenv("COGNITIVECRAFT_NEEDLE_DIR");
         needle = needleDir == null || needleDir.isBlank() ? null : new LocalNeedleAdapter(
                 new LocalNeedleAdapter.Config(Path.of(needleDir).resolve("needle"),
@@ -177,6 +190,7 @@ public final class KernelSession implements AutoCloseable {
         gateway.tick();
         leases.tick();
         leasedGateway.tick();
+        broker.step();
         controller.tick();
         dispatchGateway.tick();
         if(dispatchRevision!=jobs.snapshot().revision()) {
@@ -237,11 +251,15 @@ public final class KernelSession implements AutoCloseable {
                 CapabilityResolver.enrolledWorldSkills(control), authority,
                 CapabilityResolver.cropPrerequisites(),
                 () -> server.overworld().getGameTime(), CapabilityResolver.Limits.defaults());
+        broker = new AIWorkBroker(generationSource, clock, AIWorkBroker.Settings.defaults(),
+                AIWorkBroker.sessionLimits(clock.millis()), request -> {
+                    var actor = ((ActorValue)request.bound().request().arguments().get("actor")).value();
+                    return control.controls(actor, request.bound().context())
+                            && List.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER).stream()
+                            .allMatch(effect -> authority.currentlyAllows(actor, effect, request.bound().context()));
+                }, AIWorkBroker.Sharing.privateScopes());
         var research = new ResearchAdmissionController(capabilities, primitives, repository,
-                (request, limits, usage) -> {
-                    if (model == null) throw new IllegalStateException("No local model configured");
-                    return model.generate(request, limits, usage);
-                }, new CropFixtureRunner(staging, capabilities, primitives,
+                broker, new CropFixtureRunner(staging, capabilities, primitives,
                         CapabilityResolver.enrolledWorldSkills(control), worker, clock),
                 new ResearchAdmissionController.TrialPort() {
                     final ResearchAdmissionController.ExecutorTrialPort delegate =
@@ -537,6 +555,8 @@ public final class KernelSession implements AutoCloseable {
     }
     public long languageCalls() { return needle == null ? 0 : needle.calls(); }
     long generationCalls() { ready();return controller.modelCalls(); }
+    AIWorkBroker inferenceBroker() { ready(); return broker; }
+    public List<AIWorkBroker.View> inferenceStatus(ServerPlayer player) { ready(); return broker.queueStatus(caller(player)); }
     /** Model-independent durable queue; the actor is a responsibility anchor, not forced worker selection. */
     public BootstrapController.Submission queueHarvest(ServerPlayer player, UUID citizenId, int amount,
                                                        Cuboid source, ContainerRef destination) {
@@ -589,9 +609,10 @@ public final class KernelSession implements AutoCloseable {
     }
     public void inference(boolean enabled) {
         ready();
-        if (enabled && model == null && languagePort == null)
+        if (enabled && generationSource.status().state() == Generation.State.UNAVAILABLE && languagePort == null)
             throw new IllegalStateException("Set COGNITIVECRAFT_OLLAMA_MODEL or COGNITIVECRAFT_NEEDLE_DIR for local inference");
         controller.inference(enabled);
+        broker.enabled(enabled);
         language.enabled(enabled);
     }
     public String catalog(ServerPlayer player) {
@@ -682,6 +703,7 @@ public final class KernelSession implements AutoCloseable {
         if (closeRequested) return;
         closeRequested = true;
         if(dispatcher!=null)dispatcher.close();
+        if(broker!=null)broker.close();
         closed = true;
         if (model != null) model.close();
         if (language != null) language.close();

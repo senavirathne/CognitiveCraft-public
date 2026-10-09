@@ -4,6 +4,9 @@ import java.time.Clock;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
 
 /** Immutable finite allowances and runtime-owned, checked cumulative usage. */
 public final class Budgets {
@@ -104,27 +107,106 @@ public final class Budgets {
 
     /** A child debits itself and every ancestor atomically under the root's monitor. */
     public static final class Ledger {
+        // Short accounting transactions only: no callback, transport or storage under this lock.
+        // A shared call can touch independent roots atomically, without lock-order deadlocks.
+        private static final Object ACCOUNTING = new Object();
         private final Limits limits;
         private final Clock clock;
         private final Ledger parent;
+        private final List<Ledger> beneficiaries;
         private final Object monitor;
         private final EnumMap<Kind, Long> usage = new EnumMap<>(Kind.class);
+        private long reservedOutput;
+        private Reservation outputReservation;
 
         public Ledger(Limits limits, Clock clock) {
             this(limits, clock, null);
         }
         private Ledger(Limits limits, Clock clock, Ledger parent) {
+            this(limits, clock, parent, List.of());
+        }
+        private Ledger(Limits limits, Clock clock, Ledger parent, List<Ledger> beneficiaries) {
             this.limits = Objects.requireNonNull(limits);
             this.clock = Objects.requireNonNull(clock);
             this.parent = parent;
-            this.monitor = parent == null ? new Object() : parent.monitor;
+            this.beneficiaries = List.copyOf(beneficiaries);
+            this.monitor = ACCOUNTING;
             if (parent != null && limits.deadlineEpochMillis() > parent.limits.deadlineEpochMillis())
                 throw new IllegalArgumentException("Deadline widens parent");
+        }
+        /** IMP-014: one physical debit, once per distinct beneficiary and shared ancestor.
+         * Cohorts are frozen before transport starts. Cancellation does not refund performed work. */
+        public static Ledger shared(Limits limits, Clock clock, List<Ledger> beneficiaries) {
+            if (beneficiaries.isEmpty() || beneficiaries.size() > 9)
+                throw new IllegalArgumentException("Shared accounting cohort");
+            for (Ledger beneficiary : beneficiaries) {
+                if (limits.deadlineEpochMillis() > beneficiary.deadline())
+                    throw new IllegalArgumentException("Shared deadline widens beneficiary");
+                for (Kind kind : Kind.values())
+                    if (limits.maximum(kind) > beneficiary.remaining(kind)) throw new Exhausted();
+            }
+            return new Ledger(limits, clock, null, beneficiaries);
+        }
+        private List<Ledger> lineage() {
+            var result = new ArrayList<Ledger>();
+            var seen = new IdentityHashMap<Ledger, Boolean>();
+            collect(this, result, seen);
+            return result;
+        }
+        private static void collect(Ledger ledger, List<Ledger> result,
+                                    IdentityHashMap<Ledger, Boolean> seen) {
+            if (seen.put(ledger, Boolean.TRUE) != null) return;
+            if (result.size() == 64) throw new IllegalArgumentException("Accounting graph exceeds 64 nodes");
+            result.add(ledger);
+            if (ledger.parent != null) collect(ledger.parent, result, seen);
+            for (Ledger beneficiary : ledger.beneficiaries) collect(beneficiary, result, seen);
+        }
+        public long deadline() {
+            synchronized (monitor) {
+                return lineage().stream().mapToLong(l -> l.limits.deadlineEpochMillis()).min().orElseThrow();
+            }
+        }
+        public long remaining(Kind kind) {
+            synchronized (monitor) {
+                return lineage().stream().mapToLong(l -> l.limits.maximum(kind)
+                        - l.usage.getOrDefault(kind, 0L) - (kind == Kind.OUTPUT_BYTES ? l.reservedOutput : 0)).min().orElseThrow();
+            }
+        }
+        /** Reserve one frozen shared response before preparation. Actual chunks consume this hold.
+         * Unknown abandoned output forfeits its remaining hold; proven unused output releases it. */
+        public Reservation reserveOutput(long amount) {
+            synchronized (monitor) {
+                if (beneficiaries.isEmpty() || outputReservation != null || amount <= 0
+                        || !canDebit(Kind.OUTPUT_BYTES, amount)) throw new Exhausted();
+                List<Ledger> charged = lineage();
+                charged.forEach(l -> l.reservedOutput += amount);
+                return outputReservation = new Reservation(charged, amount);
+            }
+        }
+        public final class Reservation {
+            private final List<Ledger> charged;
+            private long remaining;
+            private Reservation(List<Ledger> charged, long remaining) { this.charged = charged; this.remaining = remaining; }
+            public long remaining() { synchronized (monitor) { return remaining; } }
+            public void release() { finish(false); }
+            /** Already reserved work is accounted even when its subscriber deadline has elapsed. */
+            public long forfeit() { return finish(true); }
+            private long finish(boolean consumed) {
+                synchronized (monitor) {
+                    long amount = remaining;
+                    for (Ledger ledger : charged) {
+                        ledger.reservedOutput -= amount;
+                        if (consumed) ledger.usage.merge(Kind.OUTPUT_BYTES, amount, Math::addExact);
+                    }
+                    remaining = 0; return amount;
+                }
+            }
         }
         public Ledger child(Limits allowance) {
             synchronized (monitor) {
                 for (Kind kind : Kind.values()) {
-                    long remaining = limits.maximum(kind) - usage.getOrDefault(kind, 0L);
+                    long remaining = limits.maximum(kind) - usage.getOrDefault(kind, 0L)
+                            - (kind == Kind.OUTPUT_BYTES ? reservedOutput : 0);
                     if (allowance.maximum(kind) > remaining) throw new Exhausted();
                 }
                 return new Ledger(allowance, clock, this);
@@ -138,10 +220,12 @@ public final class Budgets {
             Objects.requireNonNull(kind);
             if (amount < 0) throw new IllegalArgumentException("Negative amount");
             synchronized (monitor) {
-                for (Ledger cursor = this; cursor != null; cursor = cursor.parent) {
+                for (Ledger cursor : lineage()) {
                     if (clock.millis() > cursor.limits.deadlineEpochMillis()) return false;
                     long current = cursor.usage.getOrDefault(kind, 0L);
-                    if (amount > cursor.limits.maximum(kind) - current) return false;
+                    long reserved = kind == Kind.OUTPUT_BYTES ? cursor.reservedOutput : 0;
+                    long owned = kind == Kind.OUTPUT_BYTES && outputReservation != null ? outputReservation.remaining : 0;
+                    if (amount > cursor.limits.maximum(kind) - current - reserved + owned) return false;
                 }
                 return true;
             }
@@ -150,7 +234,10 @@ public final class Budgets {
         public void debit(Map<Kind, Long> delta) {
             Objects.requireNonNull(delta);
             synchronized (monitor) {
-                for (Ledger cursor = this; cursor != null; cursor = cursor.parent) {
+                List<Ledger> charged = lineage();
+                long output = delta.getOrDefault(Kind.OUTPUT_BYTES, 0L);
+                long owned = outputReservation == null ? 0 : Math.min(output, outputReservation.remaining);
+                for (Ledger cursor : charged) {
                     if (clock.millis() > cursor.limits.deadlineEpochMillis()) throw new Exhausted();
                     for (var entry : delta.entrySet()) {
                         Kind kind = Objects.requireNonNull(entry.getKey());
@@ -160,12 +247,17 @@ public final class Budgets {
                         long next;
                         try { next = Math.addExact(current, amount); }
                         catch (ArithmeticException exception) { throw new Exhausted(); }
-                        if (next > cursor.limits.maximum(kind)) throw new Exhausted();
+                        long reserved = kind == Kind.OUTPUT_BYTES ? cursor.reservedOutput - owned : 0;
+                        if (next > cursor.limits.maximum(kind) - reserved) throw new Exhausted();
                     }
                 }
-                for (Ledger cursor = this; cursor != null; cursor = cursor.parent)
+                for (Ledger cursor : charged)
                     for (var entry : delta.entrySet())
                         cursor.usage.merge(entry.getKey(), entry.getValue(), Math::addExact);
+                if (owned > 0) {
+                    for (Ledger cursor : charged) cursor.reservedOutput -= owned;
+                    outputReservation.remaining -= owned;
+                }
             }
         }
     }

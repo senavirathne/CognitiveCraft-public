@@ -109,6 +109,10 @@ public final class ResearchChecks {
         boolean ignoreCancellation;
         boolean unavailable;
         Model(String... bodies) { responses.addAll(List.of(bodies)); }
+        @Override public Generation.Descriptor descriptor() { return new Generation.Descriptor("ollama-chat-v1", "fixture-model", null); }
+        @Override public Generation.Status status() { return new Generation.Status(unavailable ? Generation.State.UNAVAILABLE
+                : pending != null && !pending.isDone() ? Generation.State.IN_FLIGHT : Generation.State.READY,
+                0, null, pending != null && !pending.isDone() ? Generation.Compute.RUNNING : Generation.Compute.NOT_STARTED, false, false); }
         @Override public Generation.Handle generate(Generation.Request request,
                 Budgets.InferenceLimits limits, Budgets.Ledger usage) {
             roles.add(request.role());
@@ -198,6 +202,10 @@ public final class ResearchChecks {
         }
         Harness(FaultInjector faults, boolean holdFixture, boolean holdPublication,
                 Limits repositoryLimits, String... responses) throws Exception {
+            this(faults, holdFixture, holdPublication, repositoryLimits, null, responses);
+        }
+        Harness(FaultInjector faults, boolean holdFixture, boolean holdPublication,
+                Limits repositoryLimits, GenerationPort injectedGeneration, String... responses) throws Exception {
             world = Files.createTempDirectory("cc-research");
             if (!holdFixture) fixtureGate.complete(null);
             if (!holdPublication) publicationGate.complete(null);
@@ -248,7 +256,7 @@ public final class ResearchChecks {
                         }
                     };
             controller = new ResearchAdmissionController(SPECS, GatewayPrimitives.instance(),
-                    repository, model, (skill, bound, limits, usage, cancelled) ->
+                    repository, injectedGeneration == null ? model : injectedGeneration, (skill, bound, limits, usage, cancelled) ->
                             fixtureGate.thenCompose(ignored -> fixture.evaluate(
                                     skill, bound, limits, usage, cancelled)),
                     new ResearchAdmissionController.ExecutorTrialPort(executor), staging, grants,
@@ -309,6 +317,55 @@ public final class ResearchChecks {
                     "generation receives only the crop-relevant signature set");
             check(h.gateway.calls == 3, "one live run, no duplicate actions");
             check(result.usage().get(Kind.TRIALS) == 1L, "one trial budget");
+        }
+    }
+    public static void brokerSharesGenerationButKeepsAdmissionAndTrialsSeparate() throws Exception {
+        var model = new Model(CANDIDATE); var clock = Clock.systemUTC();
+        try (var broker = new AIWorkBroker(model, clock, AIWorkBroker.Settings.defaults(),
+                AIWorkBroker.sessionLimits(clock.millis()), request -> true, AIWorkBroker.Sharing.privateScopes());
+             var first = new Harness(FaultInjector.none(), false, false, Limits.defaults(), broker);
+             var second = new Harness(FaultInjector.none(), false, false, Limits.defaults(), broker)) {
+            var a = first.start(); var b = second.start();
+            check(broker.stats().queuedWork() == 1 && first.repository.status().bodyCount() == 0
+                    && second.repository.status().bodyCount() == 0, "Broker did not coalesce before separate admission");
+            broker.step(); broker.step();
+            var left = first.end(a); var right = second.end(b);
+            check(left.outcome().status() == ResearchStatus.ADMITTED && right.outcome().status() == ResearchStatus.ADMITTED
+                    && left.committedEffects() == 3 && right.committedEffects() == 3
+                    && left.outcome().modelCalls() == 1 && right.outcome().modelCalls() == 1
+                    && model.roles.size() == 1 && broker.stats().calls() == 1,
+                    "Generation sharing must not merge physical trials or admission decisions");
+        }
+    }
+    public static void brokerCancellationCannotPromoteLateCandidate() throws Exception {
+        var model = new Model(CANDIDATE); var clock = Clock.systemUTC();
+        try (var broker = new AIWorkBroker(model, clock, AIWorkBroker.Settings.defaults(),
+                AIWorkBroker.sessionLimits(clock.millis()), request -> true, AIWorkBroker.Sharing.privateScopes());
+             var first = new Harness(FaultInjector.none(), false, false, Limits.defaults(), broker);
+             var second = new Harness(FaultInjector.none(), false, false, Limits.defaults(), broker)) {
+            var a = first.start(); var b = second.start(); broker.step(); a.cancel(OWNER); broker.step();
+            var cancelled = first.end(a); var accepted = second.end(b);
+            check(cancelled.outcome().status() == ResearchStatus.CANCELLED && cancelled.outcome().modelCalls() == 1
+                    && first.gateway.calls == 0 && first.repository.status().bodyCount() == 0
+                    && accepted.outcome().status() == ResearchStatus.ADMITTED && model.roles.size() == 1,
+                    "Cancelled subscriber was charged honestly but cannot trial or publish late work");
+        }
+    }
+    public static void brokerRepairConsumesOriginalResearchParent() throws Exception {
+        var model = new Model("{}", CANDIDATE); var clock = Clock.systemUTC();
+        try (var broker = new AIWorkBroker(model, clock, AIWorkBroker.Settings.defaults(),
+                AIWorkBroker.sessionLimits(clock.millis()), request -> true, AIWorkBroker.Sharing.privateScopes());
+             var harness = new Harness(FaultInjector.none(), false, false, Limits.defaults(), broker)) {
+            var attempt = harness.start(); ResearchAdmissionController.Status status = null;
+            for (int i = 0; i < 8000; i++) {
+                broker.step(); status = attempt.tick(OWNER);
+                if (status.phase() == ResearchAdmissionController.Phase.TERMINAL) break;
+                LockSupport.parkNanos(250_000);
+            }
+            check(status != null && status.outcome() != null && status.outcome().status() == ResearchStatus.ADMITTED
+                    && status.outcome().modelCalls() == 2 && status.usage().get(Kind.REPAIRS) == 1
+                    && model.roles.equals(List.of(Generation.Role.INITIAL, Generation.Role.REPAIR)),
+                    "Broker must not refresh research repair/call allowances");
         }
     }
     public static void routingAndInvalidInput() throws Exception {
