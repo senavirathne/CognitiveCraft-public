@@ -141,6 +141,7 @@ public final class ClientDriver implements ClientModInitializer {
                 mc.options.keyUp.setDown(true);
                 reply(id, Map.of("walkingTicks", moveTicks));
             }
+            case "stop-move" -> { releaseKeys(mc); moveTicks = 0; reply(id, Map.of("stopped", true)); }
             case "use", "open", "place" -> {
                 releaseKeys(mc); mc.gui.setScreen(null);
                 BlockPos pos = position(request);

@@ -75,6 +75,11 @@ public final class E2EObserver implements ModInitializer {
         out.add("actors", actors);
         var players = new JsonObject();
         var kernel = AiVillages.kernel();
+        if (kernel != null) try {
+            out.addProperty("needleCalls", kernel.languageCalls());
+            out.addProperty("generationCalls", kernel.generationCalls());
+            out.add("brokerStats", JSON.toJsonTree(kernel.inferenceBroker().stats()));
+        } catch (IllegalStateException loading) { out.addProperty("kernelLoading", true); }
         for (var player : server.getPlayerList().getPlayers()) {
             var data = new JsonObject();
             data.addProperty("uuid", player.getUUID().toString());
@@ -95,8 +100,12 @@ public final class E2EObserver implements ModInitializer {
                 }
                 data.add("runs", runs);
                 var jobs = new JsonObject();
-                for (var id : kernel.queuedJobIds(player, false))
-                    jobs.add(id.toString(), JSON.toJsonTree(kernel.queuedJob(player, id)));
+                for (var id : kernel.queuedJobIds(player, false)) {
+                    var job = kernel.queuedJob(player, id);
+                    var record = JSON.toJsonTree(job).getAsJsonObject();
+                    record.addProperty("fulfilled", job.fulfilled());
+                    jobs.add(id.toString(), record);
+                }
                 data.add("jobs", jobs); data.add("broker", JSON.toJsonTree(kernel.inferenceStatus(player)));
             } catch (IllegalStateException | SecurityException unavailable) {
                 data.addProperty("unavailable", unavailable.getMessage());

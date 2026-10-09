@@ -48,3 +48,14 @@ jobs:
             build/e2e/smoke/
             build/e2e-sdk/integrity.json
             fabric/build/test-results/
+      - name: Print failure diagnostics
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('build/e2e/smoke')
+          for pattern in ('results.json', '**/stdout.log', '*-launcher.log', '**/response.json'):
+              for path in root.glob(pattern):
+                  print('\nDIAGNOSTIC',path)
+                  print('\n'.join(path.read_text(errors='replace').splitlines()[-100:]))
+          PY
