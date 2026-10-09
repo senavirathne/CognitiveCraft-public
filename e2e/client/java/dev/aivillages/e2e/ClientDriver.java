@@ -99,7 +99,7 @@ public final class ClientDriver implements ClientModInitializer {
             throw new IllegalStateException("Client is not in multiplayer play");
         switch (action) {
             case "command" -> {
-                mc.setScreenAndShow(null);
+                mc.gui.setScreen(null);
                 String command = request.get("text").getAsString();
                 mc.getConnection().sendCommand(command.startsWith("/") ? command.substring(1) : command);
                 reply(id, Map.of("sent", command));
@@ -107,7 +107,7 @@ public final class ClientDriver implements ClientModInitializer {
             case "tab" -> {
                 String text = request.get("text").getAsString();
                 var chat = new ChatScreen(text, false);
-                mc.setScreenAndShow(chat);
+                mc.gui.setScreen(chat);
                 nextTick = () -> {
                     chat.keyPressed(new KeyEvent(InputConstants.KEY_TAB, InputConstants.KEY_TAB, 0));
                     event("tab-key", Map.of("text", text));
@@ -115,7 +115,7 @@ public final class ClientDriver implements ClientModInitializer {
                 };
             }
             case "suggest" -> {
-                mc.setScreenAndShow(null);
+                mc.gui.setScreen(null);
                 String text = request.get("text").getAsString();
                 var dispatcher = mc.getConnection().getCommands();
                 var parsed = dispatcher.parse(text.startsWith("/") ? text.substring(1) : text,
@@ -134,7 +134,7 @@ public final class ClientDriver implements ClientModInitializer {
                 reply(id, Map.of("looking", List.of(pos.getX(), pos.getY(), pos.getZ())));
             }
             case "move" -> {
-                mc.setScreenAndShow(null);
+                mc.gui.setScreen(null);
                 mc.player.setYRot(request.get("yaw").getAsFloat());
                 moveTicks = Math.min(200, request.get("ticks").getAsInt());
                 if (moveTicks < 1) throw new IllegalArgumentException("Movement bound");
@@ -142,14 +142,14 @@ public final class ClientDriver implements ClientModInitializer {
                 reply(id, Map.of("walkingTicks", moveTicks));
             }
             case "use", "open", "place" -> {
-                releaseKeys(mc); mc.setScreenAndShow(null);
+                releaseKeys(mc); mc.gui.setScreen(null);
                 BlockPos pos = position(request);
                 mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
                         new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
                 reply(id, Map.of("interactionSent", pos.toShortString()));
             }
             case "break" -> {
-                mc.setScreenAndShow(null); breaking = position(request);
+                mc.gui.setScreen(null); breaking = position(request);
                 mc.gameMode.startDestroyBlock(breaking, Direction.UP);
                 reply(id, Map.of("breaking", breaking.toShortString()));
             }
@@ -181,6 +181,8 @@ public final class ClientDriver implements ClientModInitializer {
         out.addProperty("play", mc.player != null && mc.level != null && mc.getConnection() != null
                 && mc.getConnection().hasClientLoaded());
         out.addProperty("singleplayer", mc.hasSingleplayerServer());
+        out.addProperty("gameLoaded", mc.isGameLoadFinished());
+        out.addProperty("screen", mc.gui.screen() == null ? "none" : mc.gui.screen().getClass().getSimpleName());
         if (mc.player == null || mc.level == null || mc.getConnection() == null) return out;
         out.addProperty("uuid", mc.player.getUUID().toString());
         out.add("pos", JSON.toJsonTree(List.of(mc.player.getX(), mc.player.getY(), mc.player.getZ())));

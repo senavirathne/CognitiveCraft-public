@@ -68,7 +68,8 @@ class Harness:
         self.results = []
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0)); self.port = sock.getsockname()[1]
-        self.env = {**os.environ, "E2E_RUN_DIR": str(self.root), "E2E_PORT": str(self.port)}
+        self.env = {**os.environ, "E2E_RUN_DIR": str(self.root), "E2E_PORT": str(self.port),
+                    "E2E_UID": str(os.getuid()), "E2E_GID": str(os.getgid())}
         metadata = {"schema": 1, "repository": "senavirathne/CognitiveCraft-public",
                     "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                     "sourceTree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, text=True).strip(),
@@ -84,8 +85,13 @@ class Harness:
             out.write(json.dumps({"time": time.time(), "kind": kind, "data": data}) + "\n")
 
     def compose(self, *args):
-        return subprocess.run(["docker", "compose", "-f", str(ROOT / "e2e/compose.yml"), *args],
-                              cwd=ROOT, env=self.env, check=True, text=True, capture_output=True)
+        result = subprocess.run(["docker", "compose", "-f", str(ROOT / "e2e/compose.yml"), *args],
+                                cwd=ROOT, env=self.env, text=True, capture_output=True)
+        with (self.root / "docker.log").open("a") as output:
+            output.write(result.stdout + result.stderr)
+        if result.returncode:
+            raise RuntimeError("Docker Compose " + " ".join(args) + ": " + result.stderr[-2000:])
+        return result
 
     def start(self, component: str):
         name = "minecraft" if component == "server" else "client-a" if component == "PlayerA" else "client-b"
@@ -106,6 +112,8 @@ class Harness:
         else:
             self.wait(lambda: self.events(component) and any(x["kind"] == "driver" for x in self.events(component)),
                       "Client driver startup " + component, 120)
+            self.wait(lambda: (s if (s := self.action(component, "snapshot"))["gameLoaded"]
+                              and s["screen"] == "TitleScreen" else None), "Client resources/title ready", 100)
             self.action(component, "connect", address=f"127.0.0.1:{self.port}")
             state = self.wait(lambda: self.client_snapshot(component), "Real multiplayer play " + component, 100)
             require(not state["singleplayer"], "Integrated server cannot qualify")

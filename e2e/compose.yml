@@ -6,6 +6,7 @@ x-runtime: &runtime
   image: cognitivecraft-e2e:java25
   network_mode: host
   init: true
+  user: "${E2E_UID:-1000}:${E2E_GID:-1000}"
   volumes:
     - ..:/repo:ro
     - ${E2E_RUN_DIR:?Set E2E_RUN_DIR}:/evidence:rw
