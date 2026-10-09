@@ -1,0 +1,102 @@
+name: AI work broker acceptance
+
+on:
+  push:
+    branches: [main]
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/implementation/IMP-014*', '.github/workflows/ai-work-broker.yml']
+  pull_request:
+    branches: [main]
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/implementation/IMP-014*', '.github/workflows/ai-work-broker.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognitivecraft-broker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  broker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - name: Broker, actual adapter and research owners; all affected suites and release build
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Require discovered passing matrices and measured finite controlled load
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          counts={}
+          for module,package,suite,minimum in [('core','core.kernel','AIWorkBrokerTest',50),('core','core.kernel','BrokerResearchIntegrationTest',3),('providers','providers','BrokerAdapterIntegrationTest',8)]:
+              cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-dev.aivillages.'+package+'.'+suite+'.xml')).getroot().iter('testcase'))
+              if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Missing successful IMP-014 matrix: '+suite)
+              counts[suite]=len(cases)
+          load=json.loads(Path('core/build/broker-evidence/load.json').read_text())
+          if load['requests']!=1000 or load['rejected']!=996 or load['calls']!=4 or load['outputBytes']!=40 or load['maxWork']>5 or load['maxSubscribers']>40 or load['maxStarts']>1 or load['maxOccupied']>1 or load['retained']>64:
+              raise SystemExit('Broker exceeded declared finite bounds: '+str(load))
+          Path('core/build/broker-evidence/acceptance.json').write_text(json.dumps({'schema':1,'architecture':'0.5','brokerSchema':1,'backend':'controlled-fake','cases':counts,'load':load},indent=2)+'\n')
+          print('IMP-014 pure acceptance '+json.dumps(counts)+' '+json.dumps(load))
+          PY
+      - name: Select isolated actual production GP-14 fixture
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('fabric/src/gameTest/resources/fabric.mod.json')
+          manifest=json.loads(path.read_text())
+          manifest['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.AIWorkBrokerGameTests']
+          path.write_text(json.dumps(manifest,indent=2)+'\n')
+          PY
+      - name: Stalled shared inference, privacy, bounded cancellation and known physical jobs
+        timeout-minutes: 5
+        env:
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify native discovery, production evidence and release packaging
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,shutil,zipfile,xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')): raise SystemExit('One executed successful GP-14 required')
+          log=(root/'logs/latest.log').read_text()
+          proof='IMP-014 GP-14 accepted backend=controlled-fake coalesced=1 privateWork=separate physicalCalls=1 queueCap=4 concurrency=1 expired=true stopUnconfirmed=true knownJobs=2 delivered=2 knownGenerationCalls=0 knownLanguageCalls=0 restartReplay=0 architecture=0.5 brokerSchema=1'
+          if proof not in log: raise SystemExit('Missing complete native GP-14 evidence')
+          output=Path('core/build/broker-evidence')
+          shutil.copy2(root/'gametest-results.xml',output/'gp14.xml')
+          shutil.copy2(root/'logs/latest.log',output/'gp14.log')
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1: raise SystemExit('One production jar required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in n or n.startswith('dev/aivillages/fabric/AIWorkBrokerGameTests') for n in jar.namelist()): raise SystemExit('Test code leaked into release')
+              if 'dev/aivillages/core/kernel/AIWorkBroker.class' not in jar.namelist(): raise SystemExit('Broker missing from release')
+          audit={'schema':1,'file':jars[0].name,'bytes':jars[0].stat().st_size,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest(),'gp14':proof}
+          (output/'release.json').write_text(json.dumps(audit,indent=2)+'\n')
+          print('IMP-014 release '+json.dumps(audit))
+          PY
+      - name: Preserve actual broker evidence and unit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: broker-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            core/build/broker-evidence/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/latest.log

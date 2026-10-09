@@ -395,6 +395,9 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         }
         if (active != call) return;
         if (call.compute == Generation.Compute.NOT_STARTED) {
+            // dispatch() checks active and terminal under the same monitor. No external call
+            // can start after this cancellation, so preparation has confirmed cessation.
+            call.compute = Generation.Compute.STOP_CONFIRMED;
             finish(call, outcome, reason, null, emptyUsage()); return;
         }
         call.terminating = true;
