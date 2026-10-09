@@ -37,7 +37,7 @@ jobs:
           from pathlib import Path
           import json, xml.etree.ElementTree as ET
           counts={}
-          for module,package,suite,minimum in [('core','core.kernel','AIWorkBrokerTest',44),('core','core.kernel','BrokerResearchIntegrationTest',3),('providers','providers','BrokerAdapterIntegrationTest',8)]:
+          for module,package,suite,minimum in [('core','core.kernel','AIWorkBrokerTest',50),('core','core.kernel','BrokerResearchIntegrationTest',3),('providers','providers','BrokerAdapterIntegrationTest',8)]:
               cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-dev.aivillages.'+package+'.'+suite+'.xml')).getroot().iter('testcase'))
               if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
                   raise SystemExit('Missing successful IMP-014 matrix: '+suite)

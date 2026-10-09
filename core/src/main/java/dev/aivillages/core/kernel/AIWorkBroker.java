@@ -60,6 +60,7 @@ public final class AIWorkBroker implements GenerationPort, AutoCloseable {
                         long dispatched, long calls, long inputBytes, long outputBytes,
                         long coalesced, long rejected, long cancelled, long discarded,
                         long abandoned, int unconfirmed, long reservedOutputBytes, long unmeasuredOutputBytes) { }
+    /** Enumerated rows; dispatch/delivery additionally revalidate at most sixteen members. */
     public record Slice(int workInspected, int subscribersInspected, int starts) { }
     public record Terminal(int schema, View subscriber, Generation.Result generation) {
         public Terminal {
@@ -243,7 +244,14 @@ public final class AIWorkBroker implements GenerationPort, AutoCloseable {
         var work = new ArrayList<>(queue); if (active != null) work.add(active); return work;
     }
     private void dispatch(Work work) {
+        for (Subscriber subscriber : work.members) if (!subscriber.state.terminal()) {
+            if (!authorized(subscriber.request)) finish(subscriber, State.DISCARDED, Reason.AUTHORITY_DENIED, null);
+            else if (clock.millis() >= subscriber.limits.total().deadlineEpochMillis()
+                    || clock.millis() >= subscriber.allowance.deadline())
+                finish(subscriber, State.EXPIRED, Reason.BUDGET_EXHAUSTED, null);
+        }
         List<Subscriber> live = work.members.stream().filter(s -> !s.state.terminal()).toList();
+        if (live.isEmpty()) { settle(); return; }
         var beneficiaries = new ArrayList<Budgets.Ledger>(); beneficiaries.add(hardware);
         live.forEach(s -> beneficiaries.add(s.allowance));
         var maxima = new EnumMap<Kind, Long>(Kind.class);
@@ -272,6 +280,9 @@ public final class AIWorkBroker implements GenerationPort, AutoCloseable {
                 && result.owner().equals(work.transportRequest.bound().context()) && result.role() == work.transportRequest.role();
         for (Subscriber subscriber : work.members) if (!subscriber.state.terminal()) {
             if (!authorized(subscriber.request)) finish(subscriber, State.DISCARDED, Reason.AUTHORITY_DENIED, null);
+            else if (clock.millis() >= subscriber.limits.total().deadlineEpochMillis()
+                    || clock.millis() >= subscriber.allowance.deadline())
+                finish(subscriber, State.EXPIRED, Reason.BUDGET_EXHAUSTED, null);
             else if (!valid) finish(subscriber, State.FAILED, Reason.ACTION_FAILED, null);
             else finish(subscriber, result.outcome() == Generation.Outcome.CANDIDATE ? State.CANDIDATE
                     : result.reason() == Reason.BUDGET_EXHAUSTED ? State.EXPIRED

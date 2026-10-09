@@ -53,6 +53,7 @@ public final class KernelSession implements AutoCloseable {
     private final CompletableFuture<Loaded> opening;
     private final LocalGenerationAdapter model;
     private final GenerationPort generationSource;
+    private final boolean generationConfigured;
     private AIWorkBroker broker;
     private final LocalNeedleAdapter needle;
     private final LanguageRequests.Port languagePort;
@@ -99,6 +100,7 @@ public final class KernelSession implements AutoCloseable {
         model = injectedGeneration != null || configured == null || configured.isBlank() ? null
                 : new LocalGenerationAdapter(new LocalGenerationAdapter.Config(
                         URI.create("http://127.0.0.1:11434/api/chat"), configured, true, 3_072));
+        generationConfigured = injectedGeneration != null || model != null;
         generationSource = injectedGeneration != null ? injectedGeneration : model != null ? model : new GenerationPort() {
             @Override public Generation.Handle generate(Generation.Request request, Budgets.InferenceLimits limits,
                                                          Budgets.Ledger usage) { throw new IllegalStateException("No local model configured"); }
@@ -609,7 +611,7 @@ public final class KernelSession implements AutoCloseable {
     }
     public void inference(boolean enabled) {
         ready();
-        if (enabled && generationSource.status().state() == Generation.State.UNAVAILABLE && languagePort == null)
+        if (enabled && !generationConfigured && languagePort == null)
             throw new IllegalStateException("Set COGNITIVECRAFT_OLLAMA_MODEL or COGNITIVECRAFT_NEEDLE_DIR for local inference");
         controller.inference(enabled);
         broker.enabled(enabled);

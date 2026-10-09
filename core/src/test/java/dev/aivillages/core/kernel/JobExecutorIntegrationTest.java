@@ -79,7 +79,14 @@ class JobExecutorIntegrationTest {
         void release() throws Exception { hold=false;held.complete(write(heldExpected,heldNext).toCompletableFuture().get(5,TimeUnit.SECONDS)); }
         UUID submit(){var result=controller.submit(f.request.request(),OWNER);assertTrue(result.accepted(),String.valueOf(result.reason()));return result.id();}
         void tick() throws Exception {controller.tick();Thread.sleep(1);}
-        void until(java.util.function.BooleanSupplier done) throws Exception {for(int n=0;n<1000&&!done.getAsBoolean();n++)tick();assertTrue(done.getAsBoolean());}
+        void until(java.util.function.BooleanSupplier done) throws Exception {
+            // Real fsync acknowledgements are asynchronous; a 1000 x 1ms polling window
+            // raced the disk worker under CI load. Bound both wall time and tick work.
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+            for(int n=0;n<5000&&!done.getAsBoolean()&&System.nanoTime()<deadline;n++)tick();
+            assertTrue(done.getAsBoolean(),()->"Durable owner did not acknowledge: ready="+jobs.ready()
+                    +" states="+jobs.snapshot().jobs().stream().map(Job::state).toList());
+        }
         Job job(UUID id){return jobs.bySubmission(id,OWNER).orElseThrow();}
         boolean terminal(UUID id){return controller.status(id,OWNER).phase()==BootstrapController.Phase.TERMINAL;}
         public void close() throws Exception {worker.shutdown();assertTrue(worker.awaitTermination(5,TimeUnit.SECONDS));journal.close();}

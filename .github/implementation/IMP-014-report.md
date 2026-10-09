@@ -56,9 +56,9 @@ Native CI uses the equivalent pinned standard Gradle tasks and an isolated GP-14
 GameTest. Exact executed counts, run IDs, source SHA and artifact hashes are recorded
 below after verification; undiscovered or skipped cases are not accepted.
 
-Local full validation completed successfully in 19 seconds: **719 JUnit cases**
-(core 640, providers 56, Fabric 23), zero failures/errors/skips. The new matrices
-contain AIWorkBrokerTest 44, BrokerResearchIntegrationTest 3 and
+Local final-source validation completed successfully in 19 seconds: **725 JUnit cases**
+(core 646, providers 56, Fabric 23), zero failures/errors/skips. The new matrices
+contain AIWorkBrokerTest 50, BrokerResearchIntegrationTest 3 and
 BrokerAdapterIntegrationTest 8. The release build and `git diff --check` passed.
 
 ## GP-14 binding
@@ -73,6 +73,18 @@ compute. Two principals' known crop jobs each deliver one actual wheat unit with
 additional generation/Needle calls. Scoped status, disabled gate, cache deletion,
 owner reload and twenty quiet restart ticks must not replay inference or effects.
 
+Initial native source `aad646c3efefdfc7e40cd0e7903ad1d67996970b` passed GP-14
+in run 37920339087/job 113786474690, with one discovered passing fixture and no
+skips. Its controlled 1000-request load measured 115873533 ns total and a maximum
+5598432 ns slice; bounds were four queued work records, one occupied slot, one
+start per slice and 64 retained records. Physical work consumed four calls and
+40 accepted output bytes. Native release audit: 1098034 bytes, SHA-256
+`6bce25a72b55d79bd084cfa942b3dbc1558a74bd96319e102a840dd082c128d1`,
+broker present and GameTest classes absent. These initial-source results are
+superseded by final-head evidence below. The local isolated fixture also passed
+in 23.951 seconds. Controlled inference is explicitly labeled; known runtime
+execution itself used zero additional generation/Needle calls.
+
 ## Regression audit
 
 The public failure at run 37594332716/job 112703557635 was re-read: genuine acquisition
@@ -81,6 +93,14 @@ The already integrated navigation fix 107562a72aa458d4f0d6464e8dda402f1468445b i
 The unchanged genuine research/offline-reuse workflow is required on this PR head.
 Original dispatcher, job, lease, retrieval, citizen, Needle and physical acceptance
 lanes are preserved. Historical green runs validate the starting baseline only.
+
+Initial IMP-014 PR run 37920339248/job 113786476160 exposed the existing real-disk
+JobExecutorIntegrationTest's 1000 x 1ms wait window. Its retained XML shows a timeout
+in Scene.until before terminal acknowledgement, rather than failed credit assertions.
+The fixture now awaits the same durable condition with a finite five-second/5000-tick
+bound and reports pending owner states on failure. No owner condition, storage ACK,
+effect assertion or production timeout was weakened. A fresh changed-head run is
+required; the failed run is not passing evidence.
 
 ## Delivery record
 

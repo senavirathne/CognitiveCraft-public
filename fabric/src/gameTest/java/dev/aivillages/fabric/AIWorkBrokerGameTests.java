@@ -96,6 +96,9 @@ public final class AIWorkBrokerGameTests {
                     check(ja.fulfilled()==1&&jb.fulfilled()==1&&ja.attempts().size()==1&&jb.attempts().size()==1,"Known responsibility was duplicated");
                     check(physicalCalls==1&&session.generationCalls()==setupCalls&&session.languageCalls()==0,"Known execution invoked inference");
                     check(((Container)h.getLevel().getBlockEntity(origin.offset(4,1,4))).countItem(Items.WHEAT)==5&&((Container)h.getLevel().getBlockEntity(origin.offset(7,1,0))).countItem(Items.WHEAT)==1,"Known physical crop jobs did not conserve wheat");
+                    session.cancelQueuedJob(owner,jobA);
+                    check(session.queuedJob(owner,jobA).state()==Jobs.State.SUCCEEDED&&physicalCalls==1
+                            &&session.generationCalls()==setupCalls&&session.languageCalls()==0,"Known status/cancel depended on inference or changed terminal credit");
                     check(session.inferenceBroker().view(expired.id(),setup.owner).state()==AIWorkBroker.State.EXPIRED,"Queue time was omitted from deadline");
                     var other=session.citizen(foreign,b.citizenId()).owner();try{session.inferenceBroker().view(subscriberA.id(),other);h.fail("Foreign inference view allowed");}catch(SecurityException expected){}
                     check(session.inferenceStatus(foreign).stream().noneMatch(v->v.subscriber().equals(subscriberA.id())),"Production queue status leaked private subscriber");

@@ -45,7 +45,7 @@ class AIWorkBrokerTest {
     }
     static final class Backend implements GenerationPort {
         final Time time; final List<Call> calls = new ArrayList<>(); Generation.State availability = Generation.State.READY;
-        boolean confirmCancel, stallPreparation; int cancellations;
+        boolean confirmCancel, stallPreparation, throwCancel; int cancellations;
         Backend(Time time) { this.time = time; }
         @Override public Generation.Descriptor descriptor() { return new Generation.Descriptor("ollama-chat-v1", "controlled-fake", null); }
         @Override public Generation.Status status() {
@@ -79,7 +79,7 @@ class AIWorkBrokerTest {
             }
             @Override public UUID id(){return request.id();}
             @Override public CompletionStage<Generation.Result> result(){return future;}
-            @Override public boolean cancel(){cancellations++;compute=confirmCancel?Generation.Compute.STOP_CONFIRMED:Generation.Compute.STOP_UNCONFIRMED;return true;}
+            @Override public boolean cancel(){cancellations++;if(throwCancel)throw new IllegalStateException("Stop transport failed");compute=confirmCancel?Generation.Compute.STOP_CONFIRMED:Generation.Compute.STOP_UNCONFIRMED;return true;}
             @Override public Generation.Compute compute(){return compute;}
         }
     }
@@ -189,4 +189,21 @@ class AIWorkBrokerTest {
         var time=new Time();var l=limits(2,100,10000);var parent=new Budgets.Ledger(l.total(),time);var shared=Budgets.Ledger.shared(l.total(),time,List.of(parent.child(l.total()),parent.child(l.total())));
         var hold=shared.reserveOutput(100);assertEquals(0,parent.remaining(Kind.OUTPUT_BYTES));shared.debit(Kind.OUTPUT_BYTES,10);assertEquals(90,hold.forfeit());assertEquals(0,hold.forfeit());hold.release();assertEquals(100,parent.snapshot().get(Kind.OUTPUT_BYTES));assertEquals(0,parent.remaining(Kind.OUTPUT_BYTES));
     }
+    @Test void authorityIsRecheckedImmediatelyBeforeTransportStart(){
+        var time=new Time();var backend=new Backend(time);int[] checks={0};var broker=new AIWorkBroker(backend,time,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(time.millis()),r->++checks[0]<3,AIWorkBroker.Sharing.privateScopes());
+        var l=limits(2,100,10000);var a=broker.generate(request(OWNER,"a"),l,new Budgets.Ledger(l.total(),time));broker.step();assertEquals(AIWorkBroker.State.DISCARDED,broker.view(a.id(),OWNER).state());assertTrue(backend.calls.isEmpty());
+    }
+    @Test void deadlineIsCheckedAgainAtCandidateApplication(){
+        var time=new Time();var backend=new Backend(time);int[] checks={0};var broker=new AIWorkBroker(backend,time,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(time.millis()),r->{if(++checks[0]==5)time.now=1100;return true;},AIWorkBroker.Sharing.privateScopes());
+        var l=limits(2,100,1100);var a=broker.generate(request(OWNER,"a"),l,new Budgets.Ledger(l.total(),time));broker.step();backend.latest().emit(10);broker.step();assertEquals(AIWorkBroker.State.EXPIRED,broker.view(a.id(),OWNER).state());assertNull(a.result().toCompletableFuture().join().candidateIr());
+    }
+    @Test void terminalEnvelopeIsVersionedAndPrivate(){var f=new Fixture();var a=f.submit("a");assertTrue(f.broker.terminalResult(a.id(),OWNER).isEmpty());a.cancel();var terminal=f.broker.terminalResult(a.id(),OWNER).orElseThrow();assertEquals(1,terminal.schema());assertEquals(a.id(),terminal.generation().id());assertThrows(SecurityException.class,()->f.broker.terminalResult(a.id(),owner(3,WORLD)));assertThrows(IllegalArgumentException.class,()->new AIWorkBroker.Contract("future",1,2));}
+    @Test void explicitSharingMustHoldForEveryPair(){var f=new Fixture((a,b)->!java.util.Set.of(a.bound().context().principal().id(),b.bound().context().principal().id()).equals(java.util.Set.of(new UUID(0,3),new UUID(0,7))));f.submit("shared");var l=limits(2,100,10000);for(int id:List.of(3,7))f.broker.generate(request(owner(id,WORLD),"shared"),l,new Budgets.Ledger(l.total(),f.time));assertEquals(2,f.broker.stats().queuedWork());}
+    @Test void boundaryRevalidationHasAnExplicitFiniteWorkBound(){
+        var time=new Time();var backend=new Backend(time);int[] checks={0};var broker=new AIWorkBroker(backend,time,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(time.millis()),r->{checks[0]++;return true;},AIWorkBroker.Sharing.privateScopes());var l=limits(2,100,10000);
+        for(int group=0;group<4;group++)for(int i=0;i<8;i++)broker.generate(request(OWNER,"group"+group),l,new Budgets.Ledger(l.total(),time));broker.step();
+        for(int i=0;i<8;i++)broker.generate(request(OWNER,"group4"),l,new Budgets.Ledger(l.total(),time));backend.latest().emit(1);int before=checks[0];var slice=broker.step();
+        assertEquals(5,slice.workInspected());assertEquals(40,slice.subscribersInspected());assertEquals(56,checks[0]-before);assertEquals(1,slice.starts());
+    }
+    @Test void throwingStopRetainsComputeAndBackpressure(){var f=new Fixture();f.backend.throwCancel=true;var a=f.submit("a");f.broker.step();assertTrue(a.cancel());f.submit("replacement");for(int i=0;i<8;i++)f.broker.step();assertEquals(1,f.backend.calls.size());assertEquals(1,f.backend.cancellations);assertEquals(1,f.broker.stats().unconfirmed());assertEquals(AIWorkBroker.State.CANCELLED,f.view(a).state());}
 }

@@ -37,6 +37,11 @@ Requests keep the existing 8192-byte context, 32 primitive and 16 dependency bou
 adapter wire/response bounds remain 16384/65536 bytes. No broker executor, transport
 thread or response buffer is allocated per subscriber.
 
+Slice counters report the enumerated work/member rows. Dispatch and delivery
+revalidate at most sixteen additional members: the maximum is **56 authority
+checks** in a full step. Each envelope projection is bounded by eight members and
+each ledger operation by 64 distinct accounting nodes.
+
 URGENT precedes NORMAL precedes BACKGROUND, with FIFO sequence ties. After four
 starts of other work, a waiting cohort becomes aged and precedes all unaged work;
 aged cohorts use FIFO. A continuously eligible cohort is dispatched within at most
