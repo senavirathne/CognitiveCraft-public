@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
@@ -84,6 +85,21 @@ class Harness:
                     "fixtureInstance": str(uuid.uuid4()), "topology": topology, "port": self.port,
                     "minecraft": "26.3", "loader": "0.19.5", "fabricApi": "0.161.0+26.3",
                     "runtime": read(SDK / "integrity.json"), "started": time.time()}
+        metadata["sourceBranch"] = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME") or subprocess.check_output(
+                ["git","rev-parse","--abbrev-ref","HEAD"],cwd=ROOT,text=True).strip()
+        metadata["ci"] = {key:os.environ[key] for key in ("GITHUB_WORKFLOW","GITHUB_WORKFLOW_REF",
+                "GITHUB_RUN_ID","GITHUB_RUN_ATTEMPT","GITHUB_JOB","GITHUB_EVENT_NAME","GITHUB_REF",
+                "GITHUB_HEAD_REF","GITHUB_BASE_REF","GITHUB_SHA","RUNNER_OS","RUNNER_ARCH","ImageOS","ImageVersion")
+                if key in os.environ}
+        metadata["host"] = {"platform":platform.platform(),"python":platform.python_version()}
+        metadata["toolchain"] = {"loom":re.search(r"fabric-loom' version '([^']+)'",(ROOT/"build.gradle").read_text()).group(1),
+                "gradle":re.search(r"gradle-([0-9.]+)-bin",(ROOT/"gradle/wrapper/gradle-wrapper.properties").read_text()).group(1)}
+        metadata["binaries"] = {name:{"path":str(path),"sha256":digest(path),"bytes":path.stat().st_size}
+                for name,path in {"production":ROOT/"fabric/build/libs/ai-villages-0.1.0.jar",
+                                  "clientDriver":ROOT/"build/e2e-driver/client.jar",
+                                  "observer":ROOT/"build/e2e-driver/observer.jar",
+                                  "officialClient":SDK/"minecraft-client.jar",
+                                  "officialServer":ROOT/"build/server-sdk/minecraft-server.jar"}.items()}
         atomic(self.root / "metadata.json", metadata)
         self.project = "cognitivecraft-e2e-" + metadata["fixtureInstance"][:8]
         self.sampling_stop = threading.Event()
@@ -147,6 +163,16 @@ class Harness:
             output.close()
         self.event("start", {"component": component})
         self.booted.add(component)
+        if self.topology == "compose":
+            identifier = self.compose("ps","-q",name).stdout.strip()
+            info = json.loads(subprocess.check_output(["docker","inspect",identifier],text=True))[0]
+            require(info["Config"]["Labels"]["com.docker.compose.project"] == self.project,
+                    "Container identity is outside this fixture")
+            self.event("container-runtime", {"component":component,"id":info["Id"],"imageId":info["Image"],
+                    "imageReference":info["Config"]["Image"],"user":info["Config"]["User"],
+                    "command":info["Config"]["Cmd"],"hostPid":info["State"]["Pid"],
+                    "startedAt":info["State"]["StartedAt"],"memoryLimit":info["HostConfig"]["Memory"],
+                    "networkMode":info["HostConfig"]["NetworkMode"]})
         if component == "server":
             self.wait(lambda: (s if (s := self.snapshot()) and s["time"] >= started
                               and "Done (" in self.server_log() else None), "Dedicated server readiness", 100)
@@ -335,6 +361,10 @@ class Harness:
             require(certificate["semanticJarSha256"] == semantic_jar(), "F1 production code/primitive certificate mismatch")
             for item in certificate["files"]:
                 require(digest(self.seed / "game" / item["path"]) == item["sha256"], "F1 saved-world integrity mismatch")
+            self.event("certified-fixture-source", {"certificateSha256":digest(self.seed/"certificate.json"),
+                    "producerCommit":certificate["producerCommit"],"producerJarSha256":certificate["producerJarSha256"],
+                    "semanticJarSha256":certificate["semanticJarSha256"],"artifact":certificate["acquisition"]["artifact"],
+                    "verifiedFiles":len(certificate["files"])})
             shutil.copytree(self.seed / "game", game)
             self.citizens = certificate["citizens"].copy()
             self.entities = certificate["entities"].copy()
@@ -354,6 +384,7 @@ class Harness:
             self.setup(two, legacy)
         self.model_baseline = self.model_calls()
         self.event("fixture-model-counters", self.model_baseline)
+        self.event("fixture-world-scopes", {p:v["scope"] for p,v in self.snapshot()["players"].items()})
 
     def submit(self, player="PlayerA", amount=4, source=None, destination=None, queued=False, allow_rejection=False):
         source = source or ARENA["source"]; destination = destination or ARENA["destination"]
@@ -371,6 +402,18 @@ class Harness:
         self.last_submission = answer
         if not allow_rejection: require("accepted=true" in answer, "Physical request rejected: " + answer)
         return re.search(("job=" if queued else "run=") + "(" + UUID_PATTERN + ")", answer).group(1)
+
+    def cancel_job(self, player, job):
+        text = "/aivillage kernel job-cancel " + job
+        answer = self.command(player, text, "cancellation=")
+        if "cancellation=false reason=BUDGET_EXHAUSTED" in answer:
+            def acknowledged():
+                nonlocal answer
+                answer = self.command(player, text, "cancellation=")
+                return answer if "cancellation=false reason=BUDGET_EXHAUSTED" not in answer else None
+            self.wait(acknowledged, "Completed job publication admitted the real cancellation", 10)
+        require("cancellation=true" in answer, "Owner job cancellation rejected: " + answer)
+        return answer
 
     def run_view(self, player, run):
         return (self.snapshot() or {}).get("knownPlayers", {}).get(player, {}).get("runs", {}).get(run)
@@ -506,6 +549,10 @@ class Harness:
         self.sampling_stop.set(); self.sampler.join(timeout=12)
         for component in list(self.booted):
             with contextlib.suppress(Exception): self.stop(component)
+        configuration = [{"path":str(path.relative_to(self.root)),"sha256":digest(path),"bytes":path.stat().st_size}
+                for name in ("server.properties","options.txt","ai-villages.json")
+                for path in sorted(self.root.rglob(name)) if path.is_file()]
+        atomic(self.root/"configuration-manifest.json",{"schema":1,"files":configuration})
         if self.topology == "compose":
             with contextlib.suppress(Exception): self.compose("down", "--remove-orphans")
 
@@ -591,13 +638,17 @@ def privacy(h: Harness):
     for row in evidence:
         owner = row["player"]; foreign = "PlayerB" if owner == "PlayerA" else "PlayerA"
         require(row["run"] in h.suggestions(owner, "/aivillage kernel status "), "Owned retained run missing")
+        require(row["job"] in h.suggestions(owner, "/aivillage kernel job-status "), "Owned queued job missing")
         require(row["run"] not in h.suggestions(foreign, "/aivillage kernel status "), "Foreign run suggested")
         require(row["job"] not in h.suggestions(foreign, "/aivillage kernel job-status "), "Foreign job suggested")
         h.command(foreign, "/aivillage kernel status " + row["run"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
         h.command(foreign, "/aivillage kernel cancel " + row["run"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
         h.command(foreign, "/aivillage kernel job-status " + row["job"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
         h.command(foreign, "/aivillage kernel job-cancel " + row["job"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
-        h.command(owner, "/aivillage kernel job-cancel " + row["job"], "cancellation=")
+        h.cancel_job(owner, row["job"])
+        h.wait(lambda: h.job_view(owner,row["job"])["state"] == "CANCELLED", "Owner queue cancellation published")
+        require(row["job"] not in h.suggestions(owner, "/aivillage kernel job-cancel "),
+                "Cancelled queued job remained controllable in suggestions")
     h.disconnect("PlayerB"); h.action("PlayerB", "connect", address=f"127.0.0.1:{h.port}")
     h.wait(lambda: h.client_snapshot("PlayerB"), "Fresh privacy reconnect")
     require(a not in h.suggestions("PlayerB", "/aivillage kernel name "), "Stale foreign suggestion after reconnect")
@@ -853,6 +904,12 @@ def queued_competition(h: Harness):
     a = h.submit(amount=3, queued=True)
     h.wait(lambda: (j := h.job_view("PlayerA",a)) and j["state"] == "ACTIVE", "Actual overlapping A assignment")
     b = h.submit("PlayerB", amount=3, destination=ARENA["destinationB"], queued=True)
+    overlap = h.wait(lambda: (s if (s := h.snapshot())["players"]["PlayerB"]["jobs"].get(b) else None),
+                     "Second queued responsibility publication")
+    require(overlap["players"]["PlayerA"]["jobs"][a]["state"] == "ACTIVE",
+            "Second player submission was starved until the first assignment ended")
+    h.event("queued-overlap", {"tick":overlap["tick"],"jobs":{
+            p:overlap["players"][p]["jobs"][j] for p,j in (("PlayerA",a),("PlayerB",b))}})
     for player, own, foreign in [("PlayerA",a,b),("PlayerB",b,a)]:
         require(own in h.suggestions(player, "/aivillage kernel job-status ") and foreign not in
                 h.suggestions(player, "/aivillage kernel job-status "), "Queued job packet privacy failed")
@@ -864,7 +921,7 @@ def queued_competition(h: Harness):
             if view and view["state"] == "ACTIVE" and 0 < view["fulfilled"] < 3:
                 return player,job,destination,view
     owner,cancelled,destination,boundary = h.wait(partial_progress, "Competing job committed partial cancellation boundary", 130)
-    h.command(owner, "/aivillage kernel job-cancel " + cancelled, "cancellation=true")
+    h.cancel_job(owner, cancelled)
     h.wait(lambda: h.job_view(owner,cancelled)["state"] == "CANCELLED", "Queued partial cancellation cessation")
     conserved = h.container(destination)
     other,other_job,_ = next(row for row in contenders if row[0] != owner)
@@ -885,10 +942,11 @@ def queued_competition(h: Harness):
     for player,destination,job in [("PlayerA",ARENA["destination"],jobs[0]),("PlayerB",ARENA["destinationB"],jobs[1])]:
         require(h.menu_count(player,destination) == job["fulfilled"], "Queued client contents disagree with qualified progress")
     for p,j in [("PlayerA",a),("PlayerB",b)]:
-        h.command(p, "/aivillage kernel job-cancel " + j, "cancellation=")
+        h.cancel_job(p, j)
     h.quiet(); require(h.container(ARENA["destination"]) + h.container(ARENA["destinationB"]) == total, "Effects after queued cancellation")
     h.actions_active = False
-    competition = {"jobs": [a,b], "delivered": total, "state": jobs, "cancelledOwner": owner, "partialCancellation": boundary}
+    competition = {"jobs": [a,b], "delivered": total, "state": jobs,"overlapTick":overlap["tick"],
+                   "cancelledOwner": owner, "partialCancellation": boundary}
     h.fresh(two=True, known=True); h.release_gate(); h.actions_active = True
     multiple = [h.submit(amount=2,queued=True), h.submit(amount=2,queued=True,
                 source=ARENA["reuseSource"],destination=ARENA["reuseDestination"])]
@@ -913,6 +971,30 @@ def reconnect_players(h: Harness, players):
 def player_inventory(h: Harness, player, item):
     return sum(slot["count"] for slot in h.client_snapshot(player)["slots"]
                if slot["playerInventory"] and slot["item"] == item)
+
+
+def recover_loose_wheat(h: Harness):
+    loose = [d for d in h.snapshot()["drops"] if d["item"] == "minecraft:wheat"]
+    before = player_inventory(h,"PlayerA","minecraft:wheat")
+    for drop in loose:
+        h.walk("PlayerA",[math.floor(v) for v in drop["pos"]],reach=.6)
+        h.wait(lambda: not any(d["uuid"] == drop["uuid"] for d in h.snapshot()["drops"]),
+               "Real player recovered loose interrupted wheat")
+    after = before
+    if loose:
+        after = h.wait(lambda: (count if (count := player_inventory(h,"PlayerA","minecraft:wheat"))
+                       == before + sum(d["count"] for d in loose) else None),
+                       "Client received conserved interrupted-drop inventory")
+    return {"drops":loose,"playerBefore":before,"playerAfter":after}
+
+
+def remaining_wheat(h: Harness, delivered):
+    blocks = h.snapshot()["blocks"]
+    mature = sum("minecraft:wheat" in blocks[f"{x},201,{z}"] and "age=7" in blocks[f"{x},201,{z}"]
+                 for x in (6,7) for z in (6,7,8))
+    remaining = min(6-delivered,mature)
+    require(remaining > 0,"Selected restart left no physical remaining work")
+    return mature,remaining
 
 
 def new_recovery_worker(h: Harness, source=None, destination=None):
@@ -961,13 +1043,16 @@ def graceful_recovery(h: Harness):
     stored = h.container(ARENA["destination"]); h.quiet()
     require(h.container(ARENA["destination"]) == stored, "Interrupted effects automatically replayed")
     require(h.citizens["PlayerA"] not in h.suggestions("PlayerB", "/aivillage kernel name "), "Recovery leaked ownership")
+    require(h.menu_count("PlayerA",ARENA["destination"]) == stored,"Graceful restart menu lost committed progress")
     h.actions_active = False
-    worker = new_recovery_worker(h, source=ARENA["reuseSource"], destination=ARENA["reuseDestination"])
-    h.prepare_reuse_actor()
-    result = delivery(h, amount=6, source=ARENA["reuseSource"], destination=ARENA["reuseDestination"])
-    require(h.menu_count("PlayerA",ARENA["destination"]) == stored, "Graceful restart menu lost committed progress")
+    loose = recover_loose_wheat(h)
+    mature,remaining = remaining_wheat(h,stored)
+    worker = new_recovery_worker(h)
+    result = delivery(h,amount=remaining)
+    require(h.container(ARENA["destination"]) == stored + remaining,"Explicit graceful recovery duplicated delivery")
     return {"interruptedJob": job, "checkpoint": checkpoint, "recovered": view,
-            "conservedWheat": stored, "workerFence": worker, "newExplicitWork": result}
+            "conservedWheat": stored, "workerFence": worker, "recoveredLooseWheat":loose,
+            "remainingMatureStock":mature,"newExplicitRemainingWork": result}
 
 
 def client_loss(h: Harness):
@@ -1033,28 +1118,15 @@ def hard_recovery(h: Harness):
     require(h.menu_count("PlayerA", ARENA["destination"]) == stock, "Crash recovery menu diverged")
     h.actions_active = False
     # Ordinary player pickup reconciles unqualified crash drops without erasing stock.
-    loose = [d for d in h.snapshot()["drops"] if d["item"] == "minecraft:wheat"]
-    inventory_before = player_inventory(h, "PlayerA", "minecraft:wheat")
-    for drop in loose:
-        h.walk("PlayerA", [math.floor(v) for v in drop["pos"]], reach=.6)
-        h.wait(lambda: not any(d["uuid"] == drop["uuid"] for d in h.snapshot()["drops"]),
-               "Real player recovered loose crash wheat")
-    inventory_after = inventory_before
-    if loose:
-        inventory_after = h.wait(lambda: (count if (count := player_inventory(h,"PlayerA","minecraft:wheat"))
-                                == inventory_before + sum(d["count"] for d in loose) else None),
-                                "Client received conserved crash-drop inventory")
+    loose = recover_loose_wheat(h)
+    mature,remaining = remaining_wheat(h,stock)
     worker = new_recovery_worker(h)
-    mature = sum("minecraft:wheat" in h.snapshot()["blocks"][f"{x},201,{z}"] and
-                 "age=7" in h.snapshot()["blocks"][f"{x},201,{z}"] for x in (6,7) for z in (6,7,8))
-    remaining = min(6-stock,mature)
-    require(remaining > 0, "Selected crash left no physical remaining work")
     explicit = delivery(h, amount=remaining)
     require(h.container(ARENA["destination"]) == stock + remaining, "Explicit crash recovery duplicated delivery")
     return {"run": run, "receiptCheckpoint": boundary["receipts"], "savedWorldWheat": stock,
             "baseline": baseline, "checkpoint": checkpoint, "killedWorldHashes": stopped_hashes,
             "remainingMatureStock": mature, "workerFence": worker,
-            "recoveredLooseWheat": {"drops": loose, "playerBefore": inventory_before, "playerAfter": inventory_after},
+            "recoveredLooseWheat":loose,
             "explicitRemainingWork": explicit,
             "outcome": view["description"], "atomicWorldModSavePromised": False}
 
@@ -1216,7 +1288,13 @@ def natural_language(h: Harness):
         answer = h.command("PlayerA", "/aivillage kernel ask " + pending_message, "interpretation=" + UUID_PATTERN)
         removed_ticket = re.search("interpretation=(" + UUID_PATTERN + ")", answer).group(1)
         h.wait(lambda: caught.is_set(), "Removed-caller actual native pause", 4)
-        h.disconnect("PlayerA"); resume.set()
+        h.disconnect("PlayerA")
+        pending = h.run_view("PlayerA",removed_ticket)
+        require(not resume.is_set() and pending["phase"] == "INTERPRETING" and not pending.get("runId"),
+                "Server-side caller removal did not precede the held native interpretation")
+        h.event("pending-caller-removed-native-held", {"ticket":removed_ticket,"pending":pending,
+                "serverPlayers":list(h.snapshot()["players"]),"nativePaused":True})
+        resume.set()
     h.action("PlayerA", "connect", address=f"127.0.0.1:{h.port}")
     h.wait(lambda: h.client_snapshot("PlayerA"), "Pending-language fresh caller connection")
     removed = h.wait(lambda: (v if (v := h.run_view("PlayerA",removed_ticket)) and v["phase"] not in
@@ -1244,7 +1322,8 @@ def report(h: Harness, profile: str):
         if family not in results:
             results[family] = {"id": family, "status": "NOT_EXECUTED", "reason":
                                "Not reached after earlier failure" if family in selected else "Outside selected profile"}
-    atomic(h.root / "results.json", {"schema": 1, "profile": profile, "results": list(results.values())})
+    atomic(h.root / "results.json", {"schema": 1, "profile": profile,"envelope":"metadata.json",
+           "configurationManifest":"configuration-manifest.json","trace":"supervisor.jsonl","results":list(results.values())})
     xml = ET.Element("testsuite", name="CognitiveCraft connected-client " + profile,
                      tests=str(len(selected)), failures=str(sum(results[x]["status"] != "PASS" for x in selected)), skipped="0")
     for family in selected:

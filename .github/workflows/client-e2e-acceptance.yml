@@ -54,6 +54,7 @@ jobs:
         with:
           name: certified-known-skill-${{ github.run_id }}
           if-no-files-found: error
+          retention-days: 90
           include-hidden-files: true
           path: |
             build/e2e-certified-seed/
@@ -64,6 +65,7 @@ jobs:
         with:
           name: real-gameplay-acquire-${{ github.run_id }}
           if-no-files-found: error
+          retention-days: 90
           include-hidden-files: true
           path: |
             build/e2e/acceptance-smoke/
@@ -117,6 +119,7 @@ jobs:
         with:
           name: real-gameplay-${{ matrix.profile }}-${{ github.run_id }}
           if-no-files-found: error
+          retention-days: 90
           include-hidden-files: true
           path: build/e2e/${{ matrix.profile }}/
       - name: Print diagnostic summary
@@ -140,4 +143,5 @@ jobs:
         with:
           name: real-gameplay-qualification-${{ github.run_id }}
           if-no-files-found: error
+          retention-days: 90
           path: build/qualification/qualification.json

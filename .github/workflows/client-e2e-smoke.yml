@@ -44,6 +44,7 @@ jobs:
         with:
           name: real-client-smoke-${{ github.sha }}
           if-no-files-found: error
+          retention-days: 90
           path: |
             build/e2e/smoke/
             build/e2e-sdk/integrity.json

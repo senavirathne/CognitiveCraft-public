@@ -553,6 +553,9 @@ public final class KernelSession implements AutoCloseable {
         var entity = villager(actor);
         if (entity == null || entity.level() != player.level())
             return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.ACTOR_UNAVAILABLE);
+        // Network commands run before the end-of-tick dispatcher. A completed owner write
+        // must be acknowledged here, or its next background write can starve player work.
+        jobs.tick();
         return controller.submit(request, owner);
     }
     public long languageCalls() { return needle == null ? 0 : needle.calls(); }
@@ -570,6 +573,7 @@ public final class KernelSession implements AutoCloseable {
         var request=new CapabilityRequest(CropDelivery.ID,Map.of("actor",new ActorValue(actor),"amount",new IntValue(amount),
                 "source",new AreaValue(source),"destination",new ContainerValue(destination)));
         var observation=observe(request,actor);
+        jobs.tick();
         var change=jobs.create(id,id,request,owner,observation.reference(),executionLimits(clock.millis()).total(),List.of());
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
@@ -579,7 +583,7 @@ public final class KernelSession implements AutoCloseable {
         return jobs.snapshot().jobs().stream().filter(j->j.origin().equals(origin)&&!controller.ownsSubmission(j.submissionId()))
                 .filter(j->!cancellable||!j.state().terminal()).map(Jobs.Job::id).toList();
     }
-    public Jobs.Change cancelQueuedJob(ServerPlayer player,UUID id){ready();var owner=caller(player);var job=jobs.query(id,owner);return jobs.cancel(id,job.guard(),owner);}
+    public Jobs.Change cancelQueuedJob(ServerPlayer player,UUID id){ready();var owner=caller(player);jobs.tick();var job=jobs.query(id,owner);return jobs.cancel(id,job.guard(),owner);}
     public List<WorkerDispatcher.Decision> dispatchDiagnostics(ServerPlayer player,UUID id){ready();return dispatcher.diagnostics(id,caller(player));}
     void clearDispatchCache(){ready();dispatcher.clearPolicyCache();dispatchRevision=-1;dispatchScopes=List.of();}
     public LanguageRequests.View ask(ServerPlayer player, String message) {

@@ -6,6 +6,9 @@ import sys
 
 for argument in sys.argv[1:]:
     root = Path(argument)
+    if (root / "results.json").exists():
+        for case in json.loads((root / "results.json").read_text()).get("results",[]):
+            print("CASE",case["id"],case["status"],case.get("reason",""))
     for pattern in ("results.json", "metadata.json", "**/stdout.log", "*-launcher.log", "**/response.json", "server/snapshot.json"):
         for path in root.glob(pattern):
             print("\nDIAGNOSTIC", path)
@@ -28,7 +31,8 @@ for argument in sys.argv[1:]:
                 print("RUN",player,identifier,view.get("description",view.get("phase")),
                       "usage=" + str(view.get("responsibility",{}).get("usage")),
                       "receipts=" + str(len(view.get("receipts",[]))),
-                      "quantities=" + str({stage:sum(r.get("quantity",0) for r in view.get("receipts",[]) if r.get("stage")==stage)
+                      "quantities=" + str({stage:sum(r.get("wheat",0) for r in view.get("receipts",[]) if r.get("stage")==stage)
                                             for stage in ("HARVEST","PICKUP","DEPOSIT")}))
             for identifier,job in records.get("jobs",{}).items():
                 print("JOB",player,identifier,job["state"],job.get("reason"),job.get("fulfilled"))
+                print("JOB ATTEMPTS",json.dumps(job.get("attempts",[]),separators=(",",":"))[:18000])

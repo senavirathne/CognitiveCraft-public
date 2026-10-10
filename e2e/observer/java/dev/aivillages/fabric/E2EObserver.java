@@ -106,6 +106,7 @@ public final class E2EObserver implements ModInitializer {
             data.addProperty("uuid", player.getUUID().toString());
             data.add("pos", JSON.toJsonTree(List.of(player.getX(), player.getY(), player.getZ())));
             if (kernel != null) try {
+                data.addProperty("scope",kernel.scope(player.getUUID()));
                 data.add("citizens", JSON.toJsonTree(kernel.citizens(player)));
                 data.addProperty("catalog", kernel.catalog(player));
                 var runs = new JsonObject();
@@ -129,6 +130,7 @@ public final class E2EObserver implements ModInitializer {
                     var job = kernel.queuedJob(player, id);
                     var record = JSON.toJsonTree(job).getAsJsonObject();
                     record.addProperty("fulfilled", job.fulfilled());
+                    record.add("dispatch", JSON.toJsonTree(kernel.dispatchDiagnostics(player,id)));
                     jobs.add(id.toString(), record);
                 }
                 data.add("jobs", jobs); data.add("broker", JSON.toJsonTree(kernel.inferenceStatus(player)));

@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -100,7 +101,7 @@ public final class ClientDriver implements ClientModInitializer {
             reply(id, observation); return;
         }
         if (action.equals("disconnect")) {
-            releaseKeys(mc); mc.disconnect(new TitleScreen(), false);
+            releaseKeys(mc); mc.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
             reply(id, Map.of("disconnected", true)); return;
         }
         if (action.equals("exit")) { reply(id, Map.of("exiting", true)); mc.stop(); return; }

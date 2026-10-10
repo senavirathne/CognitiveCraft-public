@@ -95,6 +95,13 @@ not clear or reconcile a private job through instrumentation. Loose crash wheat
 is recovered through ordinary player movement and verified in synchronized
 inventory slots before the next request.
 
+Player submissions and queued cancellations acknowledge completed asynchronous
+job writes on the server thread before checking admission. They still reject
+an unfinished write. The competing-job case requires B's publication while A's
+assignment is live, then cancels observed partial progress through the network.
+Disconnect uses vanilla's quit-world path and waits for server-side removal;
+the pending Needle case proves removal happened before the native child resumes.
+
 `ClientDriver` runs bounded actions on the client thread through vanilla screens,
 input/game-mode APIs and the client connection. The mailbox does not call server
 handlers. Fresh Tab requires an observed outbound suggestion request matched to
@@ -114,6 +121,10 @@ Each run retains source commit/tree, dirty state, release SHA-256, verified clie
 and libraries, exact Java process commands/PIDs, Docker image configuration,
 fixture specification, server observations, client packet/event traces, commands,
 UUIDs, receipts, model descriptors/counters, resource samples and lifecycle events.
+The envelope also records the branch and CI run/attempt, Loom/Gradle versions,
+all five binary hashes and sizes, installed mod hashes, actual JVM version and
+container image IDs. A configuration manifest fingerprints the retained server,
+client and provider settings. Every result must have its complete envelope.
 Model-free assertions compare call counters before and after the request: the
 generation counter survives a world restart. The fixture artifact includes hidden
 writer-lock files so every certified file reaches downstream runners unchanged.

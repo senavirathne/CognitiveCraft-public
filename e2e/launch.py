@@ -86,7 +86,11 @@ def main() -> None:
         process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=output,
                                    stderr=subprocess.STDOUT, text=True)
         (box / "process.json").write_text(json.dumps({"pid": process.pid, "start": time.time(),
-                "kind": args.kind, "command": command, "releaseSha256": digest(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar")}))
+                "kind": args.kind, "command": command, "releaseSha256": digest(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"),
+                "javaVersion":subprocess.run([java("java"),"-version"],capture_output=True,text=True,check=True).stderr,
+                "mods":[{"name":p.name,"sha256":digest(p),"bytes":p.stat().st_size} for p in sorted((directory/"mods").glob("*.jar"))],
+                "renderEnvironment":{key:os.environ[key] for key in ("LIBGL_ALWAYS_SOFTWARE","SDL_VIDEO_DRIVER","DISPLAY")
+                                     if key in os.environ}}))
         stopping = False
 
         def stop(signum, frame):
