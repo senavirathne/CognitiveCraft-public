@@ -25,7 +25,9 @@
       "dev.aivillages.fabric.PrimitiveDiagnosticGameTests",
       "dev.aivillages.fabric.PrimitiveDiagnosticRestartGameTests",
       "dev.aivillages.fabric.CompatibilityUpgradeGameTests",
-      "dev.aivillages.fabric.CompatibilityRestartGameTests"
+      "dev.aivillages.fabric.CompatibilityRestartGameTests",
+      "dev.aivillages.fabric.RetentionGameTests",
+      "dev.aivillages.fabric.RetentionRestartGameTests"
     ]
   },
   "depends": {
