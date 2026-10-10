@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded text diagnostics usable when an Actions artifact is not downloadable."""
 from pathlib import Path
+import json
 import sys
 
 for argument in sys.argv[1:]:
@@ -13,3 +14,15 @@ for argument in sys.argv[1:]:
     for path in root.glob("clients/*/events.jsonl"):
         print("\nCLIENT EVENTS", path)
         print("\n".join(line[:2000] for line in path.read_text(errors="replace").splitlines()[-15:]))
+    for path in root.glob("cases/*/failure.json"):
+        data = json.loads(path.read_text())
+        state = data.get("snapshot") or {}
+        print("\nFAILED FAMILY",data["family"],data["reason"])
+        print("COUNTERS", {k:state.get(k) for k in ("tick","arenaLoaded","arenaTicking","needleCalls","generationCalls")})
+        for player,records in state.get("knownPlayers",{}).items():
+            for identifier,view in records.get("runs",{}).items():
+                print("RUN",player,identifier,view.get("description",view.get("phase")),
+                      "usage=" + str(view.get("responsibility",{}).get("usage")),
+                      "receipts=" + str(len(view.get("receipts",[]))))
+            for identifier,job in records.get("jobs",{}).items():
+                print("JOB",player,identifier,job["state"],job.get("reason"),job.get("fulfilled"))

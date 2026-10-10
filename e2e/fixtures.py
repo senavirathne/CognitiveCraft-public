@@ -42,6 +42,14 @@ def commands(two: bool = True, legacy: bool = False) -> list[str]:
                "fill 11 201 9 11 202 10 minecraft:stone",
                "fill 19 201 12 21 204 14 minecraft:stone",
                "setblock 20 201 13 minecraft:chest", "setblock 20 202 13 minecraft:air"]
+    if legacy:
+        result += ["setblock 10 201 7 minecraft:crafting_table",
+                   "fill 23 200 5 62 200 7 minecraft:stone",
+                   "fill 23 201 4 62 203 4 minecraft:glass",
+                   "fill 23 201 8 62 203 8 minecraft:glass",
+                   "fill 63 201 4 63 203 8 minecraft:glass",
+                   "fill 23 204 4 63 204 8 minecraft:glass",
+                   "fill 22 201 5 22 202 7 minecraft:air"]
     return result
 
 

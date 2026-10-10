@@ -1,10 +1,10 @@
 name: Real Minecraft gameplay acceptance
 on:
   push:
-    branches: [main, feature/real-client-gameplay-e2e]
-    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', '.github/workflows/client-e2e-acceptance.yml']
+    branches: [main]
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'tools/needle/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-acceptance.yml']
   pull_request:
-    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', '.github/workflows/client-e2e-acceptance.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'tools/needle/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-acceptance.yml']
   schedule:
     - cron: '30 2 * * *'
   workflow_dispatch:
@@ -54,6 +54,7 @@ jobs:
         with:
           name: certified-known-skill-${{ github.run_id }}
           if-no-files-found: error
+          include-hidden-files: true
           path: |
             build/e2e-certified-seed/
             fabric/build/libs/ai-villages-0.1.0.jar
@@ -63,6 +64,7 @@ jobs:
         with:
           name: real-gameplay-acquire-${{ github.run_id }}
           if-no-files-found: error
+          include-hidden-files: true
           path: |
             build/e2e/acceptance-smoke/
             build/e2e/acquire/
@@ -115,6 +117,7 @@ jobs:
         with:
           name: real-gameplay-${{ matrix.profile }}-${{ github.run_id }}
           if-no-files-found: error
+          include-hidden-files: true
           path: build/e2e/${{ matrix.profile }}/
       - name: Print diagnostic summary
         if: failure()

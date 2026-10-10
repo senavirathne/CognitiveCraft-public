@@ -47,16 +47,16 @@ scope identity, not Mojang account authentication.
 
 | Family | Player journey | Profile |
 |---|---|---|
-| E2E-CONN-001 | Join, enclosed nearest enrollment, Tab, name, reconnect | smoke, deterministic |
+| E2E-CONN-001 | Join, enclosed nearest enrollment, Tab, name, reconnect; JVM restart in Tier 2 | smoke, deterministic |
 | E2E-CMD-001 | Received tree, live op/deop, malformed and Unicode input | deterministic |
 | E2E-SUGGEST-001 | Two-player citizens, runs and jobs; guessed UUID denial | deterministic |
 | E2E-PHYSICAL-001 | Known delivery, real movement/custody/menu and negative variants | deterministic |
-| E2E-LEGACY-001 | Named legacy villager, home, harvest/craft/store food | deterministic |
+| E2E-LEGACY-001 | Named food work, synchronized bread, nonowner denial and speech radius | deterministic |
 | E2E-CANCEL-001 | Travel and committed partial cancellation | deterministic |
 | E2E-MUTATION-001 | Ordinary other-player crop/destination changes | deterministic |
 | E2E-CLIENT-LOSS-001 | Client JVM death, server survivor, fresh client login | resilience |
 | E2E-RECOVERY-001 | Graceful server shutdown and conservative restoration | deterministic |
-| E2E-RECOVERY-002 | Selected server SIGKILL and observed saved-world recovery | resilience |
+| E2E-RECOVERY-002 | Saved partial deposit, server SIGKILL, conservative recovery and explicit remaining work | resilience |
 | E2E-NLU-001 | Actual Needle, grounded references, private tickets and outages | nlu |
 | E2E-AI-001 | Actual Ollama, candidate/trial/admission, model-free reuse | acquire |
 | E2E-LEASE-001 | Real queued jobs, owned workers and limited shared stock | deterministic |
@@ -104,6 +104,11 @@ Each run retains source commit/tree, dirty state, release SHA-256, verified clie
 and libraries, exact Java process commands/PIDs, Docker image configuration,
 fixture specification, server observations, client packet/event traces, commands,
 UUIDs, receipts, model descriptors/counters, resource samples and lifecycle events.
+Model-free assertions compare call counters before and after the request: the
+generation counter survives a world restart. The fixture artifact includes hidden
+writer-lock files so every certified file reaches downstream runners unchanged.
+Independent families continue after a failure and retain the failure snapshot;
+failed genuine acquisition prevents dependent fixture qualification.
 `results.json` and `junit.xml` contain actual results. An absent mandatory family
 fails the selected profile; an out-of-profile family remains `NOT_EXECUTED`.
 Missing F1 or runtime infrastructure is `BLOCKED_BY_TEST_INFRASTRUCTURE` and exits

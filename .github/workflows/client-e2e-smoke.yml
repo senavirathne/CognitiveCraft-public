@@ -1,10 +1,10 @@
 name: Real Minecraft client E2E smoke
 on:
   push:
-    branches: [main, feature/real-client-gameplay-e2e]
-    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', '.github/workflows/client-e2e-smoke.yml']
+    branches: [main]
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-smoke.yml']
   pull_request:
-    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', '.github/workflows/client-e2e-smoke.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-smoke.yml']
   workflow_dispatch:
 permissions:
   contents: read
