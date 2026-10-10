@@ -190,7 +190,7 @@ final class RetentionEvidenceStoreTest {
             assertTrue(service.status().maxReadBytes() <= 131072); assertEquals(0, service.status().failures()); service.closeWorker();
         }
     }
-    @ParameterizedTest @EnumSource(Point.class)
+    @ParameterizedTest(name="realProcessKillAtEachReplacementBoundary [{index}] {0}") @EnumSource(Point.class)
     void realProcessKillAtEachReplacementBoundaryPreservesAReadableOwner(Point point) throws Exception {
         var clock = new MutableClock();
         try (var store = open(world, clock, Faults.none())) { store.record(event(1,"a".repeat(64),clock.now), () -> false); }
