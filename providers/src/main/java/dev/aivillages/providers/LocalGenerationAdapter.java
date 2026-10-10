@@ -275,7 +275,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                     || !config.model().equals(envelope.get("model"))) throw new IllegalArgumentException();
             Map<String, Object> ir = StrictJson.object(content);
             String candidateIr = content;
-            if (call.request.capability().id().equals(CropDelivery.ID)) {
+            if (call.request.capability().id().equals(CropDelivery.ID)
+                    && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
                 normalized.put("body", cropIrBody(ir.get("body"), call.request.primitives()));
                 ir = normalized;

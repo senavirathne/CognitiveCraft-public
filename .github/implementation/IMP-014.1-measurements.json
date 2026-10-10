@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "synthetic": true,
+  "load": {
+    "schema": 1,
+    "dedup": 1024,
+    "droppedNewAggregate": 512,
+    "maxRecordBytes": 2180,
+    "workingReservation": 16252928,
+    "aggregates": 512,
+    "maxWriteBytes": 34880,
+    "maxInspected": 17,
+    "offered": 1024,
+    "maxDequeued": 32,
+    "maxWritten": 16
+  },
+  "storage": {
+    "reportBytes": 65536,
+    "segmentBytes": 8388608,
+    "segmentCount": 8,
+    "maxSegmentBytes": 1048576,
+    "peakDirectoryBytes": 10485760,
+    "schema": 1,
+    "peakFilesIncludingTemporary": 13,
+    "maxRecordBytes": 8192
+  },
+  "example": {
+    "recordBytes": 2222,
+    "authoritativeHashesUnchanged": true,
+    "usage": {
+      "INPUT_BYTES": 128,
+      "OUTPUT_BYTES": 382,
+      "CALLS": 1,
+      "CANDIDATES": 1
+    },
+    "modelCalls": 1,
+    "reportBytes": 980,
+    "repairs": 0,
+    "schema": 1,
+    "trials": 0,
+    "synthetic": true
+  },
+  "cli": {
+    "schema": 1,
+    "exitCode": 0,
+    "recordBytes": 2196,
+    "reportBytes": 980,
+    "rows": 1,
+    "occurrences": 1,
+    "authoritativeHashFiles": 18,
+    "authoritativeHashesUnchanged": true,
+    "rootMode": "0700",
+    "filesMode": "0600"
+  }
+}

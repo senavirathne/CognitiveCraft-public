@@ -54,6 +54,8 @@ public final class KernelSession implements AutoCloseable {
     private final LocalGenerationAdapter model;
     private final GenerationPort generationSource;
     private final boolean generationConfigured;
+    private final PrimitiveDiagnostics.Sink primitiveDiagnosticSink;
+    private final PrimitiveDiagnosticService primitiveDiagnostics;
     private AIWorkBroker broker;
     private final LocalNeedleAdapter needle;
     private final LanguageRequests.Port languagePort;
@@ -95,7 +97,26 @@ public final class KernelSession implements AutoCloseable {
     /** Controlled generation fixture retains the production broker/research composition. */
     KernelSession(MinecraftServer server, Path world, LanguageRequests.Port injectedLanguage,
                   GenerationPort injectedGeneration) {
+        this(server, world, injectedLanguage, injectedGeneration, null);
+    }
+
+    /** Trusted observer seam; production configuration is startup-only and defaults off. */
+    KernelSession(MinecraftServer server, Path world, LanguageRequests.Port injectedLanguage,
+                  GenerationPort injectedGeneration, PrimitiveDiagnostics.Sink primitiveDiagnosticSink) {
+        this(server,world,injectedLanguage,injectedGeneration,primitiveDiagnosticSink,null,
+                PrimitiveDiagnosticStore.Faults.none());
+    }
+    /** Isolated real-store/fault fixtures retain the production composition and worker owners. */
+    KernelSession(MinecraftServer server,Path world,LanguageRequests.Port injectedLanguage,
+                  GenerationPort injectedGeneration,PrimitiveDiagnostics.Sink injectedSink,
+                  PrimitiveDiagnostics.Policy diagnosticPolicy,PrimitiveDiagnosticStore.Faults faults) {
         this.server = server;
+        var configuration=diagnosticPolicy==null?PrimitiveDiagnosticConfig.read(System.getenv())
+                :new PrimitiveDiagnosticConfig.Configuration(diagnosticPolicy,true);
+        if(!configuration.valid())AiVillages.LOG.warn("CognitiveCraft primitive diagnostic configuration disabled; gameplay continues.");
+        primitiveDiagnostics=injectedSink==null?PrimitiveDiagnosticService.open(world,configuration.policy(),clock,
+                message->AiVillages.LOG.warn(message),faults):null;
+        this.primitiveDiagnosticSink=injectedSink==null?primitiveDiagnostics:injectedSink;
         String configured = System.getenv("COGNITIVECRAFT_OLLAMA_MODEL");
         model = injectedGeneration != null || configured == null || configured.isBlank() ? null
                 : new LocalGenerationAdapter(new LocalGenerationAdapter.Config(
@@ -169,6 +190,7 @@ public final class KernelSession implements AutoCloseable {
 
     public void tick() {
         if (closed) return;
+        if(primitiveDiagnostics!=null)primitiveDiagnostics.beginTick();
         if (controller == null) {
             if (!opening.isDone()) return;
             if (opening.isCompletedExceptionally()) {
@@ -177,6 +199,7 @@ public final class KernelSession implements AutoCloseable {
                         (ignored, failure) -> failure).join());
                 if (model != null) model.close();
                 if (needle != null) needle.close();
+                if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
                 worker.shutdown();
                 return;
             }
@@ -208,6 +231,15 @@ public final class KernelSession implements AutoCloseable {
         }
     }
 
+    private static PrimitiveCatalog diagnosticPrimitives() {
+        var runtime = GatewayPrimitives.instance();
+        try { return PrimitiveDiagnostics.completeCatalog(runtime.all()); }
+        catch (IllegalArgumentException unavailableMetadata) {
+            // Diagnostic bounds/metadata can disable observation, never runtime registration.
+            return runtime;
+        }
+    }
+
     private void compose() {
         citizens = new CitizenRegistry(loaded.initialIdentities(), (expected, next) ->
                 CompletableFuture.supplyAsync(() -> {
@@ -216,7 +248,7 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), CitizenRegistry.privateAddresses(), clock, loaded.identityReadOnly());
         CapabilityCatalog capabilities = id -> id.equals(CropDelivery.ID)
                 ? Optional.of(CropDelivery.SPEC) : Optional.empty();
-        var primitives = GatewayPrimitives.instance();
+        var primitives = diagnosticPrimitives();
         var repository = loaded.repository();
         var staging = new ResearchAdmissionController.TrialArtifacts(repository);
         var grants = new ResearchAdmissionController.TrialGrants(clock);
@@ -280,7 +312,7 @@ public final class KernelSession implements AutoCloseable {
                 }, staging, grants,
                 ResearchAdmissionController.repositoryPublication(repository, worker),
                 loaded.guard(), resolver, control, authority, clock, worker,
-                new ResearchAdmissionController.Settings(2, 8, 2_048));
+                new ResearchAdmissionController.Settings(2, 8, 2_048), primitiveDiagnosticSink);
         RequestEnvironment environment = new RequestEnvironment() {
             @Override public boolean enrolled(ActorRef actor, TrustedContext context) {
                 return controls(actor, context);
@@ -700,10 +732,17 @@ public final class KernelSession implements AutoCloseable {
 
     /** Fixtures can await worker cleanup without blocking the game thread. */
     CompletableFuture<Void> storeClosure() { return storeClosure; }
+    PrimitiveDiagnosticService.Status diagnosticStatus() {
+        return primitiveDiagnostics==null?null:primitiveDiagnostics.status();
+    }
+    CompletableFuture<Void> diagnosticClosure() {
+        return primitiveDiagnostics==null?CompletableFuture.completedFuture(null):primitiveDiagnostics.closeAsync();
+    }
 
     @Override public void close() {
         if (closeRequested) return;
         closeRequested = true;
+        if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
         if(broker!=null)broker.close();
         closed = true;

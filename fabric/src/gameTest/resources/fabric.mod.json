@@ -21,7 +21,9 @@
       "dev.aivillages.fabric.BootstrapBlockerGameTests",
       "dev.aivillages.fabric.CitizenIdentityGameTests",
       "dev.aivillages.fabric.NeedleLanguageGameTests",
-      "dev.aivillages.fabric.WorldReferenceGameTests"
+      "dev.aivillages.fabric.WorldReferenceGameTests",
+      "dev.aivillages.fabric.PrimitiveDiagnosticGameTests",
+      "dev.aivillages.fabric.PrimitiveDiagnosticRestartGameTests"
     ]
   },
   "depends": {

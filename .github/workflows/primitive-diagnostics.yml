@@ -1,0 +1,194 @@
+name: Primitive diagnostics acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'core/**'
+      - 'providers/**'
+      - 'fabric/**'
+      - '.github/workflows/primitive-diagnostics.yml'
+  push:
+    paths:
+      - 'core/**'
+      - 'providers/**'
+      - 'fabric/**'
+      - '.github/workflows/primitive-diagnostics.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: primitive-diagnostics-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostics:
+    name: IMP-014.1 private bounded diagnostics and saved-world acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Affected module tests and production/test packaging
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Require passing diagnostic suites and measured resource reservations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          for module, suite, minimum in (
+              ('core', 'PrimitiveDiagnosticsTest', 33),
+              ('core', 'PrimitiveDiagnosticResearchTest', 11),
+              ('core', 'PrimitiveDiagnosticServiceTest', 37),
+              ('core', 'PrimitiveDiagnosticStoreTest', 16),
+              ('core', 'PrimitiveDiagnosticReportTest', 4),
+              ('providers', 'PrimitiveDiagnosticAdapterTest', 6),
+              ('fabric', 'PrimitiveDiagnosticConfigTest', 3),
+          ):
+              package='dev.aivillages.'+('core.kernel' if module=='core' else module)
+              path=Path(f'{module}/build/test-results/test/TEST-{package}.{suite}.xml')
+              cases=list(ET.parse(path).getroot().iter('testcase'))
+              if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Missing passing diagnostic cases: '+suite)
+              print(suite+': '+str(len(cases))+' passing cases')
+          evidence=json.loads(Path('core/build/primitive-diagnostic-evidence/load.json').read_text())
+          for field,value in {'aggregates':512,'dedup':1024,'offered':1024,'droppedNewAggregate':512,
+                              'workingReservation':16252928}.items():
+              if evidence[field]!=value:raise SystemExit('Incorrect measured resource evidence: '+field)
+          for field,limit in {'maxDequeued':32,'maxInspected':32,'maxWritten':16,
+                              'maxWriteBytes':131072,'maxRecordBytes':8192}.items():
+              if not 0<evidence[field]<=limit:raise SystemExit('Exceeded resource allowance: '+field)
+          print('Measured diagnostic resources:',evidence)
+          storage=json.loads(Path('core/build/primitive-diagnostic-evidence/storage-load.json').read_text())
+          for field,value in {'segmentCount':8,'segmentBytes':8388608,'maxSegmentBytes':1048576,
+                              'maxRecordBytes':8192,'reportBytes':65536,'peakDirectoryBytes':10485760,
+                              'peakFilesIncludingTemporary':13}.items():
+              if storage[field]!=value:raise SystemExit('Incorrect actual storage boundary: '+field)
+          print('Measured storage including temporary report:',storage)
+          PY
+      - name: Select controlled diagnostics, existing broker regression and saved-world witness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=[
+              'dev.aivillages.fabric.PrimitiveDiagnosticGameTests',
+              'dev.aivillages.fabric.AIWorkBrokerGameTests',
+              'dev.aivillages.fabric.ServerRestartProbeGameTests',
+          ]
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Actual rejection, private storage, blocked writer and known physical jobs
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require six named cold cases and retain evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
+                 if c.get('name','').startswith('ai_villages_tests:')]
+          required=('rejectsmissingprimitivewithprivateobservation','rejectsmissingprimitivewhendiagnosticsareoff',
+                    'storesandreplaysonlyprivatedemandacrossownerreload',
+                    'blockeddiagnosticwritecannotblockknownjobsormodelfreeownerreload',
+                    'stalledsharedinferencecannotblockknownphysicaljobsorreplayafterrestart',
+                    'savedblocksurvivesseparateserverprocess')
+          if len(cases)!=6 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Six passing cold production fixtures required')
+          for name in required:
+              if sum(name in ''.join(ch for ch in c.get('name','').lower() if ch.isalnum()) for c in cases)!=1:
+                  raise SystemExit('Required cold fixture did not run: '+name)
+          evidence=Path('fabric/build/primitive-diagnostic-evidence');evidence.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(root/'gametest-results.xml',evidence/'cold.xml')
+          shutil.copy2(root/'logs/latest.log',evidence/'cold.log')
+          PY
+      - name: Select separate-process diagnostic replay and saved skill reuse
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=[
+              'dev.aivillages.fabric.PrimitiveDiagnosticRestartGameTests',
+              'dev.aivillages.fabric.ServerRestartProbeGameTests',
+          ]
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Restart actual Minecraft with model-free known execution
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: warm
+          COGNITIVECRAFT_PRIMITIVE_DIAGNOSTIC_RESTART: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require warm evidence and invoke the actual offline host report
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, shutil, subprocess, xml.etree.ElementTree as ET, zipfile
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
+                 if c.get('name','').startswith('ai_villages_tests:')]
+          required=('separateserverrestartreplaysprivatedemandandreusessavedskillwithoutmodel',
+                    'savedblocksurvivesseparateserverprocess')
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two passing actual restart fixtures required')
+          for name in required:
+              if sum(name in ''.join(ch for ch in c.get('name','').lower() if ch.isalnum()) for c in cases)!=1:
+                  raise SystemExit('Required restart fixture did not run: '+name)
+          evidence=Path('fabric/build/primitive-diagnostic-evidence')
+          shutil.copy2(root/'gametest-results.xml',evidence/'warm.xml')
+          shutil.copy2(root/'logs/latest.log',evidence/'warm.log')
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar')
+                if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production jar required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name for name in jar.namelist()):raise SystemExit('Test code leaked into production')
+              if 'dev/aivillages/core/kernel/PrimitiveDiagnosticService.class' not in jar.namelist():
+                  raise SystemExit('Complete diagnostic service absent from production jar')
+          gson=list((Path.home()/'.gradle/caches/modules-2/files-2.1/com.google.code.gson/gson/2.10.1').rglob('*.jar'))
+          if len(gson)!=1:raise SystemExit('Pinned core Gson dependency required for host CLI')
+          world=root/'world/cognitivecraft-primitive-store-fixture'
+          subprocess.run(['java','-cp',str(jars[0])+':'+str(gson[0]),
+                          'dev.aivillages.core.kernel.PrimitiveDiagnosticReport',str(world)],check=True)
+          report=world/'data/cognitivecraft/diagnostics/primitive/v1/report.json'
+          data=json.loads(report.read_text())
+          if len(data['rows'])!=1 or data['rows'][0]['observedRejectedAttempts']!=1 or report.stat().st_size>65536:
+              raise SystemExit('Offline report failed cumulative replay/privacy bounds')
+          text=report.read_text()
+          if any(secret in text for secret in ('candidateSha256','attemptRef','principalRef','candidateExcerpt')):
+              raise SystemExit('Private representative leaked into advisory export')
+          shutil.copy2(report,evidence/'offline-report.json')
+          print('IMP-014.1 private diagnostics, blocked I/O, separate-process replay and offline CLI accepted')
+          PY
+      - name: Restore full test registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: primitive-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            core/build/primitive-diagnostic-evidence/
+            fabric/build/primitive-diagnostic-evidence/
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/latest.log

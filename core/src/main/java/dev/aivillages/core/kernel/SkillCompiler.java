@@ -46,8 +46,39 @@ public final class SkillCompiler {
     public record Statistics(int nodes, int dependencyEdges, long maximumExpandedWork, int inputBytes) { }
     public sealed interface CompileResult permits Success, Failure { }
     public record Success(CompiledSkill skill) implements CompileResult { }
-    public record Failure(List<Diagnostic> diagnostics) implements CompileResult {
-        public Failure { diagnostics = List.copyOf(diagnostics); }
+    /** Observed argument slots contain types only, never candidate-defined names or values. */
+    public record ArgumentObservation(int ordinal, Type observedType) {
+        public ArgumentObservation {
+            if (ordinal < 0 || ordinal >= 16) throw new IllegalArgumentException("Argument slot");
+            Objects.requireNonNull(observedType);
+        }
+    }
+    /** Proof of an absent exact ID/version after local validation; the whole program is rejected. */
+    public record UnsupportedPrimitiveReference(CapabilityId requested, String requestedFingerprint,
+            Diagnostic diagnostic, List<ArgumentObservation> arguments, String catalogFingerprint) {
+        public UnsupportedPrimitiveReference {
+            Objects.requireNonNull(requested);
+            Objects.requireNonNull(diagnostic);
+            arguments = List.copyOf(arguments);
+            if (requestedFingerprint == null || !requestedFingerprint.matches("[a-f0-9]{64}")
+                    || !diagnostic.code().equals("UNKNOWN_PRIMITIVE")
+                    || !diagnostic.path().endsWith(".id") || arguments.size() > 16
+                    || catalogFingerprint != null && !catalogFingerprint.matches("[a-f0-9]{64}"))
+                throw new IllegalArgumentException("Unsupported reference evidence");
+            for (int i = 0; i < arguments.size(); i++)
+                if (arguments.get(i).ordinal() != i) throw new IllegalArgumentException("Argument order");
+        }
+    }
+    public record Failure(List<Diagnostic> diagnostics,
+            Optional<UnsupportedPrimitiveReference> unsupportedPrimitive) implements CompileResult {
+        public Failure(List<Diagnostic> diagnostics) { this(diagnostics, Optional.empty()); }
+        public Failure {
+            diagnostics = List.copyOf(diagnostics);
+            Objects.requireNonNull(unsupportedPrimitive);
+            if (unsupportedPrimitive.isPresent()
+                    && !diagnostics.contains(unsupportedPrimitive.orElseThrow().diagnostic()))
+                throw new IllegalArgumentException("Evidence diagnostic");
+        }
     }
     public record CompiledSkill(Program program, SkillArtifact artifact, Statistics statistics) { }
 
@@ -112,7 +143,8 @@ public final class SkillCompiler {
         } catch (StrictJson.Invalid invalid) {
             return new Failure(List.of(new Diagnostic(invalid.path(), invalid.code())));
         } catch (Problem problem) {
-            return new Failure(List.of(new Diagnostic(problem.path, problem.code)));
+            return new Failure(List.of(new Diagnostic(problem.path, problem.code)),
+                    Optional.ofNullable(problem.unsupported));
         } catch (IllegalArgumentException | ArithmeticException invalid) {
             return new Failure(List.of(new Diagnostic("$", "INVALID_STRUCTURE")));
         }
@@ -227,7 +259,32 @@ public final class SkillCompiler {
             primitiveVersion = positiveInt(node, "version", at);
             fingerprint = string(node, "fingerprint", at);
             PrimitiveSignature signature = primitives.find(primitiveId, primitiveVersion).orElse(null);
-            if (signature == null) fail(at + ".id", "UNKNOWN_PRIMITIVE");
+            if (signature == null) {
+                // A lookup miss alone says nothing about malformed candidate structure.
+                CapabilityId requested = capability(node, at, "id", "version");
+                if (!fingerprint.matches("[a-f0-9]{64}"))
+                    fail(at + ".fingerprint", "INVALID_STRUCTURE");
+                Map<String, Object> args = object(node.get("args"), at + ".args");
+                if (args.size() > 16) fail(at + ".args", "ARGUMENT_MISMATCH");
+                List<ArgumentObservation> observations = new ArrayList<>();
+                for (String name : args.keySet().stream().sorted().toList()) {
+                    if (!name.matches("[a-z][a-zA-Z0-9_]{0,63}"))
+                        fail(at + ".args", "INVALID_SYMBOL");
+                    Expression value = expr(args.get(name), symbols, at + ".args." + name, 0);
+                    observations.add(new ArgumentObservation(observations.size(), value.domain.type));
+                }
+                String into = string(node, "into", at);
+                if (!into.isEmpty()) {
+                    if (!into.matches("[a-z][a-zA-Z0-9_]{0,63}"))
+                        fail(at + ".into", "INVALID_SYMBOL");
+                    if (symbols.containsKey(into)) fail(at + ".into", "DUPLICATE_SYMBOL");
+                }
+                Diagnostic diagnostic = new Diagnostic(at + ".id", "UNKNOWN_PRIMITIVE");
+                String catalog = primitives instanceof PrimitiveDiagnostics.CatalogSnapshot snapshot
+                        ? snapshot.fingerprint() : null;
+                throw new Problem(new UnsupportedPrimitiveReference(requested, fingerprint,
+                        diagnostic, observations, catalog));
+            }
             if (!signature.fingerprint().equals(fingerprint)) fail(at + ".fingerprint", "PRIMITIVE_INCOMPATIBLE");
             parameters = signature.parameters(); output = signature.resultType(); effects = signature.effects();
             context.primitiveRequirements.add(new PrimitiveRequirement(primitiveId,
@@ -409,7 +466,12 @@ public final class SkillCompiler {
     private static final class Problem extends Exception {
         private static final long serialVersionUID = 1L;
         final String path; final String code;
-        Problem(String path, String code) { this.path = path; this.code = code; }
+        final UnsupportedPrimitiveReference unsupported;
+        Problem(String path, String code) { this.path = path; this.code = code; unsupported = null; }
+        Problem(UnsupportedPrimitiveReference unsupported) {
+            path = unsupported.diagnostic().path(); code = unsupported.diagnostic().code();
+            this.unsupported = unsupported;
+        }
     }
     private record Domain(Type type, long min, long max, boolean parameter) { }
     private record Expression(Expr ast, Domain domain) { }
