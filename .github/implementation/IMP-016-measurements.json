@@ -1,0 +1,40 @@
+{
+  "architecture": "0.5",
+  "policy": 1,
+  "evidenceSchema": 1,
+  "localUnitTests": 921,
+  "retentionUnitCases": 51,
+  "failures": {
+    "directoryCeiling": 196608,
+    "events": 10000,
+    "groups": 1,
+    "maxDirectoryBytes": 15784,
+    "modelCalls": 0,
+    "recent": 16,
+    "samples": 3
+  },
+  "graph": {
+    "collected": 0,
+    "maxInspected": 16,
+    "nodes": 4096,
+    "slices": 1539
+  },
+  "owners": {
+    "accountingUnchanged": true,
+    "collected": 256,
+    "iterations": 256,
+    "jobs": 16,
+    "maxTotalBytes": 96721,
+    "protectedArtifacts": 2,
+    "replayedEffects": 0
+  },
+  "loadedWorld": {
+    "coldCases": 2,
+    "warmCases": 2,
+    "shortages": 20,
+    "samples": 3,
+    "modelCalls": 0,
+    "chestWheat": 7,
+    "uncertainEffectsReplayed": 0
+  }
+}

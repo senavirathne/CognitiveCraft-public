@@ -74,6 +74,17 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
     private volatile int orphanBodies;
     private volatile long accountedDiskBytes;
     private boolean replacementAttempted;
+    private volatile boolean closed;
+    private volatile long retentionRevision;
+    private AdmissionCapacity admissionCapacity = (bytes, count) -> WorldRetentionManager.Capacity.AVAILABLE;
+
+    @FunctionalInterface public interface AdmissionCapacity {
+        WorldRetentionManager.Capacity assess(long projectedBytes, int projectedRecords);
+    }
+    /** Startup composition only. The existing owner still authenticates and publishes admissions. */
+    public synchronized void admissionCapacity(AdmissionCapacity capacity) {
+        admissionCapacity = Objects.requireNonNull(capacity);
+    }
 
     public record Limits(int maxArtifacts, int maxBodyBytes, int maxMetadataBytes,
                          long maxTotalBytes, int maxVariantsPerCapability,
@@ -245,8 +256,13 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         }
     }
     private record Snapshot(long revision, Map<ArtifactRef, Stored> records,
-                            boolean readOnly, String recoveryState) {
-        Snapshot { records = Map.copyOf(records); }
+                            boolean readOnly, String recoveryState, Map<String, Stored> digests) {
+        Snapshot(long revision, Map<ArtifactRef, Stored> records, boolean readOnly, String recoveryState) {
+            this(revision, Map.copyOf(records), readOnly, recoveryState, byDigest(records));
+        }
+        private static Map<String, Stored> byDigest(Map<ArtifactRef, Stored> records) {
+            var result = new HashMap<String, Stored>(); records.forEach((ref, record) -> result.put(ref.sha256(), record)); return Map.copyOf(result);
+        }
     }
 
     /**
@@ -298,7 +314,8 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         writerLock = acquired;
     }
 
-    @Override public void close() throws IOException {
+    @Override public synchronized void close() throws IOException {
+        if (closed) return; closed = true;
         writerLock.release();
         writerChannel.close();
     }
@@ -397,7 +414,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         replacementAttempted = false;
         Snapshot current = snapshot;
         ArtifactRef ref = artifact == null ? null : artifact.descriptor().ref();
-        if (current.readOnly()) return result(PublishStatus.STORAGE_UNAVAILABLE, ref, false);
+        if (closed || current.readOnly()) return result(PublishStatus.STORAGE_UNAVAILABLE, ref, false);
         if (decision == null || !authority.authorizes(decision))
             return result(PublishStatus.UNAUTHORIZED, ref, false);
         if (artifact == null || provenance == null)
@@ -483,7 +500,16 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
             projected = Math.addExact(projected, Files.exists(manifest) ? Files.size(manifest) : 0);
             if (projected > limits.maxTotalBytes())
                 return result(PublishStatus.STORAGE_LIMIT_REACHED, ref, false);
+            int projectedFiles = Math.addExact(account.files(), former == null ? 3 : 2);
+            if (projectedFiles > limits.maxRecoveryFiles())
+                return result(PublishStatus.STORAGE_LIMIT_REACHED, ref, false);
+            WorldRetentionManager.Capacity capacity = admissionCapacity.assess(projected,
+                    projectedFiles);
+            if (capacity != WorldRetentionManager.Capacity.AVAILABLE)
+                return result(capacity == WorldRetentionManager.Capacity.STORAGE_LIMIT_REACHED
+                        ? PublishStatus.STORAGE_LIMIT_REACHED : PublishStatus.STORAGE_UNAVAILABLE, ref, false);
             if (former == null) {
+                retentionRevision = Math.addExact(retentionRevision, 1);
                 faults.check(FaultPoint.BEFORE_BODY_WRITE);
                 writeImmutableBody(ref, bodyBytes);
                 faults.check(FaultPoint.AFTER_BODY_WRITE);
@@ -505,7 +531,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
     public synchronized PublishResult quarantine(ArtifactRef ref, QuarantineDecision decision) {
         replacementAttempted = false;
         Snapshot current = snapshot;
-        if (current.readOnly()) return result(PublishStatus.STORAGE_UNAVAILABLE, ref, false);
+        if (closed || current.readOnly()) return result(PublishStatus.STORAGE_UNAVAILABLE, ref, false);
         if (decision == null || !authority.authorizes(decision))
             return result(PublishStatus.UNAUTHORIZED, ref, false);
         Stored old = current.records().get(ref);
@@ -564,10 +590,134 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         return Set.copyOf(visited);
     }
 
+    /** Immutable admitted/quarantined alternatives and supported previous-manifest bodies are roots. */
+    public WorldRetentionManager.Owner retentionOwner() {
+        return new WorldRetentionManager.Owner() {
+            @Override public String id() { return "skills"; }
+            @Override public long revision() { if (closed) throw new IllegalStateException("Repository closed"); return Math.addExact(snapshot.revision(), retentionRevision); }
+            @Override public WorldRetentionManager.Cursor open() {
+                final Snapshot captured; final long generation;
+                synchronized (VersionedSkillRepository.this) { captured = snapshot; generation = revision(); }
+                Map<String, Stored> known = captured.digests();
+                return new WorldRetentionManager.Cursor() {
+                    private final Set<String> rollback = new HashSet<>();
+                    private Map<String, Stored> rollbackRecords = Map.of();
+                    private java.nio.file.DirectoryStream<Path> stream;
+                    private Iterator<Path> files;
+                    private Path pendingFile;
+                    private int phase, scanned;
+                    @Override public long revision() { return generation; }
+                    @Override public WorldRetentionManager.Page next(int maximum, int byteLimit) throws IOException {
+                        var entries = new ArrayList<WorldRetentionManager.Entry>(); int work = 0, read = 0;
+                        if (captured.readOnly()) return new WorldRetentionManager.Page(entries, true, false, 0, 0);
+                        // Parse one bounded rollback envelope before classifying any body as eligible.
+                        if (phase == 0) {
+                            work++;
+                            if (Files.exists(previous, LinkOption.NOFOLLOW_LINKS)) {
+                                var attributes = RetentionFileOwner.attributes(previous);
+                                if (attributes.size() > byteLimit) throw new IOException("Rollback read slice");
+                                try {
+                                    String source = readBounded(previous, MAX_MANIFEST_BYTES); read = source.getBytes(StandardCharsets.UTF_8).length;
+                                    Snapshot old = decodeManifest(source); rollbackRecords = old.digests();
+                                    old.records().keySet().forEach(ref -> rollback.add(ref.sha256()));
+                                } catch (StrictJson.Invalid invalid) { throw new IOException("Rollback manifest unavailable", invalid); }
+                                entries.add(envelope(previous, attributes));
+                            }
+                            phase++;
+                            return new WorldRetentionManager.Page(entries, false, true, work, read);
+                        }
+                        if (phase == 1) {
+                            work++;
+                            if (Files.exists(manifest, LinkOption.NOFOLLOW_LINKS)) entries.add(envelope(manifest, RetentionFileOwner.attributes(manifest)));
+                            phase++;
+                            return new WorldRetentionManager.Page(entries, false, true, work, 0);
+                        }
+                        while (work < maximum && phase < 5) {
+                            Path directory = List.of(bodies, staging, quarantine).get(phase - 2);
+                            if (stream == null) { stream = Files.newDirectoryStream(directory); files = stream.iterator(); }
+                            if (pendingFile == null && !files.hasNext()) { close(); phase++; work++; continue; }
+                            Path path = pendingFile == null ? files.next() : pendingFile;
+                            var attributes = RetentionFileOwner.attributes(path); String name = path.getFileName().toString();
+                            String id = directory.equals(bodies) ? name.substring(0, Math.min(64, name.length())) : directory.getFileName() + ":" + name;
+                            Stored stored = directory.equals(bodies) ? known.get(id) : null;
+                            if (stored == null && directory.equals(bodies)) stored = rollbackRecords.get(id);
+                            if (directory.equals(bodies) && !name.matches("[0-9a-f]{64}\\.json")) throw new IOException("Unrecognized body");
+                            if (directory.equals(staging) && !name.matches("[0-9a-f-]{36}\\.part")) throw new IOException("Unrecognized stage");
+                            boolean protectedRecord = stored != null || rollback.contains(id) || directory.equals(quarantine);
+                            List<ArtifactRef> dependencies = stored == null ? List.of() : stored.pinned();
+                            String identity = RetentionFileOwner.identity(attributes);
+                            if (directory.equals(bodies) && stored == null) {
+                                if (attributes.size() > limits.maxBodyBytes()) throw new IOException("Orphan body byte limit");
+                                if (attributes.size() > byteLimit - read) { pendingFile = path; break; }
+                                try {
+                                    String source = readBounded(path, limits.maxBodyBytes()); read = Math.addExact(read, source.getBytes(StandardCharsets.UTF_8).length);
+                                    var body = RepositoryCodec.decodeBody(source);
+                                    if (!body.descriptor().ref().sha256().equals(id)) throw new IOException("Orphan identity");
+                                    var declared = new ArrayList<ArtifactRef>();
+                                    for (Object ref : RepositoryCodec.array(StrictJson.object(body.canonicalIr()), "dependencies")) declared.add(RepositoryCodec.readRef(RepositoryCodec.object(ref)));
+                                    if (!declared.equals(body.descriptor().dependencies())) throw new IOException("Orphan dependency mismatch");
+                                    dependencies = List.copyOf(declared); identity += ":" + RepositoryCodec.digest(source);
+                                } catch (StrictJson.Invalid invalid) { throw new IOException("Orphan body unavailable", invalid); }
+                            }
+                            pendingFile = null; work++;
+                            if (++scanned > limits.maxRecoveryFiles()) throw new IOException("Retention file quota");
+                            Set<TrustedContext> viewers = stored == null ? Set.of() : stored.origins().stream().map(PrivateOrigin::owner).collect(java.util.stream.Collectors.toSet());
+                            entries.add(new WorldRetentionManager.Entry(new WorldRetentionManager.Key("skills", id),
+                                    WorldRetentionManager.Category.ARTIFACTS, new WorldRetentionManager.Amount(attributes.size(), 1),
+                                    dependencies.stream().map(WorldRetentionManager::artifact).toList(),
+                                    protectedRecord, !protectedRecord, viewers, identity));
+                        }
+                        return new WorldRetentionManager.Page(entries, phase == 5,
+                                Math.addExact(snapshot.revision(), retentionRevision) == generation, work, read);
+                    }
+                    private WorldRetentionManager.Entry envelope(Path path, java.nio.file.attribute.BasicFileAttributes attributes) {
+                        return new WorldRetentionManager.Entry(new WorldRetentionManager.Key("skills", path.getFileName().toString()),
+                                WorldRetentionManager.Category.ARTIFACTS, new WorldRetentionManager.Amount(attributes.size(), 0),
+                                List.of(), true, false, Set.of(), RetentionFileOwner.identity(attributes));
+                    }
+                    @Override public void close() throws IOException { if (stream != null) { stream.close(); stream = null; } }
+                };
+            }
+            @Override public WorldRetentionManager.OwnerResult collect(WorldRetentionManager.Entry entry, long generation,
+                    java.util.function.BooleanSupplier cancel) {
+                synchronized (VersionedSkillRepository.this) {
+                    boolean removed = false;
+                    using: try {
+                        if (cancel.getAsBoolean()) return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.CANCELLED);
+                        if (closed || snapshot.readOnly()) return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.UNAVAILABLE);
+                        if (generation != revision()) return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.STALE);
+                        String id = entry.key().id(); Path path;
+                        if (id.matches("[0-9a-f]{64}")) {
+                            if (snapshot.records().keySet().stream().anyMatch(ref -> ref.sha256().equals(id))) break using;
+                            if (Files.exists(previous, LinkOption.NOFOLLOW_LINKS) && decodeManifest(readBounded(previous, MAX_MANIFEST_BYTES))
+                                    .records().keySet().stream().anyMatch(ref -> ref.sha256().equals(id))) break using;
+                            path = bodies.resolve(id + ".json");
+                        } else if (id.matches("staging:[0-9a-f-]{36}\\.part")) path = staging.resolve(id.substring(8));
+                        else break using;
+                        String identity = RetentionFileOwner.identity(RetentionFileOwner.attributes(path));
+                        if (id.matches("[0-9a-f]{64}")) identity += ":" + RepositoryCodec.digest(readBounded(path, limits.maxBodyBytes()));
+                        if (!entry.key().owner().equals("skills") || !entry.eligible() || !identity.equals(entry.identity()))
+                            return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.STALE);
+                        if (cancel.getAsBoolean()) return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.CANCELLED);
+                        long nextRevision = Math.addExact(retentionRevision, 1);
+                        Files.delete(path); removed = true; retentionRevision = nextRevision;
+                        accountedDiskBytes = Math.max(0, accountedDiskBytes - entry.usage().bytes());
+                        if (id.matches("[0-9a-f]{64}")) orphanBodies = Math.max(0, orphanBodies - 1);
+                        forceDirectory(path.getParent());
+                        return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.COLLECTED);
+                    } catch (IOException | StrictJson.Invalid | RuntimeException failure) {
+                        return new WorldRetentionManager.OwnerResult(WorldRetentionManager.OwnerStatus.UNAVAILABLE, removed);
+                    }
+                    return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.PROTECTED);
+                }
+            }
+        };
+    }
+
     /** Only non-admitted, unreferenced records may be removed; future retention owns policy. */
     public synchronized DeleteStatus delete(ArtifactRef ref, Set<ArtifactRef> externallyProtected) {
         Snapshot current = snapshot;
-        if (current.readOnly()) return DeleteStatus.STORAGE_UNAVAILABLE;
+        if (closed || current.readOnly()) return DeleteStatus.STORAGE_UNAVAILABLE;
         Stored record = current.records().get(ref);
         if (record == null) return DeleteStatus.NOT_FOUND;
         if (roots(externallyProtected).contains(ref)
@@ -588,7 +738,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
     /** Re-verifies bounded stored bodies off-thread and durably quarantines damaged records. */
     public synchronized StorageStatus scrub() throws IOException {
         Snapshot current = snapshot;
-        if (current.readOnly()) return status();
+        if (closed || current.readOnly()) return status();
         Map<ArtifactRef, Stored> changed = new HashMap<>(current.records());
         for (Map.Entry<ArtifactRef, Stored> entry : current.records().entrySet()) {
             Stored old = entry.getValue();
@@ -989,6 +1139,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
 
     private void commit(String source, Map<ArtifactRef, Stored> changed, long revision)
             throws IOException {
+        retentionRevision = Math.addExact(retentionRevision, 1);
         byte[] bytes = source.getBytes(StandardCharsets.UTF_8);
         if (bytes.length > MAX_MANIFEST_BYTES) throw new IOException("Manifest exceeds schema cap");
         Path pending = writeStaged(bytes);
@@ -1073,7 +1224,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         forceDirectory(quarantine);
     }
 
-    private record Account(long bytes, int orphans) { }
+    private record Account(long bytes, int orphans, int files) { }
     private Account accountFiles() throws IOException {
         long bytes = 0;
         int scanned = 0;
@@ -1099,7 +1250,7 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         }
         if (Files.exists(manifest)) bytes = Math.addExact(bytes, Files.size(manifest));
         if (Files.exists(previous)) bytes = Math.addExact(bytes, Files.size(previous));
-        return new Account(bytes, orphans);
+        return new Account(bytes, orphans, scanned);
     }
 
     private void refreshAccounting() throws IOException {

@@ -70,6 +70,7 @@ public final class SaveCompatibility {
                 currentReader("skill-manifest", VersionedSkillRepository.MANIFEST_SCHEMA),
                 currentReader("jobs", JobJournal.SCHEMA), currentReader("leases", ResourceLeaseJournal.SCHEMA),
                 currentReader("primitive-diagnostics", PrimitiveDiagnostics.SCHEMA),
+                currentReader("task-research-evidence", RetentionEvidenceStore.SCHEMA),
                 currentReader("capability-request", RequestCodec.SCHEMA)), List.of(BOOTSTRAP_HANDOFF));
     }
     private static Reader currentReader(String domain, int schema) { return new Reader(domain, schema, Set.of(schema)); }
