@@ -451,7 +451,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
             // Reserve all possible owned envelopes and recovery headroom under the existing world policy.
             var capacity = manager.assessReplacement("observations", Category.EVIDENCE,
                     new Amount(Math.addExact((long) limits.bytes * 3, Files.exists(legacy) ? Files.size(legacy) : 0),
-                            next.records.size() + state.records.size()));
+                            Math.max(next.records.size(), state.records.size()) + state.records.size()));
             if (capacity.status() != Capacity.AVAILABLE) return result(capacity.status() == Capacity.STORAGE_LIMIT_REACHED
                     ? Status.LIMIT_REACHED : Status.STORAGE_UNAVAILABLE, null);
             var removed = new HashSet<WorldRetentionManager.Key>(); state.records.forEach(r -> removed.add(r.retentionKey()));
@@ -465,6 +465,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
             if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
                 RetentionFileOwner.attributes(current); Files.copy(current, previous, StandardCopyOption.REPLACE_EXISTING);
                 try (var backup = FileChannel.open(previous, StandardOpenOption.WRITE)) { backup.force(true); }
+                rollback = state;
             }
             checkpoint(cancelled, Point.AFTER_BACKUP); checkpoint(cancelled, Point.BEFORE_REPLACE);
             verifyCurrent();

@@ -42,7 +42,7 @@ public final class ObservedKnowledgeGameTests {
         final AtomicBoolean sharing=new AtomicBoolean();
         final CompletableFuture<Map<String,Object>> opening;
         Map<String,Object> marker;Stores owners;TrustedContext owner,foreign;ActorRef actor,other;
-        Cuboid source;ContainerRef container;ObservationTarget target;SurvivalGateway gateway;
+        Cuboid source;ContainerRef container;ObservationTarget target;SurvivalGateway gateway;FabricGatewayWorld physics;
         BlockPos crop,chest;ObservedEvidence original,changed,crops;CompletableFuture<?> turn;
         int phase;boolean done;
         Driver(GameTestHelper h,boolean warm) {
@@ -66,7 +66,8 @@ public final class ObservedKnowledgeGameTests {
             String d=actor.dimension();source=new Cuboid(d,crop.getX(),crop.getY(),crop.getZ(),crop.getX(),crop.getY(),crop.getZ());
             container=new ContainerRef(d,chest.getX(),chest.getY(),chest.getZ());
             target=new ObservationTarget(ObservationKind.CONTAINER_STOCK,new Cuboid(d,chest.getX(),chest.getY(),chest.getZ(),chest.getX(),chest.getY(),chest.getZ()),null);
-            gateway=new SurvivalGateway(new FabricGatewayWorld(h.getLevel()),(a,e,c)->a.equals(actor)&&c.equals(owner)||a.equals(other)&&c.equals(foreign),
+            physics=new FabricGatewayWorld(h.getLevel());
+            gateway=new SurvivalGateway(physics,(a,e,c)->a.equals(actor)&&c.equals(owner)||a.equals(other)&&c.equals(foreign),
                     new SurvivalGateway.Limits(2,64,16,16,16,1,200,16),clock);
         }
         Stores open() {
@@ -99,12 +100,13 @@ public final class ObservedKnowledgeGameTests {
             return gateway.observedEvidence(receipt.handle(),caller);
         }
         EvidenceSnapshot query(TrustedContext caller,ObservationTarget target){return owners.store.queryFreshEvidence(caller,target,QueryLimits.defaults());}
-        void flush(){owners.service.beginTick();owners.service.maintain(worker);}
+        void flush(){owners.service.maintain(worker);}
         void waitTurn(){h.assertTrue(turn.isDone(),"Observation storage worker pending");turn.join();}
         @SuppressWarnings("unchecked") BlockPos position(String key){var p=(List<Long>)marker.get(key);return new BlockPos(Math.toIntExact(p.get(0)),Math.toIntExact(p.get(1)),Math.toIntExact(p.get(2)));}
         void step() {
             if(done)return;
             java.util.concurrent.locks.LockSupport.parkNanos(1_000_000);
+            if(owners!=null)owners.service.beginTick();
             switch(phase) {
                 case 0->{
                     h.assertTrue(opening.isDone(),"Restart marker pending");marker=opening.join();
@@ -129,6 +131,7 @@ public final class ObservedKnowledgeGameTests {
                         var build=owners.store.beginIndexRebuild();while(owners.store.rebuildIndex(build,1).status()==IndexStatus.INCOMPLETE){}
                         check(query(owner,target).evidence().equals(before.evidence()),"Index rebuild changed retained meaning");
                     },worker);phase=5;return;}
+                    h.assertTrue(physics.actor(actor).loaded()&&physics.actor(other).loaded(),"Both fixture actors must be ticking before capture");
                     original=capture(Operation.OBSERVE_CONTAINER,actor,owner,source,container);crops=capture(Operation.OBSERVE_SOURCE,actor,owner,source,container);flush();
                     turn=CompletableFuture.runAsync(()->{
                         var q=query(owner,target);check(q.freshness()==Freshness.CURRENTLY_VERIFIED&&q.evidence().getFirst().record().latest().observation().counts().get("wheat")==7,"Actual observed stock missing");
@@ -149,12 +152,15 @@ public final class ObservedKnowledgeGameTests {
                 }
                 case 3->{
                     waitTurn();
+                    h.assertTrue(physics.actor(actor).loaded()&&physics.actor(other).loaded(),"Both fixture actors must be ticking before private captures");
                     var unloaded=new Cuboid(actor.dimension(),20_000_000,64,20_000_000,20_000_000,64,20_000_000);
                     var unknown=capture(Operation.OBSERVE_SOURCE,actor,owner,unloaded,container);h.assertTrue(unknown.snapshot().status()==ObservationStatus.UNKNOWN,"Unloaded gateway observation became absence");
                     capture(Operation.OBSERVE_CONTAINER,other,foreign,source,container);flush();
                     turn=CompletableFuture.runAsync(()->{
                         check(query(owner,unknown.target()).freshness()==Freshness.UNKNOWN,"Unknown retained as absent");
-                        check(query(foreign,target).evidence().size()==1&&query(owner,target).evidence().size()==2,"Identical coordinates joined private histories");
+                        var privateForeign=query(foreign,target);var privateOwner=query(owner,target);
+                        check(privateForeign.evidence().size()==1&&privateOwner.evidence().size()==2,
+                                "Private history counts: foreign="+privateForeign.evidence().size()+" owner="+privateOwner.evidence().size()+" intake="+owners.service.status());
                         var id=query(owner,target).evidence().getFirst().record().id();
                         check(owners.store.shareObservation(owner,id,foreign,owners.store.revision(),()->false).status()==Status.DENIED,"Policy-free share permitted");
                         sharing.set(true);check(owners.store.shareObservation(owner,id,foreign,owners.store.revision(),()->false).status()==Status.SHARED,"Explicit approved share failed");

@@ -395,9 +395,18 @@ class ObservedWorldKnowledgeStoreTest {
         try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,TrustedContext::equals,f.sources::contains,p->{})) {assertTrue(store.readOnly());assertEquals(0,store.privateRecordCount(f.owner));}
     }
     @Test void cancellationLeavesValidOriginalAndUncertainEffectsAreNeverReplayed() throws Exception {
-        var f=new Fixture();try(var store=f.open(root)) {
+        var f=new Fixture();var inject=new AtomicBoolean();var cancelled=new AtomicBoolean();
+        try(var store=f.open(root,Limits.defaults(),point->{if(inject.get()&&point==Point.AFTER_BACKUP)cancelled.set(true);})) {
             var proof=f.capture();store.recordObservation(f.owner,proof,()->false);byte[] original=Files.readAllBytes(file(root,"state.json"));
             assertEquals(Status.CANCELLED,store.recordObservation(f.owner,f.capture(),()->true).status());assertArrayEquals(original,Files.readAllBytes(file(root,"state.json")));
+            f.physics.crops.put(f.physics.source,true);assertEquals(Status.RECORDED,store.recordObservation(f.owner,f.capture(),()->false).status());
+            byte[] retained=Files.readAllBytes(file(root,"state.json"));long revision=store.revision();inject.set(true);
+            assertEquals(Status.CANCELLED,store.recordObservation(f.owner,f.capture(),cancelled::get).status());
+            assertArrayEquals(retained,Files.readAllBytes(file(root,"state.json")));assertEquals(revision,store.revision());assertFalse(store.readOnly());
+            try(var scan=f.manager.begin()) {
+                while(scan.state()!=WorldRetentionManager.State.READY&&scan.state()!=WorldRetentionManager.State.INVALID)scan.step(()->false);
+                assertTrue(scan.usage().complete());assertEquals(4,scan.usage().owners().get("observations").records());
+            }
             assertEquals(0,f.physics.harvests+f.physics.pickups+f.physics.transfers);
         }
     }

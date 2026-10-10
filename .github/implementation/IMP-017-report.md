@@ -2,7 +2,7 @@
 
 IMP-017 adds a private, bounded owner for actual previously observed crop/stock evidence, with provenance, conservative freshness, explicit sharing, compatibility and retention. Minecraft and the survival gateway retain current physical truth and effect authority.
 
-Initial public `main`: **`ae4bbe5433ef1a9e8d4aee94e11d64aba3dca65b`**. This is the live IMP-016 merge; no newer `main` commits existed at the initial audit. All remote branches and recent open/draft/merged PRs were inspected; no existing IMP-017 branch, implementation or PR was found. Open PR #7 was unrelated unfinished real-client work, and was not modified or reset. The most recent nine merge-head workflow runs were successful. Historical documentation status is used only as provenance.
+Initial public `main`: **`ae4bbe5423ef1a9e8d4aee94e11d64aba3dca65b`**. This is the live IMP-016 merge; no newer `main` commits existed at the initial audit. All remote branches and recent open/draft/merged PRs were inspected; no existing IMP-017 branch, implementation or PR was found. Open PR #7 was unrelated unfinished real-client work, and was not modified or reset. The most recent nine merge-head workflow runs were successful. Historical documentation status is used only as provenance.
 
 Branch: **`work/imp-017`**, exclusively in `senavirathne/CognitiveCraft-public`. The documentation repository was read through its routing index; the historical/private repository was not accessed. Architecture **0.5**, Contracts/IR **1**, observation contract **1**, observation schema **2**, compatibility/retention policies **1**. [Detailed owner/API contract](IMP-017-contracts.md).
 
@@ -34,7 +34,7 @@ The review adopted relevant existing failures as regression boundaries: unknown-
 
 ## Executed validation status
 
-Final local Java 25/JUnit execution passed **43 feature cases**, zero failures/errors/skips, including recovered-store completeness, actor stock, saturating counters, revision/deadline overflow and bounded stored deadlines. Direct execution was necessary because Gradle's JVM network connection was unavailable in this environment. Repository-supported `scripts/headless.py build` compiled all production modules and GameTest sources with checksum-verified dependencies. Full module execution discovered **964 cases: 953 passed, 11 failed, zero skipped**. All 11 failures are existing save-migration cases returning `SPACE_UNAVAILABLE` before their injected fault points. A direct `Files.getFileStore(path).getUsableSpace()` probe reproduced `IOException: Mount point not found` in this container. This is an environment limitation, not a passing compatibility claim; the existing migration assertions remain intact. Final-head GitHub Actions verification will replace this checkpoint after execution.
+Final local Java 25/JUnit execution passed **43 feature cases**, zero failures/errors/skips, including recovered-store completeness, actor stock, saturating counters, revision/deadline overflow and bounded stored deadlines. Direct execution was necessary because Gradle's JVM network connection was unavailable in this environment. Repository-supported `scripts/headless.py build` compiled all production modules and GameTest sources with checksum-verified dependencies. Full module execution discovered **964 cases: 953 passed, 11 failed, zero skipped**. All 11 failures are existing save-migration cases returning `SPACE_UNAVAILABLE` before their injected fault points. A direct `Files.getFileStore(path).getUsableSpace()` probe reproduced `IOException: Mount point not found` in this container. This is an environment limitation, not a passing compatibility claim; the existing migration assertions remain intact. The first PR head `40b1c7430bd231a84ae4d867f076df1c0780fc09` passed the exact Gradle matrix and all 964 module cases (core 876, providers 62, Fabric 26), with zero failures/errors/skips, in observed-knowledge run [38083594988](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38083594988). Its cold/warm GP-17 gates each executed two project cases successfully. Final review adds cancellation-after-backup accounting/reservation checks and waits for both fixture actors before starting captures; per-tick fixture intake prevents partial retries from exhausting a stale offer budget. The revised source must pass the same final-head workflows before merge.
 
 Required CI commands in `.github/workflows/observed-knowledge.yml`:
 
@@ -55,16 +55,16 @@ Production `KernelSession` automatically captures issued primitive observations 
 
 ## Source inventory
 
-- `core/.../ObservedWorldKnowledgeStore.java`: authoritative records, typed freshness, bounded queries/snapshots/indexes, sharing, migration, persistence and retention owner.
-- `core/.../ObservedKnowledgeService.java`: bounded I/O-free intake and established worker publication.
-- `core/.../SurvivalGateway.java`: private-issued evidence and nonblocking trusted observation sink.
-- `core/.../SaveCompatibility.java`: explicit reader/rule registration; `SaveCompatibilityTest.java` preserves the old migration gate and asserts the new rule.
-- `core/.../ObservedWorldKnowledgeStoreTest.java`: complete IMP-017 matrix and review regressions.
-- `fabric/.../KernelSession.java`: actual owner composition, worker-safe control view, source fence, asynchronous bounded query and shutdown.
-- `fabric/src/gameTest/.../ObservedKnowledgeGameTests.java`, `ObservedKnowledgeRestartGameTests.java` and test-only registration: real loaded-world cold/warm GP-17.
+- `core/src/main/java/dev/aivillages/core/kernel/ObservedWorldKnowledgeStore.java`: authoritative records, typed freshness, bounded queries/snapshots/indexes, sharing, migration, persistence and retention owner.
+- `core/src/main/java/dev/aivillages/core/kernel/ObservedKnowledgeService.java`: bounded I/O-free intake and established worker publication.
+- `core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java`: private-issued evidence and nonblocking trusted observation sink.
+- `core/src/main/java/dev/aivillages/core/kernel/SaveCompatibility.java`: explicit reader/rule registration; `core/src/test/java/dev/aivillages/core/kernel/SaveCompatibilityTest.java` preserves the old migration gate and asserts the new rule.
+- `core/src/test/java/dev/aivillages/core/kernel/ObservedWorldKnowledgeStoreTest.java`: complete IMP-017 matrix and review regressions.
+- `fabric/src/main/java/dev/aivillages/fabric/KernelSession.java`: actual owner composition, worker-safe control view, source fence, asynchronous bounded query and shutdown.
+- `fabric/src/gameTest/java/dev/aivillages/fabric/ObservedKnowledgeGameTests.java`, `fabric/src/gameTest/java/dev/aivillages/fabric/ObservedKnowledgeRestartGameTests.java` and `fabric/src/gameTest/resources/fabric.mod.json`: real loaded-world cold/warm GP-17.
 - `.github/workflows/observed-knowledge.yml`: exact feature/regression/gameplay/packaging gates.
 - This report and `IMP-017-contracts.md`: versioned implementation semantics and executed evidence.
 
 ## Delivery
 
-Final implementation head, PR, final-head Actions, merge and merged-source verification: **pending execution; no merge is claimed at this checkpoint**. IMP-018 and later units remain out of scope. Bounded history and queue pressure explicitly refuse/drop new advisory evidence; queries retain freshness/source limitations and always require gateway effect-time validation.
+Implementation [PR #11](https://github.com/senavirathne/CognitiveCraft-public/pull/11) is open in draft. Final revised head/Actions, merge and merged-source verification: **pending execution; no merge is claimed at this checkpoint**. The post-merge evidence update will record the exact implementation head and merge identifiers, which cannot be embedded in their own Git commit. IMP-018 and later units remain out of scope. Bounded history and queue pressure explicitly refuse/drop new advisory evidence; queries retain freshness/source limitations and always require gateway effect-time validation.
