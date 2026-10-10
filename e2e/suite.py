@@ -191,6 +191,10 @@ class Harness:
     def snapshot(self):
         return read(self.root / "server/snapshot.json")
 
+    def model_calls(self):
+        state = self.snapshot()
+        return {key: state[key] for key in ("needleCalls", "generationCalls")}
+
     def events(self, player):
         path = self.root / "clients" / player / "events.jsonl"
         if not path.exists(): return []
@@ -329,6 +333,8 @@ class Harness:
             self.wait(lambda: self.citizens["PlayerA"] in self.command("PlayerA", "/aivillage kernel citizens", "citizens="), "Restored F1 identities")
         else:
             self.setup(two, legacy)
+        self.model_baseline = self.model_calls()
+        self.event("fixture-model-counters", self.model_baseline)
 
     def submit(self, player="PlayerA", amount=4, source=None, destination=None, queued=False, allow_rejection=False):
         source = source or ARENA["source"]; destination = destination or ARENA["destination"]
@@ -612,7 +618,7 @@ def physical(h: Harness):
         else:
             view = h.terminal("PlayerA", run); description = view["description"]
         require("SUCCEEDED" not in description and h.container(ARENA["destination"]) == 0, "Negative request falsely delivered")
-        require(h.snapshot()["generationCalls"] == 0, "Known environmental blocker invited inference")
+        require(h.model_calls() == h.model_baseline, "Known environmental blocker invited inference")
         negatives.append({"variant": variant, "outcome": description}); h.actions_active = False
     return {"delivery": result, "negativeVariants": negatives}
 
@@ -757,7 +763,7 @@ def queued_competition(h: Harness):
     require(all(a["worker"]["citizenId"] == h.citizens["PlayerA"] for j in records for a in j["attempts"]), "Multiple-job foreign worker recruitment")
     require(h.menu_count("PlayerA",ARENA["destination"]) == 2 and
             h.menu_count("PlayerA",ARENA["reuseDestination"]) == 2, "Multiple jobs failed real client delivery")
-    require(h.snapshot()["generationCalls"] == 0 and h.snapshot()["needleCalls"] == 0, "Known dispatcher called models")
+    require(h.model_calls() == h.model_baseline, "Known dispatcher called models")
     h.actions_active = False
     return {"competition": competition, "multipleJobs": records}
 
@@ -921,6 +927,8 @@ def acquire_real_skill(h: Harness):
     h.env["COGNITIVECRAFT_OLLAMA_MODEL"] = ""; h.env["COGNITIVECRAFT_NEEDLE_DIR"] = ""
     h.stop("server"); h.start("server"); reconnect_players(h, ["PlayerA", "PlayerB"])
     h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
+    offline_calls = h.model_calls()
+    h.event("offline-reuse-model-counters", offline_calls)
     # New request setup: leave the stable, saved citizen beside the distinct field,
     # within the unchanged 256-observation/32-travel allowance. No work has started.
     h.console(["tp " + h.entities["PlayerA"] + " 6.5 201 9.5"])
@@ -928,7 +936,7 @@ def acquire_real_skill(h: Harness):
                          h.entities["PlayerA"]), [6.5,201,9.5]) < .8, "Prepared changed-binding actor position")
     reuse = delivery(h, amount=6, source=ARENA["reuseSource"], destination=ARENA["reuseDestination"])
     require(reuse["artifact"] == acquisition["artifact"], "Changed bindings did not reuse exact admitted artifact")
-    require(h.snapshot()["needleCalls"] == 0 and h.snapshot()["generationCalls"] == 0, "Model-free reuse called AI")
+    require(h.model_calls() == offline_calls, "Model-free reuse called AI")
     seed = certify(h, acquisition, reuse)
     return {"acquisition": acquisition, "modelFreeReuse": reuse, "seed": seed, "models": descriptor}
 
@@ -1012,7 +1020,8 @@ def natural_language(h: Harness):
     (assets / "needle").rename(assets / "needle.unavailable")
     try: outage = ask("Ada, harvest 4 wheat", {"UNAVAILABLE"})
     finally: (assets / "needle.unavailable").rename(assets / "needle")
-    require(h.snapshot()["needleCalls"] >= 4 and h.snapshot()["generationCalls"] == 0, "NLU profile called wrong backend")
+    require(h.snapshot()["needleCalls"] >= h.model_baseline["needleCalls"] + 4 and
+            h.snapshot()["generationCalls"] == h.model_baseline["generationCalls"], "NLU profile called wrong backend")
     h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
     gated = ask("Ada, harvest 4 wheat", {"UNAVAILABLE"})
     return {"naming": naming, "ticket": ticket, "run": run, "unsupported": unsupported,
