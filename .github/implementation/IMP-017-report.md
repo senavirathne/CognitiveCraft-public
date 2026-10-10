@@ -32,9 +32,9 @@ The exact original IMP-017 nine-row matrix is implemented in `ObservedWorldKnowl
 
 The review adopted relevant existing failures as regression boundaries: unknown-versus-absence, shared coordinate privacy, worker generation drift, corrupt current with valid prior generation, oversized bounded reads, stage/backup/replace failures, and IMP-016 reference fences. Existing compatibility, retention, gateway, job and lease tests are preserved. No assertion or workflow requirement was weakened.
 
-## Executed final-source validation
+## Executed primary implementation validation
 
-Authoritative implementation head: **`36570ecbf21386e646de40863f10b24207e06b82`**, [PR #11](https://github.com/senavirathne/CognitiveCraft-public/pull/11). The final observed-knowledge [run 38084112364](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112364) executed the exact feature matrix first, followed by all affected modules and separate actual cold/warm Minecraft processes.
+Verified primary implementation head: **`36570ecbf21386e646de40863f10b24207e06b82`**, [PR #11](https://github.com/senavirathne/CognitiveCraft-public/pull/11). The primary observed-knowledge [run 38084112364](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112364) executed the exact feature matrix first, followed by all affected modules and separate actual cold/warm Minecraft processes.
 
 | Executed gate | Passing cases | Failures / errors / skipped |
 |---|---:|---:|
@@ -61,13 +61,13 @@ The workflow selects the exact cold/warm entrypoints before each GameTest comman
 
 Actual 1000 newly captured gateway observations retained **one record, one history entry, 1430 bytes**. Both unit and loaded-world observation scenarios require **zero model calls and zero historical-query effects**. Store/service have no model or Minecraft effect port; the deterministic fixture disables world access after capture and checks unchanged physical counters. Real GP-17 also verifies that sharing cannot control another principal's actor and that harvesting a removed crop is rejected.
 
-Production JAR SHA-256 from the final feature workflow: **`dca95f7f003a12d4c668740cb489c97755cecfcc5d1773e199d9e8d7f3eb2799`**. Packaging checks require both observation classes, exclude GameTest code/model weights and require one production artifact. The workflow's `imp-017-observed-knowledge` artifact **11681613276** retains XML, logs, deduplication measurements, restart provenance and `acceptance.json`; artifact archive digest is `a0428aa6cc3774ba3562c1d0852b819ab2f84855ef19b7f68dc7b9d6340ecdfa`.
+Production JAR SHA-256 from the primary feature workflow: **`dca95f7f003a12d4c668740cb489c97755cecfcc5d1773e199d9e8d7f3eb2799`**. Packaging checks require both observation classes, exclude GameTest code/model weights and require one production artifact. The workflow's `imp-017-observed-knowledge` artifact **11681613276** retains XML, logs, deduplication measurements, restart provenance and `acceptance.json`; artifact archive digest is `a0428aa6cc3774ba3562c1d0852b819ab2f84855ef19b7f68dc7b9d6340ecdfa`.
 
 Repository-supported `scripts/headless.py build` also compiled production and GameTest source locally with checksum-verified dependencies and Java 25. Direct JUnit execution passed all 43 final feature cases; the revised actual cold/warm local driver passed all six game cases. Local full-module execution found 964 cases, 953 passing and 11 existing save-migration failures, zero skipped. A direct `Files.getFileStore(path).getUsableSpace()` probe reproduced `IOException: Mount point not found`, causing those local migrations to return `SPACE_UNAVAILABLE` before injected fault points. The unchanged compatibility tests and actual loaded-world migration/restart passed on the final GitHub runner; this environment limitation was not hidden or counted as a local pass.
 
 Final review fixed the record-count reservation/accounting after an interrupted backup replacement. The existing cancellation case now verifies exact retained bytes, unchanged current generation and both current/backup record counts. An earlier local GP-17 partial-capture retry exhausted its fixture offer allowance while the second actor was not yet ticking; final fixtures wait for both actors and reset intake per real test tick. The revised loaded-world gates passed without weakening their privacy or discovery assertions.
 
-## Final-head GitHub Actions
+## Primary implementation-head GitHub Actions
 
 All fifteen pull-request workflow families completed successfully for `36570ecbf21386e646de40863f10b24207e06b82`. These are final-head results, not historical main evidence.
 
@@ -109,21 +109,12 @@ Production `KernelSession` automatically captures issued primitive observations 
 - `.github/workflows/observed-knowledge.yml`: exact feature/regression/gameplay/packaging gates.
 - This report and `IMP-017-contracts.md`: versioned implementation semantics and executed evidence.
 
-## Delivery and merged-source proof
+## Corrective persistence verification
 
-| Identifier | Verified value |
-|---|---|
-| Initial public main / IMP-016 merge | `ae4bbe5423ef1a9e8d4aee94e11d64aba3dca65b` |
-| Implementation branch | `work/imp-017` |
-| Implementation PR | [#11](https://github.com/senavirathne/CognitiveCraft-public/pull/11) |
-| Final implementation PR head | `36570ecbf21386e646de40863f10b24207e06b82` |
-| IMP-017 merge / verified implementation main | `0a6145cfa45daf824c278669abba059036c5c570` |
-| Complete merged Git tree | `8832710e879de632da20298117b300f7feace364` |
+Primary PR #11 merged as `0a6145cfa45daf824c278669abba059036c5c570`; its fetched full tree matched reviewed head `36570ecbf21386e646de40863f10b24207e06b82`. Final corruption review then reproduced an external change after staging that overwrote the usable backup: the new regression expected 1413 original bytes and received 26 corrupt bytes. The earlier external-change test exercised corruption before admission and did not cover this interval.
 
-The GitHub merge result confirms PR #11 is merged. The fetched public main has the initial audited main and the exact final reviewed implementation head as its two parents. Its complete Git tree equals the reviewed head's tree. `git fetch origin main` followed by `git diff --exit-code 36570ecbf21386e646de40863f10b24207e06b82 origin/main` succeeded with no differences. Thus production source, tests, workflows and contracts on merged main are byte-identical to the source validated by all fifteen final-head workflows.
+[PR #12](https://github.com/senavirathne/CognitiveCraft-public/pull/12), on `work/imp-017-evidence`, corrects this by taking an immutable bounded copy of the validated current bytes and using that exact copy for the backup. The final current-state fence preserves corrupt externally replaced current bytes and refuses publication. Migration similarly validates the owned bytes before archiving them. Nested checks cover AFTER_STAGE, BEFORE_REPLACE, restart with retained age/provenance and refusing an unverified migration archive. These extend existing cases; discovered feature count remains 43.
 
-This report-only follow-up, on `work/imp-017-evidence` based on the verified merge, records actual final-head run IDs, executed counts, release hash and merged-main identifiers after they became available. It changes no production code, tests, contracts or workflow behavior. Its PR and merge history provide the publication identifiers without impossible self-referential commit hashes.
+Corrective final-head Actions, merge, fetched-main verification and updated release hash are **pending**. The tables above are verified primary-head evidence, not a claim that the corrective source has already passed. A final report-only update will record identifiers after correction and verification.
 
-Remaining non-blocking limits are intentional and explicit: finite storage/history/queue pressure can refuse new advisory observations; capture tick/TTL and address identity do not guarantee live world state or identify an unchanged replacement container; every effect revalidates through the gateway. Cross-principal sharing requires an existing current visibility-policy grant; production retains the existing private default and adds no new sharing/control command or authority service.
-
-**IMP-017 is implemented, tested, reviewed and merged. IMP-018 and later units were not started.**
+IMP-018 and later remain out of scope.

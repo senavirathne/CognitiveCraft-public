@@ -422,7 +422,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
             return result(Status.INCOMPATIBLE, null);
         try {
             if (cancelled.getAsBoolean()) return result(Status.CANCELLED, null);
-            byte[] original = boundedBytes(current);
+            byte[] original = verifyCurrent();
             if (manager == null) return result(Status.STORAGE_UNAVAILABLE, null);
             var capacity = manager.assessReplacement("observations", Category.EVIDENCE,
                     new Amount((long)limits.bytes * 3 + original.length, state.records.size() + rollback.records.size()));
@@ -444,7 +444,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
         if (readOnly || closed || manager == null) return result(Status.STORAGE_UNAVAILABLE, null);
         boolean replaced = false; WorldRetentionManager.DiscardLease lease = null;
         try {
-            verifyCurrent();
+            byte[] original = verifyCurrent();
             byte[] bytes = encode(next, SCHEMA);
             if (bytes.length > limits.bytes) return result(Status.LIMIT_REACHED, null);
             StrictJson.object(new String(bytes, StandardCharsets.UTF_8)); decode(bytes);
@@ -462,9 +462,9 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
                         ? Status.LIMIT_REACHED : Status.STORAGE_UNAVAILABLE, null);
             }
             checkpoint(cancelled, Point.BEFORE_STAGE); write(stage, bytes); checkpoint(cancelled, Point.AFTER_STAGE);
-            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                RetentionFileOwner.attributes(current); Files.copy(current, previous, StandardCopyOption.REPLACE_EXISTING);
-                try (var backup = FileChannel.open(previous, StandardOpenOption.WRITE)) { backup.force(true); }
+            if (original != null) {
+                // Copy validated immutable bytes, never a file that an external writer can change during staging.
+                write(previous, original);
                 rollback = state;
             }
             checkpoint(cancelled, Point.AFTER_BACKUP); checkpoint(cancelled, Point.BEFORE_REPLACE);
@@ -483,11 +483,13 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
             if (lease != null) lease.close();
         }
     }
-    private void verifyCurrent() throws IOException {
+    private byte[] verifyCurrent() throws IOException {
         if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-            var disk = read(current);
+            byte[] bytes = boundedBytes(current); var disk = decode(bytes);
             if (disk.format != format || !disk.state.equals(state)) throw new IOException("Observation owner state changed");
-        } else if (state.revision != 0 || !state.records.isEmpty()) throw new IOException("Observation owner state missing");
+            return bytes;
+        } else if (format != SCHEMA || state.revision != 0 || !state.records.isEmpty()) throw new IOException("Observation owner state missing");
+        return null;
     }
     private static WorldRetentionManager.Key key(UUID id) { return new WorldRetentionManager.Key("observations", id.toString()); }
     private static void write(Path path, byte[] bytes) throws IOException {

@@ -134,7 +134,8 @@ class ObservedWorldKnowledgeStoreTest {
         var f = new Fixture(); f.physics.crops.put(f.physics.source,true);
         try (var store = f.open(root)) {
             var first = f.capture(); var initial = store.recordObservation(f.owner,first,()->false); ObservedEvidence last = first;
-            for(int i=1;i<1000;i++) {last=f.capture(); assertEquals(initial.record(),store.recordObservation(f.owner,last,()->false).record());}
+            for(int i=1;i<1000;i++) {last=f.capture();var result=store.recordObservation(f.owner,last,()->false);
+                assertEquals(Status.RECORDED,result.status(),"Capture "+i+", readOnly="+store.readOnly());assertEquals(initial.record(),result.record());}
             var row=only(f.query(store,last)); assertEquals(1,store.privateRecordCount(f.owner)); assertEquals(1000,row.count());
             assertEquals(first.snapshot(),row.first().observation());assertEquals(last.snapshot(),row.latest().observation());
             assertTrue(Files.size(file(root,"state.json"))<4096);
@@ -429,6 +430,23 @@ class ObservedWorldKnowledgeStoreTest {
             assertEquals("corrupt external replacement",Files.readString(file(root,"state.json")));
             assertEquals(Freshness.INCOMPATIBLE,f.query(store,proof).freshness());
         }
+        for(var boundary:List.of(Point.AFTER_STAGE,Point.BEFORE_REPLACE)) {
+            var scoped=new Fixture();var inject=new AtomicBoolean();Path path=root.resolve(boundary.name());
+            ObservedEvidence retained;byte[] original;
+            try(var store=scoped.open(path,Limits.defaults(),point->{if(inject.get()&&point==boundary)Files.writeString(file(path,"state.json"),"corrupt during publication");})) {
+                store.recordObservation(scoped.owner,scoped.capture(),()->false);retained=scoped.capture();store.recordObservation(scoped.owner,retained,()->false);
+                original=Files.readAllBytes(file(path,"state.json"));inject.set(true);
+                var result=store.recordObservation(scoped.owner,scoped.capture(),()->false);
+                assertEquals(Status.STORAGE_UNAVAILABLE,result.status());assertFalse(result.publicationMayHaveSucceeded());
+                assertEquals("corrupt during publication",Files.readString(file(path,"state.json")));
+                assertArrayEquals(original,Files.readAllBytes(file(path,"state.prev.json")));
+            }
+            try(var recovered=ObservedWorldKnowledgeStore.open(path,scoped.world,Limits.defaults(),scoped.clock,(a,e,c)->true,TrustedContext::equals,scoped.sources::contains,p->{})) {
+                var query=scoped.query(recovered,retained);assertFalse(query.complete());assertEquals(Freshness.INCOMPATIBLE,query.freshness());
+                assertEquals(retained.snapshot(),query.evidence().getFirst().record().latest().observation());
+                assertEquals(retained.at(),query.evidence().getFirst().record().latest().at());
+            }
+        }
     }
     @Test void unsupportedRecordSemanticsFailClosedEvenWithValidEnvelopeChecksum() throws Exception {
         var f=new Fixture();ObservedEvidence proof;
@@ -476,6 +494,12 @@ class ObservedWorldKnowledgeStoreTest {
         try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,TrustedContext::equals,f.sources::contains,p->{})) {
             manager.register(store.retentionOwner());assertEquals(Status.LIMIT_REACHED,store.migrate(store.revision(),()->false).status());
             assertFalse(Files.exists(file(root,"state.legacy-v1.json")));assertEquals(proof.at(),only(f.query(store,proof)).latest().at());
+        }
+        var currentPolicy=new WorldRetentionManager(WorldRetentionManager.Policy.defaults(),new RetentionRoots(),c->false);
+        try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,TrustedContext::equals,f.sources::contains,p->{})) {
+            currentPolicy.register(store.retentionOwner());Files.writeString(file(root,"state.json"),"external legacy corruption");
+            assertEquals(Status.STORAGE_UNAVAILABLE,store.migrate(store.revision(),()->false).status());assertTrue(store.readOnly());
+            assertFalse(Files.exists(file(root,"state.legacy-v1.json")));assertEquals("external legacy corruption",Files.readString(file(root,"state.json")));
         }
     }
     @Test void unavailableCorruptStoreCannotPresentAnExhaustiveUnknownOrAbsence() throws Exception {
