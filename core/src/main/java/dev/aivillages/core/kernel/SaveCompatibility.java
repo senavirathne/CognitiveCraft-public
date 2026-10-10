@@ -71,7 +71,10 @@ public final class SaveCompatibility {
                 currentReader("jobs", JobJournal.SCHEMA), currentReader("leases", ResourceLeaseJournal.SCHEMA),
                 currentReader("primitive-diagnostics", PrimitiveDiagnostics.SCHEMA),
                 currentReader("task-research-evidence", RetentionEvidenceStore.SCHEMA),
-                currentReader("capability-request", RequestCodec.SCHEMA)), List.of(BOOTSTRAP_HANDOFF));
+                currentReader("capability-request", RequestCodec.SCHEMA),
+                new Reader(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA, Set.of(1, 2))),
+                List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
+                        new Format(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA), false)));
     }
     private static Reader currentReader(String domain, int schema) { return new Reader(domain, schema, Set.of(schema)); }
     public record Limits(int records, long inputBytes, long additionalBytes, int checkpoints, long durationNanos) {

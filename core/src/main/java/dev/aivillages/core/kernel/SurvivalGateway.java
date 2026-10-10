@@ -20,6 +20,41 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
  * The gateway owns ephemeral handles/custody only; a crash never replays an unfinished action.
  */
 public final class SurvivalGateway implements GatewayPort {
+    public enum ObservationKind { SOURCE_CROPS, ACTOR_STOCK, CONTAINER_STOCK }
+    /** Exact bounded context inspected by an observation primitive, never a whole-world assertion. */
+    public record ObservationTarget(ObservationKind kind, Cuboid area, UUID entity) {
+        public ObservationTarget {
+            Objects.requireNonNull(kind); Objects.requireNonNull(area);
+            if ((kind == ObservationKind.ACTOR_STOCK) != (entity != null))
+                throw new IllegalArgumentException("Observation target identity");
+            if (kind != ObservationKind.SOURCE_CROPS && (area.minX() != area.maxX()
+                    || area.minY() != area.maxY() || area.minZ() != area.maxZ()))
+                throw new IllegalArgumentException("Stock observation location");
+        }
+    }
+    /** Only this gateway can issue physical evidence. Public snapshots alone are untrusted values. */
+    public static final class ObservedEvidence {
+        private final UUID source;
+        private final TrustedContext owner;
+        private final ActorRef actor;
+        private final ObservationTarget target;
+        private final ObservationSnapshot snapshot;
+        private final long at;
+        private final long sequence;
+        private ObservedEvidence(UUID source, TrustedContext owner, ActorRef actor,
+                                 ObservationTarget target, ObservationSnapshot snapshot, long at, long sequence) {
+            this.source = source; this.owner = owner; this.actor = actor;
+            this.target = target; this.snapshot = snapshot; this.at = at; this.sequence = sequence;
+        }
+        public UUID source() { return source; }
+        public TrustedContext owner() { return owner; }
+        public ActorRef actor() { return actor; }
+        public ObservationTarget target() { return target; }
+        public ObservationSnapshot snapshot() { return snapshot; }
+        public long at() { return at; }
+        /** Local issuance order; it is not a global Minecraft mutation revision. */
+        public long sequence() { return sequence; }
+    }
     public record Limits(int maxRuns, int maxHandles, int maxReceiptsPerRun,
                          int cellsPerPoll, int maxSourceCells, int navigationCallsPerPoll,
                          long maxActionTicks, long maxTravelBlocks) {
@@ -162,6 +197,7 @@ public final class SurvivalGateway implements GatewayPort {
         String terminalBound = "none";
         Cell selectedTarget;
         ActionReceipt current;
+        ObservedEvidence evidence;
         Active(ActionHandle handle, Run run, Operation operation, Map<String, Value> arguments,
                Budgets.Ledger usage, long tick, long startedMillis, long deadlineMillis) {
             this.handle = handle; this.run = run; this.operation = operation;
@@ -176,6 +212,9 @@ public final class SurvivalGateway implements GatewayPort {
     private final AuthorityPolicy authority;
     private final Limits limits;
     private final Clock clock;
+    private final UUID observationSource = UUID.randomUUID();
+    private long observationSequence;
+    private java.util.function.Consumer<ObservedEvidence> observationSink = evidence -> { };
     private final Map<UUID, Run> runs = new HashMap<>();
     private final Map<UUID, Active> handles = new LinkedHashMap<>();
 
@@ -186,6 +225,19 @@ public final class SurvivalGateway implements GatewayPort {
         this.clock = Objects.requireNonNull(clock);
     }
     public List<PrimitiveSignature> registered() { return GatewayPrimitives.instance().all(); }
+    public UUID observationSource() { return observationSource; }
+    /** Trusted runtime binding. The sink must be bounded, I/O-free and nonblocking. */
+    public void observationSink(java.util.function.Consumer<ObservedEvidence> sink) {
+        thread(); observationSink = Objects.requireNonNull(sink);
+    }
+    public ObservedEvidence observedEvidence(ActionHandle handle, TrustedContext caller) {
+        thread(); Active action = get(handle);
+        if (action.evidence == null || !action.evidence.owner().equals(caller)
+                || !authority.currentlyAllows(action.evidence.actor(), Effect.OBSERVE, caller)
+                || world.permit(action.run.request, Effect.OBSERVE, target(action)) != null)
+            throw new SecurityException("Observation unavailable");
+        return action.evidence;
+    }
     public int activeRuns() { thread(); return runs.size(); }
     public int trackedHandles() { thread(); return handles.size(); }
 
@@ -667,6 +719,25 @@ public final class SurvivalGateway implements GatewayPort {
                 || action.operation.signature().effects().iterator().next() != Effect.OBSERVE))
             throw new IllegalStateException("Non-observation snapshot");
         action.current = current(action, true, reason, result, snapshot);
+        long observedAt = clock.millis();
+        if (snapshot != null && reason == null && observedAt >= 0 && observationSequence < Long.MAX_VALUE) {
+            Cuboid area;
+            ObservationKind kind;
+            UUID entity = null;
+            if (action.operation == Operation.OBSERVE_SOURCE) {
+                kind = ObservationKind.SOURCE_CROPS; area = source(action.run.request);
+            } else {
+                kind = action.operation == Operation.OBSERVE_INVENTORY
+                        ? ObservationKind.ACTOR_STOCK : ObservationKind.CONTAINER_STOCK;
+                Cell cell = target(action);
+                area = new Cuboid(cell.dimension(), cell.x(), cell.y(), cell.z(), cell.x(), cell.y(), cell.z());
+                if (kind == ObservationKind.ACTOR_STOCK) entity = action.run.actor.entityId();
+            }
+            action.evidence = new ObservedEvidence(observationSource, action.run.request.context(),
+                    action.run.actor, new ObservationTarget(kind, area, entity), snapshot, observedAt, ++observationSequence);
+            // Retained knowledge is advisory; unavailable intake cannot change primitive semantics.
+            try { observationSink.accept(action.evidence); } catch (RuntimeException unavailable) { }
+        }
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
                 || action.operation == Operation.MOVE_TO_DESTINATION) && action.movementStarted && action.run != null) {
             world.stopMovement(action.run.actor);
