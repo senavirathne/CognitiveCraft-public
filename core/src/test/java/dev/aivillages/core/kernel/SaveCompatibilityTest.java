@@ -202,7 +202,10 @@ final class SaveCompatibilityTest {
     }
     @Test void readerRegistryIsExplicitFiniteAndDoesNotClaimInventedArtifactMigrations() {
         assertTrue(registered().readable(new Format("bootstrap",1)));assertTrue(registered().readable(new Format("bootstrap",2)));
-        assertEquals(1,registered().rules().size());assertFalse(registered().migration(new Format("skill-body",1)).isPresent());
+        assertEquals(2,registered().rules().size());assertFalse(registered().migration(new Format("skill-body",1)).isPresent());
+        assertTrue(registered().readable(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)));
+        assertTrue(registered().readable(new Format(ObservedWorldKnowledgeStore.DOMAIN,2)));
+        assertTrue(registered().migration(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)).isPresent());
         for(long version:List.of(3L,Long.MAX_VALUE))assertFalse(registered().readable(new Format("bootstrap",version)));
         assertFalse(registered().readable(new Format("future-world-knowledge",1)));
         var readers=new ArrayList<Reader>();for(int i=0;i<16;i++)readers.add(new Reader("domain-"+i,1,Set.of(1)));

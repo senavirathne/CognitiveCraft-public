@@ -43,7 +43,8 @@ public final class KernelSession implements AutoCloseable {
                           ResourceLeaseJournal leases, ResourceLeases.Snapshot initialLeases,
                           boolean leasesReadOnly, RetentionEvidenceStore evidence,
                           RetentionRoots roots, WorldRetentionManager retention,
-                          WorldRetentionService retentionService) { }
+                          WorldRetentionService retentionService, ObservedWorldKnowledgeStore observations,
+                          ObservedKnowledgeService knowledgeService) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -53,6 +54,8 @@ public final class KernelSession implements AutoCloseable {
         return thread;
     });
     private final CompletableFuture<Loaded> opening;
+    private volatile UUID observationSource;
+    private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
     private final LocalGenerationAdapter model;
     private final GenerationPort generationSource;
     private final boolean generationConfigured;
@@ -146,6 +149,7 @@ public final class KernelSession implements AutoCloseable {
             VersionedSkillRepository repository = null;
             CapabilityRetrievalIndex retrieval = null;
             RetentionEvidenceStore evidence = null;
+            ObservedWorldKnowledgeStore observations = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -171,6 +175,14 @@ public final class KernelSession implements AutoCloseable {
                 var roots = new RetentionRoots();
                 var retention = new WorldRetentionManager(WorldRetentionManager.Policy.defaults(), roots, caller -> false);
                 retention.register(repository.retentionOwner()); retention.register(evidence.retentionOwner());
+                final var observationIdentities = identities;
+                observations = ObservedWorldKnowledgeStore.open(world, journal.state().worldId(),
+                        ObservedWorldKnowledgeStore.Limits.defaults(), clock,
+                        (actor, effect, context) -> effect == Effect.OBSERVE && observationIdentities.snapshot().citizens().stream()
+                                .anyMatch(c -> c.actor().equals(actor) && c.owner().equals(context)),
+                        TrustedContext::equals, source -> source.equals(observationSource), point -> { });
+                retention.register(observations.retentionOwner());
+                var knowledgeService = new ObservedKnowledgeService(observations);
                 final var bootstrapOwner = journal; final var jobOwner = jobs; final var identityOwner = identities; final var leaseOwner = leases;
                 retention.register(new RetentionFileOwner("bootstrap", world.resolve(BootstrapJournal.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.RUNS,
                         () -> bootstrapOwner.state().revision(), () -> bootstrapOwner.state().runs().size(), 8));
@@ -184,13 +196,19 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16, 10_485_760));
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
+                var observationMigration = observations.migrate(observations.revision(), () -> false);
+                if (observationMigration.status() != ObservedWorldKnowledgeStore.Status.UNCHANGED
+                        && observationMigration.status() != ObservedWorldKnowledgeStore.Status.MIGRATED
+                        && !observations.readOnly()) throw new IllegalStateException("Observation migration unavailable");
                 repository.admissionCapacity((bytes, count) -> retention.assessReplacement("skills", WorldRetentionManager.Category.ARTIFACTS,
                         new WorldRetentionManager.Amount(bytes, count)).status());
                 var retentionService = new WorldRetentionService(retention, evidence);
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
-                        jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention, retentionService);
+                        jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
+                        retentionService, observations, knowledgeService);
             } catch (Exception failure) {
+                if (observations != null) try { observations.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (evidence != null) try { evidence.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (retrieval != null) retrieval.close();
                 if (repository != null) try { repository.close(); }
@@ -227,6 +245,8 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        loaded.knowledgeService().beginTick();
+        loaded.knowledgeService().maintain(worker);
         loaded.retentionService().beginTick();
         refreshRetentionRoots();
         loaded.retentionService().maintain(worker);
@@ -288,6 +308,8 @@ public final class KernelSession implements AutoCloseable {
         worldAccess = new FabricGatewayWorld(server.overworld());
         gateway = new SurvivalGateway(worldAccess, authority,
                 new SurvivalGateway.Limits(8, 512, 64, 16, 256, 1, 200, 32), clock);
+        observationSource = gateway.observationSource();
+        gateway.observationSink(loaded.knowledgeService()::offer);
         leases = new ResourceLeaseService(loaded.initialLeases(), (expected, next) ->
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.leases().replace(expected, next); }
@@ -585,6 +607,22 @@ public final class KernelSession implements AutoCloseable {
         for (var entry : List.copyOf(desiredRoots.entrySet())) publishRoots(entry.getKey(), entry.getValue());
     }
     WorldRetentionService.Status retentionStatus() { ready(); return loaded.retentionService().status(); }
+    /** Historical evidence only. The bounded worker query never substitutes for gateway validation. */
+    public CompletableFuture<ObservedWorldKnowledgeStore.EvidenceSnapshot> observedKnowledge(ServerPlayer player,
+            SurvivalGateway.ObservationTarget target, ObservedWorldKnowledgeStore.QueryLimits limits) {
+        if (!server.isSameThread()) throw new IllegalStateException("Observation query requires server-thread intake");
+        ready(); var viewer = caller(player);
+        if (observationQueries.incrementAndGet() > 8) {
+            observationQueries.decrementAndGet();
+            return CompletableFuture.failedFuture(new IllegalStateException("Observation query capacity"));
+        }
+        try {
+            return CompletableFuture.supplyAsync(() -> loaded.observations().createEvidenceSnapshot(viewer, target, limits), worker)
+                    .whenComplete((ignored, failure) -> observationQueries.decrementAndGet());
+        } catch (RuntimeException unavailable) {
+            observationQueries.decrementAndGet(); return CompletableFuture.failedFuture(unavailable);
+        }
+    }
     public List<RetentionEvidenceStore.Aggregate> retentionFailures(ServerPlayer player) { ready(); return loaded.evidence().failures(caller(player)); }
     List<RetentionEvidenceStore.Aggregate> retentionFailures(TrustedContext caller) { ready(); return loaded.evidence().failures(caller); }
     public String scope(UUID principal) {
@@ -805,12 +843,15 @@ public final class KernelSession implements AutoCloseable {
         interpretingPlayer = null;
         opening.whenComplete((opened, failed) -> {
             if (opened != null) {
+                observationSource = null;
+                opened.knowledgeService().close();
                 opened.retentionService().close();
                 opened.retrieval().close();
                 worker.execute(() -> {
                     opened.retentionService().closeWorker();
+                    opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);

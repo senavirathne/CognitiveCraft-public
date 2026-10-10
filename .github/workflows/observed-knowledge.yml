@@ -1,0 +1,136 @@
+name: Observed world knowledge acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: observed-knowledge-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observations:
+    name: IMP-017 trusted evidence, recovery, privacy and GP-17
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute the exact IMP-017 matrix first
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.ObservedWorldKnowledgeStoreTest
+      - name: Require every matrix case and actual bounded deduplication evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.ObservedWorldKnowledgeStoreTest.xml')
+          cases=list(ET.parse(p).getroot().iter('testcase'))
+          if len(cases)!=43 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Exactly 43 executed passing IMP-017 cases required')
+          proof=json.loads(Path('core/build/observation-evidence/dedup.json').read_text())
+          if (proof['events'],proof['records'],proof['history'],proof['modelCalls'],proof['effects'])!=(1000,1,1,0,0) or proof['bytes']>=4096:
+              raise SystemExit('Actual bounded gateway deduplication proof required')
+          print('IMP-017: 43 passing matrix cases, actual 1000-capture coalescing:',proof)
+          PY
+      - name: Execute affected module regressions and build production plus GameTest packaging
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Select cold GP-17 and actual saved-world witness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.ObservedKnowledgeGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Observe real stock, remove facilities, revalidate effects, share explicitly and expire evidence
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_OBSERVATION_RESTART: cold
+          COGNITIVECRAFT_RESTART_PROBE: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require both executed cold project tests and preserve proof
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run');cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two executed passing cold project cases required')
+          if 'IMP-017 GP-17 accepted phase=cold modelCalls=0 queryEffects=0 retainedProvenance=true' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Active GP-17 cold proof missing')
+          out=Path('fabric/build/observation-evidence');out.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          shutil.copy2(root/'world/cognitivecraft-observation-fixture/restart.json',out/'restart-proof.json')
+          PY
+      - name: Select warm GP-17 in a second JVM against the same saved world
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.ObservedKnowledgeRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Reopen private provenance and age, delete indexes and reject freshness from a lost source
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_OBSERVATION_RESTART: warm
+          COGNITIVECRAFT_RESTART_PROBE: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require warm project cases, retain test counts and verify release contents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,shutil,xml.etree.ElementTree as ET,zipfile
+          root=Path('fabric/build/gametest-run');cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two executed passing warm project cases required')
+          if 'IMP-017 GP-17 accepted phase=warm modelCalls=0 queryEffects=0 retainedProvenance=true' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Active GP-17 warm proof missing')
+          out=Path('fabric/build/observation-evidence');shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(f'{module}/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Complete executed unit coverage required: '+module)
+              counts[module]=len(cases)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production artifact required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Test code or models leaked into release')
+              for name in ('ObservedWorldKnowledgeStore','ObservedKnowledgeService'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Observation owner missing from release')
+          proof={'tests':counts,'total':sum(counts.values()),'matrix':43,'coldProjectTests':2,'warmProjectTests':2,
+                 'modelCalls':0,'queryEffects':0,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
+          (out/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - name: Restore full test registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - name: Retain feature, regression, saved-world and production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imp-017-observed-knowledge
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            core/build/observation-evidence/**
+            fabric/build/observation-evidence/**
+            fabric/build/gametest-run/logs/**
+            fabric/build/gametest-run/crash-reports/**
