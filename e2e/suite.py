@@ -34,7 +34,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal"
+DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
 
 class InfrastructureBlocked(RuntimeError):
@@ -971,7 +971,8 @@ def queued_competition(h: Harness):
     h.fresh(two=True, known=True); h.release_gate(); h.actions_active = True
     multiple = [h.submit(amount=2,queued=True), h.submit(amount=2,queued=True,
                 source=ARENA["reuseSource"],destination=ARENA["reuseDestination"])]
-    h.wait(lambda: all(h.job_view("PlayerA",j)["state"] == "SUCCEEDED" for j in multiple), "Two durable jobs dispatched to eligible owned worker", 160)
+    h.wait(lambda: all((view := h.job_view("PlayerA",j)) and view["state"] == "SUCCEEDED" for j in multiple),
+           "Two durable jobs dispatched to eligible owned worker", 160)
     records = [h.job_view("PlayerA",j) for j in multiple]
     require(all(a["worker"]["citizenId"] == h.citizens["PlayerA"] for j in records for a in j["attempts"]), "Multiple-job foreign worker recruitment")
     require(h.menu_count("PlayerA",ARENA["destination"]) == 2 and

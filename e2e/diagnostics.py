@@ -21,6 +21,7 @@ for argument in sys.argv[1:]:
         data = json.loads(path.read_text())
         state = data.get("snapshot") or {}
         print("\nFAILED FAMILY",data["family"],data["reason"])
+        print("TRACE",data.get("trace",""))
         print("COUNTERS", {k:state.get(k) for k in ("tick","arenaLoaded","arenaTicking","needleCalls","generationCalls")})
         print("ACTOR INVENTORIES",[(a["uuid"],a["inventory"],a["pos"]) for a in state.get("actors",[])])
         print("LOOSE DROPS",state.get("drops",[]))
