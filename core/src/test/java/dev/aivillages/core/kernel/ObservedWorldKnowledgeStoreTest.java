@@ -82,7 +82,7 @@ class ObservedWorldKnowledgeStoreTest {
         var raw = new LinkedHashMap<>(StrictJson.object(Files.readString(path))); mutate.accept(raw); raw.remove("checksum");
         raw.put("checksum", RepositoryCodec.digest(StrictJson.canonical(raw))); Files.writeString(path, StrictJson.canonical(raw));
     }
-    private static ObservationRecord only(EvidenceSnapshot snapshot) { assertTrue(snapshot.complete()); assertEquals(1, snapshot.evidence().size()); return snapshot.evidence().getFirst().record(); }
+    private static RecordView only(EvidenceSnapshot snapshot) { assertTrue(snapshot.complete()); assertEquals(1, snapshot.evidence().size()); return snapshot.evidence().getFirst().record(); }
 
     @Test void freshFactsRetainActualGatewayProofAndBoundedImmutableContext() throws Exception {
         var f = new Fixture(); f.physics.crops.put(f.physics.source, true);
@@ -246,6 +246,10 @@ class ObservedWorldKnowledgeStoreTest {
             var proof=f.capture();store.recordObservation(f.owner,proof,()->false);var snapshot=f.query(store,proof);
             var privateProof=f.capture(f.gateway,f.foreign,f.area,Operation.OBSERVE_SOURCE);store.recordObservation(f.foreign,privateProof,()->false);
             assertTrue(store.snapshotCurrent(snapshot,f.owner));
+            var publicProof=only(snapshot).latest();assertEquals(proof.snapshot(),publicProof.observation());
+            assertTrue(Arrays.stream(publicProof.getClass().getRecordComponents()).noneMatch(c->c.getName().equals("sequence")),
+                    "Public provenance must not reveal the gateway's cross-scope issuance counter");
+            assertFalse(publicProof.toString().contains("sequence="));
             store.invalidateObservation(f.owner,only(snapshot).id(),Invalidation.TARGET_CHANGED,store.revision(),()->false);
             assertFalse(store.snapshotCurrent(snapshot,f.owner));assertEquals(Freshness.OBSERVED_ABSENT,snapshot.freshness());
         }
@@ -333,7 +337,7 @@ class ObservedWorldKnowledgeStoreTest {
         }
     }
     @Test void currentSchemaReopenPreservesIdentityProvenanceAgeAndPrivateSharing() throws Exception {
-        var f=new Fixture();ObservedEvidence proof;ObservationRecord expected;
+        var f=new Fixture();ObservedEvidence proof;RecordView expected;
         try(var store=f.open(root)) {proof=f.capture();store.recordObservation(f.owner,proof,()->false);f.sharing.set(true);store.shareObservation(f.owner,only(f.query(store,proof)).id(),f.foreign,store.revision(),()->false);expected=only(f.query(store,proof));}
         f.clock.now=expected.expiresAt();
         try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,(a,b)->f.sharing.get(),f.sources::contains,p->{})) {
@@ -342,7 +346,7 @@ class ObservedWorldKnowledgeStoreTest {
         }
     }
     @Test void explicitSupportedMigrationPreservesExactOriginalAgeScopeAndIdentity() throws Exception {
-        var f=new Fixture();ObservedEvidence proof;ObservationRecord before;
+        var f=new Fixture();ObservedEvidence proof;RecordView before;
         try(var store=f.open(root)) {proof=f.capture();store.recordObservation(f.owner,proof,()->false);before=only(f.query(store,proof));}
         rewrite(file(root,"state.json"),raw->{raw.put("schema",1L);for(Object item:(List<?>)raw.get("records"))((Map<?,?>)item).remove("invalidatedAt");});
         byte[] original=Files.readAllBytes(file(root,"state.json"));f.clock.now=before.expiresAt();
