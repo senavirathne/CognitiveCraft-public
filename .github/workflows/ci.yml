@@ -744,8 +744,8 @@ jobs:
           root = Path('fabric/build/gametest-run')
           cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
                    if c.get('name', '').startswith('ai_villages_tests:')]
-          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
-              raise SystemExit('Expected one passing injected-NLU nearest physical case')
+          if len(cases) != 2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected nearest physical binding and disconnected-caller regression to pass')
           text = (root/'logs/latest.log').read_text()
           for marker in ('actualNeedle=false namingForms=5 excludedCitizens=true', 'coordinateFreeRuns=2 delivered=8',
                          'physicalMovement=true changedLocations=true sameArtifact=',
@@ -756,7 +756,7 @@ jobs:
           shutil.copy2(root/'logs/latest.log', evidence/'nearest-fake.log')
           counts = {'cold':14,'warm':14,'gateway-cold':10,'gateway-warm':10,'controller':20,
                     'interruption-cold':1,'interruption-warm':1,'hardkill-setup':1,'hardkill-warm':1,
-                    'identity-cold':1,'identity-warm':1,'nearest-fake':1}
+                    'identity-cold':1,'identity-warm':1,'nearest-fake':2}
           names, executions = set(), 0
           for phase, expected in counts.items():
               phase_cases = [c for c in ET.parse(evidence / (phase + '.xml')).getroot().iter('testcase')
@@ -768,8 +768,8 @@ jobs:
                   raise SystemExit('Missing, duplicate or unsuccessful final coverage in ' + phase)
               names.update(phase_names)
               executions += len(phase_cases)
-          if len(names) != 48 or executions != 75:
-              raise SystemExit('Expected 48 distinct / 75 successful project GameTest executions')
+          if len(names) != 49 or executions != 76:
+              raise SystemExit('Expected 49 distinct / 76 successful project GameTest executions')
           summary = {'schema':1, 'distinctCases':len(names), 'successfulExecutions':executions,
                      'phaseCounts':counts, 'caseNames':sorted(names)}
           (evidence / 'coverage-summary.json').write_text(json.dumps(summary, indent=2) + '\n')

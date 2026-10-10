@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"cognitivecraft_e2e_observer","version":"1","name":"CognitiveCraft read-only E2E observer","environment":"server","entrypoints":{"main":["dev.aivillages.fabric.E2EObserver"]},"depends":{"fabricloader":">=0.19.5","minecraft":"26.3","java":">=25","fabric-api":"*","ai_villages":"*"}}

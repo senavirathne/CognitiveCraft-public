@@ -6,7 +6,7 @@ on:
     paths: ['core/**', 'providers/**', 'fabric/**', '.github/implementation/IMP-014*', '.github/workflows/ai-work-broker.yml']
   pull_request:
     branches: [main]
-    paths: ['core/**', 'providers/**', 'fabric/**', '.github/implementation/IMP-014*', '.github/workflows/ai-work-broker.yml']
+    paths: ['e2e/coverage.json', 'core/**', 'providers/**', 'fabric/**', '.github/implementation/IMP-014*', '.github/workflows/ai-work-broker.yml']
   workflow_dispatch:
 
 permissions:

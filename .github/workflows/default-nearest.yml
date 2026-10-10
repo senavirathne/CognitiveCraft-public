@@ -2,7 +2,7 @@ name: Default nearest physical acceptance
 on:
   pull_request:
     branches: [main, feature/default-nearest-world-references]
-    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
+    paths: ['e2e/coverage.json', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -64,8 +64,8 @@ jobs:
           root = Path('fabric/build/gametest-run')
           cases = [c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase')
                    if c.get('name', '').startswith('ai_villages_tests:')]
-          if len(cases) != 1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
-              raise SystemExit('Expected one passing injected-NLU physical reference case')
+          if len(cases) != 2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Expected nearest binding and disconnected-caller regression to pass')
           text = (root/'logs/latest.log').read_text()
           for marker in ('actualNeedle=false namingForms=5 excludedCitizens=true', 'coordinateFreeRuns=2 delivered=8',
                          'physicalMovement=true changedLocations=true sameArtifact=',

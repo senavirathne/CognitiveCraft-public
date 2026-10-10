@@ -5,7 +5,7 @@ on:
     paths: ['core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
   pull_request:
     branches: [main, feature/default-nearest-world-references]
-    paths: ['core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
+    paths: ['e2e/coverage.json', 'core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
   workflow_dispatch:
 permissions:
   contents: read
