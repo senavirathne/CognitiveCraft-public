@@ -10,6 +10,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 
 import java.nio.file.*;
@@ -79,6 +80,14 @@ public final class E2EObserver implements ModInitializer {
             actors.add(actor);
         }
         out.add("actors", actors);
+        var drops = new JsonArray();
+        for (var item : level.getEntitiesOfClass(ItemEntity.class, new AABB(-3,199,-3,23,206,17))) {
+            drops.add(JSON.toJsonTree(Map.of("uuid", item.getUUID().toString(), "networkId", item.getId(),
+                    "item", BuiltInRegistries.ITEM.getKey(item.getItem().getItem()).toString(),
+                    "count", item.getItem().getCount(), "pos", List.of(item.getX(),item.getY(),item.getZ()))));
+            if (drops.size() == 128) break;
+        }
+        out.add("drops", drops);
         var players = new JsonObject(); var knownPlayers = new JsonObject();
         var kernel = AiVillages.kernel();
         if (kernel != null) try {

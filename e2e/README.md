@@ -84,6 +84,9 @@ changed-binding execution. Its certificate includes producer identity, exact
 artifact, stable actors and file hashes. Exact class/resource content must match
 the tested release binary, irrespective of ZIP timestamps. Active worlds and
 successful gameplay outcomes are never put in the dependency cache.
+The changed-binding request starts with six verified mature input crops and no
+old loose drops in its separate field. That recorded fixture reset occurs before
+submission; it supplies no delivered stock or task receipts.
 
 `ClientDriver` runs bounded actions on the client thread through vanilla screens,
 input/game-mode APIs and the client connection. The mailbox does not call server

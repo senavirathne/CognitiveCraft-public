@@ -53,6 +53,7 @@ def main() -> None:
         original = (ROOT / "build/server-sdk/runtime-classpath.txt").read_text().split(os.pathsep)
         classpath += [ROOT / "build/server-sdk/libs" / Path(p).name for p in original[1:]]
         command = [java("java"), "-Xms256M", "-Xmx1536M", "-Dcognitivecraft.navigation.trace=true",
+                   "-Dcognitivecraft.gametest.trace=true",
                    "-cp", os.pathsep.join(map(str, classpath)),
                    "net.fabricmc.loader.impl.launch.knot.KnotServer", "nogui"]
         box = root / "server"

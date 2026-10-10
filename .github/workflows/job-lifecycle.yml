@@ -5,7 +5,7 @@ on:
     paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
   pull_request:
     branches: [main]
-    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+    paths: ['e2e/coverage.json', 'core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
   workflow_dispatch:
 permissions:
   contents: read

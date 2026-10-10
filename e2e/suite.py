@@ -241,6 +241,9 @@ class Harness:
         return result["values"]
 
     def console(self, lines, lifecycle=False):
+        if lifecycle:
+            require(all(re.fullmatch(r"save-all(?: flush)?|stop|(?:op|deop) Player[AB]", line) for line in lines),
+                    "Only normal save, stop and permission lifecycle commands are permitted")
         if self.actions_active and not lifecycle:
             raise AssertionError("Administrative setup forbidden during gameplay under test")
         request = {"id": str(uuid.uuid4()), "commands": lines}
@@ -452,9 +455,26 @@ class Harness:
         self.wait(lambda: self.snapshot()["tick"] >= start + tick_count, "Post-boundary effect fence", 20)
 
     def prepare_reuse_actor(self):
-        self.console(["tp " + self.entities["PlayerA"] + " 6.5 201 9.5"])
+        # The preceding completed scenario may leave naturally trampled crops/drops.
+        # Construct the second request's input fixture before any new work begins.
+        require(self.container(ARENA["reuseDestination"]) == 0, "New request destination already contains wheat")
+        self.event("reuse-fixture-before", {"drops": self.snapshot().get("drops", []),
+                   "source": ARENA["reuseSource"], "destination": ARENA["reuseDestination"]})
+        setup = ["kill @e[type=minecraft:item,x=5,y=199,z=9,dx=4,dy=5,dz=4]"]
+        for x in (6,7):
+            for z in (10,11,12):
+                setup += [f"setblock {x} 200 {z} minecraft:farmland[moisture=7]",
+                          f"setblock {x} 201 {z} minecraft:wheat[age=7]"]
+        setup += ["tp " + self.entities["PlayerA"] + " 6.5 201 9.5"]
+        self.console(setup)
         self.wait(lambda: math.dist(next(a["pos"] for a in self.snapshot()["actors"] if a["uuid"] ==
                          self.entities["PlayerA"]), [6.5,201,9.5]) < .8, "Prepared changed-binding actor position")
+        self.wait(lambda: all("minecraft:wheat" in self.snapshot()["blocks"][f"{x},201,{z}"] and
+                              "age=7" in self.snapshot()["blocks"][f"{x},201,{z}"] for x in (6,7) for z in (10,11,12))
+                  and not any(5 <= d["pos"][0] <= 9 and 9 <= d["pos"][2] <= 13 for d in self.snapshot()["drops"]),
+                  "Six mature input crops and no pre-existing loose drops")
+        self.event("reuse-fixture-ready", {"matureWheat": 6, "preExistingDrops": 0,
+                   "destinationWheat": self.container(ARENA["reuseDestination"])})
 
     def world_hashes(self):
         world = self.root / "server/game/world"
@@ -462,10 +482,11 @@ class Harness:
                 for p in sorted(world.rglob("*")) if p.is_file() and p.name != "session.lock"]
 
     def save_checkpoint(self):
+        before = self.snapshot()["containers"]
         offset = len(self.server_log())
         self.console(["save-all flush"], lifecycle=True)
         self.wait(lambda: "Saved the game" in self.server_log()[offset:], "Fresh vanilla save acknowledged")
-        value = {"tick": self.snapshot()["tick"], "files": self.world_hashes()}
+        value = {"tick": self.snapshot()["tick"], "containersBeforeSave": before, "files": self.world_hashes()}
         self.event("acknowledged-world-checkpoint", value)
         return value
 
@@ -694,7 +715,7 @@ def legacy(h: Harness):
     h.command("PlayerB", "/aivillage status Baker", "Only the owner or an operator")
     h.release_gate(); h.actions_active = True
     h.command("PlayerA", "/aivillage food Baker", "food: Baker")
-    h.wait(lambda: h.container(ARENA["destination"], "minecraft:bread") >= 8, "Real legacy harvest/craft/store bread", 180)
+    h.wait(lambda: h.container(ARENA["destination"], "minecraft:bread") >= 8, "Real legacy harvest/craft/store bread", 120)
     amount = h.menu_count("PlayerA", ARENA["destination"], "minecraft:bread")
     require(amount >= 8, "Legacy bread not synchronized in client menu")
     h.command("PlayerA", "/aivillage status Baker", "Baker")
@@ -945,6 +966,8 @@ def hard_recovery(h: Harness):
     view = h.terminal("PlayerA", run)
     require("SUCCEEDED" not in view["description"] and "INTERRUPTED" in view["description"], "Hard-killed uncertain attempt falsely completed")
     stock = h.container(ARENA["destination"])
+    require(stock >= checkpoint["containersBeforeSave"].get("9,201,7",{}).get("minecraft:wheat",0),
+            "Acknowledged saved deposit was lost after SIGKILL")
     h.quiet()
     require(h.container(ARENA["destination"]) == stock and 0 <= stock <= 6, "Hard-kill conservation/replay failure")
     require(h.menu_count("PlayerA", ARENA["destination"]) == stock, "Crash recovery menu diverged")
