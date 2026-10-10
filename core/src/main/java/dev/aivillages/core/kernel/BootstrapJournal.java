@@ -150,22 +150,8 @@ public final class BootstrapJournal implements AutoCloseable {
 
     /** Registry import commits first; an archived original then precedes the schema-2 handoff. */
     public synchronized State migrateIdentity(CitizenRegistry.Snapshot identities) throws IOException {
-        if (readOnly) throw new IOException("Recovered bootstrap cannot migrate");
-        verifyReferences(state.runs(), identities);
-        if (state.externalIdentities()) return state;
-        var receipt = identities.migration();
-        UUID citizenId = state.enrollment() == null ? null : state.enrollment().actor().citizenId();
-        if (receipt == null || receipt.sourceRevision() != state.revision()
-                || !receipt.sourceSha256().equals(semanticSha256(state))
-                || !Objects.equals(receipt.citizenId(), citizenId))
-            throw new IOException("Missing exact bootstrap import receipt");
-        if (state.enrollment() != null) {
-            var citizen = identities.citizens().stream().filter(c ->
-                    c.actor().citizenId().equals(citizenId)).findFirst();
-            if (citizen.isEmpty() || !citizen.get().actor().equals(state.enrollment().actor())
-                    || !citizen.get().owner().equals(state.enrollment().owner()))
-                throw new IOException("Bootstrap identity/control mismatch");
-        }
+        State next = previewIdentity(identities);
+        if (next.equals(state)) return state;
         Path original = directory.resolve("state.legacy-v1.json");
         if (Files.isSymbolicLink(original)) throw new IOException("Symbolic bootstrap archive");
         if (Files.exists(original, LinkOption.NOFOLLOW_LINKS)) {
@@ -186,7 +172,45 @@ public final class BootstrapJournal implements AutoCloseable {
                 try (var dir = FileChannel.open(directory, StandardOpenOption.READ)) { dir.force(true); }
             } finally { Files.deleteIfExists(staged); }
         }
-        return publish(new State(state.worldId(), Math.addExact(state.revision(), 1), null, state.runs(), true));
+        return publish(next);
+    }
+
+    /** Validate the existing handoff without changing either owner's records. */
+    synchronized State previewIdentity(CitizenRegistry.Snapshot identities) throws IOException {
+        if (readOnly) throw new IOException("Recovered bootstrap cannot migrate");
+        verifyReferences(state.runs(), identities);
+        if (state.externalIdentities()) return state;
+        var receipt = identities.migration();
+        UUID citizenId = state.enrollment() == null ? null : state.enrollment().actor().citizenId();
+        if (receipt == null || receipt.sourceRevision() != state.revision()
+                || !receipt.sourceSha256().equals(semanticSha256(state))
+                || !Objects.equals(receipt.citizenId(), citizenId))
+            throw new IOException("Missing exact bootstrap import receipt");
+        if (state.enrollment() != null) {
+            var citizen = identities.citizens().stream().filter(c ->
+                    c.actor().citizenId().equals(citizenId)).findFirst();
+            if (citizen.isEmpty() || !citizen.get().actor().equals(state.enrollment().actor())
+                    || !citizen.get().owner().equals(state.enrollment().owner()))
+                throw new IOException("Bootstrap identity/control mismatch");
+        }
+        try {
+            State next = new State(state.worldId(), Math.addExact(state.revision(), 1), null, state.runs(), true);
+            if (migrationEncodingBytes(next) > MAX_BYTES) throw new IOException("Bootstrap quota");
+            return next;
+        } catch (ArithmeticException exhausted) { throw new IOException("Bootstrap revision exhausted", exhausted); }
+    }
+    synchronized long migrationInputBytes() throws IOException {
+        return Math.max(Files.exists(current, LinkOption.NOFOLLOW_LINKS) ? Files.size(current) : 0,
+                migrationEncodingBytes(state));
+    }
+    static int migrationEncodingBytes(State value) {
+        return encode(value).getBytes(StandardCharsets.UTF_8).length;
+    }
+    synchronized long formatVersion() throws IOException {
+        return SaveCompatibility.readVersion(current, MAX_BYTES, SCHEMA);
+    }
+    synchronized long availableMigrationBytes() throws IOException {
+        return Files.getFileStore(directory).getUsableSpace();
     }
 
     private void verifyReferences(List<RunMarker> runs, CitizenRegistry.Snapshot identities) throws IOException {

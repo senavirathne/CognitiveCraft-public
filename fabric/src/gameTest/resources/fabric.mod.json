@@ -23,7 +23,9 @@
       "dev.aivillages.fabric.NeedleLanguageGameTests",
       "dev.aivillages.fabric.WorldReferenceGameTests",
       "dev.aivillages.fabric.PrimitiveDiagnosticGameTests",
-      "dev.aivillages.fabric.PrimitiveDiagnosticRestartGameTests"
+      "dev.aivillages.fabric.PrimitiveDiagnosticRestartGameTests",
+      "dev.aivillages.fabric.CompatibilityUpgradeGameTests",
+      "dev.aivillages.fabric.CompatibilityRestartGameTests"
     ]
   },
   "depends": {

@@ -617,63 +617,36 @@ public final class VersionedSkillRepository implements ArtifactCatalog, AutoClos
         return compatibility(ref, current, environment, active, depth, work, true);
     }
 
-    /** Metadata checks use verified descriptors; executable consumption still recompiles the pinned body. */
+    /** IMP-015 supplies the same compatibility boundary to resolution and metadata consumers. */
     private Compatibility compatibility(ArtifactRef ref, Snapshot current,
                                         RuntimeSnapshot environment, Set<ArtifactRef> active,
                                         int depth, int[] work, boolean validateBody) {
-        Stored stored = current.records().get(ref);
-        if (stored == null || stored.integrity() == Integrity.CORRUPT)
-            return incompatible(ref, Reason.ARTIFACT_INVALID, environment);
-        if (stored.integrity() == Integrity.UNKNOWN_SCHEMA)
-            return new Compatibility(ref, CompatibilityStatus.UNKNOWN,
-                    List.of(Reason.ARTIFACT_INCOMPATIBLE), environment.gameTarget());
-        if (stored.admission().status() == AdmissionStatus.QUARANTINED)
-            return incompatible(ref, Reason.ARTIFACT_QUARANTINED, environment);
-        if (stored.admission().status() != AdmissionStatus.ADMITTED)
-            return incompatible(ref, Reason.ARTIFACT_INVALID, environment);
-        if (depth > 8 || ++work[0] > 128 || !active.add(ref))
-            return incompatible(ref, Reason.DEPENDENCY_INCOMPATIBLE, environment);
-        if (!stored.gameTarget().equals(environment.gameTarget())
-                || !environment.capabilities().find(ref.capability()).map(
-                    spec -> RepositoryCodec.spec(spec).equals(RepositoryCodec.spec(stored.body().spec()))
-                ).orElse(false)) {
-            active.remove(ref);
-            return incompatible(ref, Reason.ARTIFACT_INCOMPATIBLE, environment);
-        }
-        for (var primitive : stored.body().descriptor().primitives()) {
-            if (!environment.primitives().find(primitive.id(), primitive.version())
-                    .map(actual -> actual.fingerprint().equals(primitive.fingerprint()))
-                    .orElse(false)) {
-                active.remove(ref);
-                return incompatible(ref, Reason.DEPENDENCY_INCOMPATIBLE, environment);
-            }
-        }
-        for (ArtifactRef dependency : stored.body().descriptor().dependencies()) {
-            Compatibility nested = compatibility(dependency, current, environment, active,
-                    depth + 1, work, validateBody);
-            if (nested.status() != CompatibilityStatus.COMPATIBLE) {
-                active.remove(ref);
-                return incompatible(ref, Reason.DEPENDENCY_INCOMPATIBLE, environment);
-            }
-        }
-        active.remove(ref);
-        if (validateBody) {
-            SkillCompiler.CompileResult compiled = new SkillCompiler(environment.capabilities(),
-                    environment.primitives(), dep -> Optional.ofNullable(current.records().get(dep))
-                            .map(Stored::body).map(RepositoryCodec.Body::descriptor))
-                    .compile(stored.body().canonicalIr());
-            if (!(compiled instanceof SkillCompiler.Success success)
-                    || !success.skill().artifact().descriptor().equals(stored.body().descriptor()))
-                return incompatible(ref, Reason.ARTIFACT_INVALID, environment);
-        }
-        return new Compatibility(ref, CompatibilityStatus.COMPATIBLE, List.of(),
-                environment.gameTarget());
+        return assessment(ref, current, environment, ArtifactCompatibility.Limits.defaults(), validateBody)
+                .compatibility();
     }
 
-    private static Compatibility incompatible(ArtifactRef ref, Reason reason,
-                                               RuntimeSnapshot environment) {
-        return new Compatibility(ref, CompatibilityStatus.INCOMPATIBLE, List.of(reason),
-                environment.gameTarget());
+    private ArtifactCompatibility.Assessment assessment(ArtifactRef ref, Snapshot current,
+            RuntimeSnapshot environment, ArtifactCompatibility.Limits policy, boolean validateBody) {
+        return ArtifactCompatibility.assess(ref, pinned -> Optional.ofNullable(current.records().get(pinned))
+                .map(stored -> new ArtifactCompatibility.Entry(
+                        stored.body() == null ? null : stored.body().spec(),
+                        stored.body() == null ? null : stored.body().descriptor(),
+                        stored.body() == null ? null : stored.body().canonicalIr(),
+                        stored.gameTarget(), stored.admission(), stored.integrity())),
+                environment, policy, validateBody);
+    }
+
+    /** Pure captured revisions: callers may discard/rebuild this assessment provider on catalog drift. */
+    public record CompatibilityProvider(CatalogRevision revision, ArtifactCompatibility.Provider provider) { }
+    public CompatibilityProvider compatibilityProvider() {
+        Snapshot current = snapshot;
+        RuntimeVersion environment = runtime.get();
+        return new CompatibilityProvider(new CatalogRevision(current.revision(), environment.revision(),
+                !current.readOnly()), (ref, policy, validateBody) ->
+                assessment(ref, current, environment.snapshot(), policy, validateBody));
+    }
+    public ArtifactCompatibility.Assessment assessCompatibility(ArtifactRef ref) {
+        return compatibilityProvider().provider().assess(ref, ArtifactCompatibility.Limits.defaults(), true);
     }
 
     private void traverse(ArtifactRef ref, Snapshot current, Set<ArtifactRef> visited, int depth) {

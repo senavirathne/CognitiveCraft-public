@@ -92,6 +92,12 @@ public final class CitizenIdentityStore implements AutoCloseable {
 
     /** Imports once before switching the bootstrap journal to ID references. No game work is replayed. */
     public synchronized Snapshot migrateBootstrap(BootstrapJournal.State bootstrap) throws IOException {
+        Snapshot next = previewBootstrap(bootstrap);
+        return next.equals(state) ? state : replace(state, next);
+    }
+
+    /** Migration policy may preview; only replace remains the authoritative publication hook. */
+    synchronized Snapshot previewBootstrap(BootstrapJournal.State bootstrap) throws IOException {
         if (readOnly || bootstrap.externalIdentities() || !state.worldId().equals(bootstrap.worldId()))
             throw new IOException("Bootstrap identity import unavailable");
         var enrollment = bootstrap.enrollment();
@@ -113,8 +119,27 @@ public final class CitizenIdentityStore implements AutoCloseable {
                 rows.add(new Citizen(enrollment.actor(), enrollment.owner(), null, Availability.UNKNOWN));
             }
         }
-        try { return replace(state, new Snapshot(state.worldId(), Math.addExact(state.revision(), 1), rows, receipt)); }
+        try {
+            Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1), rows, receipt);
+            validateExtension(next);
+            if (migrationEncodingBytes(next) > MAX_BYTES) throw new IOException("Citizen byte quota");
+            return next;
+        }
         catch (ArithmeticException overflow) { throw new IOException("Citizen revision exhausted", overflow); }
+    }
+
+    synchronized long migrationInputBytes() throws IOException {
+        return Math.max(Files.exists(current, LinkOption.NOFOLLOW_LINKS) ? Files.size(current) : 0,
+                migrationEncodingBytes(state));
+    }
+    static int migrationEncodingBytes(Snapshot value) {
+        return encode(value).getBytes(StandardCharsets.UTF_8).length;
+    }
+    synchronized long formatVersion() throws IOException {
+        return SaveCompatibility.readVersion(current, MAX_BYTES, SCHEMA);
+    }
+    synchronized long availableMigrationBytes() throws IOException {
+        return Files.getFileStore(directory).getUsableSpace();
     }
 
     private void verifyEnrollment(BootstrapJournal.Enrollment enrollment) throws IOException {
