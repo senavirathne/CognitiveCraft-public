@@ -145,14 +145,9 @@ public final class KernelSession implements AutoCloseable {
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
-                if (!journal.state().externalIdentities()) {
-                    var imported = identities.migrateBootstrap(journal.state());
-                    journal.migrateIdentity(imported);
-                } else {
-                    if (identities.snapshot().migration() == null)
-                        throw new IllegalStateException("Referenced citizen registry is missing");
-                    journal.migrateIdentity(identities.snapshot());
-                }
+                var migration = SaveCompatibility.migrateAtStartup(journal, identities);
+                if (!migration.complete())
+                    throw new IllegalStateException("Bootstrap compatibility migration: " + migration.status());
                 jobs = JobJournal.open(world, journal.state().worldId());
                 leases = ResourceLeaseJournal.open(world, journal.state().worldId());
                 var guard = new ResearchAdmissionController.DecisionGuard();

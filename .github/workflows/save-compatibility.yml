@@ -1,0 +1,152 @@
+name: Save and artifact compatibility acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: save-compatibility-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    name: IMP-015 owner migration and separate-process loaded-world acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Affected module tests and production/test packaging
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Require compatibility suites and actual measured bounds
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          for suite, expected in [('ArtifactCompatibilityTest',10),('SaveCompatibilityTest',25)]:
+              p=Path(f'core/build/test-results/test/TEST-dev.aivillages.core.kernel.{suite}.xml')
+              cases=list(ET.parse(p).getroot().iter('testcase'))
+              if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Exact passing compatibility matrix required: '+suite)
+              print(suite+': '+str(len(cases))+' passing cases')
+          evidence=Path('core/build/compatibility-evidence')
+          a=json.loads((evidence/'assessment.json').read_text())
+          if a['maxVisitsMeasured']!=128 or a['diagnostics']>16 or a['exactCompilerBytes']>65536:
+              raise SystemExit('Missing bounded traversal/compiler evidence')
+          m=json.loads((evidence/'migration.json').read_text())
+          if (m['sourceSchema'],m['targetSchema'],m['checkpoints'],m['replayedEffects'])!=(1,2,7,0) or not m['rightsUnchanged']:
+              raise SystemExit('Migration outcome/rights evidence required')
+          maximum=json.loads((evidence/'maximum-inputs.json').read_text())
+          if (maximum['inputBytes'],maximum['citizens'],maximum['runs'],maximum['records'],maximum['retainedExactLegacyBytes'])!=(81920,64,16,80,16384):
+              raise SystemExit('Actual maximum owner input fixture required')
+          if not 0<maximum['observedPeakDirectoryBytes']-maximum['baselineDirectoryBytes']<=maximum['reservedAdditionalBytes']<=262144:
+              raise SystemExit('Temporary-file reservation exceeded')
+          print('IMP-015 measured bounds:',a,m,maximum)
+          PY
+      - name: Select loaded-world legacy upgrade and saved-world witness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.CompatibilityUpgradeGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Migrate actual loaded world through production startup with models unavailable
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: cold
+          COGNITIVECRAFT_COMPATIBILITY_RESTART: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require two active cold cases and retain evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          required=('loadedlegacyworldmigrateswithoutchangingrightsorreplayingeffects','savedblocksurvivesseparateserverprocess')
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two passing active cold production fixtures required')
+          for name in required:
+              if sum(name in ''.join(ch for ch in c.get('name','').lower() if ch.isalnum()) for c in cases)!=1:
+                  raise SystemExit('Required cold fixture did not run: '+name)
+          text=(root/'logs/latest.log').read_text()
+          if 'IMP-015 loaded-world compatibility accepted phase=cold' not in text:
+              raise SystemExit('Active cold migration proof missing')
+          out=Path('fabric/build/compatibility-evidence');out.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          PY
+      - name: Select second JVM against the same saved Minecraft world
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.CompatibilityRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Restart actual Minecraft and preserve migrated owners without replay
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: warm
+          COGNITIVECRAFT_COMPATIBILITY_RESTART: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require two active warm cases and inspect release packaging
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET, zipfile
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          required=('separateserverrestartpreservesmigratedrightshistoryandexactoriginal','savedblocksurvivesseparateserverprocess')
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two passing active warm production fixtures required')
+          for name in required:
+              if sum(name in ''.join(ch for ch in c.get('name','').lower() if ch.isalnum()) for c in cases)!=1:
+                  raise SystemExit('Required warm fixture did not run: '+name)
+          if 'IMP-015 loaded-world compatibility accepted phase=warm' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Active separate-process migration proof missing')
+          out=Path('fabric/build/compatibility-evidence')
+          shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          shutil.copy2(root/'world/cognitivecraft-compatibility-upgrade/compatibility-restart.json',out/'synthetic-restart-proof.json')
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production jar required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):
+                  raise SystemExit('Test code or models leaked into production jar')
+              for name in ('ArtifactCompatibility','SaveCompatibility'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():
+                      raise SystemExit('Compatibility policy missing from production jar')
+          print('IMP-015 owner migration, current-format no-op, private control, exact originals and no uncertain effects accepted')
+          PY
+      - name: Restore full test registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - name: Retain measured compatibility, cold/warm logs and all test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imp-015-save-compatibility
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            core/build/compatibility-evidence/**
+            fabric/build/compatibility-evidence/**
+            fabric/build/gametest-run/logs/**
+            fabric/build/gametest-run/crash-reports/**

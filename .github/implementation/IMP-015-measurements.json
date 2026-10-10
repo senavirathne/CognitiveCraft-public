@@ -1,0 +1,35 @@
+{
+  "provenance": "Executed controlled owner fixtures; scalar measurements, not behavioral admission",
+  "policy": 1,
+  "fixtures": {
+    "maximum-inputs": {
+      "baselineDirectoryBytes": 82534,
+      "citizens": 64,
+      "inputBytes": 81920,
+      "observedPeakDirectoryBytes": 170438,
+      "records": 80,
+      "reservedAdditionalBytes": 124745,
+      "retainedExactLegacyBytes": 16384,
+      "runs": 16
+    },
+    "assessment": {
+      "diagnostics": 1,
+      "exactCompilerBytes": 129,
+      "maxVisitsMeasured": 128,
+      "policy": 1,
+      "zeroDiagnosticOmission": true
+    },
+    "migration": {
+      "checkpoints": 7,
+      "inputBytes": 702,
+      "policy": 1,
+      "replayedEffects": 0,
+      "reservedAdditionalBytes": 2204,
+      "retainedOriginalBytes": 614,
+      "rightsUnchanged": true,
+      "sourceSchema": 1,
+      "sourceSemanticSha256": "1189228570016ea4058c77dc7c163c8d75e818eac5274bb70d25a5c553a34988",
+      "targetSchema": 2
+    }
+  }
+}
