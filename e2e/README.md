@@ -94,6 +94,9 @@ owned adult through the connected player for explicit remaining work. It does
 not clear or reconcile a private job through instrumentation. Loose crash wheat
 is recovered through ordinary player movement and verified in synchronized
 inventory slots before the next request.
+The inactive uncertain worker is then placed in the separate closed pen with
+its inventory unchanged, before the new request starts. Its vanilla item sharing
+cannot merge old unqualified drops into the next worker's harvest batches.
 
 Player submissions and queued cancellations acknowledge completed asynchronous
 job writes on the server thread before checking admission. They still reject
@@ -101,6 +104,12 @@ an unfinished write. The competing-job case requires B's publication while A's
 assignment is live, then cancels observed partial progress through the network.
 Disconnect uses vanilla's quit-world path and waits for server-side removal;
 the pending Needle case proves removal happened before the native child resumes.
+Each server launch archives the preceding console mailbox before starting its
+JVM, so an old setup or save batch cannot be replayed into a restored fixture.
+Competition retains an honest waiting outcome when the unchanged 32-block
+travel allowance is exhausted. It checks the exact five-unit custody total across
+mature crops, both chests, loose items, workers and players, as well as qualified
+job credit and cancellation cessation.
 
 `ClientDriver` runs bounded actions on the client thread through vanilla screens,
 input/game-mode APIs and the client connection. The mailbox does not call server

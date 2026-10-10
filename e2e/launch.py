@@ -82,12 +82,23 @@ def main() -> None:
                    "--width", "800", "--height", "600"]
         box = root / "clients" / args.player
     box.mkdir(parents=True, exist_ok=True)
+    retired_controls = []
+    if args.kind == "server":
+        # A mailbox belongs to one server process. Sending an old setup or save
+        # batch again after a restart can mutate the restored fixture before play.
+        for name in ("control.json", "control-ack.json"):
+            mailbox = box / name
+            if mailbox.exists():
+                retired = mailbox.with_name(name + "-previous-" + str(uuid.uuid4())[:8])
+                mailbox.rename(retired)
+                retired_controls.append({"path":str(retired),"sha256":digest(retired)})
     with (box / "stdout.log").open("a") as output:
         process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=output,
                                    stderr=subprocess.STDOUT, text=True)
         (box / "process.json").write_text(json.dumps({"pid": process.pid, "start": time.time(),
                 "kind": args.kind, "command": command, "releaseSha256": digest(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"),
                 "javaVersion":subprocess.run([java("java"),"-version"],capture_output=True,text=True,check=True).stderr,
+                "retiredControls":retired_controls,
                 "mods":[{"name":p.name,"sha256":digest(p),"bytes":p.stat().st_size} for p in sorted((directory/"mods").glob("*.jar"))],
                 "renderEnvironment":{key:os.environ[key] for key in ("LIBGL_ALWAYS_SOFTWARE","SDL_VIDEO_DRIVER","DISPLAY")
                                      if key in os.environ}}))

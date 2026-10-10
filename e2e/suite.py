@@ -34,6 +34,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal"
 
 
 class InfrastructureBlocked(RuntimeError):
@@ -139,6 +140,8 @@ class Harness:
 
     def start(self, component: str):
         started = time.time() * 1000
+        previous_controls = {name:digest(self.root/"server"/name) for name in ("control.json","control-ack.json")
+                             if component == "server" and (self.root/"server"/name).exists()}
         if component != "server" and component in self.booted:
             self.action(component, "connect", address=f"127.0.0.1:{self.port}")
             state = self.wait(lambda: self.client_snapshot(component), "Fresh multiplayer world " + component, 100)
@@ -176,6 +179,13 @@ class Harness:
         if component == "server":
             self.wait(lambda: (s if (s := self.snapshot()) and s["time"] >= started
                               and "Done (" in self.server_log() else None), "Dedicated server readiness", 100)
+            runtime = self.wait(lambda: (p if (p := read(self.root/"server/process.json")) and p["start"]*1000 >= started
+                                        else None), "Current server process evidence")
+            retired = {Path(p["path"]).name.split("-previous-")[0]:p["sha256"]
+                       for p in runtime["retiredControls"]}
+            require(retired == previous_controls and not (self.root/"server/control.json").exists(),
+                    "Prior console mailbox was not retired before server restart")
+            self.event("console-mailbox-retired", {"expected":previous_controls,"retired":runtime["retiredControls"]})
         else:
             self.wait(lambda: self.events(component) and any(x["kind"] == "driver" and x["time"] >= started
                                                             for x in self.events(component)),
@@ -641,10 +651,10 @@ def privacy(h: Harness):
         require(row["job"] in h.suggestions(owner, "/aivillage kernel job-status "), "Owned queued job missing")
         require(row["run"] not in h.suggestions(foreign, "/aivillage kernel status "), "Foreign run suggested")
         require(row["job"] not in h.suggestions(foreign, "/aivillage kernel job-status "), "Foreign job suggested")
-        h.command(foreign, "/aivillage kernel status " + row["run"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
-        h.command(foreign, "/aivillage kernel cancel " + row["run"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
-        h.command(foreign, "/aivillage kernel job-status " + row["job"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
-        h.command(foreign, "/aivillage kernel job-cancel " + row["job"], "[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found")
+        h.command(foreign, "/aivillage kernel status " + row["run"], DENIED_PATTERN)
+        h.command(foreign, "/aivillage kernel cancel " + row["run"], DENIED_PATTERN)
+        h.command(foreign, "/aivillage kernel job-status " + row["job"], DENIED_PATTERN)
+        h.command(foreign, "/aivillage kernel job-cancel " + row["job"], DENIED_PATTERN)
         h.cancel_job(owner, row["job"])
         h.wait(lambda: h.job_view(owner,row["job"])["state"] == "CANCELLED", "Owner queue cancellation published")
         require(row["job"] not in h.suggestions(owner, "/aivillage kernel job-cancel "),
@@ -927,11 +937,22 @@ def queued_competition(h: Harness):
     other,other_job,_ = next(row for row in contenders if row[0] != owner)
     h.wait(lambda: (j := h.job_view(other,other_job)) and (j["state"] in ("SUCCEEDED","FAILED","INTERRUPTED") or
                     j["state"] == "WAITING" and j.get("reason") in
-                    ("RESOURCE_MISSING","TARGET_UNAVAILABLE","STALE_OBSERVATION")), "Other scoped queued job bounded physical outcome", 130)
+                    ("RESOURCE_MISSING","TARGET_UNAVAILABLE","STALE_OBSERVATION") or
+                    j["state"] == "WAITING" and j.get("reason") == "BUDGET_EXHAUSTED" and
+                    j["usage"].get("TRAVEL_BLOCKS",0) == 32 and j["attempts"][-1].get("terminal") and
+                    not j["attempts"][-1]["uncertain"]),
+                    "Other scoped queued job bounded physical outcome", 130)
     h.quiet(40)
     state = h.snapshot()
     jobs = [state["players"][p]["jobs"][j] for p,j in [("PlayerA",a),("PlayerB",b)]]
     total = h.container(ARENA["destination"]) + h.container(ARENA["destinationB"])
+    custody = {"delivered":total,
+               "mature":sum("minecraft:wheat" in state["blocks"][f"{x},201,{z}"] and
+                            "age=7" in state["blocks"][f"{x},201,{z}"] for x in (6,7) for z in (6,7,8)),
+               "held":sum(a["inventory"].get("minecraft:wheat",0) for a in state["actors"]),
+               "loose":sum(d["count"] for d in state["drops"] if d["item"] == "minecraft:wheat"),
+               "players":sum(player_inventory(h,p,"minecraft:wheat") for p in ("PlayerA","PlayerB"))}
+    require(sum(custody.values()) == 5,"Shared physical wheat was lost or duplicated: " + str(custody))
     require(total <= 5 and sum(j["fulfilled"] for j in jobs) <= 5, "Shared five-wheat pool duplicated")
     require(not all(j["fulfilled"] == 3 for j in jobs), "Both three-unit jobs claimed six from five")
     require(h.container(destination) == conserved, "Cancelled job created more effects")
@@ -945,7 +966,7 @@ def queued_competition(h: Harness):
         h.cancel_job(p, j)
     h.quiet(); require(h.container(ARENA["destination"]) + h.container(ARENA["destinationB"]) == total, "Effects after queued cancellation")
     h.actions_active = False
-    competition = {"jobs": [a,b], "delivered": total, "state": jobs,"overlapTick":overlap["tick"],
+    competition = {"jobs": [a,b], "delivered": total,"custody":custody,"state": jobs,"overlapTick":overlap["tick"],
                    "cancelledOwner": owner, "partialCancellation": boundary}
     h.fresh(two=True, known=True); h.release_gate(); h.actions_active = True
     multiple = [h.submit(amount=2,queued=True), h.submit(amount=2,queued=True,
@@ -1008,6 +1029,16 @@ def new_recovery_worker(h: Harness, source=None, destination=None):
     h.command("PlayerA", "/aivillage kernel status " + run, "BLOCKED reason=ACTOR_UNAVAILABLE")
     h.actions_active = False
     before = {a["uuid"] for a in h.snapshot()["actors"]}
+    retained = next(a["inventory"] for a in h.snapshot()["actors"] if a["uuid"] == original["entity"])
+    # The old task is inactive and its reservation stays uncertain. Preserve its
+    # inventory in the separate closed pen before preparing the next explicit task.
+    h.console([f"tp {original['entity']} 15.3 201 2.5",
+               "setblock 15 201 4 minecraft:oak_fence_gate[facing=south,open=false]"])
+    isolated = h.wait(lambda: next((a for a in h.snapshot()["actors"] if a["uuid"] == original["entity"] and
+                                   14 < a["pos"][0] < 17 and 1 < a["pos"][2] < 4),None),
+                      "Inactive uncertain worker safely isolated for new explicit work")
+    require(isolated["inventory"] == retained,"Recovery preparation changed the old worker's physical inventory")
+    settled_loose = recover_loose_wheat(h)
     h.console(["setblock 2 201 4 minecraft:oak_fence_gate[facing=south,open=false]",
                "tp PlayerA 2.5 201 5.5 180 0",
                "summon minecraft:villager 2.5 201 2.5 {PersistenceRequired:1b}"])
@@ -1023,7 +1054,8 @@ def new_recovery_worker(h: Harness, source=None, destination=None):
             "Enrollment changed the original recovered identity")
     h.release_gate()
     return {"original": original, "fencedRequest": run, "fencedOutcome": fenced["description"],
-            "newCitizen": citizen, "newEntity": spawned["uuid"]}
+            "newCitizen": citizen, "newEntity": spawned["uuid"],"retainedInventory":retained,
+            "settledLooseBeforeEnrollment":settled_loose}
 
 
 def graceful_recovery(h: Harness):
@@ -1046,8 +1078,8 @@ def graceful_recovery(h: Harness):
     require(h.menu_count("PlayerA",ARENA["destination"]) == stored,"Graceful restart menu lost committed progress")
     h.actions_active = False
     loose = recover_loose_wheat(h)
-    mature,remaining = remaining_wheat(h,stored)
     worker = new_recovery_worker(h)
+    mature,remaining = remaining_wheat(h,stored)
     result = delivery(h,amount=remaining)
     require(h.container(ARENA["destination"]) == stored + remaining,"Explicit graceful recovery duplicated delivery")
     return {"interruptedJob": job, "checkpoint": checkpoint, "recovered": view,
@@ -1119,8 +1151,8 @@ def hard_recovery(h: Harness):
     h.actions_active = False
     # Ordinary player pickup reconciles unqualified crash drops without erasing stock.
     loose = recover_loose_wheat(h)
-    mature,remaining = remaining_wheat(h,stock)
     worker = new_recovery_worker(h)
+    mature,remaining = remaining_wheat(h,stock)
     explicit = delivery(h, amount=remaining)
     require(h.container(ARENA["destination"]) == stock + remaining, "Explicit crash recovery duplicated delivery")
     return {"run": run, "receiptCheckpoint": boundary["receipts"], "savedWorldWheat": stock,
