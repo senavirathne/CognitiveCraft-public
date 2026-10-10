@@ -93,6 +93,15 @@ public final class BootstrapController {
     private long writeDeadlineMillis;
     private BootstrapJournal.Enrollment enrolling;
     private final ArrayDeque<View> recent = new ArrayDeque<>();
+    private java.util.function.Consumer<RetentionEvidenceStore.Event> evidenceSink = event -> { };
+    public void evidenceSink(java.util.function.Consumer<RetentionEvidenceStore.Event> sink) { thread(); evidenceSink = Objects.requireNonNull(sink); }
+    /** Owner capture only; digest roots include retained history and the active execution. */
+    public java.util.Set<WorldRetentionManager.Key> retentionRoots() {
+        thread(); var roots = new java.util.HashSet<WorldRetentionManager.Key>();
+        for (var marker : persisted.runs()) if (marker.artifactSha256() != null) roots.add(new WorldRetentionManager.Key("skills", marker.artifactSha256()));
+        if (active != null && active.artifact != null) roots.add(WorldRetentionManager.artifact(active.artifact));
+        return java.util.Set.copyOf(roots);
+    }
 
     /** Trusted composition ownership check; dispatch must not steal this controller's submission. */
     public boolean ownsSubmission(UUID submission) {
@@ -219,6 +228,7 @@ public final class BootstrapController {
         if (validation instanceof RequestValidator.Rejected rejected)
             return new Submission(id, false, rejected.reason());
         Run run = new Run(id, caller, request, ((RequestValidator.Accepted)validation).value());
+        run.premise = RetentionEvidenceStore.premise(request, snapshot);
         if (jobs != null) {
             try {
                 long now = clock.millis();
@@ -254,6 +264,7 @@ public final class BootstrapController {
             terminate(run, "BLOCKED", rejected.reason()); return;
         }
         run.bound = ((RequestValidator.Accepted)validated).value();
+        run.premise = RetentionEvidenceStore.premise(run.request, snapshot);
         try {
             CapabilityResolver.Decision decision = resolver.resolve(run.bound, snapshot);
             run.routing = decision.routing();
@@ -447,6 +458,9 @@ public final class BootstrapController {
                 run.artifact == null ? null : run.artifact.sha256());
         persist(persisted.enrollment(), withMarker(marker), () -> {
             run.marker = marker; run.phase = Phase.TERMINAL;
+            try { evidenceSink.accept(new RetentionEvidenceStore.Event(run.id, RetentionEvidenceStore.Source.TASK,
+                    run.owner, run.request.capability(), run.artifact, reason, run.premise,
+                    Math.max(0, clock.millis()), run.effects, run.calls)); } catch (RuntimeException ignored) { }
             remember(view(run)); active = null;
         });
     }
@@ -573,6 +587,7 @@ public final class BootstrapController {
         Research.Handle research;
         Execution.Handle execution;
         ArtifactRef artifact;
+        String premise;
         Budgets.ResearchLimits researchLimits;
         Budgets.ExecutionLimits executionLimits;
         java.util.Map<Budgets.Kind,Long> usage = java.util.Map.of();

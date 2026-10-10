@@ -57,6 +57,9 @@ public final class JobLifecycleStore {
     private Reason failure;
     private Snapshot indexed;
     private Map<TrustedContext, List<Job>> dispatchIndex = Map.of();
+    private java.util.function.Predicate<Snapshot> retentionGuard = next -> true;
+    /** Trusted nonblocking pin publication, checked before any new job snapshot can be used. */
+    public void retentionGuard(java.util.function.Predicate<Snapshot> guard) { thread(); retentionGuard = Objects.requireNonNull(guard); }
 
     public JobLifecycleStore(Snapshot initial, Storage storage, Policy policy,
                              CancellationPort cancellations, CapabilityCatalog capabilities,
@@ -612,6 +615,7 @@ public final class JobLifecycleStore {
             }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
                     List.copyOf(rows.values()), allocations);
+            if (!retentionGuard.test(next)) return new Change(Code.REJECTED, null, Reason.STORAGE_UNAVAILABLE, inspectedEdges);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
             pending = next; afterWrite = after;
             storage.replace(state, next).whenComplete((value, error) ->

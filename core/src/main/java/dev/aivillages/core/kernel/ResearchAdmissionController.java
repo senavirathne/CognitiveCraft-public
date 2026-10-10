@@ -265,6 +265,13 @@ public final class ResearchAdmissionController {
         ownerThread = Thread.currentThread();
     }
 
+    private java.util.function.Consumer<RetentionEvidenceStore.Event> evidenceSink = event -> { };
+    private java.util.function.Predicate<java.util.Set<ArtifactRef>> referenceGuard = refs -> true;
+    public void retention(java.util.function.Consumer<RetentionEvidenceStore.Event> sink,
+                          java.util.function.Predicate<java.util.Set<ArtifactRef>> guard) {
+        thread(); evidenceSink = Objects.requireNonNull(sink); referenceGuard = Objects.requireNonNull(guard);
+    }
+
     public Attempt startMissing(CapabilityResolver.Decision route, ValidatedRequest bound,
                                 Budgets.ResearchLimits limits) {
         thread(); Objects.requireNonNull(route); Objects.requireNonNull(bound);
@@ -272,6 +279,7 @@ public final class ResearchAdmissionController {
         idle();
         Attempt attempt = new Attempt(bound, limits, null, null, route.catalogRevision());
         active = attempt;
+        attempt.premise = RetentionEvidenceStore.premise(bound.request(), route.observation());
         if (!valid(bound)) {
             attempt.finish(ResearchStatus.BLOCKED, Reason.REQUEST_INVALID); return attempt;
         }
@@ -301,6 +309,7 @@ public final class ResearchAdmissionController {
             throw new IllegalArgumentException("Identified defect and exact artifact required");
         Attempt attempt = new Attempt(bound, limits, parent, defect, publication.revision());
         active = attempt;
+        if (!referenceGuard.test(java.util.Set.of(parent))) { attempt.finish(ResearchStatus.BLOCKED, Reason.STORAGE_UNAVAILABLE); return attempt; }
         if (!allowed(bound)) attempt.finish(ResearchStatus.BLOCKED, Reason.AUTHORITY_DENIED);
         else attempt.quarantine();
         return attempt;
@@ -377,6 +386,7 @@ public final class ResearchAdmissionController {
         private UUID quarantineDecision;
         private boolean quarantinePending;
         private boolean cancellationPending;
+        private String premise;
         private int epoch, candidates;
         private UUID expectedGeneration;
         private Generation.Role expectedRole;
@@ -385,6 +395,7 @@ public final class ResearchAdmissionController {
                         ArtifactRef repairParent, EvidenceRef defect, long catalogRevision) {
             this.bound = bound; this.limits = limits;
             this.repairParent = repairParent; this.defect = defect;
+            premise = sha256(RequestCodec.encode(bound.request()) + bound.observation());
             this.catalogRevision = catalogRevision;
             total = new Budgets.Ledger(limits.total(), clock);
             inference = total.child(limits.inference().total());
@@ -599,6 +610,9 @@ public final class ResearchAdmissionController {
                 return;
             }
             compiled = ((SkillCompiler.Success) result).skill();
+            if (!referenceGuard.test(java.util.Set.copyOf(JobArtifactPins.closure(compiled.artifact().descriptor(), artifacts)))) {
+                finish(ResearchStatus.BLOCKED, Reason.STORAGE_UNAVAILABLE); return;
+            }
             phase = Phase.FIXTURING;
             int token = ++epoch;
             try { fixtures.evaluate(compiled, bound, limits, total, cancelled::get)
@@ -740,6 +754,11 @@ public final class ResearchAdmissionController {
                     inference.snapshot().getOrDefault(Kind.CALLS, 0L));
             phase = Phase.TERMINAL;
             events.clear();
+            try { evidenceSink.accept(new RetentionEvidenceStore.Event(id, RetentionEvidenceStore.Source.RESEARCH,
+                    bound.context(), bound.request().capability(), terminal.artifact(), reason, premise,
+                    Math.max(0, clock.millis()), trialSummary == null ? 0 : trialSummary.committedEffects(), terminal.modelCalls()));
+            } catch (RuntimeException ignored) { }
+            referenceGuard.test(java.util.Set.of());
         }
     }
     private static String receiptsDigest(List<CropDelivery.CropReceipt> receipts) {

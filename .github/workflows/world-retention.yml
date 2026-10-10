@@ -1,0 +1,154 @@
+name: World retention acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/world-retention.yml']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/world-retention.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: world-retention-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  retention:
+    name: IMP-016 bounded owners, process-kill and loaded-world acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Affected module tests and production/test packaging
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Require all retention matrix tests, real process kills and measured simulations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          for suite, expected in [('WorldRetentionManagerTest',16),('RetentionEvidenceStoreTest',26),('WorldRetentionIntegrationTest',2),('WorldRetentionSafetyTest',7)]:
+              p=Path(f'core/build/test-results/test/TEST-dev.aivillages.core.kernel.{suite}.xml')
+              cases=list(ET.parse(p).getroot().iter('testcase'))
+              if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Exact passing retention matrix required: '+suite)
+              if suite=='RetentionEvidenceStoreTest' and sum('realProcessKillAtEachReplacementBoundary' in c.get('name','') for c in cases)!=5:
+                  raise SystemExit('Five actual abrupt-process replacement boundaries required')
+              print(suite+': '+str(len(cases))+' passing cases')
+          evidence=Path('core/build/retention-evidence')
+          failure=json.loads((evidence/'failures.json').read_text())
+          if (failure['events'],failure['groups'],failure['samples'],failure['recent'],failure['modelCalls'])!=(10000,1,3,16,0):
+              raise SystemExit('Actual contextual failure aggregation required')
+          if not 0<failure['maxDirectoryBytes']<=failure['directoryCeiling']==196608:
+              raise SystemExit('Evidence file ceiling exceeded')
+          graph=json.loads((evidence/'graph.json').read_text())
+          if graph['nodes']!=4096 or graph['maxInspected']>16 or graph['slices']>=2000 or graph['collected']!=0:
+              raise SystemExit('Bounded iterative graph protection required')
+          owners=json.loads((evidence/'owners.json').read_text())
+          if (owners['iterations'],owners['collected'],owners['jobs'],owners['protectedArtifacts'],owners['replayedEffects'])!=(256,256,16,2,0) or not owners['accountingUnchanged'] or owners['maxTotalBytes']>=1000000:
+              raise SystemExit('Long actual repository/job-owner simulation required')
+          print('IMP-016 measured acceptance:',failure,graph,owners)
+          PY
+      - name: Select loaded-world retention and saved-world witness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.RetentionGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Aggregate actual loaded-world shortages with models unavailable
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: cold
+          COGNITIVECRAFT_RETENTION_RESTART: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require two active cold cases and retain evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          required=('loadedworldretentionboundsrepeatedshortagesandreclaimsonlyuncommittedbody','savedblocksurvivesseparateserverprocess')
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two passing active cold production fixtures required')
+          for name in required:
+              if sum(name in ''.join(ch for ch in c.get('name','').lower() if ch.isalnum()) for c in cases)!=1:
+                  raise SystemExit('Required cold fixture did not run: '+name)
+          text=(root/'logs/latest.log').read_text()
+          if 'IMP-016 loaded-world retention accepted phase=cold' not in text:
+              raise SystemExit('Active cold retention proof missing')
+          out=Path('fabric/build/retention-evidence');out.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          PY
+      - name: Select second JVM against the same saved Minecraft world
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.RetentionRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Restart actual Minecraft, discard cache and preserve protected owners without replay
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_RESTART_PROBE: warm
+          COGNITIVECRAFT_RETENTION_RESTART: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require two active warm cases and inspect release packaging
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET, zipfile
+          root=Path('fabric/build/gametest-run')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          required=('savedworldretentionandcachediscardpreserverightsknowledgeandaccounting','savedblocksurvivesseparateserverprocess')
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two passing active warm production fixtures required')
+          for name in required:
+              if sum(name in ''.join(ch for ch in c.get('name','').lower() if ch.isalnum()) for c in cases)!=1:
+                  raise SystemExit('Required warm fixture did not run: '+name)
+          if 'IMP-016 loaded-world retention accepted phase=warm' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Active separate-process retention proof missing')
+          out=Path('fabric/build/retention-evidence')
+          shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          shutil.copy2(root/'world/cognitivecraft-retention-fixture/retention-restart.json',out/'synthetic-restart-proof.json')
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production jar required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):
+                  raise SystemExit('Test code or models leaked into production jar')
+              for name in ('WorldRetentionManager','RetentionRoots','RetentionEvidenceStore','WorldRetentionService'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():
+                      raise SystemExit('Retention owner/policy missing from production jar')
+          print('IMP-016 quota/root fences, retained knowledge, private evidence, independent cache deletion and no uncertain effects accepted')
+          PY
+      - name: Restore full test registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - name: Retain measured retention, cold/warm logs and all test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imp-016-world-retention
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            core/build/retention-evidence/**
+            fabric/build/retention-evidence/**
+            fabric/build/gametest-run/logs/**
+            fabric/build/gametest-run/crash-reports/**

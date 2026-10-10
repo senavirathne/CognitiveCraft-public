@@ -41,7 +41,9 @@ public final class KernelSession implements AutoCloseable {
                           boolean identityReadOnly, CapabilityRetrievalIndex retrieval,
                           JobJournal jobs, Jobs.Snapshot initialJobs, boolean jobsReadOnly,
                           ResourceLeaseJournal leases, ResourceLeases.Snapshot initialLeases,
-                          boolean leasesReadOnly) { }
+                          boolean leasesReadOnly, RetentionEvidenceStore evidence,
+                          RetentionRoots roots, WorldRetentionManager retention,
+                          WorldRetentionService retentionService) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -71,6 +73,7 @@ public final class KernelSession implements AutoCloseable {
     private LeasedGateway leasedGateway;
     private LeasedGateway dispatchGateway;
     private WorkerDispatcher dispatcher;
+    private final Map<String, java.util.Set<WorldRetentionManager.Key>> desiredRoots = new LinkedHashMap<>();
     private List<TrustedContext> dispatchScopes=List.of();
     private long dispatchRevision=-1;
     private int dispatchScopeCursor;
@@ -142,6 +145,7 @@ public final class KernelSession implements AutoCloseable {
             CitizenIdentityStore identities = null;
             VersionedSkillRepository repository = null;
             CapabilityRetrievalIndex retrieval = null;
+            RetentionEvidenceStore evidence = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -163,10 +167,31 @@ public final class KernelSession implements AutoCloseable {
                         new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
                         capabilities, CapabilityRetrievalIndex.Limits.defaults(), () -> System.nanoTime() / 1_000_000);
+                evidence = RetentionEvidenceStore.open(world, journal.state().worldId(), RetentionEvidenceStore.Limits.defaults(), clock, RetentionEvidenceStore.Faults.none());
+                var roots = new RetentionRoots();
+                var retention = new WorldRetentionManager(WorldRetentionManager.Policy.defaults(), roots, caller -> false);
+                retention.register(repository.retentionOwner()); retention.register(evidence.retentionOwner());
+                final var bootstrapOwner = journal; final var jobOwner = jobs; final var identityOwner = identities; final var leaseOwner = leases;
+                retention.register(new RetentionFileOwner("bootstrap", world.resolve(BootstrapJournal.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.RUNS,
+                        () -> bootstrapOwner.state().revision(), () -> bootstrapOwner.state().runs().size(), 8));
+                retention.register(new RetentionFileOwner("jobs", world.resolve(JobJournal.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.JOBS,
+                        () -> jobOwner.snapshot().revision(), () -> jobOwner.snapshot().jobs().size() + jobOwner.snapshot().allocations().size(), 8));
+                retention.register(new RetentionFileOwner("citizens", world.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.IDENTITIES,
+                        () -> identityOwner.snapshot().revision(), () -> identityOwner.snapshot().citizens().size(), 8));
+                retention.register(new RetentionFileOwner("leases", world.resolve(ResourceLeaseJournal.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.LEASES,
+                        () -> leaseOwner.snapshot().revision(), () -> leaseOwner.snapshot().leases().size(), 8));
+                retention.register(new RetentionFileOwner("diagnostics", world.resolve(PrimitiveDiagnosticStore.RELATIVE_ROOT), WorldRetentionManager.Category.DIAGNOSTICS,
+                        () -> 0, () -> 0, 16, 10_485_760));
+                retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
+                        () -> 0, () -> 0, 16));
+                repository.admissionCapacity((bytes, count) -> retention.assessReplacement("skills", WorldRetentionManager.Category.ARTIFACTS,
+                        new WorldRetentionManager.Amount(bytes, count)).status());
+                var retentionService = new WorldRetentionService(retention, evidence);
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
-                        jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly());
+                        jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention, retentionService);
             } catch (Exception failure) {
+                if (evidence != null) try { evidence.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (retrieval != null) retrieval.close();
                 if (repository != null) try { repository.close(); }
                 catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
@@ -202,6 +227,9 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        loaded.retentionService().beginTick();
+        refreshRetentionRoots();
+        loaded.retentionService().maintain(worker);
         loaded.retrieval().maintain(worker);
         refreshAvailability();
         if (pendingEnrollmentEntity != null && citizens.ready()) pendingEnrollmentEntity = null;
@@ -308,6 +336,8 @@ public final class KernelSession implements AutoCloseable {
                 ResearchAdmissionController.repositoryPublication(repository, worker),
                 loaded.guard(), resolver, control, authority, clock, worker,
                 new ResearchAdmissionController.Settings(2, 8, 2_048), primitiveDiagnosticSink);
+        research.retention(loaded.retentionService()::offer,
+                refs -> publishRoots("research", refs.stream().map(WorldRetentionManager::artifact).collect(java.util.stream.Collectors.toSet())));
         RequestEnvironment environment = new RequestEnvironment() {
             @Override public boolean enrolled(ActorRef actor, TrustedContext context) {
                 return controls(actor, context);
@@ -334,6 +364,14 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(this::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        jobs.retentionGuard(next -> {
+            var roots = new java.util.HashSet<WorldRetentionManager.Key>();
+            for (var job : next.jobs()) for (var attempt : job.attempts()) for (var executionRef : attempt.executions())
+                for (var ref : executionRef.pinned()) roots.add(WorldRetentionManager.artifact(ref));
+            roots.addAll(jobs.protectedRoots().artifacts().stream().map(WorldRetentionManager::artifact).toList());
+            return publishRoots("jobs", roots);
+        });
+        publishRoots("jobs", jobs.protectedRoots().artifacts().stream().map(WorldRetentionManager::artifact).collect(java.util.stream.Collectors.toSet()));
         controller = new BootstrapController(loaded.initialState(),
                 (expected, enrollment, runs) -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -382,6 +420,9 @@ public final class KernelSession implements AutoCloseable {
                                 }
                             }, null);
                 }}, environment, capabilities, this::researchLimits, this::executionLimits, clock, citizens, jobs);
+        controller.evidenceSink(loaded.retentionService()::offer);
+        publishRoots("bootstrap", controller.retentionRoots());
+        publishRoots("research", java.util.Set.of());
 
         dispatchGateway=new LeasedGateway(gateway,leases,
                 (request,run)->LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run),
@@ -529,6 +570,23 @@ public final class KernelSession implements AutoCloseable {
         ready(); return jobs.bySubmission(submission, caller);
     }
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
+    private boolean publishRoots(String source, java.util.Set<WorldRetentionManager.Key> keys) {
+        if (keys.size() > RetentionRoots.MAX_ROOTS) return false;
+        desiredRoots.put(source, java.util.Set.copyOf(keys));
+        boolean complete = !source.equals("jobs") || jobs == null || jobs.protectedRoots().complete();
+        var old = loaded.roots().snapshot().sources().get(source);
+        if (old != null && old.complete() == complete && old.roots().equals(keys)) return true;
+        long revision = old == null ? 0 : old.revision() == Long.MAX_VALUE ? Long.MAX_VALUE : old.revision() + 1;
+        var update = loaded.roots().publish(source, new RetentionRoots.Source(revision, keys, complete));
+        return update == RetentionRoots.Update.APPLIED || update == RetentionRoots.Update.UNCHANGED;
+    }
+    private void refreshRetentionRoots() {
+        if (controller != null) desiredRoots.put("bootstrap", controller.retentionRoots());
+        for (var entry : List.copyOf(desiredRoots.entrySet())) publishRoots(entry.getKey(), entry.getValue());
+    }
+    WorldRetentionService.Status retentionStatus() { ready(); return loaded.retentionService().status(); }
+    public List<RetentionEvidenceStore.Aggregate> retentionFailures(ServerPlayer player) { ready(); return loaded.evidence().failures(caller(player)); }
+    List<RetentionEvidenceStore.Aggregate> retentionFailures(TrustedContext caller) { ready(); return loaded.evidence().failures(caller); }
     public String scope(UUID principal) {
         ready();
         return loaded.initialState().worldId() + "/" + principal;
@@ -747,10 +805,12 @@ public final class KernelSession implements AutoCloseable {
         interpretingPlayer = null;
         opening.whenComplete((opened, failed) -> {
             if (opened != null) {
+                opened.retentionService().close();
                 opened.retrieval().close();
                 worker.execute(() -> {
+                    opened.retentionService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);
