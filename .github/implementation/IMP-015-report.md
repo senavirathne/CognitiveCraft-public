@@ -4,7 +4,7 @@ Save compatibility now coordinates the existing bootstrap 1 → 2 identity hando
 
 **Baseline:** `b5599606a9c668370672722d3e681a785a7a124b`, merged IMP-014.1.
 **Specification:** [documentation b844997](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/b84499758bf77c7c529a5971419062bdbe586408/docs/source/docs/implementation-prompts.md#imp-015), published before implementation publication. The preserved original IMP-015/shared contract also applies.
-**Status:** Local acceptance passed; final published-source CI and merge review pending. This report will record those actual results before merge.
+**Status:** Implementation complete; local acceptance and all reviewed-source CI gates passed. Final report-only head verification and authorized merge follow.
 **Contracts:** [IMP-015-contracts.md](IMP-015-contracts.md). Architecture stays 0.5; compatibility policy 1 is distinct from existing domain schemas and Contracts/IR 1.
 
 ## Original unit matrix and concrete evidence
@@ -50,7 +50,32 @@ Cancellation/deadline/quiescence checks are cooperative at fixed apply phases. T
 
 ## Published-source CI and merge evidence
 
-PUBLISHED_CI_EVIDENCE
+All **16 runs** on reviewed runtime source `e8300c2976d76504e921fcdc64570e277583014c` passed: **13 pull-request acceptance families and 3 push runs**. The final report-only commit preserves every implementation/test/workflow blob from this reviewed source; its head is separately gated before merge.
+
+| Workflow | Event | Result | Run |
+|---|---|---|---|
+| AI work broker acceptance | pull_request | Passed | [38071415605](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415605) |
+| Capability retrieval acceptance | pull_request | Passed | [38071415602](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415602) |
+| Citizen identity acceptance | pull_request | Passed | [38071415606](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415606) |
+| CognitiveCraft verification | pull_request | Passed | [38071415612](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415612) |
+| CognitiveCraft verification | push | Passed | [38071413182](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071413182) |
+| Default nearest physical acceptance | pull_request | Passed | [38071415662](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415662) |
+| Job lifecycle acceptance | pull_request | Passed | [38071415597](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415597) |
+| Local generation smoke | pull_request | Passed | [38071415577](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415577) |
+| Needle language acceptance | pull_request | Passed | [38071415644](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415644) |
+| Primitive diagnostics acceptance | pull_request | Passed | [38071415647](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415647) |
+| Primitive diagnostics acceptance | push | Passed | [38071413188](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071413188) |
+| Research local-model physical trial | pull_request | Passed | [38071415595](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415595) |
+| Resource lease acceptance | pull_request | Passed | [38071415586](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415586) |
+| Save and artifact compatibility acceptance | pull_request | Passed | [38071415608](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415608) |
+| Save and artifact compatibility acceptance | push | Passed | [38071413243](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071413243) |
+| Worker dispatcher acceptance | pull_request | Passed | [38071415699](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38071415699) |
+
+The compatibility job required 10 artifact / 25 save cases, real maximum-input accounting, two active cold project cases, two active warm project cases in a separate JVM, exact phase markers and production package checks. CI measured the same scalar bounds as the committed local evidence; canonical source digests differ across synthetic UUID fixtures, as expected.
+
+The full Gradle/Fabric verification ran **48 distinct project GameTests / 75 successful executions**, including explicit saved-world, cancellation, physical attribution, future-manifest refusal, SIGKILL recovery, private commands/completion, identity and injected-NLU nearest binding. The pinned genuine-model trial used existing Ollama 0.12.10 / Qwen3 4b instruct 2507 q4_K_M gates, physically admitted a generated method, then stopped the model service and reused saved knowledge in a separate Minecraft process. Retained IMP-014.1 diagnostics ran six active cold/two warm cases, blocked writer/known physical work, unchanged admitted bytes, private replay and the actual offline host report. Existing citizen/job/lease/dispatcher/broker/retrieval/language/local-generation families all passed. No review submissions or unresolved review threads existed at the completion check.
+
+Delivery: [PR #9](https://github.com/senavirathne/CognitiveCraft-public/pull/9). Merge is authorized by the user's request and will use the verified final head SHA. Documentation links are filled from the actual resulting merge commit; no future merge SHA is fabricated.
 
 ## Changed files
 
