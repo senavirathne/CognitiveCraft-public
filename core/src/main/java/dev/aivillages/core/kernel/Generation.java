@@ -22,7 +22,8 @@ public final class Generation {
 
     public record Descriptor(String protocol, String model, String digest) {
         public Descriptor {
-            if (!"ollama-chat-v1".equals(protocol) || model == null || model.isBlank()
+            if (protocol == null || !protocol.matches("[a-z0-9][a-z0-9._-]{0,63}")
+                    || model == null || model.isBlank()
                     || model.length() > 128 || (digest != null && digest.length() > 128))
                 throw new IllegalArgumentException("Model descriptor");
         }

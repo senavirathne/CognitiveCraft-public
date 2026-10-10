@@ -165,10 +165,12 @@ jobs:
           from pathlib import Path
           path = Path('fabric/src/gameTest/resources/fabric.mod.json')
           testmod = json.loads(path.read_text())
-          for suite in ('GatewayGameTests', 'BootstrapAcceptanceGameTests', 'BootstrapStorageGameTests',
-                        'BootstrapInterruptionGameTests', 'BootstrapRecoveryGameTests', 'BootstrapHardKillGameTests',
-                        'BootstrapBlockerGameTests', 'CitizenIdentityGameTests', 'NeedleLanguageGameTests', 'WorldReferenceGameTests'):
-              testmod['entrypoints']['fabric-gametest'].remove('dev.aivillages.fabric.' + suite)
+          selected=['dev.aivillages.fabric.'+suite for suite in (
+              'FarmingGameTests', 'ResearchGameTests', 'BootstrapGameTests',
+              'ServerRestartProbeGameTests', 'KernelCommandGameTests', 'KernelSuggestionGameTests')]
+          if not set(selected).issubset(testmod['entrypoints']['fabric-gametest']):
+              raise SystemExit('Missing registered bootstrap/farming regression suite')
+          testmod['entrypoints']['fabric-gametest']=selected
           path.write_text(json.dumps(testmod, indent=2) + '\n')
           print('Regression suites:', testmod['entrypoints']['fabric-gametest'])
           PY

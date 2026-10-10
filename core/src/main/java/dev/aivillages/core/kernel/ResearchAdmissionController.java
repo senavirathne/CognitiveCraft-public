@@ -204,6 +204,8 @@ public final class ResearchAdmissionController {
         }
     }
     private record Event(int generation, Object payload, Throwable error) { }
+    private record Compilation(SkillCompiler.CompileResult result, String candidateSha256,
+                               PrimitiveDiagnostics.ProviderMetadata provider, String requestShape) { }
     private final CapabilityCatalog capabilities;
     private final PrimitiveCatalog primitives;
     private final ArtifactCatalog artifacts;
@@ -220,6 +222,7 @@ public final class ResearchAdmissionController {
     private final Clock clock;
     private final Executor staticWorker;
     private final Settings settings;
+    private final PrimitiveDiagnostics.Sink diagnosticSink;
     private final Thread ownerThread;
     private Attempt active;
 
@@ -230,6 +233,18 @@ public final class ResearchAdmissionController {
             CapabilityResolver.Engine resolver,
             CapabilityResolver.ControlPolicy control, AuthorityPolicy authority,
             Clock clock, Executor staticWorker, Settings settings) {
+        this(capabilities, primitives, artifacts, generator, fixtures, trials, staging, grants,
+                publication, decisions, resolver, control, authority, clock, staticWorker,
+                settings, PrimitiveDiagnostics.noop());
+    }
+
+    public ResearchAdmissionController(CapabilityCatalog capabilities, PrimitiveCatalog primitives,
+            ArtifactCatalog artifacts, GenerationPort generator, FixturePort fixtures,
+            TrialPort trials, TrialArtifacts staging, TrialGrants grants,
+            PublicationPort publication, DecisionGuard decisions,
+            CapabilityResolver.Engine resolver,
+            CapabilityResolver.ControlPolicy control, AuthorityPolicy authority,
+            Clock clock, Executor staticWorker, Settings settings, PrimitiveDiagnostics.Sink diagnosticSink) {
         this.capabilities = Objects.requireNonNull(capabilities);
         this.primitives = Objects.requireNonNull(primitives);
         this.artifacts = Objects.requireNonNull(artifacts);
@@ -246,6 +261,7 @@ public final class ResearchAdmissionController {
         this.clock = Objects.requireNonNull(clock);
         this.staticWorker = Objects.requireNonNull(staticWorker);
         this.settings = Objects.requireNonNull(settings);
+        this.diagnosticSink = Objects.requireNonNull(diagnosticSink);
         ownerThread = Thread.currentThread();
     }
 
@@ -495,7 +511,7 @@ public final class ResearchAdmissionController {
             else if ((phase == Phase.QUARANTINING || phase == Phase.CANCELLING
                     && quarantinePending) && event.payload() instanceof PublishResult result)
                 quarantined(result);
-            else if (phase == Phase.VALIDATING && event.payload() instanceof SkillCompiler.CompileResult result)
+            else if (phase == Phase.VALIDATING && event.payload() instanceof Compilation result)
                 compiled(result);
             else if (phase == Phase.FIXTURING && event.payload() instanceof FixtureEvidence result)
                 fixtured(result);
@@ -507,6 +523,9 @@ public final class ResearchAdmissionController {
             if (result == null || !result.id().equals(expectedGeneration)
                     || !result.owner().equals(bound.context()) || result.role() != expectedRole) {
                 finish(ResearchStatus.BLOCKED, Reason.REQUEST_INVALID); return;
+            }
+            if (!allowed(bound)) {
+                finish(ResearchStatus.BLOCKED, Reason.AUTHORITY_DENIED); return;
             }
             if (result.outcome() != Generation.Outcome.CANDIDATE) {
                 if (result.outcome() == Generation.Outcome.MALFORMED && repairAllowed()) {
@@ -524,7 +543,6 @@ public final class ResearchAdmissionController {
             }
             candidates++;
             model = result.descriptor();
-            candidateDigest = sha256(result.candidateIr());
             if (candidates > settings.maxCandidates()) {
                 finish(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED); return;
             }
@@ -533,15 +551,44 @@ public final class ResearchAdmissionController {
         private void compile(String source) {
             phase = Phase.VALIDATING;
             int token = ++epoch;
-            CompletableFuture.supplyAsync(() -> new SkillCompiler(capabilities, primitives, artifacts)
-                    .compile(source), staticWorker).whenComplete((compiled, failure) ->
+            Generation.Descriptor acceptedModel = model;
+            Generation.Role acceptedRole = expectedRole;
+            CompletableFuture.supplyAsync(() -> new Compilation(
+                    new SkillCompiler(capabilities, primitives, artifacts).compile(source),
+                    sha256(source), acceptedModel == null ? null
+                            : PrimitiveDiagnostics.ProviderMetadata.project(acceptedModel),
+                    acceptedModel == null ? "" : PrimitiveDiagnostics.requestShape(CropDelivery.SPEC, acceptedRole)),
+                    staticWorker).whenComplete((compiled, failure) ->
                     events.add(new Event(token, compiled, failure)));
         }
-        private void compiled(SkillCompiler.CompileResult result) {
+        private void compiled(Compilation completion) {
+            // Compilation is asynchronous. Current control/effect authority must win at application.
+            if (!allowed(bound)) {
+                finish(ResearchStatus.BLOCKED, Reason.AUTHORITY_DENIED); return;
+            }
+            candidateDigest = completion.candidateSha256();
+            SkillCompiler.CompileResult result = completion.result();
             if (result instanceof SkillCompiler.Failure failure) {
                 for (SkillCompiler.Diagnostic diagnostic : failure.diagnostics()) {
                     if (diagnostics.size() == settings.maxDiagnostics()) break;
                     diagnostics.add(diagnostic);
+                }
+                if (failure.unsupportedPrimitive().isPresent()) {
+                    SkillCompiler.UnsupportedPrimitiveReference reference =
+                            failure.unsupportedPrimitive().orElseThrow();
+                    // Supplied candidates have no accepted generation metadata and are never AI demands.
+                    try {
+                        if (completion.provider() != null) {
+                            if (reference.catalogFingerprint() == null) diagnosticSink.catalogUnavailable();
+                            else diagnosticSink.offer(new PrimitiveDiagnostics.Observation(bound.context(),
+                                    id, expectedGeneration, expectedRole, bound.request().capability(),
+                                    completion.provider(), reference, candidateDigest, completion.requestShape()));
+                        }
+                    } catch (RuntimeException | AssertionError ignored) {
+                        // Advisory observation failure cannot affect research or expose its payload.
+                    }
+                    finish(ResearchStatus.NOT_ADMITTED, Reason.UNSUPPORTED_PRIMITIVE);
+                    return;
                 }
                 if (repairAllowed() && !diagnostics.isEmpty()) generate(Generation.Role.REPAIR,
                         "Repair candidate SHA-256=" + candidateDigest
