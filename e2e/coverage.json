@@ -177,6 +177,10 @@
         {
           "source": "core/src/test/java/dev/aivillages/core/kernel/CitizenIdentityStoreTest.java",
           "suite": "dev.aivillages.core.kernel.CitizenIdentityStoreTest"
+        },
+        {
+          "source": "fabric/src/test/java/dev/aivillages/fabric/KernelAvailabilityTest.java",
+          "suite": "dev.aivillages.fabric.KernelAvailabilityTest"
         }
       ],
       "happyPath": "Nearest enrollment, Tab and durable name",

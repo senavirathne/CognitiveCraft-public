@@ -88,6 +88,13 @@ The changed-binding request starts with six verified mature input crops and no
 old loose drops in its separate field. That recorded fixture reset occurs before
 submission; it supplies no delivered stock or task receipts.
 
+Recovery preserves the original citizen and its uncertain worker reservation.
+The suite checks that new work with that worker is blocked, then enrolls a fresh
+owned adult through the connected player for explicit remaining work. It does
+not clear or reconcile a private job through instrumentation. Loose crash wheat
+is recovered through ordinary player movement and verified in synchronized
+inventory slots before the next request.
+
 `ClientDriver` runs bounded actions on the client thread through vanilla screens,
 input/game-mode APIs and the client connection. The mailbox does not call server
 handlers. Fresh Tab requires an observed outbound suggestion request matched to

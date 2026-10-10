@@ -159,6 +159,10 @@ class Harness:
             self.action(component, "connect", address=f"127.0.0.1:{self.port}")
             state = self.wait(lambda: self.client_snapshot(component), "Real multiplayer play " + component, 100)
             require(not state["singleplayer"], "Integrated server cannot qualify")
+            if component in self.players:
+                require(state["uuid"] == self.players[component], "Restarted client principal changed")
+            self.wait(lambda: self.snapshot()["players"].get(component,{}).get("uuid") == state["uuid"],
+                      "Independent server/client login identity " + component)
             self.players[component] = state["uuid"]
 
     def server_log(self):
@@ -356,6 +360,14 @@ class Harness:
         prefix = "queue" if queued else "harvest"
         text = f"/aivillage kernel {prefix} {self.citizens[player]} {amount} " + " ".join(map(str, source + destination))
         answer = self.command(player, text, ("job=" if queued else "run=") + UUID_PATTERN)
+        if not allow_rejection and "accepted=false reason=BUDGET_EXHAUSTED" in answer:
+            # The durable owner admits one asynchronous publication at a time. A rejected
+            # submission created no job/effects; retry the actual player command within a bound.
+            def admitted():
+                nonlocal answer
+                answer = self.command(player, text, ("job=" if queued else "run=") + UUID_PATTERN)
+                return answer if "accepted=false reason=BUDGET_EXHAUSTED" not in answer else None
+            self.wait(admitted, "Durable submission publication became available", 30)
         self.last_submission = answer
         if not allow_rejection: require("accepted=true" in answer, "Physical request rejected: " + answer)
         return re.search(("job=" if queued else "run=") + "(" + UUID_PATTERN + ")", answer).group(1)
@@ -546,9 +558,13 @@ def commands_and_permissions(h: Harness):
     require("inference" not in normal["tree"]["kernel"], "Operator inference command remains after deop")
     require(expected <= h.client_snapshot("PlayerB")["tree"]["kernel"].keys(), "A's deop changed B's command permissions")
     require(expected - {"enroll", "inference"} <= normal["tree"]["kernel"].keys(), "Owned commands disappeared after deop")
-    h.command("PlayerA", f"/aivillage kernel name {citizen} Áda 🌾", "name=Áda 🌾")
+    h.command("PlayerA", f"/aivillage kernel name {citizen} Áda 森", "name=Áda 森")
+    h.command("PlayerA", f"/aivillage kernel name {citizen} Áda 🌾", "Name: REQUEST_INVALID")
     invalid = f"/aivillage kernel harvest {citizen} 0 " + " ".join(map(str, ARENA["source"] + ARENA["destination"]))
     h.command("PlayerA", invalid, "accepted=false reason=REQUEST_INVALID")
+    for source in ([7,201,8,6,201,6], [-1,201,-1,20,201,14]):
+        h.command("PlayerA", f"/aivillage kernel harvest {citizen} 4 " +
+                  " ".join(map(str,source + ARENA["destination"])), "accepted=false reason=REQUEST_INVALID")
     h.command("PlayerA", "/aivillage kernel name malformed Ada", "Invalid actor-id")
     h.console(["op PlayerA"], lifecycle=True)
     h.wait(lambda: "enroll" in h.client_snapshot("PlayerA")["tree"]["kernel"], "Live op tree refresh")
@@ -687,13 +703,22 @@ def physical(h: Harness):
         h.actions_active = True
         run = h.submit(amount=amount, source=source,
                        destination=ARENA["unreachableDestination"] if variant == "obstructed" else None, allow_rejection=True)
+        view = None
         if "accepted=false" in h.last_submission:
             description = h.last_submission
         else:
             view = h.terminal("PlayerA", run); description = view["description"]
-        require("SUCCEEDED" not in description and h.container(ARENA["destination"]) == 0, "Negative request falsely delivered")
+        actual = h.container(ARENA["destination"])
+        require("SUCCEEDED" not in description, "Negative request falsely succeeded: " + variant + " " + description)
+        if variant == "shortage":
+            require(actual < amount and actual == (h.receipts(view,"DEPOSIT") if view else 0) and actual <= 6,
+                    "Shortage partial progress exceeded physical stock or qualified receipts")
+            require(h.menu_count("PlayerA",ARENA["destination"]) == actual,
+                    "Shortage partial progress differs from real client contents")
+        else:
+            require(actual == 0, "Blocked request delivered unexpected stock: " + variant)
         require(h.model_calls() == h.model_baseline, "Known environmental blocker invited inference")
-        negatives.append({"variant": variant, "outcome": description}); h.actions_active = False
+        negatives.append({"variant": variant, "outcome": description, "qualifiedPartialWheat": actual}); h.actions_active = False
     return {"delivery": result, "negativeVariants": negatives}
 
 
@@ -885,6 +910,40 @@ def reconnect_players(h: Harness, players):
         require(h.citizens[player] in h.command(player, "/aivillage kernel citizens", "citizens="), "Restart lost citizen identity")
 
 
+def player_inventory(h: Harness, player, item):
+    return sum(slot["count"] for slot in h.client_snapshot(player)["slots"]
+               if slot["playerInventory"] and slot["item"] == item)
+
+
+def new_recovery_worker(h: Harness, source=None, destination=None):
+    """Keep the uncertain worker fenced; enroll a new eligible worker through the real client."""
+    original = {"citizen": h.citizens["PlayerA"], "entity": h.entities["PlayerA"]}
+    h.actions_active = True
+    run = h.submit(amount=1, source=source, destination=destination)
+    fenced = h.terminal("PlayerA",run)
+    require("BLOCKED reason=ACTOR_UNAVAILABLE" in fenced["description"] and not fenced["receipts"],
+            "Unreconciled original worker lost its conservative assignment fence")
+    h.command("PlayerA", "/aivillage kernel status " + run, "BLOCKED reason=ACTOR_UNAVAILABLE")
+    h.actions_active = False
+    before = {a["uuid"] for a in h.snapshot()["actors"]}
+    h.console(["setblock 2 201 4 minecraft:oak_fence_gate[facing=south,open=false]",
+               "tp PlayerA 2.5 201 5.5 180 0",
+               "summon minecraft:villager 2.5 201 2.5 {PersistenceRequired:1b}"])
+    spawned = h.wait(lambda: next((a for a in h.snapshot()["actors"] if a["uuid"] not in before), None),
+                     "Next explicit request's unclaimed adult fixture")
+    h.wait(lambda: math.dist(h.client_snapshot("PlayerA")["pos"],[2.5,201,5.5]) < .5,
+           "Recovery enrollment client synchronized")
+    citizen = h.enroll(name="RecoveryAda")
+    require(h.entities["PlayerA"] == spawned["uuid"] and citizen != original["citizen"],
+            "Recovery worker was not independently enrolled")
+    require(any(c["actor"]["citizenId"] == original["citizen"] and c["actor"]["entityId"] == original["entity"]
+                for c in h.snapshot()["players"]["PlayerA"]["citizens"]["citizens"]),
+            "Enrollment changed the original recovered identity")
+    h.release_gate()
+    return {"original": original, "fencedRequest": run, "fencedOutcome": fenced["description"],
+            "newCitizen": citizen, "newEntity": spawned["uuid"]}
+
+
 def graceful_recovery(h: Harness):
     h.fresh(two=True, known=True); h.release_gate(); h.actions_active = True
     job = h.submit(amount=6, queued=True)
@@ -903,11 +962,12 @@ def graceful_recovery(h: Harness):
     require(h.container(ARENA["destination"]) == stored, "Interrupted effects automatically replayed")
     require(h.citizens["PlayerA"] not in h.suggestions("PlayerB", "/aivillage kernel name "), "Recovery leaked ownership")
     h.actions_active = False
+    worker = new_recovery_worker(h, source=ARENA["reuseSource"], destination=ARENA["reuseDestination"])
     h.prepare_reuse_actor()
     result = delivery(h, amount=6, source=ARENA["reuseSource"], destination=ARENA["reuseDestination"])
     require(h.menu_count("PlayerA",ARENA["destination"]) == stored, "Graceful restart menu lost committed progress")
     return {"interruptedJob": job, "checkpoint": checkpoint, "recovered": view,
-            "conservedWheat": stored, "newExplicitWork": result}
+            "conservedWheat": stored, "workerFence": worker, "newExplicitWork": result}
 
 
 def client_loss(h: Harness):
@@ -972,6 +1032,19 @@ def hard_recovery(h: Harness):
     require(h.container(ARENA["destination"]) == stock and 0 <= stock <= 6, "Hard-kill conservation/replay failure")
     require(h.menu_count("PlayerA", ARENA["destination"]) == stock, "Crash recovery menu diverged")
     h.actions_active = False
+    # Ordinary player pickup reconciles unqualified crash drops without erasing stock.
+    loose = [d for d in h.snapshot()["drops"] if d["item"] == "minecraft:wheat"]
+    inventory_before = player_inventory(h, "PlayerA", "minecraft:wheat")
+    for drop in loose:
+        h.walk("PlayerA", [math.floor(v) for v in drop["pos"]], reach=.6)
+        h.wait(lambda: not any(d["uuid"] == drop["uuid"] for d in h.snapshot()["drops"]),
+               "Real player recovered loose crash wheat")
+    inventory_after = inventory_before
+    if loose:
+        inventory_after = h.wait(lambda: (count if (count := player_inventory(h,"PlayerA","minecraft:wheat"))
+                                == inventory_before + sum(d["count"] for d in loose) else None),
+                                "Client received conserved crash-drop inventory")
+    worker = new_recovery_worker(h)
     mature = sum("minecraft:wheat" in h.snapshot()["blocks"][f"{x},201,{z}"] and
                  "age=7" in h.snapshot()["blocks"][f"{x},201,{z}"] for x in (6,7) for z in (6,7,8))
     remaining = min(6-stock,mature)
@@ -980,7 +1053,9 @@ def hard_recovery(h: Harness):
     require(h.container(ARENA["destination"]) == stock + remaining, "Explicit crash recovery duplicated delivery")
     return {"run": run, "receiptCheckpoint": boundary["receipts"], "savedWorldWheat": stock,
             "baseline": baseline, "checkpoint": checkpoint, "killedWorldHashes": stopped_hashes,
-            "remainingMatureStock": mature, "explicitRemainingWork": explicit,
+            "remainingMatureStock": mature, "workerFence": worker,
+            "recoveredLooseWheat": {"drops": loose, "playerBefore": inventory_before, "playerAfter": inventory_after},
+            "explicitRemainingWork": explicit,
             "outcome": view["description"], "atomicWorldModSavePromised": False}
 
 
@@ -991,7 +1066,7 @@ def certify(h: Harness, acquisition, reuse):
         seed.rename(seed.with_name(seed.name + "-previous-" + str(uuid.uuid4())[:8]))
     seed.mkdir(parents=True)
     # All gameplay has terminated. This reset creates the next fixture, not task success.
-    restore = []
+    restore = ["kill @e[type=minecraft:item,x=-3,y=199,z=-3,dx=26,dy=8,dz=20]"]
     for source in (ARENA["source"], ARENA["reuseSource"]):
         for x in range(source[0], source[3]+1):
             for z in range(source[2], source[5]+1):

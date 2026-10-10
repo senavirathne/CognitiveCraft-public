@@ -693,8 +693,16 @@ public final class KernelSession implements AutoCloseable {
         var citizen = rows.get(availabilityCursor);
         availabilityCursor = (availabilityCursor + 1) % rows.size();
         var loadedActor = villager(citizen.actor());
-        if (loadedActor != null) citizens.observeAvailability(citizen.actor().citizenId(), CitizenRegistry.Availability.LOADED);
-        else if (citizen.availability() == CitizenRegistry.Availability.LOADED)
+        refreshLoadedAvailability(citizens, citizen, loadedActor != null);
+    }
+
+    static void refreshLoadedAvailability(CitizenRegistry citizens, CitizenRegistry.Citizen citizen,
+                                          boolean loaded) {
+        if (loaded) citizens.observeAvailability(citizen.actor().citizenId(), CitizenRegistry.Availability.LOADED);
+        // An acknowledged runtime unload can precede its asynchronous metadata publication.
+        // The current observation must win over the older durable LOADED row.
+        else if (citizens.query(citizen.actor().citizenId(), citizen.owner()).availability()
+                == CitizenRegistry.Availability.LOADED)
             citizens.observeAvailability(citizen.actor().citizenId(), CitizenRegistry.Availability.UNKNOWN);
     }
 

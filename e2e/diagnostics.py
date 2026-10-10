@@ -21,10 +21,14 @@ for argument in sys.argv[1:]:
         print("COUNTERS", {k:state.get(k) for k in ("tick","arenaLoaded","arenaTicking","needleCalls","generationCalls")})
         print("ACTOR INVENTORIES",[(a["uuid"],a["inventory"],a["pos"]) for a in state.get("actors",[])])
         print("LOOSE DROPS",state.get("drops",[]))
+        print("FAILED CLIENT RESPONSES",data.get("clients",{}))
         for player,records in state.get("knownPlayers",{}).items():
+            print("CITIZENS",player,records.get("citizens"),"online="+str(records.get("online")))
             for identifier,view in records.get("runs",{}).items():
                 print("RUN",player,identifier,view.get("description",view.get("phase")),
                       "usage=" + str(view.get("responsibility",{}).get("usage")),
-                      "receipts=" + str(len(view.get("receipts",[]))))
+                      "receipts=" + str(len(view.get("receipts",[]))),
+                      "quantities=" + str({stage:sum(r.get("quantity",0) for r in view.get("receipts",[]) if r.get("stage")==stage)
+                                            for stage in ("HARVEST","PICKUP","DEPOSIT")}))
             for identifier,job in records.get("jobs",{}).items():
                 print("JOB",player,identifier,job["state"],job.get("reason"),job.get("fulfilled"))
