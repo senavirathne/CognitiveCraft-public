@@ -43,15 +43,16 @@ public final class PrerequisiteGameTests {
         CompletableFuture<Void> closing;long quietUntil;int coldJobCount;
         Driver(GameTestHelper h,boolean warm) {
             this.h=h;this.warm=warm;root=h.getLevel().getServer().getWorldPath(LevelResource.ROOT).resolve("cognitivecraft-prerequisite-fixture");
+            System.setProperty("cognitivecraft.gametest.trace","true");
             if(!warm) {
                 world=UUID.randomUUID();owner=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(world,UUID.randomUUID()));
                 origin=h.absolutePos(new BlockPos(8,0,8));BootstrapGameTests.forceFixtureChunks(h,origin);geometry();
-                for(int x=0;x<10;x++)for(int z=0;z<9;z++)block(x,0,z,Blocks.STONE.defaultBlockState());
+                // Flat farmland buffer: real drops must remain visible without a wall/height-step trap.
+                for(int x=0;x<10;x++)for(int z=0;z<9;z++)block(x,0,z,Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE,7));
                 for(int x=2;x<=3;x++)for(int z=2;z<=4;z++){
                     block(x,0,z,Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE,7));
                     if(x!=3||z!=4)block(x,1,z,Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE,7));
                 }
-                for(int x=1;x<=4;x++)for(int z=1;z<=5;z++)if((x==1||x==4||z==1||z==5)&&!(x==4&&z==4))block(x,1,z,Blocks.STONE.defaultBlockState());
                 block(4,1,4,Blocks.CHEST.defaultBlockState());box().setItem(0,new ItemStack(Items.WHEAT,2));
                 var relative=origin.offset(3,1,3).subtract(h.absolutePos(BlockPos.ZERO));
                 worker=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,relative.getX(),relative.getY(),relative.getZ());worker.setNoAi(false);worker.setPersistenceRequired();
@@ -149,7 +150,7 @@ public final class PrerequisiteGameTests {
             case 11->{require(jobs.ready(),"Await native execution pin");var a=job(producer).current();var execution=a.executions().getFirst();worker.setNoAi(false);
                 var started=executor.startAdmitted(a.bound(),execution.artifact(),new RunCorrelation(execution.runId(),execution.artifact(),null),new Budgets.ExecutionLimits(a.allowance(),10_000),new Budgets.Ledger(a.allowance(),clock));
                 require(started instanceof BoundedSkillExecutor.Started,"Native producer refused start: "+started);run=((BoundedSkillExecutor.Started)started).run();phase=12;}
-            case 12->{var progress=run.tick(owner);if(progress.phase()!=BoundedSkillExecutor.Phase.TERMINAL)return;var sum=progress.summary();require(sum.outcome().status()==ExecutionStatus.SUCCEEDED,"Real P0 production failed: "+sum.outcome());
+            case 12->{var progress=run.tick(owner);if(progress.phase()!=BoundedSkillExecutor.Phase.TERMINAL)return;var sum=progress.summary();require(sum.outcome().status()==ExecutionStatus.SUCCEEDED,"Real P0 production failed: "+sum.outcome()+" stock="+stock()+" trace="+progress.trace());
                 var j=job(producer);var a=j.current();require(jobs.recordExecutionResult(producer,j.guard(),new Jobs.Report(a.id(),a.generation(),sum.committedEffects(),sum.usage(),sum.receipts(),sum.outcome()),owner).accepted(),"Actual receipts refused");phase=13;}
             case 13->{require(jobs.ready()&&leases.ready(),"Await real terminal receipts");require(stock()==5&&job(producer).fulfilled()==5,"Physical wheat or attributable delivery not conserved");
                 var deposits=job(producer).current().receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).toList();var queue=new ArrayList<Credit>();var used=new HashMap<UUID,Long>();

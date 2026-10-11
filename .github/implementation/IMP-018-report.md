@@ -47,6 +47,12 @@ Commands/gates: targeted `:core:test --tests ...DeterministicPrerequisiteResolve
 - Tests: `DeterministicPrerequisiteResolverTest`, `PrerequisiteAdmissionTest`, native `PrerequisiteGameTests`/`PrerequisiteRestartGameTests`, full GameTest registration.
 - Delivery: `.github/workflows/prerequisites.yml`, this report and versioned contract.
 
+## CI fixture correction
+
+Initial PR head `9a648ce1f363fc6f26bd1db1cf031705a3720f40` passed all 62 matrix cases and the unchanged full module tests on the standard runner. Cold native GP-18 in run [38102882993](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38102882993) then blocked in the existing P0 physical execution with `ACTION_TIMEOUT`, seven committed effects and two completed delivery cycles. That failed run is not acceptance evidence.
+
+The fixture enclosed the crop strip with blocks and height changes; trapped/drifting physical drops were a suspected pickup visibility/reach problem. The GP-18 witness now uses a flat farmland buffer and includes native custody/navigation/pickup tracing for a concrete failure diagnostic. Both cold/warm processes passed locally with the corrected fixture (six total cases, 5/5 actual stock/credit, unchanged producer and six Jobs). The production gateway's 200-tick action bound, supported production capability and required successful delivery/receipt assertions are unchanged. This is a gameplay-fixture correction; final-head CI must execute it successfully before merge.
+
 ## Final reviewed head and CI evidence
 
 Pending final-head workflow completion, engineering review, authorized merge and fetched-main verification. IMP-018 is not claimed complete until all required gates pass and those identifiers are recorded.
