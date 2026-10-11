@@ -1,6 +1,6 @@
 # IMP-020 completion report
 
-Status: implementation and local structural gates complete; exact-head remote verification and authorized merge remain pending. This report will be finalized after those gates with actual source/merge/tree IDs.
+Status: published as PR #19 under explicit public-destination approval; final exact-head CI and authorized IMP-020-only merge remain pending. This report will be finalized after those gates with actual source/merge/tree IDs. IMP-021 is published separately as PR #20 and has no merge authorization.
 
 Baseline main: 01c623f4915e8f760659eac1a1426e1bbca6e3a5, tree 198f6ff191f843f727c7f2298d4a53ab5c580b63. Normative documentation: b1d5bf71365d1b1762699c006465caa1db8e5be5, IMP-020, shared contract, GP-20 and first-build-fixture. User explicitly requested implementation through IMP-020 and merge; this authorizes publication despite the historical shared contract's default local-only delivery instruction.
 
@@ -26,7 +26,7 @@ See [the exported contract](IMP-020-contracts.md) for field-level supported plac
 | No effects/AI | Unavailable generation/gateway spies, no execution domains, independent cold/warm GP-20 JVM driver |
 | Retention/privacy | Current/rollback/root protection, new-pin stale collection, orphan-only reclamation, metered pages, category/world capacity, denied access/authorized sharing/revocation |
 
-Final matrix contains 30 BlueprintValidatorTest, 32 BlueprintStoreTest and 3 FabricBlueprintRegistryTest cases (65 total). Remote workflow requires all to execute and pass, then every core/providers/fabric regression and production/native-test packaging.
+Final matrix contains 30 BlueprintValidatorTest, 33 BlueprintStoreTest and 3 FabricBlueprintRegistryTest cases (66 total). Remote workflow requires all to execute and pass, then every core/providers/fabric regression and production/native-test packaging. The additional store case covers the shutdown defect recorded below.
 
 ## Local commands and evidence
 
@@ -47,3 +47,11 @@ Quotas include immutable bodies plus metadata staging/backup/recovery headroom. 
 Production: Blueprint.java, BlueprintValidator.java, BlueprintStore.java, SaveCompatibility.java; FabricBlueprintRegistry.java and KernelSession.java. Tests: BlueprintFixture.java, BlueprintValidatorTest.java, BlueprintStoreTest.java, BlueprintBoundaryProbe.java; FabricBlueprintRegistryTest.java. Build/test binding: core/build.gradle and .github/workflows/blueprint-boundary.yml. Contracts/report: .github/implementation/IMP-020-contracts.md and this file.
 
 The repository has no docs/backlog tree. This contract establishes the current IMP-020/GP-20 owner/interface handoff against the read-only normative documentation. No accepted current dependent consumes a changed signature; existing prerequisite interfaces remain source compatible. Final report publication will add exact code-head CI, reviewed merge and final-main proof after implementation checks finish.
+
+## Dated defect/fix — 2026-10-11: fence a closed structural writer
+
+Runtime symptom: a stale BlueprintStore reference could publish after close released its file lock and a replacement writer acquired it. Minimal reproducer: open/store/close owner A, open owner B on the same world, then call A.store with different geometry. The concrete path was BlueprintStore.close -> FileLock.release, followed by old store -> commit -> independent file writes. The closed instance remained readOnly=false, violating the sole-writer invariant.
+
+The regression closedOwnerCannotPublishAfterReplacementWriterAcquiresLock fails on the original source with expected UNAVAILABLE but actual STORED. The production correction sets readOnly before removing roots or releasing the writer lock, fencing both publication and collection while preserving recovery data. The test requires exact unchanged metadata after the stale call and a successful publication by the replacement owner. No patch, mixin, parser/custody weakening or temporary workaround is used. Final verification runs the corrected production source; matrix count is now 66.
+
+The initial PR source 471d36181f620f8c8d66c4a0c05566fe4f11cd53 was rebased onto main 96d0de2e6d9a1eabb81cfdfe3b1bff4036fa5b50, preserving merged real-client production fixes. Its Blueprint acceptance run 38150490024 passed all 65 then-current matrix cases, all 1,155 regressions (core 1,059/providers 66/Fabric 30), both GP-20 JVMs and release inspection. That runner has no sandbox SPACE_UNAVAILABLE failures. This evidence establishes the initial source only; the new close-fence source must pass fresh exact-head CI before merge.

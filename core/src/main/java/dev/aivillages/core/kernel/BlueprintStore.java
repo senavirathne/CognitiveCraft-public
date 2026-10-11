@@ -445,6 +445,7 @@ public final class BlueprintStore implements AutoCloseable {
     private static Publication publication(Status status,Ref ref,int bytes,int work,boolean uncertain){return new Publication(status,ref,bytes,work,uncertain);}
     private static Inspection empty(Status status,Ref ref){return new Inspection(status,ref,null,Map.of(),List.of(),List.of(),null);}
     @Override public synchronized void close()throws IOException {
+        readOnly=true;
         if(manager!=null)manager.references().publishNext("blueprint-publication",Set.of(),true);
         lock.release();channel.close();
     }
