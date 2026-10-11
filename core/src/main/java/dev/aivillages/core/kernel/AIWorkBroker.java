@@ -114,6 +114,8 @@ public final class AIWorkBroker implements GenerationPort, AutoCloseable {
                                     Budgets.Ledger allowance, Contract contract, Priority priority) {
         thread(); Objects.requireNonNull(request); Objects.requireNonNull(limits);
         Objects.requireNonNull(allowance); Objects.requireNonNull(contract); Objects.requireNonNull(priority);
+        if ((request.role() == Generation.Role.PLANNING) != contract.equals(Plan.OUTPUT))
+            throw new IllegalArgumentException("Distinct planning output contract required");
         Subscriber previous = subscribers.get(request.id());
         if (previous != null) {
             previous.inspect(request.bound().context());

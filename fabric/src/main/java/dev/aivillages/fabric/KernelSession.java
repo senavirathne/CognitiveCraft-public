@@ -44,7 +44,7 @@ public final class KernelSession implements AutoCloseable {
                           boolean leasesReadOnly, RetentionEvidenceStore evidence,
                           RetentionRoots roots, WorldRetentionManager retention,
                           WorldRetentionService retentionService, ObservedWorldKnowledgeStore observations,
-                          ObservedKnowledgeService knowledgeService) { }
+                          ObservedKnowledgeService knowledgeService, PlanJournal plans, PlanJournal.Snapshot initialPlans) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -73,6 +73,7 @@ public final class KernelSession implements AutoCloseable {
     private CitizenRegistry citizens;
     private JobLifecycleStore jobs;
     private FabricPrerequisiteRuntime prerequisites;
+    private GoalPlanner planner;
     private ResourceLeaseService leases;
     private LeasedGateway leasedGateway;
     private LeasedGateway dispatchGateway;
@@ -140,8 +141,7 @@ public final class KernelSession implements AutoCloseable {
                 new LocalNeedleAdapter.Config(Path.of(needleDir).resolve("needle"),
                         Path.of(needleDir).resolve("needle3.cact")));
         languagePort = injectedLanguage == null ? needle : injectedLanguage;
-        CapabilityCatalog capabilities = id -> id.equals(CropDelivery.ID)
-                ? Optional.of(CropDelivery.SPEC) : Optional.empty();
+        CapabilityCatalog capabilities = PlanningGoals.catalog();
         opening = CompletableFuture.supplyAsync(() -> {
             BootstrapJournal journal = null;
             JobJournal jobs = null;
@@ -151,6 +151,7 @@ public final class KernelSession implements AutoCloseable {
             CapabilityRetrievalIndex retrieval = null;
             RetentionEvidenceStore evidence = null;
             ObservedWorldKnowledgeStore observations = null;
+            PlanJournal plans = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -159,6 +160,7 @@ public final class KernelSession implements AutoCloseable {
                     throw new IllegalStateException("Bootstrap compatibility migration: " + migration.status());
                 jobs = JobJournal.open(world, journal.state().worldId());
                 leases = ResourceLeaseJournal.open(world, journal.state().worldId());
+                plans = PlanJournal.open(world,journal.state().worldId());
                 var guard = new ResearchAdmissionController.DecisionGuard();
                 repository = VersionedSkillRepository.open(world,
                         new VersionedSkillRepository.RuntimeSnapshot("minecraft-26.3",
@@ -183,6 +185,9 @@ public final class KernelSession implements AutoCloseable {
                                 .anyMatch(c -> c.actor().equals(actor) && c.owner().equals(context)),
                         TrustedContext::equals, source -> source.equals(observationSource), point -> { });
                 retention.register(observations.retentionOwner());
+                retention.register(plans.retentionOwner());
+                plans.capacity(bytes -> retention.assessReplacement("plans",WorldRetentionManager.Category.EVIDENCE,
+                        new WorldRetentionManager.Amount(bytes*3L,24)).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 var knowledgeService = new ObservedKnowledgeService(observations);
                 final var bootstrapOwner = journal; final var jobOwner = jobs; final var identityOwner = identities; final var leaseOwner = leases;
                 retention.register(new RetentionFileOwner("bootstrap", world.resolve(BootstrapJournal.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.RUNS,
@@ -207,8 +212,9 @@ public final class KernelSession implements AutoCloseable {
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
-                        retentionService, observations, knowledgeService);
+                        retentionService, observations, knowledgeService, plans, plans.snapshot());
             } catch (Exception failure) {
+                if(plans!=null)try{plans.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if (observations != null) try { observations.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (evidence != null) try { evidence.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
                 if (retrieval != null) retrieval.close();
@@ -261,6 +267,7 @@ public final class KernelSession implements AutoCloseable {
         leasedGateway.tick();
         broker.step();
         controller.tick();
+        planner.tick();
         dispatchGateway.tick();
         if(dispatchRevision!=jobs.snapshot().revision()) {
             dispatchScopes=jobs.snapshot().jobs().stream().filter(j->!controller.ownsSubmission(j.submissionId()))
@@ -290,8 +297,7 @@ public final class KernelSession implements AutoCloseable {
                     try { return loaded.identities().replace(expected, next); }
                     catch (Exception failed) { throw new IllegalStateException(failed); }
                 }, worker), CitizenRegistry.privateAddresses(), clock, loaded.identityReadOnly());
-        CapabilityCatalog capabilities = id -> id.equals(CropDelivery.ID)
-                ? Optional.of(CropDelivery.SPEC) : Optional.empty();
+        CapabilityCatalog capabilities = PlanningGoals.catalog();
         var primitives = diagnosticPrimitives();
         var repository = loaded.repository();
         var staging = new ResearchAdmissionController.TrialArtifacts(repository);
@@ -327,7 +333,7 @@ public final class KernelSession implements AutoCloseable {
                 new BoundedSkillExecutor.Settings(8, 16, 32, 64));
         var resolver = new CapabilityResolver.Engine(capabilities, primitives,
                 loaded.retrieval().candidates(), loaded.retrieval().authoritativeFallback(),
-                CapabilityResolver.cropDeliverySupport(), control,
+                PlanningGoals.support(), control,
                 CapabilityResolver.enrolledWorldSkills(control), authority,
                 CapabilityResolver.cropPrerequisites(),
                 () -> server.overworld().getGameTime(), CapabilityResolver.Limits.defaults());
@@ -388,6 +394,10 @@ public final class KernelSession implements AutoCloseable {
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock);
+        planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
+                loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
+                (expected,next)->CompletableFuture.supplyAsync(()->{try{return loaded.plans().replace(expected,next);}catch(Exception failure){throw new java.util.concurrent.CompletionException(failure);}},worker),
+                (template,caller)->template.owner().equals(caller));
         jobs.retentionGuard(next -> {
             var roots = new java.util.HashSet<WorldRetentionManager.Key>();
             for (var job : next.jobs()) for (var attempt : job.attempts()) for (var executionRef : attempt.executions())
@@ -457,7 +467,7 @@ public final class KernelSession implements AutoCloseable {
                 new BoundedSkillExecutor.Settings(8,16,32,64));
         dispatcher=new WorkerDispatcher(jobs,citizens,this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
-                job->!controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
+                job->job.request().request().capability().equals(CropDelivery.ID) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
@@ -561,6 +571,21 @@ public final class KernelSession implements AutoCloseable {
                                                       TrustedContext caller,List<String> recipeKeys) {
         ready();return prerequisites.resolve(needs,caller,recipeKeys);
     }
+    /** Structured driver boundary; the request contains no authority or model-supplied allowance. */
+    public Jobs.Change createPlanningObjective(UUID id,CapabilityRequest goal,TrustedContext caller) {
+        ready();if(!PlanningGoals.valid(goal))throw new IllegalArgumentException("Recognized planning goal required");
+        var observation=observe(goal,((ActorValue)goal.arguments().get("actor")).value());
+        var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);maxima.putAll(researchLimits(clock.millis()).total().maxima());
+        maxima.put(Budgets.Kind.INPUT_BYTES,65536L);maxima.put(Budgets.Kind.OUTPUT_BYTES,16384L);maxima.put(Budgets.Kind.CANDIDATES,2L);
+        return jobs.create(id,id,goal,caller,observation.reference(),new Budgets.Limits(maxima,clock.millis()+600000),List.of());
+    }
+    public GoalPlanner.View proposePlan(UUID parent,TrustedContext caller){ready();return planner.propose(parent,caller);}
+    public GoalPlanner.View planStatus(UUID proposal,TrustedContext caller){ready();return planner.view(proposal,caller);}
+    public boolean cancelPlanProposal(UUID proposal,TrustedContext caller){ready();return planner.cancelProposal(proposal,caller);}
+    public Jobs.Change cancelPlanningObjective(UUID parent,TrustedContext caller){ready();return planner.cancelObjective(parent,caller);}
+    public boolean retainPlanningTemplate(UUID parent,TrustedContext caller){ready();return planner.demonstrate(parent,caller);}
+    public List<PlanJournal.Template> planningTemplates(TrustedContext caller){ready();return planner.templates(caller);}
+    public GoalPlanner.View reusePlanningTemplate(UUID parent,UUID template,TrustedContext caller){ready();return planner.reuse(parent,template,caller);}
     private boolean controls(ActorRef actor, TrustedContext context) {
         return citizens != null && citizens.controls(actor, context);
     }
@@ -611,6 +636,7 @@ public final class KernelSession implements AutoCloseable {
     }
     private void refreshRetentionRoots() {
         if (controller != null) desiredRoots.put("bootstrap", controller.retentionRoots());
+        if(planner!=null)desiredRoots.put("plans",planner.retentionRoots());
         for (var entry : List.copyOf(desiredRoots.entrySet())) publishRoots(entry.getKey(), entry.getValue());
     }
     WorldRetentionService.Status retentionStatus() { ready(); return loaded.retentionService().status(); }
@@ -842,6 +868,7 @@ public final class KernelSession implements AutoCloseable {
         closeRequested = true;
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
+        if(planner!=null)planner.close();
         if(broker!=null)broker.close();
         closed = true;
         if (model != null) model.close();
@@ -858,7 +885,7 @@ public final class KernelSession implements AutoCloseable {
                     opened.retentionService().closeWorker();
                     opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);

@@ -14,6 +14,14 @@ public final class DeterministicPrerequisiteResolver {
     public DeterministicPrerequisiteResolver(Limits limits, LongSupplier ticks) {
         this.limits = Objects.requireNonNull(limits); this.ticks = Objects.requireNonNull(ticks);
     }
+    /** Exact bounded outcome vocabulary check, before a broad goal may enter planning.
+     * A handled outcome must return to deterministic prerequisites; this never runs a model. */
+    public record OutcomeCoverage(CapabilityId capability, boolean handled, boolean complete, int inspected) { }
+    public static OutcomeCoverage outcomeCoverage(CapabilityId capability, Catalog catalog) {
+        Objects.requireNonNull(capability);Objects.requireNonNull(catalog);
+        return new OutcomeCoverage(capability,catalog.productions().stream().anyMatch(p->p.capability().equals(capability)),
+                catalog.complete(),catalog.productions().size()+catalog.recipes().size());
+    }
     public Proposal resolve(List<Need> requested, Catalog catalog, Supplies supplies, Methods methods,
                             Access access, Budgets.Ledger parent) {
         Objects.requireNonNull(catalog); Objects.requireNonNull(supplies); Objects.requireNonNull(methods);

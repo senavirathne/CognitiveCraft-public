@@ -1,0 +1,179 @@
+name: Bounded goal planning acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goal-planning-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: IMP-019 matrix, regressions and two-JVM GP-19
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute every IMP-019 matrix case
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.GoalPlannerTest --tests dev.aivillages.core.kernel.PlanJournalTest :providers:test --tests dev.aivillages.providers.PlanningAdapterTest
+      - name: Require all matrix cases to execute and pass
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for module,suite,expected in [('core','GoalPlannerTest',43),('core','PlanJournalTest',12),('providers','PlanningAdapterTest',4)]:
+              package='dev.aivillages.core.kernel.' if module=='core' else 'dev.aivillages.providers.'
+              cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-'+package+suite+'.xml')).getroot().iter('testcase'))
+              if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Every matrix case must execute and pass: '+suite)
+          print('IMP-019 matrix: 59 executed passing cases')
+          PY
+      - name: Execute complete affected module regressions and build packaging
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Select cold GP-19 and saved Minecraft witness
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlanningGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Reject invalid proposals, fence cancellation and execute known children offline
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_PLANNING_RESTART: cold
+          COGNITIVECRAFT_RESTART_PROBE: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require cold evidence and select a second JVM
+        run: |
+          python3 - <<'PY'
+          import json,shutil,xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run');out=Path('fabric/build/planning-evidence');out.mkdir(parents=True,exist_ok=True)
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Two passing executed cold project cases required')
+          if 'IMP-019 GP-19 accepted phase=cold first=2 second=3 planningEffects=0 knownModelCalls=0 children=2 noReplay=true' not in (root/'logs/latest.log').read_text():raise SystemExit('Active cold GP-19 proof missing')
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text());m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlanningRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests'];p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Reopen the same world and owner records without inference or effects replay
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_PLANNING_RESTART: warm
+          COGNITIVECRAFT_RESTART_PROBE: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require warm evidence, full tests and clean production contents
+        run: |
+          python3 - <<'PY'
+          import json,shutil,hashlib,zipfile,xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run');out=Path('fabric/build/planning-evidence')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Two passing executed warm project cases required')
+          if 'IMP-019 GP-19 accepted phase=warm first=2 second=3 planningEffects=0 knownModelCalls=0 children=2 noReplay=true' not in (root/'logs/latest.log').read_text():raise SystemExit('Active warm GP-19 proof missing')
+          shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(module+'/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Complete executed module coverage required: '+module)
+              counts[module]=len(cases)
+          saved=root/'world/cognitivecraft-planning-fixture';cold=json.loads((saved/'cold.json').read_text());warm=json.loads((saved/'warm.json').read_text())
+          for proof in (cold,warm):
+              if (proof['first'],proof['second'],proof['planningEffects'],proof['knownModelCalls'])!=(2,3,0,0) or len(proof['children'])!=2:raise SystemExit('Owned actual delivery/no-inference witness failed')
+          if cold['children']!=warm['children'] or cold['objective']!=warm['objective'] or (cold['proposalCalls'],warm['proposalCalls'])!=(5,0):raise SystemExit('Restart changed work or invoked inference')
+          for name in ('cold.json','warm.json','restart.json'):shutil.copy2(saved/name,out/name)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production artifact required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Test code or model weights leaked into release')
+              for name in ('Plan','PlanningBudget','PlanValidator','PlanJournal','GoalPlanner','PlanningGoals'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Planning runtime missing: '+name)
+          evidence={'schema':1,'matrix':59,'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
+          (out/'acceptance.json').write_text(json.dumps(evidence,indent=2)+'\n');print(evidence)
+          PY
+      - name: Restore full GameTest registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-019-planning-acceptance
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            fabric/build/planning-evidence/**
+            fabric/build/gametest-run/logs/**
+            fabric/build/gametest-run/crash-reports/**
+  held-out-quality:
+    name: IMP-019 genuine held-out shared-backend quality and latency
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Start the pinned shared backend and explicitly acquire its existing smoke model
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-planning-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:11434/api/version && break
+            sleep 2
+          done
+          docker exec cognitivecraft-planning-ollama ollama pull qwen2.5:1.5b-instruct
+      - name: Measure three held-out live proposals independently of controlled gameplay fixtures
+        timeout-minutes: 8
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen2.5:1.5b-instruct
+        run: |
+          set -o pipefail
+          mkdir -p providers/build/planning-quality
+          bash ./gradlew --no-daemon --stacktrace :providers:runPlanningLiveBenchmark | tee providers/build/planning-quality/held-out.log
+      - name: Require genuine bounded results and retain quality without substituting fake-model evidence
+        run: |
+          python3 - <<'PY'
+          import json,re
+          from pathlib import Path
+          root=Path('providers/build/planning-quality');lines=(root/'held-out.log').read_text().splitlines()
+          cases=[json.loads(line.removeprefix('IMP-019 planning quality ')) for line in lines if line.startswith('IMP-019 planning quality ')]
+          if len(cases)!=3 or {c['case'] for c in cases}!={0,1,2}:raise SystemExit('Three genuine held-out results required')
+          for case in cases:
+              if case['model']!='qwen2.5:1.5b-instruct' or not re.fullmatch('[0-9a-f]{64}',case['modelDigest']):raise SystemExit('Live model identity missing')
+              if not 0<case['inputBytes']<=32768 or not 0<case['outputBytes']<=8192 or case['latencyMillis']<=0:raise SystemExit('Bounded live inference evidence missing')
+          if len({c['modelDigest'] for c in cases})!=1:raise SystemExit('Shared model identity changed')
+          valid=sum(c['valid'] for c in cases)
+          if f'IMP-019 held-out completed cases=3 valid={valid} calls=3 dedicatedModels=0 nativeEffects=0' not in lines:raise SystemExit('Real call accounting missing')
+          proof={'schema':1,'cases':cases,'valid':valid,'total':3,'dedicatedModels':0,'nativeEffects':0,'scope':'held-out quantity decomposition; separate from native admission/execution'}
+          (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - name: Report explicit shared model identity
+        if: always()
+        run: docker exec cognitivecraft-planning-ollama ollama list || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-019-held-out-planning-quality
+          path: providers/build/planning-quality/**

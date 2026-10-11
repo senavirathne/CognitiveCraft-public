@@ -57,6 +57,15 @@ public final class RequestValidator {
             if (!environment.loaded(source, observation)) return invalid("$.arguments.source");
             if (!environment.available(destination, observation)) return invalid("$.arguments.destination");
         }
+        if (spec.completion() == Completion.ALL_CHILDREN) {
+            if (!spec.equals(PlanningGoals.SPEC) || !PlanningGoals.valid(input)) return invalid("$.arguments");
+            var actor=((ActorValue)values.get("actor")).value();
+            if(!actor.dimension().equals(observation.dimension()) || !environment.enrolled(actor,context)
+                    || !environment.loaded(((AreaValue)values.get("source")).value(),observation)
+                    || !environment.available(((ContainerValue)values.get("destination")).value(),observation)
+                    || !environment.available(((ContainerValue)values.get("otherDestination")).value(),observation))
+                return invalid("$.arguments");
+        }
         return new Accepted(new ValidatedRequest(input, context, observation));
     }
 

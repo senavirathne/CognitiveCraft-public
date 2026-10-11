@@ -299,6 +299,29 @@ public final class JobLifecycleStore {
             return reject(Reason.REQUEST_INVALID, work);
         }
     }
+    /** IMP-019: one repeat-safe atomic child/dependency publication; Jobs remains the sole work owner. */
+    public Change admitPlan(Plan.Validated plan, TrustedContext caller) {
+        thread(); var work=new Work(); Job parent=controlled(plan.context().parent(),caller);
+        if(parent==null || !policy.controls(parent.responsible(),parent.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!ready())return reject(unavailableReason(),work);
+        if(parent.state()==State.CANCELLED || parent.state()==State.CANCELLING || parent.state()==State.FAILED)
+            return reject(Reason.CANCELLED,work);
+        if(!parent.request().equals(plan.context().goal()) || !PlanningGoals.valid(parent.request().request()))
+            return reject(Reason.STALE_OBSERVATION,work);
+        var children=plan.children(); var expected=children.stream().map(Child::id).toList();
+        if(!parent.children().isEmpty()) {
+            boolean same=new HashSet<>(parent.children()).equals(new HashSet<>(expected));
+            for(var child:children) {
+                Job old=find(child.id());
+                same &= old!=null && old.parent().equals(parent.id()) && old.request().request().equals(child.request())
+                        && old.origin().equals(parent.origin()) && old.dependencies().equals(child.dependencies());
+            }
+            return same?duplicate(parent,work):reject(Reason.STALE_OBSERVATION,work);
+        }
+        if(!parent.guard().equals(plan.context().guard()) || !parent.dependencies().isEmpty())return reject(Reason.STALE_OBSERVATION,work);
+        if(!PlanningGoals.covers(parent.request().request(),children.stream().map(Child::request).toList()))return reject(Reason.REQUEST_INVALID,work);
+        return addChildren(parent.id(),parent.guard(),children,caller);
+    }
     /** IMP-018: charge real disposable expansion through the existing durable usage owner. */
     public Change chargePrerequisiteWork(List<Prerequisites.Need> needs, int instructions, TrustedContext caller) {
         thread(); var work = new Work();
@@ -442,7 +465,8 @@ public final class JobLifecycleStore {
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
         try {
-            if ((job.state() != State.READY && !(job.state() == State.WAITING && artifact == null))
+            if (!job.request().request().capability().equals(CropDelivery.ID)
+                    || (job.state() != State.READY && !(job.state() == State.WAITING && artifact == null))
                     || job.current() != null && job.current().open()
                     || !dependenciesSucceeded(job, rows(), work))
                 return reject(Reason.REQUEST_INVALID, work);
@@ -847,7 +871,9 @@ public final class JobLifecycleStore {
                 else if (job.state() == State.WAITING && (job.reason() == null || job.reason() == Reason.INTERRUPTED)
                         && (job.current() == null || !job.current().open())
                         && dependenciesSucceeded(job, rows, work)) {
-                    var edit = new Edit(job); edit.state = State.READY; edit.reason = null;
+                    var edit = new Edit(job); edit.state = job.request().request().capability().equals(PlanningGoals.ID)
+                            && PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())
+                            ? State.SUCCEEDED : State.READY; edit.reason = null;
                     rows.put(dependent, edit.finish(EventKind.TRANSITIONED, settings.events()));
                 }
                 if (rows.get(dependent).state().terminal()) queue.addLast(dependent);
@@ -992,7 +1018,9 @@ public final class JobLifecycleStore {
                     || job.attempts().stream().mapToInt(a -> a.receipts().size()).sum() > settings.receipts()
                     || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
                 throw new IllegalArgumentException("Configured job bounds");
-            if (!job.request().request().capability().equals(CropDelivery.ID)
+            boolean goal=job.request().request().capability().equals(PlanningGoals.ID);
+            if ((!job.request().request().capability().equals(CropDelivery.ID) && !goal)
+                    || goal && (!PlanningGoals.valid(job.request().request()) || !job.attempts().isEmpty())
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
                     || quantity.value() < 1 || quantity.value() > 64
                     || !(job.request().request().arguments().get("actor") instanceof ActorValue)
@@ -1000,7 +1028,7 @@ public final class JobLifecycleStore {
                     || !(job.request().request().arguments().get("destination") instanceof ContainerValue))
                 throw new IllegalArgumentException("Bound job request");
             var syntax = RequestValidator.validate(job.request().request(), job.origin(), job.request().observation(),
-                    id -> id.equals(CropDelivery.ID) ? Optional.of(CropDelivery.SPEC) : Optional.empty(),
+                    PlanningGoals.catalog(),
                     new RequestEnvironment() {
                         public boolean enrolled(ActorRef actor, TrustedContext caller) { return true; }
                         public boolean loaded(Cuboid source, ObservationRef observation) { return true; }
@@ -1046,7 +1074,10 @@ public final class JobLifecycleStore {
                 throw new IllegalArgumentException("Job state evidence");
             long allocated = snapshot.allocations().stream().filter(a -> a.demand().equals(job.id()))
                     .mapToLong(Allocation::quantity).reduce(0,Math::addExact);
-            if (job.state() == State.SUCCEEDED && Math.addExact(job.fulfilled(),allocated) < quantity.value())
+            if (job.state() == State.SUCCEEDED && (goal
+                    ? !PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())
+                            || !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
+                    : Math.addExact(job.fulfilled(),allocated) < quantity.value()))
                 throw new IllegalArgumentException("Unattributed job success");
         }
     }
