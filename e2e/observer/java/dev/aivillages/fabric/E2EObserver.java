@@ -17,6 +17,9 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import dev.aivillages.core.kernel.Contracts.Cuboid;
+import dev.aivillages.core.kernel.ObservedWorldKnowledgeStore;
+import dev.aivillages.core.kernel.SurvivalGateway;
 
 /** Observes immutable snapshots only. No command execution, setup, admission or world writes. */
 public final class E2EObserver implements ModInitializer {
@@ -28,6 +31,8 @@ public final class E2EObserver implements ModInitializer {
     });
     private long ticks;
     private final Map<UUID,ServerPlayer> observedPlayers = new LinkedHashMap<>();
+    private final Map<UUID,CompletableFuture<ObservedWorldKnowledgeStore.EvidenceSnapshot>> knowledgeQueries = new HashMap<>();
+    private final Map<UUID,JsonElement> knowledgeViews = new HashMap<>();
 
     @Override public void onInitialize() {
         writer.scheduleWithFixedDelay(this::flush, 0, 100, TimeUnit.MILLISECONDS);
@@ -94,6 +99,8 @@ public final class E2EObserver implements ModInitializer {
             out.addProperty("needleCalls", kernel.languageCalls());
             out.addProperty("generationCalls", kernel.generationCalls());
             out.add("brokerStats", JSON.toJsonTree(kernel.inferenceBroker().stats()));
+            out.add("primitiveDiagnostics", JSON.toJsonTree(kernel.diagnosticStatus()));
+            out.add("retention", JSON.toJsonTree(kernel.retentionStatus()));
         } catch (IllegalStateException loading) { out.addProperty("kernelLoading", true); }
         for (var player : server.getPlayerList().getPlayers()) {
             if (observedPlayers.size() < 4 || observedPlayers.containsKey(player.getUUID()))
@@ -134,6 +141,19 @@ public final class E2EObserver implements ModInitializer {
                     jobs.add(id.toString(), record);
                 }
                 data.add("jobs", jobs); data.add("broker", JSON.toJsonTree(kernel.inferenceStatus(player)));
+                // Bounded read-only query, with the actual requesting player's trusted scope.
+                var query = knowledgeQueries.get(player.getUUID());
+                if (query != null && query.isDone()) {
+                    if (!query.isCompletedExceptionally()) knowledgeViews.put(player.getUUID(), JSON.toJsonTree(query.join()));
+                    knowledgeQueries.remove(player.getUUID());
+                }
+                if (online && ticks % 20 == 0 && !knowledgeQueries.containsKey(player.getUUID())) {
+                    var target = new SurvivalGateway.ObservationTarget(SurvivalGateway.ObservationKind.SOURCE_CROPS,
+                            new Cuboid("minecraft:overworld",6,201,6,7,201,8), null);
+                    knowledgeQueries.put(player.getUUID(), kernel.observedKnowledge(player, target,
+                            new ObservedWorldKnowledgeStore.QueryLimits(64,8,8192)));
+                }
+                if (knowledgeViews.containsKey(player.getUUID())) data.add("observedKnowledge", knowledgeViews.get(player.getUUID()));
             } catch (IllegalStateException | SecurityException unavailable) {
                 data.addProperty("unavailable", unavailable.getMessage());
             }

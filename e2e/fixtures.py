@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import shutil
 from pathlib import Path
 
 ARENA = {"floorY": 200, "bounds": [-2, 199, -2, 22, 205, 16],
@@ -55,3 +57,33 @@ def commands(two: bool = True, legacy: bool = False) -> list[str]:
 
 def write(root: Path, kind: str) -> None:
     (root / "fixture.json").write_text(json.dumps({"kind": kind, **ARENA}, indent=2) + "\n")
+
+
+def legacy_identity_fixture(game: Path, citizen_id: str) -> dict:
+    """Create an exact schema-1 intake in a stopped certified world copy, before play."""
+    domain = game / "world/data/cognitivecraft"
+    identities = domain / "citizens/v1/state.json"
+    journal = domain / "bootstrap/v1/state.json"
+    citizens = json.loads(identities.read_text())
+    current = json.loads(journal.read_text())
+    row = next(c for c in citizens["citizens"] if c["citizenId"] == citizen_id)
+    backup = game / "e2e-compatibility-originals"
+    backup.mkdir()
+    for directory in (identities.parent, journal.parent):
+        for path in directory.glob("state*.json"):
+            shutil.copy2(path, backup / (directory.parent.name + "-" + path.name))
+            if path != identities and path != journal:
+                path.unlink()
+    citizens.pop("bootstrapMigration", None)
+    identities.write_text(json.dumps(citizens, sort_keys=True, separators=(",", ":")))
+    legacy = {"schema": 1, "worldId": current["worldId"], "revision": current["revision"],
+              "enrollment": {key: row[key] for key in ("citizenId", "entityId", "dimension", "principal", "scopeWorld", "scopeDomain")},
+              "runs": current["runs"]}
+    original = json.dumps(legacy, sort_keys=True, separators=(",", ":")).encode()
+    journal.write_bytes(original)
+    proof = {"schemaBefore": 1, "identitySchema": citizens["schema"], "citizen": citizen_id,
+             "name": row.get("name"), "entity": row["entityId"], "principal": row["principal"],
+             "world": current["worldId"], "originalSha256": hashlib.sha256(original).hexdigest(),
+             "certifiedKnowledgeUnchanged": True, "createdBeforeServerStart": True}
+    (game.parent.parent / "compatibility-fixture.json").write_text(json.dumps(proof, indent=2) + "\n")
+    return proof

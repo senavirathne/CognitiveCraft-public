@@ -6,6 +6,7 @@ import com.mojang.brigadier.tree.CommandNode;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -99,6 +100,23 @@ public final class ClientDriver implements ClientModInitializer {
                         StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (Exception failure) { throw new IllegalStateException("Client observation evidence", failure); }
             reply(id, observation); return;
+        }
+        if (action.equals("screenshot")) {
+            String name = request.get("name").getAsString();
+            if (!name.matches("[A-Za-z0-9_-]{1,160}")) throw new IllegalArgumentException("Screenshot name");
+            if (request.has("chat") && request.get("chat").getAsBoolean() && mc.player != null)
+                mc.gui.setScreen(new ChatScreen("", false));
+            // Wait for the next client tick so the selected UI has a rendered frame.
+            nextTick = () -> Screenshot.grab(BOX.toFile(), name + ".png",
+                    mc.gameRenderer.mainRenderTarget(), 1, message -> {
+                        Path image = BOX.resolve("screenshots/" + name + ".png");
+                        if (Files.isRegularFile(image)) {
+                            event("screenshot", Map.of("name", name, "path", image.toString(), "tick", ticks));
+                            reply(id, Map.of("path", "clients/" + NAME + "/screenshots/" + name + ".png",
+                                    "tick", ticks, "screen", mc.gui.screen() == null ? "none" : mc.gui.screen().getClass().getSimpleName()));
+                        } else reply(id, Map.of("error", "Native screenshot failed: " + message.getString()));
+                    });
+            return;
         }
         if (action.equals("disconnect")) {
             releaseKeys(mc); mc.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);

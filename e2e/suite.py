@@ -22,7 +22,7 @@ import uuid
 import xml.etree.ElementTree as ET
 
 from runtime import ROOT, SDK, digest
-from fixtures import ARENA, commands as arena_commands, write as write_fixture
+from fixtures import ARENA, commands as arena_commands, write as write_fixture, legacy_identity_fixture
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
             "E2E-LEGACY-001", "E2E-CANCEL-001", "E2E-MUTATION-001", "E2E-CLIENT-LOSS-001",
@@ -72,6 +72,8 @@ class Harness:
         self.citizens = {}
         self.entities = {}
         self.results = []
+        self.screenshots = []
+        self.family = "startup"
         self.booted = set()
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0)); self.port = sock.getsockname()[1]
@@ -88,6 +90,8 @@ class Harness:
                     "runtime": read(SDK / "integrity.json"), "started": time.time()}
         metadata["sourceBranch"] = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME") or subprocess.check_output(
                 ["git","rev-parse","--abbrev-ref","HEAD"],cwd=ROOT,text=True).strip()
+        ci_event = read(Path(os.environ["GITHUB_EVENT_PATH"])) if os.environ.get("GITHUB_EVENT_PATH") else {}
+        metadata["reviewedHeadCommit"] = (ci_event or {}).get("pull_request",{}).get("head",{}).get("sha",metadata["sourceCommit"])
         metadata["ci"] = {key:os.environ[key] for key in ("GITHUB_WORKFLOW","GITHUB_WORKFLOW_REF",
                 "GITHUB_RUN_ID","GITHUB_RUN_ATTEMPT","GITHUB_JOB","GITHUB_EVENT_NAME","GITHUB_REF",
                 "GITHUB_HEAD_REF","GITHUB_BASE_REF","GITHUB_SHA","RUNNER_OS","RUNNER_ARCH","ImageOS","ImageVersion")
@@ -235,6 +239,25 @@ class Harness:
         state = self.action(player, "snapshot")
         return state if state.get("play") else None
 
+    def screenshot(self, player, checkpoint, chat=False):
+        require(len(self.screenshots) < 160, "Screenshot evidence bound exceeded")
+        name = re.sub(r"[^A-Za-z0-9_-]", "-", f"{self.family}-{len(self.screenshots):03d}-{player}-{checkpoint}")[:160]
+        captured = self.action(player, "screenshot", name=name, chat=chat)
+        path = self.root / captured["path"]
+        data = path.read_bytes()
+        require(data[:8] == b"\x89PNG\r\n\x1a\n" and len(data) > 1024, "Native screenshot is not a complete PNG")
+        width, height = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+        require(width >= 800 and height >= 600, "Screenshot lost client window resolution")
+        metadata = read(self.root / "metadata.json")
+        evidence = {**captured, "family":self.family, "checkpoint":checkpoint, "player":player,
+                    "sha256":digest(path), "bytes":len(data), "width":width, "height":height,
+                    "sourceCommit":metadata["sourceCommit"], "releaseSha256":metadata["releaseSha256"],
+                    "time":time.time(), "nativeClientFrame":True}
+        self.screenshots.append(evidence)
+        atomic(self.root / "screenshots.json", {"schema":1,"envelope":"metadata.json","captures":self.screenshots})
+        self.event("screenshot-evidence", evidence)
+        return evidence
+
     def snapshot(self):
         return read(self.root / "server/snapshot.json")
 
@@ -278,6 +301,8 @@ class Harness:
         result = self.wait(observed, "Fresh matching wire suggestion transaction " + text)
         require(result["start"] >= 0 and result["length"] >= 0, "Invalid suggestion replacement range")
         self.event("suggestions", {"player": player, "input": text, **result})
+        if tab:
+            self.screenshot(player, "wire-tab-suggestions")
         return result["values"]
 
     def console(self, lines, lifecycle=False):
@@ -354,7 +379,7 @@ class Harness:
         self.event("sigkill" if hard else "stop", {"component": component, "process": info})
         self.booted.discard(component)
 
-    def fresh(self, two=False, known=False, legacy=False):
+    def fresh(self, two=False, known=False, legacy=False, compatibility=False, diagnostics="off"):
         self.actions_active = False
         if "server" in self.booted:
             self.stop("server")
@@ -381,6 +406,12 @@ class Harness:
             write_fixture(self.root, "F1")
         else:
             self.citizens.clear(); self.entities.clear()
+        self.env["COGNITIVECRAFT_PRIMITIVE_DIAGNOSTICS"] = diagnostics
+        if compatibility:
+            require(known, "F4 requires independently certified known knowledge")
+            self.compatibility_fixture = legacy_identity_fixture(game, self.citizens["PlayerA"])
+            self.event("supported-legacy-fixture", self.compatibility_fixture)
+            write_fixture(self.root, "F4")
         self.start("server"); self.start("PlayerA")
         if two: self.start("PlayerB")
         if known:
@@ -395,6 +426,7 @@ class Harness:
         self.model_baseline = self.model_calls()
         self.event("fixture-model-counters", self.model_baseline)
         self.event("fixture-world-scopes", {p:v["scope"] for p,v in self.snapshot()["players"].items()})
+        self.screenshot("PlayerA", "fixture-ready")
 
     def submit(self, player="PlayerA", amount=4, source=None, destination=None, queued=False, allow_rejection=False):
         source = source or ARENA["source"]; destination = destination or ARENA["destination"]
@@ -485,8 +517,18 @@ class Harness:
             require(result.get("heldSeconds",4) < 4, "Native availability fence exceeded four seconds")
 
     def terminal(self, player, run, timeout=130):
-        return self.wait(lambda: (s if (s := self.run_view(player, run)) and s["phase"] == "TERMINAL" else None),
-                         "Trusted terminal outcome " + run, timeout)
+        photographed = False
+        def observed():
+            nonlocal photographed
+            view = self.run_view(player, run)
+            if view and view["phase"] == "EXECUTING" and view.get("receipts") and not photographed:
+                actor = next((a for a in self.snapshot()["actors"] if a["uuid"] == self.entities.get(player)), None)
+                if actor:
+                    self.action(player, "look", pos=[math.floor(v) for v in actor["pos"]])
+                    self.screenshot(player, "worker-physical-progress")
+                    photographed = True
+            return view if view and view["phase"] == "TERMINAL" else None
+        return self.wait(observed, "Trusted terminal outcome " + run, timeout)
 
     def receipts(self, view, stage):
         return sum(r["wheat"] for r in view.get("receipts", []) if r["stage"] == stage)
@@ -512,6 +554,7 @@ class Harness:
                           sum(slot["count"] for slot in s["slots"] if not slot["playerInventory"] and
                               slot["item"] == item) == expected else None), "Client received synchronized container contents")
         result = sum(slot["count"] for slot in state["slots"] if not slot["playerInventory"] and slot["item"] == item)
+        self.screenshot(player, "synchronized-container-" + str(result))
         self.action(player, "close-menu")
         return result
 
@@ -739,8 +782,14 @@ def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=No
 
 
 def physical(h: Harness):
-    h.fresh(known=True); h.release_gate()
+    h.fresh(known=True, diagnostics="metadata"); h.release_gate()
+    diagnostics_before = h.wait(lambda: (s if (s := h.snapshot().get("primitiveDiagnostics")) and
+                                        s["state"] == "READY" else None), "Opt-in diagnostic owner ready")
     result = delivery(h)
+    diagnostics_after = h.snapshot()["primitiveDiagnostics"]
+    require(h.model_calls() == h.model_baseline, "Diagnostics changed known execution inference")
+    require(diagnostics_after["maxQueued"] <= 128 and diagnostics_after["maxRecordBytes"] <= 8192,
+            "Diagnostics exceeded its independent ceilings")
     h.disconnect("PlayerA"); h.action("PlayerA", "connect", address=f"127.0.0.1:{h.port}")
     h.wait(lambda: h.client_snapshot("PlayerA"), "Post-delivery fresh client synchronization")
     require(h.menu_count("PlayerA", ARENA["destination"]) == 4, "Delivery lost on real reconnect")
@@ -780,7 +829,11 @@ def physical(h: Harness):
             require(actual == 0, "Blocked request delivered unexpected stock: " + variant)
         require(h.model_calls() == h.model_baseline, "Known environmental blocker invited inference")
         negatives.append({"variant": variant, "outcome": description, "qualifiedPartialWheat": actual}); h.actions_active = False
-    return {"delivery": result, "negativeVariants": negatives}
+    require(h.snapshot()["primitiveDiagnostics"]["state"] == "OFF", "Disabled fixture enabled collection")
+    return {"delivery": result, "negativeVariants": negatives,
+            "variants": {"GP-E2E-014A": {"status":"PASS", "proof":"Opt-in state and bounded model-free physical behavior; compiler correlation remains owner-tested",
+                         "before":diagnostics_before,"after":diagnostics_after}},
+            "diagnosticsOff":True}
 
 
 def legacy(h: Harness):
@@ -903,7 +956,22 @@ def interference(h: Harness):
         final = h.terminal("PlayerA", run)
         require("SUCCEEDED" not in final["description"], "External player action falsely credited to villager")
         require(h.receipts(final, "DEPOSIT") < 6, "External action produced fictitious full delivery")
-        variants.append({"variant": variant, "target": target, "run": run, "outcome": final["description"]}); h.actions_active = False
+        retained = h.wait(lambda: (s if (s := h.snapshot()["players"]["PlayerA"].get("observedKnowledge"))
+                                  and s.get("evidence") else None),
+                          "Bounded private retained-observation query")
+        foreign = h.wait(lambda: h.snapshot()["players"]["PlayerB"].get("observedKnowledge"),
+                         "Foreign scoped retained-observation query")
+        require(not foreign.get("evidence"), "Observer query disclosed A's private observed facts to B")
+        stock_before = h.container(ARENA["destination"])
+        second = h.submit(amount=6, allow_rejection=True)
+        second_view = None if "accepted=false" in h.last_submission else h.terminal("PlayerA", second)
+        second_description = h.last_submission if second_view is None else second_view["description"]
+        require("SUCCEEDED" not in second_description, "Subsequent request used retained facts as phantom authority")
+        require(h.container(ARENA["destination"]) <= 6 and h.model_calls() == h.model_baseline,
+                "Stale knowledge invented stock or invited inference")
+        variants.append({"variant": variant, "target": target, "run": run, "outcome": final["description"],
+                         "retainedObservation":retained,"subsequentRun":second,"subsequentOutcome":second_description,
+                         "previousStock":stock_before,"GP-E2E-17":"PASS"}); h.actions_active = False
     return {"variants": variants}
 
 
@@ -1059,7 +1127,26 @@ def new_recovery_worker(h: Harness, source=None, destination=None):
             "settledLooseBeforeEnrollment":settled_loose}
 
 
+def compatibility_recovery(h: Harness):
+    h.fresh(two=True, known=True, compatibility=True)
+    expected = h.compatibility_fixture
+    identities = h.snapshot()["players"]["PlayerA"]["citizens"]["citizens"]
+    require(any(c["actor"]["citizenId"] == expected["citizen"] and c["displayName"] == expected["name"]
+                and c["owner"]["principal"]["id"] == expected["principal"] for c in identities),
+            "Supported migration changed identity, name or ownership")
+    journal = h.root / "server/game/world/data/cognitivecraft/bootstrap/v1"
+    require(read(journal/"state.json")["schema"] == 2, "Supported intake did not migrate to schema 2")
+    require(digest(journal/"state.legacy-v1.json") == expected["originalSha256"], "Migration lost exact original")
+    h.stop("server"); h.start("server"); reconnect_players(h,["PlayerA","PlayerB"])
+    require(digest(journal/"state.legacy-v1.json") == expected["originalSha256"], "Warm reload rewrote migration original")
+    require("Ada" in h.command("PlayerA","/aivillage kernel citizens","citizens="), "Warm client lost migrated name")
+    require(expected["citizen"] not in h.suggestions("PlayerB","/aivillage kernel name "), "Migration leaked control")
+    h.release_gate(); result = delivery(h)
+    return {"status":"PASS","intake":expected,"warmSchema":2,"knownDelivery":result,"modelCalls":h.model_calls()}
+
+
 def graceful_recovery(h: Harness):
+    compatibility = compatibility_recovery(h)
     h.fresh(two=True, known=True); h.release_gate(); h.actions_active = True
     job = h.submit(amount=6, queued=True)
     checkpoint = h.wait(lambda: (j if (j := h.job_view("PlayerA",job)) and j["state"] == "ACTIVE" and
@@ -1083,9 +1170,11 @@ def graceful_recovery(h: Harness):
     mature,remaining = remaining_wheat(h,stored)
     result = delivery(h,amount=remaining)
     require(h.container(ARENA["destination"]) == stored + remaining,"Explicit graceful recovery duplicated delivery")
+    require(h.model_calls() == h.model_baseline,"Referenced admitted knowledge required inference after retention/restart")
     return {"interruptedJob": job, "checkpoint": checkpoint, "recovered": view,
             "conservedWheat": stored, "workerFence": worker, "recoveredLooseWheat":loose,
-            "remainingMatureStock":mature,"newExplicitRemainingWork": result}
+            "remainingMatureStock":mature,"newExplicitRemainingWork": result,
+            "variants":{"GP-E2E-15":compatibility,"GP-E2E-16":{"status":"PASS","proof":"Referenced known method, private status, bounded owner restart and no replay"}}}
 
 
 def client_loss(h: Harness):
@@ -1390,16 +1479,28 @@ def main():
             h.event("docker-images", subprocess.check_output(["docker", "image", "inspect", "cognitivecraft-e2e:java25"], text=True))
         for family in PROFILES[args.profile]:
             started = time.monotonic()
+            h.family = family
+            first_capture = len(h.screenshots)
             h.event("family-start", {"id": family})
             try:
                 if family not in registry:
                     raise InfrastructureBlocked("Scenario driver not implemented: " + family)
                 data = registry[family](h)
-                h.results.append({"id": family, "status": "PASS", "duration": time.monotonic() - started, "evidence": data})
+                if "PlayerA" in h.booted:
+                    h.screenshot("PlayerA", "assertions-passed", chat=True)
+                require(len(h.screenshots) > first_capture, "Scenario produced no actual client screenshot")
+                h.results.append({"id": family, "status": "PASS", "duration": time.monotonic() - started,
+                                  "evidence": data, "screenshots":h.screenshots[first_capture:]})
                 print(family, "PASS", flush=True)
             except Exception as error:
+                capture_errors = []
+                for player in ("PlayerA", "PlayerB"):
+                    if player in h.booted:
+                        try: h.screenshot(player, "failure")
+                        except Exception as capture_error: capture_errors.append({"player":player,"reason":str(capture_error)})
                 h.results.append({"id": family, "status": "BLOCKED_BY_TEST_INFRASTRUCTURE" if isinstance(error, InfrastructureBlocked) else "FAIL",
-                                  "reason": str(error), "trace": traceback.format_exc(), "duration": time.monotonic() - started})
+                                  "reason": str(error), "trace": traceback.format_exc(), "duration": time.monotonic() - started,
+                                  "screenshots":h.screenshots[first_capture:],"screenshotErrors":capture_errors})
                 atomic(h.root / "cases" / family / "failure.json", {"family": family, "reason": str(error),
                        "snapshot": h.snapshot(), "world": str(h.root / "server/game/world"),
                        "clients": {p: read(h.root / "clients" / p / "response.json") for p in h.players}})

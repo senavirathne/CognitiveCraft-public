@@ -10,8 +10,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
-  group: real-client-acceptance-${{ github.event.pull_request.number || github.ref }}
+  group: real-client-acceptance-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 jobs:
   genuine-acquisition:
@@ -21,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:
@@ -35,6 +37,8 @@ jobs:
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
       - name: Production binary and existing unit boundaries
         run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Qualification must reject missing, skipped and mixed-layer evidence
+        run: python3 -m unittest discover -s e2e -p 'test_*.py'
       - name: Verified official runtime and separate instrumentation
         run: |
           python3 e2e/runtime.py prepare
@@ -89,6 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:
@@ -126,17 +131,26 @@ jobs:
         if: failure()
         run: python3 e2e/diagnostics.py build/e2e/${{ matrix.profile }}
   qualification:
-    name: Require all 13 families and no missing coverage
+    name: Require all 13 families and exact-layer IMP-001–019 evidence
     needs: [genuine-acquisition, gameplay]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           pattern: real-gameplay-*
           path: build/qualification
+      - name: Require independently executed exact-head owner and live planning gates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 e2e/owner_evidence.py build/qualification --head "$REVIEWED_HEAD"
       - name: Merge observed results, never count absent cases as passing
+        if: always()
         run: python3 e2e/qualify.py build/qualification
       - uses: actions/upload-artifact@v4
         if: always()
@@ -144,4 +158,6 @@ jobs:
           name: real-gameplay-qualification-${{ github.run_id }}
           if-no-files-found: error
           retention-days: 90
-          path: build/qualification/qualification.json
+          path: |
+            build/qualification/qualification.json
+            build/qualification/owner-evidence.json
