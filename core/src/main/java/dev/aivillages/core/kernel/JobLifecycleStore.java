@@ -364,11 +364,16 @@ public final class JobLifecycleStore {
             }
             for (var entry : expected.entrySet()) if (!roots.get(entry.getKey()).dependencies().containsAll(entry.getValue())) duplicate = false;
             if (duplicate) return duplicate(roots.values().iterator().next(), work);
-            // A changed proposal must not manufacture another producer for already-owned equivalent work.
-            for (var root : roots.values()) for (UUID child : root.children()) {
-                Job existing = find(child);
-                for (var node : proposal.nodes()) if (node.owner().equals(root.id()) && !node.id().equals(child)
-                        && sameBindings(existing.request(), node.request())) return reject(Reason.STALE_OBSERVATION, work);
+            // A changed proposal must not manufacture another producer for already-linked equivalent work.
+            for (var root : roots.values()) {
+                var linked = new LinkedHashSet<>(root.children()); linked.addAll(root.dependencies());
+                for (UUID producer : linked) {
+                    Job existing = find(producer);
+                    for (var node : proposal.nodes()) if (!node.id().equals(producer)
+                            && existing.origin().equals(node.request().context())
+                            && sameBindings(existing.request(), node.request()))
+                        return reject(Reason.STALE_OBSERVATION, work);
+                }
             }
             var rows = rows(); preparation(rows, proposal.needs(), instructions, caller, work);
             for (var node : proposal.nodes()) {

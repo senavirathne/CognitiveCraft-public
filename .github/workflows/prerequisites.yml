@@ -38,7 +38,7 @@ jobs:
           from pathlib import Path
           import xml.etree.ElementTree as ET
           total=0
-          for suite,expected in (('DeterministicPrerequisiteResolverTest',43),('PrerequisiteAdmissionTest',19)):
+          for suite,expected in (('DeterministicPrerequisiteResolverTest',43),('PrerequisiteAdmissionTest',20)):
               path=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+suite+'.xml')
               cases=list(ET.parse(path).getroot().iter('testcase'))
               if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
@@ -123,7 +123,7 @@ jobs:
               raise SystemExit('Producer identity or child count changed on restart')
           for name in ('cold.json','warm.json'):
               shutil.copy2(saved/name,out/name)
-          proof={'tests':counts,'total':sum(counts.values()),'matrix':62,'coldProjectTests':2,'warmProjectTests':2,
+          proof={'tests':counts,'total':sum(counts.values()),'matrix':63,'coldProjectTests':2,'warmProjectTests':2,
                  'modelCalls':0,'newPrimitives':0,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest(),'cold':cold,'warm':warm}
           (out/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
           PY

@@ -27,7 +27,10 @@ final class PrerequisiteAdmissionTest {
                     id->id.equals(CropDelivery.ID)?Optional.of(CropDelivery.SPEC):Optional.empty(),JobLifecycleStoreTest.environment(),f.clock,Jobs.Settings.defaults(),readOnly);
         }
         Jobs.Job create(int quantity) {
-            UUID id=UUID.randomUUID();assertTrue(jobs.create(id,id,JobLifecycleStoreTest.request(f.actor,quantity),f.owner,
+            return create(UUID.randomUUID(),quantity);
+        }
+        Jobs.Job create(UUID id,int quantity) {
+            assertTrue(jobs.create(id,id,JobLifecycleStoreTest.request(f.actor,quantity),f.owner,
                     JobLifecycleStoreTest.observation(),allowance(),List.of()).accepted());ack();return jobs.query(id,f.owner);
         }
         Budgets.Limits allowance(){return new Budgets.Limits(Map.of(Budgets.Kind.INSTRUCTIONS,instructions,Budgets.Kind.CALLS,256L,
@@ -218,5 +221,16 @@ final class PrerequisiteAdmissionTest {
             before=h.current(root).usage().get(Budgets.Kind.INSTRUCTIONS);assertEquals(List.of(producer),h.current(root).children());
         }
         assertEquals(2,h.jobs.snapshot().jobs().size());assertTrue(before<=600);assertEquals(11_000,h.current(root).allowance().deadlineEpochMillis());
+    }
+    @Test void changedCanonicalOwnerCannotMintAnotherProducerForAnExistingSharedDependency() {
+        var h=new Harness();var owner=h.create(new UUID(0,2),2);var consumer=h.create(new UUID(0,3),1);
+        var initial=h.propose(owner,consumer);h.submit(initial);h.ack();UUID producer=initial.nodes().getFirst().id();
+        assertEquals(List.of(producer),h.current(consumer).dependencies());assertTrue(h.current(consumer).children().isEmpty());
+        var newcomer=h.create(new UUID(0,1),2);var changed=h.propose(newcomer,consumer);
+        assertEquals(3,changed.nodes().getFirst().output());assertNotEquals(producer,changed.nodes().getFirst().id());
+        int jobs=h.jobs.snapshot().jobs().size();var denied=h.submit(changed);assertEquals(Reason.STALE_OBSERVATION,denied.reason());
+        if(denied.publication().accepted())h.ack();assertEquals(jobs,h.jobs.snapshot().jobs().size());
+        assertTrue(h.current(newcomer).children().isEmpty());assertEquals(List.of(producer),h.current(consumer).dependencies());
+        assertEquals(1,h.jobs.snapshot().jobs().stream().filter(j->j.parent()!=null).count());
     }
 }
