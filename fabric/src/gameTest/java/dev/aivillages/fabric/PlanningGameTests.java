@@ -57,18 +57,24 @@ public final class PlanningGameTests {
             System.setProperty("cognitivecraft.gametest.trace","true");
             if(warm){model.available=false;setup=CompletableFuture.supplyAsync(()->{try{return StrictJson.object(Files.readString(root.resolve("restart.json")));}catch(Exception e){throw new CompletionException(e);}});return;}
             origin=h.absolutePos(new BlockPos(8,0,8));BootstrapGameTests.forceFixtureChunks(h,origin);geometry();
-            for(int x=0;x<10;x++)for(int z=0;z<9;z++)block(x,0,z,Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE,7));
-            for(int x=2;x<=3;x++)for(int z=2;z<=4;z++)if(x!=3||z!=4)block(x,1,z,Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE,7));
-            block(4,1,4,Blocks.CHEST.defaultBlockState());block(7,1,4,Blocks.CHEST.defaultBlockState());
+            // Keep actual crops, tracked drops and two separate inventories within
+            // physical reach. GP-19 checks plan ownership and execution, while
+            // source navigation has its own acceptance fixtures.
+            for(int x=0;x<8;x++)for(int z=0;z<7;z++)block(x,0,z,Blocks.STONE.defaultBlockState());
+            for(int x=2;x<=4;x++)for(int z=2;z<=3;z++)if(x!=3||z!=3){
+                block(x,0,z,Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE,7));
+                block(x,1,z,Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE,7));
+            }
+            block(2,1,4,Blocks.CHEST.defaultBlockState());block(4,1,4,Blocks.CHEST.defaultBlockState());
             var relative=origin.offset(3,1,3).subtract(h.absolutePos(BlockPos.ZERO));
-            villager=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,relative.getX(),relative.getY(),relative.getZ());villager.setNoAi(false);villager.setPersistenceRequired();
+            villager=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,relative.getX()+0.5f,relative.getY(),relative.getZ()+0.5f);villager.setPersistenceRequired();
             player=h.makeMockServerPlayerInLevel();player.setUUID(UUID.randomUUID());player.setPos(villager.getX(),villager.getY(),villager.getZ());
             UUID principal=player.getUUID();
             setup=CompletableFuture.supplyAsync(()->{
                 try(var journal=BootstrapJournal.open(root)) {
                     journal.replace(journal.state(),null,List.of());UUID world=journal.state().worldId();
                     var context=new TrustedContext(new PrincipalRef(principal),new ScopeRef(world,principal));
-                    var result=new SkillCompiler(PlanningGoals.catalog(),GatewayPrimitives.instance(),ref->Optional.empty()).compile(ResearchGameTests.movementFixtureIr());
+                    var result=new SkillCompiler(PlanningGoals.catalog(),GatewayPrimitives.instance(),ref->Optional.empty()).compile(ResearchGameTests.fixtureIr());
                     if(!(result instanceof SkillCompiler.Success success))throw new AssertionError("Existing P0 fixture method did not compile");
                     var artifact=success.skill().artifact();
                     // Controlled method admission seeds the fixture; this is not evidence of learned method quality.
@@ -85,8 +91,8 @@ public final class PlanningGameTests {
                 }catch(Exception e){throw new CompletionException(e);}
             });
         }
-        void geometry(){String dim=h.getLevel().dimension().identifier().toString();source=new Cuboid(dim,origin.getX()+2,origin.getY()+1,origin.getZ()+2,origin.getX()+3,origin.getY()+1,origin.getZ()+4);
-            destination=new ContainerRef(dim,origin.getX()+4,origin.getY()+1,origin.getZ()+4);other=new ContainerRef(dim,origin.getX()+7,origin.getY()+1,origin.getZ()+4);}
+        void geometry(){String dim=h.getLevel().dimension().identifier().toString();source=new Cuboid(dim,origin.getX()+2,origin.getY()+1,origin.getZ()+2,origin.getX()+4,origin.getY()+1,origin.getZ()+3);
+            destination=new ContainerRef(dim,origin.getX()+2,origin.getY()+1,origin.getZ()+4);other=new ContainerRef(dim,origin.getX()+4,origin.getY()+1,origin.getZ()+4);}
         void block(int x,int y,int z,net.minecraft.world.level.block.state.BlockState state){h.getLevel().setBlockAndUpdate(origin.offset(x,y,z),state);}
         int stock(ContainerRef ref){return ((Container)h.getLevel().getBlockEntity(new BlockPos(ref.x(),ref.y(),ref.z()))).countItem(Items.WHEAT);}
         int mature(){int n=0;for(int x=source.minX();x<=source.maxX();x++)for(int z=source.minZ();z<=source.maxZ();z++){
