@@ -25,17 +25,21 @@ public final class FabricGoalPlanning implements GoalPlanner.ContextPort {
         var snapshot=observer.capture(request.request(),actor);
         return resolver.resolve(new ValidatedRequest(request.request(),request.context(),snapshot.reference()),snapshot);
     }
-    public CompletionStage<dev.aivillages.core.kernel.Plan.Context> capture(Jobs.Job root,PlanningBudget budget) {
+    public dev.aivillages.core.kernel.Plan.Context route(Jobs.Job root,PlanningBudget budget) {
         thread();var actor=root.responsible();if(!controls(actor,root.origin()))throw new SecurityException("Planner authority");
         var snapshot=observer.capture(root.request().request(),actor);
         var direct=resolver.resolve(new ValidatedRequest(root.request().request(),root.origin(),snapshot.reference()),snapshot);
         var coverage=DeterministicPrerequisiteResolver.outcomeCoverage(root.request().request().capability(),FabricPrerequisiteCatalog.capture(server,List.of()));
+        return new dev.aivillages.core.kernel.Plan.Context(root.id(),root.guard(),root.request(),direct,coverage,List.of(),"");
+    }
+    public CompletionStage<dev.aivillages.core.kernel.Plan.Context> capture(Jobs.Job root,PlanningBudget budget) {
+        var gate=route(root,budget);var direct=gate.direct();var coverage=gate.prerequisites();var snapshot=direct.observation();
         var slots=new ArrayList<dev.aivillages.core.kernel.Plan.Slot>();
         if(direct.routing().status()==Outcomes.ResolutionStatus.NEEDS_PLANNING && direct.complete() && !coverage.handled() && coverage.complete()) {
             for(var request:PlanningGoals.slots(root.request().request())) {
                 var selected=resolve(new ValidatedRequest(request,root.origin(),snapshot.reference()));
                 if(selected.routing().status()!=Outcomes.ResolutionStatus.RESOLVED || !selected.complete())
-                    throw new IllegalStateException("Planning requires currently eligible known child methods: "+selected.routing());
+                    return CompletableFuture.completedFuture(new dev.aivillages.core.kernel.Plan.Context(root.id(),root.guard(),root.request(),direct,coverage,List.of(),""));
                 slots.add(new dev.aivillages.core.kernel.Plan.Slot(selected.selectedBindings(),selected.observation(),methods.descriptor(selected.routing().artifact()).orElseThrow()));
             }
         }

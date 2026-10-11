@@ -30,7 +30,7 @@ public final class Plan {
         }
         /** Worst-case bounded capture work, including native coverage and eligible-method searches. */
         public int work() {
-            int work=Math.addExact(1+direct.candidateWork()+direct.queriedPages()+direct.observation().scannedCells(),prerequisites.inspected());
+            int work=Math.multiplyExact(2,Math.addExact(1+direct.candidateWork()+direct.queriedPages()+direct.observation().scannedCells(),prerequisites.inspected()));
             for(var slot:slots)work=Math.addExact(work,PlanValidator.resolutionWorkLimit(slot.bound()));
             return Math.addExact(work,8+(prompt().getBytes(StandardCharsets.UTF_8).length+63)/64);
         }

@@ -15,6 +15,7 @@ public final class GoalPlanner implements AutoCloseable {
         public View{jobs=List.copyOf(jobs);reserved=Map.copyOf(reserved);actual=Map.copyOf(actual);}
     }
     public interface ContextPort extends PlanValidator.Current {
+        Plan.Context route(Jobs.Job root,PlanningBudget budget);
         CompletionStage<Plan.Context> capture(Jobs.Job root,PlanningBudget budget);
         long tick();
     }
@@ -77,8 +78,27 @@ public final class GoalPlanner implements AutoCloseable {
         }
         if(clock.millis()>=pending.deadline){refuse(pending,Reason.BUDGET_EXHAUSTED,Plan.Diagnostic.BUDGET,"$");return pending.view();}
         try {
-            pending.capture=context.capture(root,budget).toCompletableFuture();
             if(template!=null){pending.template=Plan.encode(template.topology());pending.templateGrant=template;}
+            var available=jobs.remainingAllowance(parent,caller);
+            var envelope=template==null?Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.INPUT_BYTES,32768L,
+                    Budgets.Kind.OUTPUT_BYTES,(long)budget.outputBytes(),Budgets.Kind.CANDIDATES,1L,Budgets.Kind.INSTRUCTIONS,(long)budget.work())
+                    :Map.of(Budgets.Kind.CANDIDATES,1L,Budgets.Kind.INSTRUCTIONS,(long)budget.work());
+            if(PlanningGoals.valid(root.request().request()) && (envelope.entrySet().stream().anyMatch(e->e.getValue()>available.maximum(e.getKey()))
+                    || 8L+PlanValidator.resolutionWorkLimit(root.request())>budget.work())) {
+                refuse(pending,Reason.BUDGET_EXHAUSTED,Plan.Diagnostic.BUDGET,"$");return pending.view();
+            }
+            var route=context.route(root,budget);
+            if(!route.needsPlanning()){pending.state=State.DETERMINISTIC;pending.reason=route.direct().routing().reason();return pending.view();}
+            if(!route.parent().equals(root.id()) || !route.goal().equals(root.request()) || !route.guard().equals(root.guard())
+                    || !PlanningGoals.valid(root.request().request())) {
+                refuse(pending,Reason.REQUEST_INVALID,Plan.Diagnostic.UNBOUND,"$.goal");return pending.view();
+            }
+            // Consume the whole finite envelope before any asynchronous context or model work is queued.
+            pending.reserved=envelope;
+            var change=jobs.charge(root.id(),root.guard(),pending.reserved,caller);
+            if(!change.accepted()){refuse(pending,change.reason(),Plan.Diagnostic.BUDGET,"$");return pending.view();}
+            pending.state=State.RESERVING;
+        }catch(SecurityException denied){refuse(pending,Reason.AUTHORITY_DENIED,Plan.Diagnostic.AUTHORITY,"$.context");
         }catch(RuntimeException unavailable){refuse(pending,Reason.STORAGE_UNAVAILABLE,Plan.Diagnostic.PUBLICATION,"$.context");}
         return pending.view();
     }
@@ -114,6 +134,15 @@ public final class GoalPlanner implements AutoCloseable {
         if(clock.millis()>=p.deadline && p.state!=State.LINKING && p.state!=State.PUBLISHING) {
             refuse(p,Reason.BUDGET_EXHAUSTED,Plan.Diagnostic.BUDGET,"$");return;
         }
+        if(p.state==State.RESERVING) {
+            if(!jobs.ready())return;
+            if(!root.children().isEmpty()){refuse(p,Reason.STALE_OBSERVATION,Plan.Diagnostic.STALE,"$.parent");return;}
+            // Two routing passes, two slot searches, bounded coverage/history and maximum context serialization.
+            if(4L*PlanValidator.resolutionWorkLimit(root.request())+24+(budget.contextBytes()+63)/64>budget.work()) {
+                refuse(p,Reason.BUDGET_EXHAUSTED,Plan.Diagnostic.BUDGET,"$.context");return;
+            }
+            p.capture=context.capture(root,budget).toCompletableFuture();p.state=State.CONTEXT;return;
+        }
         if(p.state==State.CONTEXT) {
             if(!p.capture.isDone())return;p.captured=p.capture.join();
             if(!p.captured.parent().equals(root.id()) || !p.captured.goal().equals(root.request()) || !p.captured.guard().equals(root.guard())) {
@@ -124,22 +153,10 @@ public final class GoalPlanner implements AutoCloseable {
             }
             if(!PlanningGoals.valid(root.request().request())){refuse(p,Reason.REQUEST_INVALID,Plan.Diagnostic.UNBOUND,"$.goal");return;}
             if(!jobs.ready())return;
-            // Conservatively consume this finite candidate envelope before any asynchronous model work.
-            // No refund on cancellation, rejected candidates, missing linkage or restart; actual broker bytes remain separate.
-            p.reserved=p.template==null?Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.INPUT_BYTES,32768L,
-                    Budgets.Kind.OUTPUT_BYTES,(long)budget.outputBytes(),Budgets.Kind.CANDIDATES,1L,Budgets.Kind.INSTRUCTIONS,(long)budget.work())
-                    :Map.of(Budgets.Kind.CANDIDATES,1L,Budgets.Kind.INSTRUCTIONS,(long)budget.work());
-            var change=jobs.charge(root.id(),root.guard(),p.reserved,p.caller);
-            if(!change.accepted()){refuse(p,change.reason(),Plan.Diagnostic.BUDGET,"$");return;}
-            p.state=State.RESERVING;return;
-        }
-        if(p.state==State.RESERVING) {
-            if(!jobs.ready())return;
             if(p.captured.work()>budget.work() || p.captured.prompt().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>budget.contextBytes()) {
                 refuse(p,Reason.BUDGET_EXHAUSTED,Plan.Diagnostic.SIZE,"$.context");return;
             }
-            if(!root.children().isEmpty()){refuse(p,Reason.STALE_OBSERVATION,Plan.Diagnostic.STALE,"$.parent");return;}
-            p.captured=new Plan.Context(p.captured.parent(),root.guard(),p.captured.goal(),p.captured.direct(),p.captured.prerequisites(),p.captured.slots(),p.captured.history());
+            if(p.captured.slots().size()!=2){refuse(p,Reason.ARTIFACT_INVALID,Plan.Diagnostic.METHOD,"$.slots");return;}
             if(p.template!=null) {
                 try {
                     var skeleton=Plan.decode(p.template,8192);var fresh=PlanningGoals.slots(root.request().request());

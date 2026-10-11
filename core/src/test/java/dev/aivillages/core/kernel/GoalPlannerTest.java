@@ -32,7 +32,7 @@ final class GoalPlannerTest {
         final UUID world=UUID.randomUUID();final TrustedContext owner=JobLifecycleStoreTest.owner(world),foreign=JobLifecycleStoreTest.owner(world);
         final ActorRef actor=JobLifecycleStoreTest.actor();final JobLifecycleStoreTest.TestClock clock=new JobLifecycleStoreTest.TestClock();
         final JobLifecycleStoreTest.Memory disk=new JobLifecycleStoreTest.Memory(world);final FakeModel model=new FakeModel();
-        boolean allowed=true,method=true,captureHeld,changed;long tick=1,crops=9;
+        boolean allowed=true,method=true,captureHeld,changed,captureFail;long tick=1,crops=9;int captures,routes;
         final ArtifactDescriptor descriptor=new ArtifactDescriptor(JobLifecycleStoreTest.REF,1,CropDelivery.SPEC.parameters(),Type.INT,
                 CropDelivery.SPEC.effects(),List.of(),List.of());
         final JobLifecycleStore jobs;final AIWorkBroker broker;GoalPlanner planner;
@@ -82,7 +82,8 @@ final class GoalPlannerTest {
                     this::controls,(a,ref,c)->controls(a,c),(a,e,c)->controls(a,c),CapabilityResolver.cropPrerequisites(),()->tick,CapabilityResolver.Limits.defaults());
         }
         public CapabilityResolver.Decision resolve(ValidatedRequest r){var snapshot=observation(r.request());return engine().resolve(new ValidatedRequest(r.request(),r.context(),snapshot.reference()),snapshot);}
-        public CompletionStage<Plan.Context> capture(Jobs.Job root,PlanningBudget b) {
+        public Plan.Context route(Jobs.Job root,PlanningBudget b){routes++;return prepare(root);}
+        Plan.Context prepare(Jobs.Job root) {
             var snapshot=observation(root.request().request());var bound=new ValidatedRequest(root.request().request(),owner,snapshot.reference());
             var direct=engine().resolve(bound,snapshot);var rows=new ArrayList<Plan.Slot>();
             if(PlanningGoals.valid(root.request().request()))for(var request:PlanningGoals.slots(root.request().request())){
@@ -90,6 +91,10 @@ final class GoalPlannerTest {
             var catalog=new Prerequisites.Catalog(1,List.of(),handled?List.of(new Prerequisites.Production("fixture:broad","fixture:out",root.request().request().capability(),"",1,List.of())):
                     List.of(Prerequisites.Production.cropDelivery()),Set.of(),complete);
             prepared=new Plan.Context(root.id(),root.guard(),root.request(),direct,DeterministicPrerequisiteResolver.outcomeCoverage(root.request().request().capability(),catalog),rows,"");
+            return prepared;
+        }
+        public CompletionStage<Plan.Context> capture(Jobs.Job root,PlanningBudget b) {
+            captures++;prepare(root);if(captureFail)return CompletableFuture.failedFuture(new IllegalStateException("History storage unavailable"));
             if(captureHeld){held=new CompletableFuture<>();return held;}return CompletableFuture.completedFuture(prepared);
         }
         Plan.Check check(String json){var root=create();var ctx=capture(root,PlanningBudget.defaults()).toCompletableFuture().join();
@@ -155,7 +160,7 @@ final class GoalPlannerTest {
         assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());assertEquals(before,f.jobs.query(root.id(),f.owner).usage());assertEquals(GoalPlanner.State.CANCELLED,f.planner.view(view.id(),f.owner).state());
     }
     @Test void cancellationBeforeContextOrStorageAckNeverStartsModel() {
-        var f=new Fixture();var root=f.create();f.captureHeld=true;var view=f.planner.propose(root.id(),f.owner);
+        var f=new Fixture();var root=f.create();f.captureHeld=true;var view=f.advance(f.planner.propose(root.id(),f.owner),2);
         assertTrue(f.planner.cancelProposal(view.id(),f.owner));f.held.complete(f.prepared);f.advance(view,5);assertEquals(0,f.model.calls.size());
         f.captureHeld=false;f.disk.hold=true;view=f.planner.propose(root.id(),f.owner);f.planner.tick();assertEquals(GoalPlanner.State.RESERVING,f.planner.view(view.id(),f.owner).state());
         assertTrue(f.planner.cancelProposal(view.id(),f.owner));f.disk.release();f.advance(view,5);assertEquals(0,f.model.calls.size());
@@ -167,7 +172,7 @@ final class GoalPlannerTest {
         assertEquals(2L,f.jobs.query(root.id(),f.owner).usage().get(Budgets.Kind.CANDIDATES));assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());
     }
     @Test void deadlineCountsContextAndQueueTimeAndNoNewAllowance() {
-        var f=new Fixture();var root=f.create();f.captureHeld=true;var view=f.planner.propose(root.id(),f.owner);
+        var f=new Fixture();var root=f.create();f.captureHeld=true;var view=f.advance(f.planner.propose(root.id(),f.owner),2);
         f.clock.now=root.allowance().deadlineEpochMillis();f.step();assertEquals(Reason.BUDGET_EXHAUSTED,f.planner.view(view.id(),f.owner).reason());
         f.held.complete(f.prepared);f.step();assertEquals(0,f.model.calls.size());
     }
@@ -208,7 +213,7 @@ final class GoalPlannerTest {
                 new Plan.Proposal(List.of(new Plan.Node(0,0,1,List.of()),new Plan.Node(1,1,1,List.of(0)))));
         f.planDisk=new PlanJournal.Snapshot(f.world,1,List.of(),List.of(template));f.planner=f.makePlanner();
         var root=f.create();assertThrows(SecurityException.class,()->f.planner.reuse(root.id(),template.id(),f.owner));
-        f.shared=true;f.captureHeld=true;var pending=f.planner.reuse(root.id(),template.id(),f.owner);
+        f.shared=true;f.captureHeld=true;var pending=f.advance(f.planner.reuse(root.id(),template.id(),f.owner),2);
         f.shared=false;f.held.complete(f.prepared);pending=f.advance(pending,5);
         assertEquals(Reason.AUTHORITY_DENIED,pending.reason());assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());
         f.shared=true;f.captureHeld=false;pending=f.advance(f.planner.reuse(root.id(),template.id(),f.owner),6);
@@ -265,5 +270,19 @@ final class GoalPlannerTest {
         var view=planner.propose(root.id(),f.owner);for(int i=0;i<5;i++){recovered.tick();broker.step();planner.tick();}
         assertEquals(Reason.BUDGET_EXHAUSTED,planner.view(view.id(),f.owner).reason());assertEquals(0,model.calls.size());
         assertEquals(65536L,recovered.query(root.id(),f.owner).usage().get(Budgets.Kind.INPUT_BYTES));assertTrue(recovered.query(root.id(),f.owner).children().isEmpty());
+    }
+    @ParameterizedTest @ValueSource(strings={"cancel","storage","size"})
+    void cancelledFailedOrOversizedContextCannotQueueUnchargedRetries(String mode) {
+        var f=new Fixture();var root=f.create();f.captureHeld=mode.equals("cancel");f.captureFail=mode.equals("storage");
+        if(mode.equals("size")){f.budget=new PlanningBudget(8,3,16,8,8192,8192,200,10);f.planner=f.makePlanner();}
+        for(int i=0;i<2;i++) {
+            var view=f.advance(f.planner.propose(root.id(),f.owner),2);
+            if(f.captureHeld){assertTrue(f.planner.cancelProposal(view.id(),f.owner));f.held.complete(f.prepared);}
+            view=f.advance(view,5);assertEquals(f.captureHeld?GoalPlanner.State.CANCELLED:GoalPlanner.State.REJECTED,view.state());
+            assertEquals(i+1L,f.jobs.query(root.id(),f.owner).usage().get(Budgets.Kind.CANDIDATES));
+        }
+        var exhausted=f.advance(f.planner.propose(root.id(),f.owner),5);
+        assertEquals(Reason.BUDGET_EXHAUSTED,exhausted.reason());assertEquals(mode.equals("size")?0:2,f.captures);assertEquals(2,f.routes);assertEquals(0,f.model.calls.size());
+        assertEquals(2L*f.budget.work(),f.jobs.query(root.id(),f.owner).usage().get(Budgets.Kind.INSTRUCTIONS));assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());
     }
 }

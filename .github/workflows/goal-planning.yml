@@ -37,12 +37,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import xml.etree.ElementTree as ET
-          for module,suite,expected in [('core','GoalPlannerTest',43),('core','PlanJournalTest',12),('providers','PlanningAdapterTest',4)]:
+          for module,suite,expected in [('core','GoalPlannerTest',46),('core','PlanJournalTest',12),('providers','PlanningAdapterTest',4)]:
               package='dev.aivillages.core.kernel.' if module=='core' else 'dev.aivillages.providers.'
               cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-'+package+suite+'.xml')).getroot().iter('testcase'))
               if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
                   raise SystemExit('Every matrix case must execute and pass: '+suite)
-          print('IMP-019 matrix: 59 executed passing cases')
+          print('IMP-019 matrix: 62 executed passing cases')
           PY
       - name: Execute complete affected module regressions and build packaging
         run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
@@ -105,7 +105,7 @@ jobs:
               if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Test code or model weights leaked into release')
               for name in ('Plan','PlanningBudget','PlanValidator','PlanJournal','GoalPlanner','PlanningGoals'):
                   if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Planning runtime missing: '+name)
-          evidence={'schema':1,'matrix':59,'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
+          evidence={'schema':1,'matrix':62,'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
           (out/'acceptance.json').write_text(json.dumps(evidence,indent=2)+'\n');print(evidence)
           PY
       - name: Restore full GameTest registration
