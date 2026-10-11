@@ -1,0 +1,99 @@
+name: Blueprint artifact boundary acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
+  push:
+    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blueprint-boundary-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: IMP-020 matrix, full regressions and two-JVM GP-20 inspection
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute every IMP-020 matrix case
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.BlueprintValidatorTest --tests dev.aivillages.core.kernel.BlueprintStoreTest :fabric:test --tests dev.aivillages.fabric.FabricBlueprintRegistryTest
+      - name: Require executed passing matrix coverage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          total=0
+          for module,suite,expected in [('core','BlueprintValidatorTest',30),('core','BlueprintStoreTest',33),('fabric','FabricBlueprintRegistryTest',3)]:
+              package='dev.aivillages.core.kernel.' if module=='core' else 'dev.aivillages.fabric.'
+              path=Path(module+'/build/test-results/test/TEST-'+package+suite+'.xml')
+              cases=list(ET.parse(path).getroot().iter('testcase'))
+              if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Every matrix case must execute and pass: '+suite+' actual='+str(len(cases)))
+              total+=len(cases)
+          print('IMP-020 matrix: '+str(total)+' executed passing cases')
+          PY
+      - name: Execute complete module regressions and package all runtime and native tests
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Inspect, publish and retain the supplied structural fixture in the first JVM
+        env:
+          COGNITIVECRAFT_BLUEPRINT_PHASE: cold
+        run: bash ./gradlew --no-daemon --stacktrace :core:runBlueprintBoundaryProbe
+      - name: Reopen the same refs and inspect immutable data in a second JVM
+        env:
+          COGNITIVECRAFT_BLUEPRINT_PHASE: warm
+        run: bash ./gradlew --no-daemon --stacktrace :core:runBlueprintBoundaryProbe
+      - name: Require active inspection evidence, bounded resource counts and clean release contents
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,zipfile
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root=Path('core/build/blueprint-evidence')
+          cold=json.loads((root/'cold.json').read_text());warm=json.loads((root/'warm.json').read_text())
+          bill={'minecraft:oak_planks':224,'minecraft:oak_slab':99,'minecraft:oak_door':2,'minecraft:torch':4}
+          for phase,proof in [('cold',cold),('warm',warm)]:
+              if proof['phase']!=phase or proof['schema']!=1 or proof['architecture']!='0.5':raise SystemExit('Wrong inspection identity')
+              if proof['materials']!=bill or proof['cells']!=331 or proof['variants']!=1 or proof['evidence']!=1:raise SystemExit('Fixture, dedup or evidence mismatch')
+              if proof['gatewayCalls']!=0 or proof['modelCalls']!=0:raise SystemExit('Structural data invoked execution')
+              if not 0<proof['candidateBytes']<=65536 or not 0<proof['canonicalBytes']<=65536 or not 0<proof['validationWork']<=8192:raise SystemExit('Unbounded validation')
+          if cold['ref']!=warm['ref'] or cold['manifestBytes']!=warm['manifestBytes']:raise SystemExit('Reload changed immutable ref or metadata')
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(module+'/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Complete executed regressions required: '+module)
+              counts[module]=len(cases)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('One production artifact required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('BlueprintFixture' in p or 'BlueprintBoundaryProbe' in p or 'GameTest' in p or p.endswith(('.gguf','.safetensors')) for p in jar.namelist()):raise SystemExit('Fixtures or model weights leaked into release')
+              for name in ('Blueprint','BlueprintValidator','BlueprintStore'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Runtime structural owner missing')
+          proof={'schema':1,'matrix':66,'tests':counts,'total':sum(counts.values()),'cold':cold,'warm':warm,
+                 'scope':'GP-20 structural inspection only; no construction or site permission',
+                 'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
+          (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-020-blueprint-boundary-acceptance
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            core/build/blueprint-evidence/**

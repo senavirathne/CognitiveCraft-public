@@ -43,8 +43,12 @@ jobs:
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
-      - name: Restore and replay the committed genuine arena when present
+      - name: Select the committed arena only for identical production contents
+        id: committed-arena
         if: hashFiles('e2e/environment/known-skill.zip') != ''
+        run: python3 e2e/environment.py compatible >> "$GITHUB_OUTPUT"
+      - name: Restore and replay the compatible committed genuine arena
+        if: steps.committed-arena.outputs.compatible == 'true'
         run: |
           python3 e2e/environment.py restore
           python3 e2e/suite.py --profile environment --root build/e2e/committed-environment --seed build/e2e-restored-seed
@@ -87,6 +91,7 @@ jobs:
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/
+            fabric/build/test-runtime/
       - name: Print diagnostic summary
         if: failure()
         run: python3 e2e/diagnostics.py build/e2e/acceptance-smoke build/e2e/acquire

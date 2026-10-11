@@ -21,6 +21,12 @@ processResources {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') { expand version: project.version }
 }
+// Native registry initialization writes Minecraft logs relative to the JVM.
+// Keep unit-test runtime output in build without changing evidence paths in core/providers.
+tasks.withType(Test).configureEach {
+    workingDir = layout.buildDirectory.dir('test-runtime').get().asFile
+    doFirst { workingDir.mkdirs() }
+}
 jar {
     dependsOn ':core:classes', ':providers:classes'
     from project(':core').sourceSets.main.output

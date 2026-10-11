@@ -1,1 +1,9 @@
 dependencies { api 'com.google.code.gson:gson:2.10.1' }
+
+tasks.register('runBlueprintBoundaryProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.core.kernel.BlueprintBoundaryProbe'
+    args(System.getenv('COGNITIVECRAFT_BLUEPRINT_PHASE') ?: 'cold',
+            layout.buildDirectory.dir('blueprint-evidence').get().asFile.absolutePath)
+}
