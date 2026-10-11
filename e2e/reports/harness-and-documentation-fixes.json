@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "testHarnessOrCiFixCount": 6,
+  "testHarnessOrCiFixCount": 7,
   "fixes": [
     {
       "id": "HC-001",
       "category": "CI_CORRECTION",
       "before": "Default PR checkout selected a synthetic merge while evidence claimed reviewed source",
-      "after": "All relevant owner workflows pin reviewed head; require 17 independently executed owner gates and retain same-head counterpart runs"
+      "after": "All relevant owner workflows pin reviewed head; require 17 independently executed owner gates and retain same-head counterpart runs; owner workflow path filters include e2e changes so future arena/harness commits receive fresh same-head acceptance"
     },
     {
       "id": "HC-002",
@@ -41,6 +41,16 @@
       "detectedRun": 38125763483,
       "before": "Unused empty reuse chest at 7,201,9 bordered the final primary crop; new worker stood at y=201.875 on the chest, trampled a crop into an uncredited loose wheat drop, and correctly blocked RESOURCE_MISSING after 3 of requested 4 units",
       "after": "Before the next explicit task, assert that unused fixture chest has no stock and remove that obstacle; preserve old worker inventory, uncertain rights, original source/destination and exact delivery/conservation assertions"
+    },
+    {
+      "id": "HC-007",
+      "category": "CONCURRENT_EVIDENCE_READ_DEFECT",
+      "detectedRun": 38128169874,
+      "detectedJob": 114436771010,
+      "before": "Real committed-arena physical replay completed its server terminal checks, then direct JSONL parsing raced an active append and failed with an unterminated string at column 98304",
+      "after": "Parse only newline-terminated committed records and defer the active trailing append; fail on any malformed completed record. Use the same strict reader for movement and client events, with five concurrent/truncated/corrupt/UTF-8/order regressions. Retain every existing physical, client synchronization, receipt and screenshot assertion.",
+      "beforeArtifact": 11698640223,
+      "beforeArtifactSha256": "e3b22d4154eed9ac61aa5cd022d53b4e41c1e9009edf2bef8b2727bf92e2c96d"
     }
   ],
   "documentationOnlyFixCount": 3,

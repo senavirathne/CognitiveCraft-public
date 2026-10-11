@@ -4,12 +4,14 @@ on:
   push:
     branches: [imp-008-citizen-identity, imp-009-needle-intent]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'fabric/**'
       - '.github/workflows/citizen-identity.yml'
   pull_request:
     branches: [main, imp-007-bootstrap-controller, feature/default-nearest-world-references]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'fabric/**'
       - '.github/workflows/citizen-identity.yml'

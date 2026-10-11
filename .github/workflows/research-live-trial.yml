@@ -4,6 +4,7 @@ on:
   push:
     branches: [imp-006-research-admission, imp-008-citizen-identity, imp-009-needle-intent]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'providers/**'
       - 'fabric/**'
@@ -11,6 +12,7 @@ on:
   pull_request:
     branches: [main, feature/default-nearest-world-references]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'providers/**'
       - 'fabric/**'

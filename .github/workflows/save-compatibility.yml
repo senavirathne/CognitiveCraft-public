@@ -3,9 +3,9 @@ name: Save and artifact compatibility acceptance
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
   push:
-    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
 
 permissions:
   contents: read

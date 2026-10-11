@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "scope": "29 recent failed runs relevant to IMP014.1\u2013019 and PR7 E2E; earlier owner failures retained in baseline inventory",
+  "scope": "29 recent failed runs relevant to IMP014.1–019 and PR7 E2E; earlier owner failures retained in baseline inventory",
   "runs": [
     {
       "run": 38115881627,
@@ -377,7 +377,7 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T04:40:07.8792570Z E2E-CMD-001 FAIL Feedback PlayerA: /aivillage kernel name 49b0236e-17f5-4a93-b8e0-c14d721c68d3 \u00c1da \ud83c\udf3e expected=name=\u00c1da \ud83c\udf3e; last=None",
+        "2026-10-10T04:40:07.8792570Z E2E-CMD-001 FAIL Feedback PlayerA: /aivillage kernel name 49b0236e-17f5-4a93-b8e0-c14d721c68d3 Áda 🌾 expected=name=Áda 🌾; last=None",
         "2026-10-10T04:40:11.9781074Z ##[error]Process completed with exit code 1."
       ],
       "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
@@ -668,6 +668,26 @@
       "qualificationArtifactSha256": "61d4d90f1db6ac311a61e5fb047251cf1889216f4cd0919c567fc3b0ee1da138",
       "gameplayArtifact": 11697763248,
       "gameplayArtifactSha256": "2eb673525def4928c89bdd3ec0c836f7fc00adaee43332a7277b31cb6cd6af8b"
+    },
+    {
+      "sourceCommit": "171efb4fd66d0f3804ccd1617a369e32a2c564fb",
+      "run": 38128169874,
+      "job": 114436771010,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38128169874/job/114436771010",
+      "classification": "TEST_HARNESS_CONCURRENT_JSONL_READ",
+      "executedProfiles": [
+        "smoke",
+        "environment"
+      ],
+      "notExecutedProfiles": [
+        "fresh-acquisition",
+        "deterministic",
+        "nlu",
+        "resilience"
+      ],
+      "disposition": "Committed archive hashes and restored physical server terminal/receipt checks completed. Movement evidence parsed a concurrently appended partial JSONL record and raised JSONDecodeError at column 98304; full qualification correctly failed, downstream matrix not executed. HC-007 defers only unterminated records and retains strict corruption failures and all mandatory assertions.",
+      "artifact": 11698640223,
+      "artifactSha256": "e3b22d4154eed9ac61aa5cd022d53b4e41c1e9009edf2bef8b2727bf92e2c96d"
     }
   ]
 }

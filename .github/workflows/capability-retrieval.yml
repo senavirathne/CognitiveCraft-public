@@ -2,10 +2,10 @@ name: Capability retrieval acceptance
 on:
   push:
     branches: [feature/imp010-capability-retrieval]
-    paths: ['core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
   pull_request:
     branches: [main, feature/default-nearest-world-references]
-    paths: ['core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/capability-retrieval.yml']
   workflow_dispatch:
 permissions:
   contents: read

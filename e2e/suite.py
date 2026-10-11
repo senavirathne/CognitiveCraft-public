@@ -56,6 +56,19 @@ def read(path: Path, default=None):
         return default
 
 
+def completed_jsonl(path: Path):
+    """Read committed newline-terminated records; a concurrent append may leave a partial tail."""
+    try:
+        data = path.read_bytes()
+    except FileNotFoundError:
+        return []
+    committed, separator, _tail = data.rpartition(b"\n")
+    if not separator:
+        return []
+    # Completed malformed records remain failures: only the uncommitted tail is deferred.
+    return [json.loads(line) for line in committed.split(b"\n") if line]
+
+
 def require(condition, reason: str) -> None:
     if not condition:
         raise AssertionError(reason)
@@ -268,12 +281,7 @@ class Harness:
 
     def events(self, player):
         path = self.root / "clients" / player / "events.jsonl"
-        if not path.exists(): return []
-        result = []
-        for line in path.read_text().splitlines():
-            try: result.append(json.loads(line))
-            except json.JSONDecodeError: pass
-        return result
+        return completed_jsonl(path)
 
     def command(self, player, text, expected, timeout=30):
         offset = len(self.events(player))
@@ -746,8 +754,8 @@ def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=No
                 "Foreign actor credited to delivery")
         require([receipt["source"][key] for key in ("minX","minY","minZ","maxX","maxY","maxZ")] == source and
                 [receipt["destination"][key] for key in ("x","y","z")] == destination, "Wrong source or destination receipt")
-    movement = [a["pos"] for line in (h.root / "server/observations.jsonl").read_text().splitlines()
-                for observation in [json.loads(line)] if observation["time"] >= started
+    movement = [a["pos"] for observation in completed_jsonl(h.root / "server/observations.jsonl")
+                if observation["time"] >= started
                 for a in observation["actors"] if a["uuid"] == h.entities[player]]
     require(any(math.dist(actor_before, pos) > .5 for pos in movement), "No observed physical villager travel")
     observed = h.menu_count(player, destination)

@@ -3,9 +3,9 @@ name: Observed world knowledge acceptance
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
   push:
-    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
 
 permissions:
   contents: read

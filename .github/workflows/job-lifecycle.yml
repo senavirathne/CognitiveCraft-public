@@ -2,10 +2,10 @@ name: Job lifecycle acceptance
 on:
   push:
     branches: [main, feature/imp011-job-lifecycle]
-    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
   pull_request:
     branches: [main]
-    paths: ['core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
   workflow_dispatch:
 permissions:
   contents: read

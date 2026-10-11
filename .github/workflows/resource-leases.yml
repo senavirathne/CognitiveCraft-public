@@ -2,10 +2,10 @@ name: Resource lease acceptance
 on:
   push:
     branches: [main, feature/imp012-resource-leases]
-    paths: ['core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
   pull_request:
     branches: [main]
-    paths: ['core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
   workflow_dispatch:
 permissions:
   contents: read
