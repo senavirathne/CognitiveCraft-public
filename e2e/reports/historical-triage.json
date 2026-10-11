@@ -1,0 +1,565 @@
+{
+  "schema": 1,
+  "scope": "29 recent failed runs relevant to IMP014.1–019 and PR7 E2E; earlier owner failures retained in baseline inventory",
+  "runs": [
+    {
+      "run": 38115881627,
+      "jobs": [
+        {
+          "id": 114400558811,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-11T05:49:03.3331581Z java.nio.file.NoSuchFileException: server.properties",
+        "2026-10-11T05:49:15.1309132Z [05:49:15] [Server thread/INFO] (Minecraft) 1 required tests failed :("
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38115347762,
+      "jobs": [
+        {
+          "id": 114399035345,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38115345599,
+      "jobs": [
+        {
+          "id": 114399029104,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38114298044,
+      "jobs": [
+        {
+          "id": 114396005257,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38113971734,
+      "jobs": [
+        {
+          "id": 114395058582,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38113964720,
+      "jobs": [
+        {
+          "id": 114395038159,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38102882993,
+      "jobs": [
+        {
+          "id": 114362292841,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "failedSteps": [
+            "Use actual installed recipes, stock-first deficits and one real shared producer"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-11T01:46:50.9576356Z java.nio.file.NoSuchFileException: server.properties",
+        "2026-10-11T01:46:56.7581521Z [01:46:56] [Server thread/INFO] (Minecraft) 1 required tests failed :(",
+        "2026-10-11T01:46:56.7583272Z [01:46:56] [Server thread/INFO] (Minecraft)    - ai_villages_tests:prerequisite_game_tests_stock_first_shared_production_uses_real_receipts_and_no_inference: Real P0 production failed: Execution[status=BLOCKED, reason=ACTION_TIMEOUT, committedEffects=7, completion=null] on tick 3002"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38077990352,
+      "jobs": [
+        {
+          "id": 114288890418,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "failedSteps": [
+            "Require all retention matrix tests, real process kills and measured simulations"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38077988171,
+      "jobs": [
+        {
+          "id": 114288884355,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "failedSteps": [
+            "Require all retention matrix tests, real process kills and measured simulations"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38052288832,
+      "jobs": [
+        {
+          "id": 114213666399,
+          "name": "Java 25 / Fabric verification",
+          "failedSteps": [
+            "Fabric server GameTests and saved-world phase"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T12:32:46.8063901Z             raise SystemExit('Missing passing scoped UUID regression: ' + name)",
+        "2026-10-10T12:32:46.8077317Z         raise SystemExit('Missing storage-deadline regression ' + name)",
+        "2026-10-10T12:32:46.8083536Z         raise SystemExit('Missing bounded journal-read regression ' + name)",
+        "2026-10-10T12:32:46.8087928Z         raise SystemExit(f'Missing passing identity coverage: {suite} ({len(cases)})')",
+        "2026-10-10T12:32:46.8094095Z         raise SystemExit('Missing registry/controller integration regression ' + name)"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38052286505,
+      "jobs": [
+        {
+          "id": 114213659514,
+          "name": "Java 25 / Fabric verification",
+          "failedSteps": [
+            "Fabric server GameTests and saved-world phase"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38032383842,
+      "jobs": [
+        {
+          "id": 114157370466,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114159985667,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T07:03:51.9068030Z E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel job-status [REDACTED_UUID] expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal; last=None",
+        "2026-10-10T07:15:24.4710156Z E2E-LEASE-001 FAIL 'NoneType' object is not subscriptable",
+        "2026-10-10T07:15:35.7152825Z CASE E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel job-status [REDACTED_UUID] expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal; last=None",
+        "2026-10-10T07:15:35.7154801Z CASE E2E-LEASE-001 FAIL 'NoneType' object is not subscriptable"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38030348647,
+      "jobs": [
+        {
+          "id": 114150931550,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114154184215,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T06:26:53.0162419Z E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel status [REDACTED_UUID] expected=[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found; last=None",
+        "2026-10-10T06:38:26.9151548Z E2E-RECOVERY-001 FAIL Requested physical outcome failed: run=[REDACTED_UUID] phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'OBSERVATIONS': 108, 'INSTRUCTIONS': 206, 'CALLS': 48, 'TRAVEL_BLOCKS': 18, 'COMM",
+        "2026-10-10T06:41:21.2490491Z E2E-LEASE-001 FAIL Other scoped queued job bounded physical outcome; last=False",
+        "2026-10-10T06:41:37.2593375Z CASE E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel status [REDACTED_UUID] expected=[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found; last=None",
+        "2026-10-10T06:41:37.2598024Z CASE E2E-RECOVERY-001 FAIL Requested physical outcome failed: run=[REDACTED_UUID] phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'OBSERVATIONS': 108, 'INSTRUCTIONS': 206, 'CALLS': 48, 'TRAVEL_BLOCKS': 18, "
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38027837433,
+      "jobs": [
+        {
+          "id": 114143997864,
+          "name": "nlu connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114143997937,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114147514875,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T05:45:01.7493278Z E2E-NLU-001 FAIL Removed caller used a stale world anchor"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38025954149,
+      "jobs": [
+        {
+          "id": 114138330475,
+          "name": "nlu connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114138330510,
+          "name": "resilience connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114138330512,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114140936155,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T05:11:33.4000086Z E2E-NLU-001 FAIL Removed caller used a stale world anchor"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38024859702,
+      "jobs": [
+        {
+          "id": 114133532741,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 114135219607,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T04:50:12.2228798Z E2E-AI-001 FAIL Requested physical outcome failed: run=[REDACTED_UUID] phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'CALLS': 48, 'COMMITTED_EFFECTS': 4, 'TRAVEL_BLOCKS': 6, 'INSTRUCTIONS': 161, 'OBSERVAT"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 38024097912,
+      "jobs": [
+        {
+          "id": 114132867002,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114132867025,
+          "name": "resilience connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114132867077,
+          "name": "nlu connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114133470819,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T04:40:07.8792570Z E2E-CMD-001 FAIL Feedback PlayerA: /aivillage kernel name [REDACTED_UUID] Áda 🌾 expected=name=Áda 🌾; last=None"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37941645438,
+      "jobs": [
+        {
+          "id": 113857247288,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113861295970,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-09T14:15:13.0236925Z E2E-AI-001 FAIL Model-free reuse called AI"
+      ],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37941636998,
+      "jobs": [
+        {
+          "id": 113857218288,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113861177777,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37939610042,
+      "jobs": [
+        {
+          "id": 113850324642,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113854575045,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37939602136,
+      "jobs": [
+        {
+          "id": 113850299091,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113854242862,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37937430196,
+      "jobs": [
+        {
+          "id": 113842895002,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113846799863,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37937422235,
+      "jobs": [
+        {
+          "id": 113842867473,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113846212432,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37936192637,
+      "jobs": [
+        {
+          "id": 113838735684,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37936186498,
+      "jobs": [
+        {
+          "id": 113838714407,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37934931620,
+      "jobs": [
+        {
+          "id": 113834503540,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37934925039,
+      "jobs": [
+        {
+          "id": 113834478522,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37933067926,
+      "jobs": [
+        {
+          "id": 113828293465,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    },
+    {
+      "run": 37933062283,
+      "jobs": [
+        {
+          "id": 113828275537,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+    }
+  ]
+}

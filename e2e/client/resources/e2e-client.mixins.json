@@ -1,0 +1,1 @@
+{"required":true,"package":"dev.aivillages.e2e.mixin","compatibilityLevel":"JAVA_25","client":["PacketTraceMixin","OutboundTraceMixin"],"injectors":{"defaultRequire":1}}

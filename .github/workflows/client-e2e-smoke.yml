@@ -1,0 +1,62 @@
+name: Real Minecraft client E2E smoke
+on:
+  push:
+    branches: [main]
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-smoke.yml']
+  pull_request:
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: real-client-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  connected-player:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Build production release binary
+        run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Acquire official client and Fabric with integrity verification
+        run: python3 e2e/runtime.py prepare
+      - name: Compile separate client driver and read-only observer
+        run: python3 e2e/runtime.py compile
+      - name: Real login, floating enclosure, enrollment, Tab, naming and reconnect
+        run: python3 e2e/suite.py --profile smoke --topology compose --root build/e2e/smoke
+      - name: Retain client, server, packet and assertion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-client-smoke-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            build/e2e/smoke/
+            build/e2e-sdk/integrity.json
+            fabric/build/test-results/
+      - name: Print failure diagnostics
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('build/e2e/smoke')
+          for pattern in ('results.json', '**/stdout.log', '*-launcher.log', '**/response.json'):
+              for path in root.glob(pattern):
+                  print('\nDIAGNOSTIC',path)
+                  print('\n'.join(path.read_text(errors='replace').splitlines()[-100:]))
+          PY
