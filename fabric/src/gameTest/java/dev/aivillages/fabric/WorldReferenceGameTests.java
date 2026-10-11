@@ -23,6 +23,48 @@ import static net.minecraft.commands.Commands.literal;
 
 /** Injected interpretation and test-only acquired knowledge; all binding and physical owners are production. */
 public final class WorldReferenceGameTests {
+    @GameTest(maxTicks = 80)
+    public void disconnectedCallerRejectsPendingBindingBeforeEntityRemoval(GameTestHelper h) {
+        var player = h.makeMockServerPlayerInLevel();
+        var caller = new TrustedContext(new PrincipalRef(player.getUUID()),
+                new ScopeRef(UUID.randomUUID(), UUID.randomUUID()));
+        var clock = java.time.Clock.systemUTC();
+        var villager = h.spawn(EntityTypes.VILLAGER, 1, 1, 1);
+        var chunk = new net.minecraft.world.level.ChunkPos(villager.blockPosition().getX() >> 4,
+                villager.blockPosition().getZ() >> 4);
+        h.getLevel().setChunkForced(chunk.x(), chunk.z(), true);
+        h.getLevel().getChunkSource().addTicketWithRadius(net.minecraft.server.level.TicketType.PLAYER_SIMULATION, chunk, 2);
+        player.setPos(villager.getX() + 1, villager.getY(), villager.getZ());
+        var actor = new ActorRef(UUID.randomUUID(), villager.getUUID(),
+                h.getLevel().dimension().identifier().toString());
+        var initial = new CitizenRegistry.Snapshot(caller.scope().worldId(), 0,
+                List.of(new CitizenRegistry.Citizen(actor, caller, "Existing", CitizenRegistry.Availability.LOADED)), null);
+        var writes = new java.util.concurrent.atomic.AtomicInteger();
+        var citizens = new CitizenRegistry(initial, (expected, next) -> {
+            writes.incrementAndGet(); return CompletableFuture.completedFuture(next);
+        }, CitizenRegistry.privateAddresses(), clock, false);
+        h.failIfEver(() -> h.assertTrue(writes.get() == 0,
+                "Disconnected caller published identity changes; writes=" + writes.get()));
+        var world = new FabricGatewayWorld(h.getLevel());
+        h.succeedWhen(() -> {
+            h.assertTrue(world.actor(actor).loaded(), "Waiting for actual fixture simulation");
+            citizens.observeAvailability(actor.citizenId(), CitizenRegistry.Availability.LOADED);
+            var resolver = new FabricWorldReferenceResolver(world, citizens, caller, player,
+                    new LanguageRequests.NamingIntent(WorldReferenceResolver.Reference.concrete(actor,
+                            "Controlled loaded fixture"), "Ada"), clock);
+            player.disconnect();
+            h.assertTrue(player.hasDisconnected() && !player.isRemoved(),
+                    "Real disconnect flag must precede entity removal");
+            var result = resolver.poll();
+            for (int poll = 1; poll < 8 && result.kind() == LanguageRequests.ResolutionKind.PENDING; poll++)
+                result = resolver.poll();
+            h.assertTrue(writes.get() == 0 && result.kind() == LanguageRequests.ResolutionKind.REJECTED
+                            && result.reason() == Outcomes.Reason.STALE_OBSERVATION
+                            && result.request() == null && citizens.snapshot().equals(initial),
+                    "Disconnected caller retained a usable world-reference binding; writes=" + writes.get() + ": " + result);
+        });
+    }
+
     @GameTest(maxTicks = 3000, padding = 32)
     public void registeredNamingAndChangedNearestBindingsUseRealPhysicalExecution(GameTestHelper h) {
         Driver d = new Driver(h);

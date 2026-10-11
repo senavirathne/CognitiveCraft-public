@@ -102,6 +102,21 @@ def qualify(root: Path) -> bool:
         if unit["unit"] == "IMP-019":
             unit["live_AI_result"] = plan_quality.get("status", "NOT_EXECUTED")
             unit["live_AI_evidence"] = plan_quality
+        elif unit["unit"] in ("IMP-005", "IMP-006", "IMP-007", "IMP-014"):
+            genuine = [row for row in executed["E2E-AI-001"] if row.get("status") == "PASS" and
+                       row.get("evidence",{}).get("acquisition",{}).get("generationCalls",0) > 0 and
+                       row.get("evidence",{}).get("models")]
+            unit["live_AI_result"] = "PASS" if genuine else "NOT_EXECUTED"
+            unit["live_AI_evidence"] = [{"report":row["report"],"evidence":row["evidence"]} for row in genuine]
+            unit["knownReuse_result"] = "PASS" if genuine and all(row["evidence"].get("modelFreeReuse",{}).get(
+                    "generationCalls") == 0 for row in genuine) else "NOT_EXECUTED"
+            if unit["live_AI_result"] != "PASS" or unit["knownReuse_result"] != "PASS": unit["status"] = "FAIL"
+        elif unit["unit"] == "IMP-009":
+            genuine = [row for row in executed["E2E-NLU-001"] if row.get("status") == "PASS" and
+                       row.get("evidence",{}).get("needleCalls",0) > 0]
+            unit["live_AI_result"] = "PASS" if genuine else "NOT_EXECUTED"
+            unit["live_AI_evidence"] = [{"report":row["report"],"calls":row["evidence"]["needleCalls"]} for row in genuine]
+            if not genuine: unit["status"] = "FAIL"
     passed = consistent and owner_consistent and all(f["status"] == "PASS" for f in families.values()) \
         and all(u["status"] in ("PASS", "BLOCKED_BY_IMPLEMENTATION") for u in units) \
         and plan_quality.get("status") == "PASS"
@@ -111,6 +126,13 @@ def qualify(root: Path) -> bool:
               "notClientExposed":[u["unit"] for u in units if u["network_E2E_result"] == "NOT_CLIENT_EXPOSED"],
               "conditionalMissing":[u["unit"] for u in units if u["implementation_status"] == "ABSENT"]}
     (root / "qualification.json").write_text(json.dumps(output,indent=2)+"\n")
+    ledger = json.loads(Path(__file__).with_name("reports").joinpath("production-fixes.json").read_text())
+    fix_validation = {"schema":1,"status":output["status"],"identities":identities,
+            "productionCodeFixesMade":ledger["productionCodeFixesMade"],"productionFixCount":ledger["productionFixCount"],
+            "fixes":[{**fix,"finalValidation":{"status":"PASS" if passed else "FAIL",
+                "networkFamilies":{f:families[f] for f in fix.get("families",[fix.get("family")]) if f in families},
+                "ownerRuns":owners.get("runs",[])}} for fix in ledger["fixes"]]}
+    (root / "production-fix-validation.json").write_text(json.dumps(fix_validation,indent=2)+"\n")
     print("Qualification", output["status"], "exact binary",consistent,"owner source",owner_consistent)
     for unit in units:
         print(unit["unit"], "unit="+unit["unit_result"], "GameTest="+unit["GameTest_result"],

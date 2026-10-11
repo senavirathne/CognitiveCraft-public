@@ -25,6 +25,20 @@ def digest(path: Path, algorithm: str = "sha256") -> str:
         return hashlib.file_digest(stream, algorithm).hexdigest()
 
 
+def semantic_jar(path: Path | None = None) -> str:
+    """Hash every named entry; ignore ZIP timestamps/compression, never code changes."""
+    path = path or ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"
+    checksum = hashlib.sha256()
+    with ZipFile(path) as archive:
+        names = archive.namelist()
+        if len(names) != len(set(names)):
+            raise ValueError("Duplicate production JAR entries")
+        for name in sorted(names):
+            if not name.endswith("/"):
+                checksum.update(name.encode()); checksum.update(b"\0"); checksum.update(archive.read(name))
+    return checksum.hexdigest()
+
+
 def acquire(url: str, path: Path, expected: str, algorithm: str = "sha1") -> Path:
     if path.exists() and digest(path, algorithm) == expected:
         return path

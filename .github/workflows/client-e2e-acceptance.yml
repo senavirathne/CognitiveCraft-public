@@ -43,6 +43,11 @@ jobs:
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
+      - name: Restore and replay the committed genuine arena when present
+        if: hashFiles('e2e/environment/known-skill.zip') != ''
+        run: |
+          python3 e2e/environment.py restore
+          python3 e2e/suite.py --profile environment --root build/e2e/committed-environment --seed build/e2e-restored-seed
       - name: First prove connected-player smoke
         run: python3 e2e/suite.py --profile smoke --root build/e2e/acceptance-smoke
       - name: Install genuine immutable Needle host assets
@@ -53,6 +58,7 @@ jobs:
           free -m > build/e2e/acquire/host-memory.txt
           lscpu > build/e2e/acquire/host-cpu.txt
           python3 e2e/suite.py --profile acquire --root build/e2e/acquire --seed build/e2e-certified-seed
+          python3 e2e/environment.py pack --archive build/e2e-certified-environment.zip --manifest build/e2e-certified-environment.json --evidence-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       - name: Retain the certified stopped-world fixture and exact production binary
         uses: actions/upload-artifact@v4
         with:
@@ -62,6 +68,8 @@ jobs:
           include-hidden-files: true
           path: |
             build/e2e-certified-seed/
+            build/e2e-certified-environment.zip
+            build/e2e-certified-environment.json
             fabric/build/libs/ai-villages-0.1.0.jar
       - name: Preserve acquisition, packet, model and unit evidence
         if: always()
@@ -74,6 +82,7 @@ jobs:
           path: |
             build/e2e/acceptance-smoke/
             build/e2e/acquire/
+            build/e2e/committed-environment/
             build/e2e-sdk/integrity.json
             core/build/test-results/test/
             providers/build/test-results/test/
@@ -161,3 +170,4 @@ jobs:
           path: |
             build/qualification/qualification.json
             build/qualification/owner-evidence.json
+            build/qualification/production-fix-validation.json

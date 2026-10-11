@@ -129,7 +129,7 @@
       "aiDependency": "actual Ollama",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "research-live-trial.yml",
       "requiredVariants": []
     },
     {
@@ -156,7 +156,7 @@
       "aiDependency": "actual local generation",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "research-live-trial.yml",
       "requiredVariants": []
     },
     {
@@ -185,7 +185,7 @@
       "aiDependency": "actual generation only for fresh gap",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "capability-retrieval.yml",
       "requiredVariants": []
     },
     {
@@ -209,6 +209,10 @@
         {
           "source": "fabric/src/test/java/dev/aivillages/fabric/KernelAvailabilityTest.java",
           "suite": "dev.aivillages.fabric.KernelAvailabilityTest"
+        },
+        {
+          "source": "fabric/src/test/java/dev/aivillages/fabric/KernelAvailabilityTest.java",
+          "suite": "dev.aivillages.fabric.KernelAvailabilityTest"
         }
       ],
       "happyPath": "Nearest enrollment, Tab and durable name",
@@ -218,7 +222,7 @@
       "aiDependency": "none",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "citizen-identity.yml",
       "requiredVariants": []
     },
     {
@@ -250,7 +254,7 @@
       "aiDependency": "actual Needle",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "needle-language.yml",
       "requiredVariants": []
     },
     {
@@ -278,7 +282,7 @@
       "aiDependency": "zero model calls for known execution",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "job-lifecycle.yml",
       "requiredVariants": []
     },
     {
@@ -310,7 +314,7 @@
       "aiDependency": "none",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "resource-leases.yml",
       "requiredVariants": []
     },
     {
@@ -343,7 +347,7 @@
       "aiDependency": "none",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "worker-dispatcher.yml",
       "requiredVariants": []
     },
     {
@@ -371,7 +375,7 @@
       "aiDependency": "none",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "default-nearest.yml",
       "requiredVariants": []
     },
     {
@@ -404,7 +408,7 @@
       "aiDependency": "actual generation for observable provider integration",
       "implementation_status": "PRESENT",
       "networkExposure": "CLIENT_REACHABLE",
-      "ownerWorkflow": "ci.yml",
+      "ownerWorkflow": "ai-work-broker.yml",
       "requiredVariants": []
     },
     {
@@ -557,7 +561,9 @@
       ],
       "ownerWorkflow": "observed-knowledge.yml",
       "networkExposure": "CLIENT_REACHABLE",
-      "requiredVariants": [],
+      "requiredVariants": [
+        "GP-E2E-17"
+      ],
       "boundary": "Actual foreign-player world mutation, scoped retained evidence and subsequent live revalidation",
       "happyPath": "Actual foreign-player world mutation, scoped retained evidence and subsequent live revalidation",
       "negative": "Existing exact owner matrix plus applicable physical failure",
@@ -643,6 +649,16 @@
     "world-retention.yml",
     "observed-knowledge.yml",
     "prerequisites.yml",
-    "goal-planning.yml"
+    "goal-planning.yml",
+    "citizen-identity.yml",
+    "capability-retrieval.yml",
+    "job-lifecycle.yml",
+    "default-nearest.yml",
+    "ai-work-broker.yml",
+    "worker-dispatcher.yml",
+    "needle-language.yml",
+    "resource-leases.yml",
+    "research-live-trial.yml",
+    "client-e2e-smoke.yml"
   ]
 }

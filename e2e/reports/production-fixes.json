@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "productionCodeFixesMade": true,
-  "productionFixCount": 2,
+  "productionFixCount": 3,
   "fixes": [
     {
       "id": "FIX-001",
@@ -38,7 +38,7 @@
       "provenance": "Adapted after fresh reproduction from inspected PR #7, head 5130a8fe5a23b34c16a8d04095d4bfddc7df2f8c",
       "schemaImpact": "none",
       "permissionImpact": "none",
-      "closure": "Final exact-head Actions and connected-client replay pending"
+      "closure": "Focused before/after passed; exact-head regression and client replay are required by production-fix-validation.json"
     },
     {
       "id": "FIX-002",
@@ -79,14 +79,70 @@
           "report": "e2e/reports/regressions/admission-before.json"
         },
         "after": {
-          "status": "Pending final exact-head replay"
+          "executed": 2,
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "run": 38123470419,
+          "job": 114424544506,
+          "head": "32c46b32891f548ef4e615e29d08b60e97fc9761",
+          "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38123470419/job/114424544506",
+          "cases": [
+            "E2E-SUGGEST-001",
+            "E2E-LEASE-001"
+          ],
+          "note": "Original two production reproductions passed; three newly added variant checks separately failed from harness setup/API assumptions"
         }
       },
       "provenance": "Adapted after fresh network reproduction from audited PR #7, head 5130a8fe5a23b34c16a8d04095d4bfddc7df2f8c",
       "schemaImpact": "none",
       "permissionImpact": "none",
       "residualRisk": "Pending owner writes legitimately retain bounded rejection; retries and acceptance limits are unchanged",
-      "closure": "Final exact-head connected-client, owner GameTests and Actions replay required"
+      "closure": "Original network reproductions passed; final head is gated independently and is emitted in production-fix-validation.json"
+    },
+    {
+      "id": "FIX-003",
+      "severity": "MEDIUM",
+      "owner": "IMP-013 / IMP-009",
+      "families": [
+        "E2E-NLU-001"
+      ],
+      "baseline": "01c623f4915e8f760659eac1a1426e1bbca6e3a5",
+      "detectedHead": "32c46b32891f548ef4e615e29d08b60e97fc9761",
+      "category": "PRODUCTION_DEFECT",
+      "productionFiles": [
+        "fabric/src/main/java/dev/aivillages/fabric/FabricWorldReferenceResolver.java"
+      ],
+      "method": "WorldReferenceBinding caller-validity predicate",
+      "before": "Disconnected ServerPlayer remained in its level before entity removal and could publish a new citizen name; fresh actual Minecraft GameTest observed one identity write after disconnect",
+      "after": "Check hasDisconnected as well as removal, identity and dimension; reject pending binding as STALE_OBSERVATION before metadata or physical admission",
+      "rootCause": "The game engine disconnect flag changes before isRemoved; the adapter tested only removal and trusted identity/dimension",
+      "test": "WorldReferenceGameTests.disconnectedCallerRejectsPendingBindingBeforeEntityRemoval",
+      "regression": {
+        "layer": "Actual Minecraft GameTest; engine ServerPlayer disconnect flag and actual CitizenRegistry; not full-player E2E",
+        "before": {
+          "executed": 1,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "identityWrites": 1,
+          "report": "e2e/reports/regressions/caller-before.xml"
+        },
+        "after": {
+          "executed": 1,
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "identityWrites": 0,
+          "report": "e2e/reports/regressions/caller-after.xml"
+        }
+      },
+      "provenance": "Audited PR #7 guard, adapted only after fresh current-code reproduction with a loaded controlled naming target; related historical network failures 38027837433 and 38025954149",
+      "schemaImpact": "none",
+      "permissionImpact": "Reject abandoned ephemeral binding; existing admitted jobs retain client-loss behavior",
+      "residualRisk": "Targeted native disconnect-before-removal window plus final real-client caller-abandonment and client-loss replay; no claim that native fixture is full E2E",
+      "closure": "Actual Minecraft regression failed on an identity write before the guard and passed with zero writes after; final exact-head native and network gates are emitted in production-fix-validation.json"
     }
-  ]
+  ],
+  "finalEvidence": "Exact-head qualification emits production-fix-validation.json with final source/binary identities, owner run URLs and original-family replay results; final documentation links that artifact."
 }

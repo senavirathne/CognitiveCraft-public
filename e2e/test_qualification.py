@@ -23,6 +23,10 @@ class QualificationTests(unittest.TestCase):
         variants = {v:{"status":"PASS"} for u in coverage["units"] for v in u.get("requiredVariants",[])}
         self.results = {"profile":"all","results":[{"id":f,"status":"PASS","evidence":{"variants":variants}}
                                                     for f in FAMILIES]}
+        for row in self.results["results"]:
+            if row["id"] == "E2E-AI-001": row["evidence"].update({"acquisition":{"generationCalls":1},
+                    "modelFreeReuse":{"generationCalls":0},"models":{"syntheticParserFixture":True}})
+            if row["id"] == "E2E-NLU-001": row["evidence"]["needleCalls"]=3
         self.write("results.json",self.results)
         self.metadata = {"sourceCommit":"tested","reviewedHeadCommit":"head","sourceTree":"tree",
                          "sourceBranch":"review","releaseSha256":"jar","dirty":False,
@@ -94,6 +98,12 @@ class QualificationTests(unittest.TestCase):
 
     def test_obsolete_screenshot_source_cannot_qualify(self):
         self.results["results"][0]["screenshots"][0]["sourceCommit"]="old";self.write("results.json",self.results)
+        self.assertFalse(self.result()[0])
+
+    def test_green_family_without_actual_generation_measurement_fails(self):
+        for row in self.results["results"]:
+            if row["id"] == "E2E-AI-001": row["evidence"]["acquisition"]["generationCalls"]=0
+        self.write("results.json",self.results)
         self.assertFalse(self.result()[0])
 
     def test_inconsistent_release_envelope_fails(self):

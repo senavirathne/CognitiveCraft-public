@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install immutable actual Needle assets
         run: python3 tools/needle/install.py "$RUNNER_TEMP/needle"

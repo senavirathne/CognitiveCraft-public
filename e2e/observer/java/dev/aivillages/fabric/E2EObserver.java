@@ -148,8 +148,8 @@ public final class E2EObserver implements ModInitializer {
                     knowledgeQueries.remove(player.getUUID());
                 }
                 if (online && ticks % 20 == 0 && !knowledgeQueries.containsKey(player.getUUID())) {
-                    var target = new SurvivalGateway.ObservationTarget(SurvivalGateway.ObservationKind.SOURCE_CROPS,
-                            new Cuboid("minecraft:overworld",6,201,6,7,201,8), null);
+                    var target = new SurvivalGateway.ObservationTarget(SurvivalGateway.ObservationKind.CONTAINER_STOCK,
+                            new Cuboid("minecraft:overworld",9,201,7,9,201,7), null);
                     knowledgeQueries.put(player.getUUID(), kernel.observedKnowledge(player, target,
                             new ObservedWorldKnowledgeStore.QueryLimits(64,8,8192)));
                 }

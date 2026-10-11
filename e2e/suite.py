@@ -21,7 +21,7 @@ import threading
 import uuid
 import xml.etree.ElementTree as ET
 
-from runtime import ROOT, SDK, digest
+from runtime import ROOT, SDK, digest, semantic_jar
 from fixtures import ARENA, commands as arena_commands, write as write_fixture, legacy_identity_fixture
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
@@ -31,6 +31,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001")],
             "ai": ["E2E-AI-001", "E2E-NLU-001"],
             "acquire": ["E2E-AI-001"], "nlu": ["E2E-NLU-001"],
+            "environment": ["E2E-PHYSICAL-001"],
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -407,6 +408,11 @@ class Harness:
         else:
             self.citizens.clear(); self.entities.clear()
         self.env["COGNITIVECRAFT_PRIMITIVE_DIAGNOSTICS"] = diagnostics
+        self.env["COGNITIVECRAFT_PRIMITIVE_DIAGNOSTIC_SCOPES"] = ""
+        if diagnostics != "off":
+            rows = read(game/"world/data/cognitivecraft/citizens/v1/state.json")["citizens"]
+            row = next(row for row in rows if row["citizenId"] == self.citizens["PlayerA"])
+            self.env["COGNITIVECRAFT_PRIMITIVE_DIAGNOSTIC_SCOPES"] = row["scopeWorld"] + "/" + row["scopeDomain"]
         if compatibility:
             require(known, "F4 requires independently certified known knowledge")
             self.compatibility_fixture = legacy_identity_fixture(game, self.citizens["PlayerA"])
@@ -623,6 +629,7 @@ def smoke(h: Harness):
     h.action("PlayerA", "connect", address=f"127.0.0.1:{h.port}")
     require(h.wait(lambda: h.client_snapshot("PlayerA"), "Reconnect")["uuid"] == h.players["PlayerA"], "Reconnect identity changed")
     require("Ada" in h.command("PlayerA", "/aivillage kernel citizens", "citizens="), "Name lost on reconnect")
+    h.screenshot("PlayerA", "named-citizen-after-reconnect", chat=True)
     restarted = h.profile != "smoke"
     if restarted:
         server_identity = read(h.root / "server/process.json")
@@ -633,19 +640,10 @@ def smoke(h: Harness):
         require(h.client_snapshot("PlayerA")["uuid"] == h.players["PlayerA"], "Restart changed client principal")
         require("Ada" in h.command("PlayerA", "/aivillage kernel citizens", "citizens="), "Client restart lost identity")
         require(len(h.snapshot()["players"]["PlayerA"]["citizens"]["citizens"]) == 1, "Client restart duplicated citizen")
+        h.screenshot("PlayerA", "named-citizen-after-client-restart", chat=True)
     h.disconnect("PlayerA")
     return {"citizen": citizen, "entity": h.entities["PlayerA"], "players": h.players,
             "clientJvmRestart": restarted, "modelCalls": 0}
-
-
-def semantic_jar():
-    from zipfile import ZipFile
-    with ZipFile(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar") as archive:
-        checksum = hashlib.sha256()
-        for name in sorted(archive.namelist()):
-            if not name.endswith("/"):
-                checksum.update(name.encode()); checksum.update(b"\0"); checksum.update(archive.read(name))
-        return checksum.hexdigest()
 
 
 def commands_and_permissions(h: Harness):
@@ -972,7 +970,9 @@ def interference(h: Harness):
         variants.append({"variant": variant, "target": target, "run": run, "outcome": final["description"],
                          "retainedObservation":retained,"subsequentRun":second,"subsequentOutcome":second_description,
                          "previousStock":stock_before,"GP-E2E-17":"PASS"}); h.actions_active = False
-    return {"variants": variants}
+    return {"interferenceVariants": variants, "variants":{"GP-E2E-17":{"status":"PASS",
+            "proof":"A's private retained observations cannot authorize effects after B's actual mutation",
+            "details":variants}}}
 
 
 def queued_competition(h: Harness):
@@ -992,6 +992,7 @@ def queued_competition(h: Harness):
         require(own in h.suggestions(player, "/aivillage kernel job-status ") and foreign not in
                 h.suggestions(player, "/aivillage kernel job-status "), "Queued job packet privacy failed")
         h.command(player, "/aivillage kernel job-status " + own, "job=" + own)
+        h.screenshot(player, "overlapping-queue-status", chat=True)
     contenders = [("PlayerA",a,ARENA["destination"]),("PlayerB",b,ARENA["destinationB"])]
     def partial_progress():
         for player,job,destination in contenders:
@@ -1132,7 +1133,9 @@ def compatibility_recovery(h: Harness):
     expected = h.compatibility_fixture
     identities = h.snapshot()["players"]["PlayerA"]["citizens"]["citizens"]
     require(any(c["actor"]["citizenId"] == expected["citizen"] and c["displayName"] == expected["name"]
-                and c["owner"]["principal"]["id"] == expected["principal"] for c in identities),
+                and c["actor"]["entityId"] == expected["entity"] for c in identities)
+                and h.client_snapshot("PlayerA")["uuid"] == expected["principal"]
+                and h.snapshot()["players"]["PlayerA"]["scope"] == expected["world"] + "/" + expected["principal"],
             "Supported migration changed identity, name or ownership")
     journal = h.root / "server/game/world/data/cognitivecraft/bootstrap/v1"
     require(read(journal/"state.json")["schema"] == 2, "Supported intake did not migrate to schema 2")

@@ -68,7 +68,7 @@ def main() -> None:
             display = subprocess.Popen(["Xvfb", ":" + number, "-ac", "-screen", "0", "800x600x24",
                                         "-nolisten", "unix", "-listen", "tcp", "+extension", "GLX", "+render", "-noreset"])
             os.environ["DISPLAY"] = "127.0.0.1:" + number
-        (directory / "options.txt").write_text("renderDistance:3\nsimulationDistance:5\nmaxFps:30\n"
+        (directory / "options.txt").write_text("renderDistance:3\nsimulationDistance:5\nmaxFps:30\nguiScale:2\n"
                                                 "graphicsMode:0\nenableVsync:false\nfullscreen:false\n"
                                                 "soundCategory_master:0.0\nautoJump:false\npauseOnLostFocus:false\n"
                                                 "onboardAccessibility:false\n")

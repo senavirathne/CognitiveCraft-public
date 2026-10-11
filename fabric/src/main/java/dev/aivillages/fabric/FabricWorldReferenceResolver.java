@@ -44,7 +44,8 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             }
         };
         binding = new WorldReferenceBinding(observations,citizens,caller,anchor,intent,clock,
-                () -> !player.isRemoved() && player.getUUID().equals(caller.principal().id())
+                () -> !player.hasDisconnected() && !player.isRemoved()
+                        && player.getUUID().equals(caller.principal().id())
                         && player.level().dimension().identifier().toString().equals(anchor.dimension()));
     }
     @Override public LanguageRequests.Resolution poll() { return binding.poll(); }
