@@ -299,6 +299,137 @@ public final class JobLifecycleStore {
             return reject(Reason.REQUEST_INVALID, work);
         }
     }
+    /** IMP-018: charge real disposable expansion through the existing durable usage owner. */
+    public Change chargePrerequisiteWork(List<Prerequisites.Need> needs, int instructions, TrustedContext caller) {
+        thread(); var work = new Work();
+        if (!ready()) return reject(unavailableReason(), work);
+        try {
+            var rows = rows(); preparation(rows, needs, instructions, caller, work);
+            if (instructions == 0) return duplicate(rows.get(needs.getFirst().demand()), work);
+            return publish(rows, state.allocations(), rows.get(needs.getFirst().demand()), null, work.edges);
+        } catch (Limited limited) { return reject(limited.reason, work); }
+        catch (IllegalArgumentException | NullPointerException | ArithmeticException invalid) {
+            return reject(Reason.REQUEST_INVALID, work);
+        }
+    }
+    /**
+     * IMP-018 compound admission. Uses schema-1 jobs/edges/usage only. Current
+     * observation references are supplied by the runtime's revalidation adapter;
+     * request, scope, quantity, graph, generations and allowance are checked here.
+     */
+    public Change admitPrerequisites(Prerequisites.Proposal proposal, Map<UUID, ObservationRef> observations,
+                                    int instructions, TrustedContext caller) {
+        thread(); var work = new Work();
+        if (proposal == null || !proposal.accepted()) return reject(Reason.REQUEST_INVALID, work);
+        if (!ready()) return reject(unavailableReason(), work);
+        try {
+            var roots = new LinkedHashMap<UUID, Job>();
+            for (var need : proposal.needs()) {
+                Job root = controlled(need.demand(), caller);
+                if (root == null) return reject(Reason.AUTHORITY_DENIED, work);
+                if (!policy.controls(root.responsible(), root.origin())) return reject(Reason.AUTHORITY_DENIED, work);
+                if (!root.request().equals(need.bound())) return reject(Reason.STALE_OBSERVATION, work);
+                if (root.state() == State.CANCELLED || root.state() == State.CANCELLING || root.state() == State.FAILED)
+                    return reject(Reason.INTERRUPTED, work);
+                roots.put(root.id(), root);
+            }
+            if (roots.isEmpty() || roots.size() > 8 || proposal.nodes().size() > 16
+                    || observations.size() != proposal.nodes().size()) return reject(Reason.REQUEST_INVALID, work);
+            var expected = new HashMap<UUID, LinkedHashSet<UUID>>();
+            roots.keySet().forEach(id -> expected.put(id, new LinkedHashSet<>()));
+            for (var node : proposal.nodes()) {
+                Job root = roots.get(node.owner());
+                if (root == null || !node.item().equals("minecraft:wheat")
+                        || !node.production().equals(Prerequisites.Production.cropDelivery())
+                        || !node.request().context().equals(root.origin())
+                        || !sameBindings(root.request(), node.request())
+                        || !(node.request().request().arguments().get("amount") instanceof IntValue amount)
+                        || amount.value() != node.output()) return reject(Reason.UNSUPPORTED_PRIMITIVE, work);
+                if (observations.get(node.id()) == null) return reject(Reason.STALE_OBSERVATION, work);
+                expected.get(root.id()).add(node.id());
+            }
+            for (var allocation : proposal.allocations()) if (roots.containsKey(allocation.demand())) {
+                if (allocation.policy() != Prerequisites.AllocationPolicy.ATTRIBUTABLE_WHEAT)
+                    return reject(Reason.UNSUPPORTED_PRIMITIVE, work);
+                expected.get(allocation.demand()).add(allocation.producer());
+            }
+            boolean duplicate = !proposal.nodes().isEmpty();
+            for (var node : proposal.nodes()) {
+                Job existing = find(node.id());
+                if (existing == null) { duplicate = false; continue; }
+                if (!existing.request().request().equals(node.request().request())
+                        || !existing.origin().equals(node.request().context())
+                        || !Objects.equals(existing.parent(), node.owner())
+                        || !existing.dependencies().equals(node.dependencies())) return reject(Reason.STALE_OBSERVATION, work);
+            }
+            for (var entry : expected.entrySet()) if (!roots.get(entry.getKey()).dependencies().containsAll(entry.getValue())) duplicate = false;
+            if (duplicate) return duplicate(roots.values().iterator().next(), work);
+            // A changed proposal must not manufacture another producer for already-owned equivalent work.
+            for (var root : roots.values()) for (UUID child : root.children()) {
+                Job existing = find(child);
+                for (var node : proposal.nodes()) if (node.owner().equals(root.id()) && !node.id().equals(child)
+                        && sameBindings(existing.request(), node.request())) return reject(Reason.STALE_OBSERVATION, work);
+            }
+            var rows = rows(); preparation(rows, proposal.needs(), instructions, caller, work);
+            for (var node : proposal.nodes()) {
+                if (rows.containsKey(node.id())) return reject(Reason.STALE_OBSERVATION, work);
+                Job root = rows.get(node.owner());
+                var validation = RequestValidator.validate(node.request().request(), root.origin(), observations.get(node.id()),
+                        capabilities, environment);
+                if (validation instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
+                var maxima = new EnumMap<Budgets.Kind, Long>(Budgets.Kind.class);
+                for (Budgets.Kind kind : Budgets.Kind.values()) maxima.put(kind, Math.max(0, available(root.id(), kind, rows)));
+                // CALLS also meters primitive invocation. Zero byte/repair/trial allowances prohibit inference.
+                for (Budgets.Kind kind : List.of(Budgets.Kind.REPAIRS, Budgets.Kind.INPUT_BYTES,
+                        Budgets.Kind.OUTPUT_BYTES, Budgets.Kind.CANDIDATES, Budgets.Kind.TRIALS)) maxima.put(kind, 0L);
+                var allowance = new Budgets.Limits(maxima, root.allowance().deadlineEpochMillis());
+                rows.put(node.id(), fresh(node.id(), node.id(), ((RequestValidator.Accepted)validation).value(),
+                        root.id(), allowance, node.dependencies()));
+            }
+            for (var root : roots.values()) {
+                var edit = new Edit(rows.get(root.id()));
+                var children = new ArrayList<>(edit.children);
+                for (var node : proposal.nodes()) if (node.owner().equals(root.id())) children.add(node.id());
+                var dependencies = new LinkedHashSet<>(edit.dependencies); dependencies.addAll(expected.get(root.id()));
+                if (children.size() > settings.children() || dependencies.size() > settings.children())
+                    return reject(Reason.STORAGE_LIMIT_REACHED, work);
+                edit.children = children; edit.dependencies = List.copyOf(dependencies);
+                if (!expected.get(root.id()).isEmpty()) { edit.state = State.WAITING; edit.reason = null; }
+                rows.put(root.id(), edit.finish(EventKind.DEPENDENCY, settings.events()));
+            }
+            checkCapacity(rows);
+            for (var root : roots.values()) checkGraph(root.id(), rows, work);
+            for (var node : proposal.nodes()) rows.put(node.id(), dependencyState(rows.get(node.id()), rows, false));
+            return publish(rows, state.allocations(), rows.get(proposal.needs().getFirst().demand()), null, work.edges);
+        } catch (Limited limited) { return reject(limited.reason, work); }
+        catch (IllegalArgumentException | NullPointerException | ArithmeticException invalid) {
+            return reject(Reason.REQUEST_INVALID, work);
+        }
+    }
+    private void preparation(Map<UUID, Job> rows, List<Prerequisites.Need> needs, int instructions,
+                             TrustedContext caller, Work work) {
+        if (needs == null || needs.isEmpty() || needs.size() > 8 || instructions < 0 || instructions > 512
+                || needs.stream().map(Prerequisites.Need::demand).distinct().count() != needs.size())
+            throw new Limited(Reason.REQUEST_INVALID);
+        var charged = new LinkedHashSet<UUID>();
+        for (var need : needs) {
+            Job root = controlled(need.demand(), caller);
+            if (root == null) throw new Limited(Reason.AUTHORITY_DENIED);
+            if (!policy.controls(root.responsible(), root.origin())) throw new Limited(Reason.AUTHORITY_DENIED);
+            if ((root.state() != State.READY && root.state() != State.WAITING)
+                    || root.current() != null && root.current().open()) throw new Limited(Reason.INTERRUPTED);
+            if (!root.guard().equals(need.guard()) || !root.request().equals(need.bound()))
+                throw new Limited(Reason.STALE_OBSERVATION);
+            if (clock.millis() > root.allowance().deadlineEpochMillis()) throw new Limited(Reason.BUDGET_EXHAUSTED);
+            for (var ancestor : ancestors(root.id(), rows)) charged.add(ancestor.id());
+        }
+        for (UUID id : charged) {
+            if (instructions > available(id, Budgets.Kind.INSTRUCTIONS, rows)) throw new Limited(Reason.BUDGET_EXHAUSTED);
+            var edit = new Edit(rows.get(id)); var usage = new EnumMap<Budgets.Kind, Long>(Budgets.Kind.class);
+            usage.putAll(edit.usage); usage.merge(Budgets.Kind.INSTRUCTIONS, (long)instructions, Math::addExact);
+            edit.usage = usage; rows.put(id, edit.finish(EventKind.OBSERVED, settings.events()));
+        }
+    }
     /** Explicit worker input; null artifact reserves preparation, not executable authority. */
     public Change assign(UUID id, Guard guard, UUID attemptId, ActorRef worker, ArtifactRef artifact,
                          List<ArtifactRef> pinned, Budgets.Limits allowance, TrustedContext caller) {
@@ -498,6 +629,10 @@ public final class JobLifecycleStore {
     }
     /** Allocate real deposited output; neither physical stock nor a resource lease is created. */
     public Change allocate(Allocation allocation, Guard demandGuard, TrustedContext caller) {
+        return allocate(allocation, demandGuard, Long.MAX_VALUE, caller);
+    }
+    /** IMP-018 bounds partial native deposit receipts by the proposed producer/demand unit total. */
+    public Change allocate(Allocation allocation, Guard demandGuard, long pairMaximum, TrustedContext caller) {
         thread(); var work = new Work(); Job demand = controlled(allocation.demand(), caller);
         Job producer = controlled(allocation.producer(), caller);
         if (demand == null || producer == null || !producer.origin().equals(demand.origin()))
@@ -515,9 +650,12 @@ public final class JobLifecycleStore {
             if (attempt.terminal() == null || attempt.uncertain()) return reject(Reason.STALE_OBSERVATION, work);
             var receipt = attempt.receipts().stream().filter(r -> r.receiptId().equals(allocation.receipt())
                     && r.stage() == CropDelivery.Stage.DEPOSIT).findFirst().orElseThrow();
-            long receiptUse = 0, batchUse = 0, demandUse = 0;
+            if (pairMaximum < 1) return reject(Reason.REQUEST_INVALID, work);
+            long receiptUse = 0, batchUse = 0, demandUse = 0, pairUse = 0;
             for (Allocation used : state.allocations()) {
                 if (used.demand().equals(demand.id())) demandUse = Math.addExact(demandUse, used.quantity());
+                if (used.demand().equals(demand.id()) && used.producer().equals(producer.id()))
+                    pairUse = Math.addExact(pairUse, used.quantity());
                 if (used.producer().equals(producer.id()) && used.attempt().equals(attempt.id())) {
                     if (used.receipt().equals(receipt.receiptId())) receiptUse = Math.addExact(receiptUse, used.quantity());
                     var other = attempt.receipts().stream().filter(r -> r.receiptId().equals(used.receipt())).findFirst().orElseThrow();
@@ -527,7 +665,8 @@ public final class JobLifecycleStore {
             }
             long needed = ((IntValue)demand.request().request().arguments().get("amount")).value();
             long batch = batchQuantity(attempt.receipts(), receipt.runId(), receipt.batchId());
-            if (Math.addExact(receiptUse, allocation.quantity()) > receipt.wheat()
+            if (Math.addExact(pairUse, allocation.quantity()) > pairMaximum
+                    || Math.addExact(receiptUse, allocation.quantity()) > receipt.wheat()
                     || Math.addExact(batchUse, allocation.quantity()) > batch
                     || Math.addExact(demandUse, allocation.quantity()) > needed - demand.fulfilled())
                 return reject(Reason.RESOURCE_MISSING, work);
