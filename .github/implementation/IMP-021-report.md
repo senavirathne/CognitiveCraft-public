@@ -1,0 +1,101 @@
+# IMP-021 completion report
+
+Status: implementation, local matrix, packaging and two-server-JVM GP-21 proof complete. Publication, pinned-wrapper CI and merge remain pending. Automatic approval review rejected uploading the implementation to the public `senavirathne/CognitiveCraft-public` repository because it requires the user's explicit approval of that named public destination. No remote branch, PR or merge was created for IMP-020/021, and no alternate upload path was used.
+
+## Source and contract snapshot
+
+Verified implementation commit: `62e0709cbc311721a34231687b61d8513e48a66c`; tree: `47caa4fdf12a68d88f08ed3342e2c2485b0201ac`. This report is a subsequent documentation-only addition. Local branch: `work/imp-021`. Parent IMP-020 implementation: `19874e59381e9165510ccfc5eaee6474c776ac1f`; public main baseline, rechecked after local verification: `01c623f4915e8f760659eac1a1426e1bbca6e3a5`, tree `198f6ff191f843f727c7f2298d4a53ab5c580b63`.
+
+Normative documentation is the read-only `CognitiveCraft-Documentation` revision `b1d5bf71365d1b1762699c006465caa1db8e5be5`: IMP-021/shared contract, architecture sections 7/14/18/22 and GP-21. Required IMP-008/011/015/016 interfaces are implemented and consumed. Kernel architecture stays **0.5**, Contracts/IR **1**, citizen identity **1**, Jobs **1** and retention policy **1**. Accomplishment evidence adds independent **schema 1** and recognition rule policy **1**. Existing Java 25, Gradle 9.7.0, JUnit 5.11.4, Gson 2.10.1, Minecraft 26.3, Loader 0.19.5, Fabric API 0.161.0+26.3 and Loom 1.18.1 declarations are unchanged.
+
+[IMP-021-contracts.md](IMP-021-contracts.md) exports the exact attribution, replay, privacy, rule-version, storage and dependent handoff contract. Public contracts are `Accomplishments.java` (immutable refs, limits, aggregates, progress, recognition and typed results), `JobOutcomeSource.java` (trusted acknowledged owner adapter), `AccomplishmentLedger.java` (ingestion, scoped query, summary grants, rule evaluation and retention) and `AccomplishmentService.java` (bounded asynchronous intake). `AccomplishmentCodec.java`/`AccomplishmentJournal.java` privately own serialization and publication. `SaveCompatibility.java` registers the new current reader. `KernelSession.java` composes these with existing identity, Jobs, storage worker and retention owners.
+
+## Delivered behavior
+
+The ledger resolves exact world/job/revision refs from acknowledged Jobs and registry snapshots. Stable citizen/entity/dimension, origin, pinned run/method, source/destination and distinct three-stage physical receipts establish attributable credit. Caller counters, narrative and terminal state alone cannot substitute. The schema-1 adapter deliberately supports the existing registered `cognitivecraft:deliver_wheat` capability; another capability needs an explicit verifier.
+
+Persisted per-job/attempt/run watermarks and aggregates publish together. Replay, out-of-order old refs and reload cannot credit the same output again. Certain partial contributions belong to their actual workers and remain after cancellation or shortage; uncertain effects grant no new credit. Whole-job completion is counted once for its certain successful attempt. Jobs remains the authoritative work owner, and the ledger cannot rewrite its state or perform a Minecraft effect.
+
+Comparisons preserve exact method and declared dimension/source-volume/route bands, independent contributing-run counts, distinct termination classes and compact receipt witnesses. Environmental blockage, cancellation and authority failure are contextual observations, without automatic negative competence. One small default rule derives a title from measured positive evidence within one context. Four bounded versioned definitions include retirement tombstones, preventing withdrawal/reintroduction from bypassing version checks. Rule changes recompute/retire metadata while retaining evidence and bounded prior-label provenance. Rename leaves stable evidence and titles intact. Titles grant no permission, dispatch policy, learning eligibility or gameplay stat.
+
+Private queries recheck current control. Explicit aggregate sharing uses a current same-world policy, hides job/receipt witnesses and observes revocation; its production default grants no cross-principal access. Tick intake selects one immutable job ref and submits at most one pending task to the existing serialized worker. It does not scan historical receipts or acquire the ledger monitor on the server thread. Storage/qualification operate without inference or a model port.
+
+## Feature-to-test mapping
+
+All **79 AccomplishmentLedgerTest** and **6 AccomplishmentServiceTest** cases execute and pass, including parameterized boundaries and fault points.
+
+| Required matrix row | Executed binding and assertions |
+|---|---|
+| Attribution | `verifiedOwnerReceiptsAttributeExactQuantityAndOneCompletion`; unknown/foreign/narrated/missing-stage/identity-binding/unpinned-run/reused-receipt/overflow cases reject with no credit |
+| Replay/reorder | `replayAcrossReloadDoesNotPublishOrCreditAgain`, `newerCumulativeEvidenceThenOlderReferenceCannotDoubleCredit`, stale-unseen and incremental-partial cases; exact saved bytes/progress preserved |
+| Partial work | `twoWorkersOwnDistinctPartialContributionsWithoutWholeJobDuplication`, cancellation/interruption cases; two workers own 2+3 units and one whole completion; uncertain work waits for Jobs |
+| Contextual evidence | Different geometry/method rows and independent run counts remain separate; six outcome reasons retain explicit classes; contexts cannot pool to meet a threshold |
+| Recognition rules | Threshold/rename/no-authority, upgrade/downgrade/same-version change, withdrawn-rule reload/reintroduction and four-slot retired catalog cases |
+| Identity/privacy | Exact current owner required, removed binding denies; bounded explicit aggregate view omits private refs and immediate revocation hides it |
+| Retention | 10,000 duplicate outcomes have zero growth; 64 supported jobs compact to one aggregate/four witnesses; root leases, reopen pins, actual recovery accounting and all zero/N/N+1 allowances |
+| Migration/recovery | Strict unknown/type/future/foreign/UTF-8/current/backup/stage checks, external replacement, symlink/lock fences, five write-fault and five cancellation checkpoints; new reader is additive |
+| No model | Ledger/service have no generation port; native driver throws if inference is invoked; actual known-work and recognition survive a second JVM with zero calls |
+
+Service tests additionally prove deferred off-thread publication, one pending task, new-source revision intake, shutdown fencing without cancelling Jobs, worker-submission retry, bounded quota retry backoff and server-thread ownership. The acceptance workflow checks exact case counts, complete regressions, native active XML/log/JSON proofs, finite saved storage and release contents.
+
+## Commands and actual results
+
+Local helper commands ran with the Java 25 JDK, a SHA-checked isolated copy of the existing pinned Minecraft/Fabric SDK, and the existing headless compiler. The isolated SDK repaired a truncated cached extracted server JAR by extracting the checked official server bundle; it did not change repository pins or production behavior. Its Minecraft runtime supplies Gson 2.14.0, so local helper execution does not establish the separate Gradle-declared Gson 2.10.1 classpath gate.
+
+| Command / binding | Actual result |
+|---|---|
+| `python3 build/imp021/verify.py` | All production/unit sources compile; 1,239 cases execute, 1,228 pass, 11 fail; no skipped/aborted tests. Module inventory: core 1,144, providers 66, Fabric 29. All 85 new cases and all 65 IMP-020 cases pass |
+| `bash ./gradlew --no-daemon :core:test :fabric:build` | Cannot download pinned Gradle 9.7.0: `Network is unreachable`; no Gradle test/build success claimed |
+| `python3 build/imp021/package.py` | Final production and all existing/new native fixture sources compile; production/native-test JARs package successfully; 34 existing deprecated mock-player warnings |
+| `python3 build/imp021/native.py cold` then `warm` | Final fresh cold and saved-world warm launches each pass all three native cases: two active project cases plus the platform control |
+| `BlueprintBoundaryProbe cold` then `warm` against the final runtime | Both separate-JVM IMP-020 data/recovery drivers pass with identical immutable reference/bill and zero gateway/model calls |
+| `python3 build/imp021/measure.py` | 64 JobLifecycleStore successes with controlled fake physical receipts and 10,000 replay refs retain finite storage with zero replay byte growth |
+| YAML / embedded Python / release / staged-source inspection | Workflow parses; all four Python blocks compile; six ledger runtime classes present; no GameTest/model weights in release; no credential-pattern matches; `git diff --check` passes |
+
+The 11 full-scan failures are confined to the existing `SaveCompatibilityTest` free-space probe limitation: this sandbox returns `SPACE_UNAVAILABLE` before migration/fault checkpoints because its file store cannot resolve the mount point. They are the same pre-IMP-021 failures recorded in IMP-020. Those tests and the production guard were neither skipped nor weakened. The default native KernelSession similarly stays disabled at that compatibility check in this environment. GP-21 therefore exercises actual native gateway/executor/Jobs/registry/leases/ledger owners through its explicit isolated fixture composition; it is not proof that complete production KernelSession startup succeeds here. Pinned-wrapper full CI remains required before merge.
+
+Local evidence is under ignored `build/imp021`: `results/TEST-junit-jupiter.xml`, `native-run/cold.xml`, `native-run/warm.xml`, saved fixture `cold.json`/`warm.json`/`restart.json`, `measured-history/measurements.json`, and `blueprint-evidence/cold.json`/`warm.json`. Compiler, unit, Gradle and native logs are retained in the task workspace. These local evidence files and helper scripts are not runtime release contents or substitutes for future uploaded CI artifacts.
+
+## Native integration and measurements
+
+GP-21 enrolls two real villagers and runs the test-only admitted known method using Minecraft P0 physics, the actual custody-preserving gateway, bounded executor, authoritative Jobs receipts and identity/lease persistence. One citizen delivers two wheat from a SMALL source; the other delivers three from a MEDIUM source. A genuine later resource shortage and a pre-effect cancelled execution produce context but no extra completion/credit. The first citizen is renamed `Measured Farmer`. Private/foreign queries, reversed refs, normal replay and quiet ticks are checked. The known-method fixture is controlled input; no learned-method quality or live AI success is claimed.
+
+Cold takes 21.52 seconds and warm takes 2.988 seconds in their reported test runs. Both observe **stock 5, attributable quantity 5, completed jobs 2, active titles 2, progress 4, aggregates 3, inference calls 0**. The two project tests include a separate saved Minecraft gold-block witness. The launches reuse namespace PID 5 but have distinct JVM start times (`1791716517416`, `1791716565142`); the fixture explicitly rejects a repeat in the same JVM. Saved outcome IDs, ledger revision **8** and ledger SHA-256 **456ff6854329ee38ce87405ac2e146c4da4792b18fd46382bd18fd782ee7a1cf** are identical before/after reload and replay.
+
+| Measurement | Observed | Declared ceiling |
+|---|---:|---:|
+| Native current ledger envelope | 9,365 bytes | 1,048,576 bytes |
+| Native current/rollback/lock physical bytes | 18,483 bytes | 3,145,728 bytes |
+| Native retained witness maximum per aggregate | 3 | 4 |
+| 64-job measured current envelope | 56,149 bytes | 1,048,576 bytes |
+| 64-job measured physical recovery bytes | 111,473 bytes | 3,145,728 bytes |
+| 64-job measured aggregates / progress / witnesses | 1 / 64 / 4 | 128 / 64 / 4 |
+| 64-job attributable units / completions / independent runs | 128 / 64 / 64 | Derived from 64 verified two-unit jobs |
+| Last measured logical validation work | 285 | 8,192 |
+| Byte growth for 10,000 repeated refs | 0 | No new generation for duplicate refs |
+
+Final production JAR: **1,561,831 bytes**, SHA-256 **5e6d04f8843e77567fbd919bebaffbe8f661b78a32c946f48de63a149512c57b**. Separate native-test JAR: **450,455 bytes**. Release inspection finds all six ledger runtime classes and excludes GameTests and model weights. IMP-020 recheck retains reference `d996b766175e99cff272e93e563ebc5e84eef3460b2fbc02715f06380408575f`, 331 cells, bill 224 planks/99 slabs/2 doors/4 torches, 3,205 bounded validation steps and unchanged cold/warm structural metadata.
+
+## Migration, recovery and retention
+
+The new schema has an explicit current reader and no invented historical import. Fixed record constructors, strict JSON field/type/depth/byte limits, checksum and exact-world identity guard the envelope. Optional values are omitted. Current, rollback and interrupted staging files are preserved on corrupt/future/foreign/uncertain data; such writers become inactive. Supported staging is not automatically replayed. A file lock, symlink checks and exact current/rollback ownership fence another writer or external replacement.
+
+Before publication, the existing manager assesses current/rollback/stage headroom and source/method roots must publish. Forced create-new staging, exact forced backup, atomic replacement and directory force separate acknowledgement from possible replacement. Fault/cancel results state whether publication may have succeeded, and reopen reconciles valid stored progress without another physical effect. The retention owner accounts actual recovery bytes and logical rows; all authoritative progress/recovery files remain protected.
+
+The existing Jobs owner retains a maximum of 64 jobs without a terminal eviction API. Exact ingestion watermarks and the Jobs/method roots therefore remain for that entire source set. No lossy dedup filter or unbounded action archive is introduced. At capacity, new credit is rejected atomically. A future source-retention epoch requires an explicit migration/replay guarantee before progress can be removed. IMP-022/026 may consume the current scoped method/context/count/support seam; their learning, supervision, stewardship and authority policies remain theirs. Contracts and GP-21 bindings are updated here because the implementation repository has no docs/backlog tree; normative documentation remains read-only.
+
+## Dated defect/fix entries — 2026-10-11
+
+**Strict serialization boundary.** Initial codec serialization emitted null optional fields, causing valid first-outcome publication to return unavailable because existing StrictJson rejects null. Minimal reproducer: one verified successful two-unit job through `recordOutcomes -> publish -> AccomplishmentCodec.encode -> StrictJson`. The violated invariant was that the writer must emit data its strict reader accepts. Correction: omit optional fields with Gson's default serializer and validate optional/required fixed-record shapes before decoding. Successful attribution/reload and strict unknown-field/string-counter regression cases fail without this correction. No parser guard was relaxed, and no temporary patch/mixin was used; final matrix and native proof run on the corrected production codec.
+
+**Retired rule version provenance.** Removing a rule without retaining its definition would allow the same ID/version to be reintroduced with changed thresholds/meaning. Minimal reproducer: qualify, withdraw, re-add altered version 1 through the ledger's host rule API. This violated versioned recognition meaning while evidence remained valid. Correction: schema-1 active flags/retirement tombstones count within the same four-rule ceiling, and historical meaning/version checks apply when reactivating. `withdrawnRuleCannotBeReintroducedWithChangedUnversionedMeaning` and the retired-catalog/reload cases bind the regression. No temporary workaround or authority change was used; final 85-case matrix includes the correction.
+
+**Native idle-worker custody interference.** The initial cold fixture stopped after one actual deposit with `STALE_OBSERVATION`, four committed effects and stock 1. Minimal reproducer: two villagers next to the same tracked crop drops during the first known run; path is native driver -> executor -> leased SurvivalGateway -> Minecraft item custody. The invariant correctly fences a drop changed by another actor. Moving idle workers outside the tracked-drop radius and teleporting only the active worker removes the failure. These before/after runs support idle-worker interference as the cause; the initial trace did not identify the exact pickup actor. Production custody/receipt guards were unchanged. The driver now reports an unexpected terminal trace immediately. Two subsequent cold executions pass with stock 5; final cold/warm proof uses the isolated fixture without a patch/mixin or weakened physics guard. The initial failed world/log is retained as `native-run-failed`.
+
+**Restart process identity.** The first warm fixture timed out asserting that PID differed, despite a genuine separate Java launch: this host assigns namespace PID 5 to both. Minimal reproducer: consecutive cold/warm native tool processes. The call path was warm driver phase 15 -> saved marker -> `ProcessHandle.pid`; the defect was treating a PID as globally unique. Fixture correction: compare the pair of PID and JVM start time, persist both and require the distinct pair in the workflow proof. A new same-JVM driver still cannot satisfy it. No production-source or Minecraft recovery correction was needed. Final fresh cold/warm fixtures pass, preserve exact ledger bytes, and record distinct JVM start times with no workaround. The earlier run is retained as `native-run-pid-proof`.
+
+## Changed files and remaining delivery gates
+
+Production: six new core owner/contract files listed above; additive `SaveCompatibility.java`; `fabric/.../KernelSession.java`. Tests: `AccomplishmentLedgerTest.java`, `AccomplishmentServiceTest.java`, `AccomplishmentGameTests.java`, `AccomplishmentRestartGameTests.java`. Delivery binding: `.github/workflows/accomplishment-evidence.yml`, `.github/implementation/IMP-021-contracts.md` and this report. Implementation commit changes 14 files, 1,438 insertions and three deletions; this report is the fifteenth file. Existing unrelated open PRs #18 and #7 are untouched.
+
+Unmet delivery criteria are explicit public-destination approval, publication of prepared IMP-020/021 commits, required exact-source pinned-wrapper/full-regression/native CI, PR review and authorized merge. Local results do not satisfy those remote gates. After approval, publish the concrete prepared changes, require CI success, resolve any actual CI defects under the same ownership guards, then record reviewed PR/merge/final-main IDs. IMP-021 is not reported as remotely accepted or merged while these gates remain pending.
