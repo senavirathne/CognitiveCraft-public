@@ -104,7 +104,10 @@ public final class PlanningGameTests {
         Jobs.Job job(UUID id){return session.queuedJob(player,id);}
         GoalPlanner.View view(){return session.planStatus(proposal,owner);}
         void unchanged(){require(stock(destination)==0&&stock(other)==0&&mature()==5,"Planning performed physical effects");}
-        void step(){if(phase==40)return;java.util.concurrent.locks.LockSupport.parkNanos(1_000_000);
+        void step(){if(phase==40)return;
+            // Match normal 20 Hz ticks so real off-thread journal acknowledgements
+            // have their production share of the unchanged game-tick deadlines.
+            java.util.concurrent.locks.LockSupport.parkNanos(50_000_000);
             if(session!=null&&phase<20)session.tick();switch(phase){
             case 0->{require(setup.isDone(),"Await fixture storage worker");marker=setup.join();
                 UUID world=id("world"),principal=id("principal");owner=new TrustedContext(new PrincipalRef(principal),new ScopeRef(world,principal));
@@ -143,7 +146,8 @@ public final class PlanningGameTests {
                 require(session.proposePlan(objective,owner).jobs().equals(children),"Replay changed acknowledged child identities");session.inference(false);model.available=false;phase=13;}
             case 13->{require(session.jobsReady()&&session.leasesReady()&&job(objective).state()==Jobs.State.SUCCEEDED,
                     "Await actual model-free P0 child execution root="+job(objective).state()+" stocks="+stock(destination)+","+stock(other)+" children="+
-                        children.stream().map(id->{var child=job(id);return child.state()+":"+child.reason()+":"+child.fulfilled()+":"+child.usage();}).toList());
+                        children.stream().map(id->{var child=job(id);return child.state()+":"+child.reason()+":"+child.fulfilled()+":"+child.usage()+
+                            ":dispatch="+session.dispatchDiagnostics(player,id).stream().map(d->d.code()+":"+d.reason()).toList();}).toList());
                 require(stock(destination)==2&&stock(other)==3,"Actual deliveries did not cover both outcomes");require(model.calls.size()==5,"Known execution called the model");
                 for(int i=0;i<2;i++)require(job(children.get(i)).state()==Jobs.State.SUCCEEDED&&job(children.get(i)).fulfilled()==(i==0?2:3),"Actual receipt attribution incomplete");
                 require(session.retainPlanningTemplate(objective,owner),"Demonstrated topology retention pending");template=Plan.stable("demonstrated-template:1:"+objective);phase=14;}
