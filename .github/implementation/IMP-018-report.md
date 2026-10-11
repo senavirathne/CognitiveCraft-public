@@ -4,7 +4,7 @@ IMP-018 expands bounded material/recipe/known-method prerequisites without infer
 
 Starting public main: **`5d31cd5ac6d78d4c41d114446135ba2655c14da6`**, the verified IMP-017 evidence publication. The initial audit inspected all 14 remote branches, open/draft PRs and 12 recent merged PRs; no prior IMP-018 branch/implementation existed. The unrelated open PR #7 was left unchanged. Dependencies IMP-010/011/012/028 are present in the live public implementation. Historical documentation gaps are reconciled against that live state. The documentation repository is read-only; this implementation and its contracts/evidence are in the public implementation repository.
 
-Normative documentation was routed through `AGENT_DOCUMENTATION_INDEX.md` at documentation commit **`b1d5bf71365d1b1762699c006465caa1db8e5be5`**: the implementation registry/dependencies, gaps and architecture invariants, shared execution contract plus the exact IMP-018 prompt/backlog entry, architecture-contract resolution/reason/resource/future boundaries, and GP18 gameplay instructions. Current architecture compatibility is **0.5**, prerequisite contract **1**, and existing Contracts/IR/Jobs/Leases/record schemas remain **1**. The user's explicit completion-and-merge instruction authorizes publication beyond the historical uncommitted-delivery wording.
+Normative documentation was routed through `AGENT_DOCUMENTATION_INDEX.md` at documentation commit **`b1d5bf71365d1b1762699c006465caa1db8e5be5`**: the implementation registry/dependencies, gaps and architecture invariants, shared execution contract plus the exact IMP-018 prompt/backlog entry, architecture-contract resolution/reason/resource/future boundaries, and GP18 gameplay instructions. Current architecture compatibility is **0.5**, prerequisite contract **1**, and existing Contracts/IR and Jobs/Leases record schemas remain **1**. Other existing world record versions, including observed-world schema **2**, are unchanged. The user's explicit completion-and-merge instruction authorizes publication beyond the historical uncommitted-delivery wording.
 
 ## Implementation and ownership
 
@@ -111,7 +111,7 @@ Engineering review [**5481578713**](https://github.com/senavirathne/CognitiveCra
 
 PR #14 is merged. A fresh `git fetch origin main` and `git diff --exit-code 3dae87ca12247d497b8cd6edd924a3c9212f97e2 origin/main` returned success with an empty complete-tree diff at `d68b314aa85e7c9806c97f524c9a96ba3ed562cb`; the fetched merge parents match the table. Source, tests, workflows and contracts were identical to the reviewed head.
 
-This completed report is published separately so it can record the executed merge identifiers. The follow-up changes only this report. Its own publication SHA is not self-referentially embedded here; the publication PR and completion response record its applicable CI and final fetched-main verification.
+This completed report is published separately so it can record the executed merge identifiers. The follow-up changes this report and clarifies the version wording in `IMP-018-contracts.md`: Jobs/Leases remain schema 1 and the existing observed-world schema remains 2. It changes no executable source, test or workflow. Its own publication SHA is not self-referentially embedded here; the publication PR and completion response record its applicable CI and final fetched-main verification.
 
 ## Scope and remaining limitations
 
