@@ -1,5 +1,8 @@
 name: Default nearest physical acceptance
 on:
+  push:
+    branches: [main]
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
   pull_request:
     branches: [main, feature/default-nearest-world-references]
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']

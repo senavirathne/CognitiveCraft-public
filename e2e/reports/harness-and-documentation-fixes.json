@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "testHarnessOrCiFixCount": 7,
+  "testHarnessOrCiFixCount": 8,
   "fixes": [
     {
       "id": "HC-001",
@@ -51,6 +51,13 @@
       "after": "Parse only newline-terminated committed records and defer the active trailing append; fail on any malformed completed record. Use the same strict reader for movement and client events, with five concurrent/truncated/corrupt/UTF-8/order regressions. Retain every existing physical, client synchronization, receipt and screenshot assertion.",
       "beforeArtifact": 11698640223,
       "beforeArtifactSha256": "e3b22d4154eed9ac61aa5cd022d53b4e41c1e9009edf2bef8b2727bf92e2c96d"
+    },
+    {
+      "id": "HC-008",
+      "category": "MAIN_BRANCH_OWNER_GATE_TRIGGER_DEFECT",
+      "detectedSourceCommit": "f84e46e2383f8a2c284564b7bd04b7cc07484f2e",
+      "before": "Full gameplay acceptance runs on main push and requires 17 exact-head owner workflows, but capability-retrieval, citizen-identity, needle-language and research-live-trial push filters excluded main, and default-nearest had no push trigger; merging would leave five owner gates absent.",
+      "after": "Run those five existing bounded owner workflows on main pushes while preserving existing feature-branch/PR/dispatch triggers, test cases, reviewed-head checkout and mandatory qualifier. The updated PR and post-merge main commit must run their own complete qualification."
     }
   ],
   "documentationOnlyFixCount": 3,

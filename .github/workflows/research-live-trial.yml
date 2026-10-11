@@ -2,7 +2,7 @@ name: Research local-model physical trial
 
 on:
   push:
-    branches: [imp-006-research-admission, imp-008-citizen-identity, imp-009-needle-intent]
+    branches: [main, imp-006-research-admission, imp-008-citizen-identity, imp-009-needle-intent]
     paths:
       - 'e2e/**'
       - 'core/**'

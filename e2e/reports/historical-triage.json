@@ -676,18 +676,31 @@
       "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38128169874/job/114436771010",
       "classification": "TEST_HARNESS_CONCURRENT_JSONL_READ",
       "executedProfiles": [
-        "smoke",
         "environment"
       ],
       "notExecutedProfiles": [
+        "integrated-smoke",
         "fresh-acquisition",
         "deterministic",
         "nlu",
         "resilience"
       ],
-      "disposition": "Committed archive hashes and restored physical server terminal/receipt checks completed. Movement evidence parsed a concurrently appended partial JSONL record and raised JSONDecodeError at column 98304; full qualification correctly failed, downstream matrix not executed. HC-007 defers only unterminated records and retains strict corruption failures and all mandatory assertions.",
+      "disposition": "Committed archive hashes and restored physical server terminal/receipt checks completed. Movement evidence parsed a concurrently appended partial JSONL record and raised JSONDecodeError at column 98304; full qualification correctly failed, downstream matrix not executed. HC-007 defers only unterminated records and retains strict corruption failures and all mandatory assertions. Tracking corrected: integrated smoke was not executed; only the separate source-matching smoke workflow passed.",
       "artifact": 11698640223,
-      "artifactSha256": "e3b22d4154eed9ac61aa5cd022d53b4e41c1e9009edf2bef8b2727bf92e2c96d"
+      "artifactSha256": "e3b22d4154eed9ac61aa5cd022d53b4e41c1e9009edf2bef8b2727bf92e2c96d",
+      "independentSmokeRun": 38128169869
+    },
+    {
+      "sourceCommit": "f84e46e2383f8a2c284564b7bd04b7cc07484f2e",
+      "run": 38129088576,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38129088576",
+      "uniqueFamilies": 13,
+      "observations": 15,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "classification": "PASS",
+      "disposition": "All six gameplay profiles, all 13 families and all 17 independent reviewed-head owners passed; final qualification and three production-fix closures PASS. User subsequently authorized merging; main owner trigger gap HC-008 discovered during pre-merge audit, so a new exact-source qualification is required."
     }
   ]
 }

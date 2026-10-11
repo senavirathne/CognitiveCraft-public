@@ -1,7 +1,7 @@
 name: Needle language acceptance
 on:
   push:
-    branches: [imp-009-needle-intent]
+    branches: [main, imp-009-needle-intent]
   pull_request:
     branches: [main, feature/default-nearest-world-references]
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', 'tools/needle/**', '.github/workflows/needle-language.yml']

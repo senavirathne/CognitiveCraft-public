@@ -2,7 +2,7 @@ name: Citizen identity acceptance
 
 on:
   push:
-    branches: [imp-008-citizen-identity, imp-009-needle-intent]
+    branches: [main, imp-008-citizen-identity, imp-009-needle-intent]
     paths:
       - 'e2e/**'
       - 'core/**'
