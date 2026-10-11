@@ -18,6 +18,16 @@ MAX_RESTORED_BYTES = 128 * 1024 * 1024
 MAX_FILES = 4096
 
 
+def matches_production(manifest: Path, jar: Path) -> bool:
+    """Select a reusable arena; restore still verifies its archive and world."""
+    record = json.loads(manifest.read_text())
+    expected = record.get("semanticJarSha256")
+    if record.get("schema") != 1 or not isinstance(expected, str) or len(expected) != 64 or any(
+            char not in "0123456789abcdef" for char in expected):
+        raise ValueError("Invalid arena production identity")
+    return expected == semantic_jar(jar)
+
+
 def path_name(value: str) -> str:
     path = PurePosixPath(value)
     if not value or "\\" in value or path.is_absolute() or ".." in path.parts or str(path) != value:
@@ -125,7 +135,7 @@ def restore(archive: Path, manifest: Path, destination: Path, jar: Path) -> dict
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("pack", "restore"))
+    parser.add_argument("action", choices=("pack", "restore", "compatible"))
     parser.add_argument("--seed", type=Path, default=ROOT / "build/e2e-certified-seed")
     parser.add_argument("--archive", type=Path, default=DEFAULT_ARCHIVE)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
@@ -133,6 +143,9 @@ def main():
     parser.add_argument("--jar", type=Path, default=ROOT / "fabric/build/libs/ai-villages-0.1.0.jar")
     parser.add_argument("--evidence-url")
     args = parser.parse_args()
+    if args.action == "compatible":
+        print("compatible=" + str(matches_production(args.manifest, args.jar)).lower())
+        return
     if args.action == "pack":
         if not args.evidence_url:
             parser.error("pack requires --evidence-url")

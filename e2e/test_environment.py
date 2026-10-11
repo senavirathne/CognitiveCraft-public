@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from zipfile import ZipFile
 
-from environment import pack, restore
+from environment import matches_production, pack, restore
 from runtime import digest, semantic_jar
 
 
@@ -42,11 +42,20 @@ class EnvironmentIntegrityTests(unittest.TestCase):
             restore(self.archive,self.manifest,self.destination,self.jar)
 
     def test_changed_production_contents_require_new_acquisition(self):
+        self.assertTrue(matches_production(self.manifest, self.jar))
         with ZipFile(self.jar,"a") as out:
             out.writestr("new.class",b"different implementation")
+        self.assertFalse(matches_production(self.manifest, self.jar))
         with self.assertRaisesRegex(ValueError,"contents changed"):
             restore(self.archive,self.manifest,self.destination,self.jar)
         self.assertFalse(self.destination.exists())
+
+    def test_invalid_production_identity_cannot_select_an_arena(self):
+        record = json.loads(self.manifest.read_text())
+        record["semanticJarSha256"] = "invalid"
+        self.manifest.write_text(json.dumps(record))
+        with self.assertRaisesRegex(ValueError,"production identity"):
+            matches_production(self.manifest, self.jar)
 
     def test_archive_corruption_is_rejected(self):
         self.archive.write_bytes(self.archive.read_bytes() + b"changed")
