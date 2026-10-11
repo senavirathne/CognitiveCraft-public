@@ -275,6 +275,9 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                     || !config.model().equals(envelope.get("model"))) throw new IllegalArgumentException();
             Map<String, Object> ir = StrictJson.object(content);
             String candidateIr = content;
+            if (call.request.role() == Generation.Role.PLANNING) {
+                dev.aivillages.core.kernel.Plan.decode(content,8192);
+            } else {
             if (call.request.capability().id().equals(CropDelivery.ID)
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
@@ -302,6 +305,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 String key = new Contracts.ArtifactRef(new Contracts.CapabilityId(name,
                         Math.toIntExact(version)), sha).toString();
                 if (!permitted.contains(key) || !seen.add(key)) throw new IllegalArgumentException();
+            }
             }
             if (outputTokens > config.maxOutputTokens()) {
                 done(call, Generation.Outcome.LIMIT, Outcomes.Reason.BUDGET_EXHAUSTED,
@@ -456,6 +460,16 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
     }
 
     private byte[] wireRequest(Generation.Request request) {
+        if(request.role()==Generation.Role.PLANNING) {
+            String wire=StrictJson.canonical(Map.of("model",config.model(),"stream",false,
+                    "format",dev.aivillages.core.kernel.Plan.outputShape(),
+                    "options",Map.of("temperature",0,"num_predict",config.maxOutputTokens()),
+                    "messages",List.of(Map.of("role","system","content",
+                            "Return a bounded goal-plan schema 1 JSON proposal, never Skill IR. Each node selects a trusted slot and quantity; dependencies name node IDs. Use every requested slot with exactly its requested total. No commands, workers, authority or new resources."),
+                            Map.of("role","user","content",request.context()))));
+            byte[] body=wire.getBytes(StandardCharsets.UTF_8);
+            if(body.length>MAX_REQUEST_BYTES)throw new IllegalArgumentException("Request size");return body;
+        }
         var primitives = request.primitives().stream().map(p -> Map.of("id", p.id(),
                 "version", (long) p.version(), "fingerprint", p.fingerprint(),
                 "arguments", p.parameters().stream().map(a -> Map.of("name", a.name(),

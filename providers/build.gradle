@@ -1,5 +1,12 @@
 dependencies { api project(':core') }
 
+tasks.register('runPlanningLiveBenchmark', JavaExec) {
+    group = 'verification'
+    description = 'Separately invoked held-out planning quality/latency on the existing shared local backend.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.PlanningLiveBenchmark'
+}
+
 tasks.register('runGenerationLiveSmoke', JavaExec) {
     group = 'verification'
     description = 'Explicit live local Ollama structured candidate smoke (not a JUnit fake).'

@@ -72,6 +72,7 @@ public final class SaveCompatibility {
                 currentReader("primitive-diagnostics", PrimitiveDiagnostics.SCHEMA),
                 currentReader("task-research-evidence", RetentionEvidenceStore.SCHEMA),
                 currentReader("capability-request", RequestCodec.SCHEMA),
+                currentReader(PlanJournal.DOMAIN, PlanJournal.SCHEMA),
                 new Reader(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA, Set.of(1, 2))),
                 List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
                         new Format(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA), false)));
