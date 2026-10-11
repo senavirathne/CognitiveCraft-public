@@ -11,6 +11,7 @@ on:
   pull_request:
     branches: [main, feature/default-nearest-world-references]
     paths:
+      - 'e2e/coverage.json'
       - 'core/**'
       - 'providers/**'
       - 'fabric/**'

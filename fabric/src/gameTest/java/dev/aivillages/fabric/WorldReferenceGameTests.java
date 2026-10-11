@@ -23,6 +23,30 @@ import static net.minecraft.commands.Commands.literal;
 
 /** Injected interpretation and test-only acquired knowledge; all binding and physical owners are production. */
 public final class WorldReferenceGameTests {
+    @GameTest(maxTicks = 20)
+    public void disconnectedCallerRejectsPendingBindingBeforeEntityRemoval(GameTestHelper h) {
+        var player = h.makeMockServerPlayerInLevel();
+        var caller = new TrustedContext(new PrincipalRef(player.getUUID()),
+                new ScopeRef(UUID.randomUUID(), UUID.randomUUID()));
+        var clock = java.time.Clock.systemUTC();
+        var initial = new CitizenRegistry.Snapshot(caller.scope().worldId(), 0, List.of(), null);
+        var citizens = new CitizenRegistry(initial, (expected, next) -> {
+            throw new AssertionError("Disconnected caller must not publish identity changes");
+        }, CitizenRegistry.privateAddresses(), clock, false);
+        var resolver = new FabricWorldReferenceResolver(new FabricGatewayWorld(h.getLevel()), citizens,
+                caller, player, new LanguageRequests.NamingIntent(
+                        WorldReferenceResolver.Reference.omitted(), "Ada"), clock);
+        player.disconnect();
+        h.assertTrue(player.hasDisconnected() && !player.isRemoved(),
+                "Real disconnect flag must precede entity removal");
+        var result = resolver.poll();
+        h.assertTrue(result.kind() == LanguageRequests.ResolutionKind.REJECTED
+                        && result.reason() == Outcomes.Reason.STALE_OBSERVATION
+                        && result.request() == null && citizens.snapshot().equals(initial),
+                "Disconnected caller retained a usable world-reference binding: " + result);
+        h.succeed();
+    }
+
     @GameTest(maxTicks = 3000, padding = 32)
     public void registeredNamingAndChangedNearestBindingsUseRealPhysicalExecution(GameTestHelper h) {
         Driver d = new Driver(h);

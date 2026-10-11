@@ -1,0 +1,147 @@
+name: Real Minecraft gameplay acceptance
+on:
+  push:
+    branches: [main]
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'tools/needle/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-acceptance.yml']
+  pull_request:
+    paths: ['e2e/**', 'core/**', 'fabric/**', 'providers/**', 'tools/needle/**', 'scripts/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', 'gradlew', '.github/workflows/client-e2e-acceptance.yml']
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: real-client-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  genuine-acquisition:
+    name: Tier 1 smoke and Tier 3 actual acquisition
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Production binary and existing unit boundaries
+        run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Verified official runtime and separate instrumentation
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+      - name: First prove connected-player smoke
+        run: python3 e2e/suite.py --profile smoke --root build/e2e/acceptance-smoke
+      - name: Install genuine immutable Needle host assets
+        run: python3 tools/needle/install.py build/needle
+      - name: Measure host and execute fresh generation, trial, admission and offline reuse
+        run: |
+          mkdir -p build/e2e/acquire
+          free -m > build/e2e/acquire/host-memory.txt
+          lscpu > build/e2e/acquire/host-cpu.txt
+          python3 e2e/suite.py --profile acquire --root build/e2e/acquire --seed build/e2e-certified-seed
+      - name: Retain the certified stopped-world fixture and exact production binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified-known-skill-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: true
+          path: |
+            build/e2e-certified-seed/
+            fabric/build/libs/ai-villages-0.1.0.jar
+      - name: Preserve acquisition, packet, model and unit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-gameplay-acquire-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: true
+          path: |
+            build/e2e/acceptance-smoke/
+            build/e2e/acquire/
+            build/e2e-sdk/integrity.json
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+      - name: Print diagnostic summary
+        if: failure()
+        run: python3 e2e/diagnostics.py build/e2e/acceptance-smoke build/e2e/acquire
+  gameplay:
+    name: ${{ matrix.profile }} connected-player acceptance
+    needs: genuine-acquisition
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [deterministic, nlu, resilience]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: certified-known-skill-${{ github.run_id }}
+          path: .
+      - name: Verify dependencies and build isolated drivers against the certified binary
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+      - name: Install real Needle only for NLU
+        if: matrix.profile == 'nlu'
+        run: python3 tools/needle/install.py build/needle
+      - name: Execute the selected tier without a generation backend
+        run: python3 e2e/suite.py --profile ${{ matrix.profile }} --root build/e2e/${{ matrix.profile }} --seed build/e2e-certified-seed
+      - name: Preserve all lifecycle, world, packet, assertion and JUnit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-gameplay-${{ matrix.profile }}-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 90
+          include-hidden-files: true
+          path: build/e2e/${{ matrix.profile }}/
+      - name: Print diagnostic summary
+        if: failure()
+        run: python3 e2e/diagnostics.py build/e2e/${{ matrix.profile }}
+  qualification:
+    name: Require all 13 families and no missing coverage
+    needs: [genuine-acquisition, gameplay]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: real-gameplay-*
+          path: build/qualification
+      - name: Merge observed results, never count absent cases as passing
+        run: python3 e2e/qualify.py build/qualification
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-gameplay-qualification-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 90
+          path: build/qualification/qualification.json

@@ -7,3 +7,5 @@
 .headless/
 config/ai-villages.json
 world/
+__pycache__/
+*.pyc

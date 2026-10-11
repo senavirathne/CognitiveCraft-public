@@ -4,7 +4,7 @@ on:
     branches: [imp-009-needle-intent]
   pull_request:
     branches: [main, feature/default-nearest-world-references]
-    paths: ['core/**', 'providers/**', 'fabric/**', 'tools/needle/**', '.github/workflows/needle-language.yml']
+    paths: ['e2e/coverage.json', 'core/**', 'providers/**', 'fabric/**', 'tools/needle/**', '.github/workflows/needle-language.yml']
   workflow_dispatch:
 permissions:
   contents: read

@@ -10,6 +10,7 @@ on:
   pull_request:
     branches: [main, imp-007-bootstrap-controller, feature/default-nearest-world-references]
     paths:
+      - 'e2e/coverage.json'
       - 'core/**'
       - 'fabric/**'
       - '.github/workflows/citizen-identity.yml'
