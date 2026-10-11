@@ -32,20 +32,64 @@ The exact original IMP-017 nine-row matrix is implemented in `ObservedWorldKnowl
 
 The review adopted relevant existing failures as regression boundaries: unknown-versus-absence, shared coordinate privacy, worker generation drift, corrupt current with valid prior generation, oversized bounded reads, stage/backup/replace failures, and IMP-016 reference fences. Existing compatibility, retention, gateway, job and lease tests are preserved. No assertion or workflow requirement was weakened.
 
-## Executed validation status
+## Executed primary implementation validation
 
-Final local Java 25/JUnit execution passed **43 feature cases**, zero failures/errors/skips, including recovered-store completeness, actor stock, saturating counters, revision/deadline overflow and bounded stored deadlines. Direct execution was necessary because Gradle's JVM network connection was unavailable in this environment. Repository-supported `scripts/headless.py build` compiled all production modules and GameTest sources with checksum-verified dependencies. Full module execution discovered **964 cases: 953 passed, 11 failed, zero skipped**. All 11 failures are existing save-migration cases returning `SPACE_UNAVAILABLE` before their injected fault points. A direct `Files.getFileStore(path).getUsableSpace()` probe reproduced `IOException: Mount point not found` in this container. This is an environment limitation, not a passing compatibility claim; the existing migration assertions remain intact. The first PR head `40b1c7430bd231a84ae4d867f076df1c0780fc09` passed the exact Gradle matrix and all 964 module cases (core 876, providers 62, Fabric 26), with zero failures/errors/skips, in observed-knowledge run [38083594988](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38083594988). Its cold/warm GP-17 gates each executed two project cases successfully. Final review adds cancellation-after-backup accounting/reservation checks and waits for both fixture actors before starting captures; per-tick fixture intake prevents partial retries from exhausting a stale offer budget. The revised source must pass the same final-head workflows before merge.
+Verified primary implementation head: **`36570ecbf21386e646de40863f10b24207e06b82`**, [PR #11](https://github.com/senavirathne/CognitiveCraft-public/pull/11). The primary observed-knowledge [run 38084112364](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112364) executed the exact feature matrix first, followed by all affected modules and separate actual cold/warm Minecraft processes.
 
-Required CI commands in `.github/workflows/observed-knowledge.yml`:
+| Executed gate | Passing cases | Failures / errors / skipped |
+|---|---:|---:|
+| IMP-017 exact matrix | 43 | 0 / 0 / 0 |
+| Core module, including those 43 feature cases | 876 | 0 / 0 / 0 |
+| Providers module | 62 | 0 / 0 / 0 |
+| Fabric unit tests | 26 | 0 / 0 / 0 |
+| All unit modules (feature cases are not counted twice) | **964** | **0 / 0 / 0** |
+| Cold GP-17 + saved-world project witness | 2 | 0 / 0 / 0 |
+| Warm GP-17 + saved-world project witness | 2 | 0 / 0 / 0 |
+
+Each Minecraft process also executed one Fabric built-in smoke test: three total game cases per process, six total, including four project cases. No skipped or undiscovered cases count as passing.
+
+Exact CI commands:
 
 ```sh
 bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.ObservedWorldKnowledgeStoreTest
 bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
-bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest # cold GP-17 and saved-world witness
-bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest # second JVM, same saved world
+COGNITIVECRAFT_OBSERVATION_RESTART=cold COGNITIVECRAFT_RESTART_PROBE=cold bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+COGNITIVECRAFT_OBSERVATION_RESTART=warm COGNITIVECRAFT_RESTART_PROBE=warm bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
 ```
 
-The workflow checks exact case discovery with zero skips, actual 1000-capture JSON, complete module counts, both active project tests in each JVM, retained source age/scope, actual physical revalidation, saved-world witness and production packaging. It exports XML/logs, deduplication measurement, restart proof, release hash and acceptance counts.
+The workflow selects the exact cold/warm entrypoints before each GameTest command and keeps the same saved world for the second JVM. It requires both active project cases, zero failure/error/skipped nodes and each phase's acceptance marker. Persistence/reload, age/scope preservation, index deletion/rebuild, source-session loss and live effect-time validation passed. Five parameterized publication-fault points, corrupt/future/partial/missing/oversized records, malformed unbounded deadlines, explicit age-preserving v1 migration and cancellation-after-backup accounting are covered in the 43-case gate.
+
+Actual 1000 newly captured gateway observations retained **one record, one history entry, 1430 bytes**. Both unit and loaded-world observation scenarios require **zero model calls and zero historical-query effects**. Store/service have no model or Minecraft effect port; the deterministic fixture disables world access after capture and checks unchanged physical counters. Real GP-17 also verifies that sharing cannot control another principal's actor and that harvesting a removed crop is rejected.
+
+Production JAR SHA-256 from the primary feature workflow: **`dca95f7f003a12d4c668740cb489c97755cecfcc5d1773e199d9e8d7f3eb2799`**. Packaging checks require both observation classes, exclude GameTest code/model weights and require one production artifact. The workflow's `imp-017-observed-knowledge` artifact **11681613276** retains XML, logs, deduplication measurements, restart provenance and `acceptance.json`; artifact archive digest is `a0428aa6cc3774ba3562c1d0852b819ab2f84855ef19b7f68dc7b9d6340ecdfa`.
+
+Repository-supported `scripts/headless.py build` also compiled production and GameTest source locally with checksum-verified dependencies and Java 25. Direct JUnit execution passed all 43 final feature cases; the revised actual cold/warm local driver passed all six game cases. Local full-module execution found 964 cases, 953 passing and 11 existing save-migration failures, zero skipped. A direct `Files.getFileStore(path).getUsableSpace()` probe reproduced `IOException: Mount point not found`, causing those local migrations to return `SPACE_UNAVAILABLE` before injected fault points. The unchanged compatibility tests and actual loaded-world migration/restart passed on the final GitHub runner; this environment limitation was not hidden or counted as a local pass.
+
+Final review fixed the record-count reservation/accounting after an interrupted backup replacement. The existing cancellation case now verifies exact retained bytes, unchanged current generation and both current/backup record counts. An earlier local GP-17 partial-capture retry exhausted its fixture offer allowance while the second actor was not yet ticking; final fixtures wait for both actors and reset intake per real test tick. The revised loaded-world gates passed without weakening their privacy or discovery assertions.
+
+## Primary implementation-head GitHub Actions
+
+All fifteen pull-request workflow families completed successfully for `36570ecbf21386e646de40863f10b24207e06b82`. These are final-head results, not historical main evidence.
+
+| Workflow | Run | Result |
+|---|---|---|
+| AI work broker acceptance | [38084112369](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112369) | Success |
+| Capability retrieval acceptance | [38084112377](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112377) | Success |
+| Citizen identity acceptance | [38084112389](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112389) | Success |
+| CognitiveCraft verification | [38084112439](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112439) | Success |
+| Default nearest physical acceptance | [38084112358](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112358) | Success |
+| Job lifecycle acceptance | [38084112387](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112387) | Success |
+| Local generation smoke | [38084112375](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112375) | Success |
+| Needle language acceptance | [38084112362](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112362) | Success |
+| Observed world knowledge acceptance | [38084112364](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112364) | Success |
+| Primitive diagnostics acceptance | [38084112409](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112409) | Success |
+| Research local-model physical trial | [38084112361](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112361) | Success |
+| Resource lease acceptance | [38084112403](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112403) | Success |
+| Save and artifact compatibility acceptance | [38084112374](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112374) | Success |
+| Worker dispatcher acceptance | [38084112366](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112366) | Success |
+| World retention acceptance | [38084112356](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38084112356) | Success |
+
+Engineering review **5480720970** is anchored to that exact head. It covers state ownership, typed proof trust, freshness, scope/share revocation, snapshot/reference fences, compatibility, retention, worker threading and recovery; it is an implementation-agent review, not a claim of independent human approval. There were no unresolved review threads or requested changes. Main had no branch protection or rulesets to bypass; the merge used the repository's established merge-commit convention.
 
 ## GP-17 and runtime boundaries
 
@@ -65,6 +109,12 @@ Production `KernelSession` automatically captures issued primitive observations 
 - `.github/workflows/observed-knowledge.yml`: exact feature/regression/gameplay/packaging gates.
 - This report and `IMP-017-contracts.md`: versioned implementation semantics and executed evidence.
 
-## Delivery
+## Corrective persistence verification
 
-Implementation [PR #11](https://github.com/senavirathne/CognitiveCraft-public/pull/11) is open in draft. Final revised head/Actions, merge and merged-source verification: **pending execution; no merge is claimed at this checkpoint**. The post-merge evidence update will record the exact implementation head and merge identifiers, which cannot be embedded in their own Git commit. IMP-018 and later units remain out of scope. Bounded history and queue pressure explicitly refuse/drop new advisory evidence; queries retain freshness/source limitations and always require gateway effect-time validation.
+Primary PR #11 merged as `0a6145cfa45daf824c278669abba059036c5c570`; its fetched full tree matched reviewed head `36570ecbf21386e646de40863f10b24207e06b82`. Final corruption review then reproduced an external change after staging that overwrote the usable backup: the new regression expected 1413 original bytes and received 26 corrupt bytes. The earlier external-change test exercised corruption before admission and did not cover this interval.
+
+[PR #12](https://github.com/senavirathne/CognitiveCraft-public/pull/12), on `work/imp-017-evidence`, corrects this by taking an immutable bounded copy of the validated current bytes and using that exact copy for the backup. The final current-state fence preserves corrupt externally replaced current bytes and refuses publication. Migration similarly validates the owned bytes before archiving them. Nested checks cover AFTER_STAGE, BEFORE_REPLACE, restart with retained age/provenance and refusing an unverified migration archive. Privacy review additionally removes the gateway-wide issuance counter from public query provenance. Immutable `RecordView`/`Provenance` values preserve supported snapshot revision/tick, source identity, original age and scope; public context accounting and snapshot hashes exclude private ordering values. The existing scope test asserts that public fields/string output do not expose that counter. These extend existing cases; discovered feature count remains 43.
+
+Corrective final-head Actions, merge, fetched-main verification and updated release hash are **pending**. The tables above are verified primary-head evidence, not a claim that the corrective source has already passed. A final report-only update will record identifiers after correction and verification.
+
+IMP-018 and later remain out of scope.

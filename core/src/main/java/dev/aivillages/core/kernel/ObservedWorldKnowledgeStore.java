@@ -87,7 +87,29 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
         }
     }
     public record Result(Status status, UUID record, boolean publicationMayHaveSucceeded) { }
-    public record Evidence(ObservationRecord record, Freshness freshness, Qualification qualification) { }
+    /** Public provenance excludes the gateway's private cross-scope issuance counter. */
+    public record Provenance(UUID source, ActorRef actor, ObservationSnapshot observation, long at) {
+        public Provenance {
+            Objects.requireNonNull(source); Objects.requireNonNull(actor); Objects.requireNonNull(observation);
+            if (at < 0 || !actor.dimension().equals(observation.reference().dimension()))
+                throw new IllegalArgumentException("Public observation provenance");
+        }
+    }
+    public record RecordView(UUID id, TrustedContext owner, ObservationTarget target, Provenance first,
+                             Provenance latest, long count, long expiresAt, long retainUntil,
+                             Invalidation invalidation, long invalidatedAt, Set<TrustedContext> sharedWith,
+                             String deduplicationIdentity) {
+        public RecordView {
+            sharedWith = Set.copyOf(sharedWith);
+            Objects.requireNonNull(id); Objects.requireNonNull(owner); Objects.requireNonNull(target);
+            Objects.requireNonNull(first); Objects.requireNonNull(latest); Objects.requireNonNull(invalidation);
+            if (count < 1 || sharedWith.size() > 8 || !deduplicationIdentity.matches("[0-9a-f]{64}"))
+                throw new IllegalArgumentException("Public observation view");
+        }
+        public int schemaVersion() { return SCHEMA; }
+        public WorldRetentionManager.Key retentionKey() { return key(id); }
+    }
+    public record Evidence(RecordView record, Freshness freshness, Qualification qualification) { }
     /** Returned objects have no world/authority/effect handles and remain immutable after invalidation. */
     public static final class EvidenceSnapshot {
         private final TrustedContext viewer;
@@ -326,7 +348,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
         for (var row : applicable) {
             if (scanned == bounds.scanned || inspected.size() == bounds.results) { limited = true; break; }
             scanned++;
-            int context = StrictJson.canonical(recordMap(row, SCHEMA)).getBytes(StandardCharsets.UTF_8).length;
+            int context = StrictJson.canonical(publicRecordMap(row)).getBytes(StandardCharsets.UTF_8).length;
             if (context > bounds.contextBytes - bytes) { limited = true; break; }
             bytes += context; inspected.add(row);
         }
@@ -334,7 +356,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
         for (var row : inspected) {
             var evidence = classify(row, inspected, now);
             if (limited && (evidence.freshness == Freshness.CURRENTLY_VERIFIED || evidence.freshness == Freshness.OBSERVED_ABSENT))
-                evidence = new Evidence(row, Freshness.STALE, Qualification.INCOMPLETE);
+                evidence = new Evidence(view(row), Freshness.STALE, Qualification.INCOMPLETE);
             rows.add(evidence);
         }
         if (inspected.stream().anyMatch(r -> !visible(r, caller))) return empty(caller, target, QueryStatus.DENIED, now);
@@ -356,6 +378,20 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
         return new ObservationRecord(r.id, r.owner, r.target, r.first, r.latest, r.count, r.expiresAt, r.retainUntil,
                 r.invalidation, r.invalidatedAt, Set.of(caller));
     }
+    private static RecordView view(ObservationRecord r) {
+        return new RecordView(r.id, r.owner, r.target,
+                new Provenance(r.first.source, r.first.actor, r.first.observation, r.first.at),
+                new Provenance(r.latest.source, r.latest.actor, r.latest.observation, r.latest.at),
+                r.count, r.expiresAt, r.retainUntil, r.invalidation, r.invalidatedAt, r.sharedWith, r.deduplicationIdentity());
+    }
+    private static Map<String, Object> publicRecordMap(ObservationRecord r) {
+        var row = recordMap(r, SCHEMA);
+        for (String name : List.of("first", "latest")) {
+            @SuppressWarnings("unchecked") var proof = (Map<String, Object>) row.get(name);
+            proof.remove("sequence");
+        }
+        row.put("deduplicationIdentity", r.deduplicationIdentity()); return row;
+    }
     private static Comparator<ObservationRecord> order() {
         return Comparator.comparingLong((ObservationRecord r) -> r.latest.at).reversed()
                 .thenComparing(Comparator.comparingLong((ObservationRecord r) -> r.latest.sequence).reversed())
@@ -363,24 +399,24 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
     }
     private Evidence classify(ObservationRecord r, List<ObservationRecord> applicable, long now) {
         if (readOnly || format != SCHEMA || r.invalidation == Invalidation.INCOMPATIBLE)
-            return new Evidence(r, Freshness.INCOMPATIBLE, Qualification.INCOMPATIBLE);
-        if (r.invalidation == Invalidation.TARGET_CHANGED) return new Evidence(r, Freshness.INVALID_TARGET, Qualification.TARGET_CHANGED);
-        if (r.invalidation == Invalidation.SUPERSEDED) return new Evidence(r, Freshness.STALE, Qualification.SUPERSEDED);
+            return new Evidence(view(r), Freshness.INCOMPATIBLE, Qualification.INCOMPATIBLE);
+        if (r.invalidation == Invalidation.TARGET_CHANGED) return new Evidence(view(r), Freshness.INVALID_TARGET, Qualification.TARGET_CHANGED);
+        if (r.invalidation == Invalidation.SUPERSEDED) return new Evidence(view(r), Freshness.STALE, Qualification.SUPERSEDED);
         if (r.invalidation == Invalidation.SOURCE_LOST || !available(r.latest.source))
-            return new Evidence(r, Freshness.STALE, Qualification.SOURCE_LOST);
-        if (now < r.latest.at) return new Evidence(r, Freshness.STALE, Qualification.CLOCK_REGRESSED);
-        if (now >= r.expiresAt) return new Evidence(r, Freshness.STALE, Qualification.EXPIRED);
+            return new Evidence(view(r), Freshness.STALE, Qualification.SOURCE_LOST);
+        if (now < r.latest.at) return new Evidence(view(r), Freshness.STALE, Qualification.CLOCK_REGRESSED);
+        if (now >= r.expiresAt) return new Evidence(view(r), Freshness.STALE, Qualification.EXPIRED);
         if (r.latest.observation.status() == ObservationStatus.UNKNOWN)
-            return new Evidence(r, Freshness.UNKNOWN, Qualification.UNKNOWN_OBSERVATION);
+            return new Evidence(view(r), Freshness.UNKNOWN, Qualification.UNKNOWN_OBSERVATION);
         if (applicable.stream().anyMatch(other -> !other.id.equals(r.id) && other.invalidation == Invalidation.NONE
                 && available(other.latest.source) && now >= other.latest.at && now < other.expiresAt
                 && other.latest.observation.status() != ObservationStatus.UNKNOWN && !sameFact(r.latest, other.latest)))
-            return new Evidence(r, Freshness.STALE, Qualification.CONFLICTING);
-        return new Evidence(r, r.latest.observation.status() == ObservationStatus.ABSENT
+            return new Evidence(view(r), Freshness.STALE, Qualification.CONFLICTING);
+        return new Evidence(view(r), r.latest.observation.status() == ObservationStatus.ABSENT
                 ? Freshness.OBSERVED_ABSENT : Freshness.CURRENTLY_VERIFIED, Qualification.NONE);
     }
     private String projection(List<ObservationRecord> rows, long now) {
-        return RepositoryCodec.digest(StrictJson.canonical(rows.stream().map(r -> Map.of("record", recordMap(r, SCHEMA),
+        return RepositoryCodec.digest(StrictJson.canonical(rows.stream().map(r -> Map.of("record", publicRecordMap(r),
                 "freshness", classify(r, rows, now).freshness.name(), "qualification", classify(r, rows, now).qualification.name())).toList()));
     }
     /** Rechecks relevant authority/freshness; unrelated private writes cannot reveal a world revision. */
@@ -422,7 +458,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
             return result(Status.INCOMPATIBLE, null);
         try {
             if (cancelled.getAsBoolean()) return result(Status.CANCELLED, null);
-            byte[] original = boundedBytes(current);
+            byte[] original = verifyCurrent();
             if (manager == null) return result(Status.STORAGE_UNAVAILABLE, null);
             var capacity = manager.assessReplacement("observations", Category.EVIDENCE,
                     new Amount((long)limits.bytes * 3 + original.length, state.records.size() + rollback.records.size()));
@@ -444,7 +480,7 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
         if (readOnly || closed || manager == null) return result(Status.STORAGE_UNAVAILABLE, null);
         boolean replaced = false; WorldRetentionManager.DiscardLease lease = null;
         try {
-            verifyCurrent();
+            byte[] original = verifyCurrent();
             byte[] bytes = encode(next, SCHEMA);
             if (bytes.length > limits.bytes) return result(Status.LIMIT_REACHED, null);
             StrictJson.object(new String(bytes, StandardCharsets.UTF_8)); decode(bytes);
@@ -462,9 +498,9 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
                         ? Status.LIMIT_REACHED : Status.STORAGE_UNAVAILABLE, null);
             }
             checkpoint(cancelled, Point.BEFORE_STAGE); write(stage, bytes); checkpoint(cancelled, Point.AFTER_STAGE);
-            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                RetentionFileOwner.attributes(current); Files.copy(current, previous, StandardCopyOption.REPLACE_EXISTING);
-                try (var backup = FileChannel.open(previous, StandardOpenOption.WRITE)) { backup.force(true); }
+            if (original != null) {
+                // Copy validated immutable bytes, never a file that an external writer can change during staging.
+                write(previous, original);
                 rollback = state;
             }
             checkpoint(cancelled, Point.AFTER_BACKUP); checkpoint(cancelled, Point.BEFORE_REPLACE);
@@ -483,11 +519,13 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
             if (lease != null) lease.close();
         }
     }
-    private void verifyCurrent() throws IOException {
+    private byte[] verifyCurrent() throws IOException {
         if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-            var disk = read(current);
+            byte[] bytes = boundedBytes(current); var disk = decode(bytes);
             if (disk.format != format || !disk.state.equals(state)) throw new IOException("Observation owner state changed");
-        } else if (state.revision != 0 || !state.records.isEmpty()) throw new IOException("Observation owner state missing");
+            return bytes;
+        } else if (format != SCHEMA || state.revision != 0 || !state.records.isEmpty()) throw new IOException("Observation owner state missing");
+        return null;
     }
     private static WorldRetentionManager.Key key(UUID id) { return new WorldRetentionManager.Key("observations", id.toString()); }
     private static void write(Path path, byte[] bytes) throws IOException {

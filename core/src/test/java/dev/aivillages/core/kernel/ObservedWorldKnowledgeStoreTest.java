@@ -82,7 +82,7 @@ class ObservedWorldKnowledgeStoreTest {
         var raw = new LinkedHashMap<>(StrictJson.object(Files.readString(path))); mutate.accept(raw); raw.remove("checksum");
         raw.put("checksum", RepositoryCodec.digest(StrictJson.canonical(raw))); Files.writeString(path, StrictJson.canonical(raw));
     }
-    private static ObservationRecord only(EvidenceSnapshot snapshot) { assertTrue(snapshot.complete()); assertEquals(1, snapshot.evidence().size()); return snapshot.evidence().getFirst().record(); }
+    private static RecordView only(EvidenceSnapshot snapshot) { assertTrue(snapshot.complete()); assertEquals(1, snapshot.evidence().size()); return snapshot.evidence().getFirst().record(); }
 
     @Test void freshFactsRetainActualGatewayProofAndBoundedImmutableContext() throws Exception {
         var f = new Fixture(); f.physics.crops.put(f.physics.source, true);
@@ -134,7 +134,8 @@ class ObservedWorldKnowledgeStoreTest {
         var f = new Fixture(); f.physics.crops.put(f.physics.source,true);
         try (var store = f.open(root)) {
             var first = f.capture(); var initial = store.recordObservation(f.owner,first,()->false); ObservedEvidence last = first;
-            for(int i=1;i<1000;i++) {last=f.capture(); assertEquals(initial.record(),store.recordObservation(f.owner,last,()->false).record());}
+            for(int i=1;i<1000;i++) {last=f.capture();var result=store.recordObservation(f.owner,last,()->false);
+                assertEquals(Status.RECORDED,result.status(),"Capture "+i+", readOnly="+store.readOnly());assertEquals(initial.record(),result.record());}
             var row=only(f.query(store,last)); assertEquals(1,store.privateRecordCount(f.owner)); assertEquals(1000,row.count());
             assertEquals(first.snapshot(),row.first().observation());assertEquals(last.snapshot(),row.latest().observation());
             assertTrue(Files.size(file(root,"state.json"))<4096);
@@ -245,6 +246,10 @@ class ObservedWorldKnowledgeStoreTest {
             var proof=f.capture();store.recordObservation(f.owner,proof,()->false);var snapshot=f.query(store,proof);
             var privateProof=f.capture(f.gateway,f.foreign,f.area,Operation.OBSERVE_SOURCE);store.recordObservation(f.foreign,privateProof,()->false);
             assertTrue(store.snapshotCurrent(snapshot,f.owner));
+            var publicProof=only(snapshot).latest();assertEquals(proof.snapshot(),publicProof.observation());
+            assertTrue(Arrays.stream(publicProof.getClass().getRecordComponents()).noneMatch(c->c.getName().equals("sequence")),
+                    "Public provenance must not reveal the gateway's cross-scope issuance counter");
+            assertFalse(publicProof.toString().contains("sequence="));
             store.invalidateObservation(f.owner,only(snapshot).id(),Invalidation.TARGET_CHANGED,store.revision(),()->false);
             assertFalse(store.snapshotCurrent(snapshot,f.owner));assertEquals(Freshness.OBSERVED_ABSENT,snapshot.freshness());
         }
@@ -332,7 +337,7 @@ class ObservedWorldKnowledgeStoreTest {
         }
     }
     @Test void currentSchemaReopenPreservesIdentityProvenanceAgeAndPrivateSharing() throws Exception {
-        var f=new Fixture();ObservedEvidence proof;ObservationRecord expected;
+        var f=new Fixture();ObservedEvidence proof;RecordView expected;
         try(var store=f.open(root)) {proof=f.capture();store.recordObservation(f.owner,proof,()->false);f.sharing.set(true);store.shareObservation(f.owner,only(f.query(store,proof)).id(),f.foreign,store.revision(),()->false);expected=only(f.query(store,proof));}
         f.clock.now=expected.expiresAt();
         try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,(a,b)->f.sharing.get(),f.sources::contains,p->{})) {
@@ -341,7 +346,7 @@ class ObservedWorldKnowledgeStoreTest {
         }
     }
     @Test void explicitSupportedMigrationPreservesExactOriginalAgeScopeAndIdentity() throws Exception {
-        var f=new Fixture();ObservedEvidence proof;ObservationRecord before;
+        var f=new Fixture();ObservedEvidence proof;RecordView before;
         try(var store=f.open(root)) {proof=f.capture();store.recordObservation(f.owner,proof,()->false);before=only(f.query(store,proof));}
         rewrite(file(root,"state.json"),raw->{raw.put("schema",1L);for(Object item:(List<?>)raw.get("records"))((Map<?,?>)item).remove("invalidatedAt");});
         byte[] original=Files.readAllBytes(file(root,"state.json"));f.clock.now=before.expiresAt();
@@ -429,6 +434,23 @@ class ObservedWorldKnowledgeStoreTest {
             assertEquals("corrupt external replacement",Files.readString(file(root,"state.json")));
             assertEquals(Freshness.INCOMPATIBLE,f.query(store,proof).freshness());
         }
+        for(var boundary:List.of(Point.AFTER_STAGE,Point.BEFORE_REPLACE)) {
+            var scoped=new Fixture();var inject=new AtomicBoolean();Path path=root.resolve(boundary.name());
+            ObservedEvidence retained;byte[] original;
+            try(var store=scoped.open(path,Limits.defaults(),point->{if(inject.get()&&point==boundary)Files.writeString(file(path,"state.json"),"corrupt during publication");})) {
+                store.recordObservation(scoped.owner,scoped.capture(),()->false);retained=scoped.capture();store.recordObservation(scoped.owner,retained,()->false);
+                original=Files.readAllBytes(file(path,"state.json"));inject.set(true);
+                var result=store.recordObservation(scoped.owner,scoped.capture(),()->false);
+                assertEquals(Status.STORAGE_UNAVAILABLE,result.status());assertFalse(result.publicationMayHaveSucceeded());
+                assertEquals("corrupt during publication",Files.readString(file(path,"state.json")));
+                assertArrayEquals(original,Files.readAllBytes(file(path,"state.prev.json")));
+            }
+            try(var recovered=ObservedWorldKnowledgeStore.open(path,scoped.world,Limits.defaults(),scoped.clock,(a,e,c)->true,TrustedContext::equals,scoped.sources::contains,p->{})) {
+                var query=scoped.query(recovered,retained);assertFalse(query.complete());assertEquals(Freshness.INCOMPATIBLE,query.freshness());
+                assertEquals(retained.snapshot(),query.evidence().getFirst().record().latest().observation());
+                assertEquals(retained.at(),query.evidence().getFirst().record().latest().at());
+            }
+        }
     }
     @Test void unsupportedRecordSemanticsFailClosedEvenWithValidEnvelopeChecksum() throws Exception {
         var f=new Fixture();ObservedEvidence proof;
@@ -476,6 +498,12 @@ class ObservedWorldKnowledgeStoreTest {
         try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,TrustedContext::equals,f.sources::contains,p->{})) {
             manager.register(store.retentionOwner());assertEquals(Status.LIMIT_REACHED,store.migrate(store.revision(),()->false).status());
             assertFalse(Files.exists(file(root,"state.legacy-v1.json")));assertEquals(proof.at(),only(f.query(store,proof)).latest().at());
+        }
+        var currentPolicy=new WorldRetentionManager(WorldRetentionManager.Policy.defaults(),new RetentionRoots(),c->false);
+        try(var store=ObservedWorldKnowledgeStore.open(root,f.world,Limits.defaults(),f.clock,(a,e,c)->true,TrustedContext::equals,f.sources::contains,p->{})) {
+            currentPolicy.register(store.retentionOwner());Files.writeString(file(root,"state.json"),"external legacy corruption");
+            assertEquals(Status.STORAGE_UNAVAILABLE,store.migrate(store.revision(),()->false).status());assertTrue(store.readOnly());
+            assertFalse(Files.exists(file(root,"state.legacy-v1.json")));assertEquals("external legacy corruption",Files.readString(file(root,"state.json")));
         }
     }
     @Test void unavailableCorruptStoreCannotPresentAnExhaustiveUnknownOrAbsence() throws Exception {
