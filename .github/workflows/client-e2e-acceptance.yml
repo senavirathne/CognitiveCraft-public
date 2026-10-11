@@ -91,6 +91,7 @@ jobs:
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/
+            fabric/build/test-runtime/
       - name: Print diagnostic summary
         if: failure()
         run: python3 e2e/diagnostics.py build/e2e/acceptance-smoke build/e2e/acquire
