@@ -116,6 +116,7 @@ public final class PlanningGameTests {
             case 3->{require(view().state()==GoalPlanner.State.QUEUED&&model.calls.size()==1,"Await delayed shared backend");unchanged();
                 require(job(cancelled).current()==null&&job(cancelled).children().isEmpty(),"Planner assigned a worker");
                 try{session.planStatus(proposal,new TrustedContext(new PrincipalRef(foreign.getUUID()),new ScopeRef(owner.scope().worldId(),foreign.getUUID())));throw new AssertionError("Foreign scope inspected plan");}catch(SecurityException expected){}
+                try{session.createPlanningObjective(UUID.randomUUID(),goal(),new TrustedContext(new PrincipalRef(foreign.getUUID()),new ScopeRef(owner.scope().worldId(),foreign.getUUID())));throw new AssertionError("Foreign scope created planning work");}catch(SecurityException expected){}
                 require(session.cancelPlanProposal(proposal,owner),"Pending cancellation refused");model.calls.getFirst().respond(valid());quietUntil=h.getLevel().getGameTime()+10;phase=4;}
             case 4->{require(h.getLevel().getGameTime()>=quietUntil,"Await late replay fence");unchanged();require(job(cancelled).children().isEmpty()&&view().state()==GoalPlanner.State.CANCELLED,"Late output admitted work");
                 require(job(cancelled).usage().get(Budgets.Kind.CANDIDATES)==1L,"Cancellation refunded candidate budget");require(session.cancelPlanningObjective(cancelled,owner).accepted(),"Objective cancellation refused");phase=5;}
@@ -134,7 +135,9 @@ public final class PlanningGameTests {
             case 12->{require(view().state()==GoalPlanner.State.ADMITTED,"Await whole Jobs admission");children=view().jobs();require(children.size()==2,"Valid plan did not admit exactly two children");
                 require(job(objective).usage().get(Budgets.Kind.CANDIDATES)==1L,"Parent candidate usage changed");
                 require(session.proposePlan(objective,owner).jobs().equals(children),"Replay changed acknowledged child identities");session.inference(false);model.available=false;phase=13;}
-            case 13->{require(session.jobsReady()&&session.leasesReady()&&job(objective).state()==Jobs.State.SUCCEEDED,"Await actual model-free P0 child execution");
+            case 13->{require(session.jobsReady()&&session.leasesReady()&&job(objective).state()==Jobs.State.SUCCEEDED,
+                    "Await actual model-free P0 child execution root="+job(objective).state()+" stocks="+stock(destination)+","+stock(other)+" children="+
+                        children.stream().map(id->{var child=job(id);return child.state()+":"+child.reason()+":"+child.fulfilled()+":"+child.usage();}).toList());
                 require(stock(destination)==2&&stock(other)==3,"Actual deliveries did not cover both outcomes");require(model.calls.size()==5,"Known execution called the model");
                 for(int i=0;i<2;i++)require(job(children.get(i)).state()==Jobs.State.SUCCEEDED&&job(children.get(i)).fulfilled()==(i==0?2:3),"Actual receipt attribution incomplete");
                 require(session.retainPlanningTemplate(objective,owner),"Demonstrated topology retention pending");template=Plan.stable("demonstrated-template:1:"+objective);phase=14;}

@@ -41,12 +41,15 @@ IMP-017 history is retrieved off-thread only through the existing authorized own
 | Planning file bytes | 262,144 per generation |
 | Planning parent candidates | 2 |
 | Parent inference input / output | 65,536 / 16,384 bytes |
+| Parent execution ticks | 2,400 (two existing 1,200-tick dispatch windows) |
 
 All proposals share the original parent's absolute deadline, including context and queue time. Before inference or template validation, Jobs durably consumes one finite candidate envelope: one candidate plus the configured capture/validation work ceiling; inference additionally reserves one call, 32,768 input bytes and up to 8,192 output bytes. This conservative policy deliberately does not refund rejection, cancellation, transport failure or restart. `View.reserved` reports that durable envelope; `View.actual` reports the shared broker's real observed usage separately. An oversized context is billed before refusal. A fresh runtime cannot reset the remaining parent allowance.
 
 Capture includes bounded world/method search, deterministic coverage, history inspection and context serialization. Before each validation scan/search, the validator reserves its finite default resolver/area ceiling and rejects insufficient remaining work without calling the port. Unexpected port work beyond that ceiling is rejected. Native observation itself is capped by the existing 256-cell source limit; default resolver candidate/query ceilings remain 32/12. No model field controls a ceiling.
 
 Children receive at most an equal share of the actual remaining parent allowance, the same absolute deadline, and zero inference input/output, candidate, repair or trial allowance. Existing Jobs accounts their execution cumulatively up the parent tree. Planning does not renew execution or research budgets.
+
+The paired goal's execution tick policy is selected at objective creation, before any proposal: two existing dispatch windows. It is never enlarged after an attempt, rejection or budget exhaustion. The original single-request research/execution policies remain unchanged.
 
 ## Publication, execution and cancellation
 

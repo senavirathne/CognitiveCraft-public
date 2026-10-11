@@ -574,9 +574,13 @@ public final class KernelSession implements AutoCloseable {
     /** Structured driver boundary; the request contains no authority or model-supplied allowance. */
     public Jobs.Change createPlanningObjective(UUID id,CapabilityRequest goal,TrustedContext caller) {
         ready();if(!PlanningGoals.valid(goal))throw new IllegalArgumentException("Recognized planning goal required");
-        var observation=observe(goal,((ActorValue)goal.arguments().get("actor")).value());
+        var actor=((ActorValue)goal.arguments().get("actor")).value();
+        if(!controls(actor,caller))throw new SecurityException("Planning objective control required");
+        var observation=observe(goal,actor);
         var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);maxima.putAll(researchLimits(clock.millis()).total().maxima());
         maxima.put(Budgets.Kind.INPUT_BYTES,65536L);maxima.put(Budgets.Kind.OUTPUT_BYTES,16384L);maxima.put(Budgets.Kind.CANDIDATES,2L);
+        // Two known outcomes receive one existing dispatch window each, fixed before any proposal or retry.
+        maxima.put(Budgets.Kind.ELAPSED_TICKS,2L*WorkerDispatcher.Settings.production().assignmentTicks());
         return jobs.create(id,id,goal,caller,observation.reference(),new Budgets.Limits(maxima,clock.millis()+600000),List.of());
     }
     public GoalPlanner.View proposePlan(UUID parent,TrustedContext caller){ready();return planner.propose(parent,caller);}

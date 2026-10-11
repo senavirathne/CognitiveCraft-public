@@ -228,6 +228,7 @@ public final class GoalPlanner implements AutoCloseable {
             nodes.add(new Plan.Node(i,slot,1,dependencies));
         }
         UUID id=Plan.stable("demonstrated-template:1:"+parent);var templates=new ArrayList<>(retained.templates());
+        if(templates.size()==8 && templates.stream().noneMatch(t->t.id().equals(id)))return false;
         templates.removeIf(t->t.id().equals(id));templates.add(new PlanJournal.Template(id,root.origin(),new Plan.Proposal(nodes)));
         var links=retained.links().stream().filter(l->!l.parent().equals(parent)).toList();
         writing=storage.replace(retained,new PlanJournal.Snapshot(retained.world(),Math.addExact(retained.revision(),1),links,templates)).toCompletableFuture();return true;

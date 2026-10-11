@@ -25,7 +25,10 @@ public final class PlanJournal implements AutoCloseable {
         public Template {Objects.requireNonNull(id);Objects.requireNonNull(owner);Objects.requireNonNull(topology);
             if(topology.nodes().size()!=2 || topology.nodes().stream().anyMatch(n->n.amount()!=1)
                     || topology.nodes().stream().map(Plan.Node::slot).distinct().count()!=2
-                    || topology.nodes().stream().anyMatch(n->n.slot()<0 || n.slot()>1))throw new IllegalArgumentException("Template bounds");}
+                    || topology.nodes().stream().map(Plan.Node::id).distinct().count()!=2
+                    || topology.nodes().stream().anyMatch(n->n.slot()<0 || n.slot()>1 || n.id()<0 || n.id()>1
+                        || n.dependencies().size()>1 || n.dependencies().stream().anyMatch(d->d<0 || d>1 || d==n.id()))
+                    || topology.nodes().stream().allMatch(n->!n.dependencies().isEmpty()))throw new IllegalArgumentException("Template bounds");}
     }
     public record Snapshot(UUID world,long revision,List<Link> links,List<Template> templates) {
         public Snapshot {Objects.requireNonNull(world);links=List.copyOf(links);templates=List.copyOf(templates);
