@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "testHarnessOrCiFixCount": 5,
+  "fixes": [
+    {
+      "id": "HC-001",
+      "category": "CI_CORRECTION",
+      "before": "Default PR checkout selected a synthetic merge while evidence claimed reviewed source",
+      "after": "All relevant owner workflows pin reviewed head; require 17 independently executed owner gates and retain same-head counterpart runs"
+    },
+    {
+      "id": "HC-002",
+      "category": "EVIDENCE_GATE_CORRECTION",
+      "before": "Generic family success could omit later-unit variants, positive actual-generation evidence or native screenshots",
+      "after": "Require named later-unit variants, real backend counters/descriptors, zero offline generation and hash/source/release-matching native PNGs; reject skips, duplicates and absent evidence"
+    },
+    {
+      "id": "HC-003",
+      "category": "TEST_ENVIRONMENT_DEFECT",
+      "detectedRun": 38123470419,
+      "before": "Numeric Docker runtime UID had no passwd identity; private diagnostic storage disabled with IO_FAILURE",
+      "after": "Build matching UID/GID account; retain private filesystem permissions and trusted opt-in scope"
+    },
+    {
+      "id": "HC-004",
+      "category": "OBSERVER_QUERY_DEFECT",
+      "detectedRun": 38123470419,
+      "before": "Queried SOURCE_CROPS while actual admitted method retained CONTAINER_STOCK and ACTOR_STOCK",
+      "after": "Read bounded actual destination CONTAINER_STOCK at 9,201,7; preserve foreign denial and subsequent live-world blockage"
+    },
+    {
+      "id": "HC-005",
+      "category": "ASSERTION_API_DEFECT",
+      "detectedRun": 38123470419,
+      "before": "Private address-page row intentionally lacked owner; harness raised KeyError",
+      "after": "Check actual trusted player scope and preserved citizen/entity/name through supported read APIs"
+    }
+  ],
+  "documentationOnlyFixCount": 3,
+  "documentationCorrections": [
+    {
+      "id": "DOC-001",
+      "correction": "Current IMP-014 broker and 014.1 diagnostics assessed instead of stale missing-broker assumptions"
+    },
+    {
+      "id": "DOC-002",
+      "correction": "Current IMP-015 through 019 contracts and owner/client evidence routes added to historical index"
+    },
+    {
+      "id": "DOC-003",
+      "correction": "Internal IMP-018/019 network exposure and absent conditional IMP-029 distinguished from lower-layer acceptance"
+    }
+  ],
+  "excludedFromFixCounts": "New client harness, screenshot capture, reusable saved-arena delivery and regression tests are features; file counts are not defect counts"
+}

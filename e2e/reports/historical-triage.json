@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "scope": "29 recent failed runs relevant to IMP014.1–019 and PR7 E2E; earlier owner failures retained in baseline inventory",
+  "scope": "29 recent failed runs relevant to IMP014.1\u2013019 and PR7 E2E; earlier owner failures retained in baseline inventory",
   "runs": [
     {
       "run": 38115881627,
@@ -14,10 +14,12 @@
         }
       ],
       "logExtracts": [
-        "2026-10-11T05:49:03.3331581Z java.nio.file.NoSuchFileException: server.properties",
-        "2026-10-11T05:49:15.1309132Z [05:49:15] [Server thread/INFO] (Minecraft) 1 required tests failed :("
+        "2026-10-11T05:49:15.1311950Z [05:49:15] [Server thread/INFO] (Minecraft)    - ai_villages_tests:planning_game_tests_bounded_planning_publishes_once_and_known_children_finish_with_models_disabled: Await actual model-free P0 child execution root=WAITING stocks=2,0 children=[SUCCEEDED:null:2:{CALLS=66, ELAPSED_TICKS=573, COMMITTED_EFFECTS=6, ATTEMPTED_EFFECTS=6, INSTRUCTIONS=199, OBSERVATIONS=69}, WAITING:ACTION_TIMEOUT:0:{CALLS=24, ELAPSED_TICKS=37",
+        "2026-10-11T05:49:19.1227608Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38115881627",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38115347762,
@@ -31,7 +33,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38115347762",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38115345599,
@@ -45,7 +49,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38115345599",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38114298044,
@@ -59,7 +65,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38114298044",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38113971734,
@@ -73,7 +81,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38113971734",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38113964720,
@@ -87,7 +97,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38113964720",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38102882993,
@@ -101,11 +113,12 @@
         }
       ],
       "logExtracts": [
-        "2026-10-11T01:46:50.9576356Z java.nio.file.NoSuchFileException: server.properties",
-        "2026-10-11T01:46:56.7581521Z [01:46:56] [Server thread/INFO] (Minecraft) 1 required tests failed :(",
-        "2026-10-11T01:46:56.7583272Z [01:46:56] [Server thread/INFO] (Minecraft)    - ai_villages_tests:prerequisite_game_tests_stock_first_shared_production_uses_real_receipts_and_no_inference: Real P0 production failed: Execution[status=BLOCKED, reason=ACTION_TIMEOUT, committedEffects=7, completion=null] on tick 3002"
+        "2026-10-11T01:46:56.7583272Z [01:46:56] [Server thread/INFO] (Minecraft)    - ai_villages_tests:prerequisite_game_tests_stock_first_shared_production_uses_real_receipts_and_no_inference: Real P0 production failed: Execution[status=BLOCKED, reason=ACTION_TIMEOUT, committedEffects=7, completion=null] on tick 3002",
+        "2026-10-11T01:46:58.2436874Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38102882993",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38077990352,
@@ -118,8 +131,12 @@
           ]
         }
       ],
-      "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "logExtracts": [
+        "2026-10-10T19:00:26.8330529Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38077990352",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38077988171,
@@ -133,7 +150,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38077988171",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38052288832,
@@ -147,13 +166,12 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T12:32:46.8063901Z             raise SystemExit('Missing passing scoped UUID regression: ' + name)",
-        "2026-10-10T12:32:46.8077317Z         raise SystemExit('Missing storage-deadline regression ' + name)",
-        "2026-10-10T12:32:46.8083536Z         raise SystemExit('Missing bounded journal-read regression ' + name)",
-        "2026-10-10T12:32:46.8087928Z         raise SystemExit(f'Missing passing identity coverage: {suite} ({len(cases)})')",
-        "2026-10-10T12:32:46.8094095Z         raise SystemExit('Missing registry/controller integration regression ' + name)"
+        "2026-10-10T12:33:50.8465259Z [12:33:50] [Server thread/INFO] (Minecraft)    - ai_villages_tests:primitive_diagnostic_game_tests_blocked_diagnostic_write_cannot_block_known_jobs_or_model_free_owner_reload: Known saved method failed with inference and diagnostics off on tick 2402",
+        "2026-10-10T12:33:53.4375183Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38052288832",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38052286505,
@@ -167,7 +185,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38052286505",
+      "classification": "INHERITED_OWNER_FAILURE"
     },
     {
       "run": 38032383842,
@@ -188,12 +208,13 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T07:03:51.9068030Z E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel job-status [REDACTED_UUID] expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal; last=None",
+        "2026-10-10T07:03:51.9068030Z E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel job-status ee5174cf-ce0c-4595-8ecf-a79babdc78df expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal; last=None",
         "2026-10-10T07:15:24.4710156Z E2E-LEASE-001 FAIL 'NoneType' object is not subscriptable",
-        "2026-10-10T07:15:35.7152825Z CASE E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel job-status [REDACTED_UUID] expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal; last=None",
-        "2026-10-10T07:15:35.7154801Z CASE E2E-LEASE-001 FAIL 'NoneType' object is not subscriptable"
+        "2026-10-10T07:15:27.6300654Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38032383842",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 38030348647,
@@ -214,13 +235,13 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T06:26:53.0162419Z E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel status [REDACTED_UUID] expected=[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found; last=None",
-        "2026-10-10T06:38:26.9151548Z E2E-RECOVERY-001 FAIL Requested physical outcome failed: run=[REDACTED_UUID] phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'OBSERVATIONS': 108, 'INSTRUCTIONS': 206, 'CALLS': 48, 'TRAVEL_BLOCKS': 18, 'COMM",
+        "2026-10-10T06:38:26.9151548Z E2E-RECOVERY-001 FAIL Requested physical outcome failed: run=5d9d1340-b401-4cb5-96d6-782a3bb55489 phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'OBSERVATIONS': 108, 'INSTRUCTIONS': 206, 'CALLS': 48, 'TRAVEL_BLOCKS': 18, 'COMMITTED_EFFECTS': 4, 'ATTEMPTED",
         "2026-10-10T06:41:21.2490491Z E2E-LEASE-001 FAIL Other scoped queued job bounded physical outcome; last=False",
-        "2026-10-10T06:41:37.2593375Z CASE E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel status [REDACTED_UUID] expected=[Uu]nauthor|[Aa]uthor|[Pp]rivate|Unknown|unknown|not found; last=None",
-        "2026-10-10T06:41:37.2598024Z CASE E2E-RECOVERY-001 FAIL Requested physical outcome failed: run=[REDACTED_UUID] phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'OBSERVATIONS': 108, 'INSTRUCTIONS': 206, 'CALLS': 48, 'TRAVEL_BLOCKS': 18, "
+        "2026-10-10T06:41:26.9181836Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38030348647",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 38027837433,
@@ -248,9 +269,13 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T05:45:01.7493278Z E2E-NLU-001 FAIL Removed caller used a stale world anchor"
+        "2026-10-10T05:45:01.7493278Z E2E-NLU-001 FAIL Removed caller used a stale world anchor",
+        "2026-10-10T05:45:04.2887049Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38027837433",
+      "classification": "HISTORICAL_E2E_FAILURE",
+      "relatedFreshRepair": "FIX-003; fresh native disconnect-before-removal before/after plus final network replay required"
     },
     {
       "run": 38025954149,
@@ -285,9 +310,13 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T05:11:33.4000086Z E2E-NLU-001 FAIL Removed caller used a stale world anchor"
+        "2026-10-10T05:11:33.4000086Z E2E-NLU-001 FAIL Removed caller used a stale world anchor",
+        "2026-10-10T05:11:36.1398479Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38025954149",
+      "classification": "HISTORICAL_E2E_FAILURE",
+      "relatedFreshRepair": "FIX-003; fresh native disconnect-before-removal before/after plus final network replay required"
     },
     {
       "run": 38024859702,
@@ -308,9 +337,12 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T04:50:12.2228798Z E2E-AI-001 FAIL Requested physical outcome failed: run=[REDACTED_UUID] phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'CALLS': 48, 'COMMITTED_EFFECTS': 4, 'TRAVEL_BLOCKS': 6, 'INSTRUCTIONS': 161, 'OBSERVAT"
+        "2026-10-10T04:50:12.2228798Z E2E-AI-001 FAIL Requested physical outcome failed: run=9f5dfdf9-a38d-4c25-8b3f-f740be414579 phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'CALLS': 48, 'COMMITTED_EFFECTS': 4, 'TRAVEL_BLOCKS': 6, 'INSTRUCTIONS': 161, 'OBSERVATIONS': 75, 'ATTEMPTED_EFFECTS",
+        "2026-10-10T04:50:15.1927273Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38024859702",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 38024097912,
@@ -345,9 +377,12 @@
         }
       ],
       "logExtracts": [
-        "2026-10-10T04:40:07.8792570Z E2E-CMD-001 FAIL Feedback PlayerA: /aivillage kernel name [REDACTED_UUID] Áda 🌾 expected=name=Áda 🌾; last=None"
+        "2026-10-10T04:40:07.8792570Z E2E-CMD-001 FAIL Feedback PlayerA: /aivillage kernel name 49b0236e-17f5-4a93-b8e0-c14d721c68d3 \u00c1da \ud83c\udf3e expected=name=\u00c1da \ud83c\udf3e; last=None",
+        "2026-10-10T04:40:11.9781074Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38024097912",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37941645438,
@@ -368,9 +403,12 @@
         }
       ],
       "logExtracts": [
-        "2026-10-09T14:15:13.0236925Z E2E-AI-001 FAIL Model-free reuse called AI"
+        "2026-10-09T14:15:13.0236925Z E2E-AI-001 FAIL Model-free reuse called AI",
+        "2026-10-09T14:15:16.9437982Z ##[error]Process completed with exit code 1."
       ],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37941645438",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37941636998,
@@ -391,7 +429,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37941636998",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37939610042,
@@ -412,7 +452,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37939610042",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37939602136,
@@ -433,7 +475,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37939602136",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37937430196,
@@ -454,7 +498,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37937430196",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37937422235,
@@ -475,7 +521,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37937422235",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37936192637,
@@ -489,7 +537,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37936192637",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37936186498,
@@ -503,7 +553,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37936186498",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37934931620,
@@ -517,7 +569,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37934931620",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37934925039,
@@ -531,7 +585,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37934925039",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37933067926,
@@ -545,7 +601,9 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37933067926",
+      "classification": "HISTORICAL_E2E_FAILURE"
     },
     {
       "run": 37933062283,
@@ -559,7 +617,41 @@
         }
       ],
       "logExtracts": [],
-      "disposition": "historical failure; require exact-head replay; prior green evidence is not final qualification"
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37933062283",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    }
+  ],
+  "freshAttempts": [
+    {
+      "sourceCommit": "8741ef602a0f9a9655ee5123dc3c2f160e23b525",
+      "run": 38121988337,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38121988337",
+      "uniqueFamilies": 13,
+      "passed": 11,
+      "failed": 2,
+      "skipped": 0,
+      "disposition": "FIX-002 reproduced genuine network admission starvation; acquisition/NLU/resilience passed"
+    },
+    {
+      "sourceCommit": "32c46b32891f548ef4e615e29d08b60e97fc9761",
+      "run": 38123470419,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38123470419",
+      "uniqueFamilies": 13,
+      "passed": 10,
+      "failed": 3,
+      "skipped": 0,
+      "disposition": "Original FIX-002 families passed; physical/mutation/recovery harness defects HC-003/004/005 preserved and corrected in 2a97bc3"
+    },
+    {
+      "sourceCommit": "2a97bc3b7b3126e182cebb45a04598d7c2fd63d3",
+      "run": 38125760907,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38125760907",
+      "job": 114429678291,
+      "classification": "UNRESOLVED_NATIVE_FLAKE",
+      "disposition": "Warm saved-skill delivery timed out at tick 1802; matching independent exact-head PR diagnostics run 38125763532 passed. Not erased, skipped or attributed to a source repair; further failure diagnostics added for future reproducibility",
+      "artifact": 11697690887,
+      "artifactSha256": "5d3fa5f2019a741c6d3e1e90fb069bde15f8d7bed88dcb40671ae2f94efc7cb2"
     }
   ]
 }
