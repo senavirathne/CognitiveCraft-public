@@ -1,6 +1,6 @@
 # IMP-018 deterministic prerequisite contract 1
 
-Architecture compatibility is **0.5**. Contracts/IR, Jobs, Leases, artifacts and persisted world record schemas remain **1**. This is a compatible bounded dependency-proposal API; it introduces no persistent work ledger, planner, worker-selection policy, recipe executor or crafting primitive.
+Architecture compatibility is **0.5**. Contracts/IR, Jobs, Leases and artifact schemas remain **1**. Other persisted world record versions, including the existing observed-world schema **2**, are unchanged. This is a compatible bounded dependency-proposal API; it introduces no persistent work ledger, planner, worker-selection policy, recipe executor or crafting primitive.
 
 `Prerequisites.Need` binds an existing guarded Job responsibility, original trusted principal/world/domain, typed capability arguments, material ID, positive integral quantity and allocation policy. A material requirement is distinct from the job's attributable-delivery completion predicate. Existing stock can satisfy a material requirement but cannot manufacture crop-delivery evidence or complete its Job.
 
