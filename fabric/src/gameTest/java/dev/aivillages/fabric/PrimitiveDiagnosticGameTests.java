@@ -328,7 +328,10 @@ public final class PrimitiveDiagnosticGameTests {
                 case 8 -> {
                     h.assertTrue(session.queuedJobIds(knownOwner,false).contains(knownJob),"Acknowledging reloaded job");
                     var job=session.queuedJob(knownOwner,knownJob);
-                    h.assertTrue(job!=null&&job.state()==Jobs.State.SUCCEEDED,"Known saved method failed with inference and diagnostics off");
+                    h.assertTrue(job!=null&&job.state()==Jobs.State.SUCCEEDED,
+                            "Known saved method failed with inference and diagnostics off state="+(job==null?"missing":job.state())+
+                                    " reason="+(job==null?null:job.reason())+" usage="+(job==null?null:job.usage())+
+                                    " actor="+known.position());
                     h.assertTrue(((Container)h.getLevel().getBlockEntity(origin.offset(4,1,4))).countItem(Items.WHEAT)==delivered+1,"Reloaded method duplicated or lost delivery");
                     h.assertTrue(model.calls==1&&release.getCount()==1,"Reload invoked model or waited for diagnostic write");
                     session.clearDispatchCache();session.close();closing=session.storeClosure();release.countDown();phase=9;

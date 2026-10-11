@@ -125,7 +125,12 @@ public final class PrimitiveDiagnosticRestartGameTests {
                 }
                 case 4 -> {
                     h.assertTrue(session.queuedJobIds(owner,false).contains(job),"Acknowledging reloaded physical job");
-                    h.assertTrue(session.queuedJob(owner,job).state()==Jobs.State.SUCCEEDED,"Saved method must deliver without model or diagnostics");
+                    var view=session.queuedJob(owner,job);
+                    h.assertTrue(view.state()==Jobs.State.SUCCEEDED,
+                            "Saved method must deliver without model or diagnostics state="+view.state()+
+                                    " reason="+view.reason()+" fulfilled="+view.fulfilled()+" usage="+view.usage()+
+                                    " attempts="+view.attempts().stream().map(a->a.terminal()+":"+a.usage()).toList()+
+                                    " actor="+actor.position());
                     var dest=(List<Long>)identity.get("destination");
                     var d=new BlockPos(Math.toIntExact(dest.get(0)),Math.toIntExact(dest.get(1)),Math.toIntExact(dest.get(2)));
                     h.assertTrue(((Container)h.getLevel().getBlockEntity(d)).countItem(Items.WHEAT)==initialWheat+1&&generationCalls==0,

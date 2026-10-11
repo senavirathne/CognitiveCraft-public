@@ -2,10 +2,10 @@ name: Worker dispatcher acceptance
 on:
   push:
     branches: [main, feature/imp013-worker-dispatcher]
-    paths: ['core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
   pull_request:
     branches: [main]
-    paths: ['core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
+    paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:

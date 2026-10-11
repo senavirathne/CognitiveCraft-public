@@ -2,8 +2,9 @@ name: Research local-model physical trial
 
 on:
   push:
-    branches: [imp-006-research-admission, imp-008-citizen-identity, imp-009-needle-intent]
+    branches: [main, imp-006-research-admission, imp-008-citizen-identity, imp-009-needle-intent]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'providers/**'
       - 'fabric/**'
@@ -11,6 +12,7 @@ on:
   pull_request:
     branches: [main, feature/default-nearest-world-references]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'providers/**'
       - 'fabric/**'
@@ -33,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:

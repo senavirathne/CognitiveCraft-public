@@ -2,14 +2,16 @@ name: Citizen identity acceptance
 
 on:
   push:
-    branches: [imp-008-citizen-identity, imp-009-needle-intent]
+    branches: [main, imp-008-citizen-identity, imp-009-needle-intent]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'fabric/**'
       - '.github/workflows/citizen-identity.yml'
   pull_request:
     branches: [main, imp-007-bootstrap-controller, feature/default-nearest-world-references]
     paths:
+      - 'e2e/**'
       - 'core/**'
       - 'fabric/**'
       - '.github/workflows/citizen-identity.yml'
@@ -30,6 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:

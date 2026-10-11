@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "headCommit": "8741ef602a0f9a9655ee5123dc3c2f160e23b525",
+  "productionBaseline": "01c623f4915e8f760659eac1a1426e1bbca6e3a5",
+  "run": 38121988337,
+  "job": 114419989885,
+  "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38121988337/job/114419989885",
+  "familySummaries": [
+    "E2E-CONN-001 PASS",
+    "E2E-CMD-001 PASS",
+    "E2E-SUGGEST-001 FAIL Durable submission publication became available; last=None",
+    "E2E-PHYSICAL-001 PASS",
+    "E2E-LEGACY-001 PASS",
+    "E2E-CANCEL-001 PASS",
+    "E2E-MUTATION-001 PASS",
+    "E2E-RECOVERY-001 PASS",
+    "E2E-LEASE-001 FAIL Second player submission was starved until the first assignment ended"
+  ],
+  "failedFamilies": [
+    "E2E-SUGGEST-001",
+    "E2E-LEASE-001"
+  ],
+  "artifact": {
+    "id": 11696446020,
+    "name": "real-gameplay-deterministic-38121988337",
+    "sha256": "ef60df9d8115834b3942ef4b1bf3a776768787c8b3f2bbfcae379d9ecd34a978"
+  },
+  "before": {
+    "executed": 9,
+    "passed": 7,
+    "failed": 2,
+    "skipped": 0
+  },
+  "classification": "PRODUCTION_DEFECT",
+  "owner": "KernelSession Jobs admission integration"
+}

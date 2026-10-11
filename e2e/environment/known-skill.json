@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "fixture": "F1",
+  "minecraft": "26.3",
+  "archive": "known-skill.zip",
+  "archiveSha256": "d13dd0f3840fb8ee7b716d188b6b3fc1cb0df2c8f57976b4e76b05feff6658dc",
+  "archiveBytes": 479850,
+  "certificateSha256": "16e363c60236b1be4d341c21ab69ecd3b6cba47727533de2630132b2e26cf415",
+  "producerCommit": "2a97bc3b7b3126e182cebb45a04598d7c2fd63d3",
+  "producerJarSha256": "be859e24dc2cb9202894826c86460a54d1d48e57f91b4d3a22c96518a2ae2c82",
+  "semanticJarSha256": "a7dae7382a19fa046b7eb71b0e494239d381db988e4cd379a45010585e06ec81",
+  "certifiedWorldFiles": 62,
+  "evidenceUrl": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38125763483",
+  "artifact": "f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90",
+  "contents": "Stopped actual Minecraft world; original citizen IDs and genuinely admitted knowledge",
+  "externalRuntime": "Java 25, official Minecraft 26.3/Fabric assets and real models installed separately",
+  "producingArtifactId": 11697875929,
+  "producingArtifactSha256": "ed01c3e906b9771e91de3970855c7b490d1a3369fab46fe8ddaa0fe33a3c2223"
+}

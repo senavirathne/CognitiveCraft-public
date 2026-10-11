@@ -1,0 +1,664 @@
+{
+  "schema": 2,
+  "scope": "IMP-001 through IMP-019; IMP-014.1 and IMP-028; conditional IMP-029",
+  "implementationBaseline": "01c623f4915e8f760659eac1a1426e1bbca6e3a5",
+  "brokerRecheck": "IMP-014 is merged in public PR 6; archived absent status is superseded",
+  "units": [
+    {
+      "unit": "IMP-001",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-CANCEL-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/KernelJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.KernelJUnitTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ExecutorJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ExecutorJUnitTest"
+        }
+      ],
+      "happyPath": "Typed requests and trusted completion",
+      "negative": "Invalid quantities and false completion",
+      "authorization": "Exact scoped run control",
+      "recovery": "Cancelled receipts remain truthful",
+      "aiDependency": "none for known implementation",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "ci.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-002",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-MUTATION-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/GatewayJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.GatewayJUnitTest"
+        }
+      ],
+      "happyPath": "Navigation, mature harvest, pickup, deposit",
+      "negative": "Immature, full, removed and obstructed targets",
+      "authorization": "Actor and effect-time resource authority",
+      "recovery": "Control release and receipt conservation",
+      "aiDependency": "none",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "ci.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-003",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-CANCEL-001",
+        "E2E-RECOVERY-002"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ExecutorJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ExecutorJUnitTest"
+        }
+      ],
+      "happyPath": "Bounded instruction execution",
+      "negative": "Progress failure and finite budgets",
+      "authorization": "No prompt-derived authority",
+      "recovery": "Network cancellation and uncertain interruption",
+      "aiDependency": "none",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "ci.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-004",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/RepositoryJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.RepositoryJUnitTest"
+        }
+      ],
+      "happyPath": "Durable admitted exact artifact",
+      "negative": "Corrupt/incompatible publication rejected below E2E",
+      "authorization": "Artifacts grant no actor authority",
+      "recovery": "Saved-world artifact identity and reuse",
+      "aiDependency": "actual generation to produce F1, none for reuse",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "ci.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-005",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "providers/src/test/java/dev/aivillages/providers/GenerationJUnitTest.java",
+          "suite": "dev.aivillages.providers.GenerationJUnitTest"
+        },
+        {
+          "source": "providers/src/test/java/dev/aivillages/providers/BrokerAdapterIntegrationTest.java",
+          "suite": "dev.aivillages.providers.BrokerAdapterIntegrationTest"
+        }
+      ],
+      "happyPath": "Actual local provider model descriptor and candidate",
+      "negative": "Backend unavailable and bounded transport below E2E",
+      "authorization": "No provider world mutations",
+      "recovery": "Backend shutdown and no replay",
+      "aiDependency": "actual Ollama",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "research-live-trial.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-006",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResearchJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ResearchJUnitTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BrokerResearchIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.BrokerResearchIntegrationTest"
+        }
+      ],
+      "happyPath": "Validation, bounded physical trial, admission",
+      "negative": "Invalid candidate rejection below E2E",
+      "authorization": "Trial remains under trusted caller and normal gateway",
+      "recovery": "Admission persistence after restart",
+      "aiDependency": "actual local generation",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "research-live-trial.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-007",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-CONN-001",
+        "E2E-PHYSICAL-001",
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BootstrapControllerTest.java",
+          "suite": "dev.aivillages.core.kernel.BootstrapControllerTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BootstrapJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.BootstrapJournalTest"
+        }
+      ],
+      "happyPath": "Real-player bootstrap and physical task",
+      "negative": "Missing knowledge without inference does not fabricate success",
+      "authorization": "Private submission scope",
+      "recovery": "Stable saved identity and model-free changed bindings",
+      "aiDependency": "actual generation only for fresh gap",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "capability-retrieval.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-008",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-CONN-001",
+        "E2E-SUGGEST-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CitizenRegistryTest.java",
+          "suite": "dev.aivillages.core.kernel.CitizenRegistryTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CitizenIdentityStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.CitizenIdentityStoreTest"
+        },
+        {
+          "source": "fabric/src/test/java/dev/aivillages/fabric/KernelAvailabilityTest.java",
+          "suite": "dev.aivillages.fabric.KernelAvailabilityTest"
+        },
+        {
+          "source": "fabric/src/test/java/dev/aivillages/fabric/KernelAvailabilityTest.java",
+          "suite": "dev.aivillages.fabric.KernelAvailabilityTest"
+        }
+      ],
+      "happyPath": "Nearest enrollment, Tab and durable name",
+      "negative": "Invalid names and guessed identifiers",
+      "authorization": "Own citizens only, including operators",
+      "recovery": "Reconnect and server restart",
+      "aiDependency": "none",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "citizen-identity.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-009",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-NLU-001",
+        "E2E-SUGGEST-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/LanguageRequestsTest.java",
+          "suite": "dev.aivillages.core.kernel.LanguageRequestsTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/LanguageReferenceClassifierTest.java",
+          "suite": "dev.aivillages.core.kernel.LanguageReferenceClassifierTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorldReferenceResolverTest.java",
+          "suite": "dev.aivillages.core.kernel.WorldReferenceResolverTest"
+        }
+      ],
+      "happyPath": "Actual Needle supported naming and grounded delivery",
+      "negative": "Ambiguous/unsupported references and outage",
+      "authorization": "Private interpretation tickets and owned references",
+      "recovery": "Pending cancellation and removed caller fencing",
+      "aiDependency": "actual Needle",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "needle-language.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-010",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CapabilityRetrievalIndexTest.java",
+          "suite": "dev.aivillages.core.kernel.CapabilityRetrievalIndexTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResolverJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ResolverJUnitTest"
+        }
+      ],
+      "happyPath": "Exact compatible known skill with changed bindings",
+      "negative": "Environmental blockers never authorize research",
+      "authorization": "Current authority checked during resolution",
+      "recovery": "Index rebuilt from admitted repository",
+      "aiDependency": "zero model calls for known execution",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "job-lifecycle.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-011",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-LEASE-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/JobLifecycleStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.JobLifecycleStoreTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/JobJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.JobJournalTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/JobExecutorIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.JobExecutorIntegrationTest"
+        }
+      ],
+      "happyPath": "Durable client-submitted job/status",
+      "negative": "Partial failure and cancellation",
+      "authorization": "Exact originating private scope",
+      "recovery": "Interrupted ACTIVE jobs do not replay",
+      "aiDependency": "none",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "resource-leases.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-012",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-LEASE-001",
+        "E2E-MUTATION-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResourceLeaseServiceTest.java",
+          "suite": "dev.aivillages.core.kernel.ResourceLeaseServiceTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResourceLeaseJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.ResourceLeaseJournalTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/LeasedGatewayIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.LeasedGatewayIntegrationTest"
+        }
+      ],
+      "happyPath": "World-wide limited-stock claims",
+      "negative": "External stock/capacity changes",
+      "authorization": "Claims confer no foreign citizen control",
+      "recovery": "Recovered claims remain inactive until reconciled",
+      "aiDependency": "none",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "worker-dispatcher.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-013",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-LEASE-001",
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorkerDispatcherTest.java",
+          "suite": "dev.aivillages.core.kernel.WorkerDispatcherTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/DispatcherOwnersIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.DispatcherOwnersIntegrationTest"
+        }
+      ],
+      "happyPath": "Multiple queued jobs and owned-worker dispatch",
+      "negative": "Unavailable workers, competing stock and bounded waiting",
+      "authorization": "Never recruit another principal worker",
+      "recovery": "Conservative assignment recovery",
+      "aiDependency": "none",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "default-nearest.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-014",
+      "role": "requested implementation",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-AI-001",
+        "E2E-NLU-001",
+        "E2E-LEASE-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/AIWorkBrokerTest.java",
+          "suite": "dev.aivillages.core.kernel.AIWorkBrokerTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/BrokerResearchIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.BrokerResearchIntegrationTest"
+        },
+        {
+          "source": "providers/src/test/java/dev/aivillages/providers/BrokerAdapterIntegrationTest.java",
+          "suite": "dev.aivillages.providers.BrokerAdapterIntegrationTest"
+        }
+      ],
+      "happyPath": "Actual generation routed through installed broker; known jobs model free",
+      "negative": "Queue, fairness, coalescing, backpressure, outages and budget permutations below E2E",
+      "authorization": "Private subscribers and scoped public run/status",
+      "recovery": "Subscriber cancellation, unconfirmed cessation and shutdown fencing below E2E",
+      "aiDependency": "actual generation for observable provider integration",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "ai-work-broker.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-028",
+      "role": "foundational dependency",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001",
+        "E2E-AI-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ResolverJUnitTest.java",
+          "suite": "dev.aivillages.core.kernel.ResolverJUnitTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/CapabilityRetrievalIndexTest.java",
+          "suite": "dev.aivillages.core.kernel.CapabilityRetrievalIndexTest"
+        }
+      ],
+      "happyPath": "Foundational missing versus compatible implementation resolution",
+      "negative": "Unknown observation and environmental blocker distinction",
+      "authorization": "Current eligibility and parameter bounds",
+      "recovery": "Exact persisted closure revalidated",
+      "aiDependency": "none for known, real generation for genuine missing",
+      "implementation_status": "PRESENT",
+      "networkExposure": "CLIENT_REACHABLE",
+      "ownerWorkflow": "ci.yml",
+      "requiredVariants": []
+    },
+    {
+      "unit": "IMP-014.1",
+      "role": "requested implementation",
+      "implementation_status": "PRESENT",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-PHYSICAL-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/PrimitiveDiagnosticsTest.java",
+          "suite": "dev.aivillages.core.kernel.PrimitiveDiagnosticsTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/PrimitiveDiagnosticServiceTest.java",
+          "suite": "dev.aivillages.core.kernel.PrimitiveDiagnosticServiceTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/PrimitiveDiagnosticStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.PrimitiveDiagnosticStoreTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/PrimitiveDiagnosticResearchTest.java",
+          "suite": "dev.aivillages.core.kernel.PrimitiveDiagnosticResearchTest"
+        }
+      ],
+      "ownerWorkflow": "primitive-diagnostics.yml",
+      "networkExposure": "CLIENT_REACHABLE",
+      "requiredVariants": [
+        "GP-E2E-014A"
+      ],
+      "boundary": "Opt-in metadata has no execution authority; compiler rejection correlation is an owner proof",
+      "happyPath": "Opt-in metadata has no execution authority; compiler rejection correlation is an owner proof",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "none for known execution"
+    },
+    {
+      "unit": "IMP-015",
+      "role": "requested implementation",
+      "implementation_status": "PRESENT",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/SaveCompatibilityTest.java",
+          "suite": "dev.aivillages.core.kernel.SaveCompatibilityTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ArtifactCompatibilityTest.java",
+          "suite": "dev.aivillages.core.kernel.ArtifactCompatibilityTest"
+        }
+      ],
+      "ownerWorkflow": "save-compatibility.yml",
+      "networkExposure": "CLIENT_REACHABLE",
+      "requiredVariants": [
+        "GP-E2E-15"
+      ],
+      "boundary": "Supported exact schema-1 intake, preserved originals, stable named owner and warm connected client",
+      "happyPath": "Supported exact schema-1 intake, preserved originals, stable named owner and warm connected client",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "none for known execution"
+    },
+    {
+      "unit": "IMP-016",
+      "role": "requested implementation",
+      "implementation_status": "PRESENT",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-RECOVERY-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorldRetentionManagerTest.java",
+          "suite": "dev.aivillages.core.kernel.WorldRetentionManagerTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorldRetentionSafetyTest.java",
+          "suite": "dev.aivillages.core.kernel.WorldRetentionSafetyTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/WorldRetentionIntegrationTest.java",
+          "suite": "dev.aivillages.core.kernel.WorldRetentionIntegrationTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/RetentionEvidenceStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.RetentionEvidenceStoreTest"
+        }
+      ],
+      "ownerWorkflow": "world-retention.yml",
+      "networkExposure": "CLIENT_REACHABLE",
+      "requiredVariants": [
+        "GP-E2E-16"
+      ],
+      "boundary": "Referenced admitted knowledge, truthful private interruption and offline reuse after restart",
+      "happyPath": "Referenced admitted knowledge, truthful private interruption and offline reuse after restart",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "none for known execution"
+    },
+    {
+      "unit": "IMP-017",
+      "role": "requested implementation",
+      "implementation_status": "PRESENT",
+      "implementation": "PRESENT",
+      "families": [
+        "E2E-MUTATION-001"
+      ],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/ObservedWorldKnowledgeStoreTest.java",
+          "suite": "dev.aivillages.core.kernel.ObservedWorldKnowledgeStoreTest"
+        }
+      ],
+      "ownerWorkflow": "observed-knowledge.yml",
+      "networkExposure": "CLIENT_REACHABLE",
+      "requiredVariants": [
+        "GP-E2E-17"
+      ],
+      "boundary": "Actual foreign-player world mutation, scoped retained evidence and subsequent live revalidation",
+      "happyPath": "Actual foreign-player world mutation, scoped retained evidence and subsequent live revalidation",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "none for known execution"
+    },
+    {
+      "unit": "IMP-018",
+      "role": "requested implementation",
+      "implementation_status": "PRESENT",
+      "implementation": "PRESENT",
+      "families": [],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/DeterministicPrerequisiteResolverTest.java",
+          "suite": "dev.aivillages.core.kernel.DeterministicPrerequisiteResolverTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/PrerequisiteAdmissionTest.java",
+          "suite": "dev.aivillages.core.kernel.PrerequisiteAdmissionTest"
+        }
+      ],
+      "ownerWorkflow": "prerequisites.yml",
+      "networkExposure": "NOT_CLIENT_EXPOSED",
+      "requiredVariants": [],
+      "boundary": "KernelSession.resolvePrerequisites exists without a production player request adapter",
+      "happyPath": "KernelSession.resolvePrerequisites exists without a production player request adapter",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "none for known execution"
+    },
+    {
+      "unit": "IMP-019",
+      "role": "requested implementation",
+      "implementation_status": "PRESENT",
+      "implementation": "PRESENT",
+      "families": [],
+      "componentTests": [
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/GoalPlannerTest.java",
+          "suite": "dev.aivillages.core.kernel.GoalPlannerTest"
+        },
+        {
+          "source": "core/src/test/java/dev/aivillages/core/kernel/PlanJournalTest.java",
+          "suite": "dev.aivillages.core.kernel.PlanJournalTest"
+        }
+      ],
+      "ownerWorkflow": "goal-planning.yml",
+      "networkExposure": "NOT_CLIENT_EXPOSED",
+      "requiredVariants": [],
+      "boundary": "KernelSession.createPlanningObjective/proposePlan exist; no planning command/interaction is registered",
+      "happyPath": "KernelSession.createPlanningObjective/proposePlan exist; no planning command/interaction is registered",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "Separate genuine shared-provider planning quality"
+    },
+    {
+      "unit": "IMP-029",
+      "role": "conditional prerequisite",
+      "implementation_status": "ABSENT",
+      "implementation": "ABSENT",
+      "families": [],
+      "componentTests": [],
+      "ownerWorkflow": null,
+      "networkExposure": "BLOCKED_BY_IMPLEMENTATION",
+      "requiredVariants": [],
+      "boundary": "No Citizen Lifecycle Reconciliation owner; existing IMP-008 unload behavior remains covered",
+      "happyPath": "No Citizen Lifecycle Reconciliation owner; existing IMP-008 unload behavior remains covered",
+      "negative": "Existing exact owner matrix plus applicable physical failure",
+      "authorization": "TrustedContext remains scoped; no observer mutation",
+      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
+      "aiDependency": "none for known execution"
+    }
+  ],
+  "documentation": "https://github.com/senavirathne/CognitiveCraft-Documentation/tree/work/e2e-imp001-019/docs/e2e",
+  "ownerWorkflows": [
+    "ci.yml",
+    "primitive-diagnostics.yml",
+    "save-compatibility.yml",
+    "world-retention.yml",
+    "observed-knowledge.yml",
+    "prerequisites.yml",
+    "goal-planning.yml",
+    "citizen-identity.yml",
+    "capability-retrieval.yml",
+    "job-lifecycle.yml",
+    "default-nearest.yml",
+    "ai-work-broker.yml",
+    "worker-dispatcher.yml",
+    "needle-language.yml",
+    "resource-leases.yml",
+    "research-live-trial.yml",
+    "client-e2e-smoke.yml"
+  ]
+}

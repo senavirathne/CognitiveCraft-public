@@ -3,9 +3,9 @@ name: Bounded goal planning acceptance
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
   push:
-    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
+    paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
 
 permissions:
   contents: read
@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:
@@ -129,6 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:

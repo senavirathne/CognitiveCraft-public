@@ -1,0 +1,706 @@
+{
+  "schema": 1,
+  "scope": "29 recent failed runs relevant to IMP014.1–019 and PR7 E2E; earlier owner failures retained in baseline inventory",
+  "runs": [
+    {
+      "run": 38115881627,
+      "jobs": [
+        {
+          "id": 114400558811,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-11T05:49:15.1311950Z [05:49:15] [Server thread/INFO] (Minecraft)    - ai_villages_tests:planning_game_tests_bounded_planning_publishes_once_and_known_children_finish_with_models_disabled: Await actual model-free P0 child execution root=WAITING stocks=2,0 children=[SUCCEEDED:null:2:{CALLS=66, ELAPSED_TICKS=573, COMMITTED_EFFECTS=6, ATTEMPTED_EFFECTS=6, INSTRUCTIONS=199, OBSERVATIONS=69}, WAITING:ACTION_TIMEOUT:0:{CALLS=24, ELAPSED_TICKS=37",
+        "2026-10-11T05:49:19.1227608Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38115881627",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38115347762,
+      "jobs": [
+        {
+          "id": 114399035345,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38115347762",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38115345599,
+      "jobs": [
+        {
+          "id": 114399029104,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38115345599",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38114298044,
+      "jobs": [
+        {
+          "id": 114396005257,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38114298044",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38113971734,
+      "jobs": [
+        {
+          "id": 114395058582,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38113971734",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38113964720,
+      "jobs": [
+        {
+          "id": 114395038159,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "failedSteps": [
+            "Reject invalid proposals, fence cancellation and execute known children offline"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38113964720",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38102882993,
+      "jobs": [
+        {
+          "id": 114362292841,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "failedSteps": [
+            "Use actual installed recipes, stock-first deficits and one real shared producer"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-11T01:46:56.7583272Z [01:46:56] [Server thread/INFO] (Minecraft)    - ai_villages_tests:prerequisite_game_tests_stock_first_shared_production_uses_real_receipts_and_no_inference: Real P0 production failed: Execution[status=BLOCKED, reason=ACTION_TIMEOUT, committedEffects=7, completion=null] on tick 3002",
+        "2026-10-11T01:46:58.2436874Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38102882993",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38077990352,
+      "jobs": [
+        {
+          "id": 114288890418,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "failedSteps": [
+            "Require all retention matrix tests, real process kills and measured simulations"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T19:00:26.8330529Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38077990352",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38077988171,
+      "jobs": [
+        {
+          "id": 114288884355,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "failedSteps": [
+            "Require all retention matrix tests, real process kills and measured simulations"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38077988171",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38052288832,
+      "jobs": [
+        {
+          "id": 114213666399,
+          "name": "Java 25 / Fabric verification",
+          "failedSteps": [
+            "Fabric server GameTests and saved-world phase"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T12:33:50.8465259Z [12:33:50] [Server thread/INFO] (Minecraft)    - ai_villages_tests:primitive_diagnostic_game_tests_blocked_diagnostic_write_cannot_block_known_jobs_or_model_free_owner_reload: Known saved method failed with inference and diagnostics off on tick 2402",
+        "2026-10-10T12:33:53.4375183Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38052288832",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38052286505,
+      "jobs": [
+        {
+          "id": 114213659514,
+          "name": "Java 25 / Fabric verification",
+          "failedSteps": [
+            "Fabric server GameTests and saved-world phase"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38052286505",
+      "classification": "INHERITED_OWNER_FAILURE"
+    },
+    {
+      "run": 38032383842,
+      "jobs": [
+        {
+          "id": 114157370466,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114159985667,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T07:03:51.9068030Z E2E-SUGGEST-001 FAIL Feedback PlayerB: /aivillage kernel job-status ee5174cf-ce0c-4595-8ecf-a79babdc78df expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal; last=None",
+        "2026-10-10T07:15:24.4710156Z E2E-LEASE-001 FAIL 'NoneType' object is not subscriptable",
+        "2026-10-10T07:15:27.6300654Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38032383842",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 38030348647,
+      "jobs": [
+        {
+          "id": 114150931550,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114154184215,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T06:38:26.9151548Z E2E-RECOVERY-001 FAIL Requested physical outcome failed: run=5d9d1340-b401-4cb5-96d6-782a3bb55489 phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'OBSERVATIONS': 108, 'INSTRUCTIONS': 206, 'CALLS': 48, 'TRAVEL_BLOCKS': 18, 'COMMITTED_EFFECTS': 4, 'ATTEMPTED",
+        "2026-10-10T06:41:21.2490491Z E2E-LEASE-001 FAIL Other scoped queued job bounded physical outcome; last=False",
+        "2026-10-10T06:41:26.9181836Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38030348647",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 38027837433,
+      "jobs": [
+        {
+          "id": 114143997864,
+          "name": "nlu connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114143997937,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114147514875,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T05:45:01.7493278Z E2E-NLU-001 FAIL Removed caller used a stale world anchor",
+        "2026-10-10T05:45:04.2887049Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38027837433",
+      "classification": "HISTORICAL_E2E_FAILURE",
+      "relatedFreshRepair": "FIX-003; fresh native disconnect-before-removal before/after plus final network replay required"
+    },
+    {
+      "run": 38025954149,
+      "jobs": [
+        {
+          "id": 114138330475,
+          "name": "nlu connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114138330510,
+          "name": "resilience connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114138330512,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114140936155,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T05:11:33.4000086Z E2E-NLU-001 FAIL Removed caller used a stale world anchor",
+        "2026-10-10T05:11:36.1398479Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38025954149",
+      "classification": "HISTORICAL_E2E_FAILURE",
+      "relatedFreshRepair": "FIX-003; fresh native disconnect-before-removal before/after plus final network replay required"
+    },
+    {
+      "run": 38024859702,
+      "jobs": [
+        {
+          "id": 114133532741,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 114135219607,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T04:50:12.2228798Z E2E-AI-001 FAIL Requested physical outcome failed: run=9f5dfdf9-a38d-4c25-8b3f-f740be414579 phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=STALE_OBSERVATION effects=4 modelCalls=0 artifact=f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90 receipts=4 usage={'CALLS': 48, 'COMMITTED_EFFECTS': 4, 'TRAVEL_BLOCKS': 6, 'INSTRUCTIONS': 161, 'OBSERVATIONS': 75, 'ATTEMPTED_EFFECTS",
+        "2026-10-10T04:50:15.1927273Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38024859702",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 38024097912,
+      "jobs": [
+        {
+          "id": 114132867002,
+          "name": "deterministic connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114132867025,
+          "name": "resilience connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114132867077,
+          "name": "nlu connected-player acceptance",
+          "failedSteps": [
+            "Execute the selected tier without a generation backend"
+          ]
+        },
+        {
+          "id": 114133470819,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-10T04:40:07.8792570Z E2E-CMD-001 FAIL Feedback PlayerA: /aivillage kernel name 49b0236e-17f5-4a93-b8e0-c14d721c68d3 Áda 🌾 expected=name=Áda 🌾; last=None",
+        "2026-10-10T04:40:11.9781074Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38024097912",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37941645438,
+      "jobs": [
+        {
+          "id": 113857247288,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113861295970,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [
+        "2026-10-09T14:15:13.0236925Z E2E-AI-001 FAIL Model-free reuse called AI",
+        "2026-10-09T14:15:16.9437982Z ##[error]Process completed with exit code 1."
+      ],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37941645438",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37941636998,
+      "jobs": [
+        {
+          "id": 113857218288,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113861177777,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37941636998",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37939610042,
+      "jobs": [
+        {
+          "id": 113850324642,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113854575045,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37939610042",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37939602136,
+      "jobs": [
+        {
+          "id": 113850299091,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113854242862,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37939602136",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37937430196,
+      "jobs": [
+        {
+          "id": 113842895002,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113846799863,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37937430196",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37937422235,
+      "jobs": [
+        {
+          "id": 113842867473,
+          "name": "Tier 1 smoke and Tier 3 actual acquisition",
+          "failedSteps": [
+            "Measure host and execute fresh generation, trial, admission and offline reuse"
+          ]
+        },
+        {
+          "id": 113846212432,
+          "name": "Require all 13 families and no missing coverage",
+          "failedSteps": [
+            "Merge observed results, never count absent cases as passing"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37937422235",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37936192637,
+      "jobs": [
+        {
+          "id": 113838735684,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37936192637",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37936186498,
+      "jobs": [
+        {
+          "id": 113838714407,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37936186498",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37934931620,
+      "jobs": [
+        {
+          "id": 113834503540,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37934931620",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37934925039,
+      "jobs": [
+        {
+          "id": 113834478522,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37934925039",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37933067926,
+      "jobs": [
+        {
+          "id": 113828293465,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37933067926",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    },
+    {
+      "run": 37933062283,
+      "jobs": [
+        {
+          "id": 113828275537,
+          "name": "connected-player",
+          "failedSteps": [
+            "Real login, floating enclosure, enrollment, Tab, naming and reconnect"
+          ]
+        }
+      ],
+      "logExtracts": [],
+      "disposition": "Original failure retained; fresh exact-head owner/network proof is recorded separately in qualification artifacts; no causal repair claimed from a later green result",
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/37933062283",
+      "classification": "HISTORICAL_E2E_FAILURE"
+    }
+  ],
+  "freshAttempts": [
+    {
+      "sourceCommit": "8741ef602a0f9a9655ee5123dc3c2f160e23b525",
+      "run": 38121988337,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38121988337",
+      "uniqueFamilies": 13,
+      "passed": 11,
+      "failed": 2,
+      "skipped": 0,
+      "disposition": "FIX-002 reproduced genuine network admission starvation; acquisition/NLU/resilience passed"
+    },
+    {
+      "sourceCommit": "32c46b32891f548ef4e615e29d08b60e97fc9761",
+      "run": 38123470419,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38123470419",
+      "uniqueFamilies": 13,
+      "passed": 10,
+      "failed": 3,
+      "skipped": 0,
+      "disposition": "Original FIX-002 families passed; physical/mutation/recovery harness defects HC-003/004/005 preserved and corrected in 2a97bc3"
+    },
+    {
+      "sourceCommit": "2a97bc3b7b3126e182cebb45a04598d7c2fd63d3",
+      "run": 38125760907,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38125760907",
+      "job": 114429678291,
+      "classification": "UNRESOLVED_NATIVE_FLAKE",
+      "disposition": "Warm saved-skill delivery timed out at tick 1802; matching independent exact-head PR diagnostics run 38125763532 passed. Not erased, skipped or attributed to a source repair; further failure diagnostics added for future reproducibility",
+      "artifact": 11697690887,
+      "artifactSha256": "5d3fa5f2019a741c6d3e1e90fb069bde15f8d7bed88dcb40671ae2f94efc7cb2"
+    },
+    {
+      "sourceCommit": "2a97bc3b7b3126e182cebb45a04598d7c2fd63d3",
+      "run": 38125763483,
+      "job": 114431276478,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38125763483/job/114431276478",
+      "uniqueFamilies": 13,
+      "passed": 11,
+      "failed": 2,
+      "skipped": 0,
+      "classification": "TEST_HARNESS_DEFECT",
+      "disposition": "Diagnostic, migration identity and original product regressions passed. Mutation queried nonexistent container facts; actual saved records are actor stock. Graceful new work correctly blocked after unused adjacent fixture chest caused physical crop trampling. Query HC-004 refined and empty inactive fixture obstacle corrected HC-006; exact assertions unchanged.",
+      "qualificationArtifact": 11697768252,
+      "qualificationArtifactSha256": "61d4d90f1db6ac311a61e5fb047251cf1889216f4cd0919c567fc3b0ee1da138",
+      "gameplayArtifact": 11697763248,
+      "gameplayArtifactSha256": "2eb673525def4928c89bdd3ec0c836f7fc00adaee43332a7277b31cb6cd6af8b"
+    },
+    {
+      "sourceCommit": "171efb4fd66d0f3804ccd1617a369e32a2c564fb",
+      "run": 38128169874,
+      "job": 114436771010,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38128169874/job/114436771010",
+      "classification": "TEST_HARNESS_CONCURRENT_JSONL_READ",
+      "executedProfiles": [
+        "environment"
+      ],
+      "notExecutedProfiles": [
+        "integrated-smoke",
+        "fresh-acquisition",
+        "deterministic",
+        "nlu",
+        "resilience"
+      ],
+      "disposition": "Committed archive hashes and restored physical server terminal/receipt checks completed. Movement evidence parsed a concurrently appended partial JSONL record and raised JSONDecodeError at column 98304; full qualification correctly failed, downstream matrix not executed. HC-007 defers only unterminated records and retains strict corruption failures and all mandatory assertions. Tracking corrected: integrated smoke was not executed; only the separate source-matching smoke workflow passed.",
+      "artifact": 11698640223,
+      "artifactSha256": "e3b22d4154eed9ac61aa5cd022d53b4e41c1e9009edf2bef8b2727bf92e2c96d",
+      "independentSmokeRun": 38128169869
+    },
+    {
+      "sourceCommit": "f84e46e2383f8a2c284564b7bd04b7cc07484f2e",
+      "run": 38129088576,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38129088576",
+      "uniqueFamilies": 13,
+      "observations": 15,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "classification": "PASS",
+      "disposition": "All six gameplay profiles, all 13 families and all 17 independent reviewed-head owners passed; final qualification and three production-fix closures PASS. User subsequently authorized merging; main owner trigger gap HC-008 discovered during pre-merge audit, so a new exact-source qualification is required."
+    }
+  ]
+}
