@@ -29,7 +29,9 @@
       "dev.aivillages.fabric.RetentionGameTests",
       "dev.aivillages.fabric.RetentionRestartGameTests",
       "dev.aivillages.fabric.ObservedKnowledgeGameTests",
-      "dev.aivillages.fabric.ObservedKnowledgeRestartGameTests"
+      "dev.aivillages.fabric.ObservedKnowledgeRestartGameTests",
+      "dev.aivillages.fabric.PrerequisiteGameTests",
+      "dev.aivillages.fabric.PrerequisiteRestartGameTests"
     ]
   },
   "depends": {

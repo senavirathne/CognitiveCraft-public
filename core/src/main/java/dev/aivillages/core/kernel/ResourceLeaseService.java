@@ -112,17 +112,23 @@ public final class ResourceLeaseService {
                     id,List.of(),0,0);
         return new Result(Code.GRANTED,null,id,rows.stream().map(Lease::ref).toList(),0,0);
     }
+    /** IMP-018 read-only evidence from the same inspection that subtracts current claims. */
+    public record Inspection(Result decision, Observation observation) { }
     public Result inspect(Owner owner,Resource resource,TrustedContext caller) {
+        return inspectWithEvidence(owner,resource,caller).decision();
+    }
+    public Inspection inspectWithEvidence(Owner owner,Resource resource,TrustedContext caller) {
         checkThread();long tick=now();
-        if(!ready())return unavailable();
+        if(!ready())return new Inspection(unavailable(),null);
         OwnerFacts facts=facts(owner,caller);
-        if(facts==null || !facts.live())return result(Code.REJECTED,facts==null?Reason.AUTHORITY_DENIED:ownerReason(facts));
-        try { bound(resource); }catch(RuntimeException invalid){return result(Code.REJECTED,Reason.REQUEST_INVALID);}
-        if(!resource.world().equals(state.world()))return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        if(facts==null || !facts.live())return new Inspection(result(Code.REJECTED,facts==null?Reason.AUTHORITY_DENIED:ownerReason(facts)),null);
+        try { bound(resource); }catch(RuntimeException invalid){return new Inspection(result(Code.REJECTED,Reason.REQUEST_INVALID),null);}
+        if(!resource.world().equals(state.world()))return new Inspection(result(Code.REJECTED,Reason.REQUEST_INVALID),null);
         Observation seen=observe(resource,facts,tick);Reason missing=observationReason(seen,tick);
-        return missing==null?new Result(Code.VALID,null,null,List.of(),
+        Result decision=missing==null?new Result(Code.VALID,null,null,List.of(),
                 free(resource,seen.quantity(),state.leases(),tick),seen.inspected())
                 :new Result(Code.REJECTED,missing,null,List.of(),0,seen.inspected());
+        return new Inspection(decision,seen);
     }
     public Result validate(Ref ref,TrustedContext caller) {
         checkThread();long tick=now();

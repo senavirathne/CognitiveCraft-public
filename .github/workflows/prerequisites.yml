@@ -1,0 +1,144 @@
+name: Deterministic prerequisite acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/prerequisites.yml', '.github/implementation/IMP-018*']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', '.github/workflows/prerequisites.yml', '.github/implementation/IMP-018*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prerequisites-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prerequisites:
+    name: IMP-018 stock, recipes, graph bounds, owned credit and GP-18
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute the exact IMP-018 matrix first
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.DeterministicPrerequisiteResolverTest --tests dev.aivillages.core.kernel.PrerequisiteAdmissionTest
+      - name: Require every executed matrix case
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          total=0
+          for suite,expected in (('DeterministicPrerequisiteResolverTest',43),('PrerequisiteAdmissionTest',20)):
+              path=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+suite+'.xml')
+              cases=list(ET.parse(path).getroot().iter('testcase'))
+              if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Every IMP-018 matrix case must execute and pass: '+suite)
+              total+=len(cases)
+          print('IMP-018: '+str(total)+' passing stock, arithmetic, unsupported, cycle, bounds, sharing, replay, authority and no-inference cases')
+          PY
+      - name: Execute affected module regressions and build production plus GameTest packaging
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Select cold GP-18 and actual saved-world witness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PrerequisiteGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Use actual installed recipes, stock-first deficits and one real shared producer
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_PREREQUISITE_RESTART: cold
+          COGNITIVECRAFT_RESTART_PROBE: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require both executed cold project tests and preserve proof
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run');cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two executed passing cold project cases required')
+          if 'IMP-018 GP-18 accepted phase=cold stock=5 allocated=5 modelCalls=0 newPrimitives=0 noReplay=true' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Active GP-18 cold proof missing')
+          out=Path('fabric/build/prerequisite-evidence');out.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          shutil.copy2(root/'world/cognitivecraft-prerequisite-fixture/restart.json',out/'restart-proof.json')
+          PY
+      - name: Select warm GP-18 in a second JVM against the same saved world
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PrerequisiteRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Reopen existing job and allocation identities in a different JVM with no replay
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_PREREQUISITE_RESTART: warm
+          COGNITIVECRAFT_RESTART_PROBE: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require warm project cases, retain test counts and verify release contents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,shutil,xml.etree.ElementTree as ET,zipfile
+          root=Path('fabric/build/gametest-run');cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+              raise SystemExit('Two executed passing warm project cases required')
+          if 'IMP-018 GP-18 accepted phase=warm stock=5 allocated=5 modelCalls=0 newPrimitives=0 noReplay=true' not in (root/'logs/latest.log').read_text():
+              raise SystemExit('Active GP-18 warm proof missing')
+          out=Path('fabric/build/prerequisite-evidence');shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(f'{module}/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Complete executed unit coverage required: '+module)
+              counts[module]=len(cases)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production artifact required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Test code or models leaked into release')
+              for name in ('Prerequisites','DeterministicPrerequisiteResolver','PrerequisiteAdmission','LeasePrerequisiteSupplies'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Prerequisite runtime missing from release')
+          saved=Path('fabric/build/gametest-run/world/cognitivecraft-prerequisite-fixture')
+          cold=json.loads((saved/'cold.json').read_text());warm=json.loads((saved/'warm.json').read_text())
+          for witness in (cold,warm):
+              if (witness['stock'],witness['allocated'],witness['modelCalls'],witness['newPrimitives'])!=(5,5,0,0):
+                  raise SystemExit('Actual unit conservation/no-inference witness failed')
+          if cold['producer']!=warm['producer'] or cold['jobs']!=warm['jobs']:
+              raise SystemExit('Producer identity or child count changed on restart')
+          for name in ('cold.json','warm.json'):
+              shutil.copy2(saved/name,out/name)
+          proof={'tests':counts,'total':sum(counts.values()),'matrix':63,'coldProjectTests':2,'warmProjectTests':2,
+                 'modelCalls':0,'newPrimitives':0,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest(),'cold':cold,'warm':warm}
+          (out/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - name: Restore full test registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - name: Retain feature, regression, saved-world and production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imp-018-prerequisites
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            fabric/build/prerequisite-evidence/**
+            fabric/build/gametest-run/logs/**
+            fabric/build/gametest-run/crash-reports/**

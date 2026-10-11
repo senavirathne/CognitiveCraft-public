@@ -72,6 +72,7 @@ public final class KernelSession implements AutoCloseable {
     private FabricGatewayWorld worldAccess;
     private CitizenRegistry citizens;
     private JobLifecycleStore jobs;
+    private FabricPrerequisiteRuntime prerequisites;
     private ResourceLeaseService leases;
     private LeasedGateway leasedGateway;
     private LeasedGateway dispatchGateway;
@@ -386,6 +387,7 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(this::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock);
         jobs.retentionGuard(next -> {
             var roots = new java.util.HashSet<WorldRetentionManager.Key>();
             for (var job : next.jobs()) for (var attempt : job.attempts()) for (var executionRef : attempt.executions())
@@ -553,6 +555,11 @@ public final class KernelSession implements AutoCloseable {
     private void ready() {
         if (closed || controller == null)
             throw new IllegalStateException("Kernel world data is loading or unavailable");
+    }
+    /** Explicit bounded dependency API for existing Jobs; expansion is disposable and has no model port. */
+    public Prerequisites.Result resolvePrerequisites(List<Prerequisites.Need> needs,
+                                                      TrustedContext caller,List<String> recipeKeys) {
+        ready();return prerequisites.resolve(needs,caller,recipeKeys);
     }
     private boolean controls(ActorRef actor, TrustedContext context) {
         return citizens != null && citizens.controls(actor, context);
