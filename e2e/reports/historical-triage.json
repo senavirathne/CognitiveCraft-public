@@ -652,6 +652,22 @@
       "disposition": "Warm saved-skill delivery timed out at tick 1802; matching independent exact-head PR diagnostics run 38125763532 passed. Not erased, skipped or attributed to a source repair; further failure diagnostics added for future reproducibility",
       "artifact": 11697690887,
       "artifactSha256": "5d3fa5f2019a741c6d3e1e90fb069bde15f8d7bed88dcb40671ae2f94efc7cb2"
+    },
+    {
+      "sourceCommit": "2a97bc3b7b3126e182cebb45a04598d7c2fd63d3",
+      "run": 38125763483,
+      "job": 114431276478,
+      "url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38125763483/job/114431276478",
+      "uniqueFamilies": 13,
+      "passed": 11,
+      "failed": 2,
+      "skipped": 0,
+      "classification": "TEST_HARNESS_DEFECT",
+      "disposition": "Diagnostic, migration identity and original product regressions passed. Mutation queried nonexistent container facts; actual saved records are actor stock. Graceful new work correctly blocked after unused adjacent fixture chest caused physical crop trampling. Query HC-004 refined and empty inactive fixture obstacle corrected HC-006; exact assertions unchanged.",
+      "qualificationArtifact": 11697768252,
+      "qualificationArtifactSha256": "61d4d90f1db6ac311a61e5fb047251cf1889216f4cd0919c567fc3b0ee1da138",
+      "gameplayArtifact": 11697763248,
+      "gameplayArtifactSha256": "2eb673525def4928c89bdd3ec0c836f7fc00adaee43332a7277b31cb6cd6af8b"
     }
   ]
 }

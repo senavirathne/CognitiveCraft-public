@@ -56,6 +56,8 @@ public final class E2EObserver implements ModInitializer {
             var pos = new BlockPos(x, 201, z); String key = x + ",201," + z;
             if (!level.hasChunkAt(pos)) continue;
             blocks.addProperty(key, level.getBlockState(pos).toString());
+            if ((x == 6 || x == 7) && (z == 6 || z == 7 || z == 8 || z == 10 || z == 11 || z == 12))
+                blocks.addProperty(x + ",200," + z, level.getBlockState(pos.below()).toString());
             if (level.getBlockEntity(pos) instanceof Container container) {
                 var contents = new JsonObject();
                 for (int i = 0; i < container.getContainerSize(); i++) {
@@ -148,10 +150,16 @@ public final class E2EObserver implements ModInitializer {
                     knowledgeQueries.remove(player.getUUID());
                 }
                 if (online && ticks % 20 == 0 && !knowledgeQueries.containsKey(player.getUUID())) {
-                    var target = new SurvivalGateway.ObservationTarget(SurvivalGateway.ObservationKind.CONTAINER_STOCK,
-                            new Cuboid("minecraft:overworld",9,201,7,9,201,7), null);
-                    knowledgeQueries.put(player.getUUID(), kernel.observedKnowledge(player, target,
-                            new ObservedWorldKnowledgeStore.QueryLimits(64,8,8192)));
+                    var primary = server.getPlayerList().getPlayerByName("PlayerA");
+                    var addresses = primary == null ? null : kernel.citizens(primary).citizens();
+                    if (addresses != null && !addresses.isEmpty()) {
+                        // The genuinely acquired method observes actor stock here, not container stock.
+                        // Both viewers query the SAME target with their own trusted intake scope.
+                        var target = new SurvivalGateway.ObservationTarget(SurvivalGateway.ObservationKind.ACTOR_STOCK,
+                                new Cuboid("minecraft:overworld",6,201,6,6,201,6), addresses.getFirst().actor().entityId());
+                        knowledgeQueries.put(player.getUUID(), kernel.observedKnowledge(player, target,
+                                new ObservedWorldKnowledgeStore.QueryLimits(64,8,8192)));
+                    }
                 }
                 if (knowledgeViews.containsKey(player.getUUID())) data.add("observedKnowledge", knowledgeViews.get(player.getUUID()));
             } catch (IllegalStateException | SecurityException unavailable) {

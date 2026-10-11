@@ -1080,11 +1080,15 @@ def recover_loose_wheat(h: Harness):
 
 
 def remaining_wheat(h: Harness, delivered):
-    blocks = h.snapshot()["blocks"]
-    mature = sum("minecraft:wheat" in blocks[f"{x},201,{z}"] and "age=7" in blocks[f"{x},201,{z}"]
-                 for x in (6,7) for z in (6,7,8))
+    state = h.snapshot(); blocks = state["blocks"]
+    cells = [f"{x},201,{z}" for x in (6,7) for z in (6,7,8)
+             if "minecraft:wheat" in blocks[f"{x},201,{z}"] and "age=7" in blocks[f"{x},201,{z}"]]
+    mature = len(cells)
     remaining = min(6-delivered,mature)
     require(remaining > 0,"Selected restart left no physical remaining work")
+    h.event("recovery-live-stock", {"tick":state["tick"],"matureCells":cells,"mature":mature,
+            "alreadyDeposited":delivered,"nextRequested":remaining,
+            "ground":{f"{x},200,{z}":blocks.get(f"{x},200,{z}") for x in (6,7) for z in (6,7,8)}})
     return mature,remaining
 
 
@@ -1109,6 +1113,15 @@ def new_recovery_worker(h: Harness, source=None, destination=None):
                       "Inactive uncertain worker safely isolated for new explicit work")
     require(isolated["inventory"] == retained,"Recovery preparation changed the old worker's physical inventory")
     settled_loose = recover_loose_wheat(h)
+    # The unused reuse chest borders the last primary crop. A path can jump onto
+    # it and physically trample that crop. Remove only this empty fixture obstacle
+    # while all prior work is inactive, before the new explicit request begins.
+    obstacle = ARENA["reuseDestination"]
+    obstacle_key = ",".join(map(str, obstacle))
+    require(not h.snapshot()["containers"].get(obstacle_key), "Recovery obstacle contains stock")
+    h.console(["setblock " + " ".join(map(str, obstacle)) + " minecraft:air"])
+    h.event("recovery-fixture-obstacle", {"position":obstacle, "emptyBeforeRemoval":True,
+            "reason":"Unused neighboring chest caused navigation jump and unattributed crop trampling"})
     h.console(["setblock 2 201 4 minecraft:oak_fence_gate[facing=south,open=false]",
                "tp PlayerA 2.5 201 5.5 180 0",
                "summon minecraft:villager 2.5 201 2.5 {PersistenceRequired:1b}"])

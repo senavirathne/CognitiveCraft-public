@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "testHarnessOrCiFixCount": 5,
+  "testHarnessOrCiFixCount": 6,
   "fixes": [
     {
       "id": "HC-001",
@@ -25,8 +25,8 @@
       "id": "HC-004",
       "category": "OBSERVER_QUERY_DEFECT",
       "detectedRun": 38123470419,
-      "before": "Queried SOURCE_CROPS while actual admitted method retained CONTAINER_STOCK and ACTOR_STOCK",
-      "after": "Read bounded actual destination CONTAINER_STOCK at 9,201,7; preserve foreign denial and subsequent live-world blockage"
+      "before": "Queried SOURCE_CROPS and then CONTAINER_STOCK, but the genuinely acquired f3d174 method only retained ACTOR_STOCK records; real run 38125763483 confirmed both queries empty",
+      "after": "Read actual A actor-stock target at 6,201,6 using A trusted address page; query the identical target with each actual viewer scope, preserving B denial and subsequent live-world blockage"
     },
     {
       "id": "HC-005",
@@ -34,6 +34,13 @@
       "detectedRun": 38123470419,
       "before": "Private address-page row intentionally lacked owner; harness raised KeyError",
       "after": "Check actual trusted player scope and preserved citizen/entity/name through supported read APIs"
+    },
+    {
+      "id": "HC-006",
+      "category": "RECOVERY_FIXTURE_OBSTACLE",
+      "detectedRun": 38125763483,
+      "before": "Unused empty reuse chest at 7,201,9 bordered the final primary crop; new worker stood at y=201.875 on the chest, trampled a crop into an uncredited loose wheat drop, and correctly blocked RESOURCE_MISSING after 3 of requested 4 units",
+      "after": "Before the next explicit task, assert that unused fixture chest has no stock and remove that obstacle; preserve old worker inventory, uncertain rights, original source/destination and exact delivery/conservation assertions"
     }
   ],
   "documentationOnlyFixCount": 3,
