@@ -1,6 +1,6 @@
 # IMP-020 completion report
 
-Status: published as PR #19 under explicit public-destination approval; final exact-head CI and authorized IMP-020-only merge remain pending. This report will be finalized after those gates with actual source/merge/tree IDs. IMP-021 is published separately as PR #20 and has no merge authorization.
+Status: **complete and merged** as [PR #19](https://github.com/senavirathne/CognitiveCraft-public/pull/19) after all 20 final-source CI workflows passed. Actual merge: `8a93ca1c0fc3baa1802f894c45a9e8f4cdf7e57f` at `2026-10-11T16:59:30Z`. IMP-021 remains separately published as PR #20, open and unmerged.
 
 Baseline main: 01c623f4915e8f760659eac1a1426e1bbca6e3a5, tree 198f6ff191f843f727c7f2298d4a53ab5c580b63. Normative documentation: b1d5bf71365d1b1762699c006465caa1db8e5be5, IMP-020, shared contract, GP-20 and first-build-fixture. User explicitly requested implementation through IMP-020 and merge; this authorizes publication despite the historical shared contract's default local-only delivery instruction.
 
@@ -28,11 +28,11 @@ See [the exported contract](IMP-020-contracts.md) for field-level supported plac
 
 Final matrix contains 30 BlueprintValidatorTest, 33 BlueprintStoreTest and 3 FabricBlueprintRegistryTest cases (66 total). Remote workflow requires all to execute and pass, then every core/providers/fabric regression and production/native-test packaging. The additional store case covers the shutdown defect recorded below.
 
-## Local commands and evidence
+## Initial local commands and historical evidence
 
-Java 25 and the pinned cached server SDK compile all production and unit sources via the existing headless helper. All 65 matrix cases passed locally, including the three actual installed-registry snapshot tests. Final production and every existing native GameTest source compiled, and both runtime/native-test jars packaged successfully from the final production sources. The local release is 1,497,192 bytes, SHA-256 ee2cc025025ee04b0d576fde80f8cf26835138828811dc40f18e935df0ac6925; the separate native-test jar is 426,887 bytes. Release inspection confirmed the three blueprint runtime owners are present and test fixtures, GameTests and model weights are absent.
+Java 25 and the pinned cached server SDK compile all production and unit sources via the existing headless helper. All 65 matrix cases passed locally, including the three actual installed-registry snapshot tests. Final production and every existing native GameTest source compiled, and both runtime/native-test jars packaged successfully from the final production sources. The initial local release is 1,497,192 bytes, SHA-256 ee2cc025025ee04b0d576fde80f8cf26835138828811dc40f18e935df0ac6925; the separate native-test jar is 426,887 bytes. Release inspection confirmed the three blueprint runtime owners are present and test fixtures, GameTests and model weights are absent.
 
-The final full local regression scan executed 1,154 cases (core 1,059, providers 66, fabric 29): 1,143 passing and 11 existing SaveCompatibilityTest failures. These are the previously established sandbox file-store free-space probe limitation (SPACE_UNAVAILABLE / mount point not found), not new blueprint failures. Production probes and tests remain unchanged. The requested bash ./gradlew --no-daemon :core:test cannot download the pinned Gradle distribution here: Network is unreachable. Required pinned-wrapper execution remains a remote exact-head CI gate; local helper results do not replace it.
+The initial full local regression scan executed 1,154 cases (core 1,059, providers 66, fabric 29): 1,143 passing and 11 existing SaveCompatibilityTest failures. These are the previously established sandbox file-store free-space probe limitation (SPACE_UNAVAILABLE / mount point not found), not new blueprint failures. Production probes and tests remain unchanged. The requested bash ./gradlew --no-daemon :core:test cannot download the pinned Gradle distribution here: Network is unreachable. Required pinned-wrapper execution remains a remote exact-head CI gate; local helper results do not replace it.
 
 Standalone GP-20 cold and warm driver runs both passed in actual separate JVMs against the same temporary store, with identical reference d996b766175e99cff272e93e563ebc5e84eef3460b2fbc02715f06380408575f, one retained variant and one prior inactive compatibility assessment. Both observed 331 cells, 224 planks/99 slabs/2 doors/4 torches, zero gateway and inference calls. Input/canonical body bytes: 11,303 / 11,457. Metered work after registry/default descriptor checks: 3,205 of 8,192. Metadata after advisory evidence: 1,364 bytes. This is data/recovery inspection evidence only; no Minecraft building has occurred.
 
@@ -46,7 +46,7 @@ Quotas include immutable bodies plus metadata staging/backup/recovery headroom. 
 
 Production: Blueprint.java, BlueprintValidator.java, BlueprintStore.java, SaveCompatibility.java; FabricBlueprintRegistry.java and KernelSession.java. Tests: BlueprintFixture.java, BlueprintValidatorTest.java, BlueprintStoreTest.java, BlueprintBoundaryProbe.java; FabricBlueprintRegistryTest.java. Build/test binding: core/build.gradle and .github/workflows/blueprint-boundary.yml. Contracts/report: .github/implementation/IMP-020-contracts.md and this file.
 
-The repository has no docs/backlog tree. This contract establishes the current IMP-020/GP-20 owner/interface handoff against the read-only normative documentation. No accepted current dependent consumes a changed signature; existing prerequisite interfaces remain source compatible. Final report publication will add exact code-head CI, reviewed merge and final-main proof after implementation checks finish.
+The repository has no docs/backlog tree. This contract establishes the current IMP-020/GP-20 owner/interface handoff against the read-only normative documentation. No accepted current dependent consumes a changed signature; existing prerequisite interfaces remain source compatible. The final source, passed CI, actual merge and main tree are recorded below. The report follow-up changes documentation only.
 
 ## Dated defect/fix — 2026-10-11: fence a closed structural writer
 
@@ -67,3 +67,36 @@ The workflow now selects the committed arena only when its semantic production i
 Source `987ce6c26f88d34ae96a7b2d77d59b434bcf2ae4` passed the blueprint boundary and the other 19 owner workflows. Gameplay run `38152488965` passed genuine acquisition, offline reuse, all three connected-player profiles and every one of its 13 families. Final qualification correctly failed its clean-source guard: both smoke/acquisition metadata envelopes reported dirty=true after Fabric native unit tests ran in the checkout. All five envelopes have identical source/tree/JAR hashes, every screenshot envelope passes, and exact-head owner evidence passes. Failed qualification artifact `11708450673`, digest `sha256:798eef1fc8df8e1daa2492d9747987628144c8602c3af931d6d091c3b58a602a`, preserves the discrepancy.
 
 The local three-case installed-registry reproducer passes but creates `logs/latest.log` and changes `git status` to an untracked log directory. Running the same cases in the Fabric module reproduces `fabric/logs/latest.log`. The correction gives only Fabric Test tasks an isolated `fabric/build/test-runtime` working directory, created before execution. All 30 Fabric unit cases pass there with the log contained under build and no untracked checkout files; all 22 harness regressions also pass. Core/providers keep their existing relative evidence paths. Runtime logs are retained in the acquisition artifact; source checks, binary identities, screenshot integrity and qualification requirements remain unchanged. No output is deleted or treated as clean by overriding metadata. Fresh final-source CI must execute the native unit cases and the complete gameplay qualification before merge.
+
+## Final source, executed CI and actual merge — 2026-10-11
+
+Final implementation head `1796a452a07f540f4109a1ae02d4edcde566d6ac`, tree `bff29a4b724d9aeaed51acbcbb2c48fe32659209`, targets main `96d0de2e6d9a1eabb81cfdfe3b1bff4036fa5b50`. GitHub merged that exact head as `8a93ca1c0fc3baa1802f894c45a9e8f4cdf7e57f`; the merged main tree is exactly `bff29a4b724d9aeaed51acbcbb2c48fe32659209`. The IMP-020 PR has no unresolved review threads or submitted change requests. No independent reviewer approval is claimed. Only IMP-020 is merged; PR #20 remains unmerged.
+
+[Blueprint acceptance run 38155526161](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526161), job `114517600945`, passed all **66** matrix cases and all **1,156** module cases (core 1,060/providers 66/Fabric 30), with no failures, errors or skips. Both GP-20 JVM inspections pass with the same immutable ref, 331 cells, the exact 224 planks/99 slabs/2 doors/4 torches bill, zero gateway/model calls, 3,205 validation work, 11,303 input bytes, 11,457 canonical bytes, 1,364 metadata bytes, one variant and one inactive prior compatibility assessment. Production JAR SHA-256: `6b3bf5af741f2159f44e83ac0f1fea8c88e4771a691c37cde5158a688fa2cc31`. Evidence artifact `imp-020-blueprint-boundary-acceptance`, ID `11707734067`, 110,745 archive bytes, digest `sha256:599c29fe5d6f50a0bea61581bec7725fb51d42e1f2074da31cf67ed3e2103129`, records that exact reviewed source.
+
+Every final-source workflow completed successfully before the merge:
+
+| Workflow | Passed run |
+|---|---|
+| AI work broker acceptance | [38155526269](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526269) |
+| Blueprint artifact boundary acceptance | [38155526161](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526161) |
+| Bounded goal planning acceptance | [38155526104](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526104) |
+| Capability retrieval acceptance | [38155526225](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526225) |
+| Citizen identity acceptance | [38155526114](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526114) |
+| CognitiveCraft verification | [38155526049](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526049) |
+| Default nearest physical acceptance | [38155526058](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526058) |
+| Deterministic prerequisite acceptance | [38155526092](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526092) |
+| Job lifecycle acceptance | [38155526121](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526121) |
+| Local generation smoke | [38155526187](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526187) |
+| Needle language acceptance | [38155526255](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526255) |
+| Observed world knowledge acceptance | [38155526112](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526112) |
+| Primitive diagnostics acceptance | [38155526189](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526189) |
+| Real Minecraft client E2E smoke | [38155526080](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526080) |
+| Real Minecraft gameplay acceptance | [38155526200](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526200) |
+| Research local-model physical trial | [38155526113](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526113) |
+| Resource lease acceptance | [38155526122](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526122) |
+| Save and artifact compatibility acceptance | [38155526211](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526211) |
+| Worker dispatcher acceptance | [38155526135](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526135) |
+| World retention acceptance | [38155526239](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526239) |
+
+The changed-binary gameplay run executes fresh genuine acquisition and certifies its own production binary; the incompatible old arena is not counted as evidence. Historical failed attempts remain identified above. The final report publication adds no production or test changes and does not merge IMP-021.
