@@ -294,4 +294,3 @@ public final class DeterministicPrerequisiteResolver {
         return Math.toIntExact(result);
     }
 }
-
