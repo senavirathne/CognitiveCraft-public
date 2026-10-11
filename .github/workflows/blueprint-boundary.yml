@@ -38,7 +38,7 @@ jobs:
           from pathlib import Path
           import xml.etree.ElementTree as ET
           total=0
-          for module,suite,expected in [('core','BlueprintValidatorTest',30),('core','BlueprintStoreTest',32),('fabric','FabricBlueprintRegistryTest',3)]:
+          for module,suite,expected in [('core','BlueprintValidatorTest',30),('core','BlueprintStoreTest',33),('fabric','FabricBlueprintRegistryTest',3)]:
               package='dev.aivillages.core.kernel.' if module=='core' else 'dev.aivillages.fabric.'
               path=Path(module+'/build/test-results/test/TEST-'+package+suite+'.xml')
               cases=list(ET.parse(path).getroot().iter('testcase'))
@@ -83,7 +83,7 @@ jobs:
               if any('BlueprintFixture' in p or 'BlueprintBoundaryProbe' in p or 'GameTest' in p or p.endswith(('.gguf','.safetensors')) for p in jar.namelist()):raise SystemExit('Fixtures or model weights leaked into release')
               for name in ('Blueprint','BlueprintValidator','BlueprintStore'):
                   if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Runtime structural owner missing')
-          proof={'schema':1,'matrix':65,'tests':counts,'total':sum(counts.values()),'cold':cold,'warm':warm,
+          proof={'schema':1,'matrix':66,'tests':counts,'total':sum(counts.values()),'cold':cold,'warm':warm,
                  'scope':'GP-20 structural inspection only; no construction or site permission',
                  'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
           (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)

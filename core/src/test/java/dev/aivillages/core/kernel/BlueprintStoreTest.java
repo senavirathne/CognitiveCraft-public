@@ -29,6 +29,15 @@ final class BlueprintStoreTest {
     Inspection inspect(BlueprintStore store,Ref ref){return store.inspect(ref,owner,BlueprintFixture.registry(),()->false);}
     Path directory(){return temp.resolve(WORLD_RELATIVE_PATH);}
     BlueprintStore open()throws IOException{return BlueprintStore.open(temp,world);}
+    @Test void closedOwnerCannotPublishAfterReplacementWriterAcquiresLock()throws Exception {
+        var closed=open();store(closed,BlueprintFixture.tiny());closed.close();
+        byte[] original=Files.readAllBytes(directory().resolve("manifest.jsonl"));
+        try(var replacement=open()) {
+            assertEquals(Status.UNAVAILABLE,store(closed,BlueprintFixture.changed()).status());
+            assertArrayEquals(original,Files.readAllBytes(directory().resolve("manifest.jsonl")));
+            assertEquals(Status.STORED,store(replacement,BlueprintFixture.changed()).status());
+        }
+    }
     @Test void storeReloadResolveInspectDeduplicatesGeometryAndSeparatesMutableMetadata()throws Exception {
         Ref ref;String body;long revision;
         try(var store=open()) {

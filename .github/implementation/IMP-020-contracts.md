@@ -1,5 +1,7 @@
 # IMP-020 blueprint artifact boundary contracts
 
+The serialized structural owner fences publication and collection before releasing its writer lock on close. A stale reference cannot write after a replacement owner acquires that lock; shutdown grants no second writer.
+
 Specification: [IMP-020 and the shared contract](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/b1d5bf71365d1b1762699c006465caa1db8e5be5/docs/source/docs/implementation-prompts.md.md#imp-020), GP-20 and first-build-fixture at that same documentation revision. Starting implementation main: 01c623f4915e8f760659eac1a1426e1bbca6e3a5; tree 198f6ff191f843f727c7f2298d4a53ab5c580b63. IMP-015 compatibility and IMP-016 retention are present and consumed through their current owner interfaces.
 
 Architecture stays **0.5**, Contracts/IR **1**, placement policy **1**. Blueprint body/reference and blueprint metadata add independent **schema 1** readers to SaveCompatibility; no migration is invented. Java 25, Gradle 9.7.0, JUnit 5.11.4, Gson 2.10.1, Minecraft 26.3, Loader 0.19.5, API 0.161.0+26.3 and Loom 1.18.1 remain pinned.
