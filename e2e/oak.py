@@ -105,6 +105,11 @@ def scenario(h):
         h.command("PlayerB", "/aivillage kernel status "+run, DENIED_PATTERN)
         h.command("PlayerB", "/aivillage kernel cancel "+run, DENIED_PATTERN)
         h.command("PlayerA", "/aivillage kernel status "+run, "phase=TERMINAL")
+        if destination == SECOND_DESTINATION:
+            # The first chest blocks a straight client walk to the second one.
+            # Use ordinary movement around its north side before opening the menu.
+            h.walk("PlayerA", [5, 201, 5], reach=0.7)
+            h.walk("PlayerA", [10, 201, 5], reach=0.7)
         require(h.menu_count("PlayerA", destination, ITEM) == before+quantity, "RB real client menu did not converge")
         h.actions_active = False
         return {"run":run,"artifact":view["marker"]["artifactSha256"],"quantities":sums,

@@ -53,7 +53,7 @@ final class OakLogTestSupport {
                 "fingerprint",op.signature().fingerprint(),"args",args,"into",into);
     }
     static final class World implements WorldAccess {
-        long tick,actorLogs,chestLogs; int capacity=64,actorCapacity=64,harvests,pickups,transfers,moves;
+        long tick,actorLogs,chestLogs; int capacity=64,actorCapacity=64,harvests,pickups,transfers,moves,stops;
         boolean authorized=true,loaded=true,unreachable; UUID held;
         Cell actorPosition=new Cell(ACTOR.dimension(),0,0,0);
         final Set<Cell> logs=new LinkedHashSet<>(); final Map<UUID,ItemDropState> drops=new LinkedHashMap<>();
@@ -67,7 +67,7 @@ final class OakLogTestSupport {
         public boolean acquire(ActorRef actor,UUID run) { if(held!=null)return false; held=run;return true; }
         public boolean holds(ActorRef actor,UUID run) { return run.equals(held); }
         public void release(ActorRef actor,UUID run) { if(run.equals(held))held=null; }
-        public void stopMovement(ActorRef actor) { }
+        public void stopMovement(ActorRef actor) { stops++; }
         public Reason permit(ValidatedRequest request,Effect effect,Cell target) { return authorized ? null : Reason.AUTHORITY_DENIED; }
         public CropState crop(Cell cell) { return new CropState(ObservationStatus.ABSENT,false,cell.identity()); }
         public StockState inventory(ActorRef actor) { return new StockState(ObservationStatus.PRESENT,"actor",0,0); }

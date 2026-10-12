@@ -8,7 +8,7 @@ OUT=ROOT/'build/rb001-evidence'
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'ResourceDeliveryTest':7,'OakLogGatewayTest':9,'OakLogJobLifecycleTest':5,'OakLogDiscoveryTest':3,'OakLogLanguageTest':2,
+    expected={'core':{'ResourceDeliveryTest':7,'OakLogGatewayTest':10,'OakLogJobLifecycleTest':5,'OakLogDiscoveryTest':3,'OakLogLanguageTest':2,
                       'OakLogPrerequisiteStockTest':2},
               'providers':{'OakLogNeedleWireTest':1,'OakLogGenerationTest':1}}
     results={}

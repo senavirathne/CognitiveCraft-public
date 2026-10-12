@@ -7,12 +7,12 @@
   "source_compiled": false,
   "new_tests_executed": false,
   "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "f0ce7076be509cb21cdc0779525c17ff8a895d617bb1b4c67d3dc70fd06c0f8a",
+  "code_manifest_sha256": "81bc3533738e74fa1e22dfde02772fb9196ff7f2ae1aa9e60d0fce8dabb9d456",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
-      "bytes": 7404,
-      "sha256": "c13e7f9bbb85875d55e9696e1436544c147b3fcd35373f64e40cf99fed650f19"
+      "bytes": 7477,
+      "sha256": "98493cdbf2bf7bc87a59cd81365e6b9aa53f31bebd30546a3298c43e92c6702c"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java",
@@ -136,8 +136,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java",
-      "bytes": 59407,
-      "sha256": "908283bc6ba2d723f0dbc0b453da10d3e24fd9ffcce362a5644f880111e3b570"
+      "bytes": 59473,
+      "sha256": "4bbc0cb07bd0d49afbb830dba20c0c6e398bad8053a22fd9235110b31de41258"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java",
@@ -161,8 +161,8 @@
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogGatewayTest.java",
-      "bytes": 5560,
-      "sha256": "71779443ed243be33ef8c40288e3e212d48108e724a9ad5ee2e6b7ec74e73486"
+      "bytes": 6530,
+      "sha256": "4076af4d3fbaddfad0ce6429be87ca157eb534fbe19a36dfd8c850a32b4bc09b"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogJobLifecycleTest.java",
@@ -181,8 +181,8 @@
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogTestSupport.java",
-      "bytes": 11495,
-      "sha256": "6b6755883a021bf3c5dd8c37031af8266ec58e0a568c18cefeaee25aaf645671"
+      "bytes": 11510,
+      "sha256": "317705e8369535c269f48562d2518dbbe397bb879ba4b97e291207021e36e292"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/ResourceDeliveryTest.java",
@@ -196,8 +196,8 @@
     },
     {
       "path": "e2e/oak.py",
-      "bytes": 13488,
-      "sha256": "62fe4d167c1983fbc206605c1e828a8b9d2ef052e905add947003e0e0c1501b3"
+      "bytes": 13805,
+      "sha256": "c8eb9e78db843c530918397e65a64d5fd85035d7eb60d9383cd06d953be0c582"
     },
     {
       "path": "e2e/suite.py",
@@ -286,12 +286,12 @@
     },
     {
       "path": "scripts/verify-rb001.py",
-      "bytes": 5371,
-      "sha256": "a60f3be0594aa16f390086df03e1f24b6aa9f197b4285d1c89e43a1c307ad5fc"
+      "bytes": 5372,
+      "sha256": "7dae149f98a436dcc31fbf6f7dd15dd9111bb9b99b5286f1eb2ecc37db6f2c52"
     }
   ],
-  "generated_at": "2026-10-12T18:58:08.822260+00:00",
-  "source_tests_planned_minimum_junit": 30,
+  "generated_at": "2026-10-12T19:20:41.692322+00:00",
+  "source_tests_planned_minimum_junit": 31,
   "all_acceptance_pending": true,
   "documentation_actions": {
     "run_ids": [
@@ -313,27 +313,25 @@
   "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
   "source_publication_authorized": true,
   "merge_after_required_checks_authorized": true,
-  "snapshot_phase": "owned_drop_approach_working_content_before_publication",
-  "existing_published_head": "bad21e562ee04b9861bea1fe4a237dd452f3515e",
+  "snapshot_phase": "movement_terminal_cleanup_working_content_before_publication",
+  "existing_published_head": "3bd3949b34ad2f7ad7fcca0020121f32cadfb562",
   "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
   "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
   "previous_ci_checkpoint": {
-    "source": "bad21e562ee04b9861bea1fe4a237dd452f3515e",
+    "source": "3bd3949b34ad2f7ad7fcca0020121f32cadfb562",
     "pr": 24,
     "workflows": 21,
     "success": 19,
     "failure": 2,
-    "complete": false,
-    "native_effect_case": "passed",
-    "controlled_admission": "passed",
-    "genuine_cold_and_warm": "push native job passed; PR native job blocked on physical pickup scatter",
-    "connected_client": "failed: physical pickup TARGET_UNAVAILABLE; no full client pass",
-    "local_generation_smoke": "failed: eight-minute setup timeout after Loom configuration"
+    "pending": 0,
+    "complete": false
   },
   "corrective_documentation_commits": [
     "be7519e99d5eb82bd4c64c397e061e2b22919ee0",
     "05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4",
     "1cbfcff357a597d971744f715b1e211a78221fe8"
   ],
-  "documentation_current_main": "1d7a5e857faf9e1b7b923599520c376c33a47999"
+  "documentation_current_main": "1d7a5e857faf9e1b7b923599520c376c33a47999",
+  "documentation_before_client_route_repair": "33e4740c61dbd0fba75297034d584957555b04b4",
+  "documentation_before_movement_cleanup": "f26e851f1fc8bc88a6c51e4535d0d4d77c0277e1"
 }

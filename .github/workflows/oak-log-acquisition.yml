@@ -16,6 +16,8 @@ jobs:
     name: RB unit matrix, physical trial and two-JVM offline reuse
     runs-on: ubuntu-latest
     timeout-minutes: 55
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
     steps:
       - uses: actions/checkout@v6
         with:

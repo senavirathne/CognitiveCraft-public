@@ -43,6 +43,18 @@ class OakLogGatewayTest {
         assertEquals(1,s.world.actorLogs);assertEquals(17,s.world.drops.get(foreign).quantity());
         assertFalse(OakLogDelivery.completed(s.request,s.run,s.receipts));
     }
+    @Test void staleOwnedDropStopsItsNavigationAndTerminalPollsCannotMoveAgain() {
+        var s=new GatewayScene(1,0,0);s.action(APPROACH_OAK_LOG);s.action(HARVEST_NEXT_OAK_LOG);
+        UUID owned=s.world.drops.keySet().iterator().next();
+        s.world.drops.put(owned,new ItemDropState(ObservationStatus.PRESENT,new Cell(ACTOR.dimension(),10,0,0),1));
+        int stopped=s.world.stops;var action=s.start(APPROACH_OAK_LOG);
+        assertFalse(s.gateway.poll(action).terminal());s.world.drops.remove(owned);s.world.tick++;
+        assertEquals(Reason.STALE_OBSERVATION,s.gateway.poll(action).reason());
+        assertEquals(stopped+1,s.world.stops);int moves=s.world.moves;s.world.tick++;
+        assertEquals(Reason.STALE_OBSERVATION,s.gateway.poll(action).reason());
+        assertEquals(moves,s.world.moves);assertEquals(stopped+1,s.world.stops);
+        assertEquals(1,s.receipts.size());assertEquals(0,s.world.pickups);assertEquals(0,s.world.actorLogs);
+    }
     @Test void fullDestinationOrActorPreventsHarvestAndUnreachableRouteHasNoEffects() {
         for(boolean actor:List.of(true,false)) {
             var s=new GatewayScene(1,0,0);if(actor)s.world.actorCapacity=0;else s.world.capacity=0;

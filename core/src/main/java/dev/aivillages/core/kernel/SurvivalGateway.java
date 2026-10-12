@@ -919,6 +919,7 @@ public final class SurvivalGateway implements GatewayPort {
             try { observationSink.accept(action.evidence); } catch (RuntimeException unavailable) { }
         }
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
+                || action.operation == Operation.APPROACH_OAK_LOG
                 || action.operation == Operation.MOVE_TO_DESTINATION) && action.movementStarted && action.run != null) {
             world.stopMovement(action.run.actor);
             if (Boolean.getBoolean("cognitivecraft.gametest.trace")

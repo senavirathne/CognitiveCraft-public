@@ -10,7 +10,7 @@ Contracts/IR/request and original wheat primitive versions remain 1; original wh
 
 ## Revised definitions and mandatory gates
 
-At least 30 scoped JUnit cases include the original 27 plus OakLogPrerequisiteStockTest (2) and scattered owned-drop approach coverage (1). ResourceDeliveryTest now executes the actual bounded fixture runner and checks the standalone typed interface/dependencies. Native cold/warm and GP-RB-01 require the same admitted method for 1/4/7, different source and destination bindings, no downstream Job, actual contamination/conservation, stopped-backend saved-world reuse and zero known-execution inference. The connected gate checks exact terminal outcomes, a genuine language backend, two principals and actual SIGKILL/no replay. `scripts/verify-rb001.py` rejects empty/skipped/failed selectors and missing standalone evidence. All affected existing workflows must pass too. The earlier revised definitions executed; the owned-drop correction remains pending final-head Actions.
+At least 31 scoped JUnit cases include the original 27 plus OakLogPrerequisiteStockTest (2), scattered owned-drop approach (1) and stale-drop terminal cleanup (1). ResourceDeliveryTest now executes the actual bounded fixture runner and checks the standalone typed interface/dependencies. Native cold/warm and GP-RB-01 require the same admitted method for 1/4/7, different source and destination bindings, no downstream Job, actual contamination/conservation, stopped-backend saved-world reuse and zero known-execution inference. The connected gate checks exact terminal outcomes, a genuine language backend, two principals and actual SIGKILL/no replay. `scripts/verify-rb001.py` rejects empty/skipped/failed selectors and missing standalone evidence. All affected existing workflows must pass too. The earlier revised definitions executed; the owned-drop correction remains pending final-head Actions.
 
 ## Executed earlier attempts and production defects
 
@@ -26,7 +26,7 @@ The revised working-code manifest below is not a tested commit or binary. No loc
 
 RB-001 is incomplete. Revised standalone/stock assertions, genuine oak admission, language, offline/restart, abrupt interruption and all final-head regressions must pass before merge. Exact final source/JAR/model identities, counts, artifact hashes and actual merge evidence will replace pending entries after verification. [Documentation readiness and RB-T01–14 mapping](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/implementation/RB-001-report.md).
 
-Revised working-code manifest SHA256 `f0ce7076be509cb21cdc0779525c17ff8a895d617bb1b4c67d3dc70fd06c0f8a` across 56 files. [Snapshot](RB-001-source-snapshot.json).
+Revised working-code manifest SHA256 `81bc3533738e74fa1e22dfde02772fb9196ff7f2ae1aa9e60d0fce8dabb9d456` across 56 files. [Snapshot](RB-001-source-snapshot.json).
 
 
 ## Corrective checkpoint after revised Actions
@@ -47,3 +47,13 @@ The contract and active prompt were updated first in documentation commit `1cbfc
 The existing `approach_oak_log(actor,source)` MOVE operation now selects the first pending owned drop when this run has harvested one. It rechecks the exact tracked UUID, quantity, dimension and OBSERVE/MOVE permissions on every poll, then uses the existing bounded source navigation to its current empty cell. Without a pending drop it retains face-adjacent standing-log selection. The method must approach again after harvest/wait and before pickup; movement grants no receipt or stock credit. The adapter gives this repeated call a distinct result symbol. No new physical primitive, wider reach, moved loot, output top-up or budget refill is introduced. Wheat primitives and lowering remain unchanged.
 
 The real-client fixture now explicitly creates its second destination chest before preloading older stock; that coordinate was absent from the base arena. The new scoped regression proves navigation toward only an owned scattered drop, foreign-stock exclusion and no acquisition credit before physical pickup/deposit. Final-head Actions must execute all 30 scoped cases, genuine admission/language, stopped-backend saved-world reuse, abrupt interruption and affected regressions before merge.
+
+
+## Client menu-route correction — full acceptance pending
+
+Documentation 33e4740c61dbd0fba75297034d584957555b04b4 records the actual network failure before fixture edits. At source 3bd3949, genuine canonical four-log acquisition, real-language four-log delivery and fresh one-log standalone delivery succeeded; the client menu observer then walked straight into the first chest. Artifact 11768081794 (ZIP SHA256 afec65fe5b150d43ac1d5e20bf074f387b915e957b4efcf9f7846628b387ef60) preserves the actual position and completed Jobs. The RB fixture now uses ordinary north-side movement waypoints before the unchanged second-chest menu assertion. No production change, teleport, wider reach or bypass is introduced. Full final-head offline/SIGKILL/network gates remain pending.
+
+
+## Oak terminal navigation ownership
+
+Documentation f26e851f1fc8bc88a6c51e4535d0d4d77c0277e1 specifies the cleanup before correction. SurvivalGateway.finish now stops started APPROACH_OAK_LOG navigation on every terminal result, matching the existing movement operations. A regression removes a tracked drop during movement and requires one stop with no subsequent movement or credit. Existing optional native trace is enabled in the Actions job to expose remaining physical failures; it changes no effects or budgets. The prior PR warm attempt blocked after six deposits, and the separate genuine wheat gameplay qualification exhausted its existing budget. Neither is relabeled as a pass; all final-head gates remain required. Scoped minimum is now 31.
