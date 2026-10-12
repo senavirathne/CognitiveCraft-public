@@ -100,6 +100,11 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(h.getLevel().getBlockState(p).is(Blocks.OAK_LOG),"Oak was removed before survival break time");
             if(result.terminal()) {
                 h.assertTrue(result.reason()==null,"Oak native effect failed "+op+" "+result.reason());
+                if(phase[0]==0) {
+                    var motion=v.getDeltaMovement();
+                    h.assertTrue(v.onGround() && motion.x*motion.x+motion.z*motion.z<=0.01*0.01,
+                            "Standing oak arrival was reported before actual horizontal movement settled");
+                }
                 receipts.addAll(result.resourceReceipts());if(op==Operation.HARVEST_NEXT_OAK_LOG)harvested[0]=h.getLevel().getGameTime();
                 handle[0]=null;phase[0]++;
             }

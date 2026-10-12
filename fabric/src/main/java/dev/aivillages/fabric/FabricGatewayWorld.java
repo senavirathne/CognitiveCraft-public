@@ -42,12 +42,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private static final int MAX_PATH_NODES = 128;
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
+    private static final double OAK_SETTLED_MOTION_SQUARED = 0.01 * 0.01;
     private static final class Route {
         final BlockPos target;
         final UUID runId;
         final NavigationRoute policy;
         final boolean sourceApproach;
         final boolean solidApproach;
+        BlockPos approachTarget;
         Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach) {
             this.target = target;
             this.runId = runId;
@@ -252,13 +254,21 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         // ground navigator cannot submit source paths until the worker lands.
         if (solidApproach && !v.onGround())
             return new Movement(false,false,0,travel);
-        if ((!solidApproach || adjacent && v.onGround()) && canReach(v, targetPos) && (!sourceApproach
+        Route route = routes.get(v.getUUID());
+        boolean selectedFace = route == null || route.approachTarget == null
+                || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ();
+        if ((!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v, targetPos) && (!sourceApproach
                 || v.distanceToSqr(Vec3.atCenterOf(targetPos)) <= SOURCE_APPROACH_DISTANCE_SQUARED)) {
+            if (solidApproach) {
+                stopOwnedNavigation(v, route);
+                var motion = v.getDeltaMovement();
+                if (motion.x * motion.x + motion.z * motion.z > OAK_SETTLED_MOTION_SQUARED)
+                    return new Movement(false,false,0,travel);
+            }
             return terminal(v, routes.get(v.getUUID()), "physical-reach-and-los", 0, travel);
         }
         if (!loaded(targetPos) || !level.mayInteract(v, targetPos))
             return terminal(v, routes.get(v.getUUID()), "target-unavailable", 0, travel);
-        Route route = routes.get(v.getUUID());
         if (route != null && (!route.target.equals(targetPos) || route.sourceApproach != sourceApproach
                 || route.solidApproach != solidApproach)) {
             stopOwnedNavigation(v, route);
@@ -311,6 +321,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 NavigationRoute.PathSample initial = active == null ? null : sample(active, v);
                 if (initial == null) route.policy.abandon("no-active-path");
                 else {
+                    route.approachTarget = candidate;
                     route.policy.accepted(initial, tick());
                     if (initial.node() >= initial.count()) {
                         route.policy.abandon("finished-outside-reach");
@@ -363,7 +374,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                         + " position=" + v.position() + " target=" + route.target
                         + " targetDistance=" + v.distanceToSqr(Vec3.atCenterOf(route.target))
                         + " lineOfSight=" + canReach(v, route.target)
-                        + " approach=" + route.policy.approach() + " generation="
+                        + " approach=" + route.policy.approach() + " selectedApproach=" + route.approachTarget + " generation="
                         + route.policy.generation() + " node=" + (sample == null ? "none"
                         : sample.node() + "/" + sample.count()) + " waypoint="
                         + (sample == null ? "none" : sample.waypoint()) + " waypointDistance="

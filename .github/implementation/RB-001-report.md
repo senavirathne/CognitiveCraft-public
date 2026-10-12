@@ -26,7 +26,7 @@ The revised working-code manifest below is not a tested commit or binary. No loc
 
 RB-001 is incomplete. Revised standalone/stock assertions, genuine oak admission, language, offline/restart, abrupt interruption and all final-head regressions must pass before merge. Exact final source/JAR/model identities, counts, artifact hashes and actual merge evidence will replace pending entries after verification. [Documentation readiness and RB-T01–14 mapping](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/implementation/RB-001-report.md).
 
-Revised working-code manifest SHA256 `f05076e2e19b3f0e5ee45ade5316da08cea3aa487a60bc54c389a13a55ad3c81` across 56 files. [Snapshot](RB-001-source-snapshot.json).
+Revised working-code manifest SHA256 `2930c6810378388c4c4a12c9e86805946203b41bcb0e7ac4e3cf957c24eeb336` across 56 files. [Snapshot](RB-001-source-snapshot.json).
 
 
 ## Corrective checkpoint after revised Actions
@@ -62,3 +62,8 @@ Documentation f26e851f1fc8bc88a6c51e4535d0d4d77c0277e1 specifies the cleanup bef
 ## Grounded native path correction
 
 Documentation 42b0c389860469917d3de5dc97fd7c772ba96fec publishes the owning contract and exact network trace before implementation. Connected quantity-seven reuse at 29b39c6 blocked after one deposit because the worker was still descending after destination reach. All four oak approaches were spent: two solid faces were invalid, and both traversable faces returned null paths while airborne. Artifact 11770215326, ZIP SHA256 2ce014be88d94c69ac5be13669bdcda0fa42438c16d8512d70909545fd779f7b, retains that physical outcome. FabricGatewayWorld now returns ongoing with zero pathfinding work for airborne solid-oak approaches until normal physics lands the worker. Time, travel, permission checks and finite attempts remain unchanged; wheat movement is untouched. Native effects coverage starts with an actually falling worker, asserts this interval was observed with no false terminal/path work, then completes the same survival chain. Both earlier native jobs passed; final binary/network/legacy gates remain pending.
+
+
+## Selected source-face settling
+
+Documentation 8817eecc6ff460c8fd5662c8b32023463cd9cf72 defines the correction before implementation. Connected artifact 11770143411 (ZIP SHA256 9662f992096e8cd4f4c3272ee18555b3e9f76f5167dc56cbe9b6c442168e553f) shows arrival reported on a north face while the accepted route was still heading west; residual motion then crossed into a diagonal cell and harvesting correctly blocked. The native adapter now retains its accepted approach cell, completes only on that face, stops owned navigation and waits for actual horizontal motion at most 0.01 blocks/tick. Reach, geometry, attempts and deadlines remain unchanged. The actual native effect regression requires settled grounded arrival before timed harvest. Two legacy identity checks also timed out awaiting a terminal run and remain required unresolved gates. Full final-head acceptance is pending.

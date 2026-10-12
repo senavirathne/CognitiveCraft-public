@@ -48,7 +48,7 @@ This command must submit to normal production KernelSession/Jobs; it must not ed
 
 No trusted oak task program is shipped. Research must perform normal resolution, generation, compile, bounded fixture evaluation, authorized physical trial and durable repository admission. Controlled proposals are test-only. Genuine configured-backend generation/admission and language quality are separate mandatory gates. Admitted methods bind all four parameters, and structured known execution must reuse them with zero inference, including a second-JVM saved-world restart with the backend stopped.
 
-See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/42b0c389860469917d3de5dc97fd7c772ba96fec/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
+See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/8817eecc6ff460c8fd5662c8b32023463cd9cf72/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
 
 
 ## Concrete custody and owner details
@@ -98,3 +98,8 @@ The oak proposal uses approach/harvest, a bounded drop wait, then a second appro
 ## Grounded native source-path submission
 
 For the solid oak-source approach, defer path selection/submission while the actual worker is airborne, including the transition after ordinary container navigation/deposit. Keep the same action deadline, elapsed/travel accounting, loaded/permission revalidation and finite approach budget; do not consume a path candidate merely because the installed ground navigator cannot submit a path before landing. Return ongoing with zero pathfinding work, never success, until the worker is grounded. Preserve existing wheat movement and the oak face/reach/harvest guards. Native effects coverage must spawn a genuinely falling worker, prove no path work or false terminal result during that interval, and then complete ordinary survival acquisition.
+
+
+## Source arrival at the selected face with settled motion
+
+When a standing-oak route has accepted a path to a face, arrival must occur in that selected face cell, not a different face crossed en route. On a valid grounded face within the unchanged 1.15 horizontal/2.5 native reach and ray checks, stop only owned navigation and wait for actual horizontal motion to fall to at most 0.01 blocks/tick before reporting arrival. Revalidate the actual face throughout settling. If drift leaves it, continue the existing finite route policy with its remaining attempts; do not refill attempts, set position/velocity, widen reach or renew the action deadline. Already-near source arrival must also settle. Preserve existing wheat navigation behavior. Native coverage must prove an ordinary moving approach reports arrival only after actual motion settles, followed by the 60-tick survival break and real deposit.
