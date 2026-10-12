@@ -40,6 +40,7 @@ final class OakLogTestSupport {
                 call(GatewayPrimitives.Operation.APPROACH_OAK_LOG,"approach",source),
                 call(GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,"harvest",source),
                 Map.of("op","repeat","count",Map.of("int",20L),"body",List.of(call(GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,"wait",actor))),
+                call(GatewayPrimitives.Operation.APPROACH_OAK_LOG,"atDrop",source),
                 call(GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,"pickup",actor),
                 call(GatewayPrimitives.Operation.MOVE_TO_DESTINATION,"atDestination",dest),
                 call(GatewayPrimitives.Operation.TRANSFER_OAK_LOGS,"deposit",transfer))),
@@ -82,7 +83,10 @@ final class OakLogTestSupport {
             actorPosition=new Cell(actor.dimension(),actorPosition.x()+Integer.signum(desired-actorPosition.x()),0,0);
             return new Movement(actorPosition.x()==desired,false,1,1);
         }
-        public Movement moveToSource(ActorRef actor,Cell target,int maximum) { throw new AssertionError("Solid logs require adjacent approach"); }
+        public Movement moveToSource(ActorRef actor,Cell target,int maximum) {
+            if(logs.contains(target))throw new AssertionError("Solid logs require adjacent approach");
+            return move(actor,target,maximum);
+        }
         public ItemBlock resourceBlock(Cell cell,ResourceDelivery.ItemIdentity item) {
             return new ItemBlock(!loaded ? ObservationStatus.UNKNOWN : logs.contains(cell) ? ObservationStatus.PRESENT : ObservationStatus.ABSENT,
                     logs.contains(cell),cell.identity(),60);

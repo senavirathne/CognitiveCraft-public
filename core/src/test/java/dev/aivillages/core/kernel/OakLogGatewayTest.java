@@ -32,6 +32,17 @@ class OakLogGatewayTest {
         cancelled.gateway.poll(c);assertEquals(Reason.CANCELLED,cancelled.gateway.cancel(c).reason());
         cancelled.world.tick+=100;assertEquals(0,cancelled.gateway.poll(c).committedEffects());
     }
+    @Test void scatteredOwnedDropIsApproachedWithoutSelectingForeignStockOrAddingCredit() {
+        var s=new GatewayScene(1,0,0);s.action(APPROACH_OAK_LOG);s.action(HARVEST_NEXT_OAK_LOG);
+        UUID owned=s.world.drops.keySet().iterator().next(),foreign=UUID.randomUUID();
+        s.world.drops.put(owned,new ItemDropState(ObservationStatus.PRESENT,new Cell(ACTOR.dimension(),10,0,0),1));
+        s.world.drops.put(foreign,new ItemDropState(ObservationStatus.PRESENT,new Cell(ACTOR.dimension(),0,0,0),17));
+        assertNull(s.action(APPROACH_OAK_LOG).reason());assertEquals(9,s.world.actorPosition.x());
+        assertEquals(1,s.receipts.size());assertEquals(0,s.world.pickups);assertEquals(0,s.world.actorLogs);
+        assertNull(s.action(PICKUP_TRACKED_OAK_LOGS).reason());
+        assertEquals(1,s.world.actorLogs);assertEquals(17,s.world.drops.get(foreign).quantity());
+        assertFalse(OakLogDelivery.completed(s.request,s.run,s.receipts));
+    }
     @Test void fullDestinationOrActorPreventsHarvestAndUnreachableRouteHasNoEffects() {
         for(boolean actor:List.of(true,false)) {
             var s=new GatewayScene(1,0,0);if(actor)s.world.actorCapacity=0;else s.world.capacity=0;

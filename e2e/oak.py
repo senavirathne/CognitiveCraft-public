@@ -136,7 +136,8 @@ def scenario(h):
     language = verify(interpreted["runId"], 4, before, source)
     require(h.model_calls()["needleCalls"] > calls["needleCalls"], "Controlled extraction was substituted for real RB language")
     require(language["artifact"] == acquisition["artifact"], "Language did not reuse admitted method")
-    h.console(['data merge block 10 201 9 {Items:[{Slot:0b,id:"minecraft:oak_log",count:11}]}'])
+    h.console(['setblock 10 201 9 minecraft:chest',
+               'data merge block 10 201 9 {Items:[{Slot:0b,id:"minecraft:oak_log",count:11}]}'])
     h.wait(lambda: h.container(SECOND_DESTINATION,ITEM)==11,"Independent old-stock fixture")
     source=prepare(1,12);before=h.container(SECOND_DESTINATION,ITEM);known_calls=h.model_calls();h.actions_active=True
     known_one=verify(submit(1,source,destination=SECOND_DESTINATION),1,before,source,destination=SECOND_DESTINATION)

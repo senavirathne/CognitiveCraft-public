@@ -43,7 +43,7 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
-        var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
+        var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
         h.succeedWhen(() -> {
             if(!v.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}

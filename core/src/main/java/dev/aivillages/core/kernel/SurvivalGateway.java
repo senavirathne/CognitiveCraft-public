@@ -283,6 +283,8 @@ public final class SurvivalGateway implements GatewayPort {
         boolean movementStarted;
         String terminalBound = "none";
         Cell selectedTarget;
+        UUID selectedDrop;
+        int selectedDropQuantity;
         ActionReceipt current;
         ObservedEvidence evidence;
         Active(ActionHandle handle, Run run, Operation operation, Map<String, Value> arguments,
@@ -507,6 +509,15 @@ public final class SurvivalGateway implements GatewayPort {
     }
 
     private void moveToSource(Active action) {
+        if (action.operation==Operation.APPROACH_OAK_LOG) {
+            if (action.selectedDrop==null) {
+                for (Batch batch:action.run.batches.values()) if(!batch.drops.isEmpty()) {
+                    var first=batch.drops.entrySet().iterator().next();
+                    action.selectedDrop=first.getKey();action.selectedDropQuantity=first.getValue();break;
+                }
+            }
+            if(action.selectedDrop!=null) { approachOwnedDrop(action);return; }
+        }
         Cell selected = selectNextCrop(action, Effect.OBSERVE);
         if (selected == null) return;
         // Selection evidence is refreshed while navigation progresses.
@@ -525,6 +536,25 @@ public final class SurvivalGateway implements GatewayPort {
         move(action, selected);
         if (action.current.terminal() && action.current.reason() == null)
             action.run.expectedNextCrop = selected;
+    }
+    private void approachOwnedDrop(Active action) {
+        Run run=action.run;
+        if(!authority.currentlyAllows(run.actor,Effect.OBSERVE,run.request.context())) {
+            finish(action,Reason.AUTHORITY_DENIED,null,null);return;
+        }
+        action.usage.debit(Kind.OBSERVATIONS,1);
+        ItemDropState current=world.resourceDrop(action.selectedDrop,run.item);
+        if(current.status()!=ObservationStatus.PRESENT || current.quantity()!=action.selectedDropQuantity) {
+            finish(action,Reason.STALE_OBSERVATION,null,null);return;
+        }
+        if(!current.cell().dimension().equals(run.actor.dimension())) {
+            finish(action,Reason.TARGET_INVALID,null,null);return;
+        }
+        action.selectedTarget=current.cell();
+        Reason denied=world.permit(run.request,Effect.OBSERVE,current.cell());
+        if(denied==null)denied=world.permit(run.request,Effect.MOVE,current.cell());
+        if(denied!=null) { finish(action,denied,null,null);return; }
+        move(action,current.cell());
     }
 
     /** Shared finite y/z/x crop selection for bound navigation and harvesting. */
@@ -567,7 +597,9 @@ public final class SurvivalGateway implements GatewayPort {
             finish(action, Reason.BUDGET_EXHAUSTED, null, null); return;
         }
         action.movementStarted = true;
-        Movement movement = action.operation==Operation.APPROACH_OAK_LOG
+        Movement movement = action.selectedDrop!=null
+                ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
+                : action.operation==Operation.APPROACH_OAK_LOG
                 ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation == Operation.MOVE_TO_SOURCE
                 ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())

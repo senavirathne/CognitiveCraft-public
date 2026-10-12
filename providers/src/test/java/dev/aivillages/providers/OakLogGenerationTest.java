@@ -24,7 +24,7 @@ class OakLogGenerationTest {
             String proposal="{\"schema\":1,\"capability\":\"cognitivecraft:deliver_oak_logs\",\"capabilityVersion\":1,\"dependencies\":[],\"body\":{\"loop\":{\"count\":{\"param\":\"amount\"},\"body\":{"
                     +"\"prepare\":[\"cognitivecraft:approach_oak_log\",\"cognitivecraft:harvest_next_oak_log\"],"
                     +"\"wait\":{\"primitive\":\"cognitivecraft:observe_oak_inventory\",\"count\":20},"
-                    +"\"finish\":[\"cognitivecraft:pickup_tracked_oak_logs\",\"cognitivecraft:move_to_destination\",\"cognitivecraft:transfer_oak_logs\"]}},\"result\":{\"param\":\"amount\"}}}";
+                    +"\"finish\":[\"cognitivecraft:approach_oak_log\",\"cognitivecraft:pickup_tracked_oak_logs\",\"cognitivecraft:move_to_destination\",\"cognitivecraft:transfer_oak_logs\"]}},\"result\":{\"param\":\"amount\"}}}";
             f.backend.respond(0,proposal,900L,200L);
             var result=handle.result().toCompletableFuture().join();assertEquals(Generation.Outcome.CANDIDATE,result.outcome());
             var compiler=new SkillCompiler(PlanningGoals.catalog(),GatewayPrimitives.instance(),ref->Optional.empty());

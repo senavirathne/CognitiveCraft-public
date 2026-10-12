@@ -36,9 +36,11 @@ public final class ResearchAdmissionController {
             + "Bind actor, amount, source and destination parameters; use only the supplied registered signatures. "
             + "For each repeat count={param:amount}, prepare=[approach_oak_log, harvest_next_oak_log]; "
             + "wait with observe_oak_inventory for count={int:20}; "
-            + "finish=[pickup_tracked_oak_logs, move_to_destination, transfer_oak_logs] in that causal order. "
+            + "finish=[approach_oak_log, pickup_tracked_oak_logs, move_to_destination, transfer_oak_logs] in that causal order. "
+            + "After harvest, approach_oak_log follows only this run's pending owned drop so pickup remains within reach. "
             + "transfer_oak_logs uses amount={int:1}. Keep adjacent approach, timed harvest, pickup and transfer "
-            + "as separate calls. Do not transfer before pickup or use any effect twice. "
+            + "as separate calls. Harvest, pick up and deposit each batch once. "
+            + "Use approach once for the standing log and again for its owned drop. "
             + "Give each call a distinct into name. End with result={param:amount}. "
             + "Never use wheat primitives, fixed coordinates, crafting or product-specific dependencies. ";
     public enum Phase {

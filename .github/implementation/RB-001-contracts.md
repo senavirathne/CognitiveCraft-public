@@ -48,7 +48,7 @@ This command must submit to normal production KernelSession/Jobs; it must not ed
 
 No trusted oak task program is shipped. Research must perform normal resolution, generation, compile, bounded fixture evaluation, authorized physical trial and durable repository admission. Controlled proposals are test-only. Genuine configured-backend generation/admission and language quality are separate mandatory gates. Admitted methods bind all four parameters, and structured known execution must reuse them with zero inference, including a second-JVM saved-world restart with the backend stopped.
 
-See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
+See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/1cbfcff357a597d971744f715b1e211a78221fe8/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
 
 
 ## Concrete custody and owner details
@@ -81,3 +81,10 @@ Before removing a log, revalidate capacity for the actual eligible loot computed
 
 
 Standalone acquisition credit is invocation-specific. JobLifecycleStore.allocate must reject allocating a historical oak producer receipt to another direct deliver_oak_logs request; persisted allocations with that meaning are invalid and remain preserved/inactive under existing recovery. A direct oak job succeeds only from its own trusted execution evidence. Original wheat allocation semantics remain unchanged. Typed oak production evidence and actual item stock remain reusable by later eligible consumer contracts under the existing owners; RB-001 introduces no such consumer or allocation shortcut.
+
+
+## Approach to the run's own pending oak drops
+
+The existing approach_oak_log primitive remains a single MOVE operation with the same actor/source parameters and v1 fingerprint. When this run has pending owned oak drops, it selects one by stable custody insertion order, revalidates that exact entity's item count, dimension, loaded current cell and permission every poll, and approaches its current cell through the existing bounded navigation owner. Otherwise it approaches the next eligible standing source log using face adjacency. It never selects unrelated or pre-existing items. No physical primitive, effect permission, pickup reach, inventory owner or task scheduler is added. Movement and pickup remain separate calls.
+
+The oak proposal uses approach/harvest, a bounded drop wait, then a second approach to the owned drop, pickup, destination movement and transfer. This is model-proposed IR; no trusted complete task program is shipped. The transport grammar permits four oak finish entries while retaining the original three-entry wheat form. All per-action and cumulative navigation/poll/deadline limits remain. Revalidate source/actor/destination bindings and owned drop evidence throughout; stale or replaced drops block without fabricated credit.

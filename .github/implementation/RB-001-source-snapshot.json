@@ -7,7 +7,7 @@
   "source_compiled": false,
   "new_tests_executed": false,
   "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "770abdefdcc05fa9e90f3b5d2018eb12adb2224d088bb595d22ca007292e8427",
+  "code_manifest_sha256": "f0ce7076be509cb21cdc0779525c17ff8a895d617bb1b4c67d3dc70fd06c0f8a",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
@@ -111,8 +111,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/ResearchAdmissionController.java",
-      "bytes": 48934,
-      "sha256": "68400269c72a2c22ecdc48bc94f7cd925c9e7c53a9888bb610c48522daa29a7d"
+      "bytes": 49153,
+      "sha256": "c3e9fcb0c48627e906ab186f673c7406073ad24536a3e19b17490779d84de891"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/ResourceDelivery.java",
@@ -136,8 +136,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java",
-      "bytes": 57674,
-      "sha256": "9a17bccf5618144bbbc6a612ea8fed33809f3aee6672b0ea9c39cd9a3fbbf0da"
+      "bytes": 59407,
+      "sha256": "908283bc6ba2d723f0dbc0b453da10d3e24fd9ffcce362a5644f880111e3b570"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java",
@@ -161,8 +161,8 @@
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogGatewayTest.java",
-      "bytes": 4599,
-      "sha256": "6993550acf47008ca4527ac167977e37f86f7996f2225a59423dc5af546c3b36"
+      "bytes": 5560,
+      "sha256": "71779443ed243be33ef8c40288e3e212d48108e724a9ad5ee2e6b7ec74e73486"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogJobLifecycleTest.java",
@@ -181,8 +181,8 @@
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogTestSupport.java",
-      "bytes": 11319,
-      "sha256": "39a800e4033de4e26dae9283a1734e7611312c8832915b033fbe7974b44f7a49"
+      "bytes": 11495,
+      "sha256": "6b6755883a021bf3c5dd8c37031af8266ec58e0a568c18cefeaee25aaf645671"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/ResourceDeliveryTest.java",
@@ -196,8 +196,8 @@
     },
     {
       "path": "e2e/oak.py",
-      "bytes": 13436,
-      "sha256": "ecc0ce9c80a66cfca9c487e96e5aa584939dca3af2068a76af84b781f377c6bb"
+      "bytes": 13488,
+      "sha256": "62fe4d167c1983fbc206605c1e828a8b9d2ef052e905add947003e0e0c1501b3"
     },
     {
       "path": "e2e/suite.py",
@@ -206,13 +206,13 @@
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogEffectGameTests.java",
-      "bytes": 8443,
-      "sha256": "cf8324e33489df333eb5be141a0ad6102b5017e3134fcb65c9f53f62dae97266"
+      "bytes": 8470,
+      "sha256": "8aa1fcaf8618c4d4c1e6d5561efdd0fc610c78204b2fd54302d4ee603f017f1e"
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogFixtures.java",
-      "bytes": 3403,
-      "sha256": "552a55ded84b253503544ad9bdae5db82efc3755a15e5404357fa4c118c56c7b"
+      "bytes": 3469,
+      "sha256": "d553d4590a01fc4ce96dff2333484f9e2efb34a020293411f647e2e48a7e010f"
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogKernelGameTests.java",
@@ -266,8 +266,8 @@
     },
     {
       "path": "providers/src/main/java/dev/aivillages/providers/LocalGenerationAdapter.java",
-      "bytes": 39043,
-      "sha256": "2073b6d390ac9bde1b465f07964e0537bbc9ab4c0859821c02921ffe38ee8766"
+      "bytes": 39511,
+      "sha256": "72d200cc6be9e45a57ab77fd8d04ab7039f7265670de394aa1b77f3893e395da"
     },
     {
       "path": "providers/src/main/java/dev/aivillages/providers/NeedleWire.java",
@@ -276,8 +276,8 @@
     },
     {
       "path": "providers/src/test/java/dev/aivillages/providers/OakLogGenerationTest.java",
-      "bytes": 3061,
-      "sha256": "defc78690eb1c93602d6b987b1aaeff4abc171a2c4fdfffc8bd1aa682f4ba4c6"
+      "bytes": 3097,
+      "sha256": "867fa84d724732f42cd0059d146a49c278155ed454e8237df75c8c0188ba85e2"
     },
     {
       "path": "providers/src/test/java/dev/aivillages/providers/OakLogNeedleWireTest.java",
@@ -287,11 +287,11 @@
     {
       "path": "scripts/verify-rb001.py",
       "bytes": 5371,
-      "sha256": "eef3921c21ac6444c8b1a710e736de68769abe92ffc5b5e1c5d48979ecb4667f"
+      "sha256": "a60f3be0594aa16f390086df03e1f24b6aa9f197b4285d1c89e43a1c307ad5fc"
     }
   ],
-  "generated_at": "2026-10-12T13:11:27.557366+00:00",
-  "source_tests_planned_minimum_junit": 29,
+  "generated_at": "2026-10-12T18:58:08.822260+00:00",
+  "source_tests_planned_minimum_junit": 30,
   "all_acceptance_pending": true,
   "documentation_actions": {
     "run_ids": [
@@ -313,23 +313,27 @@
   "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
   "source_publication_authorized": true,
   "merge_after_required_checks_authorized": true,
-  "snapshot_phase": "revised_working_content_before_publication",
-  "existing_published_head": "15a0fa4c64c17cc25543a286c7ca968b194bf5ab",
+  "snapshot_phase": "owned_drop_approach_working_content_before_publication",
+  "existing_published_head": "bad21e562ee04b9861bea1fe4a237dd452f3515e",
   "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
   "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
   "previous_ci_checkpoint": {
-    "source": "dc3d132902df0f098a9e7f162bb7896ed62f7b9b",
+    "source": "bad21e562ee04b9861bea1fe4a237dd452f3515e",
     "pr": 24,
     "workflows": 21,
-    "success": 18,
-    "failure": 3,
+    "success": 19,
+    "failure": 2,
     "complete": false,
     "native_effect_case": "passed",
-    "controlled_admission": "failed: fixture left inference disabled",
-    "connected_client": "failed: genuine candidate was not admitted; no acquisition completion"
+    "controlled_admission": "passed",
+    "genuine_cold_and_warm": "push native job passed; PR native job blocked on physical pickup scatter",
+    "connected_client": "failed: physical pickup TARGET_UNAVAILABLE; no full client pass",
+    "local_generation_smoke": "failed: eight-minute setup timeout after Loom configuration"
   },
   "corrective_documentation_commits": [
     "be7519e99d5eb82bd4c64c397e061e2b22919ee0",
-    "05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4"
-  ]
+    "05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4",
+    "1cbfcff357a597d971744f715b1e211a78221fe8"
+  ],
+  "documentation_current_main": "1d7a5e857faf9e1b7b923599520c376c33a47999"
 }
