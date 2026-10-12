@@ -965,8 +965,13 @@ def interference(h: Harness):
         retained = h.wait(lambda: (s if (s := h.snapshot()["players"]["PlayerA"].get("observedKnowledge"))
                                   and s.get("evidence") else None),
                           "Bounded private retained-observation query")
-        foreign = h.wait(lambda: h.snapshot()["players"]["PlayerB"].get("observedKnowledge"),
-                         "Foreign scoped retained-observation query")
+        require(retained.get("status") == "COMPLETE" and 0 < retained.get("scanned", 0) <= 64 and
+                0 < retained.get("contextBytes", 0) <= 8192, "Retained query exceeded its declared bounds")
+        foreign = h.wait(lambda: (s if (s := h.snapshot()["players"]["PlayerB"].get("observedKnowledge"))
+                                 and s.get("target") == retained.get("target") else None),
+                         "Foreign scoped query of the exact retained-observation target")
+        require(foreign.get("status") == "COMPLETE" and foreign.get("viewer") != retained.get("viewer"),
+                "Foreign query did not use a distinct trusted viewer")
         require(not foreign.get("evidence"), "Observer query disclosed A's private observed facts to B")
         stock_before = h.container(ARENA["destination"])
         second = h.submit(amount=6, allow_rejection=True)

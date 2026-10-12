@@ -153,10 +153,11 @@ public final class E2EObserver implements ModInitializer {
                     var primary = server.getPlayerList().getPlayerByName("PlayerA");
                     var addresses = primary == null ? null : kernel.citizens(primary).citizens();
                     if (addresses != null && !addresses.isEmpty()) {
-                        // The genuinely acquired method observes actor stock here, not container stock.
-                        // Both viewers query the SAME target with their own trusted intake scope.
+                        // Genuine movement can record stock at either feet height in this fixture.
+                        // Alternate two bounded targets; both viewers use the same target and their own trusted scope.
+                        int stockY = (ticks / 20) % 2 == 0 ? 201 : 200;
                         var target = new SurvivalGateway.ObservationTarget(SurvivalGateway.ObservationKind.ACTOR_STOCK,
-                                new Cuboid("minecraft:overworld",6,201,6,6,201,6), addresses.getFirst().actor().entityId());
+                                new Cuboid("minecraft:overworld",6,stockY,6,6,stockY,6), addresses.getFirst().actor().entityId());
                         knowledgeQueries.put(player.getUUID(), kernel.observedKnowledge(player, target,
                                 new ObservedWorldKnowledgeStore.QueryLimits(64,8,8192)));
                     }
