@@ -7,7 +7,7 @@
   "source_compiled": false,
   "new_tests_executed": false,
   "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "2930c6810378388c4c4a12c9e86805946203b41bcb0e7ac4e3cf957c24eeb336",
+  "code_manifest_sha256": "7c1aff83d629eb14b9bc2bfb414fc1d89c18b9425abd340ead9243b85c620301",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
@@ -136,8 +136,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java",
-      "bytes": 59473,
-      "sha256": "4bbc0cb07bd0d49afbb830dba20c0c6e398bad8053a22fd9235110b31de41258"
+      "bytes": 60049,
+      "sha256": "0ed26b5f4a10b8c0f58438c244b98c595250e4840fb7948fe4d580396284d7e5"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java",
@@ -206,8 +206,8 @@
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogEffectGameTests.java",
-      "bytes": 9430,
-      "sha256": "d9c56acfee373e439138671c274326d9399b23b21581d56f356faf37035438fe"
+      "bytes": 10655,
+      "sha256": "d6d81cdb142de7e190fec82c57e63ebc2885869434c50379989748efc975803b"
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogFixtures.java",
@@ -221,8 +221,8 @@
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
-      "bytes": 42946,
-      "sha256": "580ff4f42694fbafd605b1e11115385a28e0db7602af70d605ec8e60af8eb756"
+      "bytes": 45437,
+      "sha256": "901ca2aabe1e24cf1ec9f4f4f7fae32ea7b6e248639be0c81a06e281857d27c5"
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricResourceLeaseWorld.java",
@@ -290,7 +290,7 @@
       "sha256": "7dae149f98a436dcc31fbf6f7dd15dd9111bb9b99b5286f1eb2ecc37db6f2c52"
     }
   ],
-  "generated_at": "2026-10-12T20:07:07.152796+00:00",
+  "generated_at": "2026-10-12T20:55:17.552574+00:00",
   "source_tests_planned_minimum_junit": 31,
   "all_acceptance_pending": true,
   "documentation_actions": {
@@ -313,17 +313,17 @@
   "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
   "source_publication_authorized": true,
   "merge_after_required_checks_authorized": true,
-  "snapshot_phase": "selected_face_settling_working_content_before_publication",
-  "existing_published_head": "76b782e0f38368ce3ad02811855709d309403a02",
+  "snapshot_phase": "planned_height_and_actual_item_working_content_before_publication",
+  "existing_published_head": "35187093f8023a9cb2903069afe4c3497b63b194",
   "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
   "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
   "previous_ci_checkpoint": {
-    "source": "76b782e0f38368ce3ad02811855709d309403a02",
+    "source": "35187093f8023a9cb2903069afe4c3497b63b194",
     "pr": 24,
     "workflows": 21,
-    "success": 16,
-    "failure": 4,
-    "pending": 1,
+    "success": 20,
+    "failure": 1,
+    "pending": 0,
     "complete": false
   },
   "corrective_documentation_commits": [
@@ -335,5 +335,6 @@
   "documentation_before_client_route_repair": "33e4740c61dbd0fba75297034d584957555b04b4",
   "documentation_before_movement_cleanup": "f26e851f1fc8bc88a6c51e4535d0d4d77c0277e1",
   "documentation_before_grounded_path_correction": "42b0c389860469917d3de5dc97fd7c772ba96fec",
-  "documentation_before_selected_face_correction": "8817eecc6ff460c8fd5662c8b32023463cd9cf72"
+  "documentation_before_selected_face_correction": "8817eecc6ff460c8fd5662c8b32023463cd9cf72",
+  "documentation_before_exact_item_correction": "14d7c91126e482a997d9aea2c01f27c54cdc16c6"
 }

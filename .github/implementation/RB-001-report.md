@@ -26,7 +26,7 @@ The revised working-code manifest below is not a tested commit or binary. No loc
 
 RB-001 is incomplete. Revised standalone/stock assertions, genuine oak admission, language, offline/restart, abrupt interruption and all final-head regressions must pass before merge. Exact final source/JAR/model identities, counts, artifact hashes and actual merge evidence will replace pending entries after verification. [Documentation readiness and RB-T01–14 mapping](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/implementation/RB-001-report.md).
 
-Revised working-code manifest SHA256 `2930c6810378388c4c4a12c9e86805946203b41bcb0e7ac4e3cf957c24eeb336` across 56 files. [Snapshot](RB-001-source-snapshot.json).
+Revised working-code manifest SHA256 `7c1aff83d629eb14b9bc2bfb414fc1d89c18b9425abd340ead9243b85c620301` across 56 files. [Snapshot](RB-001-source-snapshot.json).
 
 
 ## Corrective checkpoint after revised Actions
@@ -67,3 +67,8 @@ Documentation 42b0c389860469917d3de5dc97fd7c772ba96fec publishes the owning cont
 ## Selected source-face settling
 
 Documentation 8817eecc6ff460c8fd5662c8b32023463cd9cf72 defines the correction before implementation. Connected artifact 11770143411 (ZIP SHA256 9662f992096e8cd4f4c3272ee18555b3e9f76f5167dc56cbe9b6c442168e553f) shows arrival reported on a north face while the accepted route was still heading west; residual motion then crossed into a diagonal cell and harvesting correctly blocked. The native adapter now retains its accepted approach cell, completes only on that face, stops owned navigation and waits for actual horizontal motion at most 0.01 blocks/tick. Reach, geometry, attempts and deadlines remain unchanged. The actual native effect regression requires settled grounded arrival before timed harvest. Two legacy identity checks also timed out awaiting a terminal run and remain required unresolved gates. Full final-head acceptance is pending.
+
+
+## Planned height and exact owned-item navigation
+
+Documentation 14d7c91126e482a997d9aea2c01f27c54cdc16c6 records the terrain/point contract before source changes. The native source route now validates planned height within 0.125, non-upward motion and two consecutive grounded ticks in the same foot cell. The existing MOVE primitive delegates owned-drop movement through an additive default world helper; Fabric derives an air standing cell above partial support and validates the exact entity position/ray within preparatory distance 1.5, below unchanged pickup reach 2.5. Wheat navigation remains unchanged. The native regression changes only vacated fixture terrain after a real harvest, lets the genuine entity fall naturally onto farmland, requires that lower observation cell was actually seen, and completes real pickup/deposit without rewriting the entity. At 3518709, one push native job passed, while the PR trace incorrectly arrived at Y23 for a Y22 path and connected offline reuse hit a farmland support cell as an invalid navigation goal. Archive 11771662921 has ZIP SHA256 3f4b44fbae4a875f7d76975f47cf6d39f10a2c6a127ded99813b7bc1d384cf83. Final-head acceptance remains pending.

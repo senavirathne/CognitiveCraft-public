@@ -48,7 +48,7 @@ This command must submit to normal production KernelSession/Jobs; it must not ed
 
 No trusted oak task program is shipped. Research must perform normal resolution, generation, compile, bounded fixture evaluation, authorized physical trial and durable repository admission. Controlled proposals are test-only. Genuine configured-backend generation/admission and language quality are separate mandatory gates. Admitted methods bind all four parameters, and structured known execution must reuse them with zero inference, including a second-JVM saved-world restart with the backend stopped.
 
-See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/8817eecc6ff460c8fd5662c8b32023463cd9cf72/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
+See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/14d7c91126e482a997d9aea2c01f27c54cdc16c6/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
 
 
 ## Concrete custody and owner details
@@ -103,3 +103,12 @@ For the solid oak-source approach, defer path selection/submission while the act
 ## Source arrival at the selected face with settled motion
 
 When a standing-oak route has accepted a path to a face, arrival must occur in that selected face cell, not a different face crossed en route. On a valid grounded face within the unchanged 1.15 horizontal/2.5 native reach and ray checks, stop only owned navigation and wait for actual horizontal motion to fall to at most 0.01 blocks/tick before reporting arrival. Revalidate the actual face throughout settling. If drift leaves it, continue the existing finite route policy with its remaining attempts; do not refill attempts, set position/velocity, widen reach or renew the action deadline. Already-near source arrival must also settle. Preserve existing wheat navigation behavior. Native coverage must prove an ordinary moving approach reports arrival only after actual motion settles, followed by the 60-tick survival break and real deposit.
+
+
+## Planned standing height and exact owned-item approach
+
+A standing-source route with an accepted approach must match the selected x/z face and its planned standing height within 0.125 blocks, which permits the normal farmland inset while preventing arrival on a log/chest one block above the planned floor. Stop owned navigation, require non-upward vertical motion and horizontal motion at most 0.01 blocks/tick, and observe two consecutive grounded ticks in the same foot cell before arrival. Time and travel remain charged; a loss of face/ground/height resets only the stability observation, never the finite route allowance or action deadline. Already-near arrival has the same stability observation without inventing a new primitive.
+
+For a pending owned item, the internal world movement helper must re-read that exact UUID/count and approach its actual position and line of sight. Its current block cell is an observation/permission address, not always a traversable standing cell: an item on farmland can occupy the supporting block. Derive the adjacent air standing cell above nonempty collision support, use the existing bounded navigation/grounded settling owner, and recheck the actual item position for arrival. Do not move the entity, widen pickup/native reach, create stock or change primitive signatures. Existing wheat movement and old adapter implementations remain compatible through an additive default world helper. Native effects coverage must exercise actual loot falling naturally onto a partial farmland surface after a legitimate fixture terrain change, without relocating or replacing the produced item.
+
+The owned-item approach completes only within 1.5 blocks of the actual item position with actual line of sight and settled grounded motion; its preparatory radius remains below unchanged 2.5-block pickup reach. Unlike an arbitrary cell center, that point includes the real item height and corner location. Keep original wheat source approach distance 0.8 unchanged.

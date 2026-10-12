@@ -43,10 +43,18 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
-        boolean[] airborneDeferred={false};
+        boolean[] airborneDeferred={false},partialSurfaceDrop={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
         h.succeedWhen(() -> {
+            if(phase[0]>=2 && phase[0]<=3) {
+                for(var receipt:receipts)if(receipt.stage()==ResourceDelivery.Stage.HARVEST)
+                    for(var drop:receipt.dropIds()) {
+                        var state=world.resourceDrop(drop,ResourceDelivery.OAK_LOG);
+                        if(state.status()==ObservationStatus.PRESENT && state.cell().y()==p.getY()-1)
+                            partialSurfaceDrop[0]=true;
+                    }
+            }
             if(phase[0]==0 && !v.onGround()) {
                 var movement=world.approachResource(actor,new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ()),1,ResourceDelivery.OAK_LOG);
                 h.assertTrue(!movement.reached() && !movement.impossible() && movement.chargedWork()==0,
@@ -80,12 +88,13 @@ public final class OakLogEffectGameTests {
             }
             if(phase[0]>=operations.size()) {
                 h.assertTrue(airborneDeferred[0],"Falling-worker approach regression did not execute");
+                h.assertTrue(partialSurfaceDrop[0],"Natural loot did not exercise the partial-surface observation cell");
                 h.assertTrue(OakLogDelivery.completed(request,run,receipts),"Trusted native receipt chain incomplete");
                 h.assertTrue(v.getInventory().countItem(Items.OAK_LOG)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);
@@ -102,10 +111,18 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(result.reason()==null,"Oak native effect failed "+op+" "+result.reason());
                 if(phase[0]==0) {
                     var motion=v.getDeltaMovement();
-                    h.assertTrue(v.onGround() && motion.x*motion.x+motion.z*motion.z<=0.01*0.01,
+                    h.assertTrue(v.onGround() && motion.x*motion.x+motion.z*motion.z<=0.01*0.01
+                                    && Math.abs(v.getY()-p.getY())<=0.125,
                             "Standing oak arrival was reported before actual horizontal movement settled");
                 }
-                receipts.addAll(result.resourceReceipts());if(op==Operation.HARVEST_NEXT_OAK_LOG)harvested[0]=h.getLevel().getGameTime();
+                receipts.addAll(result.resourceReceipts());if(op==Operation.HARVEST_NEXT_OAK_LOG) {
+                    harvested[0]=h.getLevel().getGameTime();
+                    // Simulate ordinary hoeing after harvest. The actual produced
+                    // entity lands naturally; its position/count is never rewritten.
+                    for(int dx=-2;dx<=2;dx++)for(int dz=-2;dz<=2;dz++)
+                        h.getLevel().setBlock(p.offset(dx,-1,dz),Blocks.FARMLAND.defaultBlockState()
+                                .setValue(net.minecraft.world.level.block.FarmlandBlock.MOISTURE,7),3);
+                }
                 handle[0]=null;phase[0]++;
             }
             h.assertTrue(false,"Waiting for complete native oak stages");

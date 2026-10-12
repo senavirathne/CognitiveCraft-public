@@ -180,6 +180,13 @@ public final class SurvivalGateway implements GatewayPort {
         default Movement approachResource(ActorRef actor,Cell target,int maxNavigationCalls,ResourceDelivery.ItemIdentity item) {
             return item.equals(ResourceDelivery.WHEAT) ? moveToSource(actor,target,maxNavigationCalls) : move(actor,target,maxNavigationCalls);
         }
+        /** Move toward this custody identity; the native adapter uses its actual interaction point. */
+        default Movement approachResourceDrop(ActorRef actor,UUID dropId,int expected,int maximum,ResourceDelivery.ItemIdentity item) {
+            ItemDropState state=resourceDrop(dropId,item);
+            if(state.status()!=ObservationStatus.PRESENT || state.quantity()!=expected)
+                return new Movement(false,true,0,0);
+            return moveToSource(actor,state.cell(),maximum);
+        }
         /** Real block destruction and drop spawn; no direct inventory insertion. */
         Harvest harvest(ActorRef actor, Cell target);
         /** Only a tracked physical drop can be picked up; validate identity/count and reach. */
@@ -598,7 +605,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         action.movementStarted = true;
         Movement movement = action.selectedDrop!=null
-                ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
+                ? world.approachResourceDrop(action.run.actor,action.selectedDrop,action.selectedDropQuantity,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation==Operation.APPROACH_OAK_LOG
                 ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation == Operation.MOVE_TO_SOURCE

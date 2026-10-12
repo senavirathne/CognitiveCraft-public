@@ -43,6 +43,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
     private static final double OAK_SETTLED_MOTION_SQUARED = 0.01 * 0.01;
+    private static final double OAK_DROP_APPROACH_DISTANCE_SQUARED = 1.5 * 1.5;
     private static final class Route {
         final BlockPos target;
         final UUID runId;
@@ -50,6 +51,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         final boolean sourceApproach;
         final boolean solidApproach;
         BlockPos approachTarget;
+        BlockPos settledCell;
+        long settledSince = -1;
         Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach) {
             this.target = target;
             this.runId = runId;
@@ -233,40 +236,75 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return item.equals(ResourceDelivery.OAK_LOG) ? navigate(actor,target,maximum,false,true)
                 : SurvivalGateway.WorldAccess.super.approachResource(actor,target,maximum,item);
     }
+    @Override public Movement approachResourceDrop(ActorRef actor,UUID id,int expected,int maximum,ResourceDelivery.ItemIdentity item) {
+        if(!item.equals(ResourceDelivery.OAK_LOG))
+            return SurvivalGateway.WorldAccess.super.approachResourceDrop(actor,id,expected,maximum,item);
+        Villager v=villager(actor);Entity entity=level.getEntity(id);
+        if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive()
+                || !defaultOak(drop.getItem()) || drop.getItem().getCount()!=expected)
+            return new Movement(false,true,0,0);
+        BlockPos actual=drop.blockPosition();
+        if(!loaded(actual) || !level.mayInteract(v,actual))return new Movement(false,true,0,0);
+        BlockPos standing=level.getBlockState(actual).getCollisionShape(level,actual).isEmpty() ? actual : actual.above();
+        return navigate(actor,new Cell(dimension(),standing.getX(),standing.getY(),standing.getZ()),maximum,
+                true,false,drop.position(),actual);
+    }
     private Movement navigate(ActorRef actor, Cell target, int maxNavigationCalls, boolean sourceApproach) {
         return navigate(actor,target,maxNavigationCalls,sourceApproach,false);
     }
     private Movement navigate(ActorRef actor,Cell target,int maxNavigationCalls,boolean sourceApproach,boolean solidApproach) {
+        return navigate(actor,target,maxNavigationCalls,sourceApproach,solidApproach,null,null);
+    }
+    private Movement navigate(ActorRef actor,Cell target,int maxNavigationCalls,boolean sourceApproach,boolean solidApproach,
+                              Vec3 interactionPoint,BlockPos interactionBlock) {
         Villager v = villager(actor);
         if (v == null) {
             routes.remove(actor.entityId());
             return new Movement(false, true, 0, 0);
         }
         BlockPos targetPos = position(target), now = v.blockPosition();
+        boolean ownedDrop=interactionPoint!=null,oakApproach=solidApproach || ownedDrop;
+        Vec3 point=ownedDrop ? interactionPoint : Vec3.atCenterOf(targetPos);
+        BlockPos rayTarget=ownedDrop ? interactionBlock : targetPos;
         BlockPos previous = previousPosition.put(v.getUUID(), now);
         long travel = previous == null ? 0 : Math.max(Math.abs((long)now.getX() - previous.getX()),
                 Math.max(Math.abs((long)now.getY() - previous.getY()),
                         Math.abs((long)now.getZ() - previous.getZ())));
         if (travel > 1) return terminal(v, routes.get(v.getUUID()), "invalid-travel", 0, travel);
-        v.getLookControl().setLookAt(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5);
+        v.getLookControl().setLookAt(point.x,point.y,point.z);
         boolean adjacent=oakApproachGeometry(v,targetPos);
         // A destination can be reached during descent from a chest jump. The
         // ground navigator cannot submit source paths until the worker lands.
-        if (solidApproach && !v.onGround())
-            return new Movement(false,false,0,travel);
         Route route = routes.get(v.getUUID());
+        if (oakApproach && !v.onGround()) {
+            if(route!=null)route.settledSince=-1;
+            return new Movement(false,false,0,travel);
+        }
+        if(oakApproach && route==null) {
+            UUID owner=GatewayControl.owner(v);
+            if(owner==null)return new Movement(false,true,0,travel);
+            route=new Route(targetPos,owner,sourceApproach,solidApproach);routes.put(v.getUUID(),route);
+        }
         boolean selectedFace = route == null || route.approachTarget == null
-                || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ();
-        if ((!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v, targetPos) && (!sourceApproach
-                || v.distanceToSqr(Vec3.atCenterOf(targetPos)) <= SOURCE_APPROACH_DISTANCE_SQUARED)) {
-            if (solidApproach) {
+                || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ()
+                && Math.abs(v.getY()-route.approachTarget.getY())<=0.125;
+        if ((!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v,point,rayTarget) && (!sourceApproach
+                || v.distanceToSqr(point) <= (ownedDrop ? OAK_DROP_APPROACH_DISTANCE_SQUARED : SOURCE_APPROACH_DISTANCE_SQUARED))) {
+            if (oakApproach) {
                 stopOwnedNavigation(v, route);
                 var motion = v.getDeltaMovement();
-                if (motion.x * motion.x + motion.z * motion.z > OAK_SETTLED_MOTION_SQUARED)
+                if (motion.x * motion.x + motion.z * motion.z > OAK_SETTLED_MOTION_SQUARED || motion.y>0.0001) {
+                    route.settledSince=-1;
                     return new Movement(false,false,0,travel);
+                }
+                if(route.settledSince<0 || !now.equals(route.settledCell)) {
+                    route.settledSince=tick();route.settledCell=now;
+                }
+                if(tick()-route.settledSince<2)return new Movement(false,false,0,travel);
             }
             return terminal(v, routes.get(v.getUUID()), "physical-reach-and-los", 0, travel);
         }
+        if(route!=null)route.settledSince=-1;
         if (!loaded(targetPos) || !level.mayInteract(v, targetPos))
             return terminal(v, routes.get(v.getUUID()), "target-unavailable", 0, travel);
         if (route != null && (!route.target.equals(targetPos) || route.sourceApproach != sourceApproach
