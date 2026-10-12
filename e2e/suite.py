@@ -34,6 +34,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             "environment": ["E2E-PHYSICAL-001"],
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
+PROFILES["rb001"] = ["GP-RB-01"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
@@ -1502,6 +1503,8 @@ def main():
                 "E2E-CLIENT-LOSS-001": client_loss, "E2E-RECOVERY-001": graceful_recovery,
                 "E2E-RECOVERY-002": hard_recovery, "E2E-NLU-001": natural_language,
                 "E2E-AI-001": acquire_real_skill, "E2E-LEASE-001": queued_competition}
+    from oak import scenario as oak_scenario
+    registry["GP-RB-01"] = oak_scenario
     try:
         if args.topology == "compose":
             h.compose("build", "minecraft")

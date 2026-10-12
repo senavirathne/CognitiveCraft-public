@@ -20,14 +20,15 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
  * The gateway owns ephemeral handles/custody only; a crash never replays an unfinished action.
  */
 public final class SurvivalGateway implements GatewayPort {
-    public enum ObservationKind { SOURCE_CROPS, ACTOR_STOCK, CONTAINER_STOCK }
+    public enum ObservationKind { SOURCE_CROPS, ACTOR_STOCK, CONTAINER_STOCK,
+        SOURCE_OAK_LOGS, ACTOR_OAK_STOCK, CONTAINER_OAK_STOCK }
     /** Exact bounded context inspected by an observation primitive, never a whole-world assertion. */
     public record ObservationTarget(ObservationKind kind, Cuboid area, UUID entity) {
         public ObservationTarget {
             Objects.requireNonNull(kind); Objects.requireNonNull(area);
-            if ((kind == ObservationKind.ACTOR_STOCK) != (entity != null))
+            if ((kind == ObservationKind.ACTOR_STOCK || kind == ObservationKind.ACTOR_OAK_STOCK) != (entity != null))
                 throw new IllegalArgumentException("Observation target identity");
-            if (kind != ObservationKind.SOURCE_CROPS && (area.minX() != area.maxX()
+            if (kind != ObservationKind.SOURCE_CROPS && kind != ObservationKind.SOURCE_OAK_LOGS && (area.minX() != area.maxX()
                     || area.minY() != area.maxY() || area.minZ() != area.maxZ()))
                 throw new IllegalArgumentException("Stock observation location");
         }
@@ -120,6 +121,42 @@ public final class SurvivalGateway implements GatewayPort {
             if (chargedWork < 0 || travelBlocks < 0) throw new IllegalArgumentException("Movement work");
         }
     }
+    public record ItemBlock(ObservationStatus status, boolean eligible, String identity, int breakTicks) {
+        public ItemBlock {
+            Objects.requireNonNull(status); Objects.requireNonNull(identity);
+            if (identity.length() > 128 || breakTicks < 0 || breakTicks > 200)
+                throw new IllegalArgumentException("Block witness");
+        }
+    }
+    public record ItemStock(ObservationStatus status, String identity, long quantity, long capacity,
+                            String fingerprint, Reason reason) {
+        public ItemStock {
+            Objects.requireNonNull(status); Objects.requireNonNull(identity); Objects.requireNonNull(fingerprint);
+            if (quantity < 0 || capacity < 0 || identity.length() > 128 || fingerprint.length() > 128)
+                throw new IllegalArgumentException("Item stock");
+        }
+    }
+    public record ItemDrop(UUID entityId, int quantity) {
+        public ItemDrop {
+            Objects.requireNonNull(entityId);
+            if (quantity < 1 || quantity > 64) throw new IllegalArgumentException("Item drop");
+        }
+    }
+    public record ItemDropState(ObservationStatus status, Cell cell, int quantity) {
+        public ItemDropState {
+            Objects.requireNonNull(status); Objects.requireNonNull(cell);
+            if (quantity < 0) throw new IllegalArgumentException("Item drop state");
+        }
+    }
+    public record ItemHarvest(boolean removed, List<ItemDrop> drops, Reason reason) {
+        public ItemHarvest { drops = List.copyOf(drops); }
+    }
+    public record ItemPickup(int collected, int remaining, Reason reason) {
+        public ItemPickup { if (collected < 0 || remaining < 0) throw new IllegalArgumentException("Item pickup"); }
+    }
+    public record ItemTransfer(int deposited, Reason reason) {
+        public ItemTransfer { if (deposited < 0 || deposited > 1) throw new IllegalArgumentException("Item transfer"); }
+    }
     public interface WorldAccess {
         /** Every method is called on the server thread; implementations must not force-load chunks. */
         boolean onGameThread();
@@ -140,20 +177,61 @@ public final class SurvivalGateway implements GatewayPort {
         default Movement moveToSource(ActorRef actor, Cell target, int maxNavigationCalls) {
             return move(actor,target,maxNavigationCalls);
         }
+        default Movement approachResource(ActorRef actor,Cell target,int maxNavigationCalls,ResourceDelivery.ItemIdentity item) {
+            return item.equals(ResourceDelivery.WHEAT) ? moveToSource(actor,target,maxNavigationCalls) : move(actor,target,maxNavigationCalls);
+        }
         /** Real block destruction and drop spawn; no direct inventory insertion. */
         Harvest harvest(ActorRef actor, Cell target);
         /** Only a tracked physical drop can be picked up; validate identity/count and reach. */
         Pickup pickup(ActorRef actor, UUID dropId, int expectedRemaining);
         /** One actual wheat item debited from actor and credited to the current container. */
         Transfer transferOne(ActorRef actor, ContainerRef destination);
+        /** Additive typed operations; old adapters retain exactly their wheat implementation. */
+        default ItemBlock resourceBlock(Cell cell, ResourceDelivery.ItemIdentity item) {
+            if (!item.equals(ResourceDelivery.WHEAT)) return new ItemBlock(ObservationStatus.UNKNOWN,false,cell.identity(),0);
+            CropState c = crop(cell); return new ItemBlock(c.status(),c.matureWheat(),c.identity(),0);
+        }
+        default ItemStock resourceInventory(ActorRef actor, ResourceDelivery.ItemIdentity item) {
+            StockState s = inventory(actor);
+            return new ItemStock(item.equals(ResourceDelivery.WHEAT) ? s.status() : ObservationStatus.UNKNOWN,
+                    s.identity(),item.equals(ResourceDelivery.WHEAT) ? s.wheat() : 0,0,"",null);
+        }
+        default ItemStock resourceContainer(ContainerRef target, ResourceDelivery.ItemIdentity item) {
+            StockState s = container(target);
+            return new ItemStock(item.equals(ResourceDelivery.WHEAT) ? s.status() : ObservationStatus.UNKNOWN,
+                    s.identity(),item.equals(ResourceDelivery.WHEAT) ? s.wheat() : 0,0,"",null);
+        }
+        default Reason resourceBreakEligibility(ActorRef actor, Cell cell, ResourceDelivery.ItemIdentity item) {
+            return item.equals(ResourceDelivery.WHEAT) ? null : Reason.UNSUPPORTED_PRIMITIVE;
+        }
+        default ItemHarvest resourceHarvest(ActorRef actor, Cell cell, ResourceDelivery.ItemIdentity item, long elapsedTicks) {
+            if (!item.equals(ResourceDelivery.WHEAT)) return new ItemHarvest(false,List.of(),Reason.UNSUPPORTED_PRIMITIVE);
+            Harvest h = harvest(actor,cell);
+            return new ItemHarvest(h.cropRemoved(),h.spawnedWheat().stream().map(d -> new ItemDrop(d.entityId(),d.wheat())).toList(),h.reason());
+        }
+        default ItemDropState resourceDrop(UUID id,ResourceDelivery.ItemIdentity item) {
+            DropState d = dropped(id);
+            return new ItemDropState(item.equals(ResourceDelivery.WHEAT) ? d.status() : ObservationStatus.UNKNOWN,
+                    d.cell(),item.equals(ResourceDelivery.WHEAT) ? d.wheat() : 0);
+        }
+        default ItemPickup resourcePickup(ActorRef actor,UUID drop,int expected,ResourceDelivery.ItemIdentity item) {
+            if (!item.equals(ResourceDelivery.WHEAT)) return new ItemPickup(0,expected,Reason.UNSUPPORTED_PRIMITIVE);
+            Pickup p = pickup(actor,drop,expected); return new ItemPickup(p.collectedWheat(),p.dropRemaining(),p.reason());
+        }
+        default ItemTransfer resourceTransferOne(ActorRef actor,ContainerRef target,ResourceDelivery.ItemIdentity item) {
+            if (!item.equals(ResourceDelivery.WHEAT)) return new ItemTransfer(0,Reason.UNSUPPORTED_PRIMITIVE);
+            Transfer t = transferOne(actor,target); return new ItemTransfer(t.depositedWheat(),t.reason());
+        }
     }
 
     private static final class Batch {
         final UUID id;
         final Map<UUID, Integer> drops = new LinkedHashMap<>();
+        final Cell sourceBlock;
+        List<UUID> originalDrops = List.of();
         long picked;
         long deposited;
-        Batch(UUID id) { this.id = id; }
+        Batch(UUID id,Cell sourceBlock) { this.id = id; this.sourceBlock=sourceBlock; }
     }
     private static final class Run {
         final ActorRef actor;
@@ -161,12 +239,18 @@ public final class SurvivalGateway implements GatewayPort {
         final UUID id;
         final Map<UUID, Batch> batches = new LinkedHashMap<>();
         final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
+        final List<ResourceDelivery.Receipt> resourceReceipts = new ArrayList<>();
         Cell expectedNextCrop;
-        long expectedWheat;
+        final ResourceDelivery.ItemIdentity item;
+        long expectedItems;
+        String inventoryFingerprint = "";
+        long harvested;
+        long deposited;
         long lastTick;
         Run(ActorRef actor, ValidatedRequest request, UUID id, long wheat, long tick) {
             this.actor = actor; this.request = request; this.id = id;
-            expectedWheat = wheat; lastTick = tick;
+            item=request.request().capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT;
+            expectedItems = wheat; lastTick = tick;
         }
         long available() {
             long total = 0;
@@ -184,6 +268,9 @@ public final class SurvivalGateway implements GatewayPort {
         final long startedMillis;
         final long deadlineMillis;
         final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
+        final List<ResourceDelivery.Receipt> resourceReceipts = new ArrayList<>();
+        long breakStarted = -1;
+        String breakIdentity;
         long lastPolled = Long.MIN_VALUE;
         long elapsedTick = 0;
         long effects;
@@ -267,6 +354,12 @@ public final class SurvivalGateway implements GatewayPort {
             else if (!world.acquire(actor, correlation.runId())) invalid = Reason.ACTOR_UNAVAILABLE;
             else {
                 run = new Run(actor, request, correlation.runId(), state.inventoryWheat(), world.tick());
+                if (run.item.equals(ResourceDelivery.OAK_LOG)) {
+                    ItemStock stock=world.resourceInventory(actor,run.item);
+                    if (stock.status()!=ObservationStatus.PRESENT || stock.reason()!=null)
+                        invalid=stock.reason()==null ? Reason.STALE_OBSERVATION : stock.reason();
+                    run.expectedItems=stock.quantity(); run.inventoryFingerprint=stock.fingerprint();
+                }
                 runs.put(correlation.runId(), run);
             }
         } else if (run != null && (!run.request.equals(request) || !run.actor.equals(actor)))
@@ -388,7 +481,7 @@ public final class SurvivalGateway implements GatewayPort {
         if (!authority.currentlyAllows(run.actor, effect, run.request.context())) {
             finish(action, Reason.AUTHORITY_DENIED, null, null); return;
         }
-        if (op == Operation.MOVE_TO_SOURCE) {
+        if (op == Operation.MOVE_TO_SOURCE || op == Operation.APPROACH_OAK_LOG) {
             moveToSource(action);
             run.lastTick = world.tick();
             return;
@@ -397,16 +490,18 @@ public final class SurvivalGateway implements GatewayPort {
         Reason permission = world.permit(run.request, effect, target);
         if (permission != null) { finish(action, permission, null, null); return; }
         switch (op) {
-            case OBSERVE_SOURCE -> observeSource(action);
+            case OBSERVE_SOURCE, OBSERVE_OAK_SOURCE -> observeSource(action);
             case OBSERVE_INVENTORY -> observeStock(action, world.inventory(run.actor), target);
             case OBSERVE_CONTAINER -> observeStock(action, world.container(destination(run.request)), target);
+            case OBSERVE_OAK_INVENTORY -> observeResourceStock(action,world.resourceInventory(run.actor,run.item),target);
+            case OBSERVE_OAK_CONTAINER -> observeResourceStock(action,world.resourceContainer(destination(run.request),run.item),target);
             case MOVE, MOVE_TO_DESTINATION -> move(action, target);
-            case MOVE_TO_SOURCE -> throw new AssertionError("handled above");
+            case MOVE_TO_SOURCE, APPROACH_OAK_LOG -> throw new AssertionError("handled above");
             case HARVEST_WHEAT -> harvest(action, target);
-            case HARVEST_NEXT_WHEAT -> harvestNext(action);
+            case HARVEST_NEXT_WHEAT, HARVEST_NEXT_OAK_LOG -> harvestNext(action);
             case PICKUP_WHEAT -> pickup(action, target);
-            case PICKUP_TRACKED_WHEAT -> pickupTracked(action);
-            case TRANSFER_WHEAT -> transfer(action, target);
+            case PICKUP_TRACKED_WHEAT, PICKUP_TRACKED_OAK_LOGS -> pickupTracked(action);
+            case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> transfer(action, target);
         }
         run.lastTick = world.tick();
     }
@@ -421,8 +516,8 @@ public final class SurvivalGateway implements GatewayPort {
         Reason observed = world.permit(action.run.request, Effect.OBSERVE, selected);
         if (observed != null) { finish(action, observed, null, null); return; }
         action.usage.debit(Kind.OBSERVATIONS, 1);
-        CropState current = world.crop(selected);
-        if (current.status() != ObservationStatus.PRESENT || !current.matureWheat()) {
+        ItemBlock current = world.resourceBlock(selected,action.run.item);
+        if (current.status() != ObservationStatus.PRESENT || !current.eligible()) {
             finish(action, Reason.STALE_OBSERVATION, null, null); return;
         }
         Reason permission = world.permit(action.run.request, Effect.MOVE, selected);
@@ -454,9 +549,9 @@ public final class SurvivalGateway implements GatewayPort {
             Reason denied = world.permit(action.run.request, observationPermission, cell);
             if (denied != null) { finish(action, denied, null, null); return null; }
             action.usage.debit(Kind.OBSERVATIONS, 1);
-            CropState crop = world.crop(cell);
+            ItemBlock crop = world.resourceBlock(cell,action.run.item);
             if (crop.status() == ObservationStatus.UNKNOWN) action.unknown++;
-            else if (crop.status() == ObservationStatus.PRESENT && crop.matureWheat())
+            else if (crop.status() == ObservationStatus.PRESENT && crop.eligible())
                 return action.selectedTarget = cell;
         }
         if (action.scanned >= volume)
@@ -472,7 +567,9 @@ public final class SurvivalGateway implements GatewayPort {
             finish(action, Reason.BUDGET_EXHAUSTED, null, null); return;
         }
         action.movementStarted = true;
-        Movement movement = action.operation == Operation.MOVE_TO_SOURCE
+        Movement movement = action.operation==Operation.APPROACH_OAK_LOG
+                ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)
+                : action.operation == Operation.MOVE_TO_SOURCE
                 ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
                 : world.move(action.run.actor, target, limits.navigationCallsPerPoll());
         if (movement.chargedWork() > limits.navigationCallsPerPoll()
@@ -507,9 +604,9 @@ public final class SurvivalGateway implements GatewayPort {
             Reason denied = world.permit(action.run.request, Effect.OBSERVE, cell);
             if (denied != null) { finish(action, denied, null, null); return; }
             action.usage.debit(Kind.OBSERVATIONS, 1);
-            CropState crop = world.crop(cell);
+            ItemBlock crop = world.resourceBlock(cell,action.run.item);
             if (crop.status() == ObservationStatus.UNKNOWN) action.unknown++;
-            else if (crop.status() == ObservationStatus.PRESENT && crop.matureWheat()) action.mature++;
+            else if (crop.status() == ObservationStatus.PRESENT && crop.eligible()) action.mature++;
         }
         if (action.scanned >= volume) {
             ObservationStatus status = action.unknown > 0 ? ObservationStatus.UNKNOWN
@@ -518,7 +615,7 @@ public final class SurvivalGateway implements GatewayPort {
                     new ObservationRef(UUID.randomUUID(), world.tick(), area.dimension()), status,
                     "source:" + UUID.nameUUIDFromBytes(area.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)),
                     world.tick(), action.scanned,
-                    Map.of("mature_wheat", (long)action.mature, "unknown_cells", (long)action.unknown));
+                    Map.of(action.run.item.equals(ResourceDelivery.OAK_LOG) ? "oak_logs" : "mature_wheat", (long)action.mature, "unknown_cells", (long)action.unknown));
             finish(action, null, status == ObservationStatus.UNKNOWN
                     ? null : new IntValue(action.mature), snapshot);
         }
@@ -541,32 +638,65 @@ public final class SurvivalGateway implements GatewayPort {
         finish(action, null, stock.status() == ObservationStatus.UNKNOWN
                 ? null : new IntValue(stock.wheat()), snapshot);
     }
+    private void observeResourceStock(Active action,ItemStock stock,Cell target) {
+        action.usage.debit(Kind.OBSERVATIONS,1);
+        if (stock.reason()!=null) { finish(action,stock.reason(),null,null); return; }
+        var snapshot=new ObservationSnapshot(new ObservationRef(UUID.randomUUID(),world.tick(),target.dimension()),
+                stock.status(),stock.identity(),world.tick(),1,Map.of("oak_logs",stock.quantity()));
+        finish(action,null,stock.status()==ObservationStatus.UNKNOWN ? null : new IntValue(stock.quantity()),snapshot);
+    }
     private void harvest(Active action, Cell cell) {
         Run run = action.run;
         if (!cell.inside(source(run.request))) { finish(action, Reason.AUTHORITY_DENIED, null, null); return; }
-        CropState crop = world.crop(cell);
+        ItemBlock crop = world.resourceBlock(cell,action.run.item);
         action.usage.debit(Kind.OBSERVATIONS, 1);
         if (crop.status() == ObservationStatus.UNKNOWN) {
             finish(action, Reason.STALE_OBSERVATION, null, null); return;
         }
-        if (crop.status() != ObservationStatus.PRESENT || !crop.matureWheat()) {
+        if (crop.status() != ObservationStatus.PRESENT || !crop.eligible()) {
             finish(action, Reason.TARGET_INVALID, null, null); return;
+        }
+        if (run.item.equals(ResourceDelivery.OAK_LOG)) {
+            long requested=((IntValue)run.request.request().arguments().get("amount")).value();
+            if (run.harvested>=requested) { finish(action,Reason.RESOURCE_MISSING,null,null); return; }
+            Reason denied=world.permit(run.request,Effect.HARVEST,cell);
+            ContainerRef target=destination(run.request);
+            if(denied==null) denied=world.permit(run.request,Effect.TRANSFER,
+                    new Cell(target.dimension(),target.x(),target.y(),target.z()));
+            if (denied==null) denied=world.resourceBreakEligibility(run.actor,cell,run.item);
+            if (denied!=null) { finish(action,denied,null,null); return; }
+            ItemStock actorStock=world.resourceInventory(run.actor,run.item);
+            ItemStock boxStock=world.resourceContainer(destination(run.request),run.item);
+            action.usage.debit(Kind.OBSERVATIONS,2);
+            long remainder=requested-run.deposited;
+            if (!inventoryCurrent(run,actorStock) || boxStock.status()!=ObservationStatus.PRESENT
+                    || boxStock.reason()!=null || actorStock.capacity()<requested-run.harvested
+                    || boxStock.capacity()<remainder) {
+                finish(action,boxStock.reason()==null ? Reason.TARGET_UNAVAILABLE : boxStock.reason(),null,null); return;
+            }
+            if (crop.breakTicks()<1) { finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null); return; }
+            if (action.breakStarted<0) { action.breakStarted=world.tick(); action.breakIdentity=crop.identity(); }
+            if (!action.breakIdentity.equals(crop.identity())) { finish(action,Reason.STALE_OBSERVATION,null,null); return; }
+            if (world.tick()-action.breakStarted<crop.breakTicks()) return;
         }
         if (!effectAllowance(action)) return;
         action.usage.debit(Kind.ATTEMPTED_EFFECTS, 1);
-        Harvest result = world.harvest(run.actor, cell);
-        if (result.cropRemoved()) {
+        ItemHarvest result = world.resourceHarvest(run.actor, cell,run.item,
+                action.breakStarted<0 ? 0 : world.tick()-action.breakStarted);
+        if (result.removed()) {
             committed(action);
-            Batch batch = new Batch(UUID.randomUUID());
+            Batch batch = new Batch(UUID.randomUUID(),cell);
             long wheat = 0;
-            for (Drop drop : result.spawnedWheat()) {
-                if (drop.wheat() > 64 || batch.drops.putIfAbsent(drop.entityId(), drop.wheat()) != null) {
+            for (ItemDrop drop : result.drops()) {
+                if (drop.quantity() > 64 || batch.drops.putIfAbsent(drop.entityId(), drop.quantity()) != null) {
                     finish(action, Reason.ACTION_FAILED, null, null); return;
                 }
-                wheat = Math.addExact(wheat, drop.wheat());
+                wheat = Math.addExact(wheat, drop.quantity());
             }
             if (wheat > 0) {
+                batch.originalDrops=List.copyOf(batch.drops.keySet());
                 run.batches.put(batch.id, batch);
+                run.harvested=Math.addExact(run.harvested,wheat);
                 receipt(action, batch.id, CropDelivery.Stage.HARVEST, wheat);
             }
             finish(action, result.reason(), new IntValue(wheat), null);
@@ -579,14 +709,14 @@ public final class SurvivalGateway implements GatewayPort {
         }
         for (Batch batch : run.batches.values()) {
             for (var entry : batch.drops.entrySet()) {
-                DropState state = world.dropped(entry.getKey());
+                ItemDropState state = world.resourceDrop(entry.getKey(),run.item);
                 action.usage.debit(Kind.OBSERVATIONS, 1);
-                if (state.status() != ObservationStatus.PRESENT || state.wheat() != entry.getValue()) {
+                if (state.status() != ObservationStatus.PRESENT || state.quantity() != entry.getValue()) {
                     if (Boolean.getBoolean("cognitivecraft.gametest.trace"))
                         System.out.println("IMP-007 custody stale stage=tracked-drop run=" + run.id
                                 + " drop=" + entry.getKey() + " expected=" + entry.getValue()
                                 + " state=" + state + " inventoryWheat="
-                                + world.actor(run.actor).inventoryWheat() + " tick=" + world.tick());
+                                + inventoryQuantity(run) + " tick=" + world.tick());
                     finish(action, Reason.STALE_OBSERVATION, null, null); return;
                 }
                 pickup(action, state.cell());
@@ -597,11 +727,11 @@ public final class SurvivalGateway implements GatewayPort {
     }
     private void pickup(Active action, Cell target) {
         Run run = action.run;
-        if (world.actor(run.actor).inventoryWheat() != run.expectedWheat) {
+        if (!inventoryCurrent(run,world.resourceInventory(run.actor,run.item))) {
             if (Boolean.getBoolean("cognitivecraft.gametest.trace"))
                 System.out.println("IMP-007 custody stale stage=actor-stock run=" + run.id
-                        + " expected=" + run.expectedWheat + " actual="
-                        + world.actor(run.actor).inventoryWheat() + " tick=" + world.tick());
+                        + " expected=" + run.expectedItems + " actual="
+                        + inventoryQuantity(run) + " tick=" + world.tick());
             finish(action, Reason.STALE_OBSERVATION, null, null); return;
         }
         Batch batch = null;
@@ -609,9 +739,9 @@ public final class SurvivalGateway implements GatewayPort {
         boolean trackedElsewhere = false;
         for (Batch candidate : run.batches.values()) {
             for (var entry : candidate.drops.entrySet()) {
-                DropState state = world.dropped(entry.getKey());
+                ItemDropState state = world.resourceDrop(entry.getKey(),run.item);
                 action.usage.debit(Kind.OBSERVATIONS, 1);
-                if (state.status() != ObservationStatus.PRESENT || state.wheat() != entry.getValue()) {
+                if (state.status() != ObservationStatus.PRESENT || state.quantity() != entry.getValue()) {
                     if (Boolean.getBoolean("cognitivecraft.gametest.trace"))
                         System.out.println("IMP-007 custody stale stage=pickup-drop run=" + run.id
                                 + " drop=" + entry.getKey() + " expected=" + entry.getValue()
@@ -637,44 +767,51 @@ public final class SurvivalGateway implements GatewayPort {
         if (pickupPermission != null) { finish(action, pickupPermission, null, null); return; }
         if (!effectAllowance(action)) return;
         action.usage.debit(Kind.ATTEMPTED_EFFECTS, 1);
-        Pickup result = world.pickup(run.actor, drop.getKey(), drop.getValue());
-        if (result.collectedWheat() > 0) {
+        ItemPickup result = world.resourcePickup(run.actor, drop.getKey(), drop.getValue(),run.item);
+        if (result.collected() > 0) {
             committed(action);
-            long expected = Math.addExact(run.expectedWheat, result.collectedWheat());
-            if (result.collectedWheat() > drop.getValue()
-                    || result.dropRemaining() != drop.getValue() - result.collectedWheat()
-                    || world.actor(run.actor).inventoryWheat() != expected) {
+            long expected = Math.addExact(run.expectedItems, result.collected());
+            if (result.collected() > drop.getValue()
+                    || result.remaining() != drop.getValue() - result.collected()
+                    || inventoryQuantity(run) != expected) {
                 finish(action, Reason.STALE_OBSERVATION, null, null); return;
             }
-            run.expectedWheat = expected;
-            batch.picked = Math.addExact(batch.picked, result.collectedWheat());
-            if (result.dropRemaining() == 0) batch.drops.remove(drop.getKey());
-            else batch.drops.put(drop.getKey(), result.dropRemaining());
-            receipt(action, batch.id, CropDelivery.Stage.PICKUP, result.collectedWheat());
-            finish(action, result.reason(), new IntValue(result.collectedWheat()), null);
+            run.expectedItems = expected;
+            if (run.item.equals(ResourceDelivery.OAK_LOG)) run.inventoryFingerprint=world.resourceInventory(run.actor,run.item).fingerprint();
+            batch.picked = Math.addExact(batch.picked, result.collected());
+            if (result.remaining() == 0) batch.drops.remove(drop.getKey());
+            else batch.drops.put(drop.getKey(), result.remaining());
+            receipt(action, batch.id, CropDelivery.Stage.PICKUP, result.collected());
+            finish(action, result.reason(), new IntValue(result.collected()), null);
         } else finish(action, result.reason() == null ? Reason.TARGET_UNAVAILABLE : result.reason(), null, null);
     }
     private void transfer(Active action, Cell target) {
         Run run = action.run;
         action.requested = ((IntValue)action.arguments.get("amount")).value() > Integer.MAX_VALUE
                 ? Integer.MAX_VALUE : (int)((IntValue)action.arguments.get("amount")).value();
+        if (run.item.equals(ResourceDelivery.OAK_LOG)
+                && action.requested>((IntValue)run.request.request().arguments().get("amount")).value()-run.deposited) {
+            finish(action,Reason.REQUEST_INVALID,null,null); return;
+        }
         if (run.available() == 0) {
             finish(action, Reason.RESOURCE_MISSING, null, null); return;
         }
-        if (world.actor(run.actor).inventoryWheat() != run.expectedWheat) {
+        if (!inventoryCurrent(run,world.resourceInventory(run.actor,run.item))) {
             finish(action, Reason.STALE_OBSERVATION, null, null); return;
         }
         Batch batch = run.batches.values().stream()
                 .filter(b -> b.picked > b.deposited).findFirst().orElse(null);
         if (batch == null || !effectAllowance(action)) return;
         action.usage.debit(Kind.ATTEMPTED_EFFECTS, 1);
-        Transfer result = world.transferOne(run.actor, destination(run.request));
-        if (result.depositedWheat() == 1) {
+        ItemTransfer result = world.resourceTransferOne(run.actor, destination(run.request),run.item);
+        if (result.deposited() == 1) {
             committed(action);
-            if (world.actor(run.actor).inventoryWheat() != run.expectedWheat - 1) {
+            if (inventoryQuantity(run) != run.expectedItems - 1) {
                 finish(action, Reason.STALE_OBSERVATION, null, null); return;
             }
-            run.expectedWheat--;
+            run.expectedItems--;
+            if (run.item.equals(ResourceDelivery.OAK_LOG)) run.inventoryFingerprint=world.resourceInventory(run.actor,run.item).fingerprint();
+            run.deposited++;
             batch.deposited++;
             action.transferred++;
             receipt(action, batch.id, CropDelivery.Stage.DEPOSIT, 1);
@@ -690,7 +827,7 @@ public final class SurvivalGateway implements GatewayPort {
                 || !action.usage.canDebit(Kind.COMMITTED_EFFECTS, 1)) {
             finish(action, Reason.BUDGET_EXHAUSTED, null, null); return false;
         }
-        if (action.run.receipts.size() >= limits.maxReceiptsPerRun()) {
+        if (action.run.receipts.size() + action.run.resourceReceipts.size() >= limits.maxReceiptsPerRun()) {
             finish(action, Reason.BUDGET_EXHAUSTED, null, null); return false;
         }
         return true;
@@ -701,9 +838,18 @@ public final class SurvivalGateway implements GatewayPort {
         action.usage.debit(Kind.COMMITTED_EFFECTS, 1);
     }
     private void receipt(Active action, UUID batchId, CropDelivery.Stage stage, long wheat) {
-        if (action.run.receipts.size() >= limits.maxReceiptsPerRun())
+        if (action.run.receipts.size() + action.run.resourceReceipts.size() >= limits.maxReceiptsPerRun())
             throw new Budgets.Exhausted();
         Run run = action.run;
+        if (run.item.equals(ResourceDelivery.OAK_LOG)) {
+            Batch batch=run.batches.get(batchId); Cell cell=batch.sourceBlock;
+            UUID operation=UUID.nameUUIDFromBytes((action.handle.id()+"/"+action.effects)
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            var resource=new ResourceDelivery.Receipt(UUID.randomUUID(),run.request.context(),run.id,operation,batchId,
+                    run.actor,source(run.request),destination(run.request),run.item,ResourceDelivery.Stage.valueOf(stage.name()),wheat,
+                    new ResourceDelivery.BlockPosition(cell.dimension(),cell.x(),cell.y(),cell.z()),batch.originalDrops);
+            run.resourceReceipts.add(resource); action.resourceReceipts.add(resource); return;
+        }
         CropDelivery.CropReceipt receipt = new CropDelivery.CropReceipt(
                 UUID.randomUUID(), run.id, batchId, run.actor, source(run.request),
                 destination(run.request), stage, wheat);
@@ -724,14 +870,16 @@ public final class SurvivalGateway implements GatewayPort {
             Cuboid area;
             ObservationKind kind;
             UUID entity = null;
-            if (action.operation == Operation.OBSERVE_SOURCE) {
-                kind = ObservationKind.SOURCE_CROPS; area = source(action.run.request);
+            if (action.operation == Operation.OBSERVE_SOURCE || action.operation == Operation.OBSERVE_OAK_SOURCE) {
+                kind = action.operation.oak() ? ObservationKind.SOURCE_OAK_LOGS : ObservationKind.SOURCE_CROPS; area = source(action.run.request);
             } else {
                 kind = action.operation == Operation.OBSERVE_INVENTORY
                         ? ObservationKind.ACTOR_STOCK : ObservationKind.CONTAINER_STOCK;
+                if (action.operation.oak()) kind=action.operation==Operation.OBSERVE_OAK_INVENTORY
+                        ? ObservationKind.ACTOR_OAK_STOCK : ObservationKind.CONTAINER_OAK_STOCK;
                 Cell cell = target(action);
                 area = new Cuboid(cell.dimension(), cell.x(), cell.y(), cell.z(), cell.x(), cell.y(), cell.z());
-                if (kind == ObservationKind.ACTOR_STOCK) entity = action.run.actor.entityId();
+                if (kind == ObservationKind.ACTOR_STOCK || kind == ObservationKind.ACTOR_OAK_STOCK) entity = action.run.actor.entityId();
             }
             action.evidence = new ObservedEvidence(observationSource, action.run.request.context(),
                     action.run.actor, new ObservationTarget(kind, area, entity), snapshot, observedAt, ++observationSequence);
@@ -755,7 +903,7 @@ public final class SurvivalGateway implements GatewayPort {
     private ActionReceipt current(Active action, boolean terminal, Reason reason,
                                   Value result, ObservationSnapshot snapshot) {
         return new ActionReceipt(action.handle, terminal, action.effects,
-                List.copyOf(action.receipts), reason, result, snapshot);
+                List.copyOf(action.receipts), reason, result, snapshot,List.copyOf(action.resourceReceipts));
     }
     private Active get(ActionHandle handle) {
         Objects.requireNonNull(handle);
@@ -767,7 +915,16 @@ public final class SurvivalGateway implements GatewayPort {
         if (!world.onGameThread()) throw new IllegalStateException("Gateway requires the server thread");
     }
     private static Reason validate(ValidatedRequest request, Operation op, Map<String, Value> args) {
-        if (!request.request().capability().equals(CropDelivery.ID)
+        if(request.request().capability().equals(OakLogDelivery.ID)) {
+            try {
+                var values=request.request().arguments();
+                if(!(values.get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>OakLogDelivery.MAX_AMOUNT
+                        || !(values.get("source") instanceof AreaValue area) || ResourceLeases.cells(area.value())>256)
+                    return Reason.REQUEST_INVALID;
+            } catch(ArithmeticException overflow) { return Reason.REQUEST_INVALID; }
+        }
+        if (!ResourceDelivery.isDelivery(request.request().capability())
+                || op!=Operation.MOVE_TO_DESTINATION && request.request().capability().equals(OakLogDelivery.ID)!=op.oak()
                 || !args.keySet().equals(op.signature().parameters().stream()
                 .map(Parameter::name).collect(java.util.stream.Collectors.toSet())))
             return Reason.REQUEST_INVALID;
@@ -794,13 +951,26 @@ public final class SurvivalGateway implements GatewayPort {
     private static ContainerRef destination(ValidatedRequest request) {
         return ((ContainerValue)request.request().arguments().get("destination")).value();
     }
+    private long inventoryQuantity(Run run) {
+        return run.item.equals(ResourceDelivery.WHEAT) ? world.actor(run.actor).inventoryWheat()
+                : world.resourceInventory(run.actor,run.item).quantity();
+    }
+    private boolean inventoryCurrent(Run run,ItemStock stock) {
+        if (run.item.equals(ResourceDelivery.WHEAT)) return world.actor(run.actor).inventoryWheat()==run.expectedItems;
+        return stock.status()==ObservationStatus.PRESENT && stock.reason()==null
+                && stock.quantity()==run.expectedItems && stock.fingerprint().equals(run.inventoryFingerprint);
+    }
     private Cell target(Active action) {
-        if (action.operation == Operation.OBSERVE_SOURCE
+        if (action.operation == Operation.OBSERVE_SOURCE || action.operation==Operation.OBSERVE_OAK_SOURCE
+                || action.operation==Operation.APPROACH_OAK_LOG || action.operation==Operation.HARVEST_NEXT_OAK_LOG
                 || action.operation == Operation.HARVEST_NEXT_WHEAT) {
+            if (action.selectedTarget!=null) return action.selectedTarget;
             Cuboid area = source(action.run.request);
             return new Cell(area.dimension(), area.minX(), area.minY(), area.minZ());
         }
         if (action.operation == Operation.OBSERVE_CONTAINER
+                || action.operation == Operation.OBSERVE_OAK_CONTAINER
+                || action.operation == Operation.TRANSFER_OAK_LOGS
                 || action.operation == Operation.TRANSFER_WHEAT
                 || action.operation == Operation.MOVE_TO_DESTINATION) {
             ContainerRef box = destination(action.run.request);

@@ -61,9 +61,15 @@ public final class BoundedSkillExecutor {
     public record Summary(UUID runId, ArtifactRef artifact, UUID researchId,
                           List<ArtifactRef> pinned, long committedEffects,
                           List<CropDelivery.CropReceipt> receipts, Execution outcome,
-                          Map<Kind, Long> usage) {
+                          Map<Kind, Long> usage, List<ResourceDelivery.Receipt> resourceReceipts) {
+        public Summary(UUID runId, ArtifactRef artifact, UUID researchId, List<ArtifactRef> pinned,
+                       long committedEffects, List<CropDelivery.CropReceipt> receipts,
+                       Execution outcome, Map<Kind, Long> usage) {
+            this(runId, artifact, researchId, pinned, committedEffects, receipts, outcome, usage, List.of());
+        }
         public Summary {
             pinned = List.copyOf(pinned); receipts = List.copyOf(receipts);
+            resourceReceipts = List.copyOf(resourceReceipts);
             usage = Map.copyOf(usage);
         }
     }
@@ -234,6 +240,8 @@ public final class BoundedSkillExecutor {
         private final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         private final List<Trace> trace = new ArrayList<>();
         private final Map<UUID, CropDelivery.CropReceipt> receiptsById = new HashMap<>();
+        private final List<ResourceDelivery.Receipt> resourceReceipts = new ArrayList<>();
+        private final Map<UUID, ResourceDelivery.Receipt> resourceReceiptsById = new HashMap<>();
         private long pendingEffects;
         private Pending pending;
         private long lastTick;
@@ -346,7 +354,7 @@ public final class BoundedSkillExecutor {
                 stack.pop();
                 record("return", frame.ref);
                 if (stack.isEmpty()) {
-                    if (CropDelivery.completed(request, correlation.runId(), receipts))
+                    if (ResourceDelivery.completed(request, correlation.runId(), receipts, resourceReceipts))
                         finish(ExecutionStatus.SUCCEEDED, null);
                     else finish(ExecutionStatus.FAILED, Reason.ACTION_FAILED);
                 } else if (frame.returnInto != null && !frame.returnInto.isEmpty()) {
@@ -427,9 +435,19 @@ public final class BoundedSkillExecutor {
                 CropDelivery.CropReceipt prior = receiptsById.get(receipt.receiptId());
                 if (prior != null && !prior.equals(receipt)) throw new InvalidRun();
                 if (prior == null) {
-                    if (receipts.size() >= settings.maxReceipts()) throw new Budgets.Exhausted();
+                    if (receipts.size() + resourceReceipts.size() >= settings.maxReceipts()) throw new Budgets.Exhausted();
                     receiptsById.put(receipt.receiptId(), receipt);
                     receipts.add(receipt);
+                }
+            }
+            for (ResourceDelivery.Receipt receipt : answer.resourceReceipts()) {
+                if (!ResourceDelivery.matches(request, correlation.runId(), receipt)) throw new InvalidRun();
+                ResourceDelivery.Receipt prior = resourceReceiptsById.get(receipt.receiptId());
+                if (prior != null && !prior.equals(receipt)) throw new InvalidRun();
+                if (prior == null) {
+                    if (receipts.size() + resourceReceipts.size() >= settings.maxReceipts()) throw new Budgets.Exhausted();
+                    resourceReceiptsById.put(receipt.receiptId(), receipt);
+                    resourceReceipts.add(receipt);
                 }
             }
         }
@@ -456,7 +474,9 @@ public final class BoundedSkillExecutor {
             }
             terminal = new Execution(status, reason, effects,
                     status == ExecutionStatus.SUCCEEDED ?
-                            new EvidenceRef(correlation.runId().toString(), "crop-delivery:1",
+                            new EvidenceRef(correlation.runId().toString(),
+                                    request.request().capability().equals(OakLogDelivery.ID)
+                                            ? "resource-delivery:1" : "crop-delivery:1",
                                     request.context().scope().domainId().toString()) : null);
             try { if (stopConfirmed) release.release(correlation.runId()); }
             finally { record(status.name(), correlation.artifact()); }
@@ -481,7 +501,7 @@ public final class BoundedSkillExecutor {
         private Progress snapshot() {
             Phase phase = terminal != null ? Phase.TERMINAL : pending != null ? Phase.WAITING : Phase.RUNNING;
             Summary summary = new Summary(correlation.runId(), correlation.artifact(), correlation.researchId(),
-                    List.copyOf(pinned.keySet()), effects, receipts, terminal, usage.snapshot());
+                    List.copyOf(pinned.keySet()), effects, receipts, terminal, usage.snapshot(), resourceReceipts);
             return new Progress(phase, summary, trace);
         }
     }

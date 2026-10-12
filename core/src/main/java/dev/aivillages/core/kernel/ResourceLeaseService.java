@@ -224,6 +224,31 @@ public final class ResourceLeaseService {
         if(!publish(rows,state.generation()))return unavailable();
         return new Result(Code.PENDING,null,row.group(),List.of(ref),0,0);
     }
+    /** Host-only accounting of one removed oak block, including zero/partial loot outcomes.
+     * Drop item counts never debit source block units. The leased gateway supplies the stable native action ID. */
+    public Result consumedOakBlock(Ref ref,ValidatedRequest bound,RunCorrelation run,UUID operation,TrustedContext caller) {
+        checkThread(); long tick=now();
+        if(!ready()) return unavailable();
+        if(ref==null || operation==null || bound==null || run==null || !bound.context().equals(caller))
+            return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        Lease row=find(ref.id()); Result error=reference(row,ref,caller,tick,true);
+        if(error!=null) return error;
+        OwnerFacts facts=facts(row.owner(),caller);
+        if(!bound.request().capability().equals(OakLogDelivery.ID) || !row.resource().oakBlocks()
+                || !((ActorValue)bound.request().arguments().get("actor")).value().equals(facts.worker())
+                || !run.runId().equals(facts.run())
+                || !((AreaValue)bound.request().arguments().get("source")).value().equals(row.resource().area()))
+            return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        Long prior=row.consumed().get(operation);
+        if(prior!=null) return result(prior==1 ? Code.VALID : Code.REJECTED,prior==1 ? null : Reason.REQUEST_INVALID);
+        if(row.remaining()<1 || row.consumed().size()>=64) return result(Code.REJECTED,Reason.BUDGET_EXHAUSTED);
+        var consumed=new LinkedHashMap<>(row.consumed()); consumed.put(operation,1L);
+        Lease next=new Lease(row.id(),row.group(),row.epoch(),row.generation(),row.owner(),row.origin(),row.resource(),
+                row.quantity(),row.remaining()-1,row.identity(),row.granted(),row.renewed(),row.expires(),row.renewals(),row.state(),null,consumed);
+        List<Lease> rows=new ArrayList<>(state.leases()); replace(rows,next);
+        if(!publish(rows,state.generation())) return unavailable();
+        return new Result(Code.PENDING,null,row.group(),List.of(ref),0,0);
+    }
     public void tick() {
         checkThread();long tick=now();lastReconciled=0;
         if(fenced)return;
@@ -295,7 +320,7 @@ public final class ResourceLeaseService {
         return switch(a.kind()) {
             case SPACE,FACILITY -> true;
             case EQUIPMENT -> a.slot()==b.slot();
-            case STOCK -> a.item().equals(b.item());
+            case STOCK -> a.item().equals(b.item()) && a.slot()==b.slot();
         };
     }
     private boolean live(Lease l,long tick) {

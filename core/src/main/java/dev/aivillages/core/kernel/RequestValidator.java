@@ -41,8 +41,9 @@ public final class RequestValidator {
             if (spec.parameters().stream().noneMatch(p -> p.name().equals(key)))
                 return invalid("$.arguments." + key);
         }
-        if (spec.completion() == Completion.ATTRIBUTABLE_CROP_DELIVERY) {
-            if (!spec.id().equals(CropDelivery.ID)
+        if (spec.completion() == Completion.ATTRIBUTABLE_CROP_DELIVERY
+                || spec.completion() == Completion.ATTRIBUTABLE_RESOURCE_DELIVERY) {
+            if (!ResourceDelivery.spec(spec.id()).filter(spec::equals).isPresent()
                     || !(values.get("actor") instanceof ActorValue actorValue)
                     || !(values.get("source") instanceof AreaValue areaValue)
                     || !(values.get("destination") instanceof ContainerValue destinationValue))
@@ -50,6 +51,10 @@ public final class RequestValidator {
             ActorRef actor = actorValue.value();
             Cuboid source = areaValue.value();
             ContainerRef destination = destinationValue.value();
+            if (spec.id().equals(OakLogDelivery.ID)) {
+                try { if(ResourceLeases.cells(source)>256) return invalid("$.arguments.source"); }
+                catch(ArithmeticException overflow) { return invalid("$.arguments.source"); }
+            }
             if (!actor.dimension().equals(source.dimension())
                     || !actor.dimension().equals(destination.dimension())
                     || !actor.dimension().equals(observation.dimension())) return invalid("$.dimension");

@@ -35,6 +35,7 @@ public final class LeasedGateway implements GatewayPort {
         ActionReceipt current,saved;
         Ref consuming;
         CropDelivery.CropReceipt consumption;
+        UUID oakConsumption;
         Action(ActionHandle handle,Run run,PrimitiveRequirement primitive,Map<String,Value> arguments,
                Budgets.Ledger usage,long tick) {
             this.handle=handle;this.run=run;this.primitive=primitive;this.arguments=Map.copyOf(arguments);
@@ -69,8 +70,7 @@ public final class LeasedGateway implements GatewayPort {
     public static Binding cropWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
         Binding spaces=workspaces(owners,request,run);
         var demands=new ArrayList<>(spaces.demands());
-        demands.add(new Demand(Resource.crops(request.context().scope().worldId(),
-                ((AreaValue)request.request().arguments().get("source")).value()),
+        demands.add(new Demand(sourceResource(request.context().scope().worldId(),request),
                 ((IntValue)request.request().arguments().get("amount")).value()));
         return new Binding(spaces.owner(),demands);
     }
@@ -84,7 +84,7 @@ public final class LeasedGateway implements GatewayPort {
             return new Result(Code.VALID,null,null,List.of(),0,0);
         Cuboid source=((AreaValue)request.request().arguments().get("source")).value();
         ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
-        var demands=List.of(new Demand(Resource.crops(world,source),((IntValue)request.request().arguments().get("amount")).value()),
+        var demands=List.of(new Demand(sourceResource(world,request),((IntValue)request.request().arguments().get("amount")).value()),
                 new Demand(Resource.space(world,source),1),new Demand(Resource.facility(world,destination),1));
         int inspected=0;
         for(Demand demand:demands) {
@@ -147,8 +147,10 @@ public final class LeasedGateway implements GatewayPort {
             if(!action.run.binding.equals(bindings.bind(action.run.request,action.run.correlation)))
                 return fail(action,Reason.AUTHORITY_DENIED);
         }catch(SecurityException denied){return fail(action,Reason.AUTHORITY_DENIED);}
-        if(action.consumption!=null) {
-            Result result=leases.consumed(action.consuming,action.consumption,action.run.request.context());
+        if(action.consumption!=null || action.oakConsumption!=null) {
+            Result result=action.oakConsumption!=null
+                    ? leases.consumedOakBlock(action.consuming,action.run.request,action.run.correlation,action.oakConsumption,action.run.request.context())
+                    : leases.consumed(action.consuming,action.consumption,action.run.request.context());
             if(result.code()==Code.PENDING)return waitForPublication(action);
             if(!result.usable())return fail(action,result.reason());
             action.current=map(action.saved,handle,true,action.saved.reason());return action.current;
@@ -167,10 +169,11 @@ public final class LeasedGateway implements GatewayPort {
         }
         var operation=GatewayPrimitives.instance().operation(action.primitive).orElse(null);
         if(operation==GatewayPrimitives.Operation.HARVEST_WHEAT
-                || operation==GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT) {
+                || operation==GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT
+                || operation==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG) {
             for(Ref ref:granted.leases()) {
                 Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
-                if(claim.resource().item().equals("minecraft:mature_wheat") && claim.remaining()<1)
+                if((claim.resource().item().equals("minecraft:mature_wheat") || claim.resource().oakBlocks()) && claim.remaining()<1)
                     return fail(action,Reason.RESOURCE_MISSING);
             }
         }
@@ -179,6 +182,17 @@ public final class LeasedGateway implements GatewayPort {
         ActionReceipt answer=delegate.poll(action.nativeHandle);
         action.accounted=ticks.getAsLong();
         action.current=map(answer,handle,answer.terminal(),answer.reason());
+        if(answer.terminal() && operation==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG && answer.committedEffects()>0) {
+            for(Ref ref:granted.leases()) {
+                Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
+                if(claim.resource().oakBlocks()) {
+                    action.saved=answer; action.consuming=ref; action.oakConsumption=action.nativeHandle.id();
+                    Result recorded=leases.consumedOakBlock(ref,run.request,run.correlation,action.oakConsumption,run.request.context());
+                    if(recorded.code()==Code.PENDING) { action.current=map(answer,handle,false,null); return action.current; }
+                    if(!recorded.usable()) return fail(action,recorded.reason());
+                }
+            }
+        }
         if(answer.terminal() && answer.reason()==null) {
             for(CropDelivery.CropReceipt receipt:answer.cropReceipts())
                 if(receipt.stage()==CropDelivery.Stage.HARVEST) {
@@ -248,7 +262,11 @@ public final class LeasedGateway implements GatewayPort {
     }
     private static ActionReceipt map(ActionReceipt r,ActionHandle handle,boolean terminal,Reason reason) {
         return new ActionReceipt(handle,terminal,r.committedEffects(),r.cropReceipts(),reason,
-                reason==null?r.result():null,reason==null?r.observation():null);
+                reason==null?r.result():null,reason==null?r.observation():null,r.resourceReceipts());
+    }
+    private static Resource sourceResource(UUID world,ValidatedRequest request) {
+        Cuboid source=((AreaValue)request.request().arguments().get("source")).value();
+        return request.request().capability().equals(OakLogDelivery.ID) ? Resource.oakBlocks(world,source) : Resource.crops(world,source);
     }
     private Action get(ActionHandle handle) {
         Action action=actions.get(handle.id());

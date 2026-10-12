@@ -20,6 +20,19 @@ public final class WorldReferenceDiscovery {
         ActorState actor(ActorRef actor);
         CropState crop(ActorRef actor, Point point);
         ContainerSample container(ActorRef actor, ContainerRef container);
+        default ItemBlock itemBlock(ActorRef actor,Point point,ResourceDelivery.ItemIdentity item) {
+            if(item.equals(ResourceDelivery.WHEAT)) {
+                CropState c=crop(actor,point); return new ItemBlock(c.status(),c.matureWheat(),c.identity(),0);
+            }
+            return new ItemBlock(ObservationStatus.UNKNOWN,false,"unsupported",0);
+        }
+        default ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,ResourceDelivery.ItemIdentity item) {
+            if(item.equals(ResourceDelivery.WHEAT)) {
+                ContainerSample c=container(actor,target);
+                return new ItemContainerSample(item,c.status(),c.wheatCapacity(),c.slotsInspected(),c.identity());
+            }
+            return new ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unsupported");
+        }
     }
     public record ContainerSample(ObservationStatus status, int wheatCapacity, int slotsInspected, String identity) {
         public ContainerSample {
@@ -35,6 +48,70 @@ public final class WorldReferenceDiscovery {
             wheat = Map.copyOf(wheat);
             if (wheat.size() > MAX_REGION_CELLS || volume(area) > MAX_REGION_CELLS)
                 throw new IllegalArgumentException("Field evidence bounds");
+        }
+    }
+    public record SourceArea(Cuboid area,Map<Point,Boolean> eligible,WheatField originalWheat) {
+        public SourceArea {
+            eligible=Map.copyOf(eligible);
+            if(volume(area)>MAX_REGION_CELLS || eligible.size()>MAX_REGION_CELLS)
+                throw new IllegalArgumentException("Source evidence");
+        }
+        public boolean oak() { return originalWheat==null; }
+    }
+    public record ItemContainerSample(ResourceDelivery.ItemIdentity item,ObservationStatus status,int capacity,
+                                      int slotsInspected,String identity) {
+        public ItemContainerSample {
+            Objects.requireNonNull(item); Objects.requireNonNull(status); Objects.requireNonNull(identity);
+            if(capacity<0 || slotsInspected<0 || slotsInspected>MAX_CONTAINER_SLOTS || identity.length()>128)
+                throw new IllegalArgumentException("Item container evidence");
+        }
+    }
+    public record ItemContainerTarget(ContainerRef container,ItemContainerSample evidence) { }
+    private static <A,B> Discovery<B> mapDiscovery(Discovery<A> source,java.util.function.Function<A,B> mapper) {
+        return new Discovery<>() {
+            public Scan<B> poll(int work) {
+                Scan<A> s=source.poll(work);
+                return new Scan<>(s.candidates().stream().map(c -> new Candidate<>(mapper.apply(c.value()),
+                        c.rankPoint(),c.stableIdentity())).toList(),s.chargedWork(),s.complete(),s.emptyReason(),s.diagnostics());
+            }
+            public void cancel() { source.cancel(); }
+        };
+    }
+    public static Discovery<SourceArea> sources(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
+        if(capability.equals(CropDelivery.ID)) return mapDiscovery(wheat(actor,amount,anchor,world),
+                f -> new SourceArea(f.area(),f.wheat(),f));
+        if(!capability.equals(OakLogDelivery.ID) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
+            throw new IllegalArgumentException("Source capability");
+        return new OakLogDiscovery.Source(actor,amount,anchor,world);
+    }
+    public static Discovery<ItemContainerTarget> itemContainers(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
+        if(capability.equals(CropDelivery.ID)) return mapDiscovery(containers(actor,amount,anchor,world),
+                c -> new ItemContainerTarget(c.container(),new ItemContainerSample(ResourceDelivery.WHEAT,c.evidence().status(),
+                        c.evidence().wheatCapacity(),c.evidence().slotsInspected(),c.evidence().identity())));
+        if(!capability.equals(OakLogDelivery.ID) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
+            throw new IllegalArgumentException("Container capability");
+        return new OakLogDiscovery.Containers(actor,amount,anchor,world);
+    }
+    public static final class SourceValidation {
+        private final SourceArea source; private final ActorRef actor; private final Observation world;
+        private final FieldValidation wheat; private int cursor;
+        public SourceValidation(SourceArea source,ActorRef actor,Observation world) {
+            this.source=source; this.actor=actor; this.world=world;
+            wheat=source.oak() ? null : new FieldValidation(source.originalWheat(),actor,world);
+        }
+        public ValidationStep poll(int maximum) {
+            if(wheat!=null) return wheat.poll(maximum);
+            int work=0,size=Math.toIntExact(volume(source.area()));
+            var a=source.area(); int width=a.maxX()-a.minX()+1,depth=a.maxZ()-a.minZ()+1;
+            while(work<maximum && cursor<size) {
+                Point p=new Point(a.dimension(),a.minX()+cursor%width,a.minY()+cursor/(width*depth),a.minZ()+(cursor/width)%depth);
+                cursor++; work++;
+                var current=world.itemBlock(actor,p,ResourceDelivery.OAK_LOG);
+                boolean expected=source.eligible().containsKey(p);
+                if(current.status()==ObservationStatus.UNKNOWN || (current.status()==ObservationStatus.PRESENT && current.eligible())!=expected)
+                    return new ValidationStep(work,true,Reason.STALE_OBSERVATION);
+            }
+            return new ValidationStep(work,cursor==size,null);
         }
     }
     public static Discovery<WheatField> wheat(ActorRef actor, int amount, Point anchor, Observation observation) {

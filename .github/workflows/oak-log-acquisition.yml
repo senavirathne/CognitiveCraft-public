@@ -1,0 +1,149 @@
+name: RB-001 oak-log acquisition acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/oak-log-acquisition.yml','.github/implementation/RB-001*']
+  push:
+    branches: [main,rb-001-oak-log-acquisition]
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/oak-log-acquisition.yml','.github/implementation/RB-001*']
+permissions:
+  contents: read
+concurrency:
+  group: rb001-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  owners-and-native:
+    name: RB unit matrix, physical trial and two-JVM offline reuse
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: All modules, scoped matrix and native test packaging
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+          python3 scripts/verify-rb001.py junit
+          python3 scripts/verify-rb001.py identity
+      - name: Select actual survival/loot/component native case
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.OakLogEffectGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+      - name: Actual survival timing, drops and component slots
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb001.py native --phase effects --class-name oak_log_effect_game_tests --marker RB001_EFFECTS
+          mv fabric/build/gametest-run fabric/build/rb001-effects-run
+      - name: Select production KernelSession acquisition fixture
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.OakLogKernelGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+      - name: Controlled proposal, real compile/trial/admission and offline rebind
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb001.py native --phase controlled --class-name oak_log_kernel_game_tests --marker 'RB001_NATIVE phase=cold genuine=false'
+          mv fabric/build/gametest-run fabric/build/rb001-controlled-run
+      - name: Start existing pinned configured generation backend
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-rb-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:11434/api/version && break; sleep 2; done
+          docker exec cognitivecraft-rb-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+          curl --fail --silent http://127.0.0.1:11434/api/tags > build/rb001-evidence/models.json
+          curl --fail --silent --show-error http://127.0.0.1:11434/api/generate --header 'Content-Type: application/json' --data '{"model":"qwen3:4b-instruct-2507-q4_K_M","stream":false,"keep_alive":"30m"}' | python3 -c 'import json,sys; assert json.load(sys.stdin)["done"]'
+      - name: Genuine configured-backend candidate and actual physical admission
+        timeout-minutes: 16
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+          COGNITIVECRAFT_RB001_GENUINE: 'true'
+          COGNITIVECRAFT_RB001_PHASE: cold
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb001.py native --phase genuine-cold --class-name oak_log_kernel_game_tests --marker 'RB001_NATIVE phase=cold genuine=true'
+      - name: Stop actual backend and prove endpoint unavailable
+        run: |
+          docker stop cognitivecraft-rb-ollama
+          test "$(docker inspect --format='{{.State.Running}}' cognitivecraft-rb-ollama)" = false
+          if curl --silent --max-time 2 http://127.0.0.1:11434/api/version >/dev/null; then exit 1; fi
+      - name: Reopen same saved world in another JVM with inference unavailable
+        env:
+          COGNITIVECRAFT_RB001_GENUINE: 'true'
+          COGNITIVECRAFT_RB001_PHASE: warm
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb001.py native --phase genuine-warm --class-name oak_log_kernel_game_tests --marker 'RB001_NATIVE phase=warm genuine=true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb001-owner-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb001-evidence/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/rb001-effects-run/
+            fabric/build/rb001-controlled-run/
+            fabric/build/gametest-run/
+            fabric/build/libs/
+  connected-client:
+    name: GP-RB-01 genuine language, two principals and abrupt same-save restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Production binary and existing harness tests
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/verify-rb001.py identity
+      - name: Acquire existing pinned Needle test backend
+        run: python3 tools/needle/install.py build/needle
+      - name: Actual connected client GP-RB-01
+        run: |
+          python3 e2e/suite.py --profile rb001 --root build/e2e/rb001
+          python3 scripts/verify-rb001.py client
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb001-connected-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb001-evidence/
+            build/e2e/rb001/
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar

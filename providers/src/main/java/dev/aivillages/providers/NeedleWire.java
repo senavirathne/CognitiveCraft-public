@@ -33,6 +33,9 @@ public final class NeedleWire {
     public static Prepared prepare(LanguageRequests.Input input) {
         LanguageReferenceClassifier.Classification classification =
                 LanguageReferenceClassifier.classify(input.text(), input.references());
+        boolean oak=classification.intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS;
+        String sourceAlias=oak ? "area" : "farm";
+        String resource=oak ? "oak logs" : "wheat";
         String prompt = input.text(), from = null, through = null, destination = null;
 
         if (classification.source().state() == ReferenceState.EXPLICIT_CONCRETE) {
@@ -40,7 +43,7 @@ public final class NeedleWire {
             through = classification.source().second();
             var source = Pattern.compile("\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
                     Pattern.CASE_INSENSITIVE).matcher(prompt);
-            if (source.find()) prompt = prompt.substring(0, source.start()) + "from farm" + prompt.substring(source.end());
+            if (source.find()) prompt = prompt.substring(0, source.start()) + "from "+sourceAlias + prompt.substring(source.end());
         }
         if (classification.destination().state() == ReferenceState.EXPLICIT_CONCRETE) {
             destination = classification.destination().first();
@@ -54,9 +57,9 @@ public final class NeedleWire {
         }
 
         if (classification.source().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:field|farm)\\b", "from farm");
+            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:field|farm|oak\\s+logs?|log\\s+area)\\b", "from "+sourceAlias);
         if (classification.destination().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\b(?:to|into|in)\\s+(?:the\\s+)?nearest\\s+(?:chest|container|barrel)\\b", "to chest");
+            prompt = prompt.replaceFirst("(?i)\\b(?:to|into|in)\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)\\b", "to chest");
 
         String explicitId = null;
         String explicitCitizen = classification.actor().state() == ReferenceState.EXPLICIT_CONCRETE
@@ -80,20 +83,20 @@ public final class NeedleWire {
                 harvestProperties.put("citizen", ordered("type", "string", "enum", citizenLiterals(input, explicitCitizen),
                         "description", "Citizen who will harvest"));
             harvestProperties.put("amount", ordered("type", "integer",
-                    "description", "How many wheat to harvest and deliver"));
+                    "description", "How many "+resource+" to acquire and deliver"));
             if (statedReference(classification.source().state()))
-                harvestProperties.put("source", ordered("type", "string", "enum", List.of("farm"),
-                        "description", "Farm to harvest wheat from"));
+                harvestProperties.put("source", ordered("type", "string", "enum", List.of(sourceAlias),
+                        "description", "Bounded source area for "+resource));
             if (statedReference(classification.destination().state()))
                 harvestProperties.put("destination", ordered("type", "string", "enum", List.of("chest"),
-                        "description", "Container to deliver wheat into"));
-            tools.add(ordered("name", "harvest_wheat",
-                    "description", "Harvest wheat from a source area and deliver it to a container. Copy only stated arguments.",
+                        "description", "Container to deliver "+resource+" into"));
+            tools.add(ordered("name", oak ? "gather_oak_logs" : "harvest_wheat",
+                    "description", "Acquire "+resource+" from a source area and deliver it to a container. Copy only stated arguments.",
                     "parameters", ordered("type", "object", "properties", harvestProperties,
                             "required", List.copyOf(harvestProperties.keySet()))));
         }
 
-        if (classification.intent() != LanguageReferenceClassifier.Intent.HARVEST_WHEAT) {
+        if (classification.intent() != LanguageReferenceClassifier.Intent.HARVEST_WHEAT && !oak) {
             Map<String, Object> namingProperties = new LinkedHashMap<>();
             if (explicitCitizen != null)
                 namingProperties.put("citizen", ordered("type", "string", "enum", List.of(explicitCitizen),
@@ -166,7 +169,10 @@ public final class NeedleWire {
                     || prepared.classification().destination().state() == ReferenceState.EXPLICIT_UNSUPPORTED)
                 return LanguageRequests.Result.clarification();
             return switch (tool) {
-                case "harvest_wheat" -> decodeHarvest(arguments, confidence, prepared);
+                case "harvest_wheat" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS
+                        ? LanguageRequests.Result.invalid() : decodeHarvest(arguments,confidence,prepared);
+                case "gather_oak_logs" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS
+                        ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
                 case "name_citizen" -> decodeNaming(arguments, confidence, prepared);
                 default -> LanguageRequests.Result.invalid();
             };
@@ -193,7 +199,7 @@ public final class NeedleWire {
             if ("selected".equals(citizen) && prepared.explicitCitizenId() != null)
                 citizen = prepared.explicitCitizenId();
         }
-        if (required.contains("source") && !"farm".equals(string(arguments, "source")))
+        if (required.contains("source") && !(prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS ? "area" : "farm").equals(string(arguments, "source")))
             return LanguageRequests.Result.invalid();
         if (required.contains("destination") && !"chest".equals(string(arguments, "destination")))
             return LanguageRequests.Result.invalid();
@@ -201,7 +207,8 @@ public final class NeedleWire {
             if (!"selected".equals(citizen)) return LanguageRequests.Result.invalid();
             citizen = null;
         }
-        var extracted = new LanguageRequests.Extracted(LanguageRequests.Action.HARVEST_WHEAT,
+        var extracted = new LanguageRequests.Extracted(prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS
+                ? LanguageRequests.Action.GATHER_OAK_LOGS : LanguageRequests.Action.HARVEST_WHEAT,
                 citizen, amount, prepared.from(), prepared.through(), prepared.destination(), null);
         return new LanguageRequests.Result(LanguageRequests.Kind.EXTRACTED, extracted,
                 confidence.doubleValue());

@@ -1,0 +1,311 @@
+{
+  "unit": "RB-001",
+  "baseline": "bf6b985d3d37c4a1529ae31723bc672f96e69ac2",
+  "documentation_first_commit": "6d3da32c6e777239117e189386fea0e036c2651e",
+  "source_committed": false,
+  "source_published": false,
+  "source_compiled": false,
+  "new_tests_executed": false,
+  "reviewed_by_static_inspection_only": true,
+  "code_manifest_sha256": "97fa96534884270962f6022225d87a5e7aa75431d27c66766b249ff4c96becaa",
+  "files": [
+    {
+      "path": ".github/workflows/oak-log-acquisition.yml",
+      "bytes": 7404,
+      "sha256": "c13e7f9bbb85875d55e9696e1436544c147b3fcd35373f64e40cf99fed650f19"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java",
+      "bytes": 34944,
+      "sha256": "8bd617a537b10fcac83bbfd83c85c9aa61bcc87dd10029add5d9286dce511c92"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/BoundedSkillExecutor.java",
+      "bytes": 29145,
+      "sha256": "fd92d8969892d77aafe18d86202a589e4aa86a6c331aa163969906c47adc1b2e"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/CapabilityResolver.java",
+      "bytes": 26607,
+      "sha256": "83a3dbadffc6db3ff0d4adfe9d266d8d298ec2561f6d5d87cd1d926499a6d808"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/Contracts.java",
+      "bytes": 17540,
+      "sha256": "baf4e21676aff8b25644e60ed516f70444130b1ad6cf8abe8cf73d105394320a"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/CropFixtureRunner.java",
+      "bytes": 19553,
+      "sha256": "e42103902e6355a557e3f4a5f2a9986d33ac3c80311b5d7baa3b121e87c6d727"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/GatewayPrimitives.java",
+      "bytes": 5686,
+      "sha256": "6ba445bc06f83512e7017675c21127cd3420157008bd640accebe606ccb80c29"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/JobCodec.java",
+      "bytes": 17559,
+      "sha256": "6494b6d22b00b1a24c5afea23db6b8a614c81d775a2d3ee1614e3d6d250330d3"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/JobJournal.java",
+      "bytes": 13477,
+      "sha256": "b550da2a14cfba1490424ec05dc894d2f77cb5a64e5d9ddda96f753c9a0c2d68"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java",
+      "bytes": 80902,
+      "sha256": "bfe89c66dd51c87a797d79d1a0320777917f1a3941a51d782c9107df11972779"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/Jobs.java",
+      "bytes": 16479,
+      "sha256": "5aebfb7d43328ad3a569f09bf6fe82fe13198ed04d57a610cd199527e79031a7"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/LanguageReferenceClassifier.java",
+      "bytes": 13911,
+      "sha256": "0ee2f12d53ae1242384a6c039ce2373a12ecef5e9e7984a8b09f3b121b439f21"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/LanguageRequests.java",
+      "bytes": 35229,
+      "sha256": "7789e018d75e566fa892542299ac58dd5204258a7870534e36497a5921d83e20"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/LeasePrerequisiteSupplies.java",
+      "bytes": 2564,
+      "sha256": "74db387c96152a51700def706af00ecada348107452098f022ab11c7419b9abe"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/LeasedGateway.java",
+      "bytes": 17788,
+      "sha256": "639c4823cc24bbcb6c3d74954938f1f8474c601e5b0a8413d88c100196cbc42a"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/OakLogDelivery.java",
+      "bytes": 2398,
+      "sha256": "3b36e2c6f2490ce27bee05c8cb8b060588f63209de9e8b7d213850e681af7e71"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/OakLogDiscovery.java",
+      "bytes": 6853,
+      "sha256": "f3442b2a50d3eb580c54baba5855783c71c01333ed3c2d02cf2323e590903a26"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/ObservedWorldKnowledgeStore.java",
+      "bytes": 52470,
+      "sha256": "5f99b81c8b678832ee4512fc3d788c778f957d4d494e2445b0b8327ba04c2ce2"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/PlanningGoals.java",
+      "bytes": 4282,
+      "sha256": "024175412d3e274b452bd8aa25e52530c71eca88a7d613c5a4484aa803e0fdb4"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/RequestValidator.java",
+      "bytes": 4583,
+      "sha256": "2feee861de9aa2ad351640e5983196b861b32e67c5a6bc4df2bba513762fab01"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/ResearchAdmissionController.java",
+      "bytes": 48640,
+      "sha256": "5dc51f5fdc4f58f13b38ebf1d05d50d816c6bac551691db3a4b0722792d25e2a"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/ResourceDelivery.java",
+      "bytes": 6683,
+      "sha256": "a35c19c418ddfcedb9fa1ff64645a096a6d889b4040445295716b2b867fc467b"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/ResourceLeaseService.java",
+      "bytes": 28366,
+      "sha256": "07296f9ec4e5de5044933e680111a8f097ce4b8a1c380f0a29f614a1962a1432"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/ResourceLeases.java",
+      "bytes": 9564,
+      "sha256": "6eb360d90ef1fc8a0b11cca5e219528b0bdccb0ac0549907ccc6cdca78b03d4c"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/SaveCompatibility.java",
+      "bytes": 16757,
+      "sha256": "303992a4c438e36d9b21f75707bcb863704eb113ec3fd9a9f5e7dac243207235"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java",
+      "bytes": 57674,
+      "sha256": "9a17bccf5618144bbbc6a612ea8fed33809f3aee6672b0ea9c39cd9a3fbbf0da"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java",
+      "bytes": 26939,
+      "sha256": "d3b01d84c41ee1a8765230683fef430e491ad6b6fd2fd9d3746c846f178ab374"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/WorldReferenceBinding.java",
+      "bytes": 20518,
+      "sha256": "77fe72a7f2f031db9991a5340e2bec1398505d7bc8e036f381c6bbacc57c060e"
+    },
+    {
+      "path": "core/src/main/java/dev/aivillages/core/kernel/WorldReferenceDiscovery.java",
+      "bytes": 28450,
+      "sha256": "a6346d97ba3198745c5ff914df2eefd67839a8bd8591d747a5571533b77f4a2f"
+    },
+    {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogDiscoveryTest.java",
+      "bytes": 3528,
+      "sha256": "e33e5f7d7a995f927bdd37ed6603ca92dfe05c5ce4e09032daa808b3d48875ee"
+    },
+    {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogGatewayTest.java",
+      "bytes": 4599,
+      "sha256": "6993550acf47008ca4527ac167977e37f86f7996f2225a59423dc5af546c3b36"
+    },
+    {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogJobLifecycleTest.java",
+      "bytes": 6539,
+      "sha256": "18de36f0c6cfa35d7b2dc31e0e69a8b2b9ae14db7aae9ef7325f1e831f24b23a"
+    },
+    {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogLanguageTest.java",
+      "bytes": 1850,
+      "sha256": "ffb147e381e7c947b659728ed56b58405a6cf075bba784bc71eafa00404e60e1"
+    },
+    {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogTestSupport.java",
+      "bytes": 11317,
+      "sha256": "594a0437fa0f9029b7fcc21ff55199049b367345ba0088ff504c78f11feb9c58"
+    },
+    {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/ResourceDeliveryTest.java",
+      "bytes": 4625,
+      "sha256": "d8e43f61571ee1868e82b4468424963c8608f7a24e23807930a6b01a889b71b3"
+    },
+    {
+      "path": "core/src/test/resources/rb001-wheat-primitives.json",
+      "bytes": 1342,
+      "sha256": "e65fe083e91717b141fa734e2fb228c23c9b6af598b2697817096ecdee98c59c"
+    },
+    {
+      "path": "e2e/oak.py",
+      "bytes": 11184,
+      "sha256": "e8da068f62b5221854adb8b5e991eaa5c7dcb77d1829fbb1aeaaf287eda32f3b"
+    },
+    {
+      "path": "e2e/suite.py",
+      "bytes": 103975,
+      "sha256": "74a5c824278f74c249dca6def2dbc54113122e16eab484345be238dd9134860d"
+    },
+    {
+      "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogEffectGameTests.java",
+      "bytes": 8218,
+      "sha256": "d6c60507ac8e0001bdbf6f745270fe3369796b236b8a301644f97475c4ecdfbb"
+    },
+    {
+      "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogFixtures.java",
+      "bytes": 3401,
+      "sha256": "9e756928126e2663be3d8cdc6b85cf5c45c582b18fc73f9b8e91ed1184180fbd"
+    },
+    {
+      "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogKernelGameTests.java",
+      "bytes": 9212,
+      "sha256": "b4315bc0427caa017c93a9253e2436f3195450661d63619e20b3ded2803f153e"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
+      "bytes": 41174,
+      "sha256": "a12aed9663da566e8bc487a25f5f0689f56123428948e95c39c2f6638829904c"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/FabricResourceLeaseWorld.java",
+      "bytes": 6906,
+      "sha256": "347729c448ebc128ce0c5e20d0a00bf172f55ece27c0b7f6c44294293e84662c"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/FabricWorldReferenceResolver.java",
+      "bytes": 5114,
+      "sha256": "e21f771157b095b890403e67385062e36b49555ef1533d2d4e8266a655994c0e"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/ItemContainerCapacity.java",
+      "bytes": 1054,
+      "sha256": "cb235f7d8d8b78affcc5acaf507acfa009a5227713383d291c0441a2ae35c7b2"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/KernelCommands.java",
+      "bytes": 15836,
+      "sha256": "3822bb14dfd25416538edce988464f36849e5a22d406212e4122b825f17618f2"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/KernelRunStatus.java",
+      "bytes": 2313,
+      "sha256": "adeda112fee3c717babd9206f7671917254d60b40e37888e5d2f81fa454eb87e"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/KernelSession.java",
+      "bytes": 67841,
+      "sha256": "93b1b9c50bac3d6d15b1d047f046c3d85cf25727c409bbc4f492fc3a01bef580"
+    },
+    {
+      "path": "fabric/src/main/java/dev/aivillages/fabric/mixin/ItemPickupOwnershipMixin.java",
+      "bytes": 1177,
+      "sha256": "6aae39abb99fab14c2166e15e725ab6cc0d7477a4aa56556118f89b019914c9d"
+    },
+    {
+      "path": "fabric/src/main/resources/ai-villages.mixins.json",
+      "bytes": 240,
+      "sha256": "453d4347cf1317973499f8808eed38142b5638da5906bf99f49e3abefb2ca21b"
+    },
+    {
+      "path": "providers/src/main/java/dev/aivillages/providers/LocalGenerationAdapter.java",
+      "bytes": 39043,
+      "sha256": "2073b6d390ac9bde1b465f07964e0537bbc9ab4c0859821c02921ffe38ee8766"
+    },
+    {
+      "path": "providers/src/main/java/dev/aivillages/providers/NeedleWire.java",
+      "bytes": 16047,
+      "sha256": "bd2e50d5e6623a77c3876fcb0c577430cfd4ea1f65ecdd3bdc86e7a0da3e456f"
+    },
+    {
+      "path": "providers/src/test/java/dev/aivillages/providers/OakLogGenerationTest.java",
+      "bytes": 3061,
+      "sha256": "defc78690eb1c93602d6b987b1aaeff4abc171a2c4fdfffc8bd1aa682f4ba4c6"
+    },
+    {
+      "path": "providers/src/test/java/dev/aivillages/providers/OakLogNeedleWireTest.java",
+      "bytes": 1217,
+      "sha256": "f8771979f360a23b6215911c6eb27bb3f85856630149dea48a87f1a0aca5e902"
+    },
+    {
+      "path": "scripts/verify-rb001.py",
+      "bytes": 4354,
+      "sha256": "e2481f59d58c18f0f0580048b5bd3b0d8c828132c9da0258bab95d288b0d3ce8"
+    }
+  ],
+  "generated_at": "2026-10-12T13:11:27.557366+00:00",
+  "source_tests_planned_minimum_junit": 27,
+  "all_acceptance_pending": true,
+  "documentation_actions": {
+    "run_ids": [
+      38239828254,
+      38241512795
+    ],
+    "conclusion": "failure",
+    "last_job": 114784980315,
+    "steps": 0,
+    "logs_http_status": 404,
+    "reason": "not exposed by connector"
+  },
+  "imp021": {
+    "pr": 20,
+    "state": "open",
+    "merged": false,
+    "head": "438c56a721b45afaf415d76b3837d80605729c0b"
+  },
+  "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
+  "source_publication_authorized": true,
+  "merge_after_required_checks_authorized": true
+}

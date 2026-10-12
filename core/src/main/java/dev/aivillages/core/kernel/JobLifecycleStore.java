@@ -465,7 +465,7 @@ public final class JobLifecycleStore {
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
         try {
-            if (!job.request().request().capability().equals(CropDelivery.ID)
+            if (!ResourceDelivery.isDelivery(job.request().request().capability())
                     || (job.state() != State.READY && !(job.state() == State.WAITING && artifact == null))
                     || job.current() != null && job.current().open()
                     || !dependenciesSucceeded(job, rows(), work))
@@ -565,8 +565,20 @@ public final class JobLifecycleStore {
                             .anyMatch(r -> r.receiptId().equals(receipt.receiptId())))
                         return reject(Reason.REQUEST_INVALID, work);
             }
-            if (receipts.size() + job.attempts().stream().filter(a -> !a.id().equals(old.id()))
-                    .mapToInt(a -> a.receipts().size()).sum() > settings.receipts())
+            Map<UUID, ResourceDelivery.Receipt> resources = new LinkedHashMap<>();
+            old.resourceReceipts().forEach(r -> resources.put(r.receiptId(),r));
+            for (var receipt : report.resourceReceipts()) {
+                validateReceipt(old,receipt);
+                var previous = resources.putIfAbsent(receipt.receiptId(),receipt);
+                if (previous != null && !previous.equals(receipt) || receipts.containsKey(receipt.receiptId()))
+                    return reject(Reason.REQUEST_INVALID,work);
+                for (Job other : state.jobs()) for (Attempt a : other.attempts())
+                    if (!a.id().equals(old.id()) && (a.resourceReceipts().stream().anyMatch(r -> r.receiptId().equals(receipt.receiptId()))
+                            || a.receipts().stream().anyMatch(r -> r.receiptId().equals(receipt.receiptId()))))
+                        return reject(Reason.REQUEST_INVALID,work);
+            }
+            if (receipts.size() + resources.size() + job.attempts().stream().filter(a -> !a.id().equals(old.id()))
+                    .mapToInt(Attempt::receiptCount).sum() > settings.receipts())
                 return reject(Reason.STORAGE_LIMIT_REACHED, work);
             var usage = new EnumMap<Budgets.Kind, Long>(Budgets.Kind.class); usage.putAll(old.usage());
             for (var entry : report.usage().entrySet()) {
@@ -582,17 +594,18 @@ public final class JobLifecycleStore {
             }
             boolean obsolete = !current || old.terminal() != null && !reconciliation;
             List<CropDelivery.CropReceipt> merged = List.copyOf(receipts.values());
-            long credit = obsolete ? old.credited() : Math.min(quantity(old, merged),
+            List<ResourceDelivery.Receipt> mergedResources = List.copyOf(resources.values());
+            long credit = obsolete ? old.credited() : Math.min(quantity(old, merged, mergedResources),
                     ((IntValue)old.bound().request().arguments().get("amount")).value());
             Execution terminal = obsolete ? old.terminal() : report.terminal();
             if (!obsolete && terminal != null && terminal.status() == ExecutionStatus.SUCCEEDED
                     && old.executions().stream().noneMatch(r ->
-                    CropDelivery.completed(old.bound(), r.runId(), merged)))
+                    ResourceDelivery.completed(old.bound(), r.runId(), merged, mergedResources)))
                 return reject(Reason.ACTION_FAILED, work);
             boolean uncertain = reconciliation ? false : old.uncertain()
                     || !obsolete && terminal != null && terminal.status() == ExecutionStatus.INTERRUPTED;
             Attempt updated = attempt(old, old.executions(), usage, merged, effects, credit,
-                    terminal, uncertain, old.cancellationDeliveries());
+                    terminal, uncertain, old.cancellationDeliveries(), mergedResources);
             if (updated.equals(old)) return duplicate(job, work);
             if (current) {
                 Change denied = guard(job, guard, work); if (denied != null) return denied;
@@ -677,8 +690,7 @@ public final class JobLifecycleStore {
                 return reject(Reason.REQUEST_INVALID, work);
             Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt())).findFirst().orElseThrow();
             if (attempt.terminal() == null || attempt.uncertain()) return reject(Reason.STALE_OBSERVATION, work);
-            var receipt = attempt.receipts().stream().filter(r -> r.receiptId().equals(allocation.receipt())
-                    && r.stage() == CropDelivery.Stage.DEPOSIT).findFirst().orElseThrow();
+            var receipt = credit(attempt,allocation.receipt()).filter(Credit::deposit).orElseThrow();
             if (pairMaximum < 1) return reject(Reason.REQUEST_INVALID, work);
             long receiptUse = 0, batchUse = 0, demandUse = 0, pairUse = 0;
             for (Allocation used : state.allocations()) {
@@ -687,15 +699,15 @@ public final class JobLifecycleStore {
                     pairUse = Math.addExact(pairUse, used.quantity());
                 if (used.producer().equals(producer.id()) && used.attempt().equals(attempt.id())) {
                     if (used.receipt().equals(receipt.receiptId())) receiptUse = Math.addExact(receiptUse, used.quantity());
-                    var other = attempt.receipts().stream().filter(r -> r.receiptId().equals(used.receipt())).findFirst().orElseThrow();
+                    var other = credit(attempt,used.receipt()).orElseThrow();
                     if (other.batchId().equals(receipt.batchId()) && other.runId().equals(receipt.runId()))
                         batchUse = Math.addExact(batchUse, used.quantity());
                 }
             }
             long needed = ((IntValue)demand.request().request().arguments().get("amount")).value();
-            long batch = batchQuantity(attempt.receipts(), receipt.runId(), receipt.batchId());
+            long batch = batchQuantity(attempt, receipt.runId(), receipt.batchId());
             if (Math.addExact(pairUse, allocation.quantity()) > pairMaximum
-                    || Math.addExact(receiptUse, allocation.quantity()) > receipt.wheat()
+                    || Math.addExact(receiptUse, allocation.quantity()) > receipt.quantity()
                     || Math.addExact(batchUse, allocation.quantity()) > batch
                     || Math.addExact(demandUse, allocation.quantity()) > needed - demand.fulfilled())
                 return reject(Reason.RESOURCE_MISSING, work);
@@ -945,8 +957,13 @@ public final class JobLifecycleStore {
     private static Attempt attempt(Attempt old, List<ExecutionReference> refs, Map<Budgets.Kind, Long> usage,
                                    List<CropDelivery.CropReceipt> receipts, long effects, long credited,
                                    Execution terminal, boolean uncertain, int deliveries) {
+        return attempt(old,refs,usage,receipts,effects,credited,terminal,uncertain,deliveries,old.resourceReceipts());
+    }
+    private static Attempt attempt(Attempt old,List<ExecutionReference> refs,Map<Budgets.Kind,Long> usage,
+                                   List<CropDelivery.CropReceipt> receipts,long effects,long credited,
+                                   Execution terminal,boolean uncertain,int deliveries,List<ResourceDelivery.Receipt> resources) {
         return new Attempt(old.id(), old.generation(), old.worker(), old.bound(), old.allowance(),
-                refs, usage, receipts, effects, credited, terminal, uncertain, deliveries);
+                refs, usage, receipts, effects, credited, terminal, uncertain, deliveries,resources);
     }
     private static Job copyUsage(Job job, Map<Budgets.Kind, Long> usage) {
         return new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(),
@@ -954,13 +971,31 @@ public final class JobLifecycleStore {
                 job.allowance(), usage, job.generation(), job.attempts(), job.events());
     }
     private static void validateReceipt(Attempt attempt, CropDelivery.CropReceipt receipt) {
-        if (attempt.executions().stream().noneMatch(r -> r.runId().equals(receipt.runId()))
+        if (!attempt.bound().request().capability().equals(CropDelivery.ID)
+                || attempt.executions().stream().noneMatch(r -> r.runId().equals(receipt.runId()))
                 || !receipt.actor().equals(attempt.worker())
                 || !receipt.source().equals(((AreaValue)attempt.bound().request().arguments().get("source")).value())
                 || !receipt.destination().equals(((ContainerValue)attempt.bound().request().arguments().get("destination")).value()))
             throw new Limited(Reason.AUTHORITY_DENIED);
     }
+    private static void validateReceipt(Attempt attempt,ResourceDelivery.Receipt receipt) {
+        if (!attempt.bound().request().capability().equals(OakLogDelivery.ID)
+                || attempt.executions().stream().noneMatch(r -> r.runId().equals(receipt.runId()))
+                || !ResourceDelivery.matches(attempt.bound(),receipt.runId(),receipt))
+            throw new Limited(Reason.AUTHORITY_DENIED);
+    }
     private static long quantity(Attempt attempt, List<CropDelivery.CropReceipt> receipts) {
+        return quantity(attempt,receipts,attempt.resourceReceipts());
+    }
+    private static long quantity(Attempt attempt,List<CropDelivery.CropReceipt> receipts,List<ResourceDelivery.Receipt> resources) {
+        if (attempt.bound().request().capability().equals(OakLogDelivery.ID)) {
+            if (!receipts.isEmpty()) throw new IllegalArgumentException("Crop evidence for oak");
+            long total=0;
+            for (var run : attempt.executions()) total=Math.addExact(total,ResourceDelivery.quantity(attempt.bound(),
+                    run.runId(),resources.stream().filter(r -> r.runId().equals(run.runId())).toList()));
+            return total;
+        }
+        if (!resources.isEmpty()) throw new IllegalArgumentException("Resource evidence for wheat");
         var batches = new HashSet<List<UUID>>(); long result = 0;
         for (var receipt : receipts) batches.add(List.of(receipt.runId(), receipt.batchId()));
         for (var batch : batches) result = Math.addExact(result, batchQuantity(receipts, batch.getFirst(), batch.getLast()));
@@ -971,6 +1006,20 @@ public final class JobLifecycleStore {
         for (var receipt : receipts) if (receipt.runId().equals(run) && receipt.batchId().equals(batch))
             stages[receipt.stage().ordinal()] = Math.addExact(stages[receipt.stage().ordinal()], receipt.wheat());
         return Math.min(stages[0], Math.min(stages[1], stages[2]));
+    }
+    private record Credit(UUID receiptId,UUID runId,UUID batchId,long quantity,boolean deposit) { }
+    private static Optional<Credit> credit(Attempt a,UUID id) {
+        if (a.bound().request().capability().equals(OakLogDelivery.ID))
+            return a.resourceReceipts().stream().filter(r -> r.receiptId().equals(id)).findFirst()
+                    .map(r -> new Credit(r.receiptId(),r.runId(),r.batchId(),r.quantity(),r.stage()==ResourceDelivery.Stage.DEPOSIT));
+        return a.receipts().stream().filter(r -> r.receiptId().equals(id)).findFirst()
+                .map(r -> new Credit(r.receiptId(),r.runId(),r.batchId(),r.wheat(),r.stage()==CropDelivery.Stage.DEPOSIT));
+    }
+    private static long batchQuantity(Attempt a,UUID run,UUID batch) {
+        return a.bound().request().capability().equals(OakLogDelivery.ID)
+                ? ResourceDelivery.quantity(a.bound(),run,a.resourceReceipts().stream()
+                        .filter(r -> r.runId().equals(run) && r.batchId().equals(batch)).toList())
+                : batchQuantity(a.receipts(),run,batch);
     }
     private static Map<String,Value> withWorker(Map<String,Value> original, ActorRef worker) {
         var values = new HashMap<>(original); values.put("actor",new ActorValue(worker)); return values;
@@ -993,21 +1042,20 @@ public final class JobLifecycleStore {
                 throw new IllegalArgumentException("Allocation scope/bindings");
             Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt()))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("Allocation attempt"));
-            var receipt = attempt.receipts().stream().filter(r -> r.receiptId().equals(allocation.receipt()))
-                    .findFirst().orElseThrow(() -> new IllegalArgumentException("Allocation receipt"));
-            if (attempt.open() || receipt.stage() != CropDelivery.Stage.DEPOSIT)
+            var receipt = credit(attempt,allocation.receipt()).orElseThrow(() -> new IllegalArgumentException("Allocation receipt"));
+            if (attempt.open() || !receipt.deposit())
                 throw new IllegalArgumentException("Unobserved allocation");
             long receiptSpent = 0, batchSpent = 0, demandSpent = 0;
             for (Allocation other : snapshot.allocations()) {
                 if (other.receipt().equals(receipt.receiptId())) receiptSpent = Math.addExact(receiptSpent, other.quantity());
                 if (other.producer().equals(producer.id()) && other.attempt().equals(attempt.id())) {
-                    var source = attempt.receipts().stream().filter(r -> r.receiptId().equals(other.receipt())).findFirst();
+                    var source = credit(attempt,other.receipt());
                     if (source.isPresent() && source.get().batchId().equals(receipt.batchId())
                             && source.get().runId().equals(receipt.runId())) batchSpent = Math.addExact(batchSpent, other.quantity());
                 }
                 if (other.demand().equals(demand.id())) demandSpent = Math.addExact(demandSpent, other.quantity());
             }
-            if (receiptSpent > receipt.wheat() || batchSpent > batchQuantity(attempt.receipts(), receipt.runId(), receipt.batchId())
+            if (receiptSpent > receipt.quantity() || batchSpent > batchQuantity(attempt, receipt.runId(), receipt.batchId())
                     || Math.addExact(demandSpent, demand.fulfilled()) > ((IntValue)demand.request().request().arguments().get("amount")).value())
                 throw new IllegalArgumentException("Allocation overspent");
         }
@@ -1015,11 +1063,11 @@ public final class JobLifecycleStore {
         for (Job job : snapshot.jobs()) {
             if (job.children().size() > settings.children() || job.dependencies().size() > settings.children()
                     || job.attempts().size() > settings.attempts() || job.events().size() > settings.events()
-                    || job.attempts().stream().mapToInt(a -> a.receipts().size()).sum() > settings.receipts()
+                    || job.attempts().stream().mapToInt(Attempt::receiptCount).sum() > settings.receipts()
                     || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
                 throw new IllegalArgumentException("Configured job bounds");
             boolean goal=job.request().request().capability().equals(PlanningGoals.ID);
-            if ((!job.request().request().capability().equals(CropDelivery.ID) && !goal)
+            if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal)
                     || goal && (!PlanningGoals.valid(job.request().request()) || !job.attempts().isEmpty())
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
                     || quantity.value() < 1 || quantity.value() > 64
@@ -1052,6 +1100,10 @@ public final class JobLifecycleStore {
                 for (var receipt : attempt.receipts()) {
                     validateReceipt(attempt, receipt);
                     if (!receipts.add(receipt.receiptId())) throw new IllegalArgumentException("Duplicate receipt ownership");
+                }
+                for (var receipt : attempt.resourceReceipts()) {
+                    validateReceipt(attempt,receipt);
+                    if (!receipts.add(receipt.receiptId())) throw new IllegalArgumentException("Duplicate resource receipt ownership");
                 }
                 if (attempt.credited() > quantity(attempt, attempt.receipts()))
                     throw new IllegalArgumentException("Unattributed credit");

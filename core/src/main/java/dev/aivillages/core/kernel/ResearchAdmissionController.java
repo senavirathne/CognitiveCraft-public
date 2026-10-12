@@ -32,6 +32,11 @@ public final class ResearchAdmissionController {
             + "transfer_wheat uses amount={int:1}. Keep movement, harvest, pickup and transfer "
             + "as separate calls. Do not transfer before pickup or use any effect twice. "
             + "Give each call a distinct into name. End with result={param:amount}. ";
+    private static final String OAK_BRIEF = "Produce schema-1 Skill IR for bounded oak-log delivery. "
+            + "Bind actor, amount, source and destination parameters; use only the supplied registered signatures. "
+            + "Keep adjacent approach, timed harvest, delay observations, tracked pickup, destination movement and transfer separate. "
+            + "Repeat causally for param:amount. Use observe_oak_inventory to wait at least 20 ticks after harvesting; "
+            + "transfer one owned log per iteration, end with result param:amount. Never use wheat primitives or fixed coordinates. ";
     public enum Phase {
         QUARANTINING, GENERATING, VALIDATING, FIXTURING, PREPARING_TRIAL, TRIALING,
         PUBLISHING, CANCELLING, TERMINAL
@@ -195,10 +200,15 @@ public final class ResearchAdmissionController {
 
     public record Status(Phase phase, Research outcome, ArtifactRef candidate,
                          long committedEffects, List<CropDelivery.CropReceipt> receipts,
-                         Map<Kind, Long> usage, List<SkillCompiler.Diagnostic> diagnostics) {
+                         Map<Kind, Long> usage, List<SkillCompiler.Diagnostic> diagnostics,
+                         List<ResourceDelivery.Receipt> resourceReceipts) {
+        public Status(Phase phase,Research outcome,ArtifactRef candidate,long committedEffects,
+                      List<CropDelivery.CropReceipt> receipts,Map<Kind,Long> usage,List<SkillCompiler.Diagnostic> diagnostics) {
+            this(phase,outcome,candidate,committedEffects,receipts,usage,diagnostics,List.of());
+        }
         public Status {
             Objects.requireNonNull(phase);
-            receipts = List.copyOf(receipts);
+            receipts = List.copyOf(receipts); resourceReceipts=List.copyOf(resourceReceipts);
             usage = Map.copyOf(usage);
             diagnostics = List.copyOf(diagnostics);
         }
@@ -296,7 +306,8 @@ public final class ResearchAdmissionController {
         }
         attempt.generate(Generation.Role.INITIAL, "Current source observation="
                 + route.observation().status()
-                + ", mature_wheat=" + route.observation().counts().getOrDefault("mature_wheat", 0L));
+                + (bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
+                + route.observation().counts().getOrDefault(bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
         return attempt;
     }
     public Attempt startRepair(ValidatedRequest bound, ArtifactRef parent, EvidenceRef defect,
@@ -328,13 +339,13 @@ public final class ResearchAdmissionController {
         return attempt;
     }
     private boolean valid(ValidatedRequest bound) {
-        if (!bound.request().capability().equals(CropDelivery.ID)
+        if (!ResourceDelivery.isDelivery(bound.request().capability())
                 || !bound.observation().dimension().equals(
                         bound.request().arguments().get("actor") instanceof ActorValue actor
                                 ? actor.value().dimension() : "")) return false;
         Map<String, Value> args = bound.request().arguments();
-        if (args.size() != CropDelivery.SPEC.parameters().size()) return false;
-        for (Parameter parameter : CropDelivery.SPEC.parameters()) {
+        if (args.size() != ResourceDelivery.spec(bound.request().capability()).orElseThrow().parameters().size()) return false;
+        for (Parameter parameter : ResourceDelivery.spec(bound.request().capability()).orElseThrow().parameters()) {
             Value value = args.get(parameter.name());
             if (value == null || value.type() != parameter.type()
                     || value instanceof IntValue integer && (integer.value() < parameter.minimum()
@@ -345,11 +356,12 @@ public final class ResearchAdmissionController {
                         .equals(bound.observation().dimension());
     }
     private boolean allowed(ValidatedRequest bound) {
-        if (!bound.request().capability().equals(CropDelivery.ID)
-                || !capabilities.find(CropDelivery.ID).filter(CropDelivery.SPEC::equals).isPresent()
+        if (!ResourceDelivery.isDelivery(bound.request().capability())
+                || !capabilities.find(bound.request().capability()).filter(ResourceDelivery.spec(bound.request().capability()).orElseThrow()::equals).isPresent()
                 || !(bound.request().arguments().get("actor") instanceof ActorValue value)
                 || !control.controls(value.value(), bound.context())) return false;
-        for (Effect required : List.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
+        for (Effect required : bound.request().capability().equals(OakLogDelivery.ID) ? OakLogDelivery.SPEC.effects()
+                : List.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
             if (!authority.currentlyAllows(value.value(), required, bound.context())) return false;
         return true;
     }
@@ -407,13 +419,13 @@ public final class ResearchAdmissionController {
                     compiled == null ? null : compiled.artifact().descriptor().ref(),
                     trialSummary == null ? 0 : trialSummary.committedEffects(),
                     trialSummary == null ? List.of() : trialSummary.receipts(),
-                    total.snapshot(), diagnostics);
+                    total.snapshot(), diagnostics,trialSummary==null ? List.of() : trialSummary.resourceReceipts());
         }
         private void inspect(TrustedContext caller) {
             if (!bound.context().equals(caller)) throw new SecurityException("Private research attempt");
         }
         private void generate(Generation.Role role, String context) {
-            String prompt = CROP_BRIEF + context;
+            String prompt = (bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > settings.maxContextBytes()) {
                 finish(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED); return;
             }
@@ -426,13 +438,7 @@ public final class ResearchAdmissionController {
             // Only crop-relevant observation, custody and typed movement signatures.
             // Coordinate-targeted movement and unrelated catalog entries remain undisclosed.
             Generation.Request request = new Generation.Request(UUID.randomUUID(), bound,
-                    CropDelivery.SPEC, List.of(
-                            GatewayPrimitives.Operation.MOVE_TO_SOURCE.signature(),
-                            GatewayPrimitives.Operation.MOVE_TO_DESTINATION.signature(),
-                            GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT.signature(),
-                            GatewayPrimitives.Operation.OBSERVE_INVENTORY.signature(),
-                            GatewayPrimitives.Operation.PICKUP_TRACKED_WHEAT.signature(),
-                            GatewayPrimitives.Operation.TRANSFER_WHEAT.signature()),
+                    ResourceDelivery.spec(bound.request().capability()).orElseThrow(),primitiveBrief(bound.request().capability()),
                     List.of(), role, prompt);
             expectedGeneration = request.id(); expectedRole = role;
             try {
@@ -494,7 +500,7 @@ public final class ResearchAdmissionController {
                     trialSummary = progress.summary();
                     staging.clear();
                     if (trialSummary.outcome().status() == ExecutionStatus.SUCCEEDED
-                            && CropDelivery.completed(bound, trialSummary.runId(), trialSummary.receipts()))
+                            && ResourceDelivery.completed(bound, trialSummary.runId(), trialSummary.receipts(),trialSummary.resourceReceipts()))
                         publish();
                     else if (trialSummary.outcome().status() == ExecutionStatus.SUCCEEDED)
                         finish(ResearchStatus.NOT_ADMITTED, Reason.ARTIFACT_INVALID);
@@ -568,7 +574,7 @@ public final class ResearchAdmissionController {
                     new SkillCompiler(capabilities, primitives, artifacts).compile(source),
                     sha256(source), acceptedModel == null ? null
                             : PrimitiveDiagnostics.ProviderMetadata.project(acceptedModel),
-                    acceptedModel == null ? "" : PrimitiveDiagnostics.requestShape(CropDelivery.SPEC, acceptedRole)),
+                    acceptedModel == null ? "" : PrimitiveDiagnostics.requestShape(ResourceDelivery.spec(bound.request().capability()).orElseThrow(), acceptedRole)),
                     staticWorker).whenComplete((compiled, failure) ->
                     events.add(new Event(token, compiled, failure)));
         }
@@ -674,7 +680,7 @@ public final class ResearchAdmissionController {
                     "compiler:1", "bounded-static");
             EvidenceRef trialCheck = Objects.requireNonNull(trialSummary.outcome().completion());
             EvidenceBundle bundle = new EvidenceBundle(staticCheck, fixture.evidence(), trialCheck,
-                    receiptsDigest(trialSummary.receipts()));
+                    trialSummary.resourceReceipts().isEmpty() ? receiptsDigest(trialSummary.receipts()) : sha256(trialSummary.resourceReceipts().stream().map(Object::toString).sorted().toList().toString()));
             AdmissionDecision admission = new AdmissionDecision(UUID.randomUUID(), bound.context(), bundle);
             Provenance provenance = new Provenance(1, model == null ? null
                     : model.protocol() + "/" + model.model() + "/" + model.digest(),
@@ -760,6 +766,16 @@ public final class ResearchAdmissionController {
             } catch (RuntimeException ignored) { }
             referenceGuard.test(java.util.Set.of());
         }
+    }
+    private static List<PrimitiveSignature> primitiveBrief(CapabilityId id) {
+        var ops=id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
+                GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,
+                GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
+                GatewayPrimitives.Operation.TRANSFER_OAK_LOGS) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,
+                GatewayPrimitives.Operation.MOVE_TO_DESTINATION,GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT,
+                GatewayPrimitives.Operation.OBSERVE_INVENTORY,GatewayPrimitives.Operation.PICKUP_TRACKED_WHEAT,
+                GatewayPrimitives.Operation.TRANSFER_WHEAT);
+        return ops.stream().map(GatewayPrimitives.Operation::signature).toList();
     }
     private static String receiptsDigest(List<CropDelivery.CropReceipt> receipts) {
         List<String> rows = receipts.stream().map(CropDelivery.CropReceipt::toString).sorted().toList();

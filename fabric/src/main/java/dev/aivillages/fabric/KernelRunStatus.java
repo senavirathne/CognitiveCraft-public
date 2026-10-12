@@ -33,7 +33,7 @@ final class KernelRunStatus {
                 + (checkpoint && view.outcome() != null
                         ? " effects=" + view.outcome().committedEffects() : "")
                 + " modelCalls=" + calls + " artifact=" + artifact
-                + " receipts=" + view.receipts().size()
+                + " receipts=" + (view.receipts().size()+view.resourceReceipts().size())
                 + (view.storageError() == null ? "" : " storage=" + view.storageError())
                 + (marker != null && (marker.phase() == BootstrapJournal.Phase.INTERRUPTED
                         || view.storageError() != null)

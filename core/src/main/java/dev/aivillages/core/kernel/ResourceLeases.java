@@ -35,7 +35,8 @@ public final class ResourceLeases {
             boolean point = area.minX()==area.maxX() && area.minY()==area.maxY() && area.minZ()==area.maxZ();
             boolean valid = switch (kind) {
                 case STOCK -> slot == -1 && (item.equals("minecraft:mature_wheat")
-                        || point && item.equals("minecraft:wheat"));
+                        || point && (item.equals("minecraft:wheat") || item.equals("minecraft:oak_log")))
+                        || slot == -2 && item.equals("minecraft:oak_log");
                 case EQUIPMENT -> point && slot >= 0 && slot < 128 && item.equals("minecraft:iron_hoe");
                 case FACILITY -> point && slot == -1 && (item.equals("minecraft:storage")
                         || item.equals("minecraft:crafting_table"));
@@ -49,6 +50,14 @@ public final class ResourceLeases {
         public static Resource crops(UUID world, Cuboid a) {
             return new Resource(world,Kind.STOCK,a,"minecraft:mature_wheat",-1);
         }
+        /** -2 denotes block units; -1 denotes actual container item units. */
+        public static Resource oakBlocks(UUID world,Cuboid area) {
+            return new Resource(world,Kind.STOCK,area,"minecraft:oak_log",-2);
+        }
+        public static Resource oakStock(UUID world,ContainerRef c) {
+            return new Resource(world,Kind.STOCK,point(c),"minecraft:oak_log",-1);
+        }
+        public boolean oakBlocks() { return kind==Kind.STOCK && slot==-2 && item.equals("minecraft:oak_log"); }
         public static Resource facility(UUID world, ContainerRef c) {
             return new Resource(world,Kind.FACILITY,point(c),"minecraft:storage",-1);
         }

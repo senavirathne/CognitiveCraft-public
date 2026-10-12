@@ -13,7 +13,7 @@ import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 public final class LanguageReferenceClassifier {
     private LanguageReferenceClassifier() { }
 
-    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN }
+    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS }
 
     public record Slot(ReferenceState state, String first, String second, String evidence) {
         public Slot {
@@ -51,7 +51,7 @@ public final class LanguageReferenceClassifier {
     private static final Pattern SOURCE_COORD = Pattern.compile(
             "\\bfrom\\s+" + COORD + "\\s+through\\s+" + COORD, Pattern.CASE_INSENSITIVE);
     private static final Pattern SOURCE_NEAREST = Pattern.compile(
-            "\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:field|farm)\\b", Pattern.CASE_INSENSITIVE);
+            "\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:field|farm|oak\\s+logs?|log\\s+area)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern SOURCE_ANY = Pattern.compile(
             "\\bfrom\\s+(.{1,160}?)(?=\\s+(?:and\\s+)?(?:deliver|deposit|put)\\b|[.!?]|$)",
             Pattern.CASE_INSENSITIVE);
@@ -61,7 +61,7 @@ public final class LanguageReferenceClassifier {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern DEST_NEAREST = Pattern.compile(
             "\\b(?:deliver|deposit|put)\\b.{0,200}?\\b(?:to|into)\\s+(?:the\\s+)?nearest\\s+"
-                    + "(?:chest|container|barrel)\\b", Pattern.CASE_INSENSITIVE);
+                    + "(?:suitable\\s+)?(?:chest|container|barrel)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern DEST_ANY = Pattern.compile(
             "\\b(?:deliver|deposit|put)\\b(.{0,220})", Pattern.CASE_INSENSITIVE);
     private static final Pattern DEST_STANDALONE = Pattern.compile(
@@ -88,8 +88,17 @@ public final class LanguageReferenceClassifier {
                     Slot.omitted(), naming.proposedName());
         }
         Slot actor = actor(text, references);
-        return new Classification(containsWord(text, "wheat") && Pattern.compile("\\b(harvest|gather|collect)\\b", Pattern.CASE_INSENSITIVE).matcher(text).find() ? Intent.HARVEST_WHEAT : Intent.UNKNOWN,
-                actor, source(text), destination(text), null);
+        boolean action=Pattern.compile("\\b(harvest|gather|collect)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find();
+        boolean oak=Pattern.compile("\\boak\\s+logs?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find();
+        boolean wheat=containsWord(text,"wheat");
+        Intent intent=action && wheat && !oak ? Intent.HARVEST_WHEAT
+                : action && oak && !wheat && !Pattern.compile("\\b(?:stripped|wood|leaves|birch|spruce|jungle|acacia|dark|mangrove|cherry|pale|crimson|warped|bamboo|stone|ores?|axes?)\\b",
+                        Pattern.CASE_INSENSITIVE).matcher(text).find() ? Intent.GATHER_OAK_LOGS : Intent.UNKNOWN;
+        Slot source=source(text);
+        if(intent==Intent.GATHER_OAK_LOGS && source.state()==ReferenceState.EXPLICIT_NEAREST
+                && Pattern.compile("\\b(?:field|farm)\\b",Pattern.CASE_INSENSITIVE).matcher(source.evidence()).find())
+            source=Slot.unsupported(source.evidence());
+        return new Classification(intent,actor,source,destination(text),null);
     }
 
     private static Slot actor(String text, List<String> references) {
@@ -105,7 +114,7 @@ public final class LanguageReferenceClassifier {
             if (!reference.matches("(?i)(please|can|could|will|would|do|let us)"))
                 return Slot.concrete(reference, null, reference);
         }
-        Matcher afterAction = Pattern.compile("\\b(?:harvest|gather|collect)\\b[^,]{1,80}\\bwheat\\s*,\\s*([^,]{1,128})\\s*,",
+        Matcher afterAction = Pattern.compile("\\b(?:harvest|gather|collect)\\b[^,]{1,80}\\b(?:wheat|oak\\s+logs?)\\s*,\\s*([^,]{1,128})\\s*,",
                 Pattern.CASE_INSENSITIVE).matcher(text);
         if (afterAction.find()) {
             String reference = afterAction.group(1).strip();
@@ -131,7 +140,7 @@ public final class LanguageReferenceClassifier {
         Matcher roles = Pattern.compile("\\bfrom\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         if (!roles.find()) {
             String tail = harvestTail(text).split("(?i)\\b(?:deliver|deposit|put|to|into)\\b",2)[0];
-            if (Pattern.compile("\\b(?:fields?|farms?|crops?|house)\\b",Pattern.CASE_INSENSITIVE)
+            if (Pattern.compile("\\b(?:fields?|farms?|crops?|house|forests?|groves?|trees?)\\b",Pattern.CASE_INSENSITIVE)
                     .matcher(tail).find()) return Slot.unsupported(bounded(tail));
             return Slot.omitted();
         }
@@ -142,7 +151,7 @@ public final class LanguageReferenceClassifier {
         Matcher coords = Pattern.compile("^" + COORD + "\\s+through\\s+" + COORD + "$",
                 Pattern.CASE_INSENSITIVE).matcher(phrase);
         if (coords.matches()) return Slot.concrete(compact(coords.group(1)), compact(coords.group(2)), bounded(full.group()));
-        if (phrase.matches("(?i)(?:the\\s+)?nearest\\s+(?:field|farm)"))
+        if (phrase.matches("(?i)(?:the\\s+)?nearest\\s+(?:field|farm|oak\\s+logs?|log\\s+area)"))
             return Slot.nearest(bounded(full.group()));
         return Slot.unsupported(bounded(phrase));
     }
@@ -154,8 +163,8 @@ public final class LanguageReferenceClassifier {
             int start = role.end();
             if (role.find()) return Slot.unsupported("multiple destination actions");
             tail = stripTerminal(text.substring(start).split("[.!?;]", 2)[0]);
-            if (tail.isEmpty() || tail.matches("(?i)(it|them|wheat)")) return Slot.omitted();
-            tail = tail.replaceFirst("(?i)^(?:it|them|wheat)\\s+", "");
+            if (tail.isEmpty() || tail.matches("(?i)(it|them|wheat|oak\\s+logs?)")) return Slot.omitted();
+            tail = tail.replaceFirst("(?i)^(?:it|them|wheat|oak\\s+logs?)\\s+", "");
             if (!tail.matches("(?is)^(?:at|to|into|in)\\s+.+")) return Slot.unsupported(bounded(tail));
             tail = tail.replaceFirst("(?i)^(?:at|to|into|in)\\s+", "");
         } else {

@@ -3,6 +3,7 @@ package dev.aivillages.providers;
 import dev.aivillages.core.kernel.Budgets;
 import dev.aivillages.core.kernel.Contracts;
 import dev.aivillages.core.kernel.CropDelivery;
+import dev.aivillages.core.kernel.ResourceDelivery;
 import dev.aivillages.core.kernel.Generation;
 import dev.aivillages.core.kernel.Outcomes;
 import dev.aivillages.core.kernel.StrictJson;
@@ -278,7 +279,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             if (call.request.role() == Generation.Role.PLANNING) {
                 dev.aivillages.core.kernel.Plan.decode(content,8192);
             } else {
-            if (call.request.capability().id().equals(CropDelivery.ID)
+            if (ResourceDelivery.isDelivery(call.request.capability().id())
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
                 normalized.put("body", cropIrBody(ir.get("body"), call.request.primitives()));
@@ -492,7 +493,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 .map(Contracts.PrimitiveSignature::id).toList();
         List<String> fingerprints = request.primitives().stream()
                 .map(Contracts.PrimitiveSignature::fingerprint).distinct().toList();
-        Map<String, Object> bodyShape = spec.id().equals(CropDelivery.ID)
+        Map<String, Object> bodyShape = ResourceDelivery.isDelivery(spec.id())
                 ? cropBodyShape(request.primitives()) : Map.of("type", "array",
                         "items", nodeShape(2, primitiveIds, fingerprints, true),
                         "minItems", 1, "maxItems", 8);
@@ -508,7 +509,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        spec.id().equals(CropDelivery.ID)
+                        ResourceDelivery.isDelivery(spec.id())
                                 ? "Return the JSON proposal only. Choose registered primitive IDs for prepare, "
                                 + "wait.primitive and each finish entry in causal order. "
                                 + "The adapter binds registered signatures to Skill IR; the compiler and trial validate it. "
@@ -533,7 +534,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 "properties", Map.of("primitive", primitiveId,
                         "count", Map.of("type", "integer", "minimum", 20, "maximum", 30)),
                 "additionalProperties", false);
-        boolean movement = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:move_to_source"));
+        boolean movement = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:move_to_source")
+                || p.id().equals("cognitivecraft:approach_oak_log"));
         Map<String,Object> prepare = movement ? Map.of("type","array","items",primitiveId,"minItems",2,"maxItems",2) : primitiveId;
         var loop = Map.of("type", "object", "required", List.of("count", "body"),
                 "properties", Map.of("count", amount, "body", Map.of("type", "object", "required",
@@ -550,7 +552,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     private static List<Object> cropIrBody(Object proposal,
             List<Contracts.PrimitiveSignature> primitives) {
-        boolean movement = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:move_to_source"));
+        boolean movement = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:move_to_source")
+                || p.id().equals("cognitivecraft:approach_oak_log"));
         if (!(proposal instanceof Map<?, ?> parts)
                 || !parts.keySet().equals(java.util.Set.of("loop", "result"))
                 || !(parts.get("loop") instanceof Map<?, ?> loop)

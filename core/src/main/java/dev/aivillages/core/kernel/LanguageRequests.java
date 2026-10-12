@@ -29,7 +29,7 @@ public final class LanguageRequests {
         }
     }
 
-    public enum Action { HARVEST_WHEAT, NAME_CITIZEN }
+    public enum Action { HARVEST_WHEAT, NAME_CITIZEN, GATHER_OAK_LOGS }
 
     /** Untrusted semantic extraction. Reference provenance is derived independently from raw text. */
     public record Extracted(Action action, String citizen, Long amount, String from, String through,
@@ -66,10 +66,17 @@ public final class LanguageRequests {
     public sealed interface Intent permits HarvestIntent, NamingIntent { }
     public record HarvestIntent(WorldReferenceResolver.Reference<ActorRef> actor, long amount,
                                 WorldReferenceResolver.Reference<AreaCoordinates> source,
-                                WorldReferenceResolver.Reference<Coordinates> destination) implements Intent {
+                                WorldReferenceResolver.Reference<Coordinates> destination, CapabilityId capability) implements Intent {
+        public HarvestIntent(WorldReferenceResolver.Reference<ActorRef> actor,long amount,
+                             WorldReferenceResolver.Reference<AreaCoordinates> source,
+                             WorldReferenceResolver.Reference<Coordinates> destination) {
+            this(actor,amount,source,destination,CropDelivery.ID);
+        }
         public HarvestIntent {
             Objects.requireNonNull(actor); Objects.requireNonNull(source); Objects.requireNonNull(destination);
-            if (amount < 1 || amount > 64) throw new IllegalArgumentException("Quantity");
+            if (!ResourceDelivery.isDelivery(capability) || amount < 1
+                    || amount > (capability.equals(OakLogDelivery.ID) ? OakLogDelivery.MAX_AMOUNT : 64))
+                throw new IllegalArgumentException("Quantity/capability");
         }
     }
     public record NamingIntent(WorldReferenceResolver.Reference<ActorRef> actor,
@@ -161,7 +168,7 @@ public final class LanguageRequests {
                             (long)source.maxY() - source.minY() + 1),
                             (long)source.maxZ() - source.minZ() + 1);
                     immediate = cells > 256 ? Resolution.rejected(Reason.REQUEST_INVALID, "Source exceeds request limit")
-                            : Resolution.request(new CapabilityRequest(CropDelivery.ID, Map.of(
+                            : Resolution.request(new CapabilityRequest(harvest.capability(), Map.of(
                                     "actor", new ActorValue(actor), "amount", new IntValue(harvest.amount()),
                                     "source", new AreaValue(source),
                                     "destination", new ContainerValue(new ContainerRef(
@@ -328,17 +335,18 @@ public final class LanguageRequests {
         if (classified.intent() == LanguageReferenceClassifier.Intent.NAME_CITIZEN) {
             bindNaming(t, e, classified); return;
         }
-        if (classified.intent() != LanguageReferenceClassifier.Intent.HARVEST_WHEAT
-                || e.action() != Action.HARVEST_WHEAT) {
-            clarify(t, "Only registered wheat-delivery and citizen-naming intents are supported", List.of()); return;
+        boolean oak=classified.intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS;
+        if ((!oak && classified.intent()!=LanguageReferenceClassifier.Intent.HARVEST_WHEAT)
+                || e.action()!=(oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
+            clarify(t, "Only registered wheat, oak-log delivery and citizen-naming intents are supported", List.of()); return;
         }
         if (invalidNumericQuantity(t.input.text())) { invalid(t); return; }
         if (e.amount() == null) {
-            clarify(t, "Specify a wheat quantity", List.of()); return;
+            clarify(t, "Specify the resource quantity", List.of()); return;
         }
-        if (e.amount() < 1 || e.amount() > 64) { invalid(t); return; }
-        if (!containsReference(t.input.text(), "wheat") || !groundedAmount(t.input.text(), e.amount())) {
-            clarify(t, "Wheat quantity must be stated explicitly", List.of()); return;
+        if (e.amount() < 1 || e.amount() > (oak ? OakLogDelivery.MAX_AMOUNT : 64)) { invalid(t); return; }
+        if ((!oak && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount())) {
+            clarify(t, "Resource quantity must be stated explicitly", List.of()); return;
         }
 
         WorldReferenceResolver.Reference<ActorRef> actor = actorReference(t, e, classified.actor());
@@ -351,7 +359,7 @@ public final class LanguageRequests {
         try {
             t.handle = null; t.result = null;
             t.resolution = Objects.requireNonNull(binding.resolve(
-                    new HarvestIntent(actor, e.amount(), source, destination), t.owner));
+                    new HarvestIntent(actor, e.amount(), source, destination,oak ? OakLogDelivery.ID : CropDelivery.ID), t.owner));
             t.view = new View(t.id, Phase.RESOLVING, null, "Resolving world references", List.of(), null);
             pollResolution(t);
         } catch (SecurityException denied) {
@@ -625,11 +633,11 @@ public final class LanguageRequests {
 
     private static boolean quantityRole(String text, String quantity) {
         return Pattern.compile("(?<![\\p{L}\\p{N}_,.+/\\-])" + Pattern.quote(quantity)
-                + "\\s+(?:units?\\s+of\\s+)?wheat\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
+                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|oak\\s+logs?)\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
 
     private static boolean invalidNumericQuantity(String text) {
-        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?wheat\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|oak\\s+logs?)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         while (match.find()) {
             String raw = match.group(1);
             if (raw.chars().noneMatch(Character::isDigit)) continue;
