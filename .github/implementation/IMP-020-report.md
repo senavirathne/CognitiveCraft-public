@@ -1,5 +1,48 @@
 # IMP-020 completion report
 
+Current status: **complete; PR #22 merged after all 20 required GitHub Actions passed**. IMP-021 remains open and unmerged.
+
+## Current GitHub Actions acceptance — 2026-10-12
+
+The focused repair is complete and merged in [PR #22](https://github.com/senavirathne/CognitiveCraft-public/pull/22). Reviewed source `8d28e1222b094e8c90533d1a18cb4baa736c41b9`, tree `fd095a8462ae3c7035cd4d85017be33efa9f0212`, passed all **20 required PR workflows** before merge. Actual merge: `c28493a87df877a9573a61cd26f99cbf947b516d` at `2026-10-12T07:36:18Z`. The cumulative source diff contains the eight IMP-020 files plus the separate E2E observer/driver harness correction; the only production edit is duplicate-coordinate rejection in the existing validator. Architecture 0.5, Contracts/IR/body/ref/metadata/placement policy 1 and every Java/Gradle/Minecraft/Fabric dependency pin remain unchanged.
+
+Documentation prompts/index/contracts/backlog were published before implementation in `c1f5a27f3fb7a58761315db7dd2f21754edfb3db`. The latest user instruction authorizing all implementation tests in GitHub Actions and merge after CI was recorded first in `3e5b6507bcfa0e38e2537683bc4ed12cf23dac5d`. No local Gradle download is required. Historical SDK diagnostics below remain supplementary, including their failed space probe; fresh pinned-wrapper acceptance is supplied by Actions.
+
+[Blueprint acceptance 38215786059](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786059), job `114700072427`, checked out the exact reviewed head and required clean tracked source. It executed **76/76 matrix cases** (37 validator, 36 store, 3 native registry) and **1,166/1,166 module cases** (core 1,070, providers 66, Fabric 30), with no failures or skips. Runtime/native-test packaging and both cold/warm GP-20 JVMs passed. The acceptance ZIP was downloaded and its SHA-256 independently matched artifact `11732207585` / `sha256:6e21929ad47e74fae570557daacf07aca928d50fc6690cabb1249dc17dfa098e`; its XML counts and source/tree proof were inspected. The production Gradle/Loom JAR SHA-256 is `ae729ffe449f857f35d76e4fd585b170d1ceed686580a1d1a267c3bac6fda5e3`.
+
+Both GP-20 phases inspect seven cells and the independent bill of 3 oak planks, 1 slab, 1 door and 1 torch; reference `e88c32062ecbb9c0ca59ff8a7cab71e3745d2471ad86992fb5b3b27584d46263` is unchanged across reopen. Each records 705 input bytes, 793 canonical bytes, 116 work, 1,360 metadata bytes, one variant and one retained assessment, with zero gateway/model calls. This is structural inspection/persistence evidence. Fixtures remain test-only; no construction or site authority is introduced.
+
+The initial head's gameplay failure is preserved below: its observer assumed one stock-coordinate height, while genuine acquisition recorded the other fixture feet height. The corrected observer alternates two bounded targets and the driver requires exact-target private/foreign witnesses with distinct viewers. The production query and privacy API remain unchanged. This harness correction was documented before implementation.
+
+The compatibility and retention owner workflows passed on the same head. Native verification, actual model/acquisition, worker dispatch, connected-client smoke and real gameplay qualification also passed. The changed production binary used fresh genuine acquisition and a newly certified arena; qualification requires every one of its 13 families and exact-head owner evidence. No skipped/missing case, stale binary certificate or historical run is counted as current acceptance. The unchanged native identity fixture exhausted its 1,800 accelerated-tick deadline on its first attempt (7.872 seconds); targeted retry passed with source and assertions unchanged. Its failed job/artifact remain retained in the execution evidence.
+
+| Required workflow | Exact-head Actions run | Attempt | Result |
+|---|---|---|---|
+| AI work broker acceptance | [38215786077](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786077) | 1 | success |
+| Blueprint artifact boundary acceptance | [38215786059](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786059) | 1 | success |
+| Bounded goal planning acceptance | [38215786098](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786098) | 1 | success |
+| Capability retrieval acceptance | [38215786198](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786198) | 1 | success |
+| Citizen identity acceptance | [38215786210](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786210) | 2 | success |
+| CognitiveCraft verification | [38215786130](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786130) | 1 | success |
+| Default nearest physical acceptance | [38215786061](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786061) | 1 | success |
+| Deterministic prerequisite acceptance | [38215786125](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786125) | 1 | success |
+| Job lifecycle acceptance | [38215786114](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786114) | 1 | success |
+| Local generation smoke | [38215786254](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786254) | 1 | success |
+| Needle language acceptance | [38215786148](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786148) | 1 | success |
+| Observed world knowledge acceptance | [38215786186](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786186) | 1 | success |
+| Primitive diagnostics acceptance | [38215786081](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786081) | 1 | success |
+| Real Minecraft client E2E smoke | [38215786062](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786062) | 1 | success |
+| Real Minecraft gameplay acceptance | [38215786175](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786175) | 1 | success |
+| Research local-model physical trial | [38215786076](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786076) | 1 | success |
+| Resource lease acceptance | [38215786165](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786165) | 1 | success |
+| Save and artifact compatibility acceptance | [38215786132](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786132) | 1 | success |
+| Worker dispatcher acceptance | [38215786173](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786173) | 1 | success |
+| World retention acceptance | [38215786101](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38215786101) | 1 | success |
+
+There are no unmet mandatory IMP-020 gates. The existing local IMP-020.1 audit is preserved. IMP-021 remains separately published as [PR #20](https://github.com/senavirathne/CognitiveCraft-public/pull/20), head `438c56a721b45afaf415d76b3837d80605729c0b`, open and unmerged; its code is absent from this merge. RB-001/RB-002 remain outside this assignment. This evidence follow-up changes only this Markdown report; the tested runtime/test/build/workflow files remain byte-for-byte identical.
+
+## Earlier completion and supplementary SDK checkpoints
+
 Current 2026-10-12 acceptance update: **implemented and published for GitHub Actions; required CI pending**. The latest user instruction authorizes publication and merge after required CI passes; all implementation tests run in Actions. Documentation-first publication and new evidence are appended below. The earlier complete/merged status describes the original reviewed source, not a fresh pass for the tightened duplicate policy.
 
 Original status: **complete and merged** as [PR #19](https://github.com/senavirathne/CognitiveCraft-public/pull/19) after all 20 final-source CI workflows passed. Actual merge: `8a93ca1c0fc3baa1802f894c45a9e8f4cdf7e57f` at `2026-10-11T16:59:30Z`. IMP-021 remains separately published as PR #20, open and unmerged.
