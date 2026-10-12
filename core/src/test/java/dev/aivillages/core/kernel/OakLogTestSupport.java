@@ -41,7 +41,7 @@ final class OakLogTestSupport {
                 call(GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,"harvest",source),
                 Map.of("op","repeat","count",Map.of("int",20L),"body",List.of(call(GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,"wait",actor))),
                 call(GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,"pickup",actor),
-                call(GatewayPrimitives.Operation.MOVE_TO_DESTINATION,"destination",dest),
+                call(GatewayPrimitives.Operation.MOVE_TO_DESTINATION,"atDestination",dest),
                 call(GatewayPrimitives.Operation.TRANSFER_OAK_LOGS,"deposit",transfer))),
                 Map.of("op","result","value",Map.of("param","amount")));
         return StrictJson.canonical(Map.of("schema",1L,"capability",OakLogDelivery.ID.name(),"capabilityVersion",1L,

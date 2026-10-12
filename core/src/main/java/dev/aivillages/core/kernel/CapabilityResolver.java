@@ -176,7 +176,11 @@ public final class CapabilityResolver {
             for (Effect required : Effect.values()) {
                 if (!envelope.unavoidableEffects().contains(required)) continue;
                 boolean present = false;
-                for (PrimitiveSignature signature : GatewayPrimitives.instance().all()) {
+                for (GatewayPrimitives.Operation operation : GatewayPrimitives.Operation.values()) {
+                    if (spec.id().equals(CropDelivery.ID) && operation.oak()
+                            || spec.id().equals(OakLogDelivery.ID) && !operation.oak()
+                            && operation != GatewayPrimitives.Operation.MOVE_TO_DESTINATION) continue;
+                    PrimitiveSignature signature = operation.signature();
                     if (signature.effects().contains(required) && primitives.find(signature.id(),
                             signature.version()).filter(actual -> actual.equals(signature)).isPresent()) {
                         present = true;

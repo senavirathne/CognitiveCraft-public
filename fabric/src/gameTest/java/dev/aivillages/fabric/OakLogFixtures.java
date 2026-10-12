@@ -16,7 +16,7 @@ final class OakLogFixtures {
         var body=List.of(Map.of("op","repeat","count",Map.of("param","amount"),"body",List.of(
                 call(Operation.APPROACH_OAK_LOG,"approach",source),call(Operation.HARVEST_NEXT_OAK_LOG,"harvest",source),
                 Map.of("op","repeat","count",Map.of("int",20L),"body",List.of(call(Operation.OBSERVE_OAK_INVENTORY,"wait",actor))),
-                call(Operation.PICKUP_TRACKED_OAK_LOGS,"pickup",actor),call(Operation.MOVE_TO_DESTINATION,"destination",dest),
+                call(Operation.PICKUP_TRACKED_OAK_LOGS,"pickup",actor),call(Operation.MOVE_TO_DESTINATION,"atDestination",dest),
                 call(Operation.TRANSFER_OAK_LOGS,"deposit",transfer))),Map.of("op","result","value",Map.of("param","amount")));
         return StrictJson.canonical(Map.of("schema",1L,"capability",OakLogDelivery.ID.name(),"capabilityVersion",1L,"dependencies",List.of(),"body",body));
     }

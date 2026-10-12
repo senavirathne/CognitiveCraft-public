@@ -54,10 +54,15 @@ class OakLogJobLifecycleTest {
     }
     @Test void resourceJournalRoundTripRetainsEvidenceAndLegacyWheatEncoding() throws Exception {
         var s=new Scene();var j=s.assign(s.create());j=s.finish(j,s.receipts(j));
-        try(var journal=JobJournal.open(world,OWNER.scope().worldId())) { journal.replace(journal.snapshot(),s.memory.state); }
+        Snapshot persisted;
+        try(var journal=JobJournal.open(world,OWNER.scope().worldId())) {
+            persisted=new Snapshot(s.memory.state.worldId(),Math.addExact(journal.snapshot().revision(),1),
+                    s.memory.state.jobs(),s.memory.state.allocations());
+            journal.replace(journal.snapshot(),persisted);
+        }
         Path file=world.resolve(JobJournal.WORLD_RELATIVE_PATH).resolve("state.jsonl");
         assertEquals(2L,StrictJson.object(Files.readString(file).lines().findFirst().orElseThrow()).get("schema"));
-        try(var journal=JobJournal.open(world,OWNER.scope().worldId())) { assertEquals(s.memory.state,journal.snapshot());assertFalse(journal.readOnly()); }
+        try(var journal=JobJournal.open(world,OWNER.scope().worldId())) { assertEquals(persisted,journal.snapshot());assertFalse(journal.readOnly()); }
         var old=new JobLifecycleStoreTest.Scene();var wheat=old.assign(old.create(1));wheat=old.report(wheat,1,ExecutionStatus.SUCCEEDED);
         String wheatRow=JobCodec.job(wheat);assertEquals(1L,StrictJson.object(wheatRow).get("schema"));
         assertFalse(wheatRow.contains("resourceReceipts"));assertEquals(wheat,JobCodec.job(StrictJson.object(wheatRow)));

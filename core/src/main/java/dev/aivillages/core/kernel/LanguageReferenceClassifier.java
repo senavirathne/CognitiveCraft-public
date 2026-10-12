@@ -98,7 +98,7 @@ public final class LanguageReferenceClassifier {
         if(intent==Intent.GATHER_OAK_LOGS && source.state()==ReferenceState.EXPLICIT_NEAREST
                 && Pattern.compile("\\b(?:field|farm)\\b",Pattern.CASE_INSENSITIVE).matcher(source.evidence()).find())
             source=Slot.unsupported(source.evidence());
-        return new Classification(intent,actor,source,destination(text),null);
+        return new Classification(intent,actor,source,destination(text, intent == Intent.GATHER_OAK_LOGS),null);
     }
 
     private static Slot actor(String text, List<String> references) {
@@ -156,7 +156,7 @@ public final class LanguageReferenceClassifier {
         return Slot.unsupported(bounded(phrase));
     }
 
-    private static Slot destination(String text) {
+    private static Slot destination(String text, boolean oak) {
         Matcher role = Pattern.compile("\\b(?:deliver|deposit|put)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         String tail;
         if (role.find()) {
@@ -178,7 +178,8 @@ public final class LanguageReferenceClassifier {
             }
             tail = stripTerminal(standalone.group(1));
         }
-        if (tail.matches("(?i)(?:the\\s+)?nearest\\s+(?:chest|container|barrel)"))
+        if (tail.matches("(?i)(?:the\\s+)?nearest\\s+" + (oak ? "(?:suitable\\s+)?" : "")
+                + "(?:chest|container|barrel)"))
             return Slot.nearest(bounded(tail));
         Matcher coords = Pattern.compile("^(?:the\\s+)?(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?" + COORD + "$",
                 Pattern.CASE_INSENSITIVE).matcher(tail);

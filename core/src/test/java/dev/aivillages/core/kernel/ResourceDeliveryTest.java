@@ -46,7 +46,8 @@ class ResourceDeliveryTest {
     }
     @Test void compilationAndFixtureEvaluationRemainSeparateFromAdmission() {
         var compiler=new SkillCompiler(PlanningGoals.catalog(),GatewayPrimitives.instance(),ref->Optional.empty());
-        var compiled=assertInstanceOf(SkillCompiler.Success.class,compiler.compile(program())).skill();
+        var result=compiler.compile(program());
+        var compiled=assertInstanceOf(SkillCompiler.Success.class,result,result.toString()).skill();
         assertEquals(OakLogDelivery.ID,compiled.artifact().descriptor().ref().capability());
         assertEquals(List.of("actor","amount","source","destination"),compiled.artifact().descriptor().parameters().stream().map(Parameter::name).toList());
         assertTrue(compiled.artifact().descriptor().primitives().stream().anyMatch(p -> p.id().equals("cognitivecraft:harvest_next_oak_log")));
