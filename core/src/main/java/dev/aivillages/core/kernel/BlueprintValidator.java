@@ -193,7 +193,7 @@ public final class BlueprintValidator {
             State state=body.palette().get(cell.palette());
             String position=cell.x()+":"+cell.y()+":"+cell.z();
             State prior=positions.putIfAbsent(position,state);
-            if(prior!=null && !prior.equals(state))throw new Rejected(Status.INVALID_DATA,"CONFLICTING_CELL");
+            if(prior!=null)throw new Rejected(Status.INVALID_DATA,prior.equals(state)?"DUPLICATE_CELL":"CONFLICTING_CELL");
             used.put(state.key(),state);
         }
         var palette=List.copyOf(used.values()); var indexes=new HashMap<State,Integer>();

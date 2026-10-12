@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-java@v4
         with:
@@ -38,7 +39,7 @@ jobs:
           from pathlib import Path
           import xml.etree.ElementTree as ET
           total=0
-          for module,suite,expected in [('core','BlueprintValidatorTest',30),('core','BlueprintStoreTest',33),('fabric','FabricBlueprintRegistryTest',3)]:
+          for module,suite,expected in [('core','BlueprintValidatorTest',37),('core','BlueprintStoreTest',36),('fabric','FabricBlueprintRegistryTest',3)]:
               package='dev.aivillages.core.kernel.' if module=='core' else 'dev.aivillages.fabric.'
               path=Path(module+'/build/test-results/test/TEST-'+package+suite+'.xml')
               cases=list(ET.parse(path).getroot().iter('testcase'))
@@ -58,17 +59,23 @@ jobs:
           COGNITIVECRAFT_BLUEPRINT_PHASE: warm
         run: bash ./gradlew --no-daemon --stacktrace :core:runBlueprintBoundaryProbe
       - name: Require active inspection evidence, bounded resource counts and clean release contents
+        env:
+          COGNITIVECRAFT_EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python3 - <<'PY'
-          import hashlib,json,zipfile
+          import hashlib,json,os,subprocess,zipfile
           from pathlib import Path
           import xml.etree.ElementTree as ET
+          source=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()
+          if source!=os.environ['COGNITIVECRAFT_EXPECTED_SOURCE']:raise SystemExit('Exact source head required')
+          if subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],text=True).strip():raise SystemExit('Clean tracked source required')
           root=Path('core/build/blueprint-evidence')
           cold=json.loads((root/'cold.json').read_text());warm=json.loads((root/'warm.json').read_text())
-          bill={'minecraft:oak_planks':224,'minecraft:oak_slab':99,'minecraft:oak_door':2,'minecraft:torch':4}
+          bill={'minecraft:oak_planks':3,'minecraft:oak_slab':1,'minecraft:oak_door':1,'minecraft:torch':1}
           for phase,proof in [('cold',cold),('warm',warm)]:
               if proof['phase']!=phase or proof['schema']!=1 or proof['architecture']!='0.5':raise SystemExit('Wrong inspection identity')
-              if proof['materials']!=bill or proof['cells']!=331 or proof['variants']!=1 or proof['evidence']!=1:raise SystemExit('Fixture, dedup or evidence mismatch')
+              if proof['materials']!=bill or proof['cells']!=7 or proof['variants']!=1 or proof['evidence']!=1:raise SystemExit('Fixture, dedup or evidence mismatch')
               if proof['gatewayCalls']!=0 or proof['modelCalls']!=0:raise SystemExit('Structural data invoked execution')
               if not 0<proof['candidateBytes']<=65536 or not 0<proof['canonicalBytes']<=65536 or not 0<proof['validationWork']<=8192:raise SystemExit('Unbounded validation')
           if cold['ref']!=warm['ref'] or cold['manifestBytes']!=warm['manifestBytes']:raise SystemExit('Reload changed immutable ref or metadata')
@@ -83,7 +90,7 @@ jobs:
               if any('BlueprintFixture' in p or 'BlueprintBoundaryProbe' in p or 'GameTest' in p or p.endswith(('.gguf','.safetensors')) for p in jar.namelist()):raise SystemExit('Fixtures or model weights leaked into release')
               for name in ('Blueprint','BlueprintValidator','BlueprintStore'):
                   if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Runtime structural owner missing')
-          proof={'schema':1,'matrix':66,'tests':counts,'total':sum(counts.values()),'cold':cold,'warm':warm,
+          proof={'schema':1,'source':source,'tree':tree,'matrix':76,'tests':counts,'total':sum(counts.values()),'cold':cold,'warm':warm,
                  'scope':'GP-20 structural inspection only; no construction or site permission',
                  'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
           (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)

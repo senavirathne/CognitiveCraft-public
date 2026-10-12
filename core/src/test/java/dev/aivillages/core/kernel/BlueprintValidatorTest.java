@@ -35,11 +35,38 @@ final class BlueprintValidatorTest {
         var tiny=BlueprintFixture.tiny();
         assertNotEquals(validate(tiny).body().ref(),validate(new Body(tiny.dimensions(),new Constraints(true,true,2),tiny.palette(),tiny.cells())).body().ref());
     }
-    @Test void duplicateEquivalentCellsAndUnusedPaletteDoNotDoubleChargeOrChangeRequirements() {
-        Body body=BlueprintFixture.tiny();var cells=new ArrayList<>(body.cells());cells.add(body.cells().getFirst());
+    @Test void unusedSupportedPaletteDoesNotChangeIdentityOrRequirements() {
+        Body body=BlueprintFixture.tiny();
         var palette=new ArrayList<>(body.palette());palette.add(new State("minecraft:torch",Map.of()));
-        Result a=validate(body),b=validate(new Body(body.dimensions(),body.constraints(),palette,cells));
+        Result a=validate(body),b=validate(new Body(body.dimensions(),body.constraints(),palette,body.cells()));
         assertEquals(a.body().ref(),b.body().ref());assertEquals(a.materials(),b.materials());assertEquals(a.requirements(),b.requirements());
+    }
+    @ParameterizedTest @ValueSource(ints={0,1,2})
+    void identicalAndDefaultEquivalentDuplicatesRejectRegardlessOfPaletteOrInputOrder(int representation) {
+        var states=List.of(new State("minecraft:oak_slab",Map.of("type","bottom")),
+                new State("minecraft:oak_slab",Map.of("type","bottom","waterlogged","false")));
+        var cells=representation==0?List.of(new Cell(0,0,0,0),new Cell(0,0,0,0)):
+                representation==1?List.of(new Cell(0,0,0,0),new Cell(0,0,0,1)):
+                        List.of(new Cell(0,0,0,1),new Cell(0,0,0,0));
+        var result=validate(new Body(new Dimensions(1,1,1),new Constraints(true,true,1),states,cells));
+        assertEquals(Status.INVALID_DATA,result.status());assertEquals("DUPLICATE_CELL",result.reason());
+        assertNull(result.body());assertTrue(result.materials().isEmpty());assertTrue(result.requirements().isEmpty());
+        assertTrue(result.inputBytes()>0);assertTrue(result.work()>0 && result.work()<=Limits.defaults().work());
+    }
+    @Test void compactDirectionalFixtureHasIndependentBillAndFourTurnsRestoreCanonicalBody() {
+        var result=validate(BlueprintFixture.compact());assertTrue(result.valid(),result.reason());
+        assertEquals(7,result.body().cells().size());assertEquals(BlueprintFixture.compactBill(),result.materials());
+        Body original=result.body(),rotated=original;String canonical=original.canonical();
+        for(int turn=1;turn<=4;turn++) {
+            rotated=BlueprintValidator.rotate(rotated,1);var assessment=validate(rotated);assertTrue(assessment.valid(),assessment.reason());
+            assertEquals(BlueprintFixture.compactBill(),assessment.materials());
+            assertEquals(turn%2==0?3:2,rotated.dimensions().x());assertEquals(turn%2==0?2:3,rotated.dimensions().z());
+            String facing=List.of("north","east","south","west").get(turn%4);
+            assertTrue(rotated.palette().stream().filter(s->s.block().equals("minecraft:oak_door"))
+                    .allMatch(s->s.properties().get("facing").equals(facing) && s.properties().get("hinge").equals("left")));
+            assertEquals(canonical,original.canonical());
+        }
+        assertEquals(original,rotated);assertEquals(original.ref(),rotated.ref());
     }
     @Test void conflictingDuplicateCellsReject() {
         var tiny=BlueprintFixture.tiny();var body=new Body(tiny.dimensions(),tiny.constraints(),
@@ -60,6 +87,13 @@ final class BlueprintValidatorTest {
     void executableOrAuthorityPayloadsReject(String field) {
         String json=BlueprintFixture.tiny().canonical();json=json.substring(0,json.length()-1)+",\""+field+"\":[]}";
         assertEquals(Status.INVALID_DATA,validate(json).status());
+    }
+    @ParameterizedTest @ValueSource(ints={-1,1,Integer.MAX_VALUE})
+    void invalidPaletteReferencesRejectWithoutAnAcceptedBodyOrMaterialBill(int palette) {
+        var fixture=BlueprintFixture.tiny();
+        var result=validate(new Body(fixture.dimensions(),fixture.constraints(),fixture.palette(),List.of(new Cell(0,0,0,palette))));
+        assertEquals(Status.INVALID_DATA,result.status());assertEquals("CELL_BOUNDS",result.reason());
+        assertNull(result.body());assertTrue(result.materials().isEmpty());assertTrue(result.work()<=Limits.defaults().work());
     }
     @Test void unknownBlockUnknownStateAndUnsupportedPlacementAreDistinct() {
         String json=BlueprintFixture.tiny().canonical().replace("minecraft:oak_planks","minecraft:command_block");
@@ -97,11 +131,11 @@ final class BlueprintValidatorTest {
     }
     @Test void allHardShapeLimitsAreFiniteAtMaximumAndRejectTheirNextValue()throws Exception {
         var palette=Collections.nCopies(64,new State("minecraft:oak_planks",Map.of()));
-        var cells=Collections.nCopies(512,new Cell(63,63,63,63));
+        var cells=new ArrayList<Cell>();for(int i=0;i<512;i++)cells.add(new Cell(i%64,i/64,63,63));
         var body=new Body(new Dimensions(64,64,64),new Constraints(true,true,4),palette,cells);
         String json=body.canonical();json=json+" ".repeat(65536-json.length());
         Result result=validate(json);assertTrue(result.valid());assertEquals(65536,result.inputBytes());
-        assertEquals(Map.of("minecraft:oak_planks",1L),result.materials());assertTrue(result.work()<=8192);
+        assertEquals(Map.of("minecraft:oak_planks",512L),result.materials());assertTrue(result.work()<=8192);
         assertEquals(Status.QUOTA,validate(json+" ").status());
         assertEquals(Status.QUOTA,validate(BlueprintFixture.tiny().canonical().replace("\"x\":2","\"x\":65")).status());
         assertThrows(IllegalArgumentException.class,()->new Limits(-1,64,262144,64,512,8192));

@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import dev.aivillages.core.kernel.BlueprintStore.Provenance;
@@ -338,6 +339,57 @@ final class BlueprintStoreTest {
             }
             assertEquals(Status.STORED,store(store,BlueprintFixture.tiny()).status());
         }
+    }
+    @Test void rejectedDuplicateCandidateCannotPublishOrAlterAnExistingReference()throws Exception {
+        var fixture=BlueprintFixture.compact();var cells=new ArrayList<>(fixture.cells());cells.add(cells.getFirst());
+        var duplicate=new Body(fixture.dimensions(),fixture.constraints(),fixture.palette(),cells);
+        Ref ref=BlueprintValidator.validate(fixture.canonical(),BlueprintFixture.registry(),BlueprintValidator.Limits.defaults(),()->false).body().ref();
+        try(var store=open()) {
+            var rejected=store(store,duplicate);assertEquals(Status.INVALID_DATA,rejected.status());assertNull(rejected.ref());
+            assertFalse(rejected.publicationMayHaveSucceeded());assertEquals(0,store.variants());assertEquals(0,store.revision());
+            assertFalse(Files.exists(directory().resolve("manifest.jsonl")));assertFalse(Files.exists(directory().resolve(ref.sha256()+".body.json")));
+            assertEquals(Status.STORED,store(store,fixture).status());
+            byte[] metadata=Files.readAllBytes(directory().resolve("manifest.jsonl")),body=Files.readAllBytes(directory().resolve(ref.sha256()+".body.json"));
+            long revision=store.revision();
+            assertEquals(Status.INVALID_DATA,store(store,duplicate).status());assertEquals(revision,store.revision());assertEquals(1,store.variants());
+            assertArrayEquals(metadata,Files.readAllBytes(directory().resolve("manifest.jsonl")));
+            assertArrayEquals(body,Files.readAllBytes(directory().resolve(ref.sha256()+".body.json")));
+            assertFalse(Files.exists(directory().resolve("manifest.next.jsonl")));assertTrue(inspect(store,ref).compatible());
+        }
+    }
+    @Test void simultaneousEquivalentSubmissionsRetainOneBodyAndOneMetadataGeneration()throws Exception {
+        var fixture=BlueprintFixture.compact();var palette=new ArrayList<>(fixture.palette());Collections.reverse(palette);
+        var cells=new ArrayList<>(fixture.cells().stream().map(c->new Cell(c.x(),c.y(),c.z(),palette.size()-1-c.palette())).toList());
+        Collections.reverse(cells);var reordered=new Body(fixture.dimensions(),fixture.constraints(),palette,cells);
+        var ready=new CountDownLatch(2);var start=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+        try(var store=open()) {
+            try {
+                var first=pool.submit(()->{ready.countDown();if(!start.await(5,TimeUnit.SECONDS))throw new AssertionError("Start gate");return store(store,fixture);});
+                var second=pool.submit(()->{ready.countDown();if(!start.await(5,TimeUnit.SECONDS))throw new AssertionError("Start gate");return store(store,reordered);});
+                assertTrue(ready.await(5,TimeUnit.SECONDS));start.countDown();
+                var a=first.get(5,TimeUnit.SECONDS);var b=second.get(5,TimeUnit.SECONDS);
+                assertEquals(Status.STORED,a.status());assertEquals(Status.STORED,b.status());assertEquals(a.ref(),b.ref());
+                assertEquals(1,store.variants());assertEquals(1,store.revision());assertEquals(BlueprintFixture.compactBill(),inspect(store,a.ref()).materials());
+                try(var files=Files.list(directory())){assertEquals(1,files.filter(p->p.getFileName().toString().endsWith(".body.json")).count());}
+            } finally {start.countDown();pool.shutdownNow();assertTrue(pool.awaitTermination(5,TimeUnit.SECONDS));}
+        }
+    }
+    @Test void reopeningRebuildsLookupWithoutChangingBodiesMetadataOrRetainedEvidence()throws Exception {
+        Ref ref;Inspection before;Map<String,String> hashes=new TreeMap<>();
+        try(var store=open()) {
+            ref=store(store,BlueprintFixture.compact()).ref();
+            assertEquals(Status.INCOMPATIBLE,store.recordCompatibility(ref,owner,BlueprintFixture.changedMeaning(),()->false).status());
+            before=inspect(store,ref);assertTrue(before.compatible());assertEquals(1,before.evidence().size());
+        }
+        // Closing discards the derived in-memory lookup; every filesystem record here is authoritative/recovery data.
+        for(String name:List.of("manifest.jsonl","manifest.prev.jsonl",ref.sha256()+".body.json"))
+            hashes.put(name,Blueprint.digest(Files.readAllBytes(directory().resolve(name))));
+        try(var rebuilt=open()) {
+            var after=inspect(rebuilt,ref);assertTrue(after.compatible());assertEquals(ref,after.body().ref());
+            assertEquals(before.body(),after.body());assertEquals(before.materials(),after.materials());
+            assertEquals(before.provenance(),after.provenance());assertEquals(before.evidence(),after.evidence());assertEquals(1,rebuilt.variants());
+        }
+        for(var entry:hashes.entrySet())assertEquals(entry.getValue(),Blueprint.digest(Files.readAllBytes(directory().resolve(entry.getKey()))));
     }
     static WorldRetentionManager.Scan complete(WorldRetentionManager manager) {
         var scan=manager.begin();
