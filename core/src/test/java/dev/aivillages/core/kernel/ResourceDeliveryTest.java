@@ -51,6 +51,26 @@ class ResourceDeliveryTest {
         assertEquals(OakLogDelivery.ID,compiled.artifact().descriptor().ref().capability());
         assertEquals(List.of("actor","amount","source","destination"),compiled.artifact().descriptor().parameters().stream().map(Parameter::name).toList());
         assertTrue(compiled.artifact().descriptor().primitives().stream().anyMatch(p -> p.id().equals("cognitivecraft:harvest_next_oak_log")));
+        assertTrue(compiled.artifact().descriptor().dependencies().isEmpty(),"Standalone acquisition has no consumer dependency");
+        var unusedDependencies=new BoundedSkillExecutor.ArtifactSource() {
+            public Optional<SkillArtifact> body(ArtifactRef ref) { return Optional.empty(); }
+            public Optional<AdmissionRecord> admission(ArtifactRef ref) { return Optional.empty(); }
+            public Optional<Compatibility> compatibility(ArtifactRef ref) { return Optional.empty(); }
+        };
+        long deadline=CLOCK.millis()+600000;
+        var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+        for(var kind:Budgets.Kind.values())maxima.put(kind,20000L);
+        maxima.put(Budgets.Kind.INPUT_BYTES,40000L);maxima.put(Budgets.Kind.CALLS,512L);
+        maxima.put(Budgets.Kind.CANDIDATES,2L);maxima.put(Budgets.Kind.REPAIRS,1L);maxima.put(Budgets.Kind.TRIALS,1L);
+        var inference=new Budgets.InferenceLimits(new Budgets.Limits(Map.of(Budgets.Kind.CALLS,2L,
+                Budgets.Kind.INPUT_BYTES,40000L,Budgets.Kind.OUTPUT_BYTES,20000L),deadline),12000,8000);
+        var limits=new Budgets.ResearchLimits(inference,OakLogDelivery.executionLimits(CLOCK.millis()),
+                new Budgets.Limits(maxima,deadline));
+        var fixture=new CropFixtureRunner(unusedDependencies,PlanningGoals.catalog(),GatewayPrimitives.instance(),
+                (actor,ref,owner)->owner.equals(OWNER),Runnable::run,CLOCK);
+        var evidence=fixture.evaluate(compiled,bound(4),limits,new Budgets.Ledger(limits.total(),CLOCK),()->false)
+                .toCompletableFuture().join();
+        assertTrue(evidence.passed(),evidence.toString());assertEquals(2,evidence.cases());
     }
     @Test void everyExistingWheatPrimitiveFingerprintMatchesOriginalBaselineGolden() throws Exception {
         try(var stream=ResourceDeliveryTest.class.getResourceAsStream("/rb001-wheat-primitives.json")) {

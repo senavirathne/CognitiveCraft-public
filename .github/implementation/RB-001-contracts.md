@@ -1,6 +1,6 @@
 # RB-001 contract extension — version 1 — local implementation, acceptance pending
 
-HISTORICAL_SOURCE_SNAPSHOT: `d609e9980ca2cde8330042d2332226f50200d6b6`. Audited source `bf6b985d3d37c4a1529ae31723bc672f96e69ac2`; documentation `59b7914fc6a74ee5422839d41a8828e828f764ea`. The specification was published before source edits in `6d3da32c6e777239117e189386fea0e036c2651e`. The source implementation and test definitions are written; publication, Actions verification and merge after successful required checks are explicitly authorized. Compilation and all new acceptance gates remain unexecuted.
+HISTORICAL_SOURCE_SNAPSHOT: `d609e9980ca2cde8330042d2332226f50200d6b6`. Audited source `bf6b985d3d37c4a1529ae31723bc672f96e69ac2`; documentation `59b7914fc6a74ee5422839d41a8828e828f764ea`. The specification was published before source edits in `6d3da32c6e777239117e189386fea0e036c2651e`. Source PR #24 is published at `dc3d132902df0f098a9e7f162bb7896ed62f7b9b`; the additive revision and final acceptance remain pending.
 
 One registered `cognitivecraft:deliver_oak_logs` capability, version 1, delivers `minecraft:oak_log` from a bounded authorized source into a supported container. Parameters are `actor: ACTOR`, `amount: INT [1,8]`, `source: AREA`, `destination: CONTAINER`; result is INT. Effects remain OBSERVE, MOVE, HARVEST, PICKUP, TRANSFER. Source volume is at most 256 cells. No natural-versus-player-placed provenance is asserted. Other logs, stripped logs, wood, leaves, crafting, tools, planting and construction are outside this capability.
 
@@ -48,7 +48,7 @@ This command must submit to normal production KernelSession/Jobs; it must not ed
 
 No trusted oak task program is shipped. Research must perform normal resolution, generation, compile, bounded fixture evaluation, authorized physical trial and durable repository admission. Controlled proposals are test-only. Genuine configured-backend generation/admission and language quality are separate mandatory gates. Admitted methods bind all four parameters, and structured known execution must reuse them with zero inference, including a second-JVM saved-world restart with the backend stopped.
 
-See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/main/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
+See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
 
 
 ## Concrete custody and owner details
@@ -59,4 +59,15 @@ The lease resource uses `minecraft:oak_log` with slot discriminator -2 for sourc
 
 Actual eligible oak item entities receive a unique vanilla pickup target equal to their entity UUID. This prevents vanilla merging with unrelated drops or another batch. The existing MobPickupMixin prevents uncontrolled citizen pickup during the run. ItemPickupOwnershipMixin releases the special target on loss of live gateway-controlled ownership, including reopening after interruption. It uses vanilla fields and creates no new persisted work/inventory owner. Ordinary effects and exact component/capacity checks remain in FabricGatewayWorld on the server thread.
 
-The established provider adapter now supports the same bounded causal proposal shape for both registered delivery capabilities, lowering only host-supplied signatures and runtime parameter bindings. It recognizes the oak adjacent-approach operation. Controlled proposal programs live only in test sources and are excluded from the production JAR. Source publication, genuine model/trial success and offline reuse are still pending.
+The established provider adapter now supports the same bounded causal proposal shape for both registered delivery capabilities, lowering only host-supplied signatures and runtime parameter bindings. It recognizes the oak adjacent-approach operation. Controlled proposal programs live only in test sources and are excluded from the production JAR. Source publication is complete; genuine oak model/trial success and offline reuse remain pending.
+
+
+## Independent acquisition and downstream reuse — additive revision
+
+`cognitivecraft:deliver_oak_logs` v1 is independently requestable with runtime `actor`, `amount`, `source`, and `destination` bindings. Its SkillArtifact composes bounded physical primitives; Jobs owns each invocation. A prerequisite graph may connect Jobs under the existing owner. No "connect skills" physical primitive, new scheduler, crafting station, recipe, RB-002, product or blueprint consumer is introduced.
+
+A direct request for newly collected logs must acquire and deliver the requested attributable quantity even when older logs already occupy the actor or chest. Success requires its own physical harvest/pickup/deposit chain. An admitted artifact must retain its typed four-parameter interface and contain no crafting/RB-002/product-specific dependency. Different quantities and authorized source/destination bindings must reuse the same artifact without a downstream Job. Saved-world reuse must work with inference disabled, the backend stopped, and zero known-execution model calls.
+
+Receipts document that invocation's physical outcome; they create no inventory balance or unconditional reservation. Existing Jobs controls output allocations. A future eligible consumer must inspect current authorized unallocated physical item stock through existing stock/lease/prerequisite owners and request RB-001 only for a supported deficit. Removed or spent stock is unavailable even if a historical receipt exists. Acquisition never guesses a future recipe or product. This contract adds no consumer implementation.
+
+RB-T13 maps independent 1/4/7 reuse, distinct source/destination bindings, typed interface and dependency assertions to ResourceDeliveryTest, OakLogGenerationTest, OakLogKernelGameTests and GP-RB-01. RB-T14 maps older/unrelated stock, physical availability versus receipts and shared allocations to OakLogGatewayTest, OakLogJobLifecycleTest, new prerequisite stock assertions and existing lease/prerequisite regressions. All revised assertions remain pending Actions execution on the revised final head.

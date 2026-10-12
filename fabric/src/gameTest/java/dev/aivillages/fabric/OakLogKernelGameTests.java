@@ -23,6 +23,7 @@ public final class OakLogKernelGameTests {
     @GameTest(maxTicks=3_000_000,padding=16)
     public void oakKernelAdmissionAndModelFreeSavedWorldReuse(GameTestHelper h) {
         var scene=new Scene(h);
+        h.failIfEver(() -> { if(scene.failure!=null)h.fail(scene.failure); });
         h.succeedWhen(() -> { scene.step();h.assertTrue(scene.done,"Waiting for RB-001 phase="+scene.phase); });
     }
     private static final class Scene {
@@ -31,7 +32,7 @@ public final class OakLogKernelGameTests {
         final OakLogFixtures.ControlledGeneration controlled=new OakLogFixtures.ControlledGeneration();
         final ServerPlayer owner,foreign;
         KernelSession session;ActorRef actor;BlockPos origin;Villager villager;UUID run;
-        int phase,amount=4,before,round;long started,generationBefore;String artifact;boolean done;
+        int phase,amount=4,before,round;long started,generationBefore;String artifact,failure;boolean done;
         CompletableFuture<Void> closing,writing;
         Scene(GameTestHelper h) {
             this.h=h;var world=h.getLevel().getServer().getWorldPath(LevelResource.ROOT);
@@ -58,6 +59,7 @@ public final class OakLogKernelGameTests {
             BootstrapGameTests.forceFixtureChunks(h,origin);
             for(int x=0;x<16;x++)for(int z=0;z<10;z++)h.getLevel().setBlock(origin.offset(x,0,z),Blocks.STONE.defaultBlockState(),3);
             h.getLevel().setBlock(origin.offset(12,1,4),Blocks.CHEST.defaultBlockState(),3);
+            h.getLevel().setBlock(origin.offset(12,1,7),Blocks.CHEST.defaultBlockState(),3);
             // A real obstruction requires the ordinary navigation owner to approach around it.
             h.getLevel().setBlock(origin.offset(3,1,3),Blocks.STONE.defaultBlockState(),3);
             h.getLevel().setBlock(origin.offset(3,2,3),Blocks.STONE.defaultBlockState(),3);
@@ -65,10 +67,11 @@ public final class OakLogKernelGameTests {
         void source(int count,int z) {
             for(int x=4;x<12;x++)h.getLevel().setBlock(origin.offset(x,1,z),x<4+count ? Blocks.OAK_LOG.defaultBlockState() : Blocks.AIR.defaultBlockState(),3);
         }
-        int stock() { return ((Container)h.getLevel().getBlockEntity(origin.offset(12,1,4))).countItem(Items.OAK_LOG); }
+        BlockPos destination() { return origin.offset(12,1,round==0 ? 4 : 7); }
+        int stock() { return ((Container)h.getLevel().getBlockEntity(destination())).countItem(Items.OAK_LOG); }
         void submit() {
             source(amount,round==0 ? 4 : 6);
-            var lo=origin.offset(4,1,round==0 ? 4 : 6);var hi=origin.offset(11,1,round==0 ? 4 : 6);var chest=origin.offset(12,1,4);
+            var lo=origin.offset(4,1,round==0 ? 4 : 6);var hi=origin.offset(11,1,round==0 ? 4 : 6);var chest=destination();
             before=stock();started=h.getLevel().getGameTime();generationBefore=session.generationCalls();
             var s=session.gatherOak(owner,actor.citizenId(),amount,lo.getX(),lo.getY(),lo.getZ(),hi.getX(),hi.getY(),hi.getZ(),chest.getX(),chest.getY(),chest.getZ());
             h.assertTrue(s.accepted(),"Oak canonical submission rejected: "+s);run=s.id();
@@ -80,26 +83,34 @@ public final class OakLogKernelGameTests {
                 owner.setUUID(m.principal());origin=new BlockPos(m.x(),m.y(),m.z());BootstrapGameTests.forceFixtureChunks(h,origin);
                 var e=h.getLevel().getEntity(m.actor());if(!(e instanceof Villager v))return;villager=v;
                 actor=session.citizen(owner,m.citizen()).actor();artifact=m.artifact();session.inference(false);
-                h.assertTrue(stock()==5,"Saved-world cold deposits changed");amount=7;round=2;phase=2;
+                h.assertTrue(stock()==4,"Saved-world standalone first destination changed");
+                h.assertTrue(((Container)h.getLevel().getBlockEntity(origin.offset(12,1,7))).countItem(Items.OAK_LOG)==1,
+                        "Saved-world standalone second destination changed");amount=7;round=2;phase=2;
             } else if(phase==0) {
                 owner.setPos(origin.getX()+1.5,origin.getY()+1,origin.getZ()+1.5);
                 actor=session.enroll(owner,villager);phase=1;
             } else if(phase==1) {
                 owner.setPos(origin.getX()+.5,origin.getY()+1,origin.getZ()+8.5);foreign.setPos(origin.getX()+.5,origin.getY()+1,origin.getZ()+9.5);
-                session.name(owner,actor.citizenId(),"Ada");phase=2;
+                session.name(owner,actor.citizenId(),"Ada");session.inference(true);phase=2;
             } else if(phase==2) { submit();phase=3; }
             else if(phase==3) {
                 var view=session.status(owner,run);
                 if(view.phase()!=BootstrapController.Phase.TERMINAL)return;
                 boolean acquired=view.research()!=null && view.research().status()==Outcomes.ResearchStatus.ADMITTED;
-                h.assertTrue(acquired || view.outcome()!=null && view.outcome().status()==Outcomes.ExecutionStatus.SUCCEEDED,
-                        "Oak acquisition failed "+KernelRunStatus.describe(view));
+                if(!(acquired || view.outcome()!=null && view.outcome().status()==Outcomes.ExecutionStatus.SUCCEEDED)) {
+                    failure="Oak acquisition failed "+KernelRunStatus.describe(view);return;
+                }
                 h.assertTrue(stock()==before+amount,"Actual oak slot conservation failed");
                 h.assertTrue(villager.getInventory().countItem(Items.OAK_LOG)==0,"Unexpected carried fixture remainder");
                 long deposited=view.resourceReceipts().stream().filter(r->r.stage()==ResourceDelivery.Stage.DEPOSIT).mapToLong(ResourceDelivery.Receipt::quantity).sum();
                 h.assertTrue(deposited==amount && view.receipts().isEmpty(),"Resource receipt type/quantity mismatch");
                 h.assertTrue(h.getLevel().getGameTime()-started>=60L*amount,"Bare-hand timing was bypassed");
                 h.assertTrue(session.job(run,session.citizen(owner,actor.citizenId()).owner()).orElseThrow().state()==Jobs.State.SUCCEEDED,"Jobs did not own completion");
+                var job=session.job(run,session.citizen(owner,actor.citizenId()).owner()).orElseThrow();
+                h.assertTrue(job.dependencies().isEmpty() && job.children().isEmpty(),"Acquisition was coupled to a downstream Job");
+                h.assertTrue(view.resourceReceipts().stream().allMatch(r -> r.destination().x()==destination().getX()
+                        && r.destination().y()==destination().getY() && r.destination().z()==destination().getZ()),
+                        "Runtime destination binding was baked into the method");
                 try { session.status(foreign,run);h.fail("Foreign principal inspected oak run"); }
                 catch(SecurityException expected) { }
                 if(round==0 && !warm) {

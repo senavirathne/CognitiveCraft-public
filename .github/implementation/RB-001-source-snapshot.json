@@ -7,7 +7,7 @@
   "source_compiled": false,
   "new_tests_executed": false,
   "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "97fa96534884270962f6022225d87a5e7aa75431d27c66766b249ff4c96becaa",
+  "code_manifest_sha256": "5e3daf1fa4bddc7b71c9e61d1c5a8677606179193b9f2af4c4e6fac4753ead12",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
@@ -26,8 +26,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/CapabilityResolver.java",
-      "bytes": 26607,
-      "sha256": "83a3dbadffc6db3ff0d4adfe9d266d8d298ec2561f6d5d87cd1d926499a6d808"
+      "bytes": 26959,
+      "sha256": "69166f5cbcf1385ea1cd52166c70e1998463bff481e4ef1099558eaf900e392a"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/Contracts.java",
@@ -66,8 +66,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/LanguageReferenceClassifier.java",
-      "bytes": 13911,
-      "sha256": "0ee2f12d53ae1242384a6c039ce2373a12ecef5e9e7984a8b09f3b121b439f21"
+      "bytes": 14014,
+      "sha256": "60ebe9d1edc3ad97a35670980abc9b846df367a93804f8c31e7651acc0e746de"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/LanguageRequests.java",
@@ -111,8 +111,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/ResearchAdmissionController.java",
-      "bytes": 48640,
-      "sha256": "5dc51f5fdc4f58f13b38ebf1d05d50d816c6bac551691db3a4b0722792d25e2a"
+      "bytes": 48934,
+      "sha256": "68400269c72a2c22ecdc48bc94f7cd925c9e7c53a9888bb610c48522daa29a7d"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/ResourceDelivery.java",
@@ -166,8 +166,8 @@
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogJobLifecycleTest.java",
-      "bytes": 6539,
-      "sha256": "18de36f0c6cfa35d7b2dc31e0e69a8b2b9ae14db7aae9ef7325f1e831f24b23a"
+      "bytes": 6758,
+      "sha256": "9b8456ff987f0a278dacef063521d34ca975e313128b8779e72f351384b26dc1"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogLanguageTest.java",
@@ -175,14 +175,19 @@
       "sha256": "ffb147e381e7c947b659728ed56b58405a6cf075bba784bc71eafa00404e60e1"
     },
     {
+      "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogPrerequisiteStockTest.java",
+      "bytes": 3022,
+      "sha256": "399035fe15e501a4b9eeddd2cd6b466191230cad6e2f2687414537ec4c5bdcbf"
+    },
+    {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogTestSupport.java",
-      "bytes": 11317,
-      "sha256": "594a0437fa0f9029b7fcc21ff55199049b367345ba0088ff504c78f11feb9c58"
+      "bytes": 11319,
+      "sha256": "39a800e4033de4e26dae9283a1734e7611312c8832915b033fbe7974b44f7a49"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/ResourceDeliveryTest.java",
-      "bytes": 4625,
-      "sha256": "d8e43f61571ee1868e82b4468424963c8608f7a24e23807930a6b01a889b71b3"
+      "bytes": 6385,
+      "sha256": "ef0510846aa028223d262efc782f9db4b30def90c4ec518fbc022d8d44783638"
     },
     {
       "path": "core/src/test/resources/rb001-wheat-primitives.json",
@@ -191,8 +196,8 @@
     },
     {
       "path": "e2e/oak.py",
-      "bytes": 11184,
-      "sha256": "e8da068f62b5221854adb8b5e991eaa5c7dcb77d1829fbb1aeaaf287eda32f3b"
+      "bytes": 13416,
+      "sha256": "08d5edbfd0eba4f7b7fb6d0f2ea39a0a7f82d31a07ceb973d93cba167cd880ea"
     },
     {
       "path": "e2e/suite.py",
@@ -206,13 +211,13 @@
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogFixtures.java",
-      "bytes": 3401,
-      "sha256": "9e756928126e2663be3d8cdc6b85cf5c45c582b18fc73f9b8e91ed1184180fbd"
+      "bytes": 3403,
+      "sha256": "552a55ded84b253503544ad9bdae5db82efc3755a15e5404357fa4c118c56c7b"
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogKernelGameTests.java",
-      "bytes": 9212,
-      "sha256": "b4315bc0427caa017c93a9253e2436f3195450661d63619e20b3ded2803f153e"
+      "bytes": 10360,
+      "sha256": "e19fb71e4265e0037c9d853187f5f71a18e0eb7c18a2d10c8872a31b73768c87"
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
@@ -281,12 +286,12 @@
     },
     {
       "path": "scripts/verify-rb001.py",
-      "bytes": 4354,
-      "sha256": "e2481f59d58c18f0f0580048b5bd3b0d8c828132c9da0258bab95d288b0d3ce8"
+      "bytes": 5371,
+      "sha256": "eef3921c21ac6444c8b1a710e736de68769abe92ffc5b5e1c5d48979ecb4667f"
     }
   ],
   "generated_at": "2026-10-12T13:11:27.557366+00:00",
-  "source_tests_planned_minimum_junit": 27,
+  "source_tests_planned_minimum_junit": 29,
   "all_acceptance_pending": true,
   "documentation_actions": {
     "run_ids": [
@@ -307,5 +312,20 @@
   },
   "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
   "source_publication_authorized": true,
-  "merge_after_required_checks_authorized": true
+  "merge_after_required_checks_authorized": true,
+  "snapshot_phase": "revised_working_content_before_publication",
+  "existing_published_head": "dc3d132902df0f098a9e7f162bb7896ed62f7b9b",
+  "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
+  "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
+  "previous_ci_checkpoint": {
+    "source": "dc3d132902df0f098a9e7f162bb7896ed62f7b9b",
+    "pr": 24,
+    "workflows": 21,
+    "success": 18,
+    "failure": 3,
+    "complete": false,
+    "native_effect_case": "passed",
+    "controlled_admission": "failed: fixture left inference disabled",
+    "connected_client": "failed: genuine candidate was not admitted; no acquisition completion"
+  }
 }

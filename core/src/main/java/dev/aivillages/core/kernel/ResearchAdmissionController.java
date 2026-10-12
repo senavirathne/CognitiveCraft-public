@@ -34,9 +34,13 @@ public final class ResearchAdmissionController {
             + "Give each call a distinct into name. End with result={param:amount}. ";
     private static final String OAK_BRIEF = "Produce schema-1 Skill IR for bounded oak-log delivery. "
             + "Bind actor, amount, source and destination parameters; use only the supplied registered signatures. "
-            + "Keep adjacent approach, timed harvest, delay observations, tracked pickup, destination movement and transfer separate. "
-            + "Repeat causally for param:amount. Use observe_oak_inventory to wait at least 20 ticks after harvesting; "
-            + "transfer one owned log per iteration, end with result param:amount. Never use wheat primitives or fixed coordinates. ";
+            + "For each repeat count={param:amount}, prepare=[approach_oak_log, harvest_next_oak_log]; "
+            + "wait with observe_oak_inventory for count={int:20}; "
+            + "finish=[pickup_tracked_oak_logs, move_to_destination, transfer_oak_logs] in that causal order. "
+            + "transfer_oak_logs uses amount={int:1}. Keep adjacent approach, timed harvest, pickup and transfer "
+            + "as separate calls. Do not transfer before pickup or use any effect twice. "
+            + "Give each call a distinct into name. End with result={param:amount}. "
+            + "Never use wheat primitives, fixed coordinates, crafting or product-specific dependencies. ";
     public enum Phase {
         QUARANTINING, GENERATING, VALIDATING, FIXTURING, PREPARING_TRIAL, TRIALING,
         PUBLISHING, CANCELLING, TERMINAL

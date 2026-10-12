@@ -8,7 +8,8 @@ OUT=ROOT/'build/rb001-evidence'
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'ResourceDeliveryTest':7,'OakLogGatewayTest':8,'OakLogJobLifecycleTest':5,'OakLogDiscoveryTest':3,'OakLogLanguageTest':2},
+    expected={'core':{'ResourceDeliveryTest':7,'OakLogGatewayTest':8,'OakLogJobLifecycleTest':5,'OakLogDiscoveryTest':3,'OakLogLanguageTest':2,
+                      'OakLogPrerequisiteStockTest':2},
               'providers':{'OakLogNeedleWireTest':1,'OakLogGenerationTest':1}}
     results={}
     for module,classes in expected.items():
@@ -53,6 +54,17 @@ def client():
     e=cases[0]['evidence']
     if not all(e.get(k) for k in ('canonicalAcquisition','actualLanguage','offlineWarmReuse','foreignDenied','killBoundary','recovered')):
         raise SystemExit('Incomplete RB network/genuine/offline/kill proof')
+    invocations=e.get('standaloneReuse',[])
+    if len(invocations)!=3 or sorted(r['quantities']['DEPOSIT'] for r in invocations)!=[1,4,7]:
+        raise SystemExit('Missing independent standalone amount assertions')
+    if len({r['artifact'] for r in invocations})!=1 or len({tuple(r['source']) for r in invocations})<2 or len({tuple(r['destination']) for r in invocations})<2:
+        raise SystemExit('Standalone method did not rebind both source and destination')
+    interface=e.get('typedInterface',{})
+    if interface.get('descriptor',{}).get('dependencies')!=[] or interface.get('spec',{}).get('capability')!='cognitivecraft:deliver_oak_logs':
+        raise SystemExit('Standalone typed interface or dependency evidence absent')
+    stock=e.get('stockBoundary',{})
+    if stock.get('initialOldStock')!=11 or stock.get('newlyAcquired')!=1 or stock.get('consumerJobs')!=0:
+        raise SystemExit('Old stock was substituted for independent acquisition')
     OUT.mkdir(parents=True,exist_ok=True);shutil.copy2(folder/'results.json',OUT/'connected-client.json')
 
 if __name__=='__main__':
