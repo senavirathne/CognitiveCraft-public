@@ -23,7 +23,7 @@ public final class OakLogEffectGameTests {
     public void actualBareHandTimingLootAndComponentPreservingCustody(GameTestHelper h) {
         for(int x=0;x<10;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         h.setBlock(3,1,3,Blocks.OAK_LOG);h.setBlock(7,1,3,Blocks.CHEST);h.setBlock(4,1,5,Blocks.BIRCH_LOG);
-        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,2);v.setNoAi(false);
+        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,2,2);v.setNoAi(false);
         var p=h.absolutePos(new BlockPos(3,1,3));var c=h.absolutePos(new BlockPos(7,1,3));
         BootstrapGameTests.forceFixtureChunks(h,h.absolutePos(BlockPos.ZERO));
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
@@ -43,9 +43,16 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
+        boolean[] airborneDeferred={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
         h.succeedWhen(() -> {
+            if(phase[0]==0 && !v.onGround()) {
+                var movement=world.approachResource(actor,new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ()),1,ResourceDelivery.OAK_LOG);
+                h.assertTrue(!movement.reached() && !movement.impossible() && movement.chargedWork()==0,
+                        "Airborne oak approach consumed a ground path or returned a false terminal result");
+                airborneDeferred[0]=true;
+            }
             if(!v.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
             if(phase[0]==0 && handle[0]==null) {
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
@@ -72,12 +79,13 @@ public final class OakLogEffectGameTests {
                 v.getInventory().setItem(0,new ItemStack(Items.OAK_LOG,3));
             }
             if(phase[0]>=operations.size()) {
+                h.assertTrue(airborneDeferred[0],"Falling-worker approach regression did not execute");
                 h.assertTrue(OakLogDelivery.completed(request,run,receipts),"Trusted native receipt chain incomplete");
                 h.assertTrue(v.getInventory().countItem(Items.OAK_LOG)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);

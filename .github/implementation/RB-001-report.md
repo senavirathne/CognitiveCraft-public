@@ -26,7 +26,7 @@ The revised working-code manifest below is not a tested commit or binary. No loc
 
 RB-001 is incomplete. Revised standalone/stock assertions, genuine oak admission, language, offline/restart, abrupt interruption and all final-head regressions must pass before merge. Exact final source/JAR/model identities, counts, artifact hashes and actual merge evidence will replace pending entries after verification. [Documentation readiness and RB-T01–14 mapping](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/implementation/RB-001-report.md).
 
-Revised working-code manifest SHA256 `81bc3533738e74fa1e22dfde02772fb9196ff7f2ae1aa9e60d0fce8dabb9d456` across 56 files. [Snapshot](RB-001-source-snapshot.json).
+Revised working-code manifest SHA256 `f05076e2e19b3f0e5ee45ade5316da08cea3aa487a60bc54c389a13a55ad3c81` across 56 files. [Snapshot](RB-001-source-snapshot.json).
 
 
 ## Corrective checkpoint after revised Actions
@@ -57,3 +57,8 @@ Documentation 33e4740c61dbd0fba75297034d584957555b04b4 records the actual networ
 ## Oak terminal navigation ownership
 
 Documentation f26e851f1fc8bc88a6c51e4535d0d4d77c0277e1 specifies the cleanup before correction. SurvivalGateway.finish now stops started APPROACH_OAK_LOG navigation on every terminal result, matching the existing movement operations. A regression removes a tracked drop during movement and requires one stop with no subsequent movement or credit. Existing optional native trace is enabled in the Actions job to expose remaining physical failures; it changes no effects or budgets. The prior PR warm attempt blocked after six deposits, and the separate genuine wheat gameplay qualification exhausted its existing budget. Neither is relabeled as a pass; all final-head gates remain required. Scoped minimum is now 31.
+
+
+## Grounded native path correction
+
+Documentation 42b0c389860469917d3de5dc97fd7c772ba96fec publishes the owning contract and exact network trace before implementation. Connected quantity-seven reuse at 29b39c6 blocked after one deposit because the worker was still descending after destination reach. All four oak approaches were spent: two solid faces were invalid, and both traversable faces returned null paths while airborne. Artifact 11770215326, ZIP SHA256 2ce014be88d94c69ac5be13669bdcda0fa42438c16d8512d70909545fd779f7b, retains that physical outcome. FabricGatewayWorld now returns ongoing with zero pathfinding work for airborne solid-oak approaches until normal physics lands the worker. Time, travel, permission checks and finite attempts remain unchanged; wheat movement is untouched. Native effects coverage starts with an actually falling worker, asserts this interval was observed with no false terminal/path work, then completes the same survival chain. Both earlier native jobs passed; final binary/network/legacy gates remain pending.

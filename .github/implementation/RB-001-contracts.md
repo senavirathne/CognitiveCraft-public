@@ -48,7 +48,7 @@ This command must submit to normal production KernelSession/Jobs; it must not ed
 
 No trusted oak task program is shipped. Research must perform normal resolution, generation, compile, bounded fixture evaluation, authorized physical trial and durable repository admission. Controlled proposals are test-only. Genuine configured-backend generation/admission and language quality are separate mandatory gates. Admitted methods bind all four parameters, and structured known execution must reuse them with zero inference, including a second-JVM saved-world restart with the backend stopped.
 
-See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/f26e851f1fc8bc88a6c51e4535d0d4d77c0277e1/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
+See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/42b0c389860469917d3de5dc97fd7c772ba96fec/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
 
 
 ## Concrete custody and owner details
@@ -93,3 +93,8 @@ The oak proposal uses approach/harvest, a bounded drop wait, then a second appro
 ## Movement terminal ownership
 
 `approach_oak_log` owns navigation exactly like the existing MOVE operations. Once movement has started, every terminal outcome—including success, stale owned-drop evidence, range/path failure and cancellation—must stop owned navigation through the existing world adapter. Include its operation in existing terminal movement diagnostics; preserve the same primitive fingerprint, effects and budgets. A stale-drop regression must prove navigation stops and repeated terminal polls cause no additional movement or credit. Existing optional native trace flags may be enabled in Actions without changing physical behavior or acceptance assertions.
+
+
+## Grounded native source-path submission
+
+For the solid oak-source approach, defer path selection/submission while the actual worker is airborne, including the transition after ordinary container navigation/deposit. Keep the same action deadline, elapsed/travel accounting, loaded/permission revalidation and finite approach budget; do not consume a path candidate merely because the installed ground navigator cannot submit a path before landing. Return ongoing with zero pathfinding work, never success, until the worker is grounded. Preserve existing wheat movement and the oak face/reach/harvest guards. Native effects coverage must spawn a genuinely falling worker, prove no path work or false terminal result during that interval, and then complete ordinary survival acquisition.
