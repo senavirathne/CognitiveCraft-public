@@ -7,7 +7,7 @@
   "source_compiled": false,
   "new_tests_executed": false,
   "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "5e3daf1fa4bddc7b71c9e61d1c5a8677606179193b9f2af4c4e6fac4753ead12",
+  "code_manifest_sha256": "770abdefdcc05fa9e90f3b5d2018eb12adb2224d088bb595d22ca007292e8427",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
@@ -56,8 +56,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java",
-      "bytes": 80902,
-      "sha256": "bfe89c66dd51c87a797d79d1a0320777917f1a3941a51d782c9107df11972779"
+      "bytes": 81397,
+      "sha256": "17dc870aaaa6d04c02333728e5bcb624a1c8440a94ebc63af0f39f8595bc3e0e"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/Jobs.java",
@@ -166,8 +166,8 @@
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogJobLifecycleTest.java",
-      "bytes": 6758,
-      "sha256": "9b8456ff987f0a278dacef063521d34ca975e313128b8779e72f351384b26dc1"
+      "bytes": 7107,
+      "sha256": "cac081c493e42e3438aad2d9a2bcc68742ab4ef90c9627073d5846137aa9da12"
     },
     {
       "path": "core/src/test/java/dev/aivillages/core/kernel/OakLogLanguageTest.java",
@@ -196,8 +196,8 @@
     },
     {
       "path": "e2e/oak.py",
-      "bytes": 13416,
-      "sha256": "08d5edbfd0eba4f7b7fb6d0f2ea39a0a7f82d31a07ceb973d93cba167cd880ea"
+      "bytes": 13436,
+      "sha256": "ecc0ce9c80a66cfca9c487e96e5aa584939dca3af2068a76af84b781f377c6bb"
     },
     {
       "path": "e2e/suite.py",
@@ -206,8 +206,8 @@
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogEffectGameTests.java",
-      "bytes": 8218,
-      "sha256": "d6c60507ac8e0001bdbf6f745270fe3369796b236b8a301644f97475c4ecdfbb"
+      "bytes": 8443,
+      "sha256": "cf8324e33489df333eb5be141a0ad6102b5017e3134fcb65c9f53f62dae97266"
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogFixtures.java",
@@ -221,8 +221,8 @@
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
-      "bytes": 41174,
-      "sha256": "a12aed9663da566e8bc487a25f5f0689f56123428948e95c39c2f6638829904c"
+      "bytes": 42119,
+      "sha256": "f8ab5e2ae33bc987b6bd09d68648822ce2103d09f5cd0adf5e4f46287b79b059"
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricResourceLeaseWorld.java",
@@ -314,7 +314,7 @@
   "source_publication_authorized": true,
   "merge_after_required_checks_authorized": true,
   "snapshot_phase": "revised_working_content_before_publication",
-  "existing_published_head": "dc3d132902df0f098a9e7f162bb7896ed62f7b9b",
+  "existing_published_head": "15a0fa4c64c17cc25543a286c7ca968b194bf5ab",
   "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
   "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
   "previous_ci_checkpoint": {
@@ -327,5 +327,9 @@
     "native_effect_case": "passed",
     "controlled_admission": "failed: fixture left inference disabled",
     "connected_client": "failed: genuine candidate was not admitted; no acquisition completion"
-  }
+  },
+  "corrective_documentation_commits": [
+    "be7519e99d5eb82bd4c64c397e061e2b22919ee0",
+    "05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4"
+  ]
 }

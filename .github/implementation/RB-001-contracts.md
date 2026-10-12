@@ -48,7 +48,7 @@ This command must submit to normal production KernelSession/Jobs; it must not ed
 
 No trusted oak task program is shipped. Research must perform normal resolution, generation, compile, bounded fixture evaluation, authorized physical trial and durable repository admission. Controlled proposals are test-only. Genuine configured-backend generation/admission and language quality are separate mandatory gates. Admitted methods bind all four parameters, and structured known execution must reuse them with zero inference, including a second-JVM saved-world restart with the backend stopped.
 
-See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
+See [report and mandatory mapping](RB-001-report.md) and [full prompt](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4/docs/source/docs/RB-001-oak-log-acquisition.md). Changes to any proposed decision must update this contract before claiming acceptance.
 
 
 ## Concrete custody and owner details
@@ -71,3 +71,13 @@ A direct request for newly collected logs must acquire and deliver the requested
 Receipts document that invocation's physical outcome; they create no inventory balance or unconditional reservation. Existing Jobs controls output allocations. A future eligible consumer must inspect current authorized unallocated physical item stock through existing stock/lease/prerequisite owners and request RB-001 only for a supported deficit. Removed or spent stock is unavailable even if a historical receipt exists. Acquisition never guesses a future recipe or product. This contract adds no consumer implementation.
 
 RB-T13 maps independent 1/4/7 reuse, distinct source/destination bindings, typed interface and dependency assertions to ResourceDeliveryTest, OakLogGenerationTest, OakLogKernelGameTests and GP-RB-01. RB-T14 maps older/unrelated stock, physical availability versus receipts and shared allocations to OakLogGatewayTest, OakLogJobLifecycleTest, new prerequisite stock assertions and existing lease/prerequisite regressions. All revised assertions remain pending Actions execution on the revised final head.
+
+
+## Physical approach correction — pending verification
+
+Oak source arrival requires a grounded face-adjacent block cell (Manhattan horizontal cell distance exactly one), with horizontal distance to the log center at most 1.15 blocks. Diagonal cells do not establish arrival. Recheck this same position at every harvest effect, alongside the existing 2.5-block native reach/ray, loaded state, permission, hands, effects and gamerules. Keep path attempts/polls and all cumulative budgets unchanged. Do not widen pickup reach, move item entities, change their scatter, or grant new primitive authority. Existing wheat movement/fingerprints remain unchanged.
+
+Before removing a log, revalidate capacity for the actual eligible loot computed by the installed server, including excess beyond the requested credit. Unsupported or excessive loot/capacity is rejected before mutation; real surplus remains in the world/inventory without extra job credit.
+
+
+Standalone acquisition credit is invocation-specific. JobLifecycleStore.allocate must reject allocating a historical oak producer receipt to another direct deliver_oak_logs request; persisted allocations with that meaning are invalid and remain preserved/inactive under existing recovery. A direct oak job succeeds only from its own trusted execution evidence. Original wheat allocation semantics remain unchanged. Typed oak production evidence and actual item stock remain reusable by later eligible consumer contracts under the existing owners; RB-001 introduces no such consumer or allocation shortcut.

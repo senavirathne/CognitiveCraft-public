@@ -679,6 +679,10 @@ public final class JobLifecycleStore {
         Job producer = controlled(allocation.producer(), caller);
         if (demand == null || producer == null || !producer.origin().equals(demand.origin()))
             return reject(Reason.AUTHORITY_DENIED, work);
+        // A direct oak request promises newly acquired output from this invocation.
+        // Historical production evidence is not a downstream material-demand contract.
+        if (demand.request().request().capability().equals(OakLogDelivery.ID))
+            return reject(Reason.REQUEST_INVALID, work);
         var existing = state.allocations().stream().filter(a -> a.id().equals(allocation.id())).findFirst();
         if (existing.isPresent()) return existing.get().equals(allocation) ? duplicate(demand, work)
                 : reject(Reason.REQUEST_INVALID, work);
@@ -1038,6 +1042,7 @@ public final class JobLifecycleStore {
         for (Allocation allocation : snapshot.allocations()) {
             Job producer = rows.get(allocation.producer()), demand = rows.get(allocation.demand());
             if (producer == null || demand == null || producer.id().equals(demand.id())
+                    || demand.request().request().capability().equals(OakLogDelivery.ID)
                     || !sameBindings(producer.request(), demand.request()))
                 throw new IllegalArgumentException("Allocation scope/bindings");
             Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt()))
@@ -1129,7 +1134,8 @@ public final class JobLifecycleStore {
             if (job.state() == State.SUCCEEDED && (goal
                     ? !PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())
                             || !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
-                    : Math.addExact(job.fulfilled(),allocated) < quantity.value()))
+                    : Math.addExact(job.fulfilled(),job.request().request().capability().equals(OakLogDelivery.ID)
+                            ? 0 : allocated) < quantity.value()))
                 throw new IllegalArgumentException("Unattributed job success");
         }
     }

@@ -42,15 +42,19 @@ class OakLogJobLifecycleTest {
         assertEquals(Code.DUPLICATE,s.jobs.recordExecutionResult(j.id(),j.guard(),new Report(a.id(),a.generation(),3,
                 a.usage(),List.of(),a.terminal(),receipts),OWNER).code());assertEquals(previous,s.memory.state);
     }
-    @Test void actualDepositCanBeAllocatedOnceAndCrossResourceAllocationIsDenied() {
+    @Test void historicalDepositCannotCompleteAnotherStandaloneAcquisition() {
         var s=new Scene();var producer=s.assign(s.create());producer=s.finish(producer,s.receipts(producer));var demand=s.create();
         var a=producer.current();var receipt=a.resourceReceipts().getLast();
         var allocation=new Allocation(UUID.randomUUID(),producer.id(),a.id(),receipt.receiptId(),demand.id(),1);
-        assertTrue(s.jobs.allocate(allocation,demand.guard(),OWNER).accepted());s.jobs.tick();
-        assertEquals(State.SUCCEEDED,s.jobs.query(demand.id(),OWNER).state());
-        var extra=s.create();
-        assertFalse(s.jobs.allocate(new Allocation(UUID.randomUUID(),producer.id(),a.id(),receipt.receiptId(),extra.id(),1),extra.guard(),OWNER).accepted());
-        assertEquals(1,s.memory.state.allocations().size());
+        var previous=s.memory.state;
+        assertEquals(Reason.REQUEST_INVALID,s.jobs.allocate(allocation,demand.guard(),OWNER).reason());
+        assertEquals(previous,s.memory.state);assertEquals(State.READY,s.jobs.query(demand.id(),OWNER).state());
+        assertEquals(0,s.jobs.query(demand.id(),OWNER).fulfilled());
+        var forged=new Snapshot(previous.worldId(),previous.revision(),previous.jobs(),List.of(allocation));
+        assertThrows(IllegalArgumentException.class,()->JobLifecycleStore.validateSnapshot(forged,Settings.defaults()));
+        demand=s.assign(demand);demand=s.finish(demand,s.receipts(demand));
+        assertEquals(State.SUCCEEDED,demand.state());assertEquals(1,demand.fulfilled());
+        assertTrue(s.memory.state.allocations().isEmpty());
     }
     @Test void resourceJournalRoundTripRetainsEvidenceAndLegacyWheatEncoding() throws Exception {
         var s=new Scene();var j=s.assign(s.create());j=s.finish(j,s.receipts(j));

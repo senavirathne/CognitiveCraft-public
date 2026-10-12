@@ -23,7 +23,7 @@ public final class OakLogEffectGameTests {
     public void actualBareHandTimingLootAndComponentPreservingCustody(GameTestHelper h) {
         for(int x=0;x<10;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         h.setBlock(3,1,3,Blocks.OAK_LOG);h.setBlock(7,1,3,Blocks.CHEST);h.setBlock(4,1,5,Blocks.BIRCH_LOG);
-        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,3);v.setNoAi(false);
+        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,2);v.setNoAi(false);
         var p=h.absolutePos(new BlockPos(3,1,3));var c=h.absolutePos(new BlockPos(7,1,3));
         BootstrapGameTests.forceFixtureChunks(h,h.absolutePos(BlockPos.ZERO));
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
@@ -50,6 +50,8 @@ public final class OakLogEffectGameTests {
             if(phase[0]==0 && handle[0]==null) {
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
                 h.assertTrue(world.resourceBlock(cell,ResourceDelivery.OAK_LOG).breakTicks()==60,"Pinned oak survival timing differs");
+                h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_UNAVAILABLE,
+                        "Diagonal worker cell was accepted as face-adjacent oak arrival");
                 var birch=h.absolutePos(new BlockPos(4,1,5));
                 h.assertTrue(!world.resourceBlock(new SurvivalGateway.Cell(dim,birch.getX(),birch.getY(),birch.getZ()),ResourceDelivery.OAK_LOG).eligible(),"Another species entered the oak allowlist");
                 v.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(Items.IRON_AXE));

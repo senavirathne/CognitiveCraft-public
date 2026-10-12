@@ -45,8 +45,8 @@ def scenario(h):
                "fill 10 201 12 10 202 13 minecraft:stone",
                'summon minecraft:item 6.5 201.25 14.5 {Item:{id:"minecraft:oak_log",count:17}}'])
     h.wait(lambda: h.container(DESTINATION, ITEM) == 0, "RB clean standalone canonical destination")
-    unrelated = {d["uuid"] for d in h.snapshot()["drops"] if d["item"] == ITEM}
-    require(unrelated, "RB actual unrelated drop witness missing")
+    unrelated = h.wait(lambda: {d["uuid"] for d in h.snapshot()["drops"] if d["item"] == ITEM} or None,
+                       "RB actual unrelated drop witness", 15)
     h.command("PlayerA", "/aivillage kernel inference true", "admission=true")
 
     def prepare(quantity, z=14):

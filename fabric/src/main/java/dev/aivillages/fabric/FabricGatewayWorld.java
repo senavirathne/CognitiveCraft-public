@@ -41,22 +41,25 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private final Map<UUID, Route> routes = new HashMap<>();
     private static final int MAX_PATH_NODES = 128;
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
+    private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
     private static final class Route {
         final BlockPos target;
         final UUID runId;
         final NavigationRoute policy;
         final boolean sourceApproach;
-        Route(BlockPos target, UUID runId, boolean sourceApproach) {
+        final boolean solidApproach;
+        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach) {
             this.target = target;
             this.runId = runId;
             this.sourceApproach = sourceApproach;
+            this.solidApproach = solidApproach;
             List<NavigationRoute.Approach> samples = new ArrayList<>(8);
             // A source goal is inside the selected crop cell. An adjacent end cell
             // cannot satisfy the closer arrival and would waste a pathfinding call.
             if (sourceApproach) samples.add(new NavigationRoute.Approach(
                     target.getX(), target.getY(), target.getZ()));
             for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-                if (!sourceApproach && (dx != 0 || dz != 0)) samples.add(new NavigationRoute.Approach(
+                if (!sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) samples.add(new NavigationRoute.Approach(
                         target.getX() + dx, target.getY(), target.getZ() + dz));
             }
             this.policy = new NavigationRoute(samples);
@@ -212,6 +215,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, v));
         return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(targetBlock);
     }
+    private boolean oakApproachGeometry(Villager v, BlockPos target) {
+        BlockPos now=v.blockPosition();
+        if (Math.abs((long)now.getX()-target.getX())+Math.abs((long)now.getZ()-target.getZ())!=1) return false;
+        double dx=v.getX()-(target.getX()+.5),dz=v.getZ()-(target.getZ()+.5);
+        return dx*dx+dz*dz<=OAK_APPROACH_DISTANCE_SQUARED;
+    }
     @Override public Movement move(ActorRef actor, Cell target, int maxNavigationCalls) {
         return navigate(actor,target,maxNavigationCalls,false);
     }
@@ -238,7 +247,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                         Math.abs((long)now.getZ() - previous.getZ())));
         if (travel > 1) return terminal(v, routes.get(v.getUUID()), "invalid-travel", 0, travel);
         v.getLookControl().setLookAt(target.x() + 0.5, target.y() + 0.5, target.z() + 0.5);
-        boolean adjacent=Math.max(Math.abs(now.getX()-targetPos.getX()),Math.abs(now.getZ()-targetPos.getZ()))==1;
+        boolean adjacent=oakApproachGeometry(v,targetPos);
         if (solidApproach && canReach(v,targetPos) && adjacent && !v.onGround())
             return new Movement(false,false,0,travel);
         if ((!solidApproach || adjacent && v.onGround()) && canReach(v, targetPos) && (!sourceApproach
@@ -248,7 +257,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (!loaded(targetPos) || !level.mayInteract(v, targetPos))
             return terminal(v, routes.get(v.getUUID()), "target-unavailable", 0, travel);
         Route route = routes.get(v.getUUID());
-        if (route != null && (!route.target.equals(targetPos) || route.sourceApproach != sourceApproach)) {
+        if (route != null && (!route.target.equals(targetPos) || route.sourceApproach != sourceApproach
+                || route.solidApproach != solidApproach)) {
             stopOwnedNavigation(v, route);
             routes.remove(v.getUUID());
             route = null;
@@ -256,7 +266,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (route == null) {
             UUID runId = GatewayControl.owner(v);
             if (runId == null) return new Movement(false, true, 0, travel);
-            route = new Route(targetPos, runId, sourceApproach);
+            route = new Route(targetPos, runId, sourceApproach, solidApproach);
             routes.put(v.getUUID(),route);
         }
         if (route.policy.stage() == NavigationRoute.Stage.FOLLOW_PATH) {
@@ -465,7 +475,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !level.getGameRules().get(GameRules.BLOCK_DROPS)) return Reason.AUTHORITY_DENIED;
         if(!v.getMainHandItem().isEmpty() || !v.getOffhandItem().isEmpty() || !v.getActiveEffects().isEmpty())
             return Reason.TARGET_INVALID;
-        if(!v.onGround() || v.isInWater() || v.isInLava() || !canReach(v,p)) return Reason.TARGET_UNAVAILABLE;
+        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || !canReach(v,p)) return Reason.TARGET_UNAVAILABLE;
         return resourceBlock(target,item).eligible() ? null : Reason.TARGET_INVALID;
     }
     @Override public ItemHarvest resourceHarvest(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item,long elapsedTicks) {
@@ -481,6 +491,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(loot.size()>64 || oakUnits>64 || loot.stream().anyMatch(s -> s.is(Items.OAK_LOG)
                 && (!defaultOak(s) || s.getCount()>s.getMaxStackSize())))
             return new ItemHarvest(false,List.of(),Reason.TARGET_INVALID);
+        ItemStock capacity=resourceInventory(actor,item);
+        if(capacity.status()!=ObservationStatus.PRESENT || capacity.reason()!=null || capacity.capacity()<oakUnits)
+            return new ItemHarvest(false,List.of(),capacity.reason()==null ? Reason.TARGET_UNAVAILABLE : capacity.reason());
         if(!level.setBlock(p,Blocks.AIR.defaultBlockState(),3)) return new ItemHarvest(false,List.of(),Reason.ACTION_FAILED);
         List<ItemDrop> tracked=new ArrayList<>(); boolean failed=false;
         for(ItemStack stack:loot) {

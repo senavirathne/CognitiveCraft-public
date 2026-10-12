@@ -27,3 +27,14 @@ The revised working-code manifest below is not a tested commit or binary. No loc
 RB-001 is incomplete. Revised standalone/stock assertions, genuine oak admission, language, offline/restart, abrupt interruption and all final-head regressions must pass before merge. Exact final source/JAR/model identities, counts, artifact hashes and actual merge evidence will replace pending entries after verification. [Documentation readiness and RB-T01–14 mapping](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/d839e58f3208f0e1f337cdf951f5d86a147a639d/docs/implementation/RB-001-report.md).
 
 Revised working-code manifest SHA256 `5e3daf1fa4bddc7b71c9e61d1c5a8677606179193b9f2af4c4e6fac4753ead12` across 56 files. [Snapshot](RB-001-source-snapshot.json).
+
+
+## Corrective checkpoint after revised Actions
+
+Documentation contracts were updated first in `be7519e99d5eb82bd4c64c397e061e2b22919ee0` and `05c8e1b9e5ad51054f1fc8b6f79808c08ac2bbd4`. At source `15a0fa4`, all 29 scoped cases executed; a native push run completed controlled and genuine cold physical admission plus standalone quantity-one reuse in a second chest. Genuine artifact `6a180d9af385862440c678dcba613a91a2d6837762ca7005aa92a019938d3760` resolved after backend shutdown in another JVM with zero model calls, then pickup correctly blocked before full warm delivery. No warm or connected pass is claimed.
+
+Native artifact 11759998917, SHA256 `c9b44c007697364398798b56cc94a360b30d830ef94cac245912d2e07b5193c3`, preserves a separate controlled partial outcome: two deposits and a third harvested item. Saved actual actor/drop coordinates show distance 2.642195, exceeding unchanged reach 2.5. Root cause: source arrival treated a diagonal cell as adjacent. FabricGatewayWorld now selects face neighbors, requires horizontal arrival distance at most 1.15, and repeats that position check at harvest. The native effect case starts diagonal and requires rejection before ordinary movement. Drops are not moved, pickup reach is not widened, and existing wheat movement is unchanged. Native harvesting also checks capacity against the actual eligible loot before mutation.
+
+The additive contract audit found the initial generic oak allocation test allowed historical deposits to complete a new direct acquisition job. JobLifecycleStore now rejects that allocation and equivalent persisted snapshots; the revised regression proves no credit/state change, then completes the new job through its own fresh evidence. Future consumers are not implemented; original wheat allocation rules remain. The connected setup now waits for the actual unrelated item snapshot rather than racing an already-empty chest observation.
+
+These corrections remain unverified until final-head Actions pass. The current working-code manifest is in RB-001-source-snapshot.json; prior manifests and failed attempts are historical checkpoints, not final acceptance.
