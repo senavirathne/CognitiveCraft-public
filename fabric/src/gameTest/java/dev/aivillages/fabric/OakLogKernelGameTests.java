@@ -47,7 +47,8 @@ public final class OakLogKernelGameTests {
             session=new KernelSession(h.getLevel().getServer(),root,null,genuine || warm ? null : controlled);
             if(!warm) {
                 origin=h.absolutePos(new BlockPos(64,0,64));setup();
-                villager=h.getLevel().getEntitiesOfClass(Villager.class,new net.minecraft.world.phys.AABB(origin,origin.offset(15,5,10)))
+                villager=h.getLevel().getEntitiesOfClass(Villager.class,new net.minecraft.world.phys.AABB(
+                        origin.getX(),origin.getY(),origin.getZ(),origin.getX()+16,origin.getY()+5,origin.getZ()+11))
                         .stream().findFirst().orElseGet(() -> {
                             var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,65,1,65);v.setNoAi(false);return v;
                         });
