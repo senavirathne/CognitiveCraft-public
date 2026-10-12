@@ -1,6 +1,8 @@
 # IMP-020 completion report
 
-Status: **complete and merged** as [PR #19](https://github.com/senavirathne/CognitiveCraft-public/pull/19) after all 20 final-source CI workflows passed. Actual merge: `8a93ca1c0fc3baa1802f894c45a9e8f4cdf7e57f` at `2026-10-11T16:59:30Z`. IMP-021 remains separately published as PR #20, open and unmerged.
+Current 2026-10-12 acceptance update: **implemented and published for GitHub Actions; required CI pending**. The latest user instruction authorizes publication and merge after required CI passes; all implementation tests run in Actions. Documentation-first publication and new evidence are appended below. The earlier complete/merged status describes the original reviewed source, not a fresh pass for the tightened duplicate policy.
+
+Original status: **complete and merged** as [PR #19](https://github.com/senavirathne/CognitiveCraft-public/pull/19) after all 20 final-source CI workflows passed. Actual merge: `8a93ca1c0fc3baa1802f894c45a9e8f4cdf7e57f` at `2026-10-11T16:59:30Z`. IMP-021 remains separately published as PR #20, open and unmerged.
 
 Baseline main: 01c623f4915e8f760659eac1a1426e1bbca6e3a5, tree 198f6ff191f843f727c7f2298d4a53ab5c580b63. Normative documentation: b1d5bf71365d1b1762699c006465caa1db8e5be5, IMP-020, shared contract, GP-20 and first-build-fixture. User explicitly requested implementation through IMP-020 and merge; this authorizes publication despite the historical shared contract's default local-only delivery instruction.
 
@@ -100,3 +102,59 @@ Every final-source workflow completed successfully before the merge:
 | World retention acceptance | [38155526239](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38155526239) |
 
 The changed-binary gameplay run executes fresh genuine acquisition and certifies its own production binary; the incompatible old arena is not counted as evidence. Historical failed attempts remain identified above. The final report publication adds no production or test changes and does not merge IMP-021.
+
+## Acceptance update and production correction — 2026-10-12
+
+Implemented in the provided Work Mode cloud workspace after documentation-first commit `c1f5a27f3fb7a58761315db7dd2f21754edfb3db` was published and verified. Source baseline remains `13f9b941f57022ded8987e4e0aa7652d4231921d`; implementation changes are uncommitted/unpublished. Runtime/test/build/workflow source-manifest SHA-256: `341d0ddb70881be6f781871dd5b61c863da733cd49a069977615369400672ac9`. The manifest enumerates each tested file/hash at `build/imp020-current/source-snapshot.json`; report/contract outputs are excluded from that execution fingerprint. Architecture 0.5, Contracts/IR and body/ref/metadata/placement policy 1, exported APIs and all dependency/wrapper pins remain unchanged. The existing local IMP-020.1 audit is preserved.
+
+The latest supplied brief requires every duplicate coordinate to reject. Minimal reproducer: submit two cells at one coordinate with the same block/default-normalized state. Call/thread path: the owner worker calls `BlueprintStore.store` → `BlueprintValidator.validate` → palette normalization → `canonical` → `positions.putIfAbsent`. Previously the equal-state branch collapsed the declaration and could return VALID/STORED. The correction rejects any prior position before material computation/publication; equivalent states return INVALID_DATA/DUPLICATE_CELL and different states retain CONFLICTING_CELL. Four new regression invocations fail on the baseline validator and pass with the correction. Baseline classes were isolated solely for negative comparison; final tests and packaging use corrected production classes without a patch/mixin/workaround. The earlier original completion deliberately accepted identical repeats and remains historical evidence.
+
+Unused supported palette entries and reordered distinct cells still deduplicate. Existing canonical stored bodies contain unique cells and keep their schema-1 identities; no migration/rewrite or second owner is introduced. The maximum-cell test now uses 512 distinct coordinates instead of repeated cells while retaining exact byte/dimension/palette/work checks. Invalid negative, one-past and overflowing palette references also reject with no accepted body/material bill.
+
+The active test-only compact fixture has dimensions 3×3×2 and seven cells: three plank supports, one bottom slab, matching north-facing/left-hinge door halves and a standing torch. Its independent bill is 3 planks/1 slab/1 door/1 torch. Both GP-20 JVMs validate/rotate/store/reopen the same ref `e88c32062ecbb9c0ca59ff8a7cab71e3745d2471ad86992fb5b3b27584d46263`. Each measures 705 input bytes, 793 canonical bytes, 116 work, 1,360 metadata bytes, one variant and one retained inactive assessment; gateway/model calls are zero. The optional timber fixture remains test-only; neither fixture is bundled in production. No construction, recipes, resources, site permission, AI, jobs, assignments or leases are introduced.
+
+| Mandatory feature | Fresh supplementary cloud SDK evidence |
+|---|---|
+| Valid supplied structure | Compact fixture and independent bill; optional timber and actual native registry fixtures |
+| Canonical identity | Equivalent cell/palette/default/property orders, unused supported palette, meaningful geometry/state/constraint changes and immutable metadata/site binding |
+| Malformed/oversized | Duplicate/conflicting cells, negative/one-past/overflow palette refs, dimension/coordinate/payload/byte/token/work ceilings; exact 512 distinct-cell maximum |
+| Registry/state semantics | Unknown block/state/unsupported placement tests and three actual installed-registry cases |
+| Door accounting | Matching halves cost one item; absent/mismatched/support pairs, slab single/double semantics |
+| Rotation | Compact and timber quarter turns, directions/hinges/bounds/materials, four-turn identity and site-coordinate overflow |
+| Compatibility | Missing/changed required meaning/target/state preserves body and retained evidence; no substitution |
+| Persistence/recovery | Reload plus seven fault and seven cancellation checkpoints, corrupt/unknown/foreign/UTF-8/stage/body handling and closed-writer fencing |
+| Quotas/retention | Exact/zero/exceeded limits, current/rollback/consumer roots, stale collection refusal and metered inventory; new lookup-rebuild test preserves body/metadata/evidence hashes |
+| Cancellation/publication | Bounded cooperative fences; rejected duplicates leave no ref/body/manifest or variant change; two simultaneous equivalent submissions retain one body and one metadata generation |
+| Scope/privacy | Denial, sharing/revocation, same-world private provenance, no physical authority from refs |
+| No effects/inference | Model/gateway spies and two-JVM driver report zero calls and absent execution domains |
+
+Final matrix: **76 executed passing cases**, no skips/failures: validator 37, store 36, Fabric registry 3. Compilation covers every core/providers/Fabric production and unit source. Supplementary full suites execute **1,166 cases: 1,155 pass and 11 fail**, no skips (core 1,070 with 11 failures; providers 66 and Fabric 30 all pass). All failures are in existing `SaveCompatibilityTest`; running its 25 cases with the baseline validator reproduces the same 11 failures. The filesystem probe `Files.getFileStore(...).getUsableSpace()` reports `java.io.IOException: Mount point not found` in this cloud sandbox, producing SPACE_UNAVAILABLE before the affected migration/fault paths. Safeguards and expectations remain unchanged; these failures are not passes.
+
+Supplementary production/native-test packaging and every native GameTest source compile pass. Production JAR: 1,483,328 bytes, SHA-256 `d5035b16198f769e0b1af40598ccb91adda1faaaa2d58a2e217ef0bb964a4631`; native-test JAR: 428,519 bytes, SHA-256 `1e0dd15bfc9f4c6fa270438a8322f505d41ad627d194c7986e2878cdeda1dace`. Production contains the three blueprint runtime owners and excludes blueprint fixtures/drivers, GameTest classes and model weights. These artifacts use the checksum-verified server SDK, not a successful Loom/wrapper build. The SDK supplies Minecraft's pinned Gson 2.14.0 runtime library; the declared core Gradle pin remains 2.10.1. No Gradle dependency declaration is changed.
+
+Actual commands: `python3 build/imp020-current/verify.py` with the three blueprint selectors; `python3 build/imp020-current/run-evidence.py` phases `baseline`, `probe`, `package`, `full`, `baseline-space`; and **`bash gradlew :core:test`**. All run in the supplied cloud workspace with JDK 25.0.4.1; explicit library paths resolve that installed JDK's loader. The required wrapper command exits **1 before any test executes**: downloading pinned Gradle 9.7.0 fails with `java.net.SocketException: Network is unreachable`. Full pinned-wrapper/Loom/prerequisite checks therefore remain unverified. SDK diagnostics do not replace that gate. Logs/XML, exact commands, before/after proof, full failure list, cold/warm witnesses, packaging and source fingerprints are retained under `build/imp020-current/` and summarized in `acceptance-summary.json`.
+
+Changed tracked files:
+
+- `.github/implementation/IMP-020-contracts.md`
+- `.github/implementation/IMP-020-report.md`
+- `.github/workflows/blueprint-boundary.yml`
+- `core/src/main/java/dev/aivillages/core/kernel/BlueprintValidator.java`
+- `core/src/test/java/dev/aivillages/core/kernel/BlueprintFixture.java`
+- `core/src/test/java/dev/aivillages/core/kernel/BlueprintValidatorTest.java`
+- `core/src/test/java/dev/aivillages/core/kernel/BlueprintStoreTest.java`
+- `core/src/test/java/dev/aivillages/core/kernel/BlueprintBoundaryProbe.java`
+
+Current acceptance remains **incomplete** until the mandatory wrapper/full compatibility checks pass in an environment with the pinned distribution and working filesystem-space probe. Source remains uncommitted and unpublished; IMP-021 stays unmerged. RB-001/RB-002 are not started. Historical original reports/CI/IDs and unrelated local changes remain intact.
+
+Final documentation publication: current report/contracts/status/evidence are committed as `122fed7594b02168ffa5d09a0c0de9c1866c84bc` (tree `76c7635e0f59fcb278b85b6e9fbd8398b0d5d137`) after the documentation-first checkpoint and actual implementation checks. Canonical source main remains `13f9b941f57022ded8987e4e0aa7652d4231921d`; the eight tracked source changes remain uncommitted, and the prior local IMP-020.1 report is untouched.
+
+## Authorized GitHub Actions continuation — 2026-10-12
+
+The latest user request authorizes publishing this repair and merging after CI passes. Documentation prompts/index/contracts/backlog were updated first in `3e5b6507bcfa0e38e2537683bc4ed12cf23dac5d`. The preceding uncommitted/SDK-only observations retain their historical snapshot meaning. All required pinned Gradle unit/module/native/package/prerequisite and two-JVM GP-20 verification now runs in GitHub Actions; no local Gradle download is needed. The scoped acceptance workflow checks out the exact PR head and records source commit/tree in its proof, with a clean tracked-source guard. Final Actions evidence and actual merge will be recorded when available. IMP-021 PR #20 stays open and unmerged.
+
+## Observed Actions harness correction — 2026-10-12
+
+Source `a927b50670b4edfe0620b219fc9a75893dab4d7a` passed 19/20 required workflows: the scoped 76 cases, all 1,166 regressions, packaging, cold/warm GP-20, compatibility and retention all passed. Gameplay run `38212528016` failed E2E-MUTATION-001 because its separate test observer queried only ACTOR_STOCK (6,201,6), but the genuine acquired fixture retained relevant stock at (6,200,6). Artifact `11732415280`, digest `sha256:e89b1621cfafe76a67c600eea7961885f7a1aab7939a21dc2763ca8e3c114d20`, was downloaded and hash-verified; 160 inspected queries correctly returned COMPLETE with zero matching records. Production query/rights behavior is correct.
+
+The observer now alternates two bounded fixture-height queries, each with the same 64-record/8-result/8,192-byte limits and actual requesting player scope. The driver additionally requires a complete bounded positive query and a foreign query of the exact same target from a distinct trusted viewer, with no disclosed private evidence. Physical mutation/false-completion/stale-authority and qualification assertions remain mandatory. This repair was documented before code changes. No production API, privacy rule or data authority changes; a new reviewed head must pass fresh required Actions before merge.

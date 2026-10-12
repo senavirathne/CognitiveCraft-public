@@ -47,6 +47,21 @@ public final class BlueprintFixture {
         return new Body(new Dimensions(2,1,1),new Constraints(true,true,1),
                 List.of(new State("minecraft:oak_planks",Map.of())),List.of(new Cell(0,0,0,0)));
     }
+    /** Compact GP-20 geometry: three supports, one slab, two door halves and one torch. */
+    public static Body compact() {
+        var palette=List.of(new State("minecraft:oak_planks",Map.of()),
+                new State("minecraft:oak_slab",Map.of("type","bottom")),
+                new State("minecraft:oak_door",Map.of("facing","north","half","lower","hinge","left")),
+                new State("minecraft:oak_door",Map.of("facing","north","half","upper","hinge","left")),
+                new State("minecraft:torch",Map.of()));
+        return new Body(new Dimensions(3,3,2),new Constraints(true,true,1),palette,
+                List.of(new Cell(0,0,0,0),new Cell(1,0,0,0),new Cell(2,0,0,0),
+                        new Cell(2,1,0,1),new Cell(0,1,0,2),new Cell(0,2,0,3),new Cell(1,1,0,4)));
+    }
+    /** Independent item bill: the two door cells consume a single door item. */
+    public static Map<String,Long> compactBill() {
+        return Map.of("minecraft:oak_planks",3L,"minecraft:oak_slab",1L,"minecraft:oak_door",1L,"minecraft:torch",1L);
+    }
     public static Body changed() {
         var body=tiny();return new Body(body.dimensions(),body.constraints(),body.palette(),List.of(new Cell(1,0,0,0)));
     }

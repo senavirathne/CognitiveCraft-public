@@ -30,16 +30,16 @@ public final class BlueprintBoundaryProbe {
         require(gatewayCalls.get()==0 && modelCalls.get()==0,"effects or inference");
         var completed=new TreeMap<>(proof);completed.put("gatewayCalls",gatewayCalls.get());completed.put("modelCalls",modelCalls.get());
         Files.writeString(root.resolve(phase+".json"),StrictJson.canonical(completed)+"\n");
-        System.out.println("IMP-020 GP-20 accepted phase="+phase+" cells=331 planks=224 slabs=99 doors=2 torches=4 effects=0 modelCalls=0 immutable=true");
+        System.out.println("IMP-020 GP-20 accepted phase="+phase+" cells=7 planks=3 slabs=1 doors=1 torches=1 effects=0 modelCalls=0 immutable=true");
         System.out.println("IMP-020 structural evidence "+StrictJson.canonical(completed));
     }
     private static Map<String,Object> run(String phase,Path root)throws Exception {
         require(Thread.currentThread().getName().equals("blueprint-gp20-storage"),"off-thread driver");
         Path marker=root.resolve("ref.json"),world=root.resolve("structural-world");
         var registry=BlueprintFixture.registry();
-        String supplied=BlueprintFixture.timber().canonical();
+        String supplied=BlueprintFixture.compact().canonical();
         var validated=BlueprintValidator.validate(supplied,registry,BlueprintValidator.Limits.defaults(),()->false);
-        require(validated.valid() && validated.materials().equals(BlueprintFixture.bill()),"fixture bill");
+        require(validated.valid() && validated.materials().equals(BlueprintFixture.compactBill()),"fixture bill");
         Blueprint.Ref ref=validated.body().ref();
         try(var store=BlueprintStore.open(world,WORLD,new BlueprintStore.Limits(1,4_194_304,4,4),TrustedContext::equals,p->{})) {
             var roots=new RetentionRoots();
@@ -47,12 +47,12 @@ public final class BlueprintBoundaryProbe {
             retention.register(store.retentionOwner());
             if(phase.equals("cold")) {
                 require(!Files.exists(marker) && store.variants()==0,"fresh cold store");
-                var published=store.store(supplied,registry,new BlueprintStore.Provenance(OWNER,"two-room test-only structure"),()->false);
+                var published=store.store(supplied,registry,new BlueprintStore.Provenance(OWNER,"compact test-only structure"),()->false);
                 require(published.status()==BlueprintStore.Status.STORED && ref.equals(published.ref()),"durable publication");
-                var cells=new ArrayList<>(BlueprintFixture.timber().cells());Collections.reverse(cells);
-                var fixture=BlueprintFixture.timber();
+                var cells=new ArrayList<>(BlueprintFixture.compact().cells());Collections.reverse(cells);
+                var fixture=BlueprintFixture.compact();
                 var reordered=new Blueprint.Body(fixture.dimensions(),fixture.constraints(),fixture.palette(),cells);
-                require(store.store(reordered.canonical(),registry,new BlueprintStore.Provenance(OWNER,"two-room test-only structure"),()->false).ref().equals(ref),"dedup");
+                require(store.store(reordered.canonical(),registry,new BlueprintStore.Provenance(OWNER,"compact test-only structure"),()->false).ref().equals(ref),"dedup");
                 require(store.store(" ".repeat(65537),registry,new BlueprintStore.Provenance(OWNER,"invalid"),()->false).status()==BlueprintStore.Status.QUOTA,"oversized");
                 require(store.store(supplied.substring(0,supplied.length()-1)+",\"program\":[]}",registry,
                         new BlueprintStore.Provenance(OWNER,"invalid"),()->false).status()==BlueprintStore.Status.INVALID_DATA,"executable");
@@ -63,13 +63,13 @@ public final class BlueprintBoundaryProbe {
                 require(WORLD.toString().equals(saved.get("world")) && ref.sha256().equals(saved.get("ref")),"reloaded identity");
             }
             var inspection=store.inspect(ref,OWNER,registry,()->false);
-            require(inspection.compatible() && inspection.materials().equals(BlueprintFixture.bill()),"compatible reuse");
+            require(inspection.compatible() && inspection.materials().equals(BlueprintFixture.compactBill()),"compatible reuse");
             require(inspection.evidence().size()==1 && inspection.evidence().getFirst().status()==BlueprintValidator.Status.INCOMPATIBLE,"retained prior evidence");
             String canonical=inspection.body().canonical();
             for(int turns=0;turns<4;turns++) {
                 var view=BlueprintValidator.bind(inspection.body(),new Blueprint.SiteBinding(ref,"minecraft:overworld",100,70,-100,turns));
                 var result=BlueprintValidator.validate(view.geometry().canonical(),registry,BlueprintValidator.Limits.defaults(),()->false);
-                require(result.valid() && result.materials().equals(BlueprintFixture.bill()),"rotation bill");
+                require(result.valid() && result.materials().equals(BlueprintFixture.compactBill()),"rotation bill");
                 require(canonical.equals(inspection.body().canonical()) && ref.equals(view.source()),"immutable site binding");
             }
             Path manifest=world.resolve(BlueprintStore.WORLD_RELATIVE_PATH).resolve("manifest.jsonl");
