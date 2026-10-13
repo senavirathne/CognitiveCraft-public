@@ -20,7 +20,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** Real installed recipes through production KernelSession, Jobs and leases; native mock callers are not network evidence. */
 public final class OakPlankKernelGameTests {
     private record Marker(UUID principal,UUID originalActor,UUID citizen,String artifact,int x,int y,int z,long process) { }
-    @GameTest(maxTicks=3_000_000,padding=16)
+    @GameTest(maxTicks=24_000,padding=16)
     public void stockedPlanksGenuineAdmissionAndIndependentOfflineSameSaveReuse(GameTestHelper h) {
         var scene=new Scene(h);h.failIfEver(()->{if(scene.failure!=null)h.fail(scene.failure);});
         h.succeedWhen(()->{scene.step();h.assertTrue(scene.done,"Waiting for RB-002 phase="+scene.phase);});
@@ -89,7 +89,7 @@ public final class OakPlankKernelGameTests {
                 if(!warm) {session.name(owner,actor.citizenId(),"Ada");session.inference(true);}phase=2;
             } else if(phase==2) {submit();phase=3;}
             else if(phase==3) {
-                var view=session.status(owner,run);if(view.phase()!=BootstrapController.Phase.TERMINAL)return;
+                var view=session.status(owner,run);if(view.storageError()!=null) {failure="Durable production failed: "+KernelRunStatus.describe(view);return;}if(view.phase()!=BootstrapController.Phase.TERMINAL)return;
                 boolean acquired=view.research()!=null && view.research().status()==Outcomes.ResearchStatus.ADMITTED;
                 if(!(acquired || view.outcome()!=null && view.outcome().status()==Outcomes.ExecutionStatus.SUCCEEDED)) {failure="Plank production failed: "+KernelRunStatus.describe(view);return;}
                 int batches=OakPlankProduction.batches(amount),surplus=batches*4-amount;

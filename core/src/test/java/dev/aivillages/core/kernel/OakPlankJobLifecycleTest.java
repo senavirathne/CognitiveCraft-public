@@ -17,8 +17,9 @@ class OakPlankJobLifecycleTest {
         final JobLifecycleStore jobs=new JobLifecycleStore(memory.state,memory,
                 JobLifecycleStore.privateJobs((a,c)->a.equals(ACTOR) && c.equals(OWNER)),c->{},PlanningGoals.catalog(),
                 JobLifecycleStoreTest.environment(),CLOCK,Settings.defaults(),false);
-        Job create() {
-            UUID id=UUID.randomUUID();var b=bound(1);
+        Job create() {return create(1);}
+        Job create(int amount) {
+            UUID id=UUID.randomUUID();var b=bound(amount);
             assertTrue(jobs.create(id,id,b.request(),OWNER,b.observation(),OakPlankProduction.executionLimits(CLOCK.millis()).total(),List.of()).accepted());
             jobs.tick();return jobs.query(id,OWNER);
         }
@@ -27,14 +28,14 @@ class OakPlankJobLifecycleTest {
             assertTrue(jobs.assign(j.id(),j.guard(),UUID.randomUUID(),ACTOR,ref,List.of(ref),j.allowance(),OWNER).accepted());
             jobs.tick();return jobs.query(j.id(),OWNER);
         }
-        List<ResourceDelivery.Receipt> receipts(Job j) { var d=new Driver(1);d.produce();
+        List<ResourceDelivery.Receipt> receipts(Job j) { var d=new Driver(Math.toIntExact(((IntValue)j.request().request().arguments().get("amount")).value()));d.produce();
             var b=j.current().bound();var run=j.current().executions().getFirst().runId();
             return d.receipts.stream().map(r->new ResourceDelivery.Receipt(r.receiptId(),b.context(),run,r.operationId(),r.batchId(),ACTOR,
                 r.source(),r.destination(),r.item(),r.stage(),r.quantity(),r.sourceBlock(),r.dropIds(),r.transformation())).toList(); }
         Job finish(Job j,List<ResourceDelivery.Receipt> receipts) {
-            var a=j.current();var outcome=new Execution(ExecutionStatus.SUCCEEDED,null,3,new EvidenceRef(a.id().toString(),"transformation-delivery:1",OWNER.scope().domainId().toString()));
-            var change=jobs.recordExecutionResult(j.id(),j.guard(),new Report(a.id(),a.generation(),3,
-                    Map.of(Budgets.Kind.COMMITTED_EFFECTS,3L),List.of(),outcome,receipts),OWNER);
+            var a=j.current();long effects=receipts.size();var outcome=new Execution(ExecutionStatus.SUCCEEDED,null,effects,new EvidenceRef(a.id().toString(),"transformation-delivery:1",OWNER.scope().domainId().toString()));
+            var change=jobs.recordExecutionResult(j.id(),j.guard(),new Report(a.id(),a.generation(),effects,
+                    Map.of(Budgets.Kind.COMMITTED_EFFECTS,effects),List.of(),outcome,receipts),OWNER);
             assertTrue(change.accepted(),change.toString());jobs.tick();return jobs.query(j.id(),OWNER);
         }
     }
@@ -95,5 +96,26 @@ class OakPlankJobLifecycleTest {
         assertEquals(future,Files.readString(file));
         assertTrue(SaveCompatibility.registered().readable(new SaveCompatibility.Format("jobs",2)));
         assertFalse(SaveCompatibility.registered().readable(new SaveCompatibility.Format("jobs",99)));
+    }
+    @Test void largestAmountFitsUnchangedStrictRecordAndRealJournalRoundTrip() throws Exception {
+        var s=new Scene();var j=s.assign(s.create(64));j=s.finish(j,s.receipts(j));
+        assertEquals(State.SUCCEEDED,j.state());assertEquals(64,j.fulfilled());assertEquals(48,j.current().resourceReceipts().size());
+        String encoded=JobCodec.job(j);assertTrue(encoded.getBytes(java.nio.charset.StandardCharsets.UTF_8).length<StrictJson.MAX_BYTES);
+        assertEquals(j,JobCodec.job(StrictJson.object(encoded)));
+        Snapshot persisted;
+        try(var journal=JobJournal.open(world,OWNER.scope().worldId())) {
+            persisted=new Snapshot(s.memory.state.worldId(),journal.snapshot().revision()+1,s.memory.state.jobs(),List.of());
+            journal.replace(journal.snapshot(),persisted);
+        }
+        try(var journal=JobJournal.open(world,OWNER.scope().worldId())) {assertFalse(journal.readOnly());assertEquals(persisted,journal.snapshot());}
+    }
+    @Test void executedFullSchemaTwoTransformationRecordRemainsReadable() throws Exception {
+        String old;
+        try(var input=getClass().getResourceAsStream("/rb002/full-schema2-85c5-job.json")) {
+            assertNotNull(input);old=new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
+        }
+        var job=JobCodec.job(StrictJson.object(old));assertEquals(State.SUCCEEDED,job.state());assertEquals(1,job.fulfilled());
+        assertTrue(OakPlankProduction.completed(job.current().bound(),job.current().executions().getFirst().runId(),job.current().resourceReceipts()));
+        assertEquals(job,JobCodec.job(StrictJson.object(JobCodec.job(job))));
     }
 }

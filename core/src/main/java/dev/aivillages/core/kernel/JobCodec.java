@@ -77,7 +77,7 @@ final class JobCodec {
                 "artifact",ref(r.artifact()),"pinned",r.pinned().stream().map(JobCodec::ref).toList())).toList());
         row.put("receipts",attempt.receipts().stream().map(JobCodec::receipt).toList());
         if (ResourceDelivery.resource(attempt.bound().request().capability()))
-            row.put("resourceReceipts",attempt.resourceReceipts().stream().map(JobCodec::resourceReceipt).toList());
+            row.put("resourceReceipts",attempt.resourceReceipts().stream().map(r->resourceReceipt(r,attempt.bound())).toList());
         if (attempt.terminal() != null) row.put("terminal",strict(Outcomes.encode(attempt.terminal())));
         return row;
     }
@@ -99,7 +99,7 @@ final class JobCodec {
         if(ResourceDelivery.resource(bound.request().capability()) && !row.containsKey("resourceReceipts"))
             throw new StrictJson.Invalid("$","RESOURCE_RECEIPTS_REQUIRED");
         if (row.containsKey("resourceReceipts"))
-            for (Object value : list(row,"resourceReceipts",64)) resources.add(resourceReceipt(map(value)));
+            for (Object value : list(row,"resourceReceipts",64)) resources.add(resourceReceipt(map(value),bound));
         return new Attempt(id(row,"id"),number(row,"generation","$"),actor(object(row,"worker","$")),
                 bound,limits(object(row,"allowance","$")),references,
                 usage(object(row,"usage","$")),receipts,number(row,"effects","$"),number(row,"credited","$"),
@@ -184,7 +184,13 @@ final class JobCodec {
         return ResourceDelivery.resource(job.request().request().capability())
                 || job.attempts().stream().anyMatch(a -> !a.resourceReceipts().isEmpty());
     }
-    private static Map<String,Object> resourceReceipt(ResourceDelivery.Receipt r) {
+    private static Map<String,Object> resourceReceipt(ResourceDelivery.Receipt r,ValidatedRequest bound) {
+        if(r.transformation()!=null) {
+            if(!TransformationDelivery.matches(bound,r.runId(),r))throw new IllegalArgumentException("Transformation attempt binding");
+            return Map.of("schema",2L,"binding","attempt","id",r.receiptId().toString(),"run",r.runId().toString(),
+                    "operation",r.operationId().toString(),"batch",r.batchId().toString(),"stage",r.stage().name(),
+                    "quantity",r.quantity(),"transformation",transformation(r.transformation()));
+        }
         var row = new LinkedHashMap<String,Object>();
         row.put("schema",r.transformation()==null ? 1L : 2L); row.put("id",r.receiptId().toString()); row.put("run",r.runId().toString());
         row.put("operation",r.operationId().toString()); row.put("batch",r.batchId().toString());
@@ -199,8 +205,19 @@ final class JobCodec {
         if(r.transformation()!=null)row.put("transformation",transformation(r.transformation()));
         return row;
     }
-    private static ResourceDelivery.Receipt resourceReceipt(Map<String,Object> row) throws StrictJson.Invalid {
+    private static ResourceDelivery.Receipt resourceReceipt(Map<String,Object> row,ValidatedRequest bound) throws StrictJson.Invalid {
         long schema=number(row,"schema","$");
+        if(row.containsKey("binding")) {
+            exact(row,"schema","binding","id","run","operation","batch","stage","quantity","transformation");
+            if(schema!=2 || !"attempt".equals(string(row,"binding","$")) || !bound.request().capability().equals(OakPlankProduction.ID))
+                throw new StrictJson.Invalid("$","TRANSFORMATION_BINDING_SCHEMA");
+            var args=bound.request().arguments();var source=((ContainerValue)args.get("source")).value();
+            var stage=ResourceDelivery.Stage.valueOf(string(row,"stage","$"));
+            return new ResourceDelivery.Receipt(id(row,"id"),bound.context(),id(row,"run"),id(row,"operation"),id(row,"batch"),
+                    ((ActorValue)args.get("actor")).value(),ResourceLeases.point(source),((ContainerValue)args.get("destination")).value(),
+                    stage==ResourceDelivery.Stage.WITHDRAW ? ResourceDelivery.OAK_LOG : ResourceDelivery.OAK_PLANKS,stage,number(row,"quantity","$"),
+                    new ResourceDelivery.BlockPosition(source.dimension(),source.x(),source.y(),source.z()),List.of(),transformation(object(row,"transformation","$")));
+        }
         fields(row,Set.of("schema","id","run","operation","batch","principal","world","domain","actor","source",
                 "destination","item","components","stage","quantity","sourceBlock","dropIds"),schema==2 ? Set.of("transformation") : Set.of());
         if (schema!=1 && schema!=2 || schema==2 && !row.containsKey("transformation"))
