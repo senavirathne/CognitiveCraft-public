@@ -41,6 +41,7 @@ def scenario(h):
     require("oakCatalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "RB-001 was seeded as a dependency")
     h.console(["setblock " + " ".join(map(str, SOURCE)) + " minecraft:chest",
                "setblock " + " ".join(map(str, SECOND_SOURCE)) + " minecraft:chest",
+               "setblock 8 200 7 minecraft:stone", "setblock 8 200 11 minecraft:stone",
                'data merge block 9 201 7 {Items:[{Slot:0b,id:"minecraft:oak_planks",count:11}]}',
                'data merge block 17 201 7 {Items:[{Slot:0b,id:"minecraft:oak_planks",count:11}]}',
                f'data merge entity {h.entities["PlayerA"]} {{Inventory:[{{id:"minecraft:oak_log",count:3}},{{id:"minecraft:oak_planks",count:7}}]}}'])
@@ -97,7 +98,12 @@ def scenario(h):
         other = "PlayerB" if player == "PlayerA" else "PlayerA"
         require(run not in h.snapshot()["players"][other]["runs"], "Private production leaked")
         h.command(other, "/aivillage kernel status "+run, DENIED_PATTERN); h.command(other, "/aivillage kernel cancel "+run, DENIED_PATTERN)
-        if player == "PlayerB" and destination == DESTINATION:
+        if destination == SECOND_DESTINATION:
+            h.walk(player, [7, 201, 5], reach=.7); h.walk(player, [17, 201, 5], reach=.7)
+        elif destination == SECOND_SOURCE:
+            h.walk(player, [17, 201, 5], reach=.7); h.walk(player, [15, 201, 5], reach=.7)
+            h.walk(player, [15, 201, 7], reach=.7)
+        elif player == "PlayerB" and destination == DESTINATION:
             h.walk(player, [13, 201, 5], reach=.7); h.walk(player, [9, 201, 5], reach=.7)
         require(h.menu_count(player, destination, PLANK) == before+quantity, "Real client menu did not converge")
         trace = [a["pos"] for row in completed_jsonl(h.root/"server/observations.jsonl")
