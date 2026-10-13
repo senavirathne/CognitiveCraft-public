@@ -42,7 +42,7 @@ public final class StickEffectGameTests {
                 var named=new ItemStack(Items.OAK_PLANKS);named.set(DataComponents.CUSTOM_NAME,Component.literal("exact-input-components"));
                 from.setItem(1,named);h.assertTrue(world.recipePreflight(bound).reason()==Reason.TARGET_INVALID,"Component input was accepted");from.setItem(1,ItemStack.EMPTY);
                 for(int i=0;i<v.getInventory().getContainerSize();i++)v.getInventory().setItem(i,new ItemStack(Items.STONE,64));
-                v.getInventory().setItem(0,new ItemStack(Items.OAK_PLANKS,63));
+                v.getInventory().setItem(0,new ItemStack(Items.OAK_PLANKS,62));
                 h.assertTrue(world.recipePreflight(bound).reason()==Reason.TARGET_UNAVAILABLE,"Known result capacity did not block before withdrawal");
                 h.assertTrue(from.countItem(Items.OAK_PLANKS)==4,"Capacity preflight mutated source");
                 v.getInventory().clearContent();v.getInventory().setItem(0,new ItemStack(Items.OAK_PLANKS,3));v.getInventory().setItem(1,new ItemStack(Items.STICK,7));

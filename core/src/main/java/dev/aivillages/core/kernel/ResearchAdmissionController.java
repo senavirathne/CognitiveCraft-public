@@ -319,7 +319,7 @@ public final class ResearchAdmissionController {
         }
         attempt.generate(Generation.Role.INITIAL, "Current source observation="
                 + route.observation().status()
-                + (RecipeProduction.is(bound.request().capability()) ? ", input_logs=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
+                + (RecipeProduction.is(bound.request().capability()) ? ", "+RecipeProduction.of(bound.request().capability()).inputCount()+"=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
                 + route.observation().counts().getOrDefault(RecipeProduction.is(bound.request().capability()) ? RecipeProduction.of(bound.request().capability()).inputCount() : bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
         return attempt;
     }
