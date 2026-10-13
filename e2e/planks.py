@@ -98,6 +98,15 @@ def scenario(h):
         other = "PlayerB" if player == "PlayerA" else "PlayerA"
         require(run not in h.snapshot()["players"][other]["runs"], "Private production leaked")
         h.command(other, "/aivillage kernel status "+run, DENIED_PATTERN); h.command(other, "/aivillage kernel cancel "+run, DENIED_PATTERN)
+        if acquired:
+            # A citizen may push the idle viewer back into the open pen during
+            # genuine inference. Leave through its actual gate using client input.
+            position = h.client_snapshot(player)["pos"]
+            if position[2] < 4.75 and 1 <= position[0] <= 4:
+                h.walk(player, [2, 201, 2], reach=.5)
+                h.walk(player, [2, 201, 5], reach=.5)
+            h.walk(player, [2, 201, 7], reach=.7)
+            h.walk(player, [7, 201, 7], reach=.7)
         if destination == SECOND_DESTINATION:
             h.walk(player, [7, 201, 5], reach=.7); h.walk(player, [17, 201, 5], reach=.7)
         elif destination == SECOND_SOURCE:
