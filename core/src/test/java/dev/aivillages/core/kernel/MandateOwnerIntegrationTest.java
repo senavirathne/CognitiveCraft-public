@@ -62,7 +62,7 @@ class MandateOwnerIntegrationTest {
                         }
                         public ResourceLeases.Result validate(ValidatedRequest request,RunCorrelation run){return prepare(request,run);}
                         public void release(UUID run){if(!leases.ready())return;var refs=claims.get(run);if(refs==null)return;var result=leases.release(refs,COORDINATOR);
-                            if(result.code()!=ResourceLeases.Code.PENDING)claims.remove(run);}
+                            if(result.code()==ResourceLeases.Code.RELEASED || result.code()==ResourceLeases.Code.STALE)claims.remove(run);}
                         public boolean released(UUID run){return !claims.containsKey(run);}
                     },job->true,authority.clock,()->tick,new WorkerDispatcher.Settings(4,3,2,2,8,16,200,10000));
             var args=new HashMap<>(request(COORDINATOR).request().arguments());args.put("amount",new IntValue(2));
@@ -73,11 +73,11 @@ class MandateOwnerIntegrationTest {
         void until(java.util.function.BooleanSupplier done){for(int n=0;n<300&&!done.getAsBoolean();n++)step();assertTrue(done.getAsBoolean(),()->"Job="+job()+" decisions="+dispatcher.diagnostics(jobId,COORDINATOR)+" grants="+authority.registry.snapshot()+" claims="+claims);}
         void revoke(){Grant g=authority.find(parent);assertEquals(Status.PENDING,authority.registry.revoke(parent,g.revision(),OWNER).status());}
         final class Handle implements WorkerDispatcher.Handle {
-            final Jobs.Job assigned;final Budgets.Ledger usage;
+            final Jobs.Job assigned;final Budgets.Ledger usage;final List<CropDelivery.CropReceipt> receipts;
             BoundedSkillExecutor.Progress progress;
-            Handle(Jobs.Job assigned,Budgets.Ledger usage){this.assigned=assigned;this.usage=usage;set(null);}
+            Handle(Jobs.Job assigned,Budgets.Ledger usage){this.assigned=assigned;this.usage=usage;this.receipts=JobLifecycleStoreTest.receipts(assigned.current(),1);set(null);}
             void set(ExecutionStatus status){
-                var a=assigned.current();var receipts=JobLifecycleStoreTest.receipts(a,1);
+                var a=assigned.current();
                 var terminal=status==null?null:new Execution(status,status==ExecutionStatus.CANCELLED?Reason.CANCELLED:Reason.INTERRUPTED,3,null);
                 progress=new BoundedSkillExecutor.Progress(status==null?BoundedSkillExecutor.Phase.RUNNING:BoundedSkillExecutor.Phase.TERMINAL,
                         new BoundedSkillExecutor.Summary(a.executions().getLast().runId(),ARTIFACT,null,List.of(ARTIFACT),3,receipts,terminal,usage.snapshot()),List.of());
@@ -102,6 +102,8 @@ class MandateOwnerIntegrationTest {
         var competitor=s.leases.acquire(new ResourceLeases.Owner(other,1),List.of(new ResourceLeases.Demand(ResourceLeases.Resource.space(WORLD,SOURCE),1)),100,FOREIGN);
         assertEquals(ResourceLeases.Code.CONFLICT,competitor.code());assertFalse(s.authority.registry.allows(binding.request(),binding.run(),Effect.HARVEST,new EffectTarget(DIM,1,64,0)));
         s.stopConfirmed=true;s.until(()->!s.job().current().open()&&s.claims.isEmpty());assertEquals(Jobs.State.CANCELLED,s.job().state());assertEquals(3,s.job().effects());assertEquals(1,s.job().fulfilled());
+        assertTrue(s.leases.snapshot().leases().stream().noneMatch(l->l.state()==ResourceLeases.State.ACTIVE));
+        assertEquals(ResourceLeases.Code.PENDING,s.leases.acquire(new ResourceLeases.Owner(other,1),List.of(new ResourceLeases.Demand(ResourceLeases.Resource.space(WORLD,SOURCE),1)),100,FOREIGN).code());
         assertFalse(s.cancellations.isEmpty());assertEquals(binding.generation(),s.cancellations.getFirst().generation());
     }
     @Test void coordinatorLossUsesTheSameBoundedStopAndReconciliationOwners() {

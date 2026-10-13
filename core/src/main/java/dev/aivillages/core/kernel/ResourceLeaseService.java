@@ -391,7 +391,8 @@ public final class ResourceLeaseService {
     private Result reference(Lease row,Ref ref,TrustedContext caller,long tick,boolean active) {
         if(row==null)return result(Code.STALE,Reason.INTERRUPTED);
         OwnerFacts facts=facts(row.owner(),caller);
-        if(facts==null)return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        // Revocation denies use, but the exact original holder must still dispose of its own claim.
+        if(facts==null && (active || !row.origin().equals(caller)))return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
         if(!row.epoch().equals(epoch) || !ref.epoch().equals(row.epoch()) || ref.generation()!=row.generation())
             return result(Code.STALE,Reason.INTERRUPTED);
         if(active && (!facts.live() || tick>=row.expires() || !live(row,tick)))

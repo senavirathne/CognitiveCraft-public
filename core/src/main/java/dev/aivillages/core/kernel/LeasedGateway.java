@@ -286,7 +286,7 @@ public final class LeasedGateway implements GatewayPort {
         List<Ref> refs=group.usable()?group.leases():run.acquisition.leases();
         if(refs.isEmpty()){runs.remove(run.correlation.runId());return;}
         Result released=leases.release(refs,run.request.context());
-        if(released.code()!=Code.PENDING)runs.remove(run.correlation.runId());
+        if(released.code()==Code.RELEASED || released.code()==Code.STALE)runs.remove(run.correlation.runId());
     }
     private ActionReceipt waitForPublication(Action a) {
         long elapsed=ticks.getAsLong()-a.started;
