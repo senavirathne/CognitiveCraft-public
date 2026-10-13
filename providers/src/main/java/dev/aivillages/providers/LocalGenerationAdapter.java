@@ -542,10 +542,11 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
     private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
-        var id=Map.of("type","string","enum",primitives.stream().map(Contracts.PrimitiveSignature::id).toList());
+        var preflight=Map.of("type","string","enum",primitives.stream().filter(p->p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
+        var cycleId=Map.of("type","string","enum",primitives.stream().filter(p->!p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
-                "additionalProperties",false,"properties",Map.of("preflight",id,"batchSize",Map.of("type","integer","enum",List.of(4)),
-                        "cycle",Map.of("type","array","items",id,"minItems",5,"maxItems",5),
+                "additionalProperties",false,"properties",Map.of("preflight",preflight,"batchSize",Map.of("type","integer","enum",List.of(4)),
+                        "cycle",Map.of("type","array","items",cycleId,"minItems",5,"maxItems",5),
                         "result",Map.of("type","object","required",List.of("param"),"additionalProperties",false,
                                 "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
     }
@@ -554,9 +555,13 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(4).equals(p.get("batchSize"))
                 || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=5 || !Map.of("param","amount").equals(p.get("result")))
             throw new IllegalArgumentException("Bounded recipe proposal");
+        var observation=primitives.stream().filter(p->p.id().equals(preflight)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered preflight"));
+        if(!observation.effects().equals(java.util.Set.of(Contracts.Effect.OBSERVE)))throw new IllegalArgumentException("Recipe preflight must observe once");
         var calls=new java.util.ArrayList<Object>();
         for(Object value:cycle) {
             if(!(value instanceof String id))throw new IllegalArgumentException("Recipe primitive ID");
+            if(primitives.stream().filter(p->p.id().equals(id)).anyMatch(p->p.effects().contains(Contracts.Effect.OBSERVE)))
+                throw new IllegalArgumentException("Preflight cannot enter the repeated recipe cycle");
             calls.add(plankCall(id,primitives));
         }
         var batches=Map.of("operator","DIV","left",Map.of("operator","ADD","left",Map.of("param","amount"),"right",Map.of("int",3L)),"right",Map.of("int",4L));

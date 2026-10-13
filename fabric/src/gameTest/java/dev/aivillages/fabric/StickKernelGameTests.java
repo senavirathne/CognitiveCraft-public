@@ -28,6 +28,7 @@ public final class StickKernelGameTests {
     private static final class Scene {
         final GameTestHelper h;final Path root,marker;final boolean warm,genuine;
         final ServerPlayer owner,foreign;final StickFixtures.ControlledGeneration controlled=new StickFixtures.ControlledGeneration();
+        final RecordedStickGeneration recorded;
         final CompletableFuture<Marker> loadedMarker;final long startedMillis=System.currentTimeMillis();KernelSession session;BlockPos origin;Villager villager;
         ActorRef actor;UUID run,originalActor;int phase,round,amount=8,before,actorBefore,logsBefore;
         long generationBefore;String artifact,failure;boolean done;CompletableFuture<Void> writing,closing;
@@ -40,7 +41,8 @@ public final class StickKernelGameTests {
             loadedMarker=warm ? CompletableFuture.supplyAsync(()->{try{return new Gson().fromJson(Files.readString(marker),Marker.class);}
                 catch(Exception e){throw new CompletionException(e);}}) : null;
             owner=h.makeMockServerPlayerInLevel();foreign=h.makeMockServerPlayerInLevel();foreign.setUUID(UUID.randomUUID());
-            session=new KernelSession(h.getLevel().getServer(),root,null,genuine || warm ? null : controlled);
+            recorded=genuine && !warm ? new RecordedStickGeneration(root.resolve("generated-wire")) : null;
+            session=new KernelSession(h.getLevel().getServer(),root,null,recorded!=null ? recorded : warm ? null : controlled);
             if(!warm) {
                 origin=h.absolutePos(new BlockPos(64,0,64));setup();villager=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,65,1,65);
                 villager.setNoAi(false);villager.setPersistenceRequired();originalActor=villager.getUUID();
@@ -69,7 +71,7 @@ public final class StickKernelGameTests {
         }
         void step() {
             if(System.currentTimeMillis()-startedMillis>650_000) {failure="Bounded fixture wall watchdog phase="+phase+" round="+round;return;}
-            if(phase==5) {if(closing.isDone()) {closing.join();done=true;}return;}
+            if(phase==5) {if(closing.isDone()) {closing.join();if(recorded!=null)recorded.close();done=true;}return;}
             session.tick();if(!session.identityReady())return;
             if(phase<=2 && (!session.jobsReady() || !session.leasesReady()))return;
             if(phase==0 && warm) {
@@ -126,7 +128,7 @@ public final class StickKernelGameTests {
                     writing=CompletableFuture.runAsync(()->{try{Files.writeString(marker,new Gson().toJson(m));}catch(Exception e){throw new CompletionException(e);}});phase=4;
                 }
             } else if(phase==4) {if(!writing.isDone())return;writing.join();closing=session.storeClosure();session.close();phase=5;}
-            else if(phase==5 && closing.isDone()) {closing.join();done=true;}
+            else if(phase==5 && closing.isDone()) {closing.join();if(recorded!=null)recorded.close();done=true;}
         }
     }
 }
