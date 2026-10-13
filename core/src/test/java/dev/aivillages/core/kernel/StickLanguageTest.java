@@ -23,4 +23,6 @@ final class StickLanguageTest {
         assertEquals(LanguageReferenceClassifier.Intent.UNKNOWN,LanguageReferenceClassifier.classify("Ada, make 8 birch planks and store them.",List.of("Ada")).intent());
         assertEquals(LanguageReferenceClassifier.Intent.UNKNOWN,LanguageReferenceClassifier.classify("Ada, make an axe from sticks.",List.of("Ada")).intent());
     }
+    @Test void explicitWrongStickIngredientCannotFallBackToPlankStock() {var c=LanguageReferenceClassifier.classify("Ada, make 4 sticks from available oak logs and store them.",List.of("Ada"));assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.source().state());}
+    @Test void existingPlankIntentStillRequiresItsExplicitLogIngredient() {var c=LanguageReferenceClassifier.classify("Ada, make 4 oak planks from available oak planks and store them.",List.of("Ada"));assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.source().state());}
 }
