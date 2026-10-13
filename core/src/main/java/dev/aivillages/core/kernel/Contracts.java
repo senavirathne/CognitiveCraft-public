@@ -263,6 +263,14 @@ public final class Contracts {
     }
     public interface AuthorityPolicy {
         boolean currentlyAllows(ActorRef actor, Effect effect, TrustedContext context);
+        /** Compatible effect-time seam; delegated policies also check bound work, run and actual target. */
+        default boolean currentlyAllows(ValidatedRequest request, UUID run, Effect effect, EffectTarget target) {
+            return request.request().arguments().get("actor") instanceof ActorValue actor
+                    && currentlyAllows(actor.value(), effect, request.context());
+        }
+    }
+    public record EffectTarget(String dimension, int x, int y, int z) {
+        public EffectTarget { requireDimension(dimension); }
     }
     public interface GatewayPort {
         ActionHandle start(ValidatedRequest request, RunCorrelation run,

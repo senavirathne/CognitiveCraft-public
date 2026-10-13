@@ -38,6 +38,24 @@ public final class WorkerDispatcher {
         Start start(ValidatedRequest bound, ArtifactRef artifact, UUID run,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage);
     }
+    /** Narrow recruitment/availability port; the dispatcher still owns every selection and stop transition. */
+    public interface Workers {
+        boolean ready();
+        CitizenRegistry.ControlPage page(TrustedContext caller, UUID after, int maximum);
+        boolean controls(ActorRef actor, TrustedContext caller);
+        long revision();
+        CitizenRegistry.Availability availability(ActorRef actor, TrustedContext caller);
+    }
+    public static Workers privateWorkers(CitizenRegistry citizens) {
+        Objects.requireNonNull(citizens);
+        return new Workers() {
+            public boolean ready() { return citizens.ready(); }
+            public CitizenRegistry.ControlPage page(TrustedContext caller,UUID after,int maximum) { return citizens.controlPage(caller,after,maximum); }
+            public boolean controls(ActorRef actor,TrustedContext caller) { return citizens.controls(actor,caller); }
+            public long revision() { return citizens.snapshot().revision(); }
+            public CitizenRegistry.Availability availability(ActorRef actor,TrustedContext caller) { return citizens.query(actor.citizenId(),caller).availability(); }
+        };
+    }
     public interface Claims {
         default ResourceLeases.Result preflight(Jobs.Job job,ValidatedRequest proposed) {
             return new ResourceLeases.Result(ResourceLeases.Code.VALID,null,null,List.of(),0,0);
@@ -116,7 +134,7 @@ public final class WorkerDispatcher {
         RunCorrelation correlation(){return new RunCorrelation(run,artifact,null);}
     }
     private final JobLifecycleStore jobs;
-    private final CitizenRegistry citizens;
+    private final Workers workerAccess;
     private final BootstrapController.Observer observer;
     private final BootstrapController.Resolver resolver;
     private final ExecutionPort execution;
@@ -136,7 +154,13 @@ public final class WorkerDispatcher {
                             BootstrapController.Observer observer, BootstrapController.Resolver resolver,
                             ExecutionPort execution, Claims claims, Predicate<Jobs.Job> accepts,
                             Clock clock, LongSupplier ticks, Settings settings) {
-        this.jobs=Objects.requireNonNull(jobs);this.citizens=Objects.requireNonNull(citizens);
+        this(jobs,privateWorkers(citizens),observer,resolver,execution,claims,accepts,clock,ticks,settings);
+    }
+    public WorkerDispatcher(JobLifecycleStore jobs, Workers workers,
+                            BootstrapController.Observer observer, BootstrapController.Resolver resolver,
+                            ExecutionPort execution, Claims claims, Predicate<Jobs.Job> accepts,
+                            Clock clock, LongSupplier ticks, Settings settings) {
+        this.jobs=Objects.requireNonNull(jobs);this.workerAccess=Objects.requireNonNull(workers);
         this.observer=Objects.requireNonNull(observer);this.resolver=Objects.requireNonNull(resolver);
         this.execution=Objects.requireNonNull(execution);this.claims=Objects.requireNonNull(claims);
         this.accepts=Objects.requireNonNull(accepts);this.clock=Objects.requireNonNull(clock);
@@ -176,9 +200,9 @@ public final class WorkerDispatcher {
             Live l=active.get((start+n)%active.size());work.jobs++;cursor.monitor=l.job;
             advance(l,work,tick);
         }
-        if(closing || !jobs.ready() || !citizens.ready() || live.size()>=settings.live() || work.jobs==settings.jobs())return slice(work);
+        if(closing || !jobs.ready() || !workerAccess.ready() || live.size()>=settings.live() || work.jobs==settings.jobs())return slice(work);
         var page=jobs.dispatchPage(caller,cursor.job,settings.jobs()-work.jobs);
-        var workers=citizens.controlPage(caller,cursor.worker,settings.workers());
+        var workers=workerAccess.page(caller,cursor.worker,settings.workers());
         work.workers=workers.citizens().size();
         if(!workers.citizens().isEmpty())cursor.worker=workers.citizens().getLast().actor().citizenId();
         cursor.scannedWorkers+=workers.citizens().size();
@@ -191,7 +215,7 @@ public final class WorkerDispatcher {
             CapabilityResolver.Decision chosen=null;ActorRef selected=null;
             for(var address:workers.citizens()) {
                 ActorRef actor=address.actor();
-                if(address.availability()!=CitizenRegistry.Availability.LOADED || !citizens.controls(actor,job.origin())
+                if(address.availability()!=CitizenRegistry.Availability.LOADED || !workerAccess.controls(actor,job.origin())
                         || !jobs.workerAvailable(actor,job.origin())) {
                     last=new Decision(job.id(),actor,Code.BLOCKED,null,
                             address.availability()==CitizenRegistry.Availability.UNKNOWN?Reason.STALE_OBSERVATION:Reason.ACTOR_UNAVAILABLE,
@@ -241,9 +265,9 @@ public final class WorkerDispatcher {
                 && j.attempts().size()<jobs.settings().attempts();
     }
     private boolean workerCurrent(Live l,boolean generation) {
-        if(!citizens.controls(l.worker,l.origin))return false;
-        if(generation && citizens.snapshot().revision()!=l.citizenRevision)return false;
-        try { return citizens.query(l.worker.citizenId(),l.origin).availability()==CitizenRegistry.Availability.LOADED; }
+        if(!workerAccess.controls(l.worker,l.origin))return false;
+        if(generation && workerAccess.revision()!=l.citizenRevision)return false;
+        try { return workerAccess.availability(l.worker,l.origin)==CitizenRegistry.Availability.LOADED; }
         catch(SecurityException denied){return false;}
     }
     private void advance(Live l,Work work,long tick) {

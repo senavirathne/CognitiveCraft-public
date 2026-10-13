@@ -159,6 +159,25 @@ public final class JobLifecycleStore {
             throw new SecurityException("Job unavailable in your scope");
         return job;
     }
+    /** Trusted IMP-023 disclosure only. This grant is never accepted by control, assignment or cancellation. */
+    public record NamedReadGrant(UUID jobId, TrustedContext origin, Set<TrustedContext> readers) {
+        public NamedReadGrant {
+            Objects.requireNonNull(jobId); Objects.requireNonNull(origin);
+            if (readers.size() > 8) throw new IllegalArgumentException("Named reader cap");
+            readers = Set.copyOf(readers);
+            if (readers.size() > 8 || readers.stream().anyMatch(c -> !c.scope().worldId().equals(origin.scope().worldId())))
+                throw new IllegalArgumentException("Named job read grant");
+        }
+    }
+    /** The scope owner revalidates current policy and original-owner consent before this host-only call. */
+    public Job scopedQuery(UUID id, TrustedContext caller, NamedReadGrant grant) {
+        thread(); Job job = find(id);
+        if (job == null || caller == null || !sameWorld(caller) || grant == null
+                || !grant.jobId().equals(id) || !grant.origin().equals(job.origin())
+                || !policy.mayRead(caller, job) && !grant.readers().contains(caller))
+            throw new SecurityException("Job unavailable in your named view");
+        return job;
+    }
     /** Coordination consumers obtain no grant from a guessed ID or read-only sharing. */
     public boolean mayControl(UUID id, long generation, TrustedContext caller) {
         thread(); Job job=find(id);
