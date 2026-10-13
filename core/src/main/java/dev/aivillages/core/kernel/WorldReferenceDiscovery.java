@@ -83,6 +83,7 @@ public final class WorldReferenceDiscovery {
     }
     public record InputContainerTarget(ContainerRef container,InputContainerSample evidence) { }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world) {
+        if(required<1 || required>16)throw new IllegalArgumentException("Input batch envelope");
         return inputContainers(actor,required,anchor,world,ResourceDelivery.OAK_LOG);
     }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item) {

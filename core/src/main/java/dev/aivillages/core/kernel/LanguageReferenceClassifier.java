@@ -89,7 +89,7 @@ public final class LanguageReferenceClassifier {
         }
         Slot actor = actor(text, references);
         if(Pattern.compile("\\b(?:make|produce|craft)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
-                && Pattern.compile("\\b(?:make|produce|craft)\\s+(?:[0-9]+\\s+)?sticks?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && Pattern.compile("\\bsticks?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && !Pattern.compile("\\b(?:birch|spruce|stripped|axes?|tables?|slabs?|doors?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
             return new Classification(Intent.MAKE_STICKS,actor,plankSource(text),plankDestination(text),null);
         if(Pattern.compile("\\b(?:make|craft|produce)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()

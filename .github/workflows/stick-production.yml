@@ -28,6 +28,8 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Compile all production and native test integrations before running module assertions
+        run: bash gradlew --no-daemon --stacktrace :core:compileJava :providers:compileJava :fabric:compileJava :fabric:gameTestClasses
       - name: All modules, scoped matrix and native test packaging
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar

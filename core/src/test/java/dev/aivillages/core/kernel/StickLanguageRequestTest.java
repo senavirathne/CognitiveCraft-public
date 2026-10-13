@@ -37,10 +37,10 @@ class StickLanguageRequestTest {
         assertEquals(StickProduction.ID,f.request.capability());assertEquals(new IntValue(8),f.request.arguments().get("amount"));
         assertEquals(new ContainerValue(f.world.box(11)),f.request.arguments().get("source"));assertEquals(new ContainerValue(f.world.box(14)),f.request.arguments().get("destination"));
     }
-    @Test void numberWordIsGroundedWithoutInventingAnAmount(){var f=new Fixture();assertEquals(Phase.SUBMITTED,f.interpret(TEXT.replace("8 oak","eight oak"),8).phase());}
+    @Test void numberWordIsGroundedWithoutInventingAnAmount(){var f=new Fixture();assertEquals(Phase.SUBMITTED,f.interpret(TEXT.replace("8 sticks","eight sticks"),8).phase());}
     @Test void extractedDifferentQuantityCannotDispatch(){var f=new Fixture();assertEquals(Phase.CLARIFICATION,f.interpret(TEXT,9).phase());assertEquals(0,f.submissions);}
     @Test void invalidExplicitProductionAmountsCannotDispatch(){
-        for(String amount:List.of("0","65","8.5","999999999999999999999")){var f=new Fixture();assertEquals(Phase.REJECTED,f.interpret(TEXT.replace("8 oak",amount+" oak"),8).phase());assertEquals(0,f.submissions);}
+        for(String amount:List.of("0","65","8.5","999999999999999999999")){var f=new Fixture();assertEquals(Phase.REJECTED,f.interpret(TEXT.replace("8 sticks",amount+" sticks"),8).phase());assertEquals(0,f.submissions);}
     }
     @Test void duplicatePrivateNameRequiresExplicitCitizenSelection(){
         var f=new Fixture();f.world.identity.add(2,9,0,"Ada",true,true);f.world.identity.open();
