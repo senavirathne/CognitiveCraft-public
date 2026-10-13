@@ -45,7 +45,7 @@ public final class OakPlankEffectGameTests {
                 h.assertTrue(world.recipePreflight(bound).reason()==Reason.TARGET_UNAVAILABLE,"Known result capacity did not block before withdrawal");
                 h.assertTrue(from.countItem(Items.OAK_LOG)==2,"Capacity preflight mutated source");
                 v.getInventory().clearContent();v.getInventory().setItem(0,new ItemStack(Items.OAK_LOG,3));v.getInventory().setItem(1,new ItemStack(Items.OAK_PLANKS,7));
-                capture[0]=world.recipePreflight(bound);h.assertTrue(capture[0].status()==ObservationStatus.PRESENT && capture[0].recipe().outputsPerBatch()==4,"Installed recipe was not qualified");
+                capture[0]=world.recipePreflight(bound);h.assertTrue(capture[0].status()==ObservationStatus.PRESENT && capture[0].recipe().outputs()==4,"Installed recipe was not qualified");
                 var withdrawn=world.withdrawRecipeInput(actor,source,capture[0],capture[0].custodyFingerprint(),capture[0].sourceFingerprint());
                 h.assertTrue(withdrawn.reason()==null && withdrawn.moved()==1 && from.countItem(Items.OAK_LOG)==1,"Actual one-log withdrawal failed");
                 var crafted=world.craftRecipe(actor,capture[0],withdrawn.custodyAfter());
