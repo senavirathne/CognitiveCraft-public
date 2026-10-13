@@ -26,11 +26,14 @@ public final class OakLogEffectGameTests {
         var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,3);v.setNoAi(false);
         h.setBlock(3,1,6,Blocks.OAK_LOG);h.setBlock(3,2,6,Blocks.STONE);
         var probe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,2,6);
+        var dropProbe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,6);
         var probeLog=h.absolutePos(new BlockPos(3,1,6));
         var p=h.absolutePos(new BlockPos(3,1,3));var c=h.absolutePos(new BlockPos(7,1,3));
         BootstrapGameTests.forceFixtureChunks(h,h.absolutePos(BlockPos.ZERO));
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
         var probeActor=new ActorRef(UUID.randomUUID(),probe.getUUID(),dim);
+        var dropProbeActor=new ActorRef(UUID.randomUUID(),dropProbe.getUUID(),dim);
+        UUID dropProbeRun=UUID.randomUUID();ItemEntity[] reachableDrop={null};
         var source=new Cuboid(dim,p.getX(),p.getY(),p.getZ(),p.getX(),p.getY(),p.getZ());
         var box=new ContainerRef(dim,c.getX(),c.getY(),c.getZ());var id=UUID.randomUUID();
         var owner=new TrustedContext(new PrincipalRef(id),new ScopeRef(UUID.randomUUID(),id));
@@ -47,7 +50,7 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
-        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false};
+        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false},nativeDropReach={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
         h.succeedWhen(() -> {
@@ -65,14 +68,37 @@ public final class OakLogEffectGameTests {
                         "Airborne oak approach consumed a ground path or returned a false terminal result");
                 airborneDeferred[0]=true;
             }
-            if(!v.onGround() || !probe.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
+            if(!v.onGround() || !probe.onGround() || !dropProbe.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
             if(phase[0]==0 && handle[0]==null) {
-                var centerHit=h.getLevel().clip(new net.minecraft.world.level.ClipContext(probe.getEyePosition(),
+                if(reachableDrop[0]==null) {
+                    h.assertTrue(world.acquire(actor,run),"Primary fixture control was not held during the separate reach probe");
+                    var centerHit=h.getLevel().clip(new net.minecraft.world.level.ClipContext(probe.getEyePosition(),
                         net.minecraft.world.phys.Vec3.atCenterOf(probeLog),net.minecraft.world.level.ClipContext.Block.COLLIDER,
                         net.minecraft.world.level.ClipContext.Fluid.NONE,probe));
-                h.assertTrue(centerHit.getBlockPos().equals(probeLog.above()),"Probe did not witness the actual overhang center occlusion");
-                h.assertTrue(world.resourceBreakEligibility(probeActor,new SurvivalGateway.Cell(dim,probeLog.getX(),probeLog.getY(),probeLog.getZ()),
+                    h.assertTrue(centerHit.getBlockPos().equals(probeLog.above()),"Probe did not witness the actual overhang center occlusion");
+                    h.assertTrue(world.resourceBreakEligibility(probeActor,new SurvivalGateway.Cell(dim,probeLog.getX(),probeLog.getY(),probeLog.getZ()),
                         ResourceDelivery.OAK_LOG)==null,"Visible lower oak portion was rejected under unchanged native range");
+                    // Separate controlled fixture item in a vacated cell. The
+                    // genuine produced loot below is never moved or replaced.
+                    h.setBlock(3,1,6,Blocks.AIR);
+                    reachableDrop[0]=new ItemEntity(h.getLevel(),probeLog.getX()+.5,probeLog.getY()+.1,
+                            probeLog.getZ()+.5,new ItemStack(Items.OAK_LOG,1));
+                    reachableDrop[0].setThrower(dropProbe);reachableDrop[0].setTarget(reachableDrop[0].getUUID());
+                    h.assertTrue(h.getLevel().addFreshEntity(reachableDrop[0]),"Native fixture item was not registered");
+                    h.assertTrue(world.acquire(dropProbeActor,dropProbeRun),"Native probe control was not acquired");
+                }
+                if(!nativeDropReach[0]) {
+                    double distance=dropProbe.distanceToSqr(reachableDrop[0].position());
+                    h.assertTrue(distance>1.5*1.5 && distance<=2.5*2.5,"Native item reach fixture left its declared interval");
+                    var preparation=world.approachResourceDrop(dropProbeActor,reachableDrop[0].getUUID(),1,1,ResourceDelivery.OAK_LOG);
+                    h.assertTrue(!preparation.impossible() && preparation.chargedWork()==0,
+                            "Reachable native item incorrectly required a low-ceiling path");
+                    h.assertTrue(reachableDrop[0].isAlive() && reachableDrop[0].getItem().getCount()==1
+                                    && dropProbe.getInventory().countItem(Items.OAK_LOG)==0,
+                            "Movement preparation mutated native stock");
+                    if(!preparation.reached()) {h.assertTrue(false,"Waiting for native grounded item preparation");return;}
+                    nativeDropReach[0]=true;world.release(dropProbeActor,dropProbeRun);
+                }
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
                 h.assertTrue(world.resourceBlock(cell,ResourceDelivery.OAK_LOG).breakTicks()==60,"Pinned oak survival timing differs");
                 h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_UNAVAILABLE,
@@ -100,12 +126,13 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(airborneDeferred[0],"Falling-worker approach regression did not execute");
                 h.assertTrue(partialSurfaceDrop[0],"Natural loot did not exercise the partial-surface observation cell");
                 h.assertTrue(endpointRefined[0],"Real native path endpoint refinement did not execute");
+                h.assertTrue(nativeDropReach[0],"Native low-ceiling item preparation regression did not execute");
                 h.assertTrue(OakLogDelivery.completed(request,run,receipts),"Trusted native receipt chain incomplete");
                 h.assertTrue(v.getInventory().countItem(Items.OAK_LOG)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);

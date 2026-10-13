@@ -43,7 +43,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
     private static final double OAK_SETTLED_MOTION_SQUARED = 0.01 * 0.01;
-    private static final double OAK_DROP_APPROACH_DISTANCE_SQUARED = 1.5 * 1.5;
+    // Preparation recognizes the same actual-item range as native pickup; it
+    // must not demand a standing cell under a low ceiling for reachable loot.
+    private static final double OAK_DROP_APPROACH_DISTANCE_SQUARED = 2.5 * 2.5;
     private static final class Route {
         final BlockPos target;
         final UUID runId;

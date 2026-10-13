@@ -122,3 +122,6 @@ Standing-oak visible-point correction was specified before implementation in [10
 
 
 Completed physical/typed/owner acceptance is recorded in [RB-001 report](RB-001-report.md), on reviewed code `0c1d7226b23fefa5001549371e93bb4e3cbbafa0`. Final PR checks gate merge; source snapshots distinguish immutable tested-code evidence from the completion-export commit.
+
+
+Owned-item preparation parity was specified before code in [7dab42c1](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/7dab42c1fb2084697e2698501d1f0437085b9e1b/docs/implementation/RB-001-contracts.md#owned-item-preparation-uses-the-existing-native-pickup-predicate). The earlier preparatory 1.5 radius is superseded by the existing native pickup radius 2.5, with the same actual UUID/count/component/permission/ground/ray guards. Native pickup/source authority is unchanged; movement must not require a non-walkable observation cell when that exact item is already physically reachable. Controlled low-ceiling native coverage adds no inventory, receipt or completion credit. Current correction requires fresh final Actions.
