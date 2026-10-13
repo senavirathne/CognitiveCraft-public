@@ -3,10 +3,10 @@ name: Organization scope registry acceptance
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/organization-scopes.yml']
+    paths: ['core/**', 'fabric/**', 'providers/**', 'e2e/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/organization-scopes.yml']
   push:
     branches: [main, 'work/imp-023']
-    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/organization-scopes.yml']
+    paths: ['core/**', 'fabric/**', 'providers/**', 'e2e/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/organization-scopes.yml']
 
 permissions:
   contents: read
