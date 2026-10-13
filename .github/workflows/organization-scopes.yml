@@ -1,0 +1,93 @@
+name: Organization scope registry acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/organization-scopes.yml']
+  push:
+    branches: [main, 'work/imp-023']
+    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/organization-scopes.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: organization-scopes-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: IMP-023 complete matrix, GP-23 owner integration and packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute every IMP-023 matrix and GP-23 owner integration case
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.OrganizationRegistryTest --tests dev.aivillages.core.kernel.OrganizationJournalTest --tests dev.aivillages.core.kernel.OrganizationIntegrationTest
+      - name: Require nonempty complete matrix evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, xml.etree.ElementTree as ET
+          counts={}
+          for suite,expected in [('OrganizationRegistryTest',69),('OrganizationJournalTest',27),('OrganizationIntegrationTest',5)]:
+              path=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+suite+'.xml')
+              cases=list(ET.parse(path).getroot().iter('testcase'))
+              if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Every case must execute and pass: '+suite+' actual='+str(len(cases)))
+              counts[suite]=len(cases)
+          root=Path('core/build/organization-evidence');root.mkdir(parents=True,exist_ok=True)
+          (root/'matrix.json').write_text(json.dumps(counts,indent=2)+'\n')
+          print('IMP-023 matrix:',sum(counts.values()),'executed passing cases')
+          PY
+      - name: Execute affected regressions and the original required build gates
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Verify exact source, full results and clean production packaging
+        env:
+          COGNITIVECRAFT_EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,subprocess,zipfile,xml.etree.ElementTree as ET
+          source=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()
+          if source!=os.environ['COGNITIVECRAFT_EXPECTED_SOURCE']:raise SystemExit('Exact source head required')
+          if subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],text=True).strip():raise SystemExit('Clean tracked source required')
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(module+'/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('All regressions must execute and pass: '+module)
+              counts[module]=len(cases)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('One release artifact required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              for name in ('Organizations','OrganizationRegistry','OrganizationJournal'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Organization owner missing')
+              if any('OrganizationIntegrationTest' in p or 'OrganizationRegistryTest' in p or 'GameTest' in p or p.endswith(('.gguf','.safetensors')) for p in jar.namelist()):raise SystemExit('Test code or model weights leaked into release')
+          root=Path('core/build/organization-evidence')
+          matrix=json.loads((root/'matrix.json').read_text())
+          proof={'schema':1,'source':source,'tree':tree,'architecture':'0.5','organizationSchema':1,'policyVersion':1,
+                 'matrix':matrix,'tests':counts,'total':sum(counts.values()),'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest(),
+                 'scope':'GP-23 owner integration: real executor and journals, deterministic gateway; no native/client claim',
+                 'clientBoundary':'NOT_CLIENT_EXPOSED'}
+          (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-023-organization-scope-acceptance
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            core/build/organization-evidence/**
