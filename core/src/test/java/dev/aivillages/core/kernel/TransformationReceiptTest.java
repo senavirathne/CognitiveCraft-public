@@ -49,4 +49,19 @@ final class TransformationReceiptTest {
                 r.stage(),r.quantity(),r.sourceBlock(),r.dropIds(),changed);
         var rows=new ArrayList<>(d.receipts);rows.set(1,copy);assertThrows(IllegalArgumentException.class,()->TransformationDelivery.quantity(d.bound,d.run,rows));
     }
+    @Test void anotherBatchCannotChangeTheInvocationRecipe() {
+        var d=complete();var rows=new ArrayList<>(d.receipts);
+        for(int i=3;i<rows.size();i++) {
+            var r=rows.get(i);var t=r.transformation();
+            var other=new RecipeTransaction.Snapshot(t.recipe().key(),"f".repeat(64),t.recipe().generation()+1,1,4,0);
+            var changed=new RecipeTransaction.Transformation(other,t.consumedInputs(),t.producedOutputs(),0,t.retainedOutputs(),
+                    t.custodyBefore(),t.custodyAfter(),t.sourceIdentity(),t.destinationIdentity());
+            rows.set(i,new ResourceDelivery.Receipt(r.receiptId(),r.origin(),r.runId(),r.operationId(),r.batchId(),r.actor(),r.source(),r.destination(),r.item(),r.stage(),r.quantity(),r.sourceBlock(),r.dropIds(),changed));
+        }
+        assertThrows(IllegalArgumentException.class,()->TransformationDelivery.quantity(d.bound,d.run,rows));
+    }
+    @Test void incompleteBatchCannotAuthorizeLaterProduction() {
+        var d=complete();var rows=new ArrayList<>(d.receipts);rows.remove(2);
+        assertThrows(IllegalArgumentException.class,()->TransformationDelivery.quantity(d.bound,d.run,rows));
+    }
 }

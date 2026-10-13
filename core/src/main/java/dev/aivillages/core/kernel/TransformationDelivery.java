@@ -30,8 +30,12 @@ public final class TransformationDelivery {
             batches.computeIfAbsent(r.batchId(),ignored->new ArrayList<>()).add(r);
         }
         if(batches.size()>OakPlankProduction.MAX_BATCHES)throw new IllegalArgumentException("Craft batch limit");
-        long total=0;
+        long total=0;Receipt previous=null;int batchIndex=0;
         for(var rows:batches.values()) {
+            if(previous!=null && (previous.quantity()!=4 || rows.getFirst().stage()!=Stage.WITHDRAW
+                    || !same(previous,rows.getFirst())
+                    || !previous.transformation().custodyAfter().equals(rows.getFirst().transformation().custodyBefore())))
+                throw new IllegalArgumentException("Changed invocation or interrupted custody between batches");
             Receipt withdraw=null,craft=null,deposit=null;
             for(var r:rows) {
                 var t=r.transformation();
@@ -59,6 +63,10 @@ public final class TransformationDelivery {
                     default -> throw new IllegalArgumentException("Harvest is not crafting");
                 }
             }
+            if(deposit==null && ++batchIndex<batches.size())
+                throw new IllegalArgumentException("Incomplete batch followed by new production");
+            if(deposit!=null)batchIndex++;
+            previous=deposit;
         }
         if(total>((IntValue)bound.request().arguments().get("amount")).value())
             throw new IllegalArgumentException("Output over-credit");
