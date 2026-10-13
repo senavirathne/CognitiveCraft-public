@@ -49,22 +49,19 @@ def identity():
 
 def client():
     folder=ROOT/'build/e2e/rb002';data=json.loads((folder/'results.json').read_text())
-    cases=[x for x in data['results'] if x['id']=='GP-RB-01']
-    if len(cases)!=1 or cases[0]['status']!='PASS':raise SystemExit('Mandatory real RB client family did not pass')
+    cases=[x for x in data['results'] if x['id']=='GP-RB-02']
+    if len(cases)!=1 or cases[0]['status']!='PASS':raise SystemExit('Mandatory production real-client family did not pass')
     e=cases[0]['evidence']
-    if not all(e.get(k) for k in ('canonicalAcquisition','actualLanguage','offlineWarmReuse','foreignDenied','killBoundary','recovered')):
-        raise SystemExit('Incomplete RB network/genuine/offline/kill proof')
-    invocations=e.get('standaloneReuse',[])
-    if len(invocations)!=3 or sorted(r['quantities']['DEPOSIT'] for r in invocations)!=[1,4,7]:
-        raise SystemExit('Missing independent standalone amount assertions')
-    if len({r['artifact'] for r in invocations})!=1 or len({tuple(r['source']) for r in invocations})<2 or len({tuple(r['destination']) for r in invocations})<2:
-        raise SystemExit('Standalone method did not rebind both source and destination')
+    if not all(e.get(k) for k in ('canonicalProduction','actualLanguage','offlineWarmReuse','foreignDenied','initialShortage','killBoundary','recovered')):
+        raise SystemExit('Incomplete production network/genuine/offline/kill proof')
+    rows=e.get('standaloneReuse',[])
+    if len(rows)!=5 or sorted(r['quantities']['DEPOSIT'] for r in rows)!=[1,4,5,8,64]:raise SystemExit('Missing bounded amount matrix')
+    if len({r['artifact'] for r in rows})!=1 or len({tuple(r['source']) for r in rows})<2 or len({tuple(r['destination']) for r in rows})<2 or len({r['actor'] for r in rows})<2:
+        raise SystemExit('Exact production method did not rebind actor, source and destination')
     interface=e.get('typedInterface',{})
-    if interface.get('descriptor',{}).get('dependencies')!=[] or interface.get('spec',{}).get('capability')!='cognitivecraft:deliver_oak_logs':
-        raise SystemExit('Standalone typed interface or dependency evidence absent')
-    stock=e.get('stockBoundary',{})
-    if stock.get('initialOldStock')!=11 or stock.get('newlyAcquired')!=1 or stock.get('consumerJobs')!=0:
-        raise SystemExit('Old stock was substituted for independent acquisition')
+    if interface.get('descriptor',{}).get('dependencies')!=[] or interface.get('spec',{}).get('capability')!='cognitivecraft:produce_oak_planks':
+        raise SystemExit('Independent typed production interface absent')
+    if not any(r['surplus']==3 for r in rows):raise SystemExit('Real retained surplus was not witnessed')
     OUT.mkdir(parents=True,exist_ok=True);shutil.copy2(folder/'results.json',OUT/'connected-client.json')
 
 if __name__=='__main__':

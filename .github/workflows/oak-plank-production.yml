@@ -104,3 +104,48 @@ jobs:
             fabric/build/rb002-controlled-run/
             fabric/build/gametest-run/
             fabric/build/libs/
+  connected-client:
+    name: GP-RB-02 genuine language, two principals and abrupt same-save restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Production binary and existing harness tests
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/verify-rb002.py identity
+      - name: Acquire existing pinned Needle test backend
+        run: python3 tools/needle/install.py build/needle
+      - name: Actual connected client GP-RB-02
+        run: |
+          python3 e2e/suite.py --profile rb002 --root build/e2e/rb002
+          python3 scripts/verify-rb002.py client
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb002-connected-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb002-evidence/
+            build/e2e/rb002/
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar

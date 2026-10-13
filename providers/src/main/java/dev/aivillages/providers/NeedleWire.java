@@ -43,13 +43,14 @@ public final class NeedleWire {
         if (classification.source().state() == ReferenceState.EXPLICIT_CONCRETE) {
             from = classification.source().first();
             through = classification.source().second();
-            var source = Pattern.compile("\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
+            var source = Pattern.compile(plank ? "\\bfrom\\s+(?:the\\s+)?(?:chest|container|barrel)\\s+(?:at\\s+)?("+COORD+")"
+                    : "\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
                     Pattern.CASE_INSENSITIVE).matcher(prompt);
             if (source.find()) prompt = prompt.substring(0, source.start()) + "from "+sourceAlias + prompt.substring(source.end());
         }
         if (classification.destination().state() == ReferenceState.EXPLICIT_CONCRETE) {
             destination = classification.destination().first();
-            var target = Pattern.compile("\\b(deliver|deposit|put)\\b.{0,200}?\\b(?:at|to|into)\\s+"
+            var target = Pattern.compile("\\b(deliver|deposit|put|store)\\b.{0,200}?\\b(?:at|to|into|in)\\s+"
                     + "(?:the\\s+)?(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?(" + COORD + ")",
                     Pattern.CASE_INSENSITIVE).matcher(prompt);
             if (target.find()) {
@@ -59,7 +60,7 @@ public final class NeedleWire {
         }
 
         if (classification.source().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:field|farm|oak\\s+logs?|log\\s+area)\\b", "from "+sourceAlias);
+            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:field|farm|oak\\s+logs?|log\\s+area|chest|container|barrel)\\b", "from "+sourceAlias);
         if (classification.destination().state() == ReferenceState.EXPLICIT_NEAREST)
             prompt = prompt.replaceFirst("(?i)\\b(?:to|into|in)\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)\\b", "to chest");
 
@@ -83,12 +84,12 @@ public final class NeedleWire {
             Map<String, Object> harvestProperties = new LinkedHashMap<>();
             if (explicitCitizen != null)
                 harvestProperties.put("citizen", ordered("type", "string", "enum", citizenLiterals(input, explicitCitizen),
-                        "description", "Citizen who will harvest"));
+                        "description", plank ? "Citizen who will craft and store" : "Citizen who will harvest"));
             harvestProperties.put("amount", ordered("type", "integer",
                     "description", plank ? "How many new oak planks to craft and store" : "How many "+resource+" to acquire and deliver"));
             if (statedReference(classification.source().state()))
                 harvestProperties.put("source", ordered("type", "string", "enum", List.of(sourceAlias),
-                        "description", "Bounded source area for "+resource));
+                        "description", plank ? "Container holding available oak log input" : "Bounded source area for "+resource));
             if (statedReference(classification.destination().state()))
                 harvestProperties.put("destination", ordered("type", "string", "enum", List.of("chest"),
                         "description", "Container to deliver "+resource+" into"));
