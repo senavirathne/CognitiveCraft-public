@@ -197,6 +197,14 @@ public final class CapabilityResolver {
                 return decision(ResolutionStatus.BLOCKED, Reason.STALE_OBSERVATION, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);
             // An inspected source with no mature crop cannot support this completion predicate.
+            if(spec.id().equals(OakPlankProduction.ID)) {
+                if(snapshot.counts().getOrDefault("recipe_supported",0L)!=1)
+                    return decision(ResolutionStatus.UNSUPPORTED_RUNTIME,Reason.UNSUPPORTED_PRIMITIVE,null,request,snapshot,-1,List.of(),0,0,false,false);
+                if(snapshot.counts().getOrDefault("missing_logs",0L)>0)
+                    return decision(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,request,snapshot,-1,List.of(),0,0,false,false);
+                if(snapshot.counts().getOrDefault("output_capacity",0L)<((IntValue)request.request().arguments().get("amount")).value())
+                    return decision(ResolutionStatus.BLOCKED,Reason.TARGET_UNAVAILABLE,null,request,snapshot,-1,List.of(),0,0,false,false);
+            }
             if (ResourceDelivery.isDelivery(spec.id()) && snapshot.status() == ObservationStatus.ABSENT)
                 return decision(ResolutionStatus.BLOCKED, Reason.RESOURCE_MISSING, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);

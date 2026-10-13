@@ -319,8 +319,8 @@ public final class ResearchAdmissionController {
         }
         attempt.generate(Generation.Role.INITIAL, "Current source observation="
                 + route.observation().status()
-                + (bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
-                + route.observation().counts().getOrDefault(bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
+                + (bound.request().capability().equals(OakPlankProduction.ID) ? ", input_logs=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
+                + route.observation().counts().getOrDefault(bound.request().capability().equals(OakPlankProduction.ID) ? "input_logs" : bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
         return attempt;
     }
     public Attempt startRepair(ValidatedRequest bound, ArtifactRef parent, EvidenceRef defect,

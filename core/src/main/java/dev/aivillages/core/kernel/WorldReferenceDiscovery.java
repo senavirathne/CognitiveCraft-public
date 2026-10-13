@@ -33,6 +33,9 @@ public final class WorldReferenceDiscovery {
             }
             return new ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unsupported");
         }
+        default InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {
+            return new InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unsupported");
+        }
     }
     public record ContainerSample(ObservationStatus status, int wheatCapacity, int slotsInspected, String identity) {
         public ContainerSample {
@@ -67,6 +70,39 @@ public final class WorldReferenceDiscovery {
         }
     }
     public record ItemContainerTarget(ContainerRef container,ItemContainerSample evidence) { }
+    public record InputContainerSample(ObservationStatus status,long available,int slotsInspected,String identity) {
+        public InputContainerSample {
+            Objects.requireNonNull(status);Objects.requireNonNull(identity);
+            if(available<0 || available>8192 || slotsInspected<0 || slotsInspected>MAX_CONTAINER_SLOTS || identity.length()>128)
+                throw new IllegalArgumentException("Input stock evidence");
+        }
+    }
+    public record InputContainerTarget(ContainerRef container,InputContainerSample evidence) { }
+    public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world) {
+        if(required<1 || required>16)throw new IllegalArgumentException("Input batch envelope");
+        return new Discovery<>() {
+            List<Candidate<InputContainerTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;
+            public Scan<InputContainerTarget> poll(int maximum) {
+                int work=0,width=HORIZONTAL_RADIUS*2+1;
+                while(cursor<SEARCH_CELLS && maximum-work>=MAX_CONTAINER_SLOTS+1) {
+                    int at=cursor++;work++;
+                    var point=new Point(anchor.dimension(),anchor.x()-HORIZONTAL_RADIUS+at%width,
+                            anchor.y()-VERTICAL_RANGE+at/(width*width),anchor.z()-HORIZONTAL_RADIUS+(at/width)%width);
+                    var ref=new ContainerRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.inputContainer(actor,ref);
+                    work+=sample.slotsInspected();
+                    if(sample.status()==ObservationStatus.UNKNOWN)unknown=true;
+                    else if(sample.status()==ObservationStatus.PRESENT && sample.available()>=required) {
+                        if(candidates.size()>=MAX_CANDIDATES)return Scan.complete(List.of(),work,Reason.BUDGET_EXHAUSTED,List.of("input-container-candidate-limit"));
+                        candidates.add(new Candidate<>(new InputContainerTarget(ref,sample),point,sample.identity()));
+                    }
+                }
+                if(cursor<SEARCH_CELLS)return Scan.progress(List.of(),work,List.of());
+                return unknown ? Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-input-container-envelope"))
+                        : Scan.complete(candidates,work,Reason.RESOURCE_MISSING,List.of());
+            }
+            public void cancel() {cursor=SEARCH_CELLS;candidates=List.of();}
+        };
+    }
     private static <A,B> Discovery<B> mapDiscovery(Discovery<A> source,java.util.function.Function<A,B> mapper) {
         return new Discovery<>() {
             public Scan<B> poll(int work) {
@@ -85,6 +121,10 @@ public final class WorldReferenceDiscovery {
         return new OakLogDiscovery.Source(actor,amount,anchor,world);
     }
     public static Discovery<ItemContainerTarget> itemContainers(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
+        if(capability.equals(OakPlankProduction.ID)) {
+            if(amount<1 || amount>64)throw new IllegalArgumentException("Plank amount");
+            return new OakLogDiscovery.Containers(actor,amount,anchor,world,ResourceDelivery.OAK_PLANKS);
+        }
         if(capability.equals(CropDelivery.ID)) return mapDiscovery(containers(actor,amount,anchor,world),
                 c -> new ItemContainerTarget(c.container(),new ItemContainerSample(ResourceDelivery.WHEAT,c.evidence().status(),
                         c.evidence().wheatCapacity(),c.evidence().slotsInspected(),c.evidence().identity())));

@@ -102,6 +102,18 @@ final class KernelCommands {
         for(int i=names.length-2;i>=0;i--) oakCoords=argument(names[i],IntegerArgumentType.integer()).then(oakCoords);
         kernel.then(literal("gather-oak").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
                 .then(argument("amount",IntegerArgumentType.integer(1,dev.aivillages.core.kernel.OakLogDelivery.MAX_AMOUNT)).then(oakCoords))));
+        String[] plankNames={"source-x","source-y","source-z","chest-x","chest-y","chest-z"};
+        ArgumentBuilder<CommandSourceStack, ?> plankCoords=argument(plankNames[5],IntegerArgumentType.integer())
+                .executes(c->safe(c,(ctx,session)->{
+                    int[] at=new int[6];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,plankNames[i]);
+                    var result=session.makePlanks(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                            IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5]);
+                    tell(ctx,"run="+result.id()+" accepted="+result.accepted()+(result.reason()==null ? "" : " reason="+result.reason()));
+                    return result.accepted() ? 1 : 0;
+                }));
+        for(int i=4;i>=0;i--)plankCoords=argument(plankNames[i],IntegerArgumentType.integer()).then(plankCoords);
+        kernel.then(literal("make-planks").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
+                .then(argument("amount",IntegerArgumentType.integer(1,64)).then(plankCoords))));
         ArgumentBuilder<CommandSourceStack, ?> queueCoords=argument(names[8],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[9];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,names[i]);

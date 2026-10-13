@@ -80,8 +80,12 @@ final class FabricRecipeTransactions {
         if(invalidRelevant(v.getInventory()))return blocked(Reason.TARGET_INVALID);
         var output=recipe.recipe().assemble(input(new ItemStack(Items.OAK_LOG)));
         int capacity=capacity(to,output);
-        if(insert(copy(v.getInventory()),v.getInventory(),new ItemStack(Items.OAK_LOG))==null)
-            return blocked(Reason.TARGET_UNAVAILABLE);
+        var first=insert(copy(v.getInventory()),v.getInventory(),new ItemStack(Items.OAK_LOG));
+        if(first==null)return blocked(Reason.TARGET_UNAVAILABLE);
+        for(int i=0;i<first.size();i++)if(plain(first.get(i),Items.OAK_LOG)) {
+            first.set(i,first.get(i).copyWithCount(first.get(i).getCount()-1));break;
+        }
+        if(insert(first,v.getInventory(),output.copy())==null)return blocked(Reason.TARGET_UNAVAILABLE);
         return new RecipeTransaction.Preflight(ObservationStatus.PRESENT,recipe.snapshot(),available,capacity,
                 identity(source,from),identity(target,to),fingerprint(from),fingerprint(v.getInventory()),
                 from.getContainerSize(),to.getContainerSize(),null);
@@ -170,7 +174,7 @@ final class FabricRecipeTransactions {
     private static String identity(ContainerRef ref,Container c) {
         return "recipe-container:"+new BlockPos(ref.x(),ref.y(),ref.z()).asLong()+":"+System.identityHashCode(c);
     }
-    private static String fingerprint(Container c) {
+    static String fingerprint(Container c) {
         StringBuilder rows=new StringBuilder();
         for(int i=0;i<c.getContainerSize();i++)rows.append(i).append(':').append(ItemStack.hashItemAndComponents(c.getItem(i)))
                 .append(':').append(c.getItem(i).getCount()).append(';');

@@ -28,6 +28,8 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private Stage stage;
     private Attempt<WorldReferenceDiscovery.CitizenTarget> actorAttempt;
     private Attempt<WorldReferenceDiscovery.SourceArea> sourceAttempt;
+    private Attempt<WorldReferenceDiscovery.InputContainerTarget> inputAttempt;
+    private WorldReferenceDiscovery.InputContainerSample inputEvidence;
     private Attempt<WorldReferenceDiscovery.ItemContainerTarget> destinationAttempt;
     private ActorRef actor;
     private Cuboid source;
@@ -103,6 +105,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         cancelled = true;
         if (actorAttempt != null) actorAttempt.cancel();
         if (sourceAttempt != null) sourceAttempt.cancel();
+        if (inputAttempt != null) inputAttempt.cancel();
         if (destinationAttempt != null) destinationAttempt.cancel();
         return true;
     }
@@ -174,7 +177,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
                 source = new Cuboid(actor.dimension(),
                         Math.min(a.x(), b.x()), Math.min(a.y(), b.y()), Math.min(a.z(), b.z()),
                         Math.max(a.x(), b.x()), Math.max(a.y(), b.y()), Math.max(a.z(), b.z()));
-                if (volume(source) > MAX_REGION_CELLS)
+                if (volume(source) > MAX_REGION_CELLS || harvest.capability().equals(OakPlankProduction.ID) && volume(source)!=1)
                     throw new IllegalArgumentException("Source volume");
                 automaticSource = false;
                 sourceAnchor = areaAnchor(source);
@@ -195,6 +198,12 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         }
         automaticSource = true;
         Registry registry = new Registry();
+        if(harvest.capability().equals(OakPlankProduction.ID)) {
+            var criterion=new Criteria("cognitivecraft:available_oak_input_container");
+            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,OakPlankProduction.batches(harvest.amount()),actorAnchor,world));
+            inputAttempt=registry.start(search(Kind.CONTAINER,actorAnchor,criterion),clock.millis(),allowance);
+            stage=Stage.SOURCE;return;
+        }
         Criteria sourceCriteria=harvest.capability().equals(OakLogDelivery.ID) ? new Criteria("cognitivecraft:oak_log_region") : WHEAT_REGION;
         registry.register(Kind.AREA, sourceCriteria,
                 search -> WorldReferenceDiscovery.sources(harvest.capability(),actor,Math.toIntExact(harvest.amount()),actorAnchor,world));
@@ -203,6 +212,13 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     }
 
     private LanguageRequests.Resolution pollSource() {
+        if(inputAttempt!=null) {
+            var result=inputAttempt.poll(clock.millis(),pollAllowance);
+            if(result.phase()==Phase.RESOLVING)return LanguageRequests.Resolution.pending("Finding available oak logs in loaded permitted containers");
+            if(result.phase()!=Phase.RESOLVED)return fail(result.reason()==null ? Reason.RESOURCE_MISSING : result.reason(),"No sufficient available oak-log source found");
+            inputEvidence=result.value().evidence();source=ResourceLeases.point(result.value().container());sourceAnchor=areaAnchor(source);
+            beginDestination();return LanguageRequests.Resolution.pending("Input stock selected; resolving output storage");
+        }
         Result<WorldReferenceDiscovery.SourceArea> result = sourceAttempt.poll(clock.millis(),pollAllowance);
         if (result.phase() == Phase.RESOLVING)
             return LanguageRequests.Resolution.pending("Scanning bounded loaded area for nearest eligible source area");
@@ -234,7 +250,8 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         }
         automaticDestination = true;
         Registry registry = new Registry();
-        Criteria targetCriteria=harvest.capability().equals(OakLogDelivery.ID) ? new Criteria("cognitivecraft:oak_log_container") : WHEAT_CONTAINER;
+        Criteria targetCriteria=harvest.capability().equals(OakPlankProduction.ID) ? new Criteria("cognitivecraft:oak_plank_container")
+                : harvest.capability().equals(OakLogDelivery.ID) ? new Criteria("cognitivecraft:oak_log_container") : WHEAT_CONTAINER;
         registry.register(Kind.CONTAINER, targetCriteria,
                 search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),sourceAnchor,world));
         destinationAttempt = registry.start(search(
@@ -264,6 +281,14 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         if (!currentActorEligible(actor, false))
             return fail(Reason.STALE_OBSERVATION, "Citizen availability changed");
         if (automaticSource && !sourceValidated) {
+            if(harvest.capability().equals(OakPlankProduction.ID)) {
+                if(allowance.remaining()<MAX_CONTAINER_SLOTS+1)return fail(Reason.BUDGET_EXHAUSTED,"Input validation budget exhausted");
+                var current=world.inputContainer(actor,new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()));
+                allowance.debit(current.slotsInspected()+1);
+                if(current.status()!=ObservationStatus.PRESENT || current.available()<OakPlankProduction.batches(harvest.amount()) || !current.equals(inputEvidence))
+                    return fail(Reason.STALE_OBSERVATION,"Selected input stock changed");
+                sourceValidated=true;return LanguageRequests.Resolution.pending("Input stock validated; checking output storage");
+            }
             if (sourceValidation == null)
                 sourceValidation = new WorldReferenceDiscovery.SourceValidation(sourceEvidence,actor,world);
             int units = (int)Math.min(WORK_PER_POLL - 1, allowance.remaining());
@@ -279,14 +304,16 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             return fail(Reason.BUDGET_EXHAUSTED,"Final destination validation work exhausted");
         allowance.debit(1);
         if (automaticDestination) {
-            var current = world.itemContainer(actor,destination,harvest.capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT); allowance.debit(current.slotsInspected()+1);
+            var current = world.itemContainer(actor,destination,harvest.capability().equals(OakPlankProduction.ID) ? ResourceDelivery.OAK_PLANKS
+                    : harvest.capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT); allowance.debit(current.slotsInspected()+1);
             if (current.status() != ObservationStatus.PRESENT || current.capacity() < harvest.amount()
                     || !current.equals(destinationEvidence))
                 return fail(Reason.STALE_OBSERVATION,"Selected automatic container changed");
         }
         CapabilityRequest request = new CapabilityRequest(harvest.capability(), Map.of(
                 "actor", new ActorValue(actor), "amount", new IntValue(harvest.amount()),
-                "source", new AreaValue(source), "destination", new ContainerValue(destination)));
+                "source", harvest.capability().equals(OakPlankProduction.ID) ? new ContainerValue(new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()))
+                        : new AreaValue(source), "destination", new ContainerValue(destination)));
         terminal = LanguageRequests.Resolution.request(request); stage = Stage.COMPLETE;
         return terminal;
     }

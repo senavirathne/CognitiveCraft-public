@@ -49,6 +49,14 @@ public final class ResourceLeaseService {
     public Reason failure() { checkThread();return failure; }
     public int lastReconciled() { checkThread();return lastReconciled; }
     public long currentTick() { checkThread();return now(); }
+    /** Host-observed stock availability only; no fabricated owner, reservation or cross-principal identity disclosure. */
+    public Result availableStock(Resource resource,long physicallyObserved,TrustedContext caller) {
+        checkThread();long tick=now();if(!ready())return unavailable();
+        if(resource==null || caller==null || resource.kind()!=Kind.STOCK || physicallyObserved<0
+                || !resource.world().equals(state.world()) || !caller.scope().worldId().equals(state.world()))
+            return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        return new Result(Code.VALID,null,null,List.of(),free(resource,physicallyObserved,state.leases(),tick),0);
+    }
 
     public Result acquire(Owner owner,List<Demand> requested,long duration,TrustedContext caller) {
         checkThread();long tick=now();

@@ -19,6 +19,11 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
     FabricWorldReferenceResolver(FabricGatewayWorld world, CitizenRegistry citizens,
                                  TrustedContext caller, ServerPlayer player,
                                  LanguageRequests.Intent intent, Clock clock) {
+        this(world,citizens,caller,player,intent,clock,null);
+    }
+    FabricWorldReferenceResolver(FabricGatewayWorld world,CitizenRegistry citizens,TrustedContext caller,ServerPlayer player,
+            LanguageRequests.Intent intent,Clock clock,
+            java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> inputAvailability) {
         Objects.requireNonNull(world); Objects.requireNonNull(player);
         if (!player.getUUID().equals(caller.principal().id()))
             throw new SecurityException("Language caller mismatch");
@@ -45,6 +50,13 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             }
             @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
                     dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
+                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS)) {
+                    var pos=new BlockPos(target.x(),target.y(),target.z());
+                    if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
+                        return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
+                    var c=world.inspectPlankContainer(target);
+                    return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
+                }
                 if(!item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG))
                     return WorldReferenceDiscovery.Observation.super.itemContainer(actor,target,item);
                 var pos=new BlockPos(target.x(),target.y(),target.z());
@@ -52,6 +64,20 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                     return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
                 var c=world.inspectOakContainer(target);
                 return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
+            }
+            @Override public WorldReferenceDiscovery.InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {
+                var pos=new BlockPos(source.x(),source.y(),source.z());
+                if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.WITHDRAW) || inputAvailability==null)
+                    return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unavailable");
+                var box=world.recipeContainer(source);
+                if(box==null)return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.ABSENT,0,0,"not-a-container");
+                var sample=world.resourceContainer(source,dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG);
+                if(sample.status()!=ObservationStatus.PRESENT || sample.reason()!=null)
+                    return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,box.getContainerSize(),"unknown-stock");
+                var free=inputAvailability.apply(source,sample.quantity());
+                if(!free.usable())return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,box.getContainerSize(),"stock-owner-pending");
+                return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.PRESENT,free.available(),box.getContainerSize(),
+                        "input-container:"+pos.asLong()+":"+System.identityHashCode(box)+":"+world.recipeContainerFingerprint(source).substring(0,16));
             }
             @Override public WorldReferenceDiscovery.ContainerSample container(ActorRef actor, ContainerRef target) {
                 BlockPos pos = new BlockPos(target.x(),target.y(),target.z());

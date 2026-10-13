@@ -511,7 +511,13 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        ResourceDelivery.isDelivery(spec.id())
+                        spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                                ? "Return the JSON proposal only. Choose a registered preflight primitive, batchSize 4, "
+                                + "and five registered cycle primitives in causal order: move to input, withdraw one log, "
+                                + "craft one real batch, move to destination, transfer produced planks. "
+                                + "Return result param amount. The adapter binds runtime parameters; the compiler and physical trial validate it. "
+                                + "No Java, harvesting, dependency calls or authority claims."
+                                : ResourceDelivery.isDelivery(spec.id())
                                 ? "Return the JSON proposal only. Choose registered primitive IDs for prepare, "
                                 + "wait.primitive and each finish entry in causal order. "
                                 + "The adapter binds registered signatures to Skill IR; the compiler and trial validate it. "

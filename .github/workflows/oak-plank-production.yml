@@ -2,10 +2,10 @@ name: RB-002 oak-plank production acceptance
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/oak-plank-production.yml']
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/oak-plank-production.yml','.github/implementation/RB-002*']
   push:
     branches: [main,rb-002-oak-plank-production]
-    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/oak-plank-production.yml']
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/oak-plank-production.yml','.github/implementation/RB-002*']
 permissions:
   contents: read
 concurrency:
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   owners-and-native:
-    name: RB-002 module and owner verification
+    name: RB unit matrix, physical trial and two-JVM offline reuse
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
@@ -28,22 +28,66 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
-      - name: Compile and run all modules against the pinned installed API
-        run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
-      - name: Require every current scoped case to execute
+      - name: All modules, scoped matrix and native test packaging
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+          python3 scripts/verify-rb002.py junit
+          python3 scripts/verify-rb002.py identity
+      - name: Select actual recipe/slots/reload native case
         run: |
           python3 - <<'PY'
+          import json
           from pathlib import Path
-          import xml.etree.ElementTree as ET
-          total=0
-          for name,n in [('OakPlankProductionTest',8),('OakPlankGatewayTest',15),('TransformationReceiptTest',10),('OakPlankCompilerTest',4)]:
-              p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+name+'.xml')
-              cases=list(ET.parse(p).getroot().iter('testcase'))
-              if len(cases)!=n or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
-                  raise SystemExit('All '+str(n)+' scoped cases must execute and pass: '+name)
-              total+=len(cases)
-          print('RB-002 initial owner matrix:',total,'passing cases; native/genuine/client gates are separate required work')
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.OakPlankEffectGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
           PY
+      - name: Actual 2x2 recipe, slots, cancellation custody and reload
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb002.py native --phase effects --class-name oak_plank_effect_game_tests --marker RB002_EFFECTS
+          mv fabric/build/gametest-run fabric/build/rb002-effects-run
+      - name: Select production KernelSession acquisition fixture
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.OakPlankKernelGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+      - name: Controlled proposal, real compile/trial/admission and offline rebind
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb002.py native --phase controlled --class-name oak_plank_kernel_game_tests --marker 'RB002_NATIVE phase=cold genuine=false'
+          mv fabric/build/gametest-run fabric/build/rb002-controlled-run
+      - name: Start existing pinned configured generation backend
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-rb-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:11434/api/version && break; sleep 2; done
+          docker exec cognitivecraft-rb-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+          curl --fail --silent http://127.0.0.1:11434/api/tags > build/rb002-evidence/models.json
+          curl --fail --silent --show-error http://127.0.0.1:11434/api/generate --header 'Content-Type: application/json' --data '{"model":"qwen3:4b-instruct-2507-q4_K_M","stream":false,"keep_alive":"30m"}' | python3 -c 'import json,sys; assert json.load(sys.stdin)["done"]'
+      - name: Genuine configured-backend candidate and actual physical admission
+        timeout-minutes: 16
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+          COGNITIVECRAFT_RB002_GENUINE: 'true'
+          COGNITIVECRAFT_RB002_PHASE: cold
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb002.py native --phase genuine-cold --class-name oak_plank_kernel_game_tests --marker 'RB002_NATIVE phase=cold genuine=true'
+      - name: Stop actual backend and prove endpoint unavailable
+        run: |
+          docker stop cognitivecraft-rb-ollama
+          test "$(docker inspect --format='{{.State.Running}}' cognitivecraft-rb-ollama)" = false
+          if curl --silent --max-time 2 http://127.0.0.1:11434/api/version >/dev/null; then exit 1; fi
+      - name: Reopen same saved world in another JVM with inference unavailable
+        env:
+          COGNITIVECRAFT_RB002_GENUINE: 'true'
+          COGNITIVECRAFT_RB002_PHASE: warm
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb002.py native --phase genuine-warm --class-name oak_plank_kernel_game_tests --marker 'RB002_NATIVE phase=warm genuine=true'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -52,6 +96,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: |
+            build/rb002-evidence/
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/
+            fabric/build/rb002-effects-run/
+            fabric/build/rb002-controlled-run/
+            fabric/build/gametest-run/
+            fabric/build/libs/
