@@ -23,6 +23,11 @@ class StickGenerationTest {
                     +"\"preflight\":\"cognitivecraft:observe_stick_inputs\",\"batchSize\":4,\"cycle\":[\"cognitivecraft:move_to_input\","
                     +"\"cognitivecraft:withdraw_oak_planks\",\"cognitivecraft:craft_sticks\",\"cognitivecraft:move_to_destination\","
                     +"\"cognitivecraft:transfer_sticks\"],\"result\":{\"param\":\"amount\"}}}";
+            var wire=StrictJson.transportObject(f.backend.bodies.get(0));
+            @SuppressWarnings("unchecked") var messages=(List<Map<String,Object>>)wire.get("messages");
+            String instructions=(String)messages.getFirst().get("content");
+            assertTrue(instructions.contains("two default oak planks") && instructions.contains("four new sticks"));
+            assertTrue(instructions.contains("cognitivecraft:withdraw_oak_planks") && !instructions.contains("withdraw one log"));
             f.backend.respond(0,proposal,900L,180L);var result=h.result().toCompletableFuture().join();
             assertEquals(Generation.Outcome.CANDIDATE,result.outcome());
             var artifact=assertInstanceOf(SkillCompiler.Success.class,new SkillCompiler(PlanningGoals.catalog(),GatewayPrimitives.instance(),ref->Optional.empty())

@@ -511,10 +511,19 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        dev.aivillages.core.kernel.RecipeProduction.is(spec.id())
+                        spec.id().equals(dev.aivillages.core.kernel.StickProduction.ID)
+                                ? "Return the JSON proposal only. Choose cognitivecraft:observe_stick_inputs as preflight and batchSize 4. "
+                                + "Select five registered cycle primitive IDs in causal order: cognitivecraft:move_to_input, "
+                                + "cognitivecraft:withdraw_oak_planks, cognitivecraft:craft_sticks, "
+                                + "cognitivecraft:move_to_destination, cognitivecraft:transfer_sticks. "
+                                + "The installed recipe consumes two default oak planks and produces four new sticks. "
+                                + "Return result param amount. Actor, source, destination and amount are runtime parameters. "
+                                + "The adapter binds registered signatures; the compiler, fixtures and physical trial validate the proposal. "
+                                + "No Java, harvesting, dependency calls or authority claims."
+                                : spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
                                 ? "Return the JSON proposal only. Choose a registered preflight primitive, batchSize 4, "
-                                + "and five registered cycle primitives in causal order: move to input, withdraw the declared recipe inputs, "
-                                + "craft one real batch, move to destination, transfer produced recipe output. "
+                                + "and five registered cycle primitives in causal order: move to input, withdraw one log, "
+                                + "craft one real batch, move to destination, transfer produced planks. "
                                 + "Return result param amount. The adapter binds runtime parameters; the compiler and physical trial validate it. "
                                 + "No Java, harvesting, dependency calls or authority claims."
                                 : ResourceDelivery.isDelivery(spec.id())
