@@ -16,7 +16,10 @@ class OakPlankLanguageRequestTest {
         Fixture(){language.enabled(true);}
         TrustedContext owner(){return world.identity.caller;}
         public List<String> references(TrustedContext caller){return caller.equals(owner()) ? List.of("Ada",world.actor.citizenId().toString()) : List.of();}
-        public CitizenRegistry.Addresses address(String ref,TrustedContext caller){return world.identity.registry.address(ref,caller);}
+        public CitizenRegistry.Addresses address(String ref,TrustedContext caller){
+            try{return world.identity.registry.address(UUID.fromString(ref),caller);}
+            catch(IllegalArgumentException name){return world.identity.registry.address(ref,caller);}
+        }
         public ResolutionHandle resolve(Intent intent,TrustedContext caller){
             return new WorldReferenceBinding(world.world,world.identity.registry,caller,new WorldReferenceResolver.Point(world.actor.dimension(),0,64,0),
                     intent,world.identity.clock,()->world.identity.current);
@@ -30,7 +33,7 @@ class OakPlankLanguageRequestTest {
         }
     }
     @Test void requiredPhraseDispatchesTheIndependentTypedRequest(){
-        var f=new Fixture();var result=f.interpret(TEXT,8);assertEquals(Phase.SUBMITTED,result.phase());assertEquals(1,f.submissions);
+        var f=new Fixture();var result=f.interpret(TEXT,8);assertEquals(Phase.SUBMITTED,result.phase(),result.toString());assertEquals(1,f.submissions);
         assertEquals(OakPlankProduction.ID,f.request.capability());assertEquals(new IntValue(8),f.request.arguments().get("amount"));
         assertEquals(new ContainerValue(f.world.box(11)),f.request.arguments().get("source"));assertEquals(new ContainerValue(f.world.box(14)),f.request.arguments().get("destination"));
     }
