@@ -126,7 +126,6 @@ Standing-oak visible-point correction was specified before implementation in [10
 Owned-item preparation parity was specified before code in [7dab42c1](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/7dab42c1fb2084697e2698501d1f0437085b9e1b/docs/implementation/RB-001-contracts.md#owned-item-preparation-uses-the-existing-native-pickup-predicate). The earlier preparatory 1.5 radius is superseded by the existing native pickup radius 2.5, with the same actual UUID/count/component/permission/ground/ray guards. Native pickup/source authority is unchanged; movement must not require a non-walkable observation cell when that exact item is already physically reachable. Controlled low-ceiling native coverage adds no inventory, receipt or completion credit. Current correction requires fresh final Actions.
 
 
-Completed physical/typed/owner acceptance is recorded in [RB-001 report](RB-001-report.md), on reviewed code `02adef645a3fd83e677431d49e690922a482b12a`. Final PR checks gate merge; source snapshots distinguish immutable tested-code evidence from the completion-export commit.
 
 ## Occluded owned-drop adjacent-standing correction — pending Actions
 
@@ -135,3 +134,6 @@ Documentation-first contract `01fb1165172769525a2306bdded52f8a0b8dc00c` preceded
 Owned oak-drop preparation now has only the collision-adjusted current item cell plus four horizontal adjacent standing cells. Loaded/permitted/walkable checks, native path identity/geometry/progress, one pathfinding call per poll, twenty-tick stall, 200-tick action, travel/work limits and preselected 1800-tick execution remain unchanged. The same bounded ordinary MoveControl endpoint refinement can finish an accepted walkable owned-drop endpoint. Actual range remains 2.5 with the exact current-item collision ray, grounded settling, pending UUID/count/components and causal receipts. No item relocation, teleport, velocity rewrite or manufactured path/ground state is used. Native coverage witnesses real stone occlusion, ordinary adjacent movement, fixed bounded path work and unchanged item/stock before any pickup. Wheat/source-log/container approach candidates are unchanged. RB-001 and final merge require all corrected-head Actions; IMP-021 remains unmerged.
 
 Final c1fa Needle language attempt 1 separately returned MODEL_UNAVAILABLE after all 22 benchmark cases passed (job 115164871581, artifact 11794215696 SHA256 `9a895447b5784b663f0dc5e0f8d14ef91a5af4c792c28b57bb0f4ee76e0cadb8`). Only that failed job was retried with unchanged code/assertions/limits; attempt 2 passed. The real oak failure above remains a separate defect requiring this correction.
+
+
+Completed physical/typed/owner acceptance is recorded in [RB-001 report](RB-001-report.md), on reviewed code `8da112ec90c530b81b9873b825e64a0c1623c4ff`. Final PR checks gate merge; source snapshots distinguish immutable tested-code evidence from the completion-export commit.

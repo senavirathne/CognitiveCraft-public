@@ -1,18 +1,16 @@
-**Current corrective implementation: occluded owned-drop approaches; acceptance and merge pending.** Earlier accepted-code evidence below is immutable history, not a corrected-head verdict.
-
 # RB-001 implementation completion and executed acceptance report
 
-RB-001 independently acquires and delivers 1–8 actual oak logs through the existing research/repository, Jobs, dispatch, leases and gateway owners. All 21 mandatory implementation PR workflows passed on reviewed code `02adef645a3fd83e677431d49e690922a482b12a`, tree `2a2f6588189c1a31958907cf4e72fea4f2ab5eba`. GitHub Actions executed 1200 module cases (1099 core, 68 providers, 33 Fabric), all passing with zero failures, errors or skips, including 34 scoped RB cases. Actual native, genuine backend, real-client, offline saved-world and abrupt-restart gates passed. This completion export retains that immutable evidence; merge requires successful checks on the final PR head. [PR #24](https://github.com/senavirathne/CognitiveCraft-public/pull/24) provides the final merge/check record. IMP-021 PR #20 remains unmerged. RB-002 is not implemented.
+RB-001 independently acquires and delivers 1–8 actual oak logs through the existing research/repository, Jobs, dispatch, leases and gateway owners. All 21 mandatory implementation PR workflows passed on reviewed code `8da112ec90c530b81b9873b825e64a0c1623c4ff`, tree `72e750a2f236228ddc99f227d3d762dab76aa6d3`. GitHub Actions executed 1200 module cases (1099 core, 68 providers, 33 Fabric), all passing with zero failures, errors or skips, including 34 scoped RB cases. Actual native, genuine backend, real-client, offline saved-world and abrupt-restart gates passed. This completion export retains that immutable evidence; merge requires successful checks on the final PR head. [PR #24](https://github.com/senavirathne/CognitiveCraft-public/pull/24) provides the final merge/check record. IMP-021 PR #20 remains unmerged. RB-002 is not implemented.
 
 Actor, amount, authorized source and destination are typed runtime parameters. The same admitted artifact `85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f` serves canonical four, genuine-language four, known one and stopped-backend warm seven, with different sources and destinations and no product/crafting dependency or downstream consumer Job. Original wheat fingerprints, versions and receipt meaning remain preserved. Jobs resource rows use schema 2 under the existing journal; wheat schema 1 and backward readers retain their existing behavior. Oak research admission uses its resource completion label under the same Jobs validator; the original wheat label is unchanged.
 
 Canonical command: `/aivillage kernel gather-oak <actor-id> <amount> <min-x> <min-y> <min-z> <max-x> <max-y> <max-z> <chest-x> <chest-y> <chest-z>`. Genuine language: `/aivillage kernel ask Ada, collect 4 oak logs and deliver them to the nearest suitable chest.`
 
-The uploaded additive prompt SHA256 is `acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940`; documentation adoption `d839e58f3208f0e1f337cdf951f5d86a147a639d` preceded revised source edits. The original documentation-first commit was `6d3da32c6e777239117e189386fea0e036c2651e`. Corrective movement/allowance, resource provenance and visible-block-point contracts were published first in `64e37afb00f55e6d5031dc5ac43635c705bb6b40`, `434e99f992e93f9b824e9316b318880e772e0e6a` and `10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0`. Native pickup-preparation parity was documented first in `7dab42c1fb2084697e2698501d1f0437085b9e1b`. Explicit Actions publication and conditional merge authorization is preserved in documentation `8393bfc956292f144e713e2743b6cb2c9ede5128`.
+The uploaded additive prompt SHA256 is `acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940`; documentation adoption `d839e58f3208f0e1f337cdf951f5d86a147a639d` preceded revised source edits. The original documentation-first commit was `6d3da32c6e777239117e189386fea0e036c2651e`. Corrective movement/allowance, resource provenance and visible-block-point contracts were published first in `64e37afb00f55e6d5031dc5ac43635c705bb6b40`, `434e99f992e93f9b824e9316b318880e772e0e6a` and `10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0`. Native pickup-preparation parity was documented first in `7dab42c1fb2084697e2698501d1f0437085b9e1b`; bounded adjacent standing approaches for occluded owned drops were documented first in `01fb1165172769525a2306bdded52f8a0b8dc00c`. Explicit Actions publication and conditional merge authorization is preserved in documentation `8393bfc956292f144e713e2743b6cb2c9ede5128`.
 
 ## Exact binary and artifact evidence
 
-Production JAR SHA256: `65652fe8fecd65f94e102d114b93b5e7a1a35d771bd7f24599257b538a8a0b14`. Native artifact [11792368011](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109751/artifacts/11792368011), ZIP SHA256 `1d486bff4940b2b29ff97e166866e88595dece83a4339e00331fbccb0e8ecf25`. Connected artifact [11792014222](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109751/artifacts/11792014222), ZIP SHA256 `af99c2f462088c2f71cdc5afc27391ced44fadbbd0111e07a0bd865757579791`. Both contain the same actual production JAR, exact source identity, logs/world data and named evidence. The source snapshot export records code-file SHA256s, scope, artifact/model identity and all workflow IDs.
+Production JAR SHA256: `826cd5a275a98191241b6906907c6b8d5197cacd5e3e4f075c241fec79bfe78d`. Native artifact [11794741080](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614819/artifacts/11794741080), ZIP SHA256 `4137158a8c18df6ff98e3d9b0e951014b4d6ebbd453c42c2d5d081f2f1fc3f5e`. Connected artifact [11794661839](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614819/artifacts/11794661839), ZIP SHA256 `934ead44ee5c76f4d0868d306af211617bf1e1f574ca889e1006739f2e78f293`. Both contain the same actual production JAR, exact source identity, logs/world data and named evidence. The source snapshot export records code-file SHA256s, scope, artifact/model identity and all workflow IDs.
 
 Pins remain Java 25, Gradle 9.7.0, Minecraft 26.3, Loader 0.19.5, Fabric API 0.161.0+26.3, Loom 1.18.1, JUnit 5.11.4 and core Gson 2.10.1. Genuine generation used Ollama 0.12.10 and `qwen3:4b-instruct-2507-q4_K_M`; the exact tag/digest and pinned Needle provenance are retained in the connected/native artifacts and source snapshot. Controlled fixtures are separately classified and never substituted for genuine generation or connected principals. No local Gradle download, build or project test was used.
 
@@ -20,15 +18,15 @@ Pins remain Java 25, Gradle 9.7.0, Minecraft 26.3, Loader 0.19.5, Fabric API 0.1
 
 | Selector | Passed cases | Exact JUnit XML SHA256 |
 |---|---:|---|
-| OakLogDiscoveryTest | 3 | `36cc710abb212395c0e8736d03236a5fbf5fef2c1c3530b7cc3b9d15e134ad79` |
-| OakLogGatewayTest | 10 | `31340443700c35c35c2f8f274bccc279cf21bff1942da021044f77be395b1ecf` |
-| OakLogJobLifecycleTest | 5 | `6ddee9d088efbc036e10ea86d5a97d98e180eddc1d32469ed16f6c7bb855a1be` |
-| OakLogLanguageTest | 2 | `be0e88b99e2fe54030f4e7542e21370bebd855f1cf68702d5c301e54c778693e` |
-| OakLogPrerequisiteStockTest | 2 | `68c819013b7b27c00a00fbff9e4854a73e59b799ead27fb12ebf4a71e64d2b53` |
-| ResourceDeliveryTest | 7 | `1c1fce790e3847999e0f71a31a773d9b10de8675229bd5c33f239635f97fee88` |
-| OakLogNavigationRouteTest | 3 | `ba9b1666978da03185fe4c31cb5852ea772a569f4881da109737da5a3c1653e2` |
-| OakLogGenerationTest | 1 | `7c8d74afd39d92e2b3c56265c0a6ba53010780a25672cdaf65a9dc97fedc7ddc` |
-| OakLogNeedleWireTest | 1 | `eed1d608d05277989edb47ee99ca2995813a9bbc110e43d2f4d18c0db8e7cd08` |
+| OakLogDiscoveryTest | 3 | `ec4883a4a457429d8b62357bd13770758edcc0d8832d5de26b4360c06bb59864` |
+| OakLogGatewayTest | 10 | `2d4311e57a8a76a7eb10f0a385f8276643aa3814575b50a585a14d4fa27e7b09` |
+| OakLogJobLifecycleTest | 5 | `810001f5d757dd40125898fe8e2fd7f3be5423688e8b50eaf08e8c992c8e82a4` |
+| OakLogLanguageTest | 2 | `fd98a0d867b02f8dc27a7dcbe7de0082c0614f5e928cfb0846639d6ea22e2c35` |
+| OakLogPrerequisiteStockTest | 2 | `0f0e9b44a442cd9c295eba5d852bd04b6338debcf3eb675c8634b1cebad9f382` |
+| ResourceDeliveryTest | 7 | `b621416e6535316925b0ee7b4605b09fc1e79f018be1d4d990ef65f12a014c79` |
+| OakLogNavigationRouteTest | 3 | `8ac856abe0c344a1b41d727a7a01ee6d7efd8751b2458a72ecfb61a777dba4d0` |
+| OakLogGenerationTest | 1 | `fff2e2b6bb16aebdac1a0e67a5147ffc3b72bf5a0081eb5d27c2b116504b98c9` |
+| OakLogNeedleWireTest | 1 | `19c4f4688db671db14a2e7b5eecd2c5d29012a270530888db879a678038ea737` |
 
 These selectors cover typed interfaces/fingerprints, causal resource evidence and conservation, genuine bounded fixture execution, exact owned-drop movement/terminal cleanup, authority/leases, stale/future/old-wheat journal behavior, actual-stock prerequisites, bounded complete discovery, language/provider wire and finite native endpoint progress/stalling/path identity. Every scoped selector has nonzero execution and zero failures/errors/skips. The 20 existing owner/regression workflows below supply the affected compiler, repository, wheat, broker, privacy, lifecycle, retention, compatibility, planning, immutable blueprint and gameplay boundaries.
 
@@ -36,23 +34,23 @@ These selectors cover typed interfaces/fingerprints, causal resource evidence an
 
 | Phase | Passed cases | XML SHA256 | Log SHA256 |
 |---|---:|---|---|
-| effects | 1 | `a8e7418c84f8d9968239ded78a40c170cd47ef3b078ba630b864ae3fb1e99997` | `de235768e951947201e344bb298b25029f25116016db2ca1d0b2dc1ae0a0b051` |
-| controlled | 1 | `a528427ca293446c44e430211da16ca45ffd8492ff4d810b5f3392081be3930d` | `9e1af7c6dd2485b61c3b5bf1ab9d0a715d3c6926b103f8987fb0ac752384cb50` |
-| genuine-cold | 1 | `7b10469959a6e3c20e0453d1ff32a5ef1a7c199e2bd497591855e6d45748dbde` | `9132f2dcb89cf487fb8633e68615a38d53e6acd2b0178dc286e2889e13ec4885` |
-| genuine-warm | 1 | `8447a5347fbcb253ca5758cf0574e5d7db53544d78a6da1723d0fc5c369cbbfa` | `6248d81859725c254af7b749de9da844f05f70f8ae442dfd244a38e2d7f36fc7` |
+| effects | 1 | `1518ca2e7cef74070872dfe0a8e0934cb26af4d0384b6061d8460d3d90617855` | `3455919e8987567a452da1a69fbd5c5f8f679ea27e0f10185687c76b0f13b461` |
+| controlled | 1 | `677be077826797818d6882c0685a4c64b64a52d76b8542da1cfa89691d6fdd62` | `9ee4e55895252cb7240f82092c97e30470dbdbf1b8d9621c7a027199d0146a10` |
+| genuine-cold | 1 | `d1c77b8f67c6083e6635661170da2d52ea2d5684a433118a2a35ffd9f5ce40de` | `dc09f4af62a64e2fe3b226d0dba9c0931c695932287858375321791942435d28` |
+| genuine-warm | 1 | `7f6613e1953b9c3fc7fcf60f2527e197abb1d7307468ed02d8ec1992ed1a71be` | `3538e6e90f85aef41d6250288f516feb0c49fccc6b1466c149ae573cd53158e2` |
 
-The native effects case witnesses an actually falling worker without airborne pathfinding, completed native endpoint refinement under the existing 20-tick stall/action/attempt limits, actual stone-overhang center occlusion with a visible lower portion, 60-tick installed bare-hand survival hardness, both gamerules, real vanilla loot and UUID custody, natural partial-farmland landing, default/custom slot conservation and untouched foreign drops. A separate controlled low-ceiling item between 1.5 and 2.5 blocks reaches preparation with zero pathfinding and no stock/receipt credit. Preparation now uses the exact existing native pickup distance/ray predicate; actual pickup reach stays 2.5. It never relocates or rewrites the genuine produced item. Controlled and genuine phases pass normal compilation, fake fixtures, authorized real physical trial and repository admission. Native warm execution opens the same Minecraft save in another JVM with the actual backend stopped, inference disabled, the exact artifact retained and zero known-execution model calls.
+The native effects case witnesses an actually falling worker without airborne pathfinding, completed native endpoint refinement under the existing 20-tick stall/action/attempt limits, actual stone-overhang center occlusion with a visible lower portion, 60-tick installed bare-hand survival hardness, both gamerules, real vanilla loot and UUID custody, natural partial-farmland landing, default/custom slot conservation and untouched foreign drops. A separate controlled low-ceiling item between 1.5 and 2.5 blocks reaches preparation with zero pathfinding and no stock/receipt credit. A second controlled item witnesses actual overhang ray occlusion, ordinary native movement to a visible adjacent standing cell with at most five standing samples/path calls, exact unchanged item count/identity and zero premature stock/receipt credit. Preparation now uses the exact existing native pickup distance/ray predicate; actual pickup reach stays 2.5. It never relocates or rewrites the genuine produced item. Controlled and genuine phases pass normal compilation, fake fixtures, authorized real physical trial and repository admission. Native warm execution opens the same Minecraft save in another JVM with the actual backend stopped, inference disabled, the exact artifact retained and zero known-execution model calls.
 
-Oak execution selects 1800 elapsed ticks before work under the existing 2400-tick research parent; failures never refill it. Native source movement retains four face candidates, the 200-tick action cap, original travel/pathfinding limits, 1.15 horizontal face guard, 2.5 native interaction range and real collision/ray checks. Standing oak tests at most three fixed points inside the same target; an intervening block still denies all points. Wheat, item and container geometry retain their original rules.
+Oak execution selects 1800 elapsed ticks before work under the existing 2400-tick research parent; failures never refill it. Native source movement retains four face candidates, the 200-tick action cap, original travel/pathfinding limits, 1.15 horizontal face guard, 2.5 native interaction range and real collision/ray checks. Owned-drop standing samples are only the collision-adjusted current item cell plus four horizontal adjacent cells, with the same path identity/progress/stall and bounded endpoint refinement; the exact actual item ray must pass before pickup. Standing oak tests at most three fixed points inside the same target; an intervening block still denies all points. Wheat, item and container geometry retain their original rules.
 
 ## Actual connected GP-RB-01
 
 | Invocation | New logs deposited | Exact run ID | Source cuboid | Destination |
 |---|---:|---|---|---|
-| canonicalAcquisition | 4 | `a3401523-07c0-4c66-b3e5-a1dd65e6d580` | `[6, 201, 14, 13, 201, 14]` | `[7, 201, 9]` |
-| actualLanguage | 4 | `8208f519-22c9-40ac-955d-0efcdc38485f` | `[6, 201, 14, 13, 201, 14]` | `[7, 201, 9]` |
-| knownOne | 1 | `168b5266-fd65-43fa-82b7-a8c841c05fb7` | `[6, 201, 12, 13, 201, 12]` | `[10, 201, 9]` |
-| offlineWarmReuse | 7 | `7ff30bb0-46da-4b15-82f5-3538087d3815` | `[6, 201, 10, 13, 201, 10]` | `[10, 201, 9]` |
+| canonicalAcquisition | 4 | `10769d70-3f07-4e4e-b75a-4ca54a3a081b` | `[6, 201, 14, 13, 201, 14]` | `[7, 201, 9]` |
+| actualLanguage | 4 | `bd8f732c-3f07-469b-9ba7-7fa76bc41608` | `[6, 201, 14, 13, 201, 14]` | `[7, 201, 9]` |
+| knownOne | 1 | `80a48687-ce2b-49a7-8f0e-b210a4bb9522` | `[6, 201, 12, 13, 201, 12]` | `[10, 201, 9]` |
+| offlineWarmReuse | 7 | `753b1ecb-43d9-4de8-bf5e-45b9760d685f` | `[6, 201, 10, 13, 201, 10]` | `[10, 201, 9]` |
 
 The genuine language backend interpreted the exact supplied player sentence. Two real server-issued connection principals exercised canonical controls, private status and cancellation denials, synchronized actual chest menus and exact-run worker/block/drop/slot traces. This is the repository's controlled vanilla server connection envelope, not a Mojang-online authentication claim. The second chest initially held 11 old logs; known one and offline seven acquired their own logs, producing actual totals 12 and 19. Historical receipts create no available inventory or reservation; future consumers must inspect current authorized unallocated stock through existing owners. No crafting or future consumer Job was introduced.
 
@@ -62,31 +60,38 @@ The connected backend was actually stopped, Needle assets made unavailable, and 
 
 | Workflow | Actual Actions result |
 |---|---|
-| AI work broker acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109668) |
-| Blueprint artifact boundary acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109754) |
-| Bounded goal planning acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109777) |
-| Capability retrieval acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109712) |
-| Citizen identity acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109719) |
-| CognitiveCraft verification | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109690) |
-| Default nearest physical acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109702) |
-| Deterministic prerequisite acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109894) |
-| Job lifecycle acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109667) |
-| Local generation smoke | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109686) |
-| Needle language acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109774) |
-| Observed world knowledge acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109771) |
-| Primitive diagnostics acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109736) |
-| RB-001 oak-log acquisition acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109751) |
-| Real Minecraft client E2E smoke | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109830) |
-| Real Minecraft gameplay acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109665) |
-| Research local-model physical trial | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109664) |
-| Resource lease acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109720) |
-| Save and artifact compatibility acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109717) |
-| Worker dispatcher acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109657) |
-| World retention acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38355109699) |
+| AI work broker acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614605) |
+| Blueprint artifact boundary acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614793) |
+| Bounded goal planning acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614704) |
+| Capability retrieval acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614569) |
+| Citizen identity acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614746) |
+| CognitiveCraft verification | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614619) |
+| Default nearest physical acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614646) |
+| Deterministic prerequisite acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614553) |
+| Job lifecycle acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614642) |
+| Local generation smoke | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614786) |
+| Needle language acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614680) |
+| Observed world knowledge acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614645) |
+| Primitive diagnostics acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614679) |
+| RB-001 oak-log acquisition acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614819) |
+| Real Minecraft client E2E smoke | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614560) |
+| Real Minecraft gameplay acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614690) |
+| Research local-model physical trial | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614603) |
+| Resource lease acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614807) |
+| Save and artifact compatibility acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614873) |
+| Worker dispatcher acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614795) |
+| World retention acceptance | [pass](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614555) |
 
 ## Same-code regression retries and final duplicate-run defect
 
 At reviewed code, planning run 38348838185 attempt 1 failed a model-free wheat child with TARGET_UNAVAILABLE after one harvest; only its failed native job was retried with the original assertions and guards. Attempt 2 passed. Separate push diagnostics run 38348834651 attempt 1 exhausted its unchanged wheat execution envelope after one committed effect; its corresponding PR workflow passed. The diagnosed failed push job was retried on the same code without changing budgets or assertions. Failed attempts remain visible in Actions; the final verdicts below require all checks to succeed.
+
+| Retained Actions run | Diagnosed earlier attempt | Final same-code result |
+|---|---|---|
+| [run 38348838185](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838185) | wheat child TARGET_UNAVAILABLE after one harvest | success |
+| [run 38348834651](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834651) | wheat known execution BUDGET_EXHAUSTED after one effect | success |
+| [run 38357870904](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38357870904) | Existing wheat language GameTest returned MODEL_UNAVAILABLE on a later interpretation after 22/22 benchmark cases passed; final commit changes only evidence documents; only failed job retried with assertions and limits unchanged | success |
+| [run 38359614704](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38359614704) | Existing model-free wheat P0 root WAITING after first child SUCCEEDED with 2; second child READY with dispatch DEFERRED:BUDGET_EXHAUSTED at tick 3602. 62 scoped cases and genuine held-out quality passed. Only failed native job rerun, original budgets/assertions unchanged. | success |
 
 Completion head fa2d428 also exposed a real owned-drop false-negative in its duplicate push run: after seven harvests, a reachable 1.52-block item under a low ceiling was rejected by a smaller preparation radius. Artifact 11791562186 SHA256 `a2646885e7a7ca04cdba3c40471b1fc08657d5c4ed5f78ca228c123cf1e348c6` preserves that failure. The reviewed correction aligns preparation with the unchanged native 2.5 pickup/ray predicate and adds actual low-ceiling coverage; it changes no pickup/source authority, receipt or stock rule.
 
