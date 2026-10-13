@@ -1077,7 +1077,7 @@ public final class JobLifecycleStore {
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
                     || quantity.value() < 1 || quantity.value() > 64
                     || !(job.request().request().arguments().get("actor") instanceof ActorValue)
-                    || (job.request().request().capability().equals(OakPlankProduction.ID)
+                    || (RecipeProduction.is(job.request().request().capability())
                         ? !(job.request().request().arguments().get("source") instanceof ContainerValue)
                         : !(job.request().request().arguments().get("source") instanceof AreaValue))
                     || !(job.request().request().arguments().get("destination") instanceof ContainerValue))

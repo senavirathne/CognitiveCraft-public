@@ -13,7 +13,7 @@ import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 public final class LanguageReferenceClassifier {
     private LanguageReferenceClassifier() { }
 
-    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS }
+    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS }
 
     public record Slot(ReferenceState state, String first, String second, String evidence) {
         public Slot {
@@ -88,6 +88,10 @@ public final class LanguageReferenceClassifier {
                     Slot.omitted(), naming.proposedName());
         }
         Slot actor = actor(text, references);
+        if(Pattern.compile("\\b(?:make|produce|craft)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && Pattern.compile("\\b(?:make|produce|craft)\\s+(?:[0-9]+\\s+)?sticks?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && !Pattern.compile("\\b(?:birch|spruce|stripped|axes?|tables?|slabs?|doors?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
+            return new Classification(Intent.MAKE_STICKS,actor,plankSource(text),plankDestination(text),null);
         if(Pattern.compile("\\b(?:make|craft|produce)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && Pattern.compile("\\boak\\s+planks?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && !Pattern.compile("\\b(?:birch|spruce|stripped|sticks?|axes?|tables?|slabs?|doors?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
@@ -110,7 +114,7 @@ public final class LanguageReferenceClassifier {
         if(!role.find())return containsWord(text,"from") ? Slot.unsupported("unsupported input source") : Slot.omitted();
         String phrase=stripTerminal(role.group(1));
         if(role.find())return Slot.unsupported("multiple input sources");
-        if(phrase.matches("(?i)(?:the\\s+)?available\\s+oak\\s+logs?"))return Slot.nearest("available oak logs");
+        if(phrase.matches("(?i)(?:the\\s+)?available\\s+oak\\s+(?:logs?|planks?)"))return Slot.nearest("available oak logs");
         if(phrase.matches("(?i)(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)"))return Slot.nearest(phrase);
         Matcher c=Pattern.compile("^(?:(?:the\\s+)?(?:chest|container|barrel)\\s+(?:at\\s+)?)?"+COORD+"$",Pattern.CASE_INSENSITIVE).matcher(phrase);
         if(c.matches())return Slot.concrete(compact(c.group(1)),compact(c.group(1)),phrase);
@@ -121,8 +125,8 @@ public final class LanguageReferenceClassifier {
         if(!role.find())return Slot.omitted();
         int start=role.end();if(role.find())return Slot.unsupported("multiple output destinations");
         String phrase=stripTerminal(text.substring(start));
-        if(phrase.isBlank() || phrase.matches("(?i)(?:them|it|(?:oak\\s+)?planks?)"))return Slot.omitted();
-        String prefix="(?:(?:them|it|(?:oak\\s+)?planks?)\\s+)?(?:to|into|in|at)\\s+(?:the\\s+)?";
+        if(phrase.isBlank() || phrase.matches("(?i)(?:them|it|(?:(?:oak\\s+)?planks?|sticks?))"))return Slot.omitted();
+        String prefix="(?:(?:them|it|(?:(?:oak\\s+)?planks?|sticks?))\\s+)?(?:to|into|in|at)\\s+(?:the\\s+)?";
         if(phrase.matches("(?i)"+prefix+"nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)"))return Slot.nearest(phrase);
         Matcher c=Pattern.compile("^"+prefix+"(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?"+COORD+"$",Pattern.CASE_INSENSITIVE).matcher(phrase);
         return c.matches() ? Slot.concrete(compact(c.group(1)),null,phrase) : Slot.unsupported(phrase);

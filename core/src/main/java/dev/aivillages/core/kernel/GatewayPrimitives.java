@@ -57,6 +57,12 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         WITHDRAW_OAK_LOG("withdraw_oak_log",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
         CRAFT_OAK_PLANKS("craft_oak_planks",Type.INT,Effect.CRAFT,actor()),
         TRANSFER_OAK_PLANKS("transfer_oak_planks",Type.INT,Effect.TRANSFER,actor(),
+                new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
+        OBSERVE_STICK_INPUTS("observe_stick_inputs",Type.BOOL,Effect.OBSERVE,actor(),
+                new Parameter("source",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
+        WITHDRAW_OAK_PLANKS("withdraw_oak_planks",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
+        CRAFT_STICKS("craft_sticks",Type.INT,Effect.CRAFT,actor()),
+        TRANSFER_STICKS("transfer_sticks",Type.INT,Effect.TRANSFER,actor(),
                 new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64));
 
         private final PrimitiveSignature signature;
@@ -69,7 +75,8 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         public PrimitiveSignature signature() { return signature; }
         public boolean plank() {return this==OBSERVE_PLANK_INPUTS || this==MOVE_TO_INPUT
                 || this==WITHDRAW_OAK_LOG || this==CRAFT_OAK_PLANKS || this==TRANSFER_OAK_PLANKS;}
-        public boolean oak() { return !plank() && name().contains("OAK"); }
+        public boolean stick() {return this==OBSERVE_STICK_INPUTS || this==WITHDRAW_OAK_PLANKS || this==CRAFT_STICKS || this==TRANSFER_STICKS;}
+        public boolean oak() { return !plank() && !stick() && name().contains("OAK"); }
         public PrimitiveRequirement requirement() {
             return new PrimitiveRequirement(signature.id(), signature.version(), signature.fingerprint());
         }

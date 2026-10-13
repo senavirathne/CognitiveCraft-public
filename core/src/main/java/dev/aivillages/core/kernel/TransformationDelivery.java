@@ -8,18 +8,21 @@ import static dev.aivillages.core.kernel.ResourceDelivery.*;
 public final class TransformationDelivery {
     private TransformationDelivery() { }
     public static boolean matches(ValidatedRequest bound,UUID run,Receipt r) {
-        if(!bound.request().capability().equals(OakPlankProduction.ID) || r.transformation()==null)return false;
+        if(!RecipeProduction.is(bound.request().capability()) || r.transformation()==null)return false;
         var a=bound.request().arguments();
         return r.origin().equals(bound.context()) && r.runId().equals(run)
                 && a.get("actor") instanceof ActorValue actor && actor.value().equals(r.actor())
                 && a.get("source") instanceof ContainerValue source && ResourceLeases.point(source.value()).equals(r.source())
                 && a.get("destination") instanceof ContainerValue destination && destination.value().equals(r.destination())
                 && r.dropIds().isEmpty() && r.sourceBlock().inside(r.source())
-                && r.item().equals(r.stage()==Stage.WITHDRAW ? OAK_LOG : OAK_PLANKS);
+                && r.transformation().recipe().key().equals(RecipeProduction.of(bound.request().capability()).recipe())
+                && r.item().equals(r.stage()==Stage.WITHDRAW ? RecipeProduction.of(bound.request().capability()).input()
+                        : RecipeProduction.of(bound.request().capability()).output());
     }
     public static long quantity(ValidatedRequest bound,UUID run,List<Receipt> receipts) {
-        if(!bound.request().capability().equals(OakPlankProduction.ID) || receipts.size()>MAX_RECEIPTS)
+        if(!RecipeProduction.is(bound.request().capability()) || receipts.size()>MAX_RECEIPTS)
             throw new IllegalArgumentException("Transformation receipt bounds");
+        int inputs=RecipeProduction.of(bound.request().capability()).inputPerBatch();
         Map<UUID,Receipt> seen=new HashMap<>(); Set<UUID> operations=new HashSet<>();
         Map<UUID,List<Receipt>> batches=new LinkedHashMap<>();
         for(var r:receipts) {
@@ -41,14 +44,14 @@ public final class TransformationDelivery {
                 var t=r.transformation();
                 switch(r.stage()) {
                     case WITHDRAW -> {
-                        if(withdraw!=null || craft!=null || deposit!=null || r.quantity()!=1
+                        if(withdraw!=null || craft!=null || deposit!=null || r.quantity()!=inputs
                                 || t.consumedInputs()!=0 || t.producedOutputs()!=0 || t.retainedOutputs()!=0)
                             throw new IllegalArgumentException("Withdrawal is not production");
                         withdraw=r;
                     }
                     case CRAFT -> {
                         if(withdraw==null || craft!=null || deposit!=null || r.quantity()!=4
-                                || t.consumedInputs()!=1 || t.producedOutputs()!=4 || t.retainedOutputs()!=4
+                                || t.consumedInputs()!=inputs || t.producedOutputs()!=4 || t.retainedOutputs()!=4
                                 || !same(withdraw,r) || !withdraw.transformation().custodyAfter().equals(t.custodyBefore()))
                             throw new IllegalArgumentException("Missing consumed-input lineage");
                         craft=r;

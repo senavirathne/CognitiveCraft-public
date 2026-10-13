@@ -62,7 +62,7 @@ public final class LeasedGateway implements GatewayPort {
         this.duration=duration;this.waitingTicks=waitingTicks;this.maxRuns=maxRuns;this.maxHandles=maxHandles;
     }
     public static Binding workspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
-        if(request.request().capability().equals(OakPlankProduction.ID))return recipeWorkspaces(owners,request,run);
+        if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
         UUID world=request.context().scope().worldId();
         Cuboid source=ResourceDelivery.sourceArea(request.request());
         ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
@@ -70,7 +70,7 @@ public final class LeasedGateway implements GatewayPort {
                 new Demand(Resource.facility(world,destination),1)));
     }
     public static Binding cropWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
-        if(request.request().capability().equals(OakPlankProduction.ID))return recipeWorkspaces(owners,request,run);
+        if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
         Binding spaces=workspaces(owners,request,run);
         var demands=new ArrayList<>(spaces.demands());
         demands.add(new Demand(sourceResource(request.context().scope().worldId(),request),
@@ -82,7 +82,7 @@ public final class LeasedGateway implements GatewayPort {
         var source=((ContainerValue)request.request().arguments().get("source")).value();
         var target=((ContainerValue)request.request().arguments().get("destination")).value();
         var demands=new ArrayList<Demand>();
-        demands.add(new Demand(Resource.oakStock(world,source),OakPlankProduction.batches(((IntValue)request.request().arguments().get("amount")).value())));
+        demands.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
         demands.add(new Demand(Resource.facility(world,source),1));
         if(!target.equals(source))demands.add(new Demand(Resource.facility(world,target),1));
         return new Binding(owners.byRun(request,run),demands);
@@ -97,7 +97,7 @@ public final class LeasedGateway implements GatewayPort {
             return new Result(Code.VALID,null,null,List.of(),0,0);
         Cuboid source=ResourceDelivery.sourceArea(request.request());
         ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
-        var demands=request.request().capability().equals(OakPlankProduction.ID)
+        var demands=RecipeProduction.is(request.request().capability())
                 ? recipeDemands(world,request) : List.of(new Demand(sourceResource(world,request),((IntValue)request.request().arguments().get("amount")).value()),
                 new Demand(Resource.space(world,source),1),new Demand(Resource.facility(world,destination),1));
         int inspected=0;
@@ -198,11 +198,11 @@ public final class LeasedGateway implements GatewayPort {
         ActionReceipt answer=delegate.poll(action.nativeHandle);
         action.accounted=ticks.getAsLong();
         action.current=map(answer,handle,answer.terminal(),answer.reason());
-        if(answer.terminal() && answer.reason()==null && operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG) {
+        if(answer.terminal() && answer.reason()==null && (operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS)) {
             for(var receipt:answer.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.WITHDRAW) {
                 for(Ref ref:granted.leases()) {
                     Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
-                    if(claim.resource().kind()==Kind.STOCK && claim.resource().slot()==-1 && claim.resource().item().equals("minecraft:oak_log")) {
+                    if(claim.resource().kind()==Kind.STOCK && claim.resource().slot()==-1 && claim.resource().item().equals(RecipeProduction.of(run.request.request().capability()).input().id())) {
                         action.saved=answer;action.consuming=ref;action.ingredientConsumption=receipt;
                         Result recorded=leases.consumedIngredient(ref,run.request,run.correlation,receipt,run.request.context());
                         if(recorded.code()==Code.PENDING) {action.current=map(answer,handle,false,null);return action.current;}
@@ -294,16 +294,16 @@ public final class LeasedGateway implements GatewayPort {
                 reason==null?r.result():null,reason==null?r.observation():null,r.resourceReceipts());
     }
     private static Resource sourceResource(UUID world,ValidatedRequest request) {
-        if(request.request().capability().equals(OakPlankProduction.ID))
-            return Resource.oakStock(world,((ContainerValue)request.request().arguments().get("source")).value());
+        if(RecipeProduction.is(request.request().capability()))
+            return RecipeProduction.of(request.request().capability()).stock(world,((ContainerValue)request.request().arguments().get("source")).value());
         Cuboid source=ResourceDelivery.sourceArea(request.request());
         return request.request().capability().equals(OakLogDelivery.ID) ? Resource.oakBlocks(world,source) : Resource.crops(world,source);
     }
     private static List<Demand> recipeDemands(UUID world,ValidatedRequest request) {
         var source=((ContainerValue)request.request().arguments().get("source")).value();
         var target=((ContainerValue)request.request().arguments().get("destination")).value();
-        var result=new ArrayList<Demand>();result.add(new Demand(Resource.oakStock(world,source),
-                OakPlankProduction.batches(((IntValue)request.request().arguments().get("amount")).value())));
+        var result=new ArrayList<Demand>();result.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),
+                RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
         result.add(new Demand(Resource.facility(world,source),1));
         if(!source.equals(target))result.add(new Demand(Resource.facility(world,target),1));return List.copyOf(result);
     }

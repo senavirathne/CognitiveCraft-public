@@ -541,11 +541,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return new ItemContainerInspection(sample.known() ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                 sample.capacity(),sample.slotsInspected(),"container:"+p.asLong());
     }
-    ItemContainerInspection inspectPlankContainer(ContainerRef target) {
+    ItemContainerInspection inspectPlankContainer(ContainerRef target) {return inspectRecipeContainer(target,ResourceDelivery.OAK_PLANKS);}
+    ItemContainerInspection inspectRecipeContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
         BlockPos p=new BlockPos(target.x(),target.y(),target.z());
         if(!target.dimension().equals(dimension()) || !loaded(p))return new ItemContainerInspection(ObservationStatus.UNKNOWN,0,0,"unavailable");
         Container c=oakBox(p);if(c==null)return new ItemContainerInspection(ObservationStatus.ABSENT,0,0,"unsuitable");
-        var sample=itemCapacity(c,new ItemStack(Items.OAK_PLANKS));
+        var sample=itemCapacity(c,new ItemStack(item.equals(ResourceDelivery.STICK) ? Items.STICK : Items.OAK_PLANKS));
         return new ItemContainerInspection(sample.known() ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,sample.capacity(),sample.slotsInspected(),
                 "plank-container:"+p.asLong()+":"+System.identityHashCode(c));
     }
@@ -586,9 +587,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return new ItemBlock(ObservationStatus.PRESENT,supported,state.toString(),supported ? (int)ticks : 0);
     }
     @Override public ItemStock resourceInventory(ActorRef actor,ResourceDelivery.ItemIdentity item) {
-        if(item.equals(ResourceDelivery.OAK_PLANKS)) {
+        if(item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK)) {
             var v=recipeActor(actor);if(v==null)return new ItemStock(ObservationStatus.UNKNOWN,"unavailable",0,0,"",null);
-            return plankStock(v.getInventory(),"actor:"+actor.entityId());
+            return recipeStock(v.getInventory(),"actor:"+actor.entityId(),item);
         }
         if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceInventory(actor,item);
         Villager v=villager(actor);
@@ -606,9 +607,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 oakInventoryFingerprint(c),reason);
     }
     @Override public ItemStock resourceContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
-        if(item.equals(ResourceDelivery.OAK_PLANKS)) {
+        if(item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK)) {
             Container c=recipeContainer(target);if(c==null)return new ItemStock(ObservationStatus.UNKNOWN,"unavailable",0,0,"",null);
-            return plankStock(c,"container:"+new BlockPos(target.x(),target.y(),target.z()).asLong());
+            return recipeStock(c,"container:"+new BlockPos(target.x(),target.y(),target.z()).asLong(),item);
         }
         if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceContainer(target,item);
         var inspection=inspectOakContainer(target);
@@ -711,14 +712,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(c.getItem(to).isEmpty()) c.setItem(to,one); else c.getItem(to).grow(1);
         inventory.setChanged(); c.setChanged(); return new ItemTransfer(1,null);
     }
-    private ItemStock plankStock(Container c,String identity) {
+    private ItemStock recipeStock(Container c,String identity,ResourceDelivery.ItemIdentity item) {
+        var nativeItem=item.equals(ResourceDelivery.STICK) ? Items.STICK : Items.OAK_PLANKS;
         long quantity=0;Reason invalid=null;
         for(int i=0;i<c.getContainerSize();i++) {
             ItemStack s=c.getItem(i);
-            if(FabricRecipeTransactions.plain(s,Items.OAK_PLANKS))quantity=Math.addExact(quantity,s.getCount());
-            else if(s.is(Items.OAK_PLANKS))invalid=Reason.TARGET_INVALID;
+            if(FabricRecipeTransactions.plain(s,nativeItem))quantity=Math.addExact(quantity,s.getCount());
+            else if(s.is(nativeItem))invalid=Reason.TARGET_INVALID;
         }
-        var capacity=itemCapacity(c,new ItemStack(Items.OAK_PLANKS));
+        var capacity=itemCapacity(c,new ItemStack(nativeItem));
         return new ItemStock(ObservationStatus.PRESENT,identity,quantity,capacity.capacity(),FabricRecipeTransactions.fingerprint(c),invalid);
     }
     @Override public Harvest harvest(ActorRef actor, Cell target) {

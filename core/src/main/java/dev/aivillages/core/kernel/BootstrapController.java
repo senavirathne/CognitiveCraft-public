@@ -448,7 +448,7 @@ public final class BootstrapController {
                     outcome = new Outcomes.Execution(status, status == ExecutionStatus.SUCCEEDED ? null
                             : reason == null ? Reason.ACTION_FAILED : reason, run.effects,
                             status == ExecutionStatus.SUCCEEDED ? new EvidenceRef(run.artifact.sha256(),
-                                    "jobs:1", run.request.capability().equals(OakPlankProduction.ID) ? "attributable-transformation-delivery"
+                                    "jobs:1", RecipeProduction.is(run.request.capability()) ? "attributable-transformation-delivery"
                                     : run.request.capability().equals(OakLogDelivery.ID)
                                     ? "attributable-resource-delivery" : "attributable-crop-delivery") : null);
                 }

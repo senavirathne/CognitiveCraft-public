@@ -282,7 +282,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             if (ResourceDelivery.isDelivery(call.request.capability().id())
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
-                normalized.put("body",call.request.capability().id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                normalized.put("body",dev.aivillages.core.kernel.RecipeProduction.is(call.request.capability().id())
                         ? plankIrBody(ir.get("body"),call.request.primitives()) : cropIrBody(ir.get("body"), call.request.primitives()));
                 ir = normalized;
                 candidateIr = StrictJson.canonical(ir);
@@ -494,7 +494,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 .map(Contracts.PrimitiveSignature::id).toList();
         List<String> fingerprints = request.primitives().stream()
                 .map(Contracts.PrimitiveSignature::fingerprint).distinct().toList();
-        Map<String, Object> bodyShape = spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+        Map<String, Object> bodyShape = dev.aivillages.core.kernel.RecipeProduction.is(spec.id())
                 ? plankBodyShape(request.primitives()) : ResourceDelivery.isDelivery(spec.id())
                 ? cropBodyShape(request.primitives()) : Map.of("type", "array",
                         "items", nodeShape(2, primitiveIds, fingerprints, true),
@@ -511,10 +511,10 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                        dev.aivillages.core.kernel.RecipeProduction.is(spec.id())
                                 ? "Return the JSON proposal only. Choose a registered preflight primitive, batchSize 4, "
-                                + "and five registered cycle primitives in causal order: move to input, withdraw one log, "
-                                + "craft one real batch, move to destination, transfer produced planks. "
+                                + "and five registered cycle primitives in causal order: move to input, withdraw the declared recipe inputs, "
+                                + "craft one real batch, move to destination, transfer produced recipe output. "
                                 + "Return result param amount. The adapter binds runtime parameters; the compiler and physical trial validate it. "
                                 + "No Java, harvesting, dependency calls or authority claims."
                                 : ResourceDelivery.isDelivery(spec.id())

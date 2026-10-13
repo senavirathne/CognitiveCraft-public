@@ -31,7 +31,9 @@
       "dev.aivillages.fabric.ObservedKnowledgeGameTests",
       "dev.aivillages.fabric.ObservedKnowledgeRestartGameTests",
       "dev.aivillages.fabric.PrerequisiteGameTests",
-      "dev.aivillages.fabric.PrerequisiteRestartGameTests"
+      "dev.aivillages.fabric.PrerequisiteRestartGameTests",
+      "dev.aivillages.fabric.StickEffectGameTests",
+      "dev.aivillages.fabric.StickKernelGameTests"
     ]
   },
   "depends": {

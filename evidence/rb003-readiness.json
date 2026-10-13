@@ -1,0 +1,62 @@
+{
+  "unit": "RB-003",
+  "sourceBaseline": "d6dbcf62920919572cfbb021bc7d960b52d8cb8f",
+  "documentationBaseline": "1e42393a3cebcc4e1594eb7f6bd2114f78785d47",
+  "contractPublishedBeforeImplementation": "25980d633ad7011ff9e3bde6ac9cdfda61109ad9",
+  "capability": "cognitivecraft:produce_sticks",
+  "version": 1,
+  "recipe": "minecraft:stick",
+  "input": {
+    "item": "minecraft:oak_planks",
+    "components": "default",
+    "perBatch": 2
+  },
+  "output": {
+    "item": "minecraft:stick",
+    "components": "default",
+    "perBatch": 4
+  },
+  "limits": {
+    "amount": 64,
+    "batches": 16,
+    "inputUnits": 32,
+    "receipts": 64,
+    "maxActualReceipts": 48,
+    "calls": 256,
+    "instructions": 4096,
+    "observations": 4096,
+    "travelBlocks": 128,
+    "effects": 64,
+    "ticks": 1800,
+    "actionTicks": 200,
+    "containerSlots": 128,
+    "actorSlots": 8,
+    "strictBytes": 65536,
+    "strictTokens": 4096
+  },
+  "unchangedVersions": {
+    "ir": 1,
+    "gateway": 1,
+    "jobs": 2,
+    "transformation": 2,
+    "leases": 1
+  },
+  "mandatoryMatrix": [
+    "RB3-T01",
+    "RB3-T02",
+    "RB3-T03",
+    "RB3-T04",
+    "RB3-T05",
+    "RB3-T06",
+    "RB3-T07",
+    "RB3-T08",
+    "RB3-T09",
+    "RB3-T10",
+    "RB3-T11",
+    "RB3-T12",
+    "RB3-T13",
+    "RB3-T14"
+  ],
+  "acceptance": "pending",
+  "scopeEndsAt": "RB-003"
+}
