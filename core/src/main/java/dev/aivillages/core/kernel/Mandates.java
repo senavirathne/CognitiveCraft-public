@@ -47,7 +47,7 @@ public final class Mandates {
                         || args.get("source") instanceof ContainerValue box && containers.contains(box.value()))
                     && args.get("destination") instanceof ContainerValue destination && containers.contains(destination.value())
                     && args.get("amount") instanceof IntValue amount && amount.value() > 0
-                    && !resources(request).isEmpty() && resources.containsAll(resources(request));
+                    && !Mandates.resources(request).isEmpty() && resources.containsAll(Mandates.resources(request));
         }
     }
     public enum EventKind { GRANTED, RESERVED, REVALIDATED, REVOKED, EXPIRED }
