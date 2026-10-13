@@ -7,7 +7,7 @@
   "source_compiled": false,
   "new_tests_executed": false,
   "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "15549dea35ccfd84e885d22834186aa25ece06ff32b06ceb1c85cadeb9846d08",
+  "code_manifest_sha256": "5ac63538e7b5a8cfbf19f8bdd58aedab383b9de02766abda457c8bbe2e6132ea",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
@@ -16,8 +16,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java",
-      "bytes": 34944,
-      "sha256": "8bd617a537b10fcac83bbfd83c85c9aa61bcc87dd10029add5d9286dce511c92"
+      "bytes": 35068,
+      "sha256": "9525186e735068262c2838c39f00910a16dbf6e6d5ce50591d74e10d41d91eb2"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/BoundedSkillExecutor.java",
@@ -206,8 +206,8 @@
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogEffectGameTests.java",
-      "bytes": 10949,
-      "sha256": "a0592c24d649e9ed1391d380261958c3156f6177032d851c280deabd09f85c9c"
+      "bytes": 12010,
+      "sha256": "3d8477c58b24a65e5ac20d05572dc030e0f555208ad2f0f61db8bc890fef8e0b"
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogFixtures.java",
@@ -216,13 +216,13 @@
     },
     {
       "path": "fabric/src/gameTest/java/dev/aivillages/fabric/OakLogKernelGameTests.java",
-      "bytes": 10360,
-      "sha256": "e19fb71e4265e0037c9d853187f5f71a18e0eb7c18a2d10c8872a31b73768c87"
+      "bytes": 10687,
+      "sha256": "8511ee8866bd83c096dd0f7414c77f5aef3eb4a731162b08fd6a2af5efbeacf2"
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
-      "bytes": 47040,
-      "sha256": "ce4b46ec522020841644f0114fb6834fc9f408c439151a6fc90f8fb6987af73f"
+      "bytes": 47541,
+      "sha256": "71b84e81e24bdb3961cd366319f97fe6b0c86340fc2d981f1bf143581f0b5938"
     },
     {
       "path": "fabric/src/main/java/dev/aivillages/fabric/FabricResourceLeaseWorld.java",
@@ -300,7 +300,7 @@
       "sha256": "3ffaf4a68cfe852234d523bb362023bc49323dc6cacf1638caf7964128cce716"
     }
   ],
-  "generated_at": "2026-10-13T04:36:33.563176+00:00",
+  "generated_at": "2026-10-13T04:54:39.639028+00:00",
   "source_tests_planned_minimum_junit": 34,
   "all_acceptance_pending": true,
   "documentation_actions": {
@@ -323,8 +323,8 @@
   "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
   "source_publication_authorized": true,
   "merge_after_required_checks_authorized": true,
-  "snapshot_phase": "bounded_endpoint_and_initial_allowance_correction_before_publication",
-  "existing_published_head": "49bd9389354f34f8b051f1dffbeec3436037c142",
+  "snapshot_phase": "resource_classification_and_visible_point_correction_before_publication",
+  "existing_published_head": "9d0cc008485206cfdbec406c9caf74f77c5bd759",
   "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
   "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
   "previous_ci_checkpoint": {
@@ -347,5 +347,7 @@
   "documentation_before_grounded_path_correction": "42b0c389860469917d3de5dc97fd7c772ba96fec",
   "documentation_before_selected_face_correction": "8817eecc6ff460c8fd5662c8b32023463cd9cf72",
   "documentation_before_exact_item_correction": "14d7c91126e482a997d9aea2c01f27c54cdc16c6",
-  "documentation_before_endpoint_refinement": "64e37afb00f55e6d5031dc5ac43635c705bb6b40"
+  "documentation_before_endpoint_refinement": "64e37afb00f55e6d5031dc5ac43635c705bb6b40",
+  "documentation_before_admission_classification": "434e99f992e93f9b824e9316b318880e772e0e6a",
+  "documentation_before_visible_block_points": "10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0"
 }

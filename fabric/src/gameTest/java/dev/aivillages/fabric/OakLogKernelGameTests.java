@@ -115,6 +115,9 @@ public final class OakLogKernelGameTests {
                 catch(SecurityException expected) { }
                 if(round==0 && !warm) {
                     h.assertTrue(acquired,"First candidate bypassed real trial/admission");artifact=view.marker().artifactSha256();
+                    h.assertTrue(job.current().terminal()!=null && job.current().terminal().completion()!=null
+                            && job.current().terminal().completion().scope().equals("attributable-resource-delivery"),
+                            "Oak admission retained the legacy crop completion classification");
                     h.assertTrue(genuine ? session.generationCalls()>generationBefore : controlled.calls==1,"Generation identity/counter proof absent");
                     session.inference(false);amount=1;round=1;phase=2;
                 } else {

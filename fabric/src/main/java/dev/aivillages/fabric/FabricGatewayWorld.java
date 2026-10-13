@@ -221,6 +221,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, v));
         return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(targetBlock);
     }
+    private Vec3 oakInteractionPoint(Villager v,BlockPos p) {
+        if(!loaded(p) || !loaded(v.blockPosition()))return null;
+        for(double height:new double[]{0.5,0.125,0.875}) {
+            var point=new Vec3(p.getX()+.5,p.getY()+height,p.getZ()+.5);
+            if(canReach(v,point,p))return point;
+        }
+        return null;
+    }
     private boolean oakApproachGeometry(Villager v, BlockPos target) {
         BlockPos now=v.blockPosition();
         if (Math.abs((long)now.getX()-target.getX())+Math.abs((long)now.getZ()-target.getZ())!=1) return false;
@@ -266,6 +274,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos targetPos = position(target), now = v.blockPosition();
         boolean ownedDrop=interactionPoint!=null,oakApproach=solidApproach || ownedDrop;
         Vec3 point=ownedDrop ? interactionPoint : Vec3.atCenterOf(targetPos);
+        if(solidApproach) {
+            var visible=oakInteractionPoint(v,targetPos);
+            if(visible!=null)point=visible;
+        }
         BlockPos rayTarget=ownedDrop ? interactionBlock : targetPos;
         BlockPos previous = previousPosition.put(v.getUUID(), now);
         long travel = previous == null ? 0 : Math.max(Math.abs((long)now.getX() - previous.getX()),
@@ -549,7 +561,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !level.getGameRules().get(GameRules.BLOCK_DROPS)) return Reason.AUTHORITY_DENIED;
         if(!v.getMainHandItem().isEmpty() || !v.getOffhandItem().isEmpty() || !v.getActiveEffects().isEmpty())
             return Reason.TARGET_INVALID;
-        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || !canReach(v,p)) return Reason.TARGET_UNAVAILABLE;
+        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || oakInteractionPoint(v,p)==null) return Reason.TARGET_UNAVAILABLE;
         return resourceBlock(target,item).eligible() ? null : Reason.TARGET_INVALID;
     }
     @Override public ItemHarvest resourceHarvest(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item,long elapsedTicks) {

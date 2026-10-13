@@ -24,9 +24,13 @@ public final class OakLogEffectGameTests {
         for(int x=0;x<10;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         h.setBlock(3,1,3,Blocks.OAK_LOG);h.setBlock(7,1,3,Blocks.CHEST);h.setBlock(4,1,5,Blocks.BIRCH_LOG);
         var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,3);v.setNoAi(false);
+        h.setBlock(3,1,6,Blocks.OAK_LOG);h.setBlock(3,2,6,Blocks.STONE);
+        var probe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,2,6);
+        var probeLog=h.absolutePos(new BlockPos(3,1,6));
         var p=h.absolutePos(new BlockPos(3,1,3));var c=h.absolutePos(new BlockPos(7,1,3));
         BootstrapGameTests.forceFixtureChunks(h,h.absolutePos(BlockPos.ZERO));
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
+        var probeActor=new ActorRef(UUID.randomUUID(),probe.getUUID(),dim);
         var source=new Cuboid(dim,p.getX(),p.getY(),p.getZ(),p.getX(),p.getY(),p.getZ());
         var box=new ContainerRef(dim,c.getX(),c.getY(),c.getZ());var id=UUID.randomUUID();
         var owner=new TrustedContext(new PrincipalRef(id),new ScopeRef(UUID.randomUUID(),id));
@@ -61,8 +65,14 @@ public final class OakLogEffectGameTests {
                         "Airborne oak approach consumed a ground path or returned a false terminal result");
                 airborneDeferred[0]=true;
             }
-            if(!v.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
+            if(!v.onGround() || !probe.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
             if(phase[0]==0 && handle[0]==null) {
+                var centerHit=h.getLevel().clip(new net.minecraft.world.level.ClipContext(probe.getEyePosition(),
+                        net.minecraft.world.phys.Vec3.atCenterOf(probeLog),net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE,probe));
+                h.assertTrue(centerHit.getBlockPos().equals(probeLog.above()),"Probe did not witness the actual overhang center occlusion");
+                h.assertTrue(world.resourceBreakEligibility(probeActor,new SurvivalGateway.Cell(dim,probeLog.getX(),probeLog.getY(),probeLog.getZ()),
+                        ResourceDelivery.OAK_LOG)==null,"Visible lower oak portion was rejected under unchanged native range");
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
                 h.assertTrue(world.resourceBlock(cell,ResourceDelivery.OAK_LOG).breakTicks()==60,"Pinned oak survival timing differs");
                 h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_UNAVAILABLE,
@@ -95,7 +105,7 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);
