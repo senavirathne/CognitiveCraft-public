@@ -555,12 +555,12 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(4).equals(p.get("batchSize"))
                 || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=5 || !Map.of("param","amount").equals(p.get("result")))
             throw new IllegalArgumentException("Bounded recipe proposal");
-        var observation=primitives.stream().filter(p->p.id().equals(preflight)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered preflight"));
+        var observation=primitives.stream().filter(signature->signature.id().equals(preflight)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered preflight"));
         if(!observation.effects().equals(java.util.Set.of(Contracts.Effect.OBSERVE)))throw new IllegalArgumentException("Recipe preflight must observe once");
         var calls=new java.util.ArrayList<Object>();
         for(Object value:cycle) {
             if(!(value instanceof String id))throw new IllegalArgumentException("Recipe primitive ID");
-            if(primitives.stream().filter(p->p.id().equals(id)).anyMatch(p->p.effects().contains(Contracts.Effect.OBSERVE)))
+            if(primitives.stream().filter(signature->signature.id().equals(id)).anyMatch(signature->signature.effects().contains(Contracts.Effect.OBSERVE)))
                 throw new IllegalArgumentException("Preflight cannot enter the repeated recipe cycle");
             calls.add(plankCall(id,primitives));
         }
