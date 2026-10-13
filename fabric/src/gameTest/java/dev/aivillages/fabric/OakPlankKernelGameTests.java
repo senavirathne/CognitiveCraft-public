@@ -20,7 +20,7 @@ import net.minecraft.world.level.storage.LevelResource;
 /** Real installed recipes through production KernelSession, Jobs and leases; native mock callers are not network evidence. */
 public final class OakPlankKernelGameTests {
     private record Marker(UUID principal,UUID originalActor,UUID citizen,String artifact,int x,int y,int z,long process) { }
-    @GameTest(maxTicks=24_000,padding=16)
+    @GameTest(maxTicks=3_000_000,padding=16)
     public void stockedPlanksGenuineAdmissionAndIndependentOfflineSameSaveReuse(GameTestHelper h) {
         var scene=new Scene(h);h.failIfEver(()->{if(scene.failure!=null)h.fail(scene.failure);});
         h.succeedWhen(()->{scene.step();h.assertTrue(scene.done,"Waiting for RB-002 phase="+scene.phase);});
@@ -28,7 +28,7 @@ public final class OakPlankKernelGameTests {
     private static final class Scene {
         final GameTestHelper h;final Path root,marker;final boolean warm,genuine;
         final ServerPlayer owner,foreign;final OakPlankFixtures.ControlledGeneration controlled=new OakPlankFixtures.ControlledGeneration();
-        final CompletableFuture<Marker> loadedMarker;KernelSession session;BlockPos origin;Villager villager;
+        final CompletableFuture<Marker> loadedMarker;final long startedMillis=System.currentTimeMillis();KernelSession session;BlockPos origin;Villager villager;
         ActorRef actor;UUID run,originalActor;int phase,round,amount=8,before,actorBefore,logsBefore;
         long generationBefore;String artifact,failure;boolean done;CompletableFuture<Void> writing,closing;
         Scene(GameTestHelper h) {
@@ -68,6 +68,7 @@ public final class OakPlankKernelGameTests {
             h.assertTrue(submitted.accepted(),"Stocked plank request rejected: "+submitted);run=submitted.id();
         }
         void step() {
+            if(System.currentTimeMillis()-startedMillis>650_000) {failure="Bounded fixture wall watchdog phase="+phase+" round="+round;return;}
             if(phase==5) {if(closing.isDone()) {closing.join();done=true;}return;}
             session.tick();if(!session.identityReady())return;
             if(phase<=2 && (!session.jobsReady() || !session.leasesReady()))return;
