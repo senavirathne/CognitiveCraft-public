@@ -23,7 +23,7 @@ public final class OakLogEffectGameTests {
     public void actualBareHandTimingLootAndComponentPreservingCustody(GameTestHelper h) {
         for(int x=0;x<10;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         h.setBlock(3,1,3,Blocks.OAK_LOG);h.setBlock(7,1,3,Blocks.CHEST);h.setBlock(4,1,5,Blocks.BIRCH_LOG);
-        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,2,2);v.setNoAi(false);
+        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,3);v.setNoAi(false);
         var p=h.absolutePos(new BlockPos(3,1,3));var c=h.absolutePos(new BlockPos(7,1,3));
         BootstrapGameTests.forceFixtureChunks(h,h.absolutePos(BlockPos.ZERO));
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
@@ -43,7 +43,7 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
-        boolean[] airborneDeferred={false},partialSurfaceDrop={false};
+        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
         h.succeedWhen(() -> {
@@ -66,7 +66,7 @@ public final class OakLogEffectGameTests {
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
                 h.assertTrue(world.resourceBlock(cell,ResourceDelivery.OAK_LOG).breakTicks()==60,"Pinned oak survival timing differs");
                 h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_UNAVAILABLE,
-                        "Diagonal worker cell was accepted as face-adjacent oak arrival");
+                        "Distant worker cell was accepted as face-adjacent oak arrival");
                 var birch=h.absolutePos(new BlockPos(4,1,5));
                 h.assertTrue(!world.resourceBlock(new SurvivalGateway.Cell(dim,birch.getX(),birch.getY(),birch.getZ()),ResourceDelivery.OAK_LOG).eligible(),"Another species entered the oak allowlist");
                 v.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(Items.IRON_AXE));
@@ -89,12 +89,13 @@ public final class OakLogEffectGameTests {
             if(phase[0]>=operations.size()) {
                 h.assertTrue(airborneDeferred[0],"Falling-worker approach regression did not execute");
                 h.assertTrue(partialSurfaceDrop[0],"Natural loot did not exercise the partial-surface observation cell");
+                h.assertTrue(endpointRefined[0],"Real native path endpoint refinement did not execute");
                 h.assertTrue(OakLogDelivery.completed(request,run,receipts),"Trusted native receipt chain incomplete");
                 h.assertTrue(v.getInventory().countItem(Items.OAK_LOG)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);
@@ -110,6 +111,7 @@ public final class OakLogEffectGameTests {
             if(result.terminal()) {
                 h.assertTrue(result.reason()==null,"Oak native effect failed "+op+" "+result.reason());
                 if(phase[0]==0) {
+                    endpointRefined[0]=world.lastNavigationSummary()!=null && world.lastNavigationSummary().endpointRefined();
                     var motion=v.getDeltaMovement();
                     h.assertTrue(v.onGround() && motion.x*motion.x+motion.z*motion.z<=0.01*0.01
                                     && Math.abs(v.getY()-p.getY())<=0.125,

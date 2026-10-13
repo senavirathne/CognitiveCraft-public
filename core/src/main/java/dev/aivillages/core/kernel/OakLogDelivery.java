@@ -16,7 +16,7 @@ public final class OakLogDelivery {
         return new Budgets.ExecutionLimits(new Budgets.Limits(Map.of(
                 Budgets.Kind.CALLS,256L,Budgets.Kind.INSTRUCTIONS,4096L,Budgets.Kind.OBSERVATIONS,4096L,
                 Budgets.Kind.TRAVEL_BLOCKS,128L,Budgets.Kind.ATTEMPTED_EFFECTS,64L,
-                Budgets.Kind.COMMITTED_EFFECTS,64L,Budgets.Kind.ELAPSED_TICKS,1200L),Math.addExact(now,600000)),15000);
+                Budgets.Kind.COMMITTED_EFFECTS,64L,Budgets.Kind.ELAPSED_TICKS,1800L),Math.addExact(now,600000)),15000);
     }
     public static Budgets.ResearchLimits researchLimits(long now,Budgets.ResearchLimits base) {
         var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class); maxima.putAll(base.total().maxima());

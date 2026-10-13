@@ -53,6 +53,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos approachTarget;
         BlockPos settledCell;
         long settledSince = -1;
+        boolean endpointRefined;
         Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach) {
             this.target = target;
             this.runId = runId;
@@ -70,7 +71,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             this.policy = new NavigationRoute(samples);
         }
     }
-    record NavigationSummary(UUID actor, int attempts, int calls, String reason) { }
+    record NavigationSummary(UUID actor, int attempts, int calls, String reason, boolean endpointRefined) { }
     private NavigationSummary lastNavigationSummary;
     NavigationSummary lastNavigationSummary() { return lastNavigationSummary; }
     public FabricGatewayWorld(ServerLevel level) { this.level = java.util.Objects.requireNonNull(level); }
@@ -322,8 +323,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (route.policy.stage() == NavigationRoute.Stage.FOLLOW_PATH) {
             Path active = v.getNavigation().getPath();
             NavigationRoute.PathSample sample = active == null ? null : sample(active, v);
-            if (route.policy.follow(sample, tick()) == NavigationRoute.Follow.CONTINUE)
+            var endpoint = oakEndpoint(v,route,active);
+            if (route.policy.follow(sample, tick(),endpoint) == NavigationRoute.Follow.CONTINUE) {
+                if(endpoint!=null)refineOakEndpoint(v,route,endpoint);
                 return new Movement(false, false, 0, travel);
+            }
             stopOwnedNavigation(v, route);
             // A replaced path, exhausted cursor or stalled waypoint consumes the
             // approach. The next poll may submit at most one new path.
@@ -360,11 +364,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 if (initial == null) route.policy.abandon("no-active-path");
                 else {
                     route.approachTarget = candidate;
-                    route.policy.accepted(initial, tick());
-                    if (initial.node() >= initial.count()) {
+                    var endpoint=oakEndpoint(v,route,active);
+                    route.policy.accepted(initial, tick(),endpoint);
+                    if (initial.node() >= initial.count() && endpoint==null) {
                         route.policy.abandon("finished-outside-reach");
                         stopOwnedNavigation(v, route);
-                    }
+                    } else if(endpoint!=null)refineOakEndpoint(v,route,endpoint);
                 }
             }
             if (route.policy.stage() == NavigationRoute.Stage.SELECT_APPROACH)
@@ -374,6 +379,24 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                     : terminal(v, route, "approaches-exhausted", 1, travel);
         }
         return terminal(v, route, "approaches-exhausted", 0, travel);
+    }
+    private NavigationRoute.Position oakEndpoint(Villager v,Route route,Path path) {
+        BlockPos goal=route.approachTarget;
+        if(!route.solidApproach || goal==null || path==null || !path.isDone()
+                || path.getEndNode()==null || !GatewayControl.holds(v,route.runId)
+                || !v.onGround() || Math.abs(v.getY()-goal.getY())>0.125 || !walkable(v,goal))return null;
+        var end=path.getEndNode();
+        if(end.x!=goal.getX() || end.y!=goal.getY() || end.z!=goal.getZ())return null;
+        var point=new Vec3(goal.getX()+.5,goal.getY(),goal.getZ()+.5);
+        if(v.distanceToSqr(point)>1.0 || !canReach(v,point,goal))return null;
+        return new NavigationRoute.Position(point.x,point.y,point.z);
+    }
+    private void refineOakEndpoint(Villager v,Route route,NavigationRoute.Position endpoint) {
+        // The native path ended within its normal tolerance, outside the tighter
+        // harvest face. Ordinary collision-aware movement closes this last step;
+        // the same policy still checks real path identity, progress and stall time.
+        route.endpointRefined=true;
+        v.getMoveControl().setWantedPosition(endpoint.x(),endpoint.y(),endpoint.z(),0.65);
     }
     private boolean permittedPath(Villager v, Path path) {
         if (path.getNodeCount() < 1 || path.getNodeCount() > MAX_PATH_NODES
@@ -404,7 +427,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             route.policy.terminal(reason);
             stopOwnedNavigation(v, route);
             lastNavigationSummary = new NavigationSummary(v.getUUID(), route.policy.attempts(),
-                    route.policy.navigationCalls(), reason);
+                    route.policy.navigationCalls(), reason, route.endpointRefined);
             if (Boolean.getBoolean("cognitivecraft.gametest.trace")
                     || Boolean.getBoolean("cognitivecraft.navigation.trace")) {
                 var sample = route.policy.lastSample();

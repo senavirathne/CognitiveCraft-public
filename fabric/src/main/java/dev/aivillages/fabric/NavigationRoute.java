@@ -87,6 +87,9 @@ final class NavigationRoute {
     void note(String result) { event(result); }
 
     void accepted(PathSample sample, long tick) {
+        accepted(sample, tick, null);
+    }
+    void accepted(PathSample sample, long tick, Position endpoint) {
         if (stage != Stage.SELECT_APPROACH || approach == null)
             throw new IllegalStateException("No selected approach");
         stage = Stage.FOLLOW_PATH;
@@ -94,7 +97,8 @@ final class NavigationRoute {
         path = sample.identity();
         geometry = sample.geometry();
         highestNode = sample.node();
-        bestDistance = sample.distance();
+        bestDistance = endpoint != null && sample.node() == sample.count()
+                ? sample.actor().distance(endpoint) : sample.distance();
         lastSample = sample;
         attemptStart = lastProgress = lastSampleTick = tick;
         event("follow generation=" + generation + " node=" + highestNode
@@ -102,6 +106,9 @@ final class NavigationRoute {
     }
 
     Follow follow(PathSample sample, long tick) {
+        return follow(sample, tick, null);
+    }
+    Follow follow(PathSample sample, long tick, Position endpoint) {
         if (stage != Stage.FOLLOW_PATH) throw new IllegalStateException("No active path");
         if (tick == lastSampleTick) return Follow.CONTINUE;
         lastSampleTick = tick;
@@ -110,14 +117,18 @@ final class NavigationRoute {
         if (path != sample.identity()) return abandon("replaced-path");
         if (geometry != sample.geometry()) return abandon("changed-geometry");
         if (sample.node() < highestNode) return abandon("regressed-node");
-        if (sample.node() >= sample.count()) return abandon("finished-outside-reach");
+        boolean finished = sample.node() >= sample.count();
+        if (finished && endpoint == null) return abandon("finished-outside-reach");
+        if (finished && (sample.node() != sample.count() || !endpoint.equals(approach.feet())
+                || sample.actor().distance(endpoint) > 1.0)) return abandon("invalid-endpoint");
+        double distance = finished ? sample.actor().distance(endpoint) : sample.distance();
         if (sample.node() > highestNode) {
             highestNode = sample.node();
-            bestDistance = sample.distance();
+            bestDistance = distance;
             lastProgress = tick;
-            event("node=" + highestNode + " generation=" + generation);
-        } else if (sample.distance() < bestDistance - PROGRESS_EPSILON_BLOCKS) {
-            bestDistance = sample.distance();
+            event("node=" + highestNode + " generation=" + generation + (finished ? " refine-endpoint=" + endpoint : ""));
+        } else if (distance < bestDistance - PROGRESS_EPSILON_BLOCKS) {
+            bestDistance = distance;
             lastProgress = tick;
             event("waypoint-gain node=" + highestNode + " distance=" + bestDistance);
         }
