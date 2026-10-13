@@ -68,7 +68,9 @@ public final class OakPlankKernelGameTests {
             h.assertTrue(submitted.accepted(),"Stocked plank request rejected: "+submitted);run=submitted.id();
         }
         void step() {
-            session.tick();if(!session.identityReady() || !session.jobsReady() || !session.leasesReady())return;
+            if(phase==5) {if(closing.isDone()) {closing.join();done=true;}return;}
+            session.tick();if(!session.identityReady())return;
+            if(phase<=2 && (!session.jobsReady() || !session.leasesReady()))return;
             if(phase==0 && warm) {
                 if(!loadedMarker.isDone())return;var m=loadedMarker.join();
                 h.assertTrue(m.process()!=ProcessHandle.current().pid(),"Offline test reused its cold JVM");

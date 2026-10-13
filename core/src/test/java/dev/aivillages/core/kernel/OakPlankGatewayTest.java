@@ -59,6 +59,14 @@ final class OakPlankGatewayTest {
         var d=withdrawn();d.action(CRAFT_OAK_PLANKS);d.world.outputCapacity=0;
         assertEquals(Reason.TARGET_UNAVAILABLE,d.action(TRANSFER_OAK_PLANKS).reason());assertEquals(4,d.world.actorPlanks);
     }
+    @Test void lostCapacityAfterOneDepositPreservesPartialCreditAndLaterCustody() {
+        var d=withdrawn();d.action(CRAFT_OAK_PLANKS);d.action(MOVE_TO_DESTINATION);d.action(TRANSFER_OAK_PLANKS);
+        d.action(MOVE_TO_INPUT);d.action(WITHDRAW_OAK_LOG);d.action(CRAFT_OAK_PLANKS);d.world.outputCapacity=0;
+        assertEquals(Reason.TARGET_UNAVAILABLE,d.action(TRANSFER_OAK_PLANKS).reason());
+        assertEquals(4,d.world.chestPlanks);assertEquals(4,d.world.actorPlanks);assertEquals(4,TransformationDelivery.quantity(d.bound,d.run,d.receipts));
+        assertFalse(OakPlankProduction.completed(d.bound,d.run,d.receipts));d.gateway.releaseRun(d.run);
+        assertEquals(4,d.world.actorPlanks);
+    }
     @Test void blockedTravelPerformsNoWithdrawal() {
         var world=new OakPlankTestSupport.World();world.unreachable=true;var d=new OakPlankTestSupport.Driver(8,world);d.action(OBSERVE_PLANK_INPUTS);
         assertNotNull(d.action(MOVE_TO_INPUT).reason());assertEquals(0,world.withdrawals);
