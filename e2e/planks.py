@@ -158,10 +158,18 @@ def scenario(h):
         except OSError:
             return True
     h.wait(unavailable, "Actually stopped production backend", 20)
-    old_pid = h.snapshot()["pid"]; h.env["COGNITIVECRAFT_OLLAMA_MODEL"] = ""; h.env["COGNITIVECRAFT_NEEDLE_DIR"] = ""
+    old_process = read(h.root/"server/process.json")
+    h.env["COGNITIVECRAFT_OLLAMA_MODEL"] = ""; h.env["COGNITIVECRAFT_NEEDLE_DIR"] = ""
     h.stop("server"); (private/"needle").rename(private/"needle.offline"); h.start("server"); reconnect_players(h,["PlayerA","PlayerB"])
     h.command("PlayerB", "/aivillage kernel inference false", "admission=false")
-    require(h.snapshot()["pid"] != old_pid and unavailable(), "Offline production did not use a new JVM with stopped backend")
+    new_process = read(h.root/"server/process.json")
+    require(new_process["start"] > old_process["start"] and (new_process["pid"],new_process["start"]) != (old_process["pid"],old_process["start"])
+            and new_process["pid"] == h.snapshot()["pid"] and unavailable(), "Offline production did not use a new JVM with stopped backend")
+    process_proof = {"cold":{"pid":old_process["pid"],"start":old_process["start"]},
+                     "warm":{"pid":new_process["pid"],"start":new_process["start"]},
+                     "sameRelease":old_process["releaseSha256"] == new_process["releaseSha256"],"backendUnavailable":True}
+    require(process_proof["sameRelease"],"Offline production changed the production binary")
+    h.event("rb002-independent-process-proof", process_proof)
     source = prepare(4, SECOND_SOURCE); before = h.container(SECOND_DESTINATION, PLANK); inv = actor_inventory("PlayerB", h); offline = h.model_calls(); h.actions_active = True
     reuse = verify(submit(4, source, SECOND_DESTINATION, "PlayerB"), 4, before, inv, source, SECOND_DESTINATION, "PlayerB")
     require(reuse["artifact"] == acquisition["artifact"] and h.model_calls() == offline and reuse["actor"] != acquisition["actor"], "Offline fresh citizen did not reuse exact immutable production")
@@ -181,7 +189,8 @@ def scenario(h):
     return {"canonicalProduction":acquisition,"actualLanguage":language,"knownBindings":known,"offlineWarmReuse":reuse,
             "standaloneReuse":[acquisition,*known,reuse],"foreignDenied":denial,"typedInterface":typed,"initialShortage":shortage,
             "models":models,"needle":read(private/"manifest.json"),"killBoundary":boundary,"checkpoint":checkpoint,
-            "killedWorldHashes":killed,"recovered":recovered,"serverAuthenticationEnvelope":"two real server-issued connection principals"}
+            "killedWorldHashes":killed,"recovered":recovered,"offlineProcessProof":process_proof,
+            "serverAuthenticationEnvelope":"two real server-issued connection principals"}
 
 
 def actor_inventory(player, h):

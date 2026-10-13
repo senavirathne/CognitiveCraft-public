@@ -62,6 +62,9 @@ def client():
     if interface.get('descriptor',{}).get('dependencies')!=[] or interface.get('spec',{}).get('capability')!='cognitivecraft:produce_oak_planks':
         raise SystemExit('Independent typed production interface absent')
     if not any(r['surplus']==3 for r in rows):raise SystemExit('Real retained surplus was not witnessed')
+    process=e.get('offlineProcessProof',{})
+    if not process.get('sameRelease') or not process.get('backendUnavailable') or process.get('warm',{}).get('start',0)<=process.get('cold',{}).get('start',0):
+        raise SystemExit('Independent saved-world JVM identity was not verified')
     OUT.mkdir(parents=True,exist_ok=True);shutil.copy2(folder/'results.json',OUT/'connected-client.json')
 
 if __name__=='__main__':
