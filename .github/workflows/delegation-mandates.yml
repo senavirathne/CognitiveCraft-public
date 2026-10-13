@@ -110,6 +110,8 @@ jobs:
           if len(proofs)!=1:raise SystemExit('One warm physical proof required')
           proof=json.loads(proofs[0].read_text())
           if proof['status']!='PASS' or proof['warm'] is not True or proof['delivered']!=1 or proof['effects']!=3 or proof['receipts']!=3 or proof['nextEffectDenied'] is not True or proof['secondMature'] is not True or proof['modelCalls']!=0:raise SystemExit('Warm conservation/authority proof missing')
+          cold=json.loads((evidence/'physical-cold.json').read_text())
+          if (cold['processId'],cold['processStarted'])==(proof['processId'],proof['processStarted']):raise SystemExit('Distinct Minecraft JVMs required')
           for p,name in [(root/'gametest-results.xml','mandates-warm.xml'),(root/'logs/latest.log','mandates-warm.log'),(proofs[0],'physical-warm.json'),
                          (proofs[0].parent/'data/cognitivecraft/mandates/v1/state.jsonl','mandates-warm.jsonl')]:shutil.copy2(p,evidence/name)
           subprocess.run(['git','restore','fabric/src/gameTest/resources/fabric.mod.json'],check=True)

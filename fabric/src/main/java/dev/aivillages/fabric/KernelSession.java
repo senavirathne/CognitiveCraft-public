@@ -373,7 +373,14 @@ public final class KernelSession implements AutoCloseable {
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.leases().replace(expected, next); }
                     catch (Exception failure) { throw new IllegalStateException(failure); }
-                }, worker), (owner, caller) -> new JobLeaseOwners(jobs, clock).inspect(owner, caller),
+                }, worker), new ResourceLeaseService.Owners() {
+                    public ResourceLeases.OwnerFacts inspect(ResourceLeases.Owner owner,TrustedContext caller) {
+                        return new JobLeaseOwners(jobs,clock).inspect(owner,caller);
+                    }
+                    public boolean stopPending(ResourceLeases.Owner owner,TrustedContext caller) {
+                        return new JobLeaseOwners(jobs,clock).stopPending(owner,caller);
+                    }
+                },
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
         leasedGateway = new LeasedGateway(gateway, leases,

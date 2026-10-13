@@ -185,6 +185,15 @@ public final class JobLifecycleStore {
         return job!=null && job.generation()==generation && sameWorld(caller)
                 && policy.mayControl(caller,job) && policy.controls(worker,job.origin());
     }
+    /** Coordination hold only: never grants action authority, new claims or control of a foreign Job. */
+    public boolean stopPending(UUID id, long generation, TrustedContext caller) {
+        thread(); Job job=find(id);
+        if(job==null || !sameWorld(caller) || !job.origin().equals(caller) || job.generation()!=generation
+                || !policy.mayControl(caller,job) || job.current()==null || !job.current().open())return false;
+        return job.state()==State.CANCELLING || job.state()==State.INTERRUPTED
+                || !policy.controls(job.current().worker(),job.origin())
+                || clock.millis()>=job.current().allowance().deadlineEpochMillis();
+    }
     public Optional<Job> bySubmission(UUID submission, TrustedContext caller) {
         thread();
         return state.jobs().stream().filter(j -> j.submissionId().equals(submission)

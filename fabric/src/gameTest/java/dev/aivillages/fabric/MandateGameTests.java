@@ -208,7 +208,10 @@ public final class MandateGameTests {
         void finish(){
             var marker=new LinkedHashMap<String,Object>();marker.put("world",world.toString());writeContext(marker,"owner",owner);writeContext(marker,"coordinator",coordinator);writeContext(marker,"caller",caller);
             marker.put("x",origin.getX());marker.put("y",origin.getY());marker.put("z",origin.getZ());marker.put("parent",parent.toString());marker.put("child",child.toString());marker.put("job",job.toString());
-            var proof=Map.of("schema",1,"status","PASS","warm",warm,"modelCalls",0,"delivered",wheat(),"effects",job().effects(),"receipts",job().current().receipts().size(),"nextEffectDenied",true,"secondMature",secondMature(),"ticks",ticks);
+            var proof=new LinkedHashMap<String,Object>();
+            proof.putAll(Map.of("schema",1,"status","PASS","warm",warm,"modelCalls",0,"delivered",wheat(),"effects",job().effects(),"receipts",job().current().receipts().size(),"nextEffectDenied",true,"secondMature",secondMature(),"ticks",ticks));
+            proof.put("processId",ProcessHandle.current().pid());
+            proof.put("processStarted",ProcessHandle.current().info().startInstant().orElseThrow().toString());
             mandates.close();closing=CompletableFuture.runAsync(()->{try{Files.writeString(root.resolve("mandate-restart.json"),new Gson().toJson(marker));Files.writeString(root.resolve(warm?"mandate-warm-proof.json":"mandate-cold-proof.json"),new Gson().toJson(proof));
                 stores.mandates().close();stores.leases().close();stores.jobs().close();stores.citizens().close();}catch(Exception e){throw new CompletionException(e);}},io).whenComplete((v,e)->io.shutdown());
         }

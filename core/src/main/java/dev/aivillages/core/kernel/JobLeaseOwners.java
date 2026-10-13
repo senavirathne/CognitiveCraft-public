@@ -13,6 +13,9 @@ public final class JobLeaseOwners implements ResourceLeaseService.Owners {
     public JobLeaseOwners(JobLifecycleStore jobs,Clock clock) {
         this.jobs=Objects.requireNonNull(jobs);this.clock=Objects.requireNonNull(clock);
     }
+    @Override public boolean stopPending(Owner owner,TrustedContext caller) {
+        return jobs.stopPending(owner.job(),owner.generation(),caller);
+    }
     @Override public OwnerFacts inspect(Owner owner,TrustedContext caller) {
         if(!jobs.mayControl(owner.job(),owner.generation(),caller))return null;
         Jobs.Job job=jobs.query(owner.job(),caller);

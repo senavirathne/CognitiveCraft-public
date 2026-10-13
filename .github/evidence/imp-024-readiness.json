@@ -3,9 +3,9 @@
   "unit": "IMP-024",
   "phase": "implementation-and-verification-in-progress",
   "sourceBase": "0325282ab7aa177a1b752727e339191db8c2f6ea",
-  "sourceMain": "4d038643449dc5e3da3e9397bcb49f9f39184d6a",
+  "sourceMain": "d6dbcf62920919572cfbb021bc7d960b52d8cb8f",
   "documentationBase": "72e41a81356c9aa8c545399fe24d2cbb9460c058",
-  "documentationMain": "43cc2b7d7a404af4e025deda2fcfbe3a000466aa",
+  "documentationMain": "1e42393a3cebcc4e1594eb7f6bd2114f78785d47",
   "assignmentSha256": "3bccc41fd73d317cf2aa48d685b3e5e73ac465ee3b54344b1c4a8544ca6d6f20",
   "architecture": "0.5",
   "mandateSchema": 1,
@@ -36,7 +36,7 @@
   },
   "optionalOrganization": "IMP-023; stable metadata reference, no title/membership authority",
   "mandatoryMatrixDefinitions": {
-    "registry": 25,
+    "registry": 26,
     "journal": 34,
     "ownerIntegration": 5,
     "nativeCold": 1,
@@ -57,7 +57,8 @@
     "budgetPerKind": 1000000,
     "snapshotBytes": 524288,
     "threeEnvelopeReserveBytes": 1572864,
-    "retentionRecordReserve": 2048
+    "retentionRecordReserve": 2048,
+    "actionsPerGrant": 7
   },
   "mergeAuthorized": false,
   "nextUnitStarted": false

@@ -92,8 +92,10 @@ class MandateOwnerIntegrationTest {
     @Test void revocationCancelsOriginalJobButKeepsLeaseUntilExecutionOwnerConfirmsStop() {
         var s=new Scene();s.until(()->s.handle!=null&&s.job().effects()==3);var binding=s.authority.registry.snapshot().bindings().getFirst();
         assertEquals(ACTOR,s.job().current().worker());assertEquals(COORDINATOR,s.job().origin());assertEquals(3,s.job().effects());
-        s.revoke();for(int n=0;n<20;n++)s.step();assertFalse(s.claims.isEmpty());assertTrue(s.job().current().open());
+        s.revoke();for(int n=0;n<150;n++)s.step();assertFalse(s.claims.isEmpty());assertTrue(s.job().current().open());
         assertTrue(s.leases.snapshot().leases().stream().anyMatch(l->l.state()==ResourceLeases.State.ACTIVE));
+        assertTrue(s.leases.snapshot().leases().stream().filter(l->l.state()==ResourceLeases.State.ACTIVE).allMatch(l->s.tick>=l.expires()));
+        assertEquals(Reason.AUTHORITY_DENIED,s.leases.validate(s.claims.get(binding.run()).getFirst(),COORDINATOR).reason());
         UUID other=UUID.randomUUID();var args=new HashMap<>(request(FOREIGN).request().arguments());args.put("actor",new ActorValue(actor(101)));
         assertTrue(s.jobs.create(other,other,new CapabilityRequest(CropDelivery.ID,args),FOREIGN,JobLifecycleStoreTest.observation(),budget(100,10000),List.of()).accepted());s.jobs.tick();
         var otherJob=s.jobs.query(other,FOREIGN);assertTrue(s.jobs.assign(other,otherJob.guard(),UUID.randomUUID(),actor(101),ARTIFACT,List.of(ARTIFACT),budget(100,10000),FOREIGN).accepted());s.jobs.tick();
