@@ -45,7 +45,9 @@ public final class KernelSession implements AutoCloseable {
                           RetentionRoots roots, WorldRetentionManager retention,
                           WorldRetentionService retentionService, ObservedWorldKnowledgeStore observations,
                           ObservedKnowledgeService knowledgeService, PlanJournal plans, PlanJournal.Snapshot initialPlans,
-                          BlueprintStore blueprints) { }
+                          BlueprintStore blueprints, OrganizationJournal organizations,
+                          Organizations.Snapshot initialOrganizations, boolean organizationsReadOnly,
+                          MandateJournal mandates, Mandates.Snapshot initialMandates, boolean mandatesReadOnly) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -76,6 +78,8 @@ public final class KernelSession implements AutoCloseable {
     private FabricGatewayWorld worldAccess;
     private CitizenRegistry citizens;
     private JobLifecycleStore jobs;
+    private OrganizationRegistry organizations;
+    private MandateRegistry mandates;
     private FabricPrerequisiteRuntime prerequisites;
     private GoalPlanner planner;
     private ResourceLeaseService leases;
@@ -158,6 +162,8 @@ public final class KernelSession implements AutoCloseable {
             ObservedWorldKnowledgeStore observations = null;
             PlanJournal plans = null;
             BlueprintStore blueprints = null;
+            OrganizationJournal organizations = null;
+            MandateJournal mandates = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -198,6 +204,10 @@ public final class KernelSession implements AutoCloseable {
                 retention.register(plans.retentionOwner());
                 blueprints=BlueprintStore.open(world,journal.state().worldId());
                 retention.register(blueprints.retentionOwner());
+                organizations=OrganizationJournal.open(world,journal.state().worldId());
+                retention.register(organizations.retentionOwner());
+                mandates=MandateJournal.open(world,journal.state().worldId());
+                retention.register(mandates.retentionOwner());
                 plans.capacity(bytes -> retention.assessReplacement("plans",WorldRetentionManager.Category.EVIDENCE,
                         new WorldRetentionManager.Amount(bytes*3L,24)).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 var knowledgeService = new ObservedKnowledgeService(observations);
@@ -224,8 +234,12 @@ public final class KernelSession implements AutoCloseable {
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
-                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints);
+                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,
+                        organizations, organizations.snapshot(), organizations.readOnly(),
+                        mandates, mandates.snapshot(), mandates.readOnly());
             } catch (Exception failure) {
+                if(mandates!=null)try{mandates.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
+                if(organizations!=null)try{organizations.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(blueprints!=null)try{blueprints.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(plans!=null)try{plans.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if (observations != null) try { observations.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
@@ -265,6 +279,9 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        organizations.tick();
+        organizations.expire();
+        mandates.maintain(server.overworld().getGameTime());
         loaded.knowledgeService().beginTick();
         loaded.knowledgeService().maintain(worker);
         loaded.retentionService().beginTick();
@@ -315,9 +332,31 @@ public final class KernelSession implements AutoCloseable {
         var repository = loaded.repository();
         var staging = new ResearchAdmissionController.TrialArtifacts(repository);
         var grants = new ResearchAdmissionController.TrialGrants(clock);
-        CapabilityResolver.ControlPolicy control = this::controls;
-        AuthorityPolicy authority = (actor, effect, context) -> controls(actor, context)
+        AuthorityPolicy direct = (actor, effect, context) -> controls(actor, context)
                 && villager(actor) != null;
+        mandates = new MandateRegistry(loaded.initialMandates(), (expected, next) ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return loaded.mandates().replace(expected, next); }
+                    catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
+                }, worker), new MandateRegistry.References() {
+                    public boolean authority(ActorRef actor,Effect effect,TrustedContext issuer) { return direct.currentlyAllows(actor,effect,issuer); }
+                    public boolean available(TrustedContext coordinator) {
+                        return server.getPlayerList().getPlayer(coordinator.principal().id()) != null;
+                    }
+                    public boolean organization(UUID reference,TrustedContext issuer) {
+                        if(reference==null)return true;
+                        return organizations != null && organizations.snapshot().scopes().stream()
+                                .anyMatch(s -> s.id().equals(reference) && s.owner().equals(issuer) && !s.expired()
+                                        && (s.expiresAt()==0 || clock.millis()<s.expiresAt()));
+                    }
+                }, new MandateJobExecutions(() -> jobs), clock, Mandates.Limits.defaults(), loaded.mandatesReadOnly());
+        mandates.retentionGuard((keys, complete) -> {
+            var update=loaded.roots().publishNext("mandates",keys,complete);
+            return update==RetentionRoots.Update.APPLIED || update==RetentionRoots.Update.UNCHANGED;
+        });
+        CapabilityResolver.ControlPolicy control = (actor,context) -> controls(actor,context)
+                || mandates.controls(actor,Effect.OBSERVE,context);
+        AuthorityPolicy authority = new MandateAuthority(direct,mandates);
         BoundedSkillExecutor.ControlPolicy runControl = new BoundedSkillExecutor.ControlPolicy() {
             @Override public boolean mayInspect(TrustedContext caller, TrustedContext owner,
                                                 UUID runId) { return owner.equals(caller); }
@@ -334,7 +373,14 @@ public final class KernelSession implements AutoCloseable {
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.leases().replace(expected, next); }
                     catch (Exception failure) { throw new IllegalStateException(failure); }
-                }, worker), (owner, caller) -> new JobLeaseOwners(jobs, clock).inspect(owner, caller),
+                }, worker), new ResourceLeaseService.Owners() {
+                    public ResourceLeases.OwnerFacts inspect(ResourceLeases.Owner owner,TrustedContext caller) {
+                        return new JobLeaseOwners(jobs,clock).inspect(owner,caller);
+                    }
+                    public boolean stopPending(ResourceLeases.Owner owner,TrustedContext caller) {
+                        return new JobLeaseOwners(jobs,clock).stopPending(owner,caller);
+                    }
+                },
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
         leasedGateway = new LeasedGateway(gateway, leases,
@@ -342,6 +388,7 @@ public final class KernelSession implements AutoCloseable {
                         ? LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run)
                         : LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
                 () -> server.overworld().getGameTime(), 1200, 200, 64, 512);
+        leasedGateway.admission(LeasedGateway.mandates(mandates,direct));
         var executor = new BoundedSkillExecutor(staging, capabilities, primitives,
                 CapabilityResolver.enrolledWorldSkills(control), grants, runControl, leasedGateway,
                 leasedGateway::releaseRun, clock, () -> server.overworld().getGameTime(),
@@ -386,7 +433,7 @@ public final class KernelSession implements AutoCloseable {
                 refs -> publishRoots("research", refs.stream().map(WorldRetentionManager::artifact).collect(java.util.stream.Collectors.toSet())));
         RequestEnvironment environment = new RequestEnvironment() {
             @Override public boolean enrolled(ActorRef actor, TrustedContext context) {
-                return controls(actor, context);
+                return control.controls(actor, context);
             }
             @Override public boolean loaded(Cuboid source, ObservationRef observation) {
                 if (sourceCells(source) > 256 || !source.dimension().equals(observation.dimension()))
@@ -407,9 +454,37 @@ public final class KernelSession implements AutoCloseable {
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.jobs().replace(expected, next); }
                     catch (Exception failure) { throw new IllegalStateException(failure); }
-                }, worker), JobLifecycleStore.privateJobs(this::controls),
+                }, worker), JobLifecycleStore.privateJobs(control::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        organizations = new OrganizationRegistry(loaded.initialOrganizations(), (expected, next) ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return loaded.organizations().replace(expected, next); }
+                    catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
+                }, worker), new OrganizationRegistry.References() {
+                    public OrganizationRegistry.MemberFact citizen(ActorRef actor) {
+                        var enrollment = citizens.find(actor.citizenId());
+                        if (enrollment == null || !enrollment.actor().equals(actor)) return null;
+                        if (!citizens.controls(actor, enrollment.owner()))
+                            return new OrganizationRegistry.MemberFact(enrollment.owner(), Organizations.Participation.UNAVAILABLE);
+                        var current = citizens.query(actor.citizenId(), enrollment.owner());
+                        var participation = switch (current.availability()) {
+                            case LOADED -> Organizations.Participation.ACTIVE;
+                            case UNKNOWN -> Organizations.Participation.UNKNOWN;
+                            case UNLOADED -> Organizations.Participation.UNLOADED;
+                            case UNAVAILABLE, REPLACEMENT_UNRESOLVED -> Organizations.Participation.UNAVAILABLE;
+                        };
+                        return new OrganizationRegistry.MemberFact(enrollment.owner(), participation);
+                    }
+                    public boolean headquarters(ContainerRef ref, TrustedContext caller) {
+                        return caller.scope().worldId().equals(loaded.initialOrganizations().worldId())
+                                && gatewayWorld().container(ref).status() == ObservationStatus.PRESENT;
+                    }
+                }, jobs, clock, Organizations.Limits.defaults(), loaded.organizationsReadOnly());
+        organizations.retentionGuard((keys, complete) -> {
+            var update = loaded.roots().publishNext("organizations", keys, complete);
+            return update == RetentionRoots.Update.APPLIED || update == RetentionRoots.Update.UNCHANGED;
+        });
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock);
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
@@ -491,11 +566,12 @@ public final class KernelSession implements AutoCloseable {
         dispatchGateway=new LeasedGateway(gateway,leases,
                 (request,run)->LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run),
                 ()->server.overworld().getGameTime(),1200,200,8,512);
+        dispatchGateway.admission(LeasedGateway.mandates(mandates,direct));
         var dispatchExecutor=new BoundedSkillExecutor(staging,capabilities,primitives,
                 CapabilityResolver.enrolledWorldSkills(control),grants,runControl,dispatchGateway,
                 dispatchGateway::releaseRun,clock,()->server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8,16,32,64));
-        dispatcher=new WorkerDispatcher(jobs,citizens,this::observe,resolver::resolve,
+        dispatcher=new WorkerDispatcher(jobs,new MandateWorkers(citizens,mandates),this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
                 job->ResourceDelivery.isDelivery(job.request().request().capability()) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
@@ -678,6 +754,16 @@ public final class KernelSession implements AutoCloseable {
         ready(); return jobs.bySubmission(submission, caller);
     }
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
+    /** Host integration only; no organization client command or model policy endpoint is registered. */
+    public OrganizationRegistry organizations() {
+        if (!server.isSameThread()) throw new IllegalStateException("Organization intake requires server thread");
+        ready(); return organizations;
+    }
+    /** Host-only scoped mandate intake; text/IR and organization titles cannot create these grants. */
+    public MandateRegistry mandates() {
+        if (!server.isSameThread()) throw new IllegalStateException("Mandate intake requires server thread");
+        ready(); return mandates;
+    }
     private boolean publishRoots(String source, java.util.Set<WorldRetentionManager.Key> keys) {
         if (keys.size() > RetentionRoots.MAX_ROOTS) return false;
         desiredRoots.put(source, java.util.Set.copyOf(keys));
@@ -1012,6 +1098,8 @@ public final class KernelSession implements AutoCloseable {
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
         if(planner!=null)planner.close();
+        if(organizations!=null)organizations.close();
+        if(mandates!=null)mandates.close();
         if(broker!=null)broker.close();
         closed = true;
         if (model != null) model.close();
@@ -1028,7 +1116,7 @@ public final class KernelSession implements AutoCloseable {
                     opened.retentionService().closeWorker();
                     opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.mandates(),opened.organizations(),opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);

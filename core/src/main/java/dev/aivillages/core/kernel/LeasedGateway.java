@@ -13,6 +13,7 @@ public final class LeasedGateway implements GatewayPort {
             if(demands.isEmpty()||demands.size()>4)throw new IllegalArgumentException("Lease binding"); }
     }
     @FunctionalInterface public interface Bindings { Binding bind(ValidatedRequest request,RunCorrelation run); }
+    @FunctionalInterface public interface Admission { Result prepare(ValidatedRequest request,RunCorrelation run); }
     private static final class Run {
         final ValidatedRequest request;
         final RunCorrelation correlation;
@@ -50,6 +51,7 @@ public final class LeasedGateway implements GatewayPort {
     private final LongSupplier ticks;
     private final long duration,waitingTicks;
     private final int maxRuns,maxHandles;
+    private Admission admission = (request,run) -> new Result(Code.VALID,null,null,List.of(),0,0);
     private final Map<UUID,Run> runs=new LinkedHashMap<>();
     private final Map<UUID,Action> actions=new LinkedHashMap<>();
     public LeasedGateway(SurvivalGateway delegate,ResourceLeaseService leases,Bindings bindings,
@@ -68,6 +70,19 @@ public final class LeasedGateway implements GatewayPort {
         ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
         return new Binding(owners.byRun(request,run),List.of(new Demand(Resource.space(world,source),1),
                 new Demand(Resource.facility(world,destination),1)));
+    }
+    /** Trusted authority preparation; existing coordination remains the sole lease owner. */
+    public void admission(Admission admission) { checkThread();this.admission=Objects.requireNonNull(admission); }
+    public static Admission mandates(MandateRegistry mandates,AuthorityPolicy direct) {
+        Objects.requireNonNull(mandates);Objects.requireNonNull(direct);
+        return (request,run) -> {
+            ActorRef actor=((ActorValue)request.request().arguments().get("actor")).value();
+            if(!mandates.reservedRun(run.runId()) && direct.currentlyAllows(actor,Effect.OBSERVE,request.context()))
+                return new Result(Code.VALID,null,null,List.of(),0,0);
+            var change=mandates.prepare(request,run);
+            return new Result(change.status()==Mandates.Status.PENDING?Code.PENDING:change.accepted()?Code.VALID:Code.REJECTED,
+                    change.reason(),null,List.of(),0,0);
+        };
     }
     public static Binding cropWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
         if(request.request().capability().equals(OakPlankProduction.ID))return recipeWorkspaces(owners,request,run);
@@ -112,6 +127,7 @@ public final class LeasedGateway implements GatewayPort {
     /** Preflight coordination for an already durable assignment, before interpreter start. */
     public Result prepare(ValidatedRequest request,RunCorrelation correlation) {
         checkThread();
+        Result allowed=admission.prepare(request,correlation);if(!allowed.usable())return allowed;
         Run run=runs.get(correlation.runId());
         if(run==null) {
             if(runs.size()>=maxRuns)return new Result(Code.REJECTED,Reason.BUDGET_EXHAUSTED,null,List.of(),0,0);
@@ -153,6 +169,8 @@ public final class LeasedGateway implements GatewayPort {
         action.polled=ticks.getAsLong();
         if(action.run.released)return fail(action,Reason.INTERRUPTED);
         if(action.polled<action.started || action.polled-action.started>waitingTicks)return fail(action,Reason.ACTION_TIMEOUT);
+        Result allowed=admission.prepare(action.run.request,action.run.correlation);
+        if(!allowed.usable())return allowed.code()==Code.PENDING?waitForPublication(action):fail(action,allowed.reason());
         if(leases.failure()!=null)return fail(action,leases.failure());
         if(!leases.ready())return waitForPublication(action);
         // A new research execution pin may supersede a run without changing the job generation.
@@ -268,7 +286,7 @@ public final class LeasedGateway implements GatewayPort {
         List<Ref> refs=group.usable()?group.leases():run.acquisition.leases();
         if(refs.isEmpty()){runs.remove(run.correlation.runId());return;}
         Result released=leases.release(refs,run.request.context());
-        if(released.code()!=Code.PENDING)runs.remove(run.correlation.runId());
+        if(released.code()==Code.RELEASED || released.code()==Code.STALE)runs.remove(run.correlation.runId());
     }
     private ActionReceipt waitForPublication(Action a) {
         long elapsed=ticks.getAsLong()-a.started;

@@ -11,7 +11,11 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
 /** Sole game-thread lease owner. Storage publishes immutable snapshots on an external worker. */
 public final class ResourceLeaseService {
     @FunctionalInterface public interface Storage { CompletionStage<Snapshot> replace(Snapshot expected,Snapshot next); }
-    @FunctionalInterface public interface Owners { OwnerFacts inspect(Owner owner,TrustedContext caller); }
+    @FunctionalInterface public interface Owners {
+        OwnerFacts inspect(Owner owner,TrustedContext caller);
+        /** Existing ownership may retain coordination while permission is denied and stop is unconfirmed. */
+        default boolean stopPending(Owner owner,TrustedContext caller) { return false; }
+    }
     @FunctionalInterface public interface Observer { Observation observe(Resource resource,OwnerFacts owner); }
     private record Written(Snapshot snapshot,Throwable error,long at) { }
     private record Pending(Snapshot next,CompletableFuture<Written> written,long started) { }
@@ -114,7 +118,7 @@ public final class ResourceLeaseService {
         if(rows.isEmpty())return result(Code.STALE,Reason.INTERRUPTED);
         if(fenced)return unavailable();
         if(!facts.live())return result(Code.REJECTED,ownerReason(facts));
-        for(Lease row:rows) if(!live(row,tick))
+        for(Lease row:rows) if(tick>=row.expires() || !live(row,tick))
             return new Result(row.state()==State.RELEASED?Code.RELEASED:Code.EXPIRED,
                     row.epoch().equals(epoch)?row.reason()==null?Reason.TARGET_UNAVAILABLE:row.reason():Reason.INTERRUPTED,
                     id,List.of(),0,0);
@@ -298,7 +302,7 @@ public final class ResourceLeaseService {
         int count=Math.min(settings.reconcile(),state.leases().size());
         for(int n=0;n<count;n++) {
             cursor%=state.leases().size();Lease row=state.leases().get(cursor++);lastReconciled++;
-            if(row.state()!=State.ACTIVE)continue;
+            if(row.state()!=State.ACTIVE || stopPending(row))continue;
             Reason reason=null;State terminal=State.REVOKED;
             if(!live(row,tick)){reason=Reason.TARGET_UNAVAILABLE;terminal=State.EXPIRED;}
             else {
@@ -354,7 +358,11 @@ public final class ResourceLeaseService {
         };
     }
     private boolean live(Lease l,long tick) {
-        return l.state()==State.ACTIVE && l.epoch().equals(epoch) && tick<l.expires();
+        return l.state()==State.ACTIVE && l.epoch().equals(epoch) && (tick<l.expires() || stopPending(l));
+    }
+    private boolean stopPending(Lease row) {
+        try { return row.epoch().equals(epoch) && owners.stopPending(row.owner(),row.origin()); }
+        catch(RuntimeException uncertain) { return true; }
     }
     private Observation observe(Resource resource,OwnerFacts facts,long tick) {
         try {
@@ -383,10 +391,11 @@ public final class ResourceLeaseService {
     private Result reference(Lease row,Ref ref,TrustedContext caller,long tick,boolean active) {
         if(row==null)return result(Code.STALE,Reason.INTERRUPTED);
         OwnerFacts facts=facts(row.owner(),caller);
-        if(facts==null)return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        // Revocation denies use, but the exact original holder must still dispose of its own claim.
+        if(facts==null && (active || !row.origin().equals(caller)))return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
         if(!row.epoch().equals(epoch) || !ref.epoch().equals(row.epoch()) || ref.generation()!=row.generation())
             return result(Code.STALE,Reason.INTERRUPTED);
-        if(active && (!facts.live() || !live(row,tick)))
+        if(active && (!facts.live() || tick>=row.expires() || !live(row,tick)))
             return result(tick>=row.expires()?Code.EXPIRED:Code.REJECTED,!facts.live()?ownerReason(facts):Reason.TARGET_UNAVAILABLE);
         return null;
     }
