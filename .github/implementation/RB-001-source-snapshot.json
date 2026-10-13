@@ -2,12 +2,12 @@
   "unit": "RB-001",
   "baseline": "bf6b985d3d37c4a1529ae31723bc672f96e69ac2",
   "documentation_first_commit": "6d3da32c6e777239117e189386fea0e036c2651e",
-  "source_committed": false,
-  "source_published": false,
-  "source_compiled": false,
-  "new_tests_executed": false,
-  "reviewed_by_static_inspection_only": true,
-  "code_manifest_sha256": "5ac63538e7b5a8cfbf19f8bdd58aedab383b9de02766abda457c8bbe2e6132ea",
+  "source_committed": true,
+  "source_published": true,
+  "source_compiled": true,
+  "new_tests_executed": true,
+  "reviewed_by_static_inspection_only": false,
+  "code_manifest_sha256": "4e51d831622f28f8bcfa91be8f8fd3657545f5cb5ddafffda25faf2d7e930a2e",
   "files": [
     {
       "path": ".github/workflows/oak-log-acquisition.yml",
@@ -86,8 +86,8 @@
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/OakLogDelivery.java",
-      "bytes": 2398,
-      "sha256": "99c85f1dd04f963f4091887ee5ab94f7d8154783a311d9ea1570c585aaf0fc2b"
+      "bytes": 2425,
+      "sha256": "22917e1d14cec7c8c2fc5312a3a0b493019db91bae8ec922ccefedf5e43a9ec9"
     },
     {
       "path": "core/src/main/java/dev/aivillages/core/kernel/OakLogDiscovery.java",
@@ -300,9 +300,9 @@
       "sha256": "3ffaf4a68cfe852234d523bb362023bc49323dc6cacf1638caf7964128cce716"
     }
   ],
-  "generated_at": "2026-10-13T04:54:39.639028+00:00",
+  "generated_at": "2026-10-13T05:31:53.083376+00:00",
   "source_tests_planned_minimum_junit": 34,
-  "all_acceptance_pending": true,
+  "all_acceptance_pending": false,
   "documentation_actions": {
     "run_ids": [
       38239828254,
@@ -323,7 +323,7 @@
   "preserved_untracked_audit_sha256": "2ffba72ddc6390a98315bd41a8039d705036ff94f9a2047a1817f550ad9c0ca8",
   "source_publication_authorized": true,
   "merge_after_required_checks_authorized": true,
-  "snapshot_phase": "resource_classification_and_visible_point_correction_before_publication",
+  "snapshot_phase": "completion_export_with_immutable_tested_code_evidence_final_pr_checks_gate_merge",
   "existing_published_head": "9d0cc008485206cfdbec406c9caf74f77c5bd759",
   "updated_prompt_sha256": "acc5e3a12c343a7d310ce573a6bf56c3500aab30cab32d338942aabb532eb940",
   "additive_documentation_first_commit": "d839e58f3208f0e1f337cdf951f5d86a147a639d",
@@ -349,5 +349,1480 @@
   "documentation_before_exact_item_correction": "14d7c91126e482a997d9aea2c01f27c54cdc16c6",
   "documentation_before_endpoint_refinement": "64e37afb00f55e6d5031dc5ac43635c705bb6b40",
   "documentation_before_admission_classification": "434e99f992e93f9b824e9316b318880e772e0e6a",
-  "documentation_before_visible_block_points": "10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0"
+  "documentation_before_visible_block_points": "10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0",
+  "complete": true,
+  "acceptance_source_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+  "acceptance_source_tree": "8714ad802bbbdb4701c7922056bce186cddd6292",
+  "production_jar_sha256": "d56bca84ab1b29c4e06c26ddc9e3ee98b7a27d9f9216a05308e1149b15df828c",
+  "test_execution": "GitHub Actions",
+  "acceptance_evidence": {
+    "source": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+    "tree": "8714ad802bbbdb4701c7922056bce186cddd6292",
+    "workflow_runs": [
+      {
+        "id": 38348838116,
+        "name": "Local generation smoke",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838116"
+      },
+      {
+        "id": 38348838143,
+        "name": "Resource lease acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838143"
+      },
+      {
+        "id": 38348838190,
+        "name": "Needle language acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838190"
+      },
+      {
+        "id": 38348838152,
+        "name": "Default nearest physical acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838152"
+      },
+      {
+        "id": 38348838093,
+        "name": "Observed world knowledge acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838093"
+      },
+      {
+        "id": 38348838180,
+        "name": "Job lifecycle acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838180"
+      },
+      {
+        "id": 38348838095,
+        "name": "Real Minecraft client E2E smoke",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838095"
+      },
+      {
+        "id": 38348838141,
+        "name": "Citizen identity acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838141"
+      },
+      {
+        "id": 38348838147,
+        "name": "Worker dispatcher acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838147"
+      },
+      {
+        "id": 38348838217,
+        "name": "Capability retrieval acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838217"
+      },
+      {
+        "id": 38348838210,
+        "name": "World retention acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838210"
+      },
+      {
+        "id": 38348838181,
+        "name": "Deterministic prerequisite acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838181"
+      },
+      {
+        "id": 38348838167,
+        "name": "Save and artifact compatibility acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838167"
+      },
+      {
+        "id": 38348838085,
+        "name": "AI work broker acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838085"
+      },
+      {
+        "id": 38348838281,
+        "name": "Primitive diagnostics acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838281"
+      },
+      {
+        "id": 38348838115,
+        "name": "Blueprint artifact boundary acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838115"
+      },
+      {
+        "id": 38348838149,
+        "name": "CognitiveCraft verification",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838149"
+      },
+      {
+        "id": 38348838172,
+        "name": "Research local-model physical trial",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838172"
+      },
+      {
+        "id": 38348838185,
+        "name": "Bounded goal planning acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 2,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838185"
+      },
+      {
+        "id": 38348838194,
+        "name": "RB-001 oak-log acquisition acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838194"
+      },
+      {
+        "id": 38348838198,
+        "name": "Real Minecraft gameplay acceptance",
+        "event": "pull_request",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348838198"
+      }
+    ],
+    "push_workflow_runs": [
+      {
+        "id": 38348834599,
+        "name": "Blueprint artifact boundary acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834599"
+      },
+      {
+        "id": 38348834795,
+        "name": "Observed world knowledge acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834795"
+      },
+      {
+        "id": 38348834694,
+        "name": "Bounded goal planning acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834694"
+      },
+      {
+        "id": 38348834657,
+        "name": "World retention acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834657"
+      },
+      {
+        "id": 38348834712,
+        "name": "Save and artifact compatibility acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834712"
+      },
+      {
+        "id": 38348834619,
+        "name": "Deterministic prerequisite acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834619"
+      },
+      {
+        "id": 38348834682,
+        "name": "CognitiveCraft verification",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834682"
+      },
+      {
+        "id": 38348834674,
+        "name": "RB-001 oak-log acquisition acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834674"
+      },
+      {
+        "id": 38348834651,
+        "name": "Primitive diagnostics acceptance",
+        "event": "push",
+        "head_sha": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 2,
+        "html_url": "https://github.com/senavirathne/CognitiveCraft-public/actions/runs/38348834651"
+      }
+    ],
+    "native_artifact": {
+      "id": 11790620828,
+      "run": 38348838194,
+      "digest": "e087c0eb0b91f653de066597d52ac2a3b1ec7df88a49733b987af7ce699db698"
+    },
+    "client_artifact": {
+      "id": 11790287178,
+      "run": 38348838194,
+      "digest": "9873f75426b9fba81398a42ecef2fe971a5a6daeaea5053385207d6559278bc4"
+    },
+    "document_before_source": "10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0",
+    "diagnosed_retries": [
+      {
+        "run": 38348838185,
+        "job": 115136359392,
+        "attempt1": "wheat child TARGET_UNAVAILABLE after one harvest",
+        "final": "success"
+      },
+      {
+        "run": 38348834651,
+        "job": 115136347944,
+        "attempt1": "wheat known execution BUDGET_EXHAUSTED after one effect",
+        "final": "success"
+      }
+    ],
+    "native_summary": {
+      "archive": "pr-native-0c1d-success.zip",
+      "archiveSha256": "e087c0eb0b91f653de066597d52ac2a3b1ec7df88a49733b987af7ce699db698",
+      "modules": {
+        "core": {
+          "cases": 1099,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "providers": {
+          "cases": 68,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric": {
+          "cases": 33,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "scoped": {
+        "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogGatewayTest.xml": {
+          "cases": 10,
+          "xmlSha256": "738c407cec4a9d6f2fc2b4d4140d326ddd6b27b0701635cf5733f1bb77fd5ad3",
+          "passed": true
+        },
+        "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogDiscoveryTest.xml": {
+          "cases": 3,
+          "xmlSha256": "f92f1e1080c3374ede28936200f8c003b1791bb148d8678e2b120db9b10e2f26",
+          "passed": true
+        },
+        "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogJobLifecycleTest.xml": {
+          "cases": 5,
+          "xmlSha256": "8226b592a5a07c93ff0c8a80be6e557a229f4cda779743d1ee43b1aa58f10d89",
+          "passed": true
+        },
+        "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogLanguageTest.xml": {
+          "cases": 2,
+          "xmlSha256": "f08460857e7264a5baa604ab71476b5befbcd21258aa387b101dc19853e43d1c",
+          "passed": true
+        },
+        "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogPrerequisiteStockTest.xml": {
+          "cases": 2,
+          "xmlSha256": "d956ddf0fe60ab11344271af61b8edeb7177a0e256779d0126f064c47842400b",
+          "passed": true
+        },
+        "core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResourceDeliveryTest.xml": {
+          "cases": 7,
+          "xmlSha256": "e5ec53b79505c4bb01d81c4e805e117e2f7488565eed1f573f2a6417e1190e6b",
+          "passed": true
+        },
+        "providers/build/test-results/test/TEST-dev.aivillages.providers.OakLogGenerationTest.xml": {
+          "cases": 1,
+          "xmlSha256": "0ec62714e4a4d9085f7da0ac50b73408ad41af338e18800a3126819f9d107a01",
+          "passed": true
+        },
+        "providers/build/test-results/test/TEST-dev.aivillages.providers.OakLogNeedleWireTest.xml": {
+          "cases": 1,
+          "xmlSha256": "66215a2897c24f42f96f2d805d2588c401830fdd6ccce5abd35bd58e278d2b25",
+          "passed": true
+        },
+        "fabric/build/test-results/test/TEST-dev.aivillages.fabric.OakLogNavigationRouteTest.xml": {
+          "cases": 3,
+          "xmlSha256": "a246669e4cd395a4d24f8487ce88287cd856388d16a2d302802fab6a47126d81",
+          "passed": true
+        }
+      },
+      "phases": {
+        "controlled": {
+          "phase": "controlled",
+          "cases": 1,
+          "name": "ai_villages_tests:oak_log_kernel_game_tests_oak_kernel_admission_and_model_free_saved_world_reuse",
+          "xmlSha256": "1fa6f02ee36f427157c516d2d63268b9b731a3b75b6f083b55eb2042607c0a7b",
+          "logSha256": "071a03824fc38d848e90c959f4e5663e8dccadf9ecb3a1745aa04fd61df3c3ff"
+        },
+        "effects": {
+          "phase": "effects",
+          "cases": 1,
+          "name": "ai_villages_tests:oak_log_effect_game_tests_actual_bare_hand_timing_loot_and_component_preserving_custody",
+          "xmlSha256": "fa735f3cfc0df6cf6263f126e5b3628bf1e11ead184b57276852a3ff2c4017f9",
+          "logSha256": "a1a50aa439b1f87a1ebd562a07c1d8fb35c868e9a814b7cbbe007030b24e568e"
+        },
+        "genuine-cold": {
+          "phase": "genuine-cold",
+          "cases": 1,
+          "name": "ai_villages_tests:oak_log_kernel_game_tests_oak_kernel_admission_and_model_free_saved_world_reuse",
+          "xmlSha256": "4bc96f5be480e7b2bd2bfb939d56b53c8dd2b4412e36185cb6652c523270bd08",
+          "logSha256": "e10b4bb4aa29996f347487388914427b0a72cc452558947c477827ab1ad78f4c"
+        },
+        "genuine-warm": {
+          "phase": "genuine-warm",
+          "cases": 1,
+          "name": "ai_villages_tests:oak_log_kernel_game_tests_oak_kernel_admission_and_model_free_saved_world_reuse",
+          "xmlSha256": "2d1c81bb18babc91a764e6056d8f0b781da399d760638652d11daa16d1f3affd",
+          "logSha256": "6f166c8ade2e298bd431268af162502d6642c77c1050c1c560c67a232f058864"
+        },
+        "identity": {
+          "source": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+          "tree": "8714ad802bbbdb4701c7922056bce186cddd6292",
+          "jarSha256": "d56bca84ab1b29c4e06c26ddc9e3ee98b7a27d9f9216a05308e1149b15df828c",
+          "java": 25,
+          "gradle": "9.7.0",
+          "minecraft": "26.3",
+          "loader": "0.19.5",
+          "fabricApi": "0.161.0+26.3",
+          "loom": "1.18.1"
+        },
+        "junit": {
+          "ResourceDeliveryTest": {
+            "cases": 7,
+            "xml": "core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResourceDeliveryTest.xml",
+            "sha256": "e5ec53b79505c4bb01d81c4e805e117e2f7488565eed1f573f2a6417e1190e6b"
+          },
+          "OakLogGatewayTest": {
+            "cases": 10,
+            "xml": "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogGatewayTest.xml",
+            "sha256": "738c407cec4a9d6f2fc2b4d4140d326ddd6b27b0701635cf5733f1bb77fd5ad3"
+          },
+          "OakLogJobLifecycleTest": {
+            "cases": 5,
+            "xml": "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogJobLifecycleTest.xml",
+            "sha256": "8226b592a5a07c93ff0c8a80be6e557a229f4cda779743d1ee43b1aa58f10d89"
+          },
+          "OakLogDiscoveryTest": {
+            "cases": 3,
+            "xml": "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogDiscoveryTest.xml",
+            "sha256": "f92f1e1080c3374ede28936200f8c003b1791bb148d8678e2b120db9b10e2f26"
+          },
+          "OakLogLanguageTest": {
+            "cases": 2,
+            "xml": "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogLanguageTest.xml",
+            "sha256": "f08460857e7264a5baa604ab71476b5befbcd21258aa387b101dc19853e43d1c"
+          },
+          "OakLogPrerequisiteStockTest": {
+            "cases": 2,
+            "xml": "core/build/test-results/test/TEST-dev.aivillages.core.kernel.OakLogPrerequisiteStockTest.xml",
+            "sha256": "d956ddf0fe60ab11344271af61b8edeb7177a0e256779d0126f064c47842400b"
+          },
+          "OakLogNeedleWireTest": {
+            "cases": 1,
+            "xml": "providers/build/test-results/test/TEST-dev.aivillages.providers.OakLogNeedleWireTest.xml",
+            "sha256": "66215a2897c24f42f96f2d805d2588c401830fdd6ccce5abd35bd58e278d2b25"
+          },
+          "OakLogGenerationTest": {
+            "cases": 1,
+            "xml": "providers/build/test-results/test/TEST-dev.aivillages.providers.OakLogGenerationTest.xml",
+            "sha256": "0ec62714e4a4d9085f7da0ac50b73408ad41af338e18800a3126819f9d107a01"
+          },
+          "OakLogNavigationRouteTest": {
+            "cases": 3,
+            "xml": "fabric/build/test-results/test/TEST-dev.aivillages.fabric.OakLogNavigationRouteTest.xml",
+            "sha256": "a246669e4cd395a4d24f8487ce88287cd856388d16a2d302802fab6a47126d81"
+          }
+        },
+        "models": {
+          "models": [
+            {
+              "name": "qwen3:4b-instruct-2507-q4_K_M",
+              "model": "qwen3:4b-instruct-2507-q4_K_M",
+              "modified_at": "2026-10-13T05:01:49.995646851Z",
+              "size": 2497293803,
+              "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3",
+                "families": [
+                  "qwen3"
+                ],
+                "parameter_size": "4.0B",
+                "quantization_level": "Q4_K_M"
+              }
+            }
+          ]
+        }
+      },
+      "jars": {
+        "fabric/build/libs/ai-villages-0.1.0.jar": "d56bca84ab1b29c4e06c26ddc9e3ee98b7a27d9f9216a05308e1149b15df828c"
+      },
+      "nativeMarkers": {
+        "controlled": [
+          "[05:00:52] [Server thread/INFO] (Minecraft) [STDOUT]: RB001_NATIVE phase=cold genuine=false quantity=1 ref=fb85249cabeb8e1698336550274fbdc8d0e539c7e0e89b5ab9759554597ca204 run=8649b75a-4c10-4a55-9327-269dbcb3b8d8 "
+        ],
+        "effects": [
+          "[05:00:18] [Server thread/INFO] (Minecraft) [STDOUT]: RB001_EFFECTS breakTicks=60 airborneDeferred=true partialSurfaceDrop=true endpointRefined=true overhangVisible=true "
+        ],
+        "genuine-cold": [
+          "[05:03:42] [Server thread/INFO] (Minecraft) [STDOUT]: RB001_NATIVE phase=cold genuine=true quantity=1 ref=85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f run=88569b3e-55e3-454e-8ce7-370598a9b34e "
+        ],
+        "genuine-warm": [
+          "[05:04:24] [Server thread/INFO] (Minecraft) [STDOUT]: RB001_NATIVE phase=warm genuine=true quantity=7 ref=85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f run=64a6a31e-8263-4dc4-9f4f-aa8195f9e6bc "
+        ]
+      }
+    },
+    "client_summary": {
+      "archive": "pr-client-0c1d-success.zip",
+      "archiveSha256": "9873f75426b9fba81398a42ecef2fe971a5a6daeaea5053385207d6559278bc4",
+      "modules": {},
+      "scoped": {},
+      "phases": {
+        "connected-client": {
+          "cases": 1,
+          "status": "PASS",
+          "evidenceFile": "build/e2e/rb001/results.json",
+          "sha256": "32c293b71e876dcbb453427b7e84a68421b9d38c70e103b2020090e9a715f946"
+        },
+        "identity": {
+          "source": "0c1d7226b23fefa5001549371e93bb4e3cbbafa0",
+          "tree": "8714ad802bbbdb4701c7922056bce186cddd6292",
+          "jarSha256": "d56bca84ab1b29c4e06c26ddc9e3ee98b7a27d9f9216a05308e1149b15df828c",
+          "java": 25,
+          "gradle": "9.7.0",
+          "minecraft": "26.3",
+          "loader": "0.19.5",
+          "fabricApi": "0.161.0+26.3",
+          "loom": "1.18.1"
+        }
+      },
+      "jars": {
+        "fabric/build/libs/ai-villages-0.1.0.jar": "d56bca84ab1b29c4e06c26ddc9e3ee98b7a27d9f9216a05308e1149b15df828c"
+      },
+      "client": {
+        "status": "PASS",
+        "evidenceKeys": [
+          "canonicalAcquisition",
+          "actualLanguage",
+          "knownOne",
+          "offlineWarmReuse",
+          "foreignDenied",
+          "standaloneReuse",
+          "typedInterface",
+          "stockBoundary",
+          "models",
+          "needle",
+          "killBoundary",
+          "checkpoint",
+          "unreachable",
+          "killedWorldHashes",
+          "recovered",
+          "serverAuthenticationEnvelope"
+        ],
+        "canonicalAcquisition": {
+          "run": "3a5c0b24-3ab0-4660-9314-83b0ff22ffa0",
+          "artifact": "85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f",
+          "quantities": {
+            "HARVEST": 4,
+            "PICKUP": 4,
+            "DEPOSIT": 4
+          },
+          "source": [
+            6,
+            201,
+            14,
+            13,
+            201,
+            14
+          ],
+          "destination": [
+            7,
+            201,
+            9
+          ],
+          "receiptIds": [
+            "f377caee-e52e-4eb5-83dc-ee5a3b197219",
+            "110131ef-4a0c-4e78-8451-ee57747463a4",
+            "564c7e22-b3eb-4e28-845e-e1ed8a0b1010",
+            "f1d199d3-1733-4d56-9d52-b0e219eacdde",
+            "c32f3ab2-20d9-4c2b-be2d-2609929cf6d0",
+            "6446bafe-8d89-4aa9-bde3-e9635c3c9cdb",
+            "f0874d70-a53c-407f-9112-b800f124807c",
+            "cfcf26a4-dba5-4e33-88cb-947bc0fa3d35",
+            "29007ca9-98c7-4c10-ab23-2c5dfb2a44ab",
+            "e3b5f076-1ef3-4395-a37f-b3a05a1d2e72",
+            "89dc0afc-f0ef-4d29-a933-989a5a45827b",
+            "8e32503c-9e26-4896-b257-179a687ea0cd"
+          ]
+        },
+        "actualLanguage": {
+          "run": "3c3f71bc-883e-41d3-8bfb-4ad0cb6bacdf",
+          "artifact": "85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f",
+          "quantities": {
+            "HARVEST": 4,
+            "PICKUP": 4,
+            "DEPOSIT": 4
+          },
+          "source": [
+            6,
+            201,
+            14,
+            13,
+            201,
+            14
+          ],
+          "destination": [
+            7,
+            201,
+            9
+          ],
+          "receiptIds": [
+            "4a387f48-181b-4733-9c89-6ecfd1204393",
+            "a696766b-ad3c-45dd-8c08-8ad2c8e89f52",
+            "cd278ace-7923-4181-af3b-edf94806cf9b",
+            "36f9d9a7-e0ff-4f3f-a3f7-d06bbac1ecf6",
+            "3825418b-4d12-4ca4-bcf5-eadeea63deff",
+            "2af1f4c1-fee9-4b1d-adfa-75502e3bbf3e",
+            "04859e5c-20b4-4e9e-9f94-79209ebf2f19",
+            "0264ca45-4579-4a64-99b7-11d1a19a90cd",
+            "869ef663-a5a4-40a7-9817-88df9e9781f0",
+            "d1148651-b82f-4c5d-9130-d764379c763b",
+            "dc037757-ce0d-48b9-86e8-331306ec7caf",
+            "4cd84d9d-1946-42d7-a568-781ee9b3d6e6"
+          ]
+        },
+        "knownOne": {
+          "run": "82c4c472-0970-48fd-93d2-c5312dc83ebc",
+          "artifact": "85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f",
+          "quantities": {
+            "HARVEST": 1,
+            "PICKUP": 1,
+            "DEPOSIT": 1
+          },
+          "source": [
+            6,
+            201,
+            12,
+            13,
+            201,
+            12
+          ],
+          "destination": [
+            10,
+            201,
+            9
+          ],
+          "receiptIds": [
+            "d5a68ad9-270c-4725-9e70-0f4e42222aa5",
+            "62f4f908-9868-4359-8885-2c49cb5c9a47",
+            "1545012f-9e76-4a20-a83f-ca7549448039"
+          ]
+        },
+        "offlineWarmReuse": {
+          "run": "384005f0-e16b-4f75-b5a7-6bed87244ca7",
+          "artifact": "85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f",
+          "quantities": {
+            "HARVEST": 7,
+            "PICKUP": 7,
+            "DEPOSIT": 7
+          },
+          "source": [
+            6,
+            201,
+            10,
+            13,
+            201,
+            10
+          ],
+          "destination": [
+            10,
+            201,
+            9
+          ],
+          "receiptIds": [
+            "0ea5ad2f-4076-4152-8ffc-b3eccf3d7823",
+            "06216dbf-a4e0-4002-a056-725685539974",
+            "d28f084e-793c-4ef8-9a2e-38b28aa725be",
+            "4ccff9ee-dc84-4b6e-8ca6-fb36810a897a",
+            "3def5cd3-e2ab-4f98-84fe-3e22d08b8640",
+            "33671500-ae43-45f1-b21f-afc77e66ed25",
+            "a03506e1-94a0-4dd3-96fa-9b5f09928921",
+            "d1921ea0-f84a-4dae-827f-10982195dc0f",
+            "517b0418-666b-4b93-88e1-4b2afcd42b29",
+            "cfce938b-d995-44ba-82ff-f8bb747634b6",
+            "7abd945c-4dab-44f8-b133-7f223580923f",
+            "f843aa4b-28b0-43e3-a3b4-cec4b22114f1",
+            "2d56552e-4e84-4c2f-88cb-fc8456e1c4fa",
+            "bd25a9d4-99ab-436c-ae84-99819c129127",
+            "80bd8f22-0f20-40fa-897f-f7d0df9c930c",
+            "068969d5-f778-42f8-a3eb-c2e72a1c049f",
+            "f4027416-1ff6-49ff-af07-6bf965b0247f",
+            "8ba6ab87-2505-46f6-9155-0ddccbe3c951",
+            "d3d0be19-c86c-4971-a971-1aae05ba42e0",
+            "f323c9b0-f261-4a6f-9343-5f323c644967",
+            "65adbf42-196d-49b4-b0a5-437a2aa46158"
+          ]
+        },
+        "typedInterface": {
+          "spec": {
+            "capability": "cognitivecraft:deliver_oak_logs",
+            "completion": "ATTRIBUTABLE_RESOURCE_DELIVERY",
+            "effects": [
+              "HARVEST",
+              "MOVE",
+              "OBSERVE",
+              "PICKUP",
+              "TRANSFER"
+            ],
+            "parameters": [
+              {
+                "maximum": 0,
+                "minimum": 0,
+                "name": "actor",
+                "type": "ACTOR"
+              },
+              {
+                "maximum": 8,
+                "minimum": 1,
+                "name": "amount",
+                "type": "INT"
+              },
+              {
+                "maximum": 0,
+                "minimum": 0,
+                "name": "source",
+                "type": "AREA"
+              },
+              {
+                "maximum": 0,
+                "minimum": 0,
+                "name": "destination",
+                "type": "CONTAINER"
+              }
+            ],
+            "result": "INT",
+            "version": 1
+          },
+          "descriptor": {
+            "dependencies": [],
+            "effects": [
+              "HARVEST",
+              "MOVE",
+              "OBSERVE",
+              "PICKUP",
+              "TRANSFER"
+            ],
+            "irVersion": 1,
+            "parameters": [
+              {
+                "maximum": 0,
+                "minimum": 0,
+                "name": "actor",
+                "type": "ACTOR"
+              },
+              {
+                "maximum": 8,
+                "minimum": 1,
+                "name": "amount",
+                "type": "INT"
+              },
+              {
+                "maximum": 0,
+                "minimum": 0,
+                "name": "source",
+                "type": "AREA"
+              },
+              {
+                "maximum": 0,
+                "minimum": 0,
+                "name": "destination",
+                "type": "CONTAINER"
+              }
+            ],
+            "primitives": [
+              {
+                "fingerprint": "3e84d71adf289ca2ad815a91cfc67703ef1e53c1d17a58cc97b6674c408e35c3",
+                "id": "cognitivecraft:approach_oak_log",
+                "version": 1
+              },
+              {
+                "fingerprint": "bc9fc54787ef7f82bb00b37a715717a8c246b1a956755e4cbca8846d2b6a0fee",
+                "id": "cognitivecraft:harvest_next_oak_log",
+                "version": 1
+              },
+              {
+                "fingerprint": "547692989054ba7a4aa135e0346cf68276407fc0130b11df5e8aaf7646307af4",
+                "id": "cognitivecraft:move_to_destination",
+                "version": 1
+              },
+              {
+                "fingerprint": "782cb10e1e32a4430cd11d5485921602e4c94b328633f747c30e298186105c90",
+                "id": "cognitivecraft:observe_oak_inventory",
+                "version": 1
+              },
+              {
+                "fingerprint": "844ec5a0a45db6c0c68cbf0912c062636821024c4617fa4c8eab15d3904cdc8e",
+                "id": "cognitivecraft:pickup_tracked_oak_logs",
+                "version": 1
+              },
+              {
+                "fingerprint": "a13ae1993a0dd2e0f08aaf529d4930785a4c3d904b184e54e57cccb203cd596e",
+                "id": "cognitivecraft:transfer_oak_logs",
+                "version": 1
+              }
+            ],
+            "ref": {
+              "capability": "cognitivecraft:deliver_oak_logs",
+              "sha256": "85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f",
+              "version": 1
+            },
+            "result": "INT"
+          },
+          "bodySha256": "4526b094914c47bc46dfdc8cdd2eefc65580266a2ecb81c02e9e4fc2f9a9795b"
+        },
+        "stockBoundary": {
+          "initialOldStock": 11,
+          "newlyAcquired": 1,
+          "destination": [
+            10,
+            201,
+            9
+          ],
+          "consumerJobs": 0
+        },
+        "models": {
+          "models": [
+            {
+              "name": "qwen3:4b-instruct-2507-q4_K_M",
+              "model": "qwen3:4b-instruct-2507-q4_K_M",
+              "modified_at": "2026-10-13T05:01:17.12978199Z",
+              "size": 2497293803,
+              "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3",
+                "families": [
+                  "qwen3"
+                ],
+                "parameter_size": "4.0B",
+                "quantization_level": "Q4_K_M"
+              }
+            }
+          ]
+        },
+        "needle": {
+          "repository": "Cactus-Compute/needle3",
+          "revision": "c7c415a3d1b3d929014bc6e866d51ebb971f7089",
+          "files": [
+            {
+              "path": "needle3.cact",
+              "bytes": 35335380,
+              "sha256": "c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38"
+            },
+            {
+              "path": "needle",
+              "bytes": 1517200,
+              "sha256": "b197ceaef3b300a0b14c3a4fde92305527e43f9256c53d2a53d2a2fe8fe69678"
+            },
+            {
+              "path": "LICENSE",
+              "bytes": 11358,
+              "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+            }
+          ]
+        },
+        "serverAuthenticationEnvelope": "two real server-issued connection principals",
+        "unreachable": {
+          "id": "0b1617f3-8022-41cf-a51e-37ab8f80016b",
+          "phase": "TERMINAL",
+          "description": "run=0b1617f3-8022-41cf-a51e-37ab8f80016b phase=TERMINAL resolution=RESOLVED resolutionReason=null outcome=BLOCKED reason=TARGET_UNAVAILABLE effects=0 modelCalls=0 artifact=85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f receipts=0",
+          "marker": {
+            "id": "0b1617f3-8022-41cf-a51e-37ab8f80016b",
+            "citizenId": "41214675-89b0-4f8e-919e-62fe12448c21",
+            "phase": "TERMINAL",
+            "outcome": "BLOCKED",
+            "reason": "TARGET_UNAVAILABLE",
+            "effects": 0,
+            "modelCalls": 0,
+            "artifactSha256": "85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f"
+          },
+          "resourceReceipts": []
+        },
+        "killBoundary": {
+          "id": "f8d4881c-0b80-48cd-b51f-1e3c0eac6cd2",
+          "phase": "EXECUTING",
+          "description": "run=f8d4881c-0b80-48cd-b51f-1e3c0eac6cd2 phase=EXECUTING resolution=RESOLVED resolutionReason=null effectsAtCheckpoint=0 modelCalls=0 artifact=null receipts=0",
+          "marker": {
+            "id": "f8d4881c-0b80-48cd-b51f-1e3c0eac6cd2",
+            "citizenId": "41214675-89b0-4f8e-919e-62fe12448c21",
+            "phase": "ACTIVE",
+            "effects": 0,
+            "modelCalls": 0
+          },
+          "resourceReceipts": []
+        },
+        "recovered": {
+          "id": "f8d4881c-0b80-48cd-b51f-1e3c0eac6cd2",
+          "phase": "TERMINAL",
+          "description": "run=f8d4881c-0b80-48cd-b51f-1e3c0eac6cd2 phase=TERMINAL outcome=INTERRUPTED reason=INTERRUPTED effectsAtCheckpoint=0 modelCalls=0 artifact=null receipts=0 (physical progress must be reconciled)",
+          "marker": {
+            "id": "f8d4881c-0b80-48cd-b51f-1e3c0eac6cd2",
+            "citizenId": "41214675-89b0-4f8e-919e-62fe12448c21",
+            "phase": "INTERRUPTED",
+            "outcome": "INTERRUPTED",
+            "reason": "INTERRUPTED",
+            "effects": 0,
+            "modelCalls": 0
+          },
+          "resourceReceipts": []
+        },
+        "killedWorldHashes": [
+          {
+            "path": "data/ai-villages/state.json",
+            "sha256": "3b2cab57f7366c2e1768a85d9a8335a069db587116a3aa96fdd845a0657c5667"
+          },
+          {
+            "path": "data/ai-villages/state.json.bak",
+            "sha256": "3b2cab57f7366c2e1768a85d9a8335a069db587116a3aa96fdd845a0657c5667"
+          },
+          {
+            "path": "data/cognitivecraft/blueprints/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/bootstrap/v1/state.json",
+            "sha256": "39c3968f94fae28216bf8a6b24da6bb6d83db5deb03ada3d067459cd490259e7"
+          },
+          {
+            "path": "data/cognitivecraft/bootstrap/v1/state.legacy-v1.json",
+            "sha256": "3b5cd0f3587ec6c8a3aed6e4f17d67929d27146cf6356fa720d60d710b1c5630"
+          },
+          {
+            "path": "data/cognitivecraft/bootstrap/v1/state.prev.json",
+            "sha256": "3d8e50abade332e84f3ccf2fc1e76e986911a11c19fb8315c9d779aa38df950b"
+          },
+          {
+            "path": "data/cognitivecraft/bootstrap/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/cache/retrieval/v1/metadata.bin",
+            "sha256": "d0ee55461af5e3fde22384e1d720452fe9c3552466f69d4b480615265473fd78"
+          },
+          {
+            "path": "data/cognitivecraft/citizens/v1/state.json",
+            "sha256": "1081d719be8d618035a5d6cf42505a52b480b5315507450133f005f9ca638209"
+          },
+          {
+            "path": "data/cognitivecraft/citizens/v1/state.prev.json",
+            "sha256": "8b8d05fc8bc0557a63a7312dae83057e597d8c1c54c21a2c7dce7f49802c37c0"
+          },
+          {
+            "path": "data/cognitivecraft/citizens/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/evidence/v1/state.json",
+            "sha256": "9fa04766f3b4a14259a140716ce504c4a84c87dcb6fef68426a2192104e9700a"
+          },
+          {
+            "path": "data/cognitivecraft/evidence/v1/state.prev.json",
+            "sha256": "37e8aa216f8bd498e73b107e3809a3740dd9422d9a99f63ebf138f72db7d1faf"
+          },
+          {
+            "path": "data/cognitivecraft/evidence/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/jobs/v1/state.jsonl",
+            "sha256": "b7ad25f7f2b539e786dd666ed91364c273ef7a9f77d038e23c066af5c7580aee"
+          },
+          {
+            "path": "data/cognitivecraft/jobs/v1/state.prev.jsonl",
+            "sha256": "835fcfa5ac79438061f2a43b58bc6d8a520a22fd5b92696fa3da2658f38907f6"
+          },
+          {
+            "path": "data/cognitivecraft/jobs/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/leases/v1/state.jsonl",
+            "sha256": "aaea834c89130cccfed60faea45a2c89d4111dd1453c40a4d23447945b6a5a48"
+          },
+          {
+            "path": "data/cognitivecraft/leases/v1/state.prev.jsonl",
+            "sha256": "be820f4fb8b94b124b8540ef3a1f22da973629965fb5a74cb1df5d76c06ce499"
+          },
+          {
+            "path": "data/cognitivecraft/leases/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/observations/state.json",
+            "sha256": "235be3c7a2827b60934a7731f6b6151446024c95271db48b787d0b831c1fc0ce"
+          },
+          {
+            "path": "data/cognitivecraft/observations/state.prev.json",
+            "sha256": "ebdc1e71c37332aa4f1d6cc8e255a4b03a1e2109f8b25b9df77a1d2f39e946f0"
+          },
+          {
+            "path": "data/cognitivecraft/observations/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/plans/v1/writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/skills/v1/.writer.lock",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "data/cognitivecraft/skills/v1/bodies/85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f.json",
+            "sha256": "4526b094914c47bc46dfdc8cdd2eefc65580266a2ecb81c02e9e4fc2f9a9795b"
+          },
+          {
+            "path": "data/cognitivecraft/skills/v1/manifest.json",
+            "sha256": "6765cacaad53eeea227c2a666cf0e9ba634bb8e99d0c368837206cc674b69a0f"
+          },
+          {
+            "path": "data/minecraft/custom_boss_events.dat",
+            "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+          },
+          {
+            "path": "data/minecraft/game_rules.dat",
+            "sha256": "a35e83f3ed1bf60be4d9623c224f606dd6e41d832d339b37529d0c651862b2aa"
+          },
+          {
+            "path": "data/minecraft/random_sequences.dat",
+            "sha256": "0d502afda02dcf2bef50b26843587ecf24a1f83f7e2440aa0741b1f8fe3fea47"
+          },
+          {
+            "path": "data/minecraft/scheduled_events.dat",
+            "sha256": "4543a703f62511ab2e87b4416073044a96c47fbfc1597f122ccd0521d7f36c3e"
+          },
+          {
+            "path": "data/minecraft/scoreboard.dat",
+            "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+          },
+          {
+            "path": "data/minecraft/stopwatches.dat",
+            "sha256": "884dd1cac468fc6c15da5e2a66d5aea26e1aac35c8e2b0c3bd58695f600451ba"
+          },
+          {
+            "path": "data/minecraft/wandering_trader.dat",
+            "sha256": "a6375fb7573c663a4fecdd4505897a612e356758eaa5a24ca5dbd2f9382d97e2"
+          },
+          {
+            "path": "data/minecraft/weather.dat",
+            "sha256": "f9d9b2776eaaf38779df2a96928ffc2f70729cdac005f5ea09bae04c564db6ed"
+          },
+          {
+            "path": "data/minecraft/world_clocks.dat",
+            "sha256": "81896b461966d414841f4f3164a6c170e38060c3586ef4d2129bb68d44e97248"
+          },
+          {
+            "path": "data/minecraft/world_gen_settings.dat",
+            "sha256": "e95c76cf208838402554ecb3798e4e8a5bd31e48dee8194aa070ecb609fcb4f0"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/data/minecraft/chunk_tickets.dat",
+            "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/data/minecraft/raids.dat",
+            "sha256": "4a178e7bba47b51306cee2f88a2b4211bed8c0c73ddc1373683a5f1e7a290c59"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/data/minecraft/world_border.dat",
+            "sha256": "8779c464cec6a2f385881650b6e60bf8a0d3081c45a43fd44feddc575e193433"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/entities/r.-1.-1.mca",
+            "sha256": "dad117efd2f87259b428eac7caf8d02dee240e3a0bae38e7ab07c9db026045e5"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/entities/r.-1.0.mca",
+            "sha256": "68cf6fe233f4bb994ce4fad0b9b2673f3386c375461a4cb1ddd9477c62f0b35d"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/entities/r.0.0.mca",
+            "sha256": "3c1975cd79b70638809e89a05f340597e6f17bca9b836de37b97ec74cdf179b7"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/region/r.-1.-1.mca",
+            "sha256": "2db68dbf46b519e39d99d402b6007e0b36fbf594fc97e7d3c881d5d07da290da"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/region/r.-1.0.mca",
+            "sha256": "d9c0fd133f6103e7415969c7c5a6fe8d8b29b8e71980a3443c8548be71aa8fd1"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/region/r.0.-1.mca",
+            "sha256": "1973de27ca0f9ea87238e8ec3ca09d0a0ffe70d3f9bea177f3a6457897e63c0a"
+          },
+          {
+            "path": "dimensions/minecraft/overworld/region/r.0.0.mca",
+            "sha256": "4a8e22befd821696a6ec90acff7717ac73c35a228ae423b8766601e700ba14b6"
+          },
+          {
+            "path": "dimensions/minecraft/the_end/data/minecraft/chunk_tickets.dat",
+            "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+          },
+          {
+            "path": "dimensions/minecraft/the_end/data/minecraft/ender_dragon_fight.dat",
+            "sha256": "35dfa62afe851c1db984bca4d6e890e3a175db986116b39c227295ba320288de"
+          },
+          {
+            "path": "dimensions/minecraft/the_end/data/minecraft/raids.dat",
+            "sha256": "4a178e7bba47b51306cee2f88a2b4211bed8c0c73ddc1373683a5f1e7a290c59"
+          },
+          {
+            "path": "dimensions/minecraft/the_end/data/minecraft/world_border.dat",
+            "sha256": "8779c464cec6a2f385881650b6e60bf8a0d3081c45a43fd44feddc575e193433"
+          },
+          {
+            "path": "dimensions/minecraft/the_nether/data/minecraft/chunk_tickets.dat",
+            "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+          },
+          {
+            "path": "dimensions/minecraft/the_nether/data/minecraft/raids.dat",
+            "sha256": "4a178e7bba47b51306cee2f88a2b4211bed8c0c73ddc1373683a5f1e7a290c59"
+          },
+          {
+            "path": "dimensions/minecraft/the_nether/data/minecraft/world_border.dat",
+            "sha256": "8779c464cec6a2f385881650b6e60bf8a0d3081c45a43fd44feddc575e193433"
+          },
+          {
+            "path": "level.dat",
+            "sha256": "b960d8eec29d55d8e3f92a5509b8595e01b3debe40ca61f0d7a69fe038aa9f0b"
+          },
+          {
+            "path": "level.dat_old",
+            "sha256": "856b2c4ec525bfe72097c3a67e52fed5e5144be34467911b6b886ce9a27f6995"
+          },
+          {
+            "path": "players/advancements/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.json",
+            "sha256": "41c77eb087cbd67a30d4bc035ebb6948910da7ea4a09136fb77627635d385f1d"
+          },
+          {
+            "path": "players/advancements/fd33ced3-8aa5-3c17-a85e-e8245423defe.json",
+            "sha256": "9e8a8116327787c4e38608745d8063fbbc36b3564826977701d41ad5993a77ea"
+          },
+          {
+            "path": "players/data/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.dat",
+            "sha256": "e73df63199f8b7e3a03bbf65b08be3fe6d2ebaf213791d8856b248c005c36c44"
+          },
+          {
+            "path": "players/data/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.dat_old",
+            "sha256": "1e3f38c7cc82d10f303679fdb53240154cd5eb45d49f9a10ff26f443af818f77"
+          },
+          {
+            "path": "players/data/fd33ced3-8aa5-3c17-a85e-e8245423defe.dat",
+            "sha256": "75159896ae479cf8d479a887d441ed6293a7a6890b06e9bb1d583f8a943d4b88"
+          },
+          {
+            "path": "players/data/fd33ced3-8aa5-3c17-a85e-e8245423defe.dat_old",
+            "sha256": "384666d5c73ed1ca10075d40589ed09adc920cf4826428da63da948f4bb876c3"
+          },
+          {
+            "path": "players/stats/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.json",
+            "sha256": "de3f24293b815e94b4bfdb4e2f6ce8f7fb12ab6ff7e4f608452cb3c6bf895703"
+          },
+          {
+            "path": "players/stats/fd33ced3-8aa5-3c17-a85e-e8245423defe.json",
+            "sha256": "a062afbdef916028eefcf17ae767d60b5b5ff4a00d8c0e92f6f4a8c913613430"
+          }
+        ],
+        "checkpoint": {
+          "tick": 1465,
+          "containersBeforeSave": {
+            "7,201,9": {
+              "minecraft:oak_log": 8
+            },
+            "9,201,7": {},
+            "10,201,9": {
+              "minecraft:oak_log": 19
+            },
+            "17,201,7": {},
+            "18,201,10": {
+              "minecraft:wheat": 3
+            },
+            "20,201,13": {}
+          },
+          "files": [
+            {
+              "path": "data/ai-villages/state.json",
+              "sha256": "3b2cab57f7366c2e1768a85d9a8335a069db587116a3aa96fdd845a0657c5667"
+            },
+            {
+              "path": "data/ai-villages/state.json.bak",
+              "sha256": "3b2cab57f7366c2e1768a85d9a8335a069db587116a3aa96fdd845a0657c5667"
+            },
+            {
+              "path": "data/cognitivecraft/blueprints/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/bootstrap/v1/state.json",
+              "sha256": "3d8e50abade332e84f3ccf2fc1e76e986911a11c19fb8315c9d779aa38df950b"
+            },
+            {
+              "path": "data/cognitivecraft/bootstrap/v1/state.legacy-v1.json",
+              "sha256": "3b5cd0f3587ec6c8a3aed6e4f17d67929d27146cf6356fa720d60d710b1c5630"
+            },
+            {
+              "path": "data/cognitivecraft/bootstrap/v1/state.prev.json",
+              "sha256": "f3ddf9d1531f89ae4160f763b089ede561b37526a7f027429996c8ced88a4637"
+            },
+            {
+              "path": "data/cognitivecraft/bootstrap/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/cache/retrieval/v1/metadata.bin",
+              "sha256": "d0ee55461af5e3fde22384e1d720452fe9c3552466f69d4b480615265473fd78"
+            },
+            {
+              "path": "data/cognitivecraft/citizens/v1/state.json",
+              "sha256": "1081d719be8d618035a5d6cf42505a52b480b5315507450133f005f9ca638209"
+            },
+            {
+              "path": "data/cognitivecraft/citizens/v1/state.prev.json",
+              "sha256": "8b8d05fc8bc0557a63a7312dae83057e597d8c1c54c21a2c7dce7f49802c37c0"
+            },
+            {
+              "path": "data/cognitivecraft/citizens/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/evidence/v1/state.json",
+              "sha256": "9fa04766f3b4a14259a140716ce504c4a84c87dcb6fef68426a2192104e9700a"
+            },
+            {
+              "path": "data/cognitivecraft/evidence/v1/state.prev.json",
+              "sha256": "37e8aa216f8bd498e73b107e3809a3740dd9422d9a99f63ebf138f72db7d1faf"
+            },
+            {
+              "path": "data/cognitivecraft/evidence/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/jobs/v1/state.jsonl",
+              "sha256": "fdcacdc79ca4475eac4e4a09a0bfa1e4364e4d78b08fc7d359e3adebf44daac0"
+            },
+            {
+              "path": "data/cognitivecraft/jobs/v1/state.prev.jsonl",
+              "sha256": "7cd0a3732cb975bae933ef9d5da379aa79fdee5705588fd5af71ec0c91ed9201"
+            },
+            {
+              "path": "data/cognitivecraft/jobs/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/leases/v1/state.jsonl",
+              "sha256": "be820f4fb8b94b124b8540ef3a1f22da973629965fb5a74cb1df5d76c06ce499"
+            },
+            {
+              "path": "data/cognitivecraft/leases/v1/state.prev.jsonl",
+              "sha256": "4b8b60c62a03c204fdaa190ffd123bbb0b1c9f2d5c5eb3bc53caa0cc077b77a5"
+            },
+            {
+              "path": "data/cognitivecraft/leases/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/observations/state.json",
+              "sha256": "235be3c7a2827b60934a7731f6b6151446024c95271db48b787d0b831c1fc0ce"
+            },
+            {
+              "path": "data/cognitivecraft/observations/state.prev.json",
+              "sha256": "ebdc1e71c37332aa4f1d6cc8e255a4b03a1e2109f8b25b9df77a1d2f39e946f0"
+            },
+            {
+              "path": "data/cognitivecraft/observations/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/plans/v1/writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/skills/v1/.writer.lock",
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "data/cognitivecraft/skills/v1/bodies/85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f.json",
+              "sha256": "4526b094914c47bc46dfdc8cdd2eefc65580266a2ecb81c02e9e4fc2f9a9795b"
+            },
+            {
+              "path": "data/cognitivecraft/skills/v1/manifest.json",
+              "sha256": "6765cacaad53eeea227c2a666cf0e9ba634bb8e99d0c368837206cc674b69a0f"
+            },
+            {
+              "path": "data/minecraft/custom_boss_events.dat",
+              "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+            },
+            {
+              "path": "data/minecraft/game_rules.dat",
+              "sha256": "a35e83f3ed1bf60be4d9623c224f606dd6e41d832d339b37529d0c651862b2aa"
+            },
+            {
+              "path": "data/minecraft/random_sequences.dat",
+              "sha256": "0d502afda02dcf2bef50b26843587ecf24a1f83f7e2440aa0741b1f8fe3fea47"
+            },
+            {
+              "path": "data/minecraft/scheduled_events.dat",
+              "sha256": "4543a703f62511ab2e87b4416073044a96c47fbfc1597f122ccd0521d7f36c3e"
+            },
+            {
+              "path": "data/minecraft/scoreboard.dat",
+              "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+            },
+            {
+              "path": "data/minecraft/stopwatches.dat",
+              "sha256": "884dd1cac468fc6c15da5e2a66d5aea26e1aac35c8e2b0c3bd58695f600451ba"
+            },
+            {
+              "path": "data/minecraft/wandering_trader.dat",
+              "sha256": "a6375fb7573c663a4fecdd4505897a612e356758eaa5a24ca5dbd2f9382d97e2"
+            },
+            {
+              "path": "data/minecraft/weather.dat",
+              "sha256": "f9d9b2776eaaf38779df2a96928ffc2f70729cdac005f5ea09bae04c564db6ed"
+            },
+            {
+              "path": "data/minecraft/world_clocks.dat",
+              "sha256": "81896b461966d414841f4f3164a6c170e38060c3586ef4d2129bb68d44e97248"
+            },
+            {
+              "path": "data/minecraft/world_gen_settings.dat",
+              "sha256": "e95c76cf208838402554ecb3798e4e8a5bd31e48dee8194aa070ecb609fcb4f0"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/data/minecraft/chunk_tickets.dat",
+              "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/data/minecraft/raids.dat",
+              "sha256": "4a178e7bba47b51306cee2f88a2b4211bed8c0c73ddc1373683a5f1e7a290c59"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/data/minecraft/world_border.dat",
+              "sha256": "8779c464cec6a2f385881650b6e60bf8a0d3081c45a43fd44feddc575e193433"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/entities/r.-1.-1.mca",
+              "sha256": "dad117efd2f87259b428eac7caf8d02dee240e3a0bae38e7ab07c9db026045e5"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/entities/r.-1.0.mca",
+              "sha256": "68cf6fe233f4bb994ce4fad0b9b2673f3386c375461a4cb1ddd9477c62f0b35d"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/entities/r.0.0.mca",
+              "sha256": "3c1975cd79b70638809e89a05f340597e6f17bca9b836de37b97ec74cdf179b7"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/region/r.-1.-1.mca",
+              "sha256": "2db68dbf46b519e39d99d402b6007e0b36fbf594fc97e7d3c881d5d07da290da"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/region/r.-1.0.mca",
+              "sha256": "d9c0fd133f6103e7415969c7c5a6fe8d8b29b8e71980a3443c8548be71aa8fd1"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/region/r.0.-1.mca",
+              "sha256": "1973de27ca0f9ea87238e8ec3ca09d0a0ffe70d3f9bea177f3a6457897e63c0a"
+            },
+            {
+              "path": "dimensions/minecraft/overworld/region/r.0.0.mca",
+              "sha256": "4a8e22befd821696a6ec90acff7717ac73c35a228ae423b8766601e700ba14b6"
+            },
+            {
+              "path": "dimensions/minecraft/the_end/data/minecraft/chunk_tickets.dat",
+              "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+            },
+            {
+              "path": "dimensions/minecraft/the_end/data/minecraft/ender_dragon_fight.dat",
+              "sha256": "35dfa62afe851c1db984bca4d6e890e3a175db986116b39c227295ba320288de"
+            },
+            {
+              "path": "dimensions/minecraft/the_end/data/minecraft/raids.dat",
+              "sha256": "4a178e7bba47b51306cee2f88a2b4211bed8c0c73ddc1373683a5f1e7a290c59"
+            },
+            {
+              "path": "dimensions/minecraft/the_end/data/minecraft/world_border.dat",
+              "sha256": "8779c464cec6a2f385881650b6e60bf8a0d3081c45a43fd44feddc575e193433"
+            },
+            {
+              "path": "dimensions/minecraft/the_nether/data/minecraft/chunk_tickets.dat",
+              "sha256": "49937c8cea10110c1a760809c5537145cbdabc5405c8c456563e750c4cf592e0"
+            },
+            {
+              "path": "dimensions/minecraft/the_nether/data/minecraft/raids.dat",
+              "sha256": "4a178e7bba47b51306cee2f88a2b4211bed8c0c73ddc1373683a5f1e7a290c59"
+            },
+            {
+              "path": "dimensions/minecraft/the_nether/data/minecraft/world_border.dat",
+              "sha256": "8779c464cec6a2f385881650b6e60bf8a0d3081c45a43fd44feddc575e193433"
+            },
+            {
+              "path": "level.dat",
+              "sha256": "b960d8eec29d55d8e3f92a5509b8595e01b3debe40ca61f0d7a69fe038aa9f0b"
+            },
+            {
+              "path": "level.dat_old",
+              "sha256": "856b2c4ec525bfe72097c3a67e52fed5e5144be34467911b6b886ce9a27f6995"
+            },
+            {
+              "path": "players/advancements/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.json",
+              "sha256": "41c77eb087cbd67a30d4bc035ebb6948910da7ea4a09136fb77627635d385f1d"
+            },
+            {
+              "path": "players/advancements/fd33ced3-8aa5-3c17-a85e-e8245423defe.json",
+              "sha256": "9e8a8116327787c4e38608745d8063fbbc36b3564826977701d41ad5993a77ea"
+            },
+            {
+              "path": "players/data/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.dat",
+              "sha256": "e73df63199f8b7e3a03bbf65b08be3fe6d2ebaf213791d8856b248c005c36c44"
+            },
+            {
+              "path": "players/data/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.dat_old",
+              "sha256": "1e3f38c7cc82d10f303679fdb53240154cd5eb45d49f9a10ff26f443af818f77"
+            },
+            {
+              "path": "players/data/fd33ced3-8aa5-3c17-a85e-e8245423defe.dat",
+              "sha256": "75159896ae479cf8d479a887d441ed6293a7a6890b06e9bb1d583f8a943d4b88"
+            },
+            {
+              "path": "players/data/fd33ced3-8aa5-3c17-a85e-e8245423defe.dat_old",
+              "sha256": "384666d5c73ed1ca10075d40589ed09adc920cf4826428da63da948f4bb876c3"
+            },
+            {
+              "path": "players/stats/19cd25e7-f2a9-37b4-a3d6-8fffdb8aa5d1.json",
+              "sha256": "de3f24293b815e94b4bfdb4e2f6ce8f7fb12ab6ff7e4f608452cb3c6bf895703"
+            },
+            {
+              "path": "players/stats/fd33ced3-8aa5-3c17-a85e-e8245423defe.json",
+              "sha256": "a062afbdef916028eefcf17ae767d60b5b5ff4a00d8c0e92f6f4a8c913613430"
+            }
+          ]
+        }
+      }
+    }
+  }
 }

@@ -1,4 +1,4 @@
-# RB-001 contract extension — version 1 — local implementation, acceptance pending
+# RB-001 contract extension — version 1 — implementation accepted
 
 HISTORICAL_SOURCE_SNAPSHOT: `d609e9980ca2cde8330042d2332226f50200d6b6`. Audited source `bf6b985d3d37c4a1529ae31723bc672f96e69ac2`; documentation `59b7914fc6a74ee5422839d41a8828e828f764ea`. The specification was published before source edits in `6d3da32c6e777239117e189386fea0e036c2651e`. Source PR #24 is published at `dc3d132902df0f098a9e7f162bb7896ed62f7b9b`; the additive revision and final acceptance remain pending.
 
@@ -119,3 +119,6 @@ The authoritative bounded native endpoint/initial allowance clarification was pu
 Research-admission completion clarification, documented first in [434e99f9](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/434e99f992e93f9b824e9316b318880e772e0e6a/docs/implementation/RB-001-contracts.md#research-admission-jobs-completion-classification): oak's successful research Jobs wrapper retains `jobs:1` and uses `attributable-resource-delivery`; wheat retains its exact prior `attributable-crop-delivery` label. Exact resource receipt validation still owns fulfillment and authority; the label creates no stock. Native cold admission asserts the actual Jobs terminal classification.
 
 Standing-oak visible-point correction was specified before implementation in [10e1fc17](https://github.com/senavirathne/CognitiveCraft-Documentation/blob/10e1fc179f8c4cddbbef1d8a12a16113ad5e9ea0/docs/implementation/RB-001-contracts.md#bounded-visible-interaction-points-on-standing-oak). Consider only center/lower/upper points in the same block (heights 0.5, 0.125, 0.875); each uses native distance <=2.5 and the exact collision ray to the target. An intervening block still denies interaction. Source look/arrival and every harvest poll use this rule under unchanged face, settled motion, hardness, permissions, hands, effect and work limits. Drop/container/wheat geometry is unchanged. Native coverage must witness actual center occlusion by an overhang and valid lower interaction; connected obstacles remain present.
+
+
+Completed physical/typed/owner acceptance is recorded in [RB-001 report](RB-001-report.md), on reviewed code `0c1d7226b23fefa5001549371e93bb4e3cbbafa0`. Final PR checks gate merge; source snapshots distinguish immutable tested-code evidence from the completion-export commit.

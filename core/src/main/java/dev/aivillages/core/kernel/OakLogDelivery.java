@@ -3,7 +3,7 @@ package dev.aivillages.core.kernel;
 import java.util.*;
 import static dev.aivillages.core.kernel.Contracts.*;
 
-/** RB-001 outcome only: the runtime never supplies an executable acquisition method. */
+/** Typed oak outcome and preselected finite allowances; executable methods remain learned repository artifacts. */
 public final class OakLogDelivery {
     public static final int MAX_AMOUNT = 8;
     public static final CapabilityId ID = new CapabilityId("cognitivecraft:deliver_oak_logs", 1);
