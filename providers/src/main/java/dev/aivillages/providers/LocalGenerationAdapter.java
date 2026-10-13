@@ -282,7 +282,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             if (ResourceDelivery.isDelivery(call.request.capability().id())
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
-                normalized.put("body", cropIrBody(ir.get("body"), call.request.primitives()));
+                normalized.put("body",call.request.capability().id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                        ? plankIrBody(ir.get("body"),call.request.primitives()) : cropIrBody(ir.get("body"), call.request.primitives()));
                 ir = normalized;
                 candidateIr = StrictJson.canonical(ir);
             }
@@ -493,7 +494,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 .map(Contracts.PrimitiveSignature::id).toList();
         List<String> fingerprints = request.primitives().stream()
                 .map(Contracts.PrimitiveSignature::fingerprint).distinct().toList();
-        Map<String, Object> bodyShape = ResourceDelivery.isDelivery(spec.id())
+        Map<String, Object> bodyShape = spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                ? plankBodyShape(request.primitives()) : ResourceDelivery.isDelivery(spec.id())
                 ? cropBodyShape(request.primitives()) : Map.of("type", "array",
                         "items", nodeShape(2, primitiveIds, fingerprints, true),
                         "minItems", 1, "maxItems", 8);
@@ -524,6 +526,38 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
     }
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
+    private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
+        var id=Map.of("type","string","enum",primitives.stream().map(Contracts.PrimitiveSignature::id).toList());
+        return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
+                "additionalProperties",false,"properties",Map.of("preflight",id,"batchSize",Map.of("type","integer","enum",List.of(4)),
+                        "cycle",Map.of("type","array","items",id,"minItems",5,"maxItems",5),
+                        "result",Map.of("type","object","required",List.of("param"),"additionalProperties",false,
+                                "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
+    }
+    private static List<Object> plankIrBody(Object proposal,List<Contracts.PrimitiveSignature> primitives) {
+        if(!(proposal instanceof Map<?,?> p) || !p.keySet().equals(java.util.Set.of("preflight","batchSize","cycle","result"))
+                || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(4).equals(p.get("batchSize"))
+                || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=5 || !Map.of("param","amount").equals(p.get("result")))
+            throw new IllegalArgumentException("Bounded recipe proposal");
+        var calls=new java.util.ArrayList<Object>();
+        for(Object value:cycle) {
+            if(!(value instanceof String id))throw new IllegalArgumentException("Recipe primitive ID");
+            calls.add(plankCall(id,primitives));
+        }
+        var batches=Map.of("operator","DIV","left",Map.of("operator","ADD","left",Map.of("param","amount"),"right",Map.of("int",3L)),"right",Map.of("int",4L));
+        return List.of(plankCall(preflight,primitives),Map.of("op","repeat","count",batches,"body",List.copyOf(calls)),
+                Map.of("op","result","value",Map.of("param","amount")));
+    }
+    private static Map<String,Object> plankCall(String id,List<Contracts.PrimitiveSignature> primitives) {
+        var primitive=primitives.stream().filter(p->p.id().equals(id)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered recipe primitive"));
+        var args=new java.util.LinkedHashMap<String,Object>();
+        for(var parameter:primitive.parameters()) {
+            if(!List.of("actor","source","destination","amount").contains(parameter.name()))throw new IllegalArgumentException("Recipe binding");
+            args.put(parameter.name(),Map.of("param",parameter.name()));
+        }
+        return Map.of("op","call","kind","primitive","id",id,"version",(long)primitive.version(),"fingerprint",primitive.fingerprint(),
+                "args",args,"into",id.substring(id.indexOf(':')+1));
+    }
     private static Map<String, Object> cropBodyShape(List<Contracts.PrimitiveSignature> primitives) {
         var amount = Map.of("type", "object", "required", List.of("param"),
                 "properties", Map.of("param", Map.of("type", "string",

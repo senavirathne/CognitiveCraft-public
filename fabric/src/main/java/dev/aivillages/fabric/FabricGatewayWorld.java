@@ -39,6 +39,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private final ServerLevel level;
     private final Map<UUID, BlockPos> previousPosition = new HashMap<>();
     private final Map<UUID, Route> routes = new HashMap<>();
+    private final Map<UUID,Long> recipeSettled=new HashMap<>();
+    private final FabricRecipeTransactions recipeTransactions;
     private static final int MAX_PATH_NODES = 128;
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
@@ -80,7 +82,45 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     record NavigationSummary(UUID actor, int attempts, int calls, String reason, boolean endpointRefined) { }
     private NavigationSummary lastNavigationSummary;
     NavigationSummary lastNavigationSummary() { return lastNavigationSummary; }
-    public FabricGatewayWorld(ServerLevel level) { this.level = java.util.Objects.requireNonNull(level); }
+    public FabricGatewayWorld(ServerLevel level) {
+        this.level = java.util.Objects.requireNonNull(level);recipeTransactions=new FabricRecipeTransactions(level,this);
+    }
+    Villager recipeActor(ActorRef actor) {
+        Villager v=villager(actor);return v!=null && loaded(v.blockPosition()) ? v : null;
+    }
+    Container recipeContainer(ContainerRef ref) {
+        return ref.dimension().equals(dimension()) && loaded(new BlockPos(ref.x(),ref.y(),ref.z()))
+                ? oakBox(new BlockPos(ref.x(),ref.y(),ref.z())) : null;
+    }
+    boolean recipeReach(Villager v,BlockPos p) {return canReach(v,p) && level.mayInteract(v,p);}
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {
+        return recipeTransactions.preflight(request);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation withdrawRecipeInput(ActorRef actor,ContainerRef source,
+            dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody,String sourceFingerprint) {
+        return recipeTransactions.withdraw(actor,source,captured,custody,sourceFingerprint);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation craftRecipe(ActorRef actor,
+            dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody) {
+        return recipeTransactions.craft(actor,captured,custody);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation depositRecipeOutput(ActorRef actor,ContainerRef destination,
+            dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody,int amount) {
+        return recipeTransactions.deposit(actor,destination,captured,custody,amount);
+    }
+    @Override public Movement moveRecipe(ActorRef actor,Cell target,int maximum) {
+        Villager v=recipeActor(actor);
+        if(v==null)return new Movement(false,true,0,0);
+        if(!v.onGround()) {recipeSettled.remove(v.getUUID());return new Movement(false,false,0,0);}
+        var result=move(actor,target,maximum);
+        if(!result.reached()) {recipeSettled.remove(v.getUUID());return result;}
+        var motion=v.getDeltaMovement();
+        if(motion.x*motion.x+motion.z*motion.z>0.0001 || motion.y>0.0001) {
+            recipeSettled.remove(v.getUUID());return new Movement(false,false,result.chargedWork(),result.travelBlocks());
+        }
+        long since=recipeSettled.computeIfAbsent(v.getUUID(),ignored->tick());
+        return tick()-since>=2 ? result : new Movement(false,false,result.chargedWork(),result.travelBlocks());
+    }
     @Override public boolean onGameThread() { return level.getServer().isSameThread(); }
     @Override public long tick() { return level.getGameTime(); }
     private String dimension() { return level.dimension().identifier().toString(); }
@@ -158,6 +198,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         } else GatewayControl.releaseByEntity(actor.entityId(), runId);
         previousPosition.remove(actor.entityId());
         routes.remove(actor.entityId());
+        recipeSettled.remove(actor.entityId());
     }
     @Override public void stopMovement(ActorRef actor) {
         Villager v = villager(actor);
@@ -180,7 +221,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (!target.dimension().equals(dimension())) return Reason.TARGET_INVALID;
         if (!loaded(pos)) return effect == Effect.OBSERVE ? null : Reason.TARGET_UNAVAILABLE;
         if (!level.mayInteract(v, pos)) return Reason.AUTHORITY_DENIED;
-        if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER)
+        if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER
+                || effect==Effect.WITHDRAW || effect==Effect.CRAFT)
                 && !level.getGameRules().get(GameRules.MOB_GRIEFING)) return Reason.AUTHORITY_DENIED;
         return null;
     }

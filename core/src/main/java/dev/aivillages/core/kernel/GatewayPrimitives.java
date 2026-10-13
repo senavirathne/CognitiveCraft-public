@@ -50,7 +50,14 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         PICKUP_TRACKED_OAK_LOGS("pickup_tracked_oak_logs", Type.INT, Effect.PICKUP, actor()),
         TRANSFER_OAK_LOGS("transfer_oak_logs", Type.INT, Effect.TRANSFER,
                 actor(), new Parameter("destination", Type.CONTAINER, 0, 0),
-                new Parameter("amount", Type.INT, 1, OakLogDelivery.MAX_AMOUNT));
+                new Parameter("amount", Type.INT, 1, OakLogDelivery.MAX_AMOUNT)),
+        OBSERVE_PLANK_INPUTS("observe_plank_inputs",Type.BOOL,Effect.OBSERVE,actor(),
+                new Parameter("source",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
+        MOVE_TO_INPUT("move_to_input",Type.BOOL,Effect.MOVE,actor(),new Parameter("source",Type.CONTAINER,0,0)),
+        WITHDRAW_OAK_LOG("withdraw_oak_log",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
+        CRAFT_OAK_PLANKS("craft_oak_planks",Type.INT,Effect.CRAFT,actor()),
+        TRANSFER_OAK_PLANKS("transfer_oak_planks",Type.INT,Effect.TRANSFER,actor(),
+                new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64));
 
         private final PrimitiveSignature signature;
         Operation(String name, Type result, Effect effect, Parameter... parameters) {
@@ -60,7 +67,9 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
             signature = new PrimitiveSignature(id, VERSION, sha256(canonical), args, result, Set.of(effect));
         }
         public PrimitiveSignature signature() { return signature; }
-        public boolean oak() { return name().contains("OAK"); }
+        public boolean plank() {return this==OBSERVE_PLANK_INPUTS || this==MOVE_TO_INPUT
+                || this==WITHDRAW_OAK_LOG || this==CRAFT_OAK_PLANKS || this==TRANSFER_OAK_PLANKS;}
+        public boolean oak() { return !plank() && name().contains("OAK"); }
         public PrimitiveRequirement requirement() {
             return new PrimitiveRequirement(signature.id(), signature.version(), signature.fingerprint());
         }

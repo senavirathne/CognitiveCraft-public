@@ -17,7 +17,8 @@ public final class ResourceDelivery {
     }
     public static final ItemIdentity OAK_LOG = new ItemIdentity("minecraft:oak_log", "default");
     public static final ItemIdentity WHEAT = new ItemIdentity("minecraft:wheat", "default");
-    public enum Stage { HARVEST, PICKUP, DEPOSIT }
+    public static final ItemIdentity OAK_PLANKS = new ItemIdentity("minecraft:oak_planks", "default");
+    public enum Stage { HARVEST, PICKUP, DEPOSIT, WITHDRAW, CRAFT }
     public record BlockPosition(String dimension,int x,int y,int z) {
         public BlockPosition { new Cuboid(dimension,x,y,z,x,y,z); }
         public boolean inside(Cuboid a) {
@@ -29,7 +30,13 @@ public final class ResourceDelivery {
     /** Issued by the gateway and retained by its existing execution/Jobs owners, never accepted from IR. */
     public record Receipt(UUID receiptId, TrustedContext origin, UUID runId, UUID operationId, UUID batchId,
                           ActorRef actor, Cuboid source, ContainerRef destination, ItemIdentity item,
-                          Stage stage, long quantity, BlockPosition sourceBlock, List<UUID> dropIds) {
+                          Stage stage, long quantity, BlockPosition sourceBlock, List<UUID> dropIds,
+                          RecipeTransaction.Transformation transformation) {
+        public Receipt(UUID receiptId, TrustedContext origin, UUID runId, UUID operationId, UUID batchId,
+                       ActorRef actor, Cuboid source, ContainerRef destination, ItemIdentity item,
+                       Stage stage, long quantity, BlockPosition sourceBlock, List<UUID> dropIds) {
+            this(receiptId,origin,runId,operationId,batchId,actor,source,destination,item,stage,quantity,sourceBlock,dropIds,null);
+        }
         public Receipt {
             Objects.requireNonNull(receiptId); Objects.requireNonNull(origin); Objects.requireNonNull(runId);
             Objects.requireNonNull(operationId); Objects.requireNonNull(batchId); Objects.requireNonNull(actor);
@@ -38,27 +45,33 @@ public final class ResourceDelivery {
             Objects.requireNonNull(sourceBlock); dropIds=List.copyOf(dropIds);
             if (quantity < 1 || quantity > 64 || !actor.dimension().equals(source.dimension())
                     || !actor.dimension().equals(destination.dimension()) || !sourceBlock.inside(source)
-                    || dropIds.isEmpty() || dropIds.size()>64 || new HashSet<>(dropIds).size()!=dropIds.size())
+                    || (transformation==null ? dropIds.isEmpty() || stage==Stage.WITHDRAW || stage==Stage.CRAFT
+                    : !dropIds.isEmpty() || (stage!=Stage.WITHDRAW && stage!=Stage.CRAFT && stage!=Stage.DEPOSIT))
+                    || dropIds.size()>64 || new HashSet<>(dropIds).size()!=dropIds.size())
                 throw new IllegalArgumentException("Resource receipt");
         }
     }
 
     public static boolean isDelivery(CapabilityId id) {
-        return CropDelivery.ID.equals(id) || OakLogDelivery.ID.equals(id);
+        return CropDelivery.ID.equals(id) || OakLogDelivery.ID.equals(id) || OakPlankProduction.ID.equals(id);
     }
+    public static boolean resource(CapabilityId id) {return OakLogDelivery.ID.equals(id) || OakPlankProduction.ID.equals(id);}
     public static Optional<CapabilitySpec> spec(CapabilityId id) {
         return id.equals(CropDelivery.ID) ? Optional.of(CropDelivery.SPEC)
-                : id.equals(OakLogDelivery.ID) ? Optional.of(OakLogDelivery.SPEC) : Optional.empty();
+                : id.equals(OakLogDelivery.ID) ? Optional.of(OakLogDelivery.SPEC)
+                : id.equals(OakPlankProduction.ID) ? Optional.of(OakPlankProduction.SPEC) : Optional.empty();
     }
     public static boolean completed(ValidatedRequest bound, UUID run, List<CropDelivery.CropReceipt> crops,
                                     List<Receipt> resources) {
         if (bound.request().capability().equals(CropDelivery.ID))
             return resources.isEmpty() && CropDelivery.completed(bound, run, crops);
-        return crops.isEmpty() && OakLogDelivery.completed(bound, run, resources);
+        return crops.isEmpty() && (bound.request().capability().equals(OakPlankProduction.ID)
+                ? OakPlankProduction.completed(bound,run,resources) : OakLogDelivery.completed(bound, run, resources));
     }
 
     public static boolean matches(ValidatedRequest bound, UUID run, Receipt r) {
-        if(!bound.request().capability().equals(OakLogDelivery.ID)) return false;
+        if(bound.request().capability().equals(OakPlankProduction.ID))return TransformationDelivery.matches(bound,run,r);
+        if(!bound.request().capability().equals(OakLogDelivery.ID) || r.transformation()!=null) return false;
         var a = bound.request().arguments();
         return r.origin().equals(bound.context()) && r.runId().equals(run) && r.item().equals(OAK_LOG)
                 && a.get("actor") instanceof ActorValue actor && actor.value().equals(r.actor())
@@ -68,6 +81,7 @@ public final class ResourceDelivery {
 
     /** Exact duplicates are idempotent; changed IDs/operation claims and over-pickup/deposit fail closed. */
     public static long quantity(ValidatedRequest bound, UUID run, List<Receipt> receipts) {
+        if(bound.request().capability().equals(OakPlankProduction.ID))return TransformationDelivery.quantity(bound,run,receipts);
         if (!bound.request().capability().equals(OakLogDelivery.ID) || receipts.size() > MAX_RECEIPTS)
             throw new IllegalArgumentException("Unsupported resource evidence");
         Map<UUID, Receipt> seen = new HashMap<>();
@@ -105,5 +119,9 @@ public final class ResourceDelivery {
             total = Math.addExact(total, Math.min(s[0], Math.min(s[1], s[2])));
         }
         return total;
+    }
+    public static Cuboid sourceArea(CapabilityRequest request) {
+        Value source=request.arguments().get("source");
+        return source instanceof ContainerValue box ? ResourceLeases.point(box.value()) : ((AreaValue)source).value();
     }
 }

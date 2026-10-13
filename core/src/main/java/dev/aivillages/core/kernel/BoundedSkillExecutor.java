@@ -374,6 +374,11 @@ public final class BoundedSkillExecutor {
                 value = switch (binary.operator()) {
                     case ADD -> new IntValue(Math.addExact(((IntValue) a).value(), ((IntValue) b).value()));
                     case SUB -> new IntValue(Math.subtractExact(((IntValue) a).value(), ((IntValue) b).value()));
+                    case DIV -> {
+                        long x=((IntValue)a).value(),y=((IntValue)b).value();
+                        if(x<0 || y<=0)throw new InvalidRun();
+                        yield new IntValue(x/y);
+                    }
                     case EQ -> new BoolValue(a.equals(b));
                     case LT -> new BoolValue(((IntValue) a).value() < ((IntValue) b).value());
                     case GTE -> new BoolValue(((IntValue) a).value() >= ((IntValue) b).value());
@@ -475,7 +480,8 @@ public final class BoundedSkillExecutor {
             terminal = new Execution(status, reason, effects,
                     status == ExecutionStatus.SUCCEEDED ?
                             new EvidenceRef(correlation.runId().toString(),
-                                    request.request().capability().equals(OakLogDelivery.ID)
+                                    request.request().capability().equals(OakPlankProduction.ID) ? "transformation-delivery:1"
+                                            : request.request().capability().equals(OakLogDelivery.ID)
                                             ? "resource-delivery:1" : "crop-delivery:1",
                                     request.context().scope().domainId().toString()) : null);
             try { if (stopConfirmed) release.release(correlation.runId()); }
