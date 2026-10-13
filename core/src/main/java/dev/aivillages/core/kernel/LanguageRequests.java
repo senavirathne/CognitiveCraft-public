@@ -341,7 +341,7 @@ public final class LanguageRequests {
         boolean plank=classified.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS;
         if ((!oak && !plank && classified.intent()!=LanguageReferenceClassifier.Intent.HARVEST_WHEAT)
                 || e.action()!=(plank ? Action.MAKE_OAK_PLANKS : oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
-            clarify(t, "Only registered wheat, oak-log delivery and citizen-naming intents are supported", List.of()); return;
+            clarify(t, "Only registered wheat, oak-log delivery, oak-plank production and citizen-naming intents are supported", List.of()); return;
         }
         if (invalidNumericQuantity(t.input.text())) { invalid(t); return; }
         if (e.amount() == null) {
@@ -636,11 +636,11 @@ public final class LanguageRequests {
 
     private static boolean quantityRole(String text, String quantity) {
         return Pattern.compile("(?<![\\p{L}\\p{N}_,.+/\\-])" + Pattern.quote(quantity)
-                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|oak\\s+logs?)\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
+                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
 
     private static boolean invalidNumericQuantity(String text) {
-        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|oak\\s+logs?)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         while (match.find()) {
             String raw = match.group(1);
             if (raw.chars().noneMatch(Character::isDigit)) continue;

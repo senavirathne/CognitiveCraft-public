@@ -9,7 +9,7 @@ OUT=ROOT/'build/rb002-evidence'
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def junit():
     expected={'core':{'OakPlankProductionTest':8,'OakPlankGatewayTest':16,'TransformationReceiptTest':12,
-                      'OakPlankCompilerTest':4,'OakPlankLanguageTest':4,'OakPlankJobLifecycleTest':7,'OakPlankLeaseTest':6,'OakPlankDiscoveryTest':5,'OakPlankBindingTest':5},
+                      'OakPlankCompilerTest':4,'OakPlankLanguageTest':4,'OakPlankLanguageRequestTest':5,'OakPlankJobLifecycleTest':7,'OakPlankLeaseTest':6,'OakPlankDiscoveryTest':5,'OakPlankBindingTest':5},
               'providers':{'OakPlankNeedleWireTest':2,'OakPlankGenerationTest':1}}
     results={}
     for module,classes in expected.items():
