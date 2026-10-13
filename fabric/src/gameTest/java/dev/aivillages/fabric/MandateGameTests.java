@@ -166,7 +166,12 @@ public final class MandateGameTests {
                 case 0 -> {require(opening.isDone(),"Opening stores");compose();if(warm){phase=20;return;}
                     var c=citizens.enroll(villager.getUUID(),h.getLevel().dimension().identifier().toString(),owner);require(c.accepted(),"Enroll actual worker "+c);actor=c.citizen().actor();phase=1;}
                 case 1 -> {require(citizens.ready(),"Enrollment acknowledgement");citizens.observeAvailability(actor.citizenId(),CitizenRegistry.Availability.LOADED);phase=2;}
-                case 2 -> {require(citizens.ready(),"Loaded worker acknowledgement");parent=UUID.randomUUID();require(mandates.grant(parent,null,null,rights(),clock.millis()+240000,budget(100000,clock.millis()+180000),coordinator,owner).accepted(),"Root mandate");phase=3;}
+                case 2 -> {require(citizens.ready(),"Loaded worker acknowledgement");
+                    require(villager.onGround()&&h.getLevel().isPositionEntityTicking(villager.blockPosition())
+                            &&h.getLevel().isPositionEntityTicking(new BlockPos(source.minX(),source.minY(),source.minZ()))
+                            &&h.getLevel().isPositionEntityTicking(new BlockPos(source.maxX(),source.maxY(),source.maxZ()))
+                            &&h.getLevel().isPositionEntityTicking(new BlockPos(destination.x(),destination.y(),destination.z())),"Await actual grounded worker and ticking fixture targets");
+                    parent=UUID.randomUUID();require(mandates.grant(parent,null,null,rights(),clock.millis()+240000,budget(100000,clock.millis()+180000),coordinator,owner).accepted(),"Root mandate");phase=3;}
                 case 3 -> {require(mandates.ready(),"Root acknowledgement");child=UUID.randomUUID();require(mandates.grant(child,parent,null,rights(),clock.millis()+150000,budget(30000,clock.millis()+120000),caller,coordinator).accepted(),"Child mandate");phase=4;}
                 case 4 -> {require(mandates.ready(),"Child acknowledgement");var before=mandates.snapshot();
                     var wider=new Mandates.Rights(Set.of(actor),EnumSet.allOf(Effect.class),Set.of("minecraft:wheat","minecraft:oak_log"),workArea,Set.of(destination));
