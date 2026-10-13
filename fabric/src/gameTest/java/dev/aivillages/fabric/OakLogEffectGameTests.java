@@ -28,12 +28,17 @@ public final class OakLogEffectGameTests {
         var probe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,2,6);
         var dropProbe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,6);
         var probeLog=h.absolutePos(new BlockPos(3,1,6));
+        h.setBlock(6,2,6,Blocks.STONE);
+        var occludedProbe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,5,2,6);occludedProbe.setNoAi(false);
+        var occludedCell=h.absolutePos(new BlockPos(6,1,6));
         var p=h.absolutePos(new BlockPos(3,1,3));var c=h.absolutePos(new BlockPos(7,1,3));
         BootstrapGameTests.forceFixtureChunks(h,h.absolutePos(BlockPos.ZERO));
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
         var probeActor=new ActorRef(UUID.randomUUID(),probe.getUUID(),dim);
         var dropProbeActor=new ActorRef(UUID.randomUUID(),dropProbe.getUUID(),dim);
         UUID dropProbeRun=UUID.randomUUID();ItemEntity[] reachableDrop={null};
+        var occludedActor=new ActorRef(UUID.randomUUID(),occludedProbe.getUUID(),dim);
+        UUID occludedRun=UUID.randomUUID();ItemEntity[] occludedDrop={null};int[] detourWork={0};
         var source=new Cuboid(dim,p.getX(),p.getY(),p.getZ(),p.getX(),p.getY(),p.getZ());
         var box=new ContainerRef(dim,c.getX(),c.getY(),c.getZ());var id=UUID.randomUUID();
         var owner=new TrustedContext(new PrincipalRef(id),new ScopeRef(UUID.randomUUID(),id));
@@ -50,7 +55,7 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
-        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false},nativeDropReach={false};
+        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false},nativeDropReach={false},ownedDropDetour={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
         h.succeedWhen(() -> {
@@ -68,7 +73,8 @@ public final class OakLogEffectGameTests {
                         "Airborne oak approach consumed a ground path or returned a false terminal result");
                 airborneDeferred[0]=true;
             }
-            if(!v.onGround() || !probe.onGround() || !dropProbe.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
+            if(occludedDrop[0]==null) h.assertTrue(world.acquire(occludedActor,occludedRun),"Occluded fixture control was not acquired");
+            if(!v.onGround() || !probe.onGround() || !dropProbe.onGround() || !occludedProbe.onGround() || !world.loadedForDiscovery(p)) {h.assertTrue(false,"Waiting for loaded grounded fixture");return;}
             if(phase[0]==0 && handle[0]==null) {
                 if(reachableDrop[0]==null) {
                     h.assertTrue(world.acquire(actor,run),"Primary fixture control was not held during the separate reach probe");
@@ -99,6 +105,32 @@ public final class OakLogEffectGameTests {
                     if(!preparation.reached()) {h.assertTrue(false,"Waiting for native grounded item preparation");return;}
                     nativeDropReach[0]=true;world.release(dropProbeActor,dropProbeRun);
                 }
+                if(!ownedDropDetour[0]) {
+                    if(occludedDrop[0]==null) {
+                        occludedDrop[0]=new ItemEntity(h.getLevel(),occludedCell.getX()+.875,occludedCell.getY()+.1,
+                                occludedCell.getZ()+.735,new ItemStack(Items.OAK_LOG,1));
+                        occludedDrop[0].setThrower(occludedProbe);occludedDrop[0].setTarget(occludedDrop[0].getUUID());
+                        h.assertTrue(h.getLevel().addFreshEntity(occludedDrop[0]),"Occluded controlled item was not registered");
+                        var hit=h.getLevel().clip(new net.minecraft.world.level.ClipContext(occludedProbe.getEyePosition(),
+                                occludedDrop[0].position(),net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                                net.minecraft.world.level.ClipContext.Fluid.NONE,occludedProbe));
+                        h.assertTrue(hit.getBlockPos().equals(occludedCell.above()),"Controlled item did not witness actual overhang occlusion");
+                    }
+                    var preparation=world.approachResourceDrop(occludedActor,occludedDrop[0].getUUID(),1,1,ResourceDelivery.OAK_LOG);
+                    detourWork[0]+=preparation.chargedWork();
+                    h.assertTrue(!preparation.impossible() && detourWork[0]<=5,"Bounded owned-drop adjacent approaches failed");
+                    h.assertTrue(occludedDrop[0].isAlive() && occludedDrop[0].getItem().getCount()==1
+                            && occludedProbe.getInventory().countItem(Items.OAK_LOG)==0,"Owned-drop detour mutated native stock");
+                    if(!preparation.reached()) {h.assertTrue(false,"Waiting for actual adjacent owned-drop navigation");return;}
+                    h.assertTrue(detourWork[0]>0 && !occludedProbe.blockPosition().equals(occludedCell),
+                            "Occluded owned drop did not use real adjacent native movement");
+                    var hit=h.getLevel().clip(new net.minecraft.world.level.ClipContext(occludedProbe.getEyePosition(),
+                            occludedDrop[0].position(),net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                            net.minecraft.world.level.ClipContext.Fluid.NONE,occludedProbe));
+                    h.assertTrue(hit.getType()==net.minecraft.world.phys.HitResult.Type.MISS
+                            || hit.getBlockPos().equals(occludedDrop[0].blockPosition()),"Detour accepted an occluded actual item ray");
+                    ownedDropDetour[0]=true;world.release(occludedActor,occludedRun);
+                }
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
                 h.assertTrue(world.resourceBlock(cell,ResourceDelivery.OAK_LOG).breakTicks()==60,"Pinned oak survival timing differs");
                 h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_UNAVAILABLE,
@@ -126,13 +158,14 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(airborneDeferred[0],"Falling-worker approach regression did not execute");
                 h.assertTrue(partialSurfaceDrop[0],"Natural loot did not exercise the partial-surface observation cell");
                 h.assertTrue(endpointRefined[0],"Real native path endpoint refinement did not execute");
+                h.assertTrue(ownedDropDetour[0],"Occluded adjacent owned-drop regression did not execute");
                 h.assertTrue(nativeDropReach[0],"Native low-ceiling item preparation regression did not execute");
                 h.assertTrue(OakLogDelivery.completed(request,run,receipts),"Trusted native receipt chain incomplete");
                 h.assertTrue(v.getInventory().countItem(Items.OAK_LOG)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" ownedDropDetour="+ownedDropDetour[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);

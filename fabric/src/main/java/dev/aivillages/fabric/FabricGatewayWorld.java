@@ -52,22 +52,26 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         final NavigationRoute policy;
         final boolean sourceApproach;
         final boolean solidApproach;
+        final boolean dropApproach;
         BlockPos approachTarget;
         BlockPos settledCell;
         long settledSince = -1;
         boolean endpointRefined;
-        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach) {
+        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach, boolean dropApproach) {
             this.target = target;
             this.runId = runId;
             this.sourceApproach = sourceApproach;
             this.solidApproach = solidApproach;
+            this.dropApproach = dropApproach;
             List<NavigationRoute.Approach> samples = new ArrayList<>(8);
-            // A source goal is inside the selected crop cell. An adjacent end cell
-            // cannot satisfy the closer arrival and would waste a pathfinding call.
+            // Wheat source goals remain inside the selected crop cell. Owned oak
+            // loot also permits four adjacent standing cells when its own cell
+            // is too low or its actual item ray is occluded.
             if (sourceApproach) samples.add(new NavigationRoute.Approach(
                     target.getX(), target.getY(), target.getZ()));
             for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-                if (!sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) samples.add(new NavigationRoute.Approach(
+                if (dropApproach ? Math.abs(dx) + Math.abs(dz) == 1
+                        : !sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) samples.add(new NavigationRoute.Approach(
                         target.getX() + dx, target.getY(), target.getZ() + dz));
             }
             this.policy = new NavigationRoute(samples);
@@ -298,7 +302,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(oakApproach && route==null) {
             UUID owner=GatewayControl.owner(v);
             if(owner==null)return new Movement(false,true,0,travel);
-            route=new Route(targetPos,owner,sourceApproach,solidApproach);routes.put(v.getUUID(),route);
+            route=new Route(targetPos,owner,sourceApproach,solidApproach,ownedDrop);routes.put(v.getUUID(),route);
         }
         boolean selectedFace = route == null || route.approachTarget == null
                 || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ()
@@ -323,7 +327,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (!loaded(targetPos) || !level.mayInteract(v, targetPos))
             return terminal(v, routes.get(v.getUUID()), "target-unavailable", 0, travel);
         if (route != null && (!route.target.equals(targetPos) || route.sourceApproach != sourceApproach
-                || route.solidApproach != solidApproach)) {
+                || route.solidApproach != solidApproach || route.dropApproach != ownedDrop)) {
             stopOwnedNavigation(v, route);
             routes.remove(v.getUUID());
             route = null;
@@ -331,7 +335,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (route == null) {
             UUID runId = GatewayControl.owner(v);
             if (runId == null) return new Movement(false, true, 0, travel);
-            route = new Route(targetPos, runId, sourceApproach, solidApproach);
+            route = new Route(targetPos, runId, sourceApproach, solidApproach,ownedDrop);
             routes.put(v.getUUID(),route);
         }
         if (route.policy.stage() == NavigationRoute.Stage.FOLLOW_PATH) {
@@ -396,7 +400,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     }
     private NavigationRoute.Position oakEndpoint(Villager v,Route route,Path path) {
         BlockPos goal=route.approachTarget;
-        if(!route.solidApproach || goal==null || path==null || !path.isDone()
+        if(!(route.solidApproach || route.dropApproach) || goal==null || path==null || !path.isDone()
                 || path.getEndNode()==null || !GatewayControl.holds(v,route.runId)
                 || !v.onGround() || Math.abs(v.getY()-goal.getY())>0.125 || !walkable(v,goal))return null;
         var end=path.getEndNode();
