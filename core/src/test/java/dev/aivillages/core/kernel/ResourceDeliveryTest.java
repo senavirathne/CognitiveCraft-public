@@ -1,0 +1,85 @@
+package dev.aivillages.core.kernel;
+
+import java.util.*;
+import org.junit.jupiter.api.Test;
+import static dev.aivillages.core.kernel.Contracts.*;
+import static dev.aivillages.core.kernel.OakLogTestSupport.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+class ResourceDeliveryTest {
+    @Test void requiresAllPhysicalStagesAndRetainsReorderedDuplicateMeaning() {
+        var bound=bound(4);var run=UUID.randomUUID();var chain=chain(bound,run,4);
+        assertFalse(OakLogDelivery.completed(bound,run,chain.subList(0,2)));
+        var reordered=new ArrayList<>(chain);Collections.reverse(reordered);reordered.addAll(chain);
+        assertTrue(OakLogDelivery.completed(bound,run,reordered));
+        assertEquals(4,ResourceDelivery.quantity(bound,run,reordered));
+    }
+    @Test void changedDuplicateOrReissuedOperationCannotMultiplyCredit() {
+        var bound=bound(4);var run=UUID.randomUUID();var chain=new ArrayList<>(chain(bound,run,2));var receipt=chain.getFirst();
+        chain.add(changed(receipt,receipt.receiptId(),receipt.origin(),receipt.item(),4));
+        assertFalse(OakLogDelivery.completed(bound,run,chain));
+        chain.removeLast();chain.add(changed(receipt,UUID.randomUUID(),receipt.origin(),receipt.item(),2));
+        assertFalse(OakLogDelivery.completed(bound,run,chain));
+    }
+    @Test void crossPrincipalResourceRunAndBindingAreRejected() {
+        var bound=bound(1);var run=UUID.randomUUID();var chain=new ArrayList<>(chain(bound,run,1));var r=chain.getLast();
+        chain.set(2,changed(r,r.receiptId(),JobLifecycleStoreTest.owner(OWNER.scope().worldId()),r.item(),1));
+        assertFalse(OakLogDelivery.completed(bound,run,chain));
+        chain.set(2,changed(r,r.receiptId(),r.origin(),ResourceDelivery.WHEAT,1));
+        assertFalse(OakLogDelivery.completed(bound,run,chain));
+        assertFalse(OakLogDelivery.completed(bound,UUID.randomUUID(),chain(bound,run,1)));
+    }
+    @Test void overspentOrDepositOnlyClaimsNeverEstablishCustody() {
+        var bound=bound(1);var run=UUID.randomUUID();var chain=new ArrayList<>(chain(bound,run,1));var r=chain.getLast();
+        chain.set(2,changed(r,r.receiptId(),r.origin(),r.item(),2));
+        assertFalse(OakLogDelivery.completed(bound,run,chain));
+        assertFalse(OakLogDelivery.completed(bound,run,List.of(r)));
+    }
+    @Test void exactResourceAndQuantityEnvelopeAndRoundTripKeepWheatContract() {
+        assertThrows(IllegalArgumentException.class,()->new ResourceDelivery.ItemIdentity("oak_log","default"));
+        assertThrows(IllegalArgumentException.class,()->new ResourceDelivery.ItemIdentity("minecraft:oak_log","custom"));
+        for(int quantity:List.of(0,9))assertInstanceOf(RequestValidator.Rejected.class,RequestValidator.validate(bound(quantity).request(),OWNER,
+                bound(quantity).observation(),PlanningGoals.catalog(),JobLifecycleStoreTest.environment()));
+        var request=bound(7).request();assertEquals(request,((RequestCodec.Valid)RequestCodec.decode(RequestCodec.encode(request))).request());
+        assertEquals("ATTRIBUTABLE_CROP_DELIVERY",CropDelivery.SPEC.completion().name());
+        assertEquals(64,CropDelivery.SPEC.parameters().get(1).maximum());
+    }
+    @Test void compilationAndFixtureEvaluationRemainSeparateFromAdmission() {
+        var compiler=new SkillCompiler(PlanningGoals.catalog(),GatewayPrimitives.instance(),ref->Optional.empty());
+        var result=compiler.compile(program());
+        var compiled=assertInstanceOf(SkillCompiler.Success.class,result,result.toString()).skill();
+        assertEquals(OakLogDelivery.ID,compiled.artifact().descriptor().ref().capability());
+        assertEquals(List.of("actor","amount","source","destination"),compiled.artifact().descriptor().parameters().stream().map(Parameter::name).toList());
+        assertTrue(compiled.artifact().descriptor().primitives().stream().anyMatch(p -> p.id().equals("cognitivecraft:harvest_next_oak_log")));
+        assertTrue(compiled.artifact().descriptor().dependencies().isEmpty(),"Standalone acquisition has no consumer dependency");
+        var unusedDependencies=new BoundedSkillExecutor.ArtifactSource() {
+            public Optional<SkillArtifact> body(ArtifactRef ref) { return Optional.empty(); }
+            public Optional<AdmissionRecord> admission(ArtifactRef ref) { return Optional.empty(); }
+            public Optional<Compatibility> compatibility(ArtifactRef ref) { return Optional.empty(); }
+        };
+        long deadline=CLOCK.millis()+600000;
+        var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+        for(var kind:Budgets.Kind.values())maxima.put(kind,20000L);
+        maxima.put(Budgets.Kind.INPUT_BYTES,40000L);maxima.put(Budgets.Kind.CALLS,512L);
+        maxima.put(Budgets.Kind.CANDIDATES,2L);maxima.put(Budgets.Kind.REPAIRS,1L);maxima.put(Budgets.Kind.TRIALS,1L);
+        var inference=new Budgets.InferenceLimits(new Budgets.Limits(Map.of(Budgets.Kind.CALLS,2L,
+                Budgets.Kind.INPUT_BYTES,40000L,Budgets.Kind.OUTPUT_BYTES,20000L),deadline),12000,8000);
+        var limits=new Budgets.ResearchLimits(inference,OakLogDelivery.executionLimits(CLOCK.millis()),
+                new Budgets.Limits(maxima,deadline));
+        var fixture=new CropFixtureRunner(unusedDependencies,PlanningGoals.catalog(),GatewayPrimitives.instance(),
+                (actor,ref,owner)->owner.equals(OWNER),Runnable::run,CLOCK);
+        var evidence=fixture.evaluate(compiled,bound(4),limits,new Budgets.Ledger(limits.total(),CLOCK),()->false)
+                .toCompletableFuture().join();
+        assertTrue(evidence.passed(),evidence.toString());assertEquals(2,evidence.cases());
+    }
+    @Test void everyExistingWheatPrimitiveFingerprintMatchesOriginalBaselineGolden() throws Exception {
+        try(var stream=ResourceDeliveryTest.class.getResourceAsStream("/rb001-wheat-primitives.json")) {
+            assertNotNull(stream);
+            var golden=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(stream,java.nio.charset.StandardCharsets.UTF_8))
+                    .getAsJsonObject().getAsJsonObject("fingerprints");
+            assertEquals(11,golden.size());
+            for(var entry:golden.entrySet())assertEquals(entry.getValue().getAsString(),
+                    GatewayPrimitives.instance().find(entry.getKey(),1).orElseThrow().fingerprint(),entry.getKey());
+        }
+    }
+}

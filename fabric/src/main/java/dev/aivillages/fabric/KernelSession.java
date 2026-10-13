@@ -174,8 +174,10 @@ public final class KernelSession implements AutoCloseable {
                         VersionedSkillRepository.Limits.defaults(), guard,
                         TrustedContext::equals, VersionedSkillRepository.FaultInjector.none());
                 var lookups = new CapabilityRetrievalIndex.LookupRegistry(
-                        Map.of("harvest wheat", CropDelivery.ID, "deliver wheat", CropDelivery.ID),
-                        Map.of(CropDelivery.ID, java.util.Set.of("farming", "wheat")), capabilities);
+                        Map.of("harvest wheat",CropDelivery.ID,"deliver wheat",CropDelivery.ID,
+                                "collect oak logs",OakLogDelivery.ID,"deliver oak logs",OakLogDelivery.ID),
+                        Map.of(CropDelivery.ID,java.util.Set.of("farming","wheat"),
+                                OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs")),capabilities);
                 retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
                         new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
@@ -334,7 +336,9 @@ public final class KernelSession implements AutoCloseable {
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
         leasedGateway = new LeasedGateway(gateway, leases,
-                (request, run) -> LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
+                (request, run) -> request.request().capability().equals(OakLogDelivery.ID)
+                        ? LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run)
+                        : LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
                 () -> server.overworld().getGameTime(), 1200, 200, 64, 512);
         var executor = new BoundedSkillExecutor(staging, capabilities, primitives,
                 CapabilityResolver.enrolledWorldSkills(control), grants, runControl, leasedGateway,
@@ -462,7 +466,18 @@ public final class KernelSession implements AutoCloseable {
                                     return run.interrupt(owner);
                                 }
                             }, null);
-                }}, environment, capabilities, this::researchLimits, this::executionLimits, clock, citizens, jobs);
+                }}, environment, capabilities,new BootstrapController.ResearchBudget() {
+                    public Budgets.ResearchLimits issue(long now) { return researchLimits(now); }
+                    public Budgets.ResearchLimits issue(CapabilityId capability,long now) {
+                        var base=researchLimits(now);
+                        return capability.equals(OakLogDelivery.ID) ? OakLogDelivery.researchLimits(now,base) : base;
+                    }
+                },new BootstrapController.ExecutionBudget() {
+                    public Budgets.ExecutionLimits issue(long now) { return executionLimits(now); }
+                    public Budgets.ExecutionLimits issue(CapabilityId capability,long now) {
+                        return capability.equals(OakLogDelivery.ID) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
+                    }
+                },clock,citizens,jobs);
         controller.evidenceSink(loaded.retentionService()::offer);
         publishRoots("bootstrap", controller.retentionRoots());
         publishRoots("research", java.util.Set.of());
@@ -476,7 +491,7 @@ public final class KernelSession implements AutoCloseable {
                 new BoundedSkillExecutor.Settings(8,16,32,64));
         dispatcher=new WorkerDispatcher(jobs,citizens,this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
-                job->job.request().request().capability().equals(CropDelivery.ID) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
+                job->ResourceDelivery.isDelivery(job.request().request().capability()) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
@@ -509,9 +524,8 @@ public final class KernelSession implements AutoCloseable {
 
     private FabricGatewayWorld gatewayWorld() { return worldAccess; }
     private long sourceCells(Cuboid source) {
-        return ((long)source.maxX() - source.minX() + 1)
-                * ((long)source.maxY() - source.minY() + 1)
-                * ((long)source.maxZ() - source.minZ() + 1);
+        return Math.multiplyExact(Math.multiplyExact((long)source.maxX()-source.minX()+1,
+                (long)source.maxY()-source.minY()+1),(long)source.maxZ()-source.minZ()+1);
     }
     private ObservationSnapshot observe(CapabilityRequest request, ActorRef actor) {
         Cuboid area = ((AreaValue)request.arguments().get("source")).value();
@@ -522,11 +536,14 @@ public final class KernelSession implements AutoCloseable {
         for (long x = area.minX(); x <= area.maxX(); x++)
             for (long y = area.minY(); y <= area.maxY(); y++)
                 for (long z = area.minZ(); z <= area.maxZ(); z++) {
-                    var crop = world.crop(new SurvivalGateway.Cell(area.dimension(),
-                            (int)x, (int)y, (int)z));
+                    var cell=new SurvivalGateway.Cell(area.dimension(),(int)x,(int)y,(int)z);
+                    if(request.capability().equals(OakLogDelivery.ID)
+                            && !world.discoverable(actor,new BlockPos((int)x,(int)y,(int)z),Effect.HARVEST)) { scanned++;unknown++;continue; }
+                    var block=world.resourceBlock(cell,request.capability().equals(OakLogDelivery.ID)
+                            ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT);
                     scanned++;
-                    if (crop.status() == ObservationStatus.UNKNOWN) unknown++;
-                    else if (crop.matureWheat()) mature++;
+                    if (block.status() == ObservationStatus.UNKNOWN) unknown++;
+                    else if (block.eligible()) mature++;
                 }
         long tick = server.overworld().getGameTime();
         String identity = "source:" + UUID.nameUUIDFromBytes(
@@ -535,7 +552,7 @@ public final class KernelSession implements AutoCloseable {
                 actor.dimension()), unknown > 0 ? ObservationStatus.UNKNOWN
                         : mature > 0 ? ObservationStatus.PRESENT : ObservationStatus.ABSENT,
                 identity, tick, scanned,
-                Map.of("mature_wheat", mature, "unknown_cells", unknown));
+                Map.of(request.capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat", mature, "unknown_cells", unknown));
     }
 
     private Budgets.ResearchLimits researchLimits(long now) {
@@ -711,6 +728,14 @@ public final class KernelSession implements AutoCloseable {
     }
     public BootstrapController.Submission harvest(ServerPlayer player, UUID actorId, int amount,
             int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
+        return delivery(CropDelivery.ID,player,actorId,amount,x1,y1,z1,x2,y2,z2,cx,cy,cz);
+    }
+    public BootstrapController.Submission gatherOak(ServerPlayer player, UUID actorId, int amount,
+            int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
+        return delivery(OakLogDelivery.ID,player,actorId,amount,x1,y1,z1,x2,y2,z2,cx,cy,cz);
+    }
+    private BootstrapController.Submission delivery(CapabilityId capability,ServerPlayer player, UUID actorId, int amount,
+            int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
         ready();
         TrustedContext owner = caller(player);
         var enrolled = citizens.find(actorId);
@@ -730,7 +755,7 @@ public final class KernelSession implements AutoCloseable {
             if (sourceCells(source) > 256)
                 return new BootstrapController.Submission(UUID.randomUUID(), false,
                         Reason.REQUEST_INVALID);
-            request = new CapabilityRequest(CropDelivery.ID, Map.of(
+            request = new CapabilityRequest(capability, Map.of(
                     "actor", new ActorValue(actor), "amount", new IntValue(amount),
                     "source", new AreaValue(source),
                     "destination", new ContainerValue(new ContainerRef(actor.dimension(),
@@ -749,6 +774,17 @@ public final class KernelSession implements AutoCloseable {
         var entity = villager(actor);
         if (entity == null || entity.level() != player.level())
             return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.ACTOR_UNAVAILABLE);
+        if(request.capability().equals(OakLogDelivery.ID)) {
+            var area=((AreaValue)request.arguments().get("source")).value();
+            if(sourceCells(area)>256) return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+            var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
+            var access=gatewayWorld();
+            var sourceDenied=access.permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(area.dimension(),area.minX(),area.minY(),area.minZ()));
+            if(sourceDenied!=null) return new BootstrapController.Submission(UUID.randomUUID(),false,sourceDenied);
+            var box=((ContainerValue)request.arguments().get("destination")).value();
+            var denied=access.permit(bound,Effect.TRANSFER,new SurvivalGateway.Cell(box.dimension(),box.x(),box.y(),box.z()));
+            if(denied!=null) return new BootstrapController.Submission(UUID.randomUUID(),false,denied);
+        }
         // Commands precede the end-of-tick dispatcher. Acknowledge completed owner
         // publication before admission so the next background write cannot starve it.
         jobs.tick();
@@ -822,9 +858,11 @@ public final class KernelSession implements AutoCloseable {
         if (citizens.snapshot().citizens().stream().noneMatch(c -> c.owner().equals(owner)))
             throw new SecurityException("This kernel catalog requires an enrolled citizen in your scope");
         var page = loaded.repository().page(CropDelivery.ID, "", 8);
+        var oak=loaded.repository().page(OakLogDelivery.ID,"",8);
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
+                + " oakCatalog="+oak.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " revision=" + page.revision() + " recentModelCalls=" + controller.modelCalls(owner)
                 + " inference=" + controller.inferenceEnabled();
     }

@@ -19,6 +19,8 @@ public final class LeasePrerequisiteSupplies implements Supplies {
         UUID world=need.origin().scope().worldId();
         if(item.equals("minecraft:wheat") && arguments.get("destination") instanceof ContainerValue destination)
             resource=ResourceLeases.Resource.stock(world,destination.value());
+        else if(item.equals("minecraft:oak_log") && arguments.get("destination") instanceof ContainerValue destination)
+            resource=ResourceLeases.Resource.oakStock(world,destination.value());
         else if(item.equals("minecraft:mature_wheat") && arguments.get("source") instanceof AreaValue source)
             resource=ResourceLeases.Resource.crops(world,source.value());
         else return new Supply(item,ObservationStatus.UNKNOWN,0,"unsupported-accounting",need.bound().observation(),

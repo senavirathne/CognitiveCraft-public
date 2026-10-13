@@ -27,8 +27,8 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
 
     private Stage stage;
     private Attempt<WorldReferenceDiscovery.CitizenTarget> actorAttempt;
-    private Attempt<WorldReferenceDiscovery.WheatField> sourceAttempt;
-    private Attempt<WorldReferenceDiscovery.ContainerTarget> destinationAttempt;
+    private Attempt<WorldReferenceDiscovery.SourceArea> sourceAttempt;
+    private Attempt<WorldReferenceDiscovery.ItemContainerTarget> destinationAttempt;
     private ActorRef actor;
     private Cuboid source;
     private ContainerRef destination;
@@ -41,9 +41,9 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private boolean cancelled;
     private LanguageRequests.Resolution terminal;
     private final Allowance allowance = new Allowance(TOTAL_WORK);
-    private WorldReferenceDiscovery.WheatField sourceEvidence;
-    private WorldReferenceDiscovery.ContainerSample destinationEvidence;
-    private WorldReferenceDiscovery.FieldValidation sourceValidation;
+    private WorldReferenceDiscovery.SourceArea sourceEvidence;
+    private WorldReferenceDiscovery.ItemContainerSample destinationEvidence;
+    private WorldReferenceDiscovery.SourceValidation sourceValidation;
     private boolean sourceValidated;
     private SurvivalGateway.ActorState observedActor;
     private int initialWork;
@@ -195,19 +195,20 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         }
         automaticSource = true;
         Registry registry = new Registry();
-        registry.register(Kind.AREA, WHEAT_REGION,
-                search -> WorldReferenceDiscovery.wheat(actor, Math.toIntExact(harvest.amount()), actorAnchor, world));
-        sourceAttempt = registry.start(search(Kind.AREA, actorAnchor, WHEAT_REGION), clock.millis(), allowance);
+        Criteria sourceCriteria=harvest.capability().equals(OakLogDelivery.ID) ? new Criteria("cognitivecraft:oak_log_region") : WHEAT_REGION;
+        registry.register(Kind.AREA, sourceCriteria,
+                search -> WorldReferenceDiscovery.sources(harvest.capability(),actor,Math.toIntExact(harvest.amount()),actorAnchor,world));
+        sourceAttempt = registry.start(search(Kind.AREA, actorAnchor, sourceCriteria), clock.millis(), allowance);
         stage = Stage.SOURCE;
     }
 
     private LanguageRequests.Resolution pollSource() {
-        Result<WorldReferenceDiscovery.WheatField> result = sourceAttempt.poll(clock.millis(),pollAllowance);
+        Result<WorldReferenceDiscovery.SourceArea> result = sourceAttempt.poll(clock.millis(),pollAllowance);
         if (result.phase() == Phase.RESOLVING)
-            return LanguageRequests.Resolution.pending("Scanning bounded loaded area for nearest eligible wheat field");
+            return LanguageRequests.Resolution.pending("Scanning bounded loaded area for nearest eligible source area");
         if (result.phase() != Phase.RESOLVED)
             return fail(result.reason() == null ? Reason.RESOURCE_MISSING : result.reason(),
-                    "No sufficient eligible loaded wheat field found");
+                    "No sufficient eligible loaded source area found");
         sourceEvidence = result.value();
         source = sourceEvidence.area();
         sourceAnchor = areaAnchor(source);
@@ -233,16 +234,17 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         }
         automaticDestination = true;
         Registry registry = new Registry();
-        registry.register(Kind.CONTAINER, WHEAT_CONTAINER,
-                search -> WorldReferenceDiscovery.containers(actor, Math.toIntExact(harvest.amount()), sourceAnchor, world));
+        Criteria targetCriteria=harvest.capability().equals(OakLogDelivery.ID) ? new Criteria("cognitivecraft:oak_log_container") : WHEAT_CONTAINER;
+        registry.register(Kind.CONTAINER, targetCriteria,
+                search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),sourceAnchor,world));
         destinationAttempt = registry.start(search(
-                Kind.CONTAINER, sourceAnchor, WHEAT_CONTAINER), clock.millis(), allowance);
+                Kind.CONTAINER, sourceAnchor, targetCriteria), clock.millis(), allowance);
         stage = Stage.DESTINATION;
     }
 
     private LanguageRequests.Resolution pollDestination() {
         if (automaticDestination) {
-            Result<WorldReferenceDiscovery.ContainerTarget> result = destinationAttempt.poll(clock.millis(),pollAllowance);
+            Result<WorldReferenceDiscovery.ItemContainerTarget> result = destinationAttempt.poll(clock.millis(),pollAllowance);
             if (result.phase() == Phase.RESOLVING)
                 return LanguageRequests.Resolution.pending(
                         "Scanning bounded loaded area for nearest sufficient container");
@@ -263,7 +265,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             return fail(Reason.STALE_OBSERVATION, "Citizen availability changed");
         if (automaticSource && !sourceValidated) {
             if (sourceValidation == null)
-                sourceValidation = new WorldReferenceDiscovery.FieldValidation(sourceEvidence,actor,world);
+                sourceValidation = new WorldReferenceDiscovery.SourceValidation(sourceEvidence,actor,world);
             int units = (int)Math.min(WORK_PER_POLL - 1, allowance.remaining());
             if (units == 0) return fail(Reason.BUDGET_EXHAUSTED,"Final source validation work exhausted");
             var checked = sourceValidation.poll(units); allowance.debit(checked.work());
@@ -277,12 +279,12 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             return fail(Reason.BUDGET_EXHAUSTED,"Final destination validation work exhausted");
         allowance.debit(1);
         if (automaticDestination) {
-            var current = world.container(actor,destination); allowance.debit(current.slotsInspected()+1);
-            if (current.status() != ObservationStatus.PRESENT || current.wheatCapacity() < harvest.amount()
+            var current = world.itemContainer(actor,destination,harvest.capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT); allowance.debit(current.slotsInspected()+1);
+            if (current.status() != ObservationStatus.PRESENT || current.capacity() < harvest.amount()
                     || !current.equals(destinationEvidence))
                 return fail(Reason.STALE_OBSERVATION,"Selected automatic container changed");
         }
-        CapabilityRequest request = new CapabilityRequest(CropDelivery.ID, Map.of(
+        CapabilityRequest request = new CapabilityRequest(harvest.capability(), Map.of(
                 "actor", new ActorValue(actor), "amount", new IntValue(harvest.amount()),
                 "source", new AreaValue(source), "destination", new ContainerValue(destination)));
         terminal = LanguageRequests.Resolution.request(request); stage = Stage.COMPLETE;

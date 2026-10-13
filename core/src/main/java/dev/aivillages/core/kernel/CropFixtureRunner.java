@@ -70,7 +70,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
         String fact = skill.artifact().descriptor().ref().sha256() + ":" + small.request()
                 + ":" + changed.request() + ":two-custody-cases";
         return new ResearchAdmissionController.FixtureEvidence(true,
-                new EvidenceRef(sha256(fact), "crop-fixture:1",
+                new EvidenceRef(sha256(fact), bound.request().capability().equals(OakLogDelivery.ID) ? "resource-fixture:1" : "crop-fixture:1",
                         bound.context().scope().worldId().toString()),
                 null, cases, Math.min(4_096, usage.snapshot().getOrDefault(
                         Kind.INSTRUCTIONS, 0L) - before));
@@ -186,28 +186,30 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             if (action == null || action.operation() == null)
                 return receipt(handle, Reason.UNSUPPORTED_PRIMITIVE);
             Map<String, Value> args = action.arguments();
+            if(action.operation()!=Operation.MOVE_TO_DESTINATION && action.operation().oak()!=oak())
+                return receipt(handle,Reason.REQUEST_INVALID);
             if (!bound.request().arguments().get("actor").equals(args.get("actor")))
                 return receipt(handle, Reason.AUTHORITY_DENIED);
             try {
                 return switch (action.operation()) {
-                    case OBSERVE_SOURCE -> {
+                    case OBSERVE_SOURCE, OBSERVE_OAK_SOURCE -> {
                         usage.debit(Kind.OBSERVATIONS, 1);
                         if (!bound.request().arguments().get("source").equals(args.get("source")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         yield observed(handle, standing, "source");
                     }
-                    case OBSERVE_INVENTORY -> {
+                    case OBSERVE_INVENTORY, OBSERVE_OAK_INVENTORY -> {
                         usage.debit(Kind.OBSERVATIONS, 1);
                         yield observed(handle, carried.stream().mapToInt(Drop::count).sum(), "inventory");
                     }
-                    case OBSERVE_CONTAINER -> {
+                    case OBSERVE_CONTAINER, OBSERVE_OAK_CONTAINER -> {
                         usage.debit(Kind.OBSERVATIONS, 1);
                         if (!bound.request().arguments().get("destination").equals(args.get("destination")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         yield observed(handle, delivered, "container");
                     }
-                    case HARVEST_NEXT_WHEAT, HARVEST_WHEAT -> {
-                        if (action.operation() == Operation.HARVEST_NEXT_WHEAT
+                    case HARVEST_NEXT_WHEAT, HARVEST_WHEAT, HARVEST_NEXT_OAK_LOG -> {
+                        if ((action.operation() == Operation.HARVEST_NEXT_WHEAT || action.operation()==Operation.HARVEST_NEXT_OAK_LOG)
                                 ? !bound.request().arguments().get("source").equals(args.get("source"))
                                 : !atSource(args)) yield receipt(handle, Reason.TARGET_INVALID);
                         if (standing == 0) yield receipt(handle, Reason.RESOURCE_MISSING);
@@ -218,7 +220,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         ground.add(drop);
                         yield effect(action, drop, CropDelivery.Stage.HARVEST, 1);
                     }
-                    case PICKUP_TRACKED_WHEAT, PICKUP_WHEAT -> {
+                    case PICKUP_TRACKED_WHEAT, PICKUP_WHEAT, PICKUP_TRACKED_OAK_LOGS -> {
                         if (action.operation() == Operation.PICKUP_WHEAT && !atSource(args))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         if (ground.isEmpty()) yield receipt(handle, Reason.RESOURCE_MISSING);
@@ -228,7 +230,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         carried.add(drop);
                         yield effect(action, drop, CropDelivery.Stage.PICKUP, drop.count());
                     }
-                    case TRANSFER_WHEAT -> {
+                    case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> {
                         if (!bound.request().arguments().get("destination").equals(args.get("destination")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         long requested = ((IntValue)args.get("amount")).value();
@@ -237,21 +239,23 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         usage.debit(Kind.ATTEMPTED_EFFECTS, 1);
                         usage.debit(Kind.COMMITTED_EFFECTS, 1);
                         List<CropDelivery.CropReceipt> records = new ArrayList<>();
+                        List<ResourceDelivery.Receipt> resources=new ArrayList<>();
                         long left = requested;
                         while (left > 0) {
                             Drop drop = carried.remove();
                             int count = (int)Math.min(left, drop.count());
-                            records.add(crop(action, drop.batch(), CropDelivery.Stage.DEPOSIT, count));
+                            if(oak()) resources.add(resource(action,drop.batch(),CropDelivery.Stage.DEPOSIT,count));
+                            else records.add(crop(action, drop.batch(), CropDelivery.Stage.DEPOSIT, count));
                             if (count < drop.count())
                                 carried.addFirst(new Drop(drop.batch(), drop.count() - count));
                             left -= count;
                         }
                         delivered += requested;
                         yield new ActionReceipt(handle, true, 1, records, null,
-                                new IntValue(requested), null);
+                                new IntValue(requested), null,resources);
                     }
-                    case MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION -> {
-                        if (action.operation() == Operation.MOVE_TO_SOURCE
+                    case MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION, APPROACH_OAK_LOG -> {
+                        if ((action.operation() == Operation.MOVE_TO_SOURCE || action.operation()==Operation.APPROACH_OAK_LOG)
                                 && !bound.request().arguments().get("source").equals(args.get("source")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         if (action.operation() == Operation.MOVE_TO_DESTINATION
@@ -275,11 +279,21 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             return new ActionReceipt(handle, true, 0, List.of(), null, new IntValue(count),
                     new ObservationSnapshot(bound.observation(), count > 0
                             ? ObservationStatus.PRESENT : ObservationStatus.ABSENT,
-                            target, 0, 1, Map.of("wheat", count)));
+                            target, 0, 1, Map.of(oak() ? "oak_logs" : "wheat", count)));
         }
         private ActionReceipt effect(Action action, Drop drop, CropDelivery.Stage stage, int count) {
+            if(oak()) return new ActionReceipt(action.handle(),true,1,List.of(),null,new IntValue(count),null,
+                    List.of(resource(action,drop.batch(),stage,count)));
             return new ActionReceipt(action.handle(), true, 1,
                     List.of(crop(action, drop.batch(), stage, count)), null, new IntValue(count), null);
+        }
+        private boolean oak() { return bound.request().capability().equals(OakLogDelivery.ID); }
+        private ResourceDelivery.Receipt resource(Action action,UUID batch,CropDelivery.Stage stage,int count) {
+            var a=bound.request().arguments(); var source=((AreaValue)a.get("source")).value();
+            return new ResourceDelivery.Receipt(UUID.randomUUID(),bound.context(),action.run().runId(),action.handle().id(),batch,
+                    ((ActorValue)a.get("actor")).value(),source,((ContainerValue)a.get("destination")).value(),ResourceDelivery.OAK_LOG,
+                    ResourceDelivery.Stage.valueOf(stage.name()),count,
+                    new ResourceDelivery.BlockPosition(source.dimension(),source.minX(),source.minY(),source.minZ()),List.of(batch));
         }
         private CropDelivery.CropReceipt crop(Action action, UUID batch, CropDelivery.Stage stage,
                                               int count) {

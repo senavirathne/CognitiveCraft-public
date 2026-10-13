@@ -1,0 +1,17 @@
+{
+  "source": "bf6b985d3d37c4a1529ae31723bc672f96e69ac2",
+  "derivation": "original gateway-v1 canonical contracts; verification occurs only in Actions",
+  "fingerprints": {
+    "cognitivecraft:observe_source": "0e9a3e4bdfc06b27a7f175ff3a6fd211cd8cb7227b9fcdd9ee60ede877217acd",
+    "cognitivecraft:observe_inventory": "0abeb2c98c49f0b1b487ed42859de3b2dc12b3af3a50bd5092196d62317cd082",
+    "cognitivecraft:observe_container": "cd3da4a55793ce7b9fa07bfa026d4f06bb5965c1d351cd243a0b0d3b1a7dedec",
+    "cognitivecraft:move": "eb12e4b9520319f957219ae6ccedecf17e839e8ccdd51a0a1cf8384d70f81c3a",
+    "cognitivecraft:move_to_source": "5da76bf5d1a475c59df76bd2f746eea685dd9d3424a1743c423e389d11caffa8",
+    "cognitivecraft:move_to_destination": "547692989054ba7a4aa135e0346cf68276407fc0130b11df5e8aaf7646307af4",
+    "cognitivecraft:harvest_wheat": "5839eedd9470427e7298dceec713db9498444b748affcc66052e41ed5c1b5e09",
+    "cognitivecraft:harvest_next_wheat": "1494d2f5b47b9099707deecae9d39b4ce226d0729121d1675e6ae5570b78a877",
+    "cognitivecraft:pickup_wheat": "0564b6ce4481c724303d265180dbe0c00b850207fd897e8ac7b5b6346d979c00",
+    "cognitivecraft:pickup_tracked_wheat": "864edd42a10b314117f33f8bc83b42637ae18322a9d948ea461151329630f802",
+    "cognitivecraft:transfer_wheat": "33e01b01c0151b2bc463f9b8b478666321281f1fb9de33c82f5bf1dd6c89f9e9"
+  }
+}

@@ -72,25 +72,40 @@ public final class Jobs {
                           Budgets.Limits allowance, List<ExecutionReference> executions,
                           Map<Budgets.Kind, Long> usage, List<CropDelivery.CropReceipt> receipts,
                           long effects, long credited, Execution terminal, boolean uncertain,
-                          int cancellationDeliveries) {
+                          int cancellationDeliveries, List<ResourceDelivery.Receipt> resourceReceipts) {
+        public Attempt(UUID id, long generation, ActorRef worker, ValidatedRequest bound,
+                       Budgets.Limits allowance, List<ExecutionReference> executions,
+                       Map<Budgets.Kind, Long> usage, List<CropDelivery.CropReceipt> receipts,
+                       long effects, long credited, Execution terminal, boolean uncertain, int cancellationDeliveries) {
+            this(id, generation, worker, bound, allowance, executions, usage, receipts, effects,
+                    credited, terminal, uncertain, cancellationDeliveries, List.of());
+        }
         public Attempt {
             Objects.requireNonNull(id); Objects.requireNonNull(worker); Objects.requireNonNull(bound);
             Objects.requireNonNull(allowance);
             executions = List.copyOf(executions); receipts = List.copyOf(receipts);
+            resourceReceipts = List.copyOf(resourceReceipts);
             usage = Jobs.usage(usage);
-            if (generation < 1 || executions.size() > 8 || receipts.size() > 64
+            if (generation < 1 || executions.size() > 8 || receipts.size() + resourceReceipts.size() > 64
                     || effects < 0 || credited < 0 || cancellationDeliveries < 0
                     || cancellationDeliveries > 2
                     || !(bound.request().arguments().get("actor") instanceof ActorValue actor)
                     || !actor.value().equals(worker)
                     || executions.stream().map(ExecutionReference::runId).distinct().count() != executions.size()
-                    || receipts.stream().map(CropDelivery.CropReceipt::receiptId).distinct().count() != receipts.size())
+                    || receipts.stream().map(CropDelivery.CropReceipt::receiptId).distinct().count() != receipts.size()
+                    || resourceReceipts.stream().map(ResourceDelivery.Receipt::receiptId).distinct().count() != resourceReceipts.size()
+                    )
                 throw new IllegalArgumentException("Assignment bounds");
+            Set<UUID> receiptIds = new HashSet<>();
+            for (var r : receipts) receiptIds.add(r.receiptId());
+            for (var r : resourceReceipts) if (!receiptIds.add(r.receiptId()))
+                throw new IllegalArgumentException("Receipt identity reused across forms");
             for (var entry : usage.entrySet())
                 if (entry.getValue() > allowance.maximum(entry.getKey()))
                     throw new IllegalArgumentException("Assignment allowance");
         }
         public boolean open() { return terminal == null || uncertain; }
+        public int receiptCount() { return receipts.size() + resourceReceipts.size(); }
     }
     public record Job(UUID id, UUID submissionId, long revision, ValidatedRequest request,
                       UUID parent, List<UUID> dependencies, List<UUID> children,
@@ -108,7 +123,7 @@ public final class Jobs {
                     || new HashSet<>(children).size() != children.size()
                     || dependencies.contains(id) || children.contains(id)
                     || attempts.stream().map(Attempt::id).distinct().count() != attempts.size()
-                    || attempts.stream().mapToInt(a -> a.receipts().size()).sum() > 64
+                    || attempts.stream().mapToInt(Attempt::receiptCount).sum() > 64
                     || attempts.stream().filter(Attempt::open).count() > 1
                     || attempts.stream().anyMatch(a -> a.generation() > generation
                             || !a.bound().context().equals(request.context())
@@ -194,10 +209,15 @@ public final class Jobs {
     /** Trusted owner data; never decoded from a player command, model or Skill IR. */
     public record Report(UUID attemptId, long generation, long effects,
                          Map<Budgets.Kind, Long> usage, List<CropDelivery.CropReceipt> receipts,
-                         Execution terminal) {
+                         Execution terminal, List<ResourceDelivery.Receipt> resourceReceipts) {
+        public Report(UUID attemptId, long generation, long effects, Map<Budgets.Kind, Long> usage,
+                      List<CropDelivery.CropReceipt> receipts, Execution terminal) {
+            this(attemptId, generation, effects, usage, receipts, terminal, List.of());
+        }
         public Report {
             Objects.requireNonNull(attemptId); usage = Jobs.usage(usage); receipts = List.copyOf(receipts);
-            if (generation < 1 || effects < 0 || receipts.size() > 64)
+            resourceReceipts = List.copyOf(resourceReceipts);
+            if (generation < 1 || effects < 0 || receipts.size() + resourceReceipts.size() > 64)
                 throw new IllegalArgumentException("Owner report bounds");
         }
     }

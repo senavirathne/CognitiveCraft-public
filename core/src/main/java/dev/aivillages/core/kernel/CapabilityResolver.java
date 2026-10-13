@@ -44,6 +44,7 @@ public final class CapabilityResolver {
         return spec -> spec.equals(CropDelivery.SPEC)
                 ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,
                         Set.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
+                : spec.equals(OakLogDelivery.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE, OakLogDelivery.SPEC.effects())
                 : new Envelope(Domain.UNSUPPORTED, Set.of());
     }
 
@@ -175,7 +176,11 @@ public final class CapabilityResolver {
             for (Effect required : Effect.values()) {
                 if (!envelope.unavoidableEffects().contains(required)) continue;
                 boolean present = false;
-                for (PrimitiveSignature signature : GatewayPrimitives.instance().all()) {
+                for (GatewayPrimitives.Operation operation : GatewayPrimitives.Operation.values()) {
+                    if (spec.id().equals(CropDelivery.ID) && operation.oak()
+                            || spec.id().equals(OakLogDelivery.ID) && !operation.oak()
+                            && operation != GatewayPrimitives.Operation.MOVE_TO_DESTINATION) continue;
+                    PrimitiveSignature signature = operation.signature();
                     if (signature.effects().contains(required) && primitives.find(signature.id(),
                             signature.version()).filter(actual -> actual.equals(signature)).isPresent()) {
                         present = true;
@@ -190,7 +195,7 @@ public final class CapabilityResolver {
                 return decision(ResolutionStatus.BLOCKED, Reason.STALE_OBSERVATION, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);
             // An inspected source with no mature crop cannot support this completion predicate.
-            if (spec.id().equals(CropDelivery.ID) && snapshot.status() == ObservationStatus.ABSENT)
+            if (ResourceDelivery.isDelivery(spec.id()) && snapshot.status() == ObservationStatus.ABSENT)
                 return decision(ResolutionStatus.BLOCKED, Reason.RESOURCE_MISSING, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);
 
@@ -271,8 +276,8 @@ public final class CapabilityResolver {
                     }) || !(input.arguments().get("actor") instanceof ActorValue actor)
                     || !actor.value().dimension().equals(request.observation().dimension()))
                 throw new IllegalArgumentException("REQUEST_INVALID");
-            if (spec.id().equals(CropDelivery.ID)) {
-                if (!spec.equals(CropDelivery.SPEC)
+            if (ResourceDelivery.isDelivery(spec.id())) {
+                if (!ResourceDelivery.spec(spec.id()).filter(spec::equals).isPresent()
                         || !(input.arguments().get("source") instanceof AreaValue area)
                         || !(input.arguments().get("destination") instanceof ContainerValue target)
                         || !area.value().dimension().equals(actor.value().dimension())
@@ -286,7 +291,7 @@ public final class CapabilityResolver {
             if (!snapshot.reference().equals(request.observation())
                     || snapshot.status() == ObservationStatus.UNKNOWN || now < snapshot.observedTick()
                     || now - snapshot.observedTick() > limits.maxObservationAgeTicks()) return false;
-            if (!request.request().capability().equals(CropDelivery.ID)) return true;
+            if (!ResourceDelivery.isDelivery(request.request().capability())) return true;
             Cuboid source = ((AreaValue) request.request().arguments().get("source")).value();
             String expected = "source:" + java.util.UUID.nameUUIDFromBytes(
                     source.toString().getBytes(StandardCharsets.UTF_8));

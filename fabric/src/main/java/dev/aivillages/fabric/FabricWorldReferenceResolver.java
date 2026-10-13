@@ -34,6 +34,25 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                     return new SurvivalGateway.CropState(ObservationStatus.UNKNOWN,false,cell.identity());
                 return world.crop(cell);
             }
+            @Override public SurvivalGateway.ItemBlock itemBlock(ActorRef actor,Point point,dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
+                if(!item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG))
+                    return WorldReferenceDiscovery.Observation.super.itemBlock(actor,point,item);
+                var cell=new SurvivalGateway.Cell(point.dimension(),point.x(),point.y(),point.z());
+                var pos=new BlockPos(point.x(),point.y(),point.z());
+                if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.HARVEST))
+                    return new SurvivalGateway.ItemBlock(ObservationStatus.UNKNOWN,false,cell.identity(),0);
+                return world.resourceBlock(cell,item);
+            }
+            @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
+                    dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
+                if(!item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG))
+                    return WorldReferenceDiscovery.Observation.super.itemContainer(actor,target,item);
+                var pos=new BlockPos(target.x(),target.y(),target.z());
+                if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
+                    return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
+                var c=world.inspectOakContainer(target);
+                return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
+            }
             @Override public WorldReferenceDiscovery.ContainerSample container(ActorRef actor, ContainerRef target) {
                 BlockPos pos = new BlockPos(target.x(),target.y(),target.z());
                 if (!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))

@@ -59,16 +59,23 @@ public final class BootstrapController {
     }
     @FunctionalInterface public interface ResearchBudget {
         Budgets.ResearchLimits issue(long nowMillis);
+        default Budgets.ResearchLimits issue(CapabilityId capability,long nowMillis) { return issue(nowMillis); }
     }
     @FunctionalInterface public interface ExecutionBudget {
         Budgets.ExecutionLimits issue(long nowMillis);
+        default Budgets.ExecutionLimits issue(CapabilityId capability,long nowMillis) { return issue(nowMillis); }
     }
     public enum Phase { PERSISTING, ROUTING, RESEARCHING, EXECUTING, TERMINAL }
     public record Submission(UUID id, boolean accepted, Reason reason) { }
     public record View(UUID id, Phase phase, BootstrapJournal.RunMarker marker,
                        Resolution routing, Outcomes.Execution outcome, Outcomes.Research research,
-                       List<CropDelivery.CropReceipt> receipts, Reason storageError) {
-        public View { receipts = List.copyOf(receipts); }
+                       List<CropDelivery.CropReceipt> receipts, Reason storageError,
+                       List<ResourceDelivery.Receipt> resourceReceipts) {
+        public View(UUID id,Phase phase,BootstrapJournal.RunMarker marker,Resolution routing,
+                    Outcomes.Execution outcome,Outcomes.Research research,List<CropDelivery.CropReceipt> receipts,Reason storageError) {
+            this(id,phase,marker,routing,outcome,research,receipts,storageError,List.of());
+        }
+        public View { receipts = List.copyOf(receipts); resourceReceipts=List.copyOf(resourceReceipts); }
     }
     private record Written(BootstrapJournal.State state, Throwable error, Runnable after,
                            long completedMillis, BootstrapJournal.State expectedNext) { }
@@ -232,8 +239,8 @@ public final class BootstrapController {
         if (jobs != null) {
             try {
                 long now = clock.millis();
-                run.researchLimits = researchBudget.issue(now);
-                run.executionLimits = executionBudget.issue(now);
+                run.researchLimits = researchBudget.issue(run.request.capability(),now);
+                run.executionLimits = executionBudget.issue(run.request.capability(),now);
                 var maxima = new java.util.EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
                 maxima.putAll(run.researchLimits.total().maxima());
                 run.executionLimits.total().maxima().forEach((kind, maximum) -> maxima.merge(kind, maximum, Math::max));
@@ -276,7 +283,7 @@ public final class BootstrapController {
                         Runnable begin = () -> {
                             if (run.cancelPending) { terminate(run, "CANCELLED", Reason.CANCELLED); return; }
                             run.research = research.start(decision, run.bound, jobs == null
-                                    ? researchBudget.issue(clock.millis()) : run.researchLimits);
+                                    ? researchBudget.issue(run.request.capability(),clock.millis()) : run.researchLimits);
                             run.phase = Phase.RESEARCHING;
                         };
                         if (jobs == null) begin.run();
@@ -319,7 +326,7 @@ public final class BootstrapController {
         }
         if (run.cancelPending) { terminate(run, "CANCELLED", Reason.CANCELLED); return; }
         try {
-            Budgets.ExecutionLimits limits = jobs == null ? executionBudget.issue(clock.millis()) : run.executionLimits;
+            Budgets.ExecutionLimits limits = jobs == null ? executionBudget.issue(run.request.capability(),clock.millis()) : run.executionLimits;
             Execution.Start result = execution.start(run.bound, ref, run.id, limits,
                     new Budgets.Ledger(limits.total(), clock));
             if (result.rejected() != null) terminate(run, "BLOCKED", result.rejected());
@@ -376,7 +383,7 @@ public final class BootstrapController {
         if (active == null) {
             List<View> snapshots = recent.stream().map(view -> view.phase() != Phase.PERSISTING
                     ? view : new View(view.id(), Phase.TERMINAL, view.marker(), view.routing(),
-                            view.outcome(), view.research(), view.receipts(), Reason.STORAGE_UNAVAILABLE))
+                            view.outcome(), view.research(), view.receipts(), Reason.STORAGE_UNAVAILABLE,view.resourceReceipts()))
                     .toList();
             recent.clear(); recent.addAll(snapshots);
             return;
@@ -385,13 +392,13 @@ public final class BootstrapController {
         if (active.phase == Phase.EXECUTING) {
             var progress = active.execution.interrupt(active.owner);
             active.effects = progress.summary().committedEffects();
-            active.receipts = progress.summary().receipts();
+            active.receipts = progress.summary().receipts(); active.resourceReceipts=progress.summary().resourceReceipts();
             active.executionOutcome = progress.summary().outcome();
         }
         if (active.phase == Phase.RESEARCHING) {
             var status = active.research.cancel(active.owner);
             active.effects = status.committedEffects();
-            active.receipts = status.receipts();
+            active.receipts = status.receipts(); active.resourceReceipts=status.resourceReceipts();
             active.researchOutcome = status.outcome();
         }
         active.phase = Phase.TERMINAL;
@@ -401,7 +408,7 @@ public final class BootstrapController {
         captureResearch(run, run.research.tick(run.owner));
     }
     private void captureResearch(Run run, ResearchAdmissionController.Status status) {
-        run.effects = status.committedEffects(); run.receipts = status.receipts(); run.usage = status.usage();
+        run.effects = status.committedEffects(); run.receipts = status.receipts(); run.resourceReceipts=status.resourceReceipts(); run.usage = status.usage();
         if (status.phase() != ResearchAdmissionController.Phase.TERMINAL) return;
         run.researchOutcome = status.outcome();
         run.calls = status.outcome().modelCalls();
@@ -411,7 +418,7 @@ public final class BootstrapController {
     private void advanceExecution(Run run) {
         BoundedSkillExecutor.Progress progress = run.execution.tick(run.owner);
         run.effects = progress.summary().committedEffects();
-        run.receipts = progress.summary().receipts();
+        run.receipts = progress.summary().receipts(); run.resourceReceipts=progress.summary().resourceReceipts();
         run.usage = progress.summary().usage();
         if (progress.phase() != BoundedSkillExecutor.Phase.TERMINAL) return;
         run.executionOutcome = progress.summary().outcome();
@@ -441,10 +448,11 @@ public final class BootstrapController {
                     outcome = new Outcomes.Execution(status, status == ExecutionStatus.SUCCEEDED ? null
                             : reason == null ? Reason.ACTION_FAILED : reason, run.effects,
                             status == ExecutionStatus.SUCCEEDED ? new EvidenceRef(run.artifact.sha256(),
-                                    "jobs:1", "attributable-crop-delivery") : null);
+                                    "jobs:1", run.request.capability().equals(OakLogDelivery.ID)
+                                    ? "attributable-resource-delivery" : "attributable-crop-delivery") : null);
                 }
                 changed = jobs.recordExecutionResult(job.id(), job.guard(), new Jobs.Report(job.current().id(),
-                        job.generation(), run.effects, run.usage, run.receipts, outcome), run.owner);
+                        job.generation(), run.effects, run.usage, run.receipts, outcome,run.resourceReceipts), run.owner);
                 if (!changed.accepted()) { failStorage(); return; }
                 run.phase = Phase.PERSISTING;
                 afterJob = () -> { run.jobFinished = true; terminate(run, result, reason); };
@@ -551,7 +559,7 @@ public final class BootstrapController {
         } else if (run.phase == Phase.EXECUTING) {
             var progress = run.execution.cancel(caller);
             run.effects = progress.summary().committedEffects();
-            run.receipts = progress.summary().receipts();
+            run.receipts = progress.summary().receipts(); run.resourceReceipts=progress.summary().resourceReceipts();
             run.usage = progress.summary().usage();
             run.executionOutcome = progress.summary().outcome();
             terminate(run, "CANCELLED", Reason.CANCELLED);
@@ -570,7 +578,7 @@ public final class BootstrapController {
     }
     private View view(Run run) {
         return new View(run.id, run.phase, run.marker, run.routing,
-                run.executionOutcome, run.researchOutcome, run.receipts, run.storageError);
+                run.executionOutcome, run.researchOutcome, run.receipts, run.storageError,run.resourceReceipts);
     }
     private void thread() {
         if (Thread.currentThread() != gameThread) throw new IllegalStateException("Server thread required");
@@ -593,6 +601,7 @@ public final class BootstrapController {
         java.util.Map<Budgets.Kind,Long> usage = java.util.Map.of();
         long effects, calls;
         List<CropDelivery.CropReceipt> receipts = List.of();
+        List<ResourceDelivery.Receipt> resourceReceipts=List.of();
         Reason storageError;
         boolean cancelPending, finishing, cancelRequested, jobFinished;
         Run(UUID id, TrustedContext owner, CapabilityRequest request, ValidatedRequest bound) {

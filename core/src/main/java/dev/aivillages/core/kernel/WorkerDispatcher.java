@@ -361,7 +361,7 @@ public final class WorkerDispatcher {
         if(!jobs.ready())return;
         if(progress!=null) {
             var summary=progress.summary();
-            l.report=new Jobs.Report(l.run,l.generation,summary.committedEffects(),summary.usage(),summary.receipts(),summary.outcome());
+            l.report=new Jobs.Report(l.run,l.generation,summary.committedEffects(),summary.usage(),summary.receipts(),summary.outcome(),summary.resourceReceipts());
         }else {
             ExecutionStatus status=l.cancel?ExecutionStatus.CANCELLED:
                     l.failure==Reason.ACTOR_UNAVAILABLE || l.failure==Reason.ACTION_TIMEOUT || l.failure==Reason.STALE_OBSERVATION
@@ -374,9 +374,9 @@ public final class WorkerDispatcher {
     }
     private void preserveProgress(Live l,Jobs.Job job,Jobs.Attempt attempt,BoundedSkillExecutor.Summary summary) {
         if(jobs.ready()&&(summary.committedEffects()!=attempt.effects()||!summary.usage().equals(attempt.usage())
-                ||!summary.receipts().equals(attempt.receipts())))
+                ||!summary.receipts().equals(attempt.receipts()) || !summary.resourceReceipts().equals(attempt.resourceReceipts())))
             jobs.recordExecutionResult(job.id(),job.guard(),new Jobs.Report(l.run,l.generation,summary.committedEffects(),
-                    summary.usage(),summary.receipts(),null),l.origin);
+                    summary.usage(),summary.receipts(),null,summary.resourceReceipts()),l.origin);
     }
     private void stop(Live l,Reason reason,boolean cancel){l.failure=reason;l.cancel|=cancel;l.phase=Phase.STOPPING;}
     private Decision decision(Jobs.Job j,ActorRef a,Code code,CapabilityResolver.Decision d,Reason reason) {

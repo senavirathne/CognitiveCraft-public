@@ -15,7 +15,7 @@ public final class Contracts {
 
     public enum Type { INT, BOOL, ACTOR, AREA, CONTAINER, UNIT }
     public enum Effect { OBSERVE, MOVE, HARVEST, PICKUP, TRANSFER }
-    public enum Completion { ATTRIBUTABLE_CROP_DELIVERY, ALL_CHILDREN }
+    public enum Completion { ATTRIBUTABLE_CROP_DELIVERY, ALL_CHILDREN, ATTRIBUTABLE_RESOURCE_DELIVERY }
 
     public record CapabilityId(String name, int version) {
         public CapabilityId {
@@ -296,7 +296,13 @@ public final class Contracts {
     /** Typed result and observation are optional until a primitive has produced them. */
     public record ActionReceipt(ActionHandle handle, boolean terminal, long committedEffects,
                                 List<CropDelivery.CropReceipt> cropReceipts, Outcomes.Reason reason,
-                                Value result, ObservationSnapshot observation) {
+                                Value result, ObservationSnapshot observation,
+                                List<ResourceDelivery.Receipt> resourceReceipts) {
+        public ActionReceipt(ActionHandle handle, boolean terminal, long committedEffects,
+                             List<CropDelivery.CropReceipt> cropReceipts, Outcomes.Reason reason,
+                             Value result, ObservationSnapshot observation) {
+            this(handle, terminal, committedEffects, cropReceipts, reason, result, observation, List.of());
+        }
         public ActionReceipt(ActionHandle handle, boolean terminal, long committedEffects,
                              List<CropDelivery.CropReceipt> cropReceipts, Outcomes.Reason reason) {
             this(handle, terminal, committedEffects, cropReceipts, reason, null, null);
@@ -305,6 +311,9 @@ public final class Contracts {
             Objects.requireNonNull(handle);
             if (committedEffects < 0) throw new IllegalArgumentException("Effects");
             cropReceipts = List.copyOf(cropReceipts);
+            resourceReceipts = List.copyOf(resourceReceipts);
+            if (resourceReceipts.size() > 512)
+                throw new IllegalArgumentException("Receipt limit");
         }
     }
     @FunctionalInterface
