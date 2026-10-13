@@ -160,7 +160,8 @@ public final class MandateGameTests {
         boolean secondMature(){var state=h.getLevel().getBlockState(origin.offset(2,1,3));return state.is(Blocks.WHEAT)&&((CropBlock)Blocks.WHEAT).isMaxAge(state);}
         void step(){
             if(done)return;ticks++;java.util.concurrent.locks.LockSupport.parkNanos(phase<=6||phase>=10?20_000_000:1_000_000);
-            if(stores!=null){citizens.tick();mandates.tick();jobs.tick();leases.tick();gateway.tick();raw.tick();}
+            // Warm chunks/entities may still be loading while compose waits on its first assertion.
+            if(jobs!=null){citizens.tick();mandates.tick();jobs.tick();leases.tick();gateway.tick();raw.tick();}
             switch(phase){
                 case 0 -> {require(opening.isDone(),"Opening stores");compose();if(warm){phase=20;return;}
                     var c=citizens.enroll(villager.getUUID(),h.getLevel().dimension().identifier().toString(),owner);require(c.accepted(),"Enroll actual worker "+c);actor=c.citizen().actor();phase=1;}
