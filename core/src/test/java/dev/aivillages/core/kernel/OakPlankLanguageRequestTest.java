@@ -22,6 +22,7 @@ class OakPlankLanguageRequestTest {
                     intent,world.identity.clock,()->world.identity.current);
         }
         public BootstrapController.Submission submit(CapabilityRequest r,TrustedContext caller){assertEquals(owner(),caller);request=r;submissions++;return new BootstrapController.Submission(UUID.randomUUID(),true,null);}
+        public void cancel(UUID run,TrustedContext caller){throw new AssertionError("No canonical cancellation expected in this fixture");}
         View interpret(String text,long amount){
             var ticket=language.ask(text,owner());port.response.complete(new Result(Kind.EXTRACTED,new Extracted(Action.MAKE_OAK_PLANKS,"Ada",amount,null,null,null,null),.95));
             for(int i=0;i<500;i++){language.tick();world.identity.registry.tick();var v=language.status(ticket.id(),owner());if(v.phase()!=Phase.INTERPRETING && v.phase()!=Phase.RESOLVING)return v;}
