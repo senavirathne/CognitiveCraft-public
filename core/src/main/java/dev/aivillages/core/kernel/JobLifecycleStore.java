@@ -681,7 +681,7 @@ public final class JobLifecycleStore {
             return reject(Reason.AUTHORITY_DENIED, work);
         // A direct oak request promises newly acquired output from this invocation.
         // Historical production evidence is not a downstream material-demand contract.
-        if (demand.request().request().capability().equals(OakLogDelivery.ID))
+        if (ResourceDelivery.resource(demand.request().request().capability()))
             return reject(Reason.REQUEST_INVALID, work);
         var existing = state.allocations().stream().filter(a -> a.id().equals(allocation.id())).findFirst();
         if (existing.isPresent()) return existing.get().equals(allocation) ? duplicate(demand, work)
@@ -983,7 +983,7 @@ public final class JobLifecycleStore {
             throw new Limited(Reason.AUTHORITY_DENIED);
     }
     private static void validateReceipt(Attempt attempt,ResourceDelivery.Receipt receipt) {
-        if (!attempt.bound().request().capability().equals(OakLogDelivery.ID)
+        if (!ResourceDelivery.resource(attempt.bound().request().capability())
                 || attempt.executions().stream().noneMatch(r -> r.runId().equals(receipt.runId()))
                 || !ResourceDelivery.matches(attempt.bound(),receipt.runId(),receipt))
             throw new Limited(Reason.AUTHORITY_DENIED);
@@ -992,7 +992,7 @@ public final class JobLifecycleStore {
         return quantity(attempt,receipts,attempt.resourceReceipts());
     }
     private static long quantity(Attempt attempt,List<CropDelivery.CropReceipt> receipts,List<ResourceDelivery.Receipt> resources) {
-        if (attempt.bound().request().capability().equals(OakLogDelivery.ID)) {
+        if (ResourceDelivery.resource(attempt.bound().request().capability())) {
             if (!receipts.isEmpty()) throw new IllegalArgumentException("Crop evidence for oak");
             long total=0;
             for (var run : attempt.executions()) total=Math.addExact(total,ResourceDelivery.quantity(attempt.bound(),
@@ -1013,14 +1013,14 @@ public final class JobLifecycleStore {
     }
     private record Credit(UUID receiptId,UUID runId,UUID batchId,long quantity,boolean deposit) { }
     private static Optional<Credit> credit(Attempt a,UUID id) {
-        if (a.bound().request().capability().equals(OakLogDelivery.ID))
+        if (ResourceDelivery.resource(a.bound().request().capability()))
             return a.resourceReceipts().stream().filter(r -> r.receiptId().equals(id)).findFirst()
                     .map(r -> new Credit(r.receiptId(),r.runId(),r.batchId(),r.quantity(),r.stage()==ResourceDelivery.Stage.DEPOSIT));
         return a.receipts().stream().filter(r -> r.receiptId().equals(id)).findFirst()
                 .map(r -> new Credit(r.receiptId(),r.runId(),r.batchId(),r.wheat(),r.stage()==CropDelivery.Stage.DEPOSIT));
     }
     private static long batchQuantity(Attempt a,UUID run,UUID batch) {
-        return a.bound().request().capability().equals(OakLogDelivery.ID)
+        return ResourceDelivery.resource(a.bound().request().capability())
                 ? ResourceDelivery.quantity(a.bound(),run,a.resourceReceipts().stream()
                         .filter(r -> r.runId().equals(run) && r.batchId().equals(batch)).toList())
                 : batchQuantity(a.receipts(),run,batch);
@@ -1042,7 +1042,7 @@ public final class JobLifecycleStore {
         for (Allocation allocation : snapshot.allocations()) {
             Job producer = rows.get(allocation.producer()), demand = rows.get(allocation.demand());
             if (producer == null || demand == null || producer.id().equals(demand.id())
-                    || demand.request().request().capability().equals(OakLogDelivery.ID)
+                    || ResourceDelivery.resource(demand.request().request().capability())
                     || !sameBindings(producer.request(), demand.request()))
                 throw new IllegalArgumentException("Allocation scope/bindings");
             Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt()))
@@ -1077,7 +1077,9 @@ public final class JobLifecycleStore {
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
                     || quantity.value() < 1 || quantity.value() > 64
                     || !(job.request().request().arguments().get("actor") instanceof ActorValue)
-                    || !(job.request().request().arguments().get("source") instanceof AreaValue)
+                    || (job.request().request().capability().equals(OakPlankProduction.ID)
+                        ? !(job.request().request().arguments().get("source") instanceof ContainerValue)
+                        : !(job.request().request().arguments().get("source") instanceof AreaValue))
                     || !(job.request().request().arguments().get("destination") instanceof ContainerValue))
                 throw new IllegalArgumentException("Bound job request");
             var syntax = RequestValidator.validate(job.request().request(), job.origin(), job.request().observation(),
@@ -1134,7 +1136,7 @@ public final class JobLifecycleStore {
             if (job.state() == State.SUCCEEDED && (goal
                     ? !PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())
                             || !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
-                    : Math.addExact(job.fulfilled(),job.request().request().capability().equals(OakLogDelivery.ID)
+                    : Math.addExact(job.fulfilled(),ResourceDelivery.resource(job.request().request().capability())
                             ? 0 : allocated) < quantity.value()))
                 throw new IllegalArgumentException("Unattributed job success");
         }

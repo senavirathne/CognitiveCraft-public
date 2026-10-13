@@ -16,7 +16,7 @@ public final class SkillIr {
     public record LocalExpr(String name, Type type) implements Expr { }
     public record IntegerExpr(long value) implements Expr { public Type type() { return Type.INT; } }
     public record BooleanExpr(boolean value) implements Expr { public Type type() { return Type.BOOL; } }
-    public enum Operator { ADD, SUB, EQ, LT, GTE }
+    public enum Operator { ADD, SUB, EQ, LT, GTE, DIV }
     public record BinaryExpr(Operator operator, Expr left, Expr right, Type type) implements Expr { }
 
     public sealed interface Node permits Bind, Call, Branch, Repeat, Result { }

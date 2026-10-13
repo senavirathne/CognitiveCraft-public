@@ -55,7 +55,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             BooleanSupplier cancelled) {
         long before = usage.snapshot().getOrDefault(Kind.INSTRUCTIONS, 0L);
         ValidatedRequest small = variant(bound, 1, false);
-        ValidatedRequest changed = variant(bound, 2, true);
+        ValidatedRequest changed = variant(bound,bound.request().capability().equals(OakPlankProduction.ID) ? 5 : 2,true);
         int cases = 0;
         for (ValidatedRequest test : List.of(small, changed)) {
             if (cancelled.getAsBoolean())
@@ -70,7 +70,8 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
         String fact = skill.artifact().descriptor().ref().sha256() + ":" + small.request()
                 + ":" + changed.request() + ":two-custody-cases";
         return new ResearchAdmissionController.FixtureEvidence(true,
-                new EvidenceRef(sha256(fact), bound.request().capability().equals(OakLogDelivery.ID) ? "resource-fixture:1" : "crop-fixture:1",
+                new EvidenceRef(sha256(fact), bound.request().capability().equals(OakPlankProduction.ID) ? "transformation-fixture:1"
+                        : bound.request().capability().equals(OakLogDelivery.ID) ? "resource-fixture:1" : "crop-fixture:1",
                         bound.context().scope().worldId().toString()),
                 null, cases, Math.min(4_096, usage.snapshot().getOrDefault(
                         Kind.INSTRUCTIONS, 0L) - before));
@@ -96,7 +97,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         : dependencies.compatibility(queried);
             }
         };
-        FakeCrops fake = new FakeCrops(test, usage);
+        GatewayPort fake = test.request().capability().equals(OakPlankProduction.ID) ? new FakePlanks(test,usage) : new FakeCrops(test, usage);
         AtomicLong ticks = new AtomicLong();
         UUID authorization = UUID.randomUUID();
         BoundedSkillExecutor.TrialPermit permit = new BoundedSkillExecutor.TrialPermit(ref,
@@ -139,10 +140,14 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
         Map<String, Value> args = new HashMap<>(original.request().arguments());
         args.put("amount", new IntValue(amount));
         if (change) {
+            if(args.get("source") instanceof ContainerValue c) {
+                var box=c.value();args.put("source",new ContainerValue(new ContainerRef(box.dimension(),box.x()+1,box.y(),box.z())));
+            } else {
             Cuboid source = ((AreaValue)args.get("source")).value();
             int dx = source.maxX() == Integer.MAX_VALUE ? -1 : 1;
             args.put("source", new AreaValue(new Cuboid(source.dimension(), source.minX() + dx,
                     source.minY(), source.minZ(), source.maxX() + dx, source.maxY(), source.maxZ())));
+            }
             ContainerRef target = ((ContainerValue)args.get("destination")).value();
             int tx = target.x() == Integer.MAX_VALUE ? -1 : 1;
             args.put("destination", new ContainerValue(new ContainerRef(target.dimension(),
@@ -152,6 +157,61 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                 original.context(), original.observation());
     }
 
+    /** Explicit fake fixture only; passing this data simulation never proves Minecraft crafting. */
+    private static final class FakePlanks implements GatewayPort {
+        final ValidatedRequest bound;final Budgets.Ledger usage;
+        final Map<ActionHandle,Map.Entry<RunCorrelation,Map.Entry<Operation,Map<String,Value>>>> pending=new HashMap<>();
+        boolean prepared,inputHeld;int position,stock,outputs,delivered,sequence;UUID batch;
+        final RecipeTransaction.Snapshot recipe=new RecipeTransaction.Snapshot(OakPlankProduction.RECIPE,
+                RecipeTransaction.fingerprint("fake-static-recipe"),1,1,4,0);
+        String custody=RecipeTransaction.fingerprint("fake-custody:0");
+        FakePlanks(ValidatedRequest bound,Budgets.Ledger usage) {this.bound=bound;this.usage=usage;stock=OakPlankProduction.batches(amount());}
+        int amount() {return Math.toIntExact(((IntValue)bound.request().arguments().get("amount")).value());}
+        public ActionHandle start(ValidatedRequest request,RunCorrelation run,PrimitiveRequirement primitive,Map<String,Value> args,Budgets.Ledger ignored) {
+            var handle=new ActionHandle(UUID.randomUUID(),run.runId());var op=GatewayPrimitives.instance().operation(primitive).orElse(null);
+            if(op!=null)pending.put(handle,Map.entry(run,Map.entry(op,Map.copyOf(args))));return handle;
+        }
+        public ActionReceipt poll(ActionHandle handle) {
+            var action=pending.remove(handle);
+            if(action==null)return fail(handle,Reason.UNSUPPORTED_PRIMITIVE);
+            var op=action.getValue().getKey();var args=action.getValue().getValue();
+            if(!bound.request().arguments().get("actor").equals(args.get("actor"))
+                    || args.containsKey("source") && !bound.request().arguments().get("source").equals(args.get("source"))
+                    || args.containsKey("destination") && !bound.request().arguments().get("destination").equals(args.get("destination")))
+                return fail(handle,Reason.REQUEST_INVALID);
+            if(op==Operation.OBSERVE_PLANK_INPUTS) {
+                if(prepared || !new IntValue(amount()).equals(args.get("amount")))return fail(handle,Reason.REQUEST_INVALID);
+                prepared=true;return new ActionReceipt(handle,true,0,List.of(),null,new BoolValue(true),null);
+            }
+            if(!prepared)return fail(handle,Reason.REQUEST_INVALID);
+            if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_DESTINATION) {
+                position=op==Operation.MOVE_TO_INPUT ? 1 : 2;
+                return new ActionReceipt(handle,true,0,List.of(),null,new BoolValue(true),null);
+            }
+            ResourceDelivery.Stage stage;int q,consumed=0,produced=0,retained=0;
+            if(op==Operation.WITHDRAW_OAK_LOG) {
+                if(position!=1 || stock<1 || inputHeld || outputs>0)return fail(handle,Reason.RESOURCE_MISSING);
+                stock--;inputHeld=true;batch=UUID.randomUUID();stage=ResourceDelivery.Stage.WITHDRAW;q=1;
+            } else if(op==Operation.CRAFT_OAK_PLANKS) {
+                if(!inputHeld || position!=1)return fail(handle,Reason.RESOURCE_MISSING);
+                inputHeld=false;outputs=4;q=4;consumed=1;produced=4;retained=4;stage=ResourceDelivery.Stage.CRAFT;
+            } else if(op==Operation.TRANSFER_OAK_PLANKS) {
+                if(position!=2 || outputs<1 || delivered>=amount() || !new IntValue(amount()).equals(args.get("amount")))return fail(handle,Reason.REQUEST_INVALID);
+                q=Math.min(outputs,amount()-delivered);outputs-=q;delivered+=q;retained=outputs;stage=ResourceDelivery.Stage.DEPOSIT;
+            } else return fail(handle,Reason.UNSUPPORTED_PRIMITIVE);
+            usage.debit(Kind.ATTEMPTED_EFFECTS,1);usage.debit(Kind.COMMITTED_EFFECTS,1);
+            String before=custody;custody=RecipeTransaction.fingerprint("fake-custody:"+(++sequence));
+            var a=bound.request().arguments();var source=((ContainerValue)a.get("source")).value();
+            var t=new RecipeTransaction.Transformation(recipe,consumed,produced,0,retained,before,custody,"fake-source","fake-target");
+            var receipt=new ResourceDelivery.Receipt(UUID.randomUUID(),bound.context(),action.getKey().runId(),handle.id(),batch,
+                    ((ActorValue)a.get("actor")).value(),ResourceLeases.point(source),((ContainerValue)a.get("destination")).value(),
+                    stage==ResourceDelivery.Stage.WITHDRAW ? ResourceDelivery.OAK_LOG : ResourceDelivery.OAK_PLANKS,stage,q,
+                    new ResourceDelivery.BlockPosition(source.dimension(),source.x(),source.y(),source.z()),List.of(),t);
+            return new ActionReceipt(handle,true,1,List.of(),null,new IntValue(q),null,List.of(receipt));
+        }
+        ActionReceipt fail(ActionHandle h,Reason r) {return new ActionReceipt(h,true,0,List.of(),r);}
+        public ActionReceipt cancel(ActionHandle h) {pending.remove(h);return fail(h,Reason.CANCELLED);}
+    }
     private static String sha256(String value) {
         try {
             return java.util.HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
@@ -254,6 +314,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         yield new ActionReceipt(handle, true, 1, records, null,
                                 new IntValue(requested), null,resources);
                     }
+                    case OBSERVE_PLANK_INPUTS,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,CRAFT_OAK_PLANKS,TRANSFER_OAK_PLANKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
                     case MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION, APPROACH_OAK_LOG -> {
                         if ((action.operation() == Operation.MOVE_TO_SOURCE || action.operation()==Operation.APPROACH_OAK_LOG)
                                 && !bound.request().arguments().get("source").equals(args.get("source")))

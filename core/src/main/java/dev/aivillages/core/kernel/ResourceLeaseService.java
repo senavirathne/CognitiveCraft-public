@@ -49,6 +49,14 @@ public final class ResourceLeaseService {
     public Reason failure() { checkThread();return failure; }
     public int lastReconciled() { checkThread();return lastReconciled; }
     public long currentTick() { checkThread();return now(); }
+    /** Host-observed stock availability only; no fabricated owner, reservation or cross-principal identity disclosure. */
+    public Result availableStock(Resource resource,long physicallyObserved,TrustedContext caller) {
+        checkThread();long tick=now();if(!ready())return unavailable();
+        if(resource==null || caller==null || resource.kind()!=Kind.STOCK || physicallyObserved<0
+                || !resource.world().equals(state.world()) || !caller.scope().worldId().equals(state.world()))
+            return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        return new Result(Code.VALID,null,null,List.of(),free(resource,physicallyObserved,state.leases(),tick),0);
+    }
 
     public Result acquire(Owner owner,List<Demand> requested,long duration,TrustedContext caller) {
         checkThread();long tick=now();
@@ -247,6 +255,28 @@ public final class ResourceLeaseService {
                 row.quantity(),row.remaining()-1,row.identity(),row.granted(),row.renewed(),row.expires(),row.renewals(),row.state(),null,consumed);
         List<Lease> rows=new ArrayList<>(state.leases()); replace(rows,next);
         if(!publish(rows,state.generation())) return unavailable();
+        return new Result(Code.PENDING,null,row.group(),List.of(ref),0,0);
+    }
+    /** A witnessed recipe input leaves source stock once; this never creates prospective output. */
+    public Result consumedIngredient(Ref ref,ValidatedRequest bound,RunCorrelation run,ResourceDelivery.Receipt receipt,TrustedContext caller) {
+        checkThread();long tick=now();if(!ready())return unavailable();
+        if(ref==null || bound==null || run==null || receipt==null || !bound.context().equals(caller))
+            return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        Lease row=find(ref.id());Result error=reference(row,ref,caller,tick,true);if(error!=null)return error;
+        var owner=facts(row.owner(),caller);
+        if(!bound.request().capability().equals(OakPlankProduction.ID) || !TransformationDelivery.matches(bound,run.runId(),receipt)
+                || receipt.stage()!=ResourceDelivery.Stage.WITHDRAW || receipt.quantity()!=1
+                || !receipt.actor().equals(owner.worker()) || !run.runId().equals(owner.run())
+                || row.resource().kind()!=Kind.STOCK || row.resource().slot()!=-1
+                || !row.resource().item().equals("minecraft:oak_log") || !row.resource().area().equals(receipt.source()))
+            return result(Code.REJECTED,Reason.REQUEST_INVALID);
+        UUID operation=receipt.operationId();Long previous=row.consumed().get(operation);
+        if(previous!=null)return result(previous==1 ? Code.VALID : Code.REJECTED,previous==1 ? null : Reason.REQUEST_INVALID);
+        if(row.remaining()<1 || row.consumed().size()>=64)return result(Code.REJECTED,Reason.BUDGET_EXHAUSTED);
+        var spent=new LinkedHashMap<>(row.consumed());spent.put(operation,1L);
+        var next=new Lease(row.id(),row.group(),row.epoch(),row.generation(),row.owner(),row.origin(),row.resource(),
+                row.quantity(),row.remaining()-1,row.identity(),row.granted(),row.renewed(),row.expires(),row.renewals(),row.state(),null,spent);
+        var rows=new ArrayList<>(state.leases());replace(rows,next);if(!publish(rows,state.generation()))return unavailable();
         return new Result(Code.PENDING,null,row.group(),List.of(ref),0,0);
     }
     public void tick() {

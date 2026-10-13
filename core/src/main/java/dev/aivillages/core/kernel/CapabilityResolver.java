@@ -44,6 +44,7 @@ public final class CapabilityResolver {
         return spec -> spec.equals(CropDelivery.SPEC)
                 ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,
                         Set.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
+                : spec.equals(OakPlankProduction.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,OakPlankProduction.SPEC.effects())
                 : spec.equals(OakLogDelivery.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE, OakLogDelivery.SPEC.effects())
                 : new Envelope(Domain.UNSUPPORTED, Set.of());
     }
@@ -177,7 +178,8 @@ public final class CapabilityResolver {
                 if (!envelope.unavoidableEffects().contains(required)) continue;
                 boolean present = false;
                 for (GatewayPrimitives.Operation operation : GatewayPrimitives.Operation.values()) {
-                    if (spec.id().equals(CropDelivery.ID) && operation.oak()
+                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.plank())
+                            || spec.id().equals(OakPlankProduction.ID) && !operation.plank() && operation!=GatewayPrimitives.Operation.MOVE_TO_DESTINATION
                             || spec.id().equals(OakLogDelivery.ID) && !operation.oak()
                             && operation != GatewayPrimitives.Operation.MOVE_TO_DESTINATION) continue;
                     PrimitiveSignature signature = operation.signature();
@@ -195,6 +197,14 @@ public final class CapabilityResolver {
                 return decision(ResolutionStatus.BLOCKED, Reason.STALE_OBSERVATION, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);
             // An inspected source with no mature crop cannot support this completion predicate.
+            if(spec.id().equals(OakPlankProduction.ID)) {
+                if(snapshot.counts().getOrDefault("recipe_supported",0L)!=1)
+                    return decision(ResolutionStatus.UNSUPPORTED_RUNTIME,Reason.UNSUPPORTED_PRIMITIVE,null,request,snapshot,-1,List.of(),0,0,false,false);
+                if(snapshot.counts().getOrDefault("missing_logs",0L)>0)
+                    return decision(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,request,snapshot,-1,List.of(),0,0,false,false);
+                if(snapshot.counts().getOrDefault("output_capacity",0L)<((IntValue)request.request().arguments().get("amount")).value())
+                    return decision(ResolutionStatus.BLOCKED,Reason.TARGET_UNAVAILABLE,null,request,snapshot,-1,List.of(),0,0,false,false);
+            }
             if (ResourceDelivery.isDelivery(spec.id()) && snapshot.status() == ObservationStatus.ABSENT)
                 return decision(ResolutionStatus.BLOCKED, Reason.RESOURCE_MISSING, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);
@@ -278,9 +288,8 @@ public final class CapabilityResolver {
                 throw new IllegalArgumentException("REQUEST_INVALID");
             if (ResourceDelivery.isDelivery(spec.id())) {
                 if (!ResourceDelivery.spec(spec.id()).filter(spec::equals).isPresent()
-                        || !(input.arguments().get("source") instanceof AreaValue area)
                         || !(input.arguments().get("destination") instanceof ContainerValue target)
-                        || !area.value().dimension().equals(actor.value().dimension())
+                        || !ResourceDelivery.sourceArea(input).dimension().equals(actor.value().dimension())
                         || !target.value().dimension().equals(actor.value().dimension()))
                     throw new IllegalArgumentException("REQUEST_INVALID");
             }
@@ -292,7 +301,7 @@ public final class CapabilityResolver {
                     || snapshot.status() == ObservationStatus.UNKNOWN || now < snapshot.observedTick()
                     || now - snapshot.observedTick() > limits.maxObservationAgeTicks()) return false;
             if (!ResourceDelivery.isDelivery(request.request().capability())) return true;
-            Cuboid source = ((AreaValue) request.request().arguments().get("source")).value();
+            Cuboid source = ResourceDelivery.sourceArea(request.request());
             String expected = "source:" + java.util.UUID.nameUUIDFromBytes(
                     source.toString().getBytes(StandardCharsets.UTF_8));
             return snapshot.targetIdentity().equals(expected)

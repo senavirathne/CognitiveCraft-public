@@ -158,6 +158,19 @@ public final class SurvivalGateway implements GatewayPort {
         public ItemTransfer { if (deposited < 0 || deposited > 1) throw new IllegalArgumentException("Item transfer"); }
     }
     public interface WorldAccess {
+        default Movement moveRecipe(ActorRef actor,Cell target,int maximum) {return move(actor,target,maximum);}
+        default RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {return RecipeTransaction.Preflight.unsupported();}
+        default RecipeTransaction.Mutation withdrawRecipeInput(ActorRef actor,ContainerRef source,
+                RecipeTransaction.Preflight captured,String expectedCustody,String expectedSource) {
+            return RecipeTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);
+        }
+        default RecipeTransaction.Mutation craftRecipe(ActorRef actor,RecipeTransaction.Preflight captured,String expectedCustody) {
+            return RecipeTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);
+        }
+        default RecipeTransaction.Mutation depositRecipeOutput(ActorRef actor,ContainerRef destination,
+                RecipeTransaction.Preflight captured,String expectedCustody,int quantity) {
+            return RecipeTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);
+        }
         /** Every method is called on the server thread; implementations must not force-load chunks. */
         boolean onGameThread();
         long tick();
@@ -247,6 +260,11 @@ public final class SurvivalGateway implements GatewayPort {
         final Map<UUID, Batch> batches = new LinkedHashMap<>();
         final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         final List<ResourceDelivery.Receipt> resourceReceipts = new ArrayList<>();
+        RecipeTransaction.Preflight recipe;
+        String recipeCustody="",recipeSource="";
+        UUID craftBatch;
+        int inputsWithdrawn,outputsProduced,batchOutputs;
+        boolean inputPending;
         Cell expectedNextCrop;
         final ResourceDelivery.ItemIdentity item;
         long expectedItems;
@@ -256,7 +274,8 @@ public final class SurvivalGateway implements GatewayPort {
         long lastTick;
         Run(ActorRef actor, ValidatedRequest request, UUID id, long wheat, long tick) {
             this.actor = actor; this.request = request; this.id = id;
-            item=request.request().capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT;
+            item=request.request().capability().equals(OakPlankProduction.ID) ? ResourceDelivery.OAK_PLANKS
+                    : request.request().capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT;
             expectedItems = wheat; lastTick = tick;
         }
         long available() {
@@ -490,6 +509,9 @@ public final class SurvivalGateway implements GatewayPort {
         if (!authority.currentlyAllows(run.actor, effect, run.request.context())) {
             finish(action, Reason.AUTHORITY_DENIED, null, null); return;
         }
+        if(run.request.request().capability().equals(OakPlankProduction.ID)) {
+            stepRecipe(action,effect);run.lastTick=world.tick();return;
+        }
         if (op == Operation.MOVE_TO_SOURCE || op == Operation.APPROACH_OAK_LOG) {
             moveToSource(action);
             run.lastTick = world.tick();
@@ -511,8 +533,89 @@ public final class SurvivalGateway implements GatewayPort {
             case PICKUP_WHEAT -> pickup(action, target);
             case PICKUP_TRACKED_WHEAT, PICKUP_TRACKED_OAK_LOGS -> pickupTracked(action);
             case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> transfer(action, target);
+            case OBSERVE_PLANK_INPUTS,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,CRAFT_OAK_PLANKS,TRANSFER_OAK_PLANKS -> throw new AssertionError("Recipe handled above");
         }
         run.lastTick = world.tick();
+    }
+
+    /** The same gateway owns these transient batches; only explicit primitives perform effects. */
+    private void stepRecipe(Active action,Effect effect) {
+        Run run=action.run;Operation op=action.operation;
+        var sourceBox=((ContainerValue)run.request.request().arguments().get("source")).value();
+        var destinationBox=destination(run.request);
+        Cell target=op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.MOVE_TO_INPUT || op==Operation.WITHDRAW_OAK_LOG
+                ? new Cell(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()) : target(action);
+        Reason denied=world.permit(run.request,effect,target);
+        if(denied!=null) {finish(action,denied,null,null);return;}
+        long requested=((IntValue)run.request.request().arguments().get("amount")).value();
+        if(op==Operation.OBSERVE_PLANK_INPUTS) {
+            if(run.recipe!=null || run.inputsWithdrawn!=0) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
+            if(!action.usage.canDebit(Kind.OBSERVATIONS,296))throw new Budgets.Exhausted();
+            var observed=world.recipePreflight(run.request);
+            action.usage.debit(Kind.OBSERVATIONS,observed.sourceSlots()+observed.destinationSlots()+40);
+            if(observed.reason()!=null || observed.status()!=ObservationStatus.PRESENT) {
+                finish(action,observed.reason()==null ? Reason.STALE_OBSERVATION : observed.reason(),null,null);return;
+            }
+            if(observed.availableInputs()<OakPlankProduction.batches(requested)) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
+            if(observed.outputCapacity()<requested) {finish(action,Reason.TARGET_UNAVAILABLE,null,null);return;}
+            run.recipe=observed;run.recipeCustody=observed.custodyFingerprint();run.recipeSource=observed.sourceFingerprint();
+            finish(action,null,new BoolValue(true),null);return;
+        }
+        if(run.recipe==null) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
+        if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_DESTINATION) {move(action,target);return;}
+        if(!effectAllowance(action))return;
+        int work=op==Operation.CRAFT_OAK_PLANKS ? 64
+                : 2*(op==Operation.WITHDRAW_OAK_LOG ? run.recipe.sourceSlots() : run.recipe.destinationSlots())+24;
+        action.usage.debit(Kind.OBSERVATIONS,work);
+        RecipeTransaction.Mutation result;
+        ResourceDelivery.Stage stage;
+        int quantity,retained;
+        if(op==Operation.WITHDRAW_OAK_LOG) {
+            if(run.inputPending || run.batchOutputs!=0 || run.inputsWithdrawn>=OakPlankProduction.batches(requested)) {
+                finish(action,Reason.REQUEST_INVALID,null,null);return;
+            }
+            action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
+            result=world.withdrawRecipeInput(run.actor,sourceBox,run.recipe,run.recipeCustody,run.recipeSource);
+            stage=ResourceDelivery.Stage.WITHDRAW;quantity=result.moved();retained=0;
+            if(result.committed()) {run.craftBatch=UUID.randomUUID();run.inputsWithdrawn++;run.inputPending=true;}
+        } else if(op==Operation.CRAFT_OAK_PLANKS) {
+            if(!run.inputPending || run.batchOutputs!=0) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
+            action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
+            result=world.craftRecipe(run.actor,run.recipe,run.recipeCustody);
+            stage=ResourceDelivery.Stage.CRAFT;quantity=result.produced();retained=quantity;
+            if(result.committed()) {run.inputPending=false;run.batchOutputs=result.produced();run.outputsProduced+=result.produced();}
+        } else if(op==Operation.TRANSFER_OAK_PLANKS) {
+            if(run.inputPending || run.batchOutputs<1 || run.deposited>=requested
+                    || ((IntValue)action.arguments.get("amount")).value()!=requested) {
+                finish(action,Reason.REQUEST_INVALID,null,null);return;
+            }
+            int moved=Math.toIntExact(Math.min(run.batchOutputs,requested-run.deposited));
+            action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
+            result=world.depositRecipeOutput(run.actor,destinationBox,run.recipe,run.recipeCustody,moved);
+            stage=ResourceDelivery.Stage.DEPOSIT;quantity=result.moved();retained=run.batchOutputs-quantity;
+            if(result.committed()) {run.batchOutputs-=quantity;run.deposited+=quantity;}
+        } else {finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
+        if(result.committed()) {
+            committed(action);
+            if(result.reason()!=null || !run.recipeCustody.equals(result.custodyBefore())
+                    || !RecipeTransaction.hash(result.custodyAfter())
+                    || stage==ResourceDelivery.Stage.WITHDRAW && (quantity!=1 || result.consumed()!=0 || result.produced()!=0)
+                    || stage==ResourceDelivery.Stage.CRAFT && (quantity!=4 || result.consumed()!=1 || result.remainders()!=0)
+                    || stage==ResourceDelivery.Stage.DEPOSIT && (quantity<1 || quantity>4 || result.consumed()!=0 || result.produced()!=0)) {
+                finish(action,Reason.STALE_OBSERVATION,null,null);return;
+            }
+            var transformation=new RecipeTransaction.Transformation(run.recipe.recipe(),result.consumed(),result.produced(),
+                    result.remainders(),retained,result.custodyBefore(),result.custodyAfter(),run.recipe.sourceIdentity(),run.recipe.destinationIdentity());
+            var receipt=new ResourceDelivery.Receipt(UUID.randomUUID(),run.request.context(),run.id,action.handle.id(),run.craftBatch,
+                    run.actor,ResourceLeases.point(sourceBox),destinationBox,
+                    stage==ResourceDelivery.Stage.WITHDRAW ? ResourceDelivery.OAK_LOG : ResourceDelivery.OAK_PLANKS,
+                    stage,quantity,new ResourceDelivery.BlockPosition(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()),List.of(),transformation);
+            run.resourceReceipts.add(receipt);action.resourceReceipts.add(receipt);
+            run.recipeCustody=result.custodyAfter();
+            if(!result.sourceAfter().isEmpty())run.recipeSource=result.sourceAfter();
+            if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println("RB002_EFFECT run="+run.id+" stage="+stage+" quantity="+quantity+" retained="+retained);
+            finish(action,null,new IntValue(quantity),null);
+        } else finish(action,result.reason()==null ? Reason.ACTION_FAILED : result.reason(),null,null);
     }
 
     private void moveToSource(Active action) {
@@ -610,6 +713,8 @@ public final class SurvivalGateway implements GatewayPort {
                 ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation == Operation.MOVE_TO_SOURCE
                 ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
+                : action.run.request.request().capability().equals(OakPlankProduction.ID)
+                ? world.moveRecipe(action.run.actor,target,limits.navigationCallsPerPoll())
                 : world.move(action.run.actor, target, limits.navigationCallsPerPoll());
         if (movement.chargedWork() > limits.navigationCallsPerPoll()
                 || movement.travelBlocks() > 1
@@ -927,7 +1032,8 @@ public final class SurvivalGateway implements GatewayPort {
         }
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
                 || action.operation == Operation.APPROACH_OAK_LOG
-                || action.operation == Operation.MOVE_TO_DESTINATION) && action.movementStarted && action.run != null) {
+                || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT)
+                && action.movementStarted && action.run != null) {
             world.stopMovement(action.run.actor);
             if (Boolean.getBoolean("cognitivecraft.gametest.trace")
                     || Boolean.getBoolean("cognitivecraft.navigation.trace"))
@@ -955,6 +1061,14 @@ public final class SurvivalGateway implements GatewayPort {
         if (!world.onGameThread()) throw new IllegalStateException("Gateway requires the server thread");
     }
     private static Reason validate(ValidatedRequest request, Operation op, Map<String, Value> args) {
+        boolean plank=request.request().capability().equals(OakPlankProduction.ID);
+        if(plank) {
+            var values=request.request().arguments();
+            if(values.size()!=4 || !(values.get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>64
+                    || !(values.get("source") instanceof ContainerValue) || !(values.get("destination") instanceof ContainerValue))
+                return Reason.REQUEST_INVALID;
+            if(op==Operation.OBSERVE_PLANK_INPUTS && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
+        }
         if(request.request().capability().equals(OakLogDelivery.ID)) {
             try {
                 var values=request.request().arguments();
@@ -964,7 +1078,8 @@ public final class SurvivalGateway implements GatewayPort {
             } catch(ArithmeticException overflow) { return Reason.REQUEST_INVALID; }
         }
         if (!ResourceDelivery.isDelivery(request.request().capability())
-                || op!=Operation.MOVE_TO_DESTINATION && request.request().capability().equals(OakLogDelivery.ID)!=op.oak()
+                || op!=Operation.MOVE_TO_DESTINATION && (plank ? !op.plank()
+                : op.plank() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
                 || !args.keySet().equals(op.signature().parameters().stream()
                 .map(Parameter::name).collect(java.util.stream.Collectors.toSet())))
             return Reason.REQUEST_INVALID;
@@ -986,7 +1101,7 @@ public final class SurvivalGateway implements GatewayPort {
         return ((ActorValue)request.request().arguments().get("actor")).value();
     }
     private static Cuboid source(ValidatedRequest request) {
-        return ((AreaValue)request.request().arguments().get("source")).value();
+        return ResourceDelivery.sourceArea(request.request());
     }
     private static ContainerRef destination(ValidatedRequest request) {
         return ((ContainerValue)request.request().arguments().get("destination")).value();

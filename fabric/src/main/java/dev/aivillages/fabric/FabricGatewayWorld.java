@@ -39,6 +39,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private final ServerLevel level;
     private final Map<UUID, BlockPos> previousPosition = new HashMap<>();
     private final Map<UUID, Route> routes = new HashMap<>();
+    private final Map<UUID,Long> recipeSettled=new HashMap<>();
+    private final FabricRecipeTransactions recipeTransactions;
     private static final int MAX_PATH_NODES = 128;
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
@@ -80,7 +82,48 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     record NavigationSummary(UUID actor, int attempts, int calls, String reason, boolean endpointRefined) { }
     private NavigationSummary lastNavigationSummary;
     NavigationSummary lastNavigationSummary() { return lastNavigationSummary; }
-    public FabricGatewayWorld(ServerLevel level) { this.level = java.util.Objects.requireNonNull(level); }
+    public FabricGatewayWorld(ServerLevel level) {
+        this.level = java.util.Objects.requireNonNull(level);recipeTransactions=new FabricRecipeTransactions(level,this);
+    }
+    Villager recipeActor(ActorRef actor) {
+        Villager v=villager(actor);return v!=null && loaded(v.blockPosition()) ? v : null;
+    }
+    Container recipeContainer(ContainerRef ref) {
+        return ref.dimension().equals(dimension()) && loaded(new BlockPos(ref.x(),ref.y(),ref.z()))
+                ? oakBox(new BlockPos(ref.x(),ref.y(),ref.z())) : null;
+    }
+    boolean recipeReach(Villager v,BlockPos p) {return canReach(v,p) && level.mayInteract(v,p);}
+    String recipeContainerFingerprint(ContainerRef ref) {
+        Container c=recipeContainer(ref);return c==null ? "" : FabricRecipeTransactions.fingerprint(c);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {
+        return recipeTransactions.preflight(request);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation withdrawRecipeInput(ActorRef actor,ContainerRef source,
+            dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody,String sourceFingerprint) {
+        return recipeTransactions.withdraw(actor,source,captured,custody,sourceFingerprint);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation craftRecipe(ActorRef actor,
+            dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody) {
+        return recipeTransactions.craft(actor,captured,custody);
+    }
+    @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation depositRecipeOutput(ActorRef actor,ContainerRef destination,
+            dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody,int amount) {
+        return recipeTransactions.deposit(actor,destination,captured,custody,amount);
+    }
+    @Override public Movement moveRecipe(ActorRef actor,Cell target,int maximum) {
+        Villager v=recipeActor(actor);
+        if(v==null)return new Movement(false,true,0,0);
+        if(!v.onGround()) {recipeSettled.remove(v.getUUID());return new Movement(false,false,0,0);}
+        var result=move(actor,target,maximum);
+        if(!result.reached()) {recipeSettled.remove(v.getUUID());return result;}
+        var motion=v.getDeltaMovement();
+        if(motion.x*motion.x+motion.z*motion.z>0.0001 || motion.y>0.0001) {
+            recipeSettled.remove(v.getUUID());return new Movement(false,false,result.chargedWork(),result.travelBlocks());
+        }
+        long since=recipeSettled.computeIfAbsent(v.getUUID(),ignored->tick());
+        return tick()-since>=2 ? result : new Movement(false,false,result.chargedWork(),result.travelBlocks());
+    }
     @Override public boolean onGameThread() { return level.getServer().isSameThread(); }
     @Override public long tick() { return level.getGameTime(); }
     private String dimension() { return level.dimension().identifier().toString(); }
@@ -158,6 +201,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         } else GatewayControl.releaseByEntity(actor.entityId(), runId);
         previousPosition.remove(actor.entityId());
         routes.remove(actor.entityId());
+        recipeSettled.remove(actor.entityId());
     }
     @Override public void stopMovement(ActorRef actor) {
         Villager v = villager(actor);
@@ -180,7 +224,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (!target.dimension().equals(dimension())) return Reason.TARGET_INVALID;
         if (!loaded(pos)) return effect == Effect.OBSERVE ? null : Reason.TARGET_UNAVAILABLE;
         if (!level.mayInteract(v, pos)) return Reason.AUTHORITY_DENIED;
-        if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER)
+        if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER
+                || effect==Effect.WITHDRAW || effect==Effect.CRAFT)
                 && !level.getGameRules().get(GameRules.MOB_GRIEFING)) return Reason.AUTHORITY_DENIED;
         return null;
     }
@@ -496,6 +541,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return new ItemContainerInspection(sample.known() ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                 sample.capacity(),sample.slotsInspected(),"container:"+p.asLong());
     }
+    ItemContainerInspection inspectPlankContainer(ContainerRef target) {
+        BlockPos p=new BlockPos(target.x(),target.y(),target.z());
+        if(!target.dimension().equals(dimension()) || !loaded(p))return new ItemContainerInspection(ObservationStatus.UNKNOWN,0,0,"unavailable");
+        Container c=oakBox(p);if(c==null)return new ItemContainerInspection(ObservationStatus.ABSENT,0,0,"unsuitable");
+        var sample=itemCapacity(c,new ItemStack(Items.OAK_PLANKS));
+        return new ItemContainerInspection(sample.known() ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,sample.capacity(),sample.slotsInspected(),
+                "plank-container:"+p.asLong()+":"+System.identityHashCode(c));
+    }
     private static ItemContainerCapacity.Sample itemCapacity(Container c,ItemStack item) {
         return ItemContainerCapacity.inspect(c.getContainerSize(),slot -> {
             ItemStack current=c.getItem(slot);
@@ -533,6 +586,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return new ItemBlock(ObservationStatus.PRESENT,supported,state.toString(),supported ? (int)ticks : 0);
     }
     @Override public ItemStock resourceInventory(ActorRef actor,ResourceDelivery.ItemIdentity item) {
+        if(item.equals(ResourceDelivery.OAK_PLANKS)) {
+            var v=recipeActor(actor);if(v==null)return new ItemStock(ObservationStatus.UNKNOWN,"unavailable",0,0,"",null);
+            return plankStock(v.getInventory(),"actor:"+actor.entityId());
+        }
         if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceInventory(actor,item);
         Villager v=villager(actor);
         if(v==null || !loaded(v.blockPosition()))
@@ -549,6 +606,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 oakInventoryFingerprint(c),reason);
     }
     @Override public ItemStock resourceContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
+        if(item.equals(ResourceDelivery.OAK_PLANKS)) {
+            Container c=recipeContainer(target);if(c==null)return new ItemStock(ObservationStatus.UNKNOWN,"unavailable",0,0,"",null);
+            return plankStock(c,"container:"+new BlockPos(target.x(),target.y(),target.z()).asLong());
+        }
         if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceContainer(target,item);
         var inspection=inspectOakContainer(target);
         long quantity=0;
@@ -649,6 +710,16 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         inventory.removeItem(from,1);
         if(c.getItem(to).isEmpty()) c.setItem(to,one); else c.getItem(to).grow(1);
         inventory.setChanged(); c.setChanged(); return new ItemTransfer(1,null);
+    }
+    private ItemStock plankStock(Container c,String identity) {
+        long quantity=0;Reason invalid=null;
+        for(int i=0;i<c.getContainerSize();i++) {
+            ItemStack s=c.getItem(i);
+            if(FabricRecipeTransactions.plain(s,Items.OAK_PLANKS))quantity=Math.addExact(quantity,s.getCount());
+            else if(s.is(Items.OAK_PLANKS))invalid=Reason.TARGET_INVALID;
+        }
+        var capacity=itemCapacity(c,new ItemStack(Items.OAK_PLANKS));
+        return new ItemStock(ObservationStatus.PRESENT,identity,quantity,capacity.capacity(),FabricRecipeTransactions.fingerprint(c),invalid);
     }
     @Override public Harvest harvest(ActorRef actor, Cell target) {
         Villager v = villager(actor);

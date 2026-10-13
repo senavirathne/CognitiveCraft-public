@@ -62,6 +62,17 @@ public final class RequestValidator {
             if (!environment.loaded(source, observation)) return invalid("$.arguments.source");
             if (!environment.available(destination, observation)) return invalid("$.arguments.destination");
         }
+        if (spec.completion() == Completion.ATTRIBUTABLE_TRANSFORMATION_DELIVERY) {
+            if(!spec.equals(OakPlankProduction.SPEC) || !(values.get("actor") instanceof ActorValue actor)
+                    || !(values.get("source") instanceof ContainerValue source)
+                    || !(values.get("destination") instanceof ContainerValue destination)
+                    || !actor.value().dimension().equals(source.value().dimension())
+                    || !actor.value().dimension().equals(destination.value().dimension())
+                    || !actor.value().dimension().equals(observation.dimension())
+                    || !environment.enrolled(actor.value(),context)
+                    || !environment.available(source.value(),observation)
+                    || !environment.available(destination.value(),observation)) return invalid("$.arguments");
+        }
         if (spec.completion() == Completion.ALL_CHILDREN) {
             if (!spec.equals(PlanningGoals.SPEC) || !PlanningGoals.valid(input)) return invalid("$.arguments");
             var actor=((ActorValue)values.get("actor")).value();

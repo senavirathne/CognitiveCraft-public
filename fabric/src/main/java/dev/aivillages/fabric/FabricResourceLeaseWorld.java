@@ -89,6 +89,9 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
             if(resource.item().equals("minecraft:oak_log")) {
                 if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.OAK_LOG)))
                     quantity=Math.addExact(quantity,stack.getCount());
+            } else if(resource.item().equals("minecraft:oak_planks")) {
+                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.OAK_PLANKS)))
+                    quantity=Math.addExact(quantity,stack.getCount());
             } else if(stack.is(Items.WHEAT)) quantity+=stack.getCount();
         }
         return observation(resource,quantity==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,quantity,

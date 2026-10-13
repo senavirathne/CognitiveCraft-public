@@ -175,9 +175,11 @@ public final class KernelSession implements AutoCloseable {
                         TrustedContext::equals, VersionedSkillRepository.FaultInjector.none());
                 var lookups = new CapabilityRetrievalIndex.LookupRegistry(
                         Map.of("harvest wheat",CropDelivery.ID,"deliver wheat",CropDelivery.ID,
-                                "collect oak logs",OakLogDelivery.ID,"deliver oak logs",OakLogDelivery.ID),
+                                "collect oak logs",OakLogDelivery.ID,"deliver oak logs",OakLogDelivery.ID,
+                                "make oak planks",OakPlankProduction.ID,"produce oak planks",OakPlankProduction.ID),
                         Map.of(CropDelivery.ID,java.util.Set.of("farming","wheat"),
-                                OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs")),capabilities);
+                                OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs"),
+                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks")),capabilities);
                 retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
                         new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
@@ -354,7 +356,9 @@ public final class KernelSession implements AutoCloseable {
                 AIWorkBroker.sessionLimits(clock.millis()), request -> {
                     var actor = ((ActorValue)request.bound().request().arguments().get("actor")).value();
                     return control.controls(actor, request.bound().context())
-                            && List.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER).stream()
+                            && (request.role()==Generation.Role.PLANNING
+                                ? CropDelivery.SPEC.effects()
+                                : ResourceDelivery.spec(request.bound().request().capability()).orElseThrow().effects()).stream()
                             .allMatch(effect -> authority.currentlyAllows(actor, effect, request.bound().context()));
                 }, AIWorkBroker.Sharing.privateScopes());
         var research = new ResearchAdmissionController(capabilities, primitives, repository,
@@ -470,12 +474,14 @@ public final class KernelSession implements AutoCloseable {
                     public Budgets.ResearchLimits issue(long now) { return researchLimits(now); }
                     public Budgets.ResearchLimits issue(CapabilityId capability,long now) {
                         var base=researchLimits(now);
-                        return capability.equals(OakLogDelivery.ID) ? OakLogDelivery.researchLimits(now,base) : base;
+                        return capability.equals(OakPlankProduction.ID) ? OakPlankProduction.researchLimits(now,base)
+                                : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.researchLimits(now,base) : base;
                     }
                 },new BootstrapController.ExecutionBudget() {
                     public Budgets.ExecutionLimits issue(long now) { return executionLimits(now); }
                     public Budgets.ExecutionLimits issue(CapabilityId capability,long now) {
-                        return capability.equals(OakLogDelivery.ID) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
+                        return capability.equals(OakPlankProduction.ID) ? OakPlankProduction.executionLimits(now)
+                                : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
                     }
                 },clock,citizens,jobs);
         controller.evidenceSink(loaded.retentionService()::offer);
@@ -510,7 +516,8 @@ public final class KernelSession implements AutoCloseable {
                 ServerPlayer player = interpretingPlayer;
                 if (player == null || !player.getUUID().equals(caller.principal().id()))
                     throw new SecurityException("No trusted player is attached to this interpretation");
-                return new FabricWorldReferenceResolver(worldAccess, citizens, caller, player, intent, clock);
+                return new FabricWorldReferenceResolver(worldAccess,citizens,caller,player,intent,clock,
+                        (source,quantity)->leases.availableStock(ResourceLeases.Resource.oakStock(caller.scope().worldId(),source),quantity,caller));
             }
             @Override public BootstrapController.Submission submit(CapabilityRequest request, TrustedContext caller) {
                 return submitRequest(request, caller, interpretingPlayer);
@@ -528,6 +535,23 @@ public final class KernelSession implements AutoCloseable {
                 (long)source.maxY()-source.minY()+1),(long)source.maxZ()-source.minZ()+1);
     }
     private ObservationSnapshot observe(CapabilityRequest request, ActorRef actor) {
+        if(request.capability().equals(OakPlankProduction.ID)) {
+            var area=ResourceDelivery.sourceArea(request);
+            long tick=server.overworld().getGameTime();
+            var context=citizens.find(actor.citizenId()).owner();
+            var bound=new ValidatedRequest(request,context,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()));
+            var current=gatewayWorld().recipePreflight(bound);
+            long available=current.availableInputs();
+            var stock=leases.availableStock(ResourceLeases.Resource.oakStock(context.scope().worldId(),
+                    ((ContainerValue)request.arguments().get("source")).value()),available,context);
+            boolean known=current.status()==ObservationStatus.PRESENT && current.reason()==null && stock.usable();
+            if(stock.usable())available=stock.available();
+            long needed=OakPlankProduction.batches(((IntValue)request.arguments().get("amount")).value());
+            return new ObservationSnapshot(new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),known ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
+                    "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
+                    Map.of("input_logs",available,"required_logs",needed,"missing_logs",Math.max(0,needed-available),
+                            "output_capacity",current.outputCapacity(),"recipe_supported",current.recipe()==null ? 0L : 1L,"unknown_cells",known ? 0L : 1L));
+        }
         Cuboid area = ((AreaValue)request.arguments().get("source")).value();
         int scanned = 0; long mature = 0, unknown = 0;
         if (sourceCells(area) > 256 || !area.dimension().equals(actor.dimension()))
@@ -734,6 +758,16 @@ public final class KernelSession implements AutoCloseable {
             int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
         return delivery(OakLogDelivery.ID,player,actorId,amount,x1,y1,z1,x2,y2,z2,cx,cy,cz);
     }
+    public BootstrapController.Submission makePlanks(ServerPlayer player,UUID actorId,int amount,
+            int sx,int sy,int sz,int dx,int dy,int dz) {
+        ready();var owner=caller(player);var citizen=citizens.find(actorId);
+        if(citizen==null)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        if(!citizen.owner().equals(owner))throw new SecurityException("This kernel run belongs to another principal");
+        if(amount<1 || amount>64)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        return submitRequest(new CapabilityRequest(OakPlankProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),
+                "source",new ContainerValue(new ContainerRef(citizen.actor().dimension(),sx,sy,sz)),
+                "destination",new ContainerValue(new ContainerRef(citizen.actor().dimension(),dx,dy,dz)))),owner,player);
+    }
     private BootstrapController.Submission delivery(CapabilityId capability,ServerPlayer player, UUID actorId, int amount,
             int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
         ready();
@@ -774,6 +808,23 @@ public final class KernelSession implements AutoCloseable {
         var entity = villager(actor);
         if (entity == null || entity.level() != player.level())
             return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.ACTOR_UNAVAILABLE);
+        if(request.capability().equals(OakPlankProduction.ID)) {
+            if(!(request.arguments().get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>64)
+                return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+            var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
+            var current=gatewayWorld().recipePreflight(bound);
+            if(current.reason()!=null)return new BootstrapController.Submission(UUID.randomUUID(),false,current.reason());
+            leases.tick();
+            var free=leases.availableStock(ResourceLeases.Resource.oakStock(owner.scope().worldId(),
+                    ((ContainerValue)request.arguments().get("source")).value()),current.availableInputs(),owner);
+            if(!free.usable())return new BootstrapController.Submission(UUID.randomUUID(),false,free.reason()==null ? Reason.STALE_OBSERVATION : free.reason());
+            long needed=OakPlankProduction.batches(amount.value());
+            if(free.available()<needed) {
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Oak logs required="+needed+" available="+free.available()+" missing="+(needed-free.available())));
+                return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.RESOURCE_MISSING);
+            }
+            if(current.outputCapacity()<amount.value())return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.TARGET_UNAVAILABLE);
+        }
         if(request.capability().equals(OakLogDelivery.ID)) {
             var area=((AreaValue)request.arguments().get("source")).value();
             if(sourceCells(area)>256) return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
@@ -859,10 +910,12 @@ public final class KernelSession implements AutoCloseable {
             throw new SecurityException("This kernel catalog requires an enrolled citizen in your scope");
         var page = loaded.repository().page(CropDelivery.ID, "", 8);
         var oak=loaded.repository().page(OakLogDelivery.ID,"",8);
+        var planks=loaded.repository().page(OakPlankProduction.ID,"",8);
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
                 + " oakCatalog="+oak.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
+                + " plankCatalog="+planks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " revision=" + page.revision() + " recentModelCalls=" + controller.modelCalls(owner)
                 + " inference=" + controller.inferenceEnabled();
     }

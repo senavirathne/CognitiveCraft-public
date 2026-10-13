@@ -13,7 +13,7 @@ import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 public final class LanguageReferenceClassifier {
     private LanguageReferenceClassifier() { }
 
-    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS }
+    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS }
 
     public record Slot(ReferenceState state, String first, String second, String evidence) {
         public Slot {
@@ -88,6 +88,10 @@ public final class LanguageReferenceClassifier {
                     Slot.omitted(), naming.proposedName());
         }
         Slot actor = actor(text, references);
+        if(Pattern.compile("\\b(?:make|craft|produce)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && Pattern.compile("\\boak\\s+planks?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && !Pattern.compile("\\b(?:birch|spruce|stripped|sticks?|axes?|tables?|slabs?|doors?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
+            return new Classification(Intent.MAKE_OAK_PLANKS,actor,plankSource(text),plankDestination(text),null);
         boolean action=Pattern.compile("\\b(harvest|gather|collect)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find();
         boolean oak=Pattern.compile("\\boak\\s+logs?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find();
         boolean wheat=containsWord(text,"wheat");
@@ -101,20 +105,42 @@ public final class LanguageReferenceClassifier {
         return new Classification(intent,actor,source,destination(text, intent == Intent.GATHER_OAK_LOGS),null);
     }
 
+    private static Slot plankSource(String text) {
+        Matcher role=Pattern.compile("\\bfrom\\s+(.{1,180}?)(?=\\s+(?:and\\s+)?(?:store|deposit|put|deliver)\\b|[.!?]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
+        if(!role.find())return containsWord(text,"from") ? Slot.unsupported("unsupported input source") : Slot.omitted();
+        String phrase=stripTerminal(role.group(1));
+        if(role.find())return Slot.unsupported("multiple input sources");
+        if(phrase.matches("(?i)(?:the\\s+)?available\\s+oak\\s+logs?"))return Slot.nearest("available oak logs");
+        if(phrase.matches("(?i)(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)"))return Slot.nearest(phrase);
+        Matcher c=Pattern.compile("^(?:(?:the\\s+)?(?:chest|container|barrel)\\s+(?:at\\s+)?)?"+COORD+"$",Pattern.CASE_INSENSITIVE).matcher(phrase);
+        if(c.matches())return Slot.concrete(compact(c.group(1)),compact(c.group(1)),phrase);
+        return Slot.unsupported(phrase);
+    }
+    private static Slot plankDestination(String text) {
+        Matcher role=Pattern.compile("\\b(?:store|deposit|put|deliver)\\b",Pattern.CASE_INSENSITIVE).matcher(text);
+        if(!role.find())return Slot.omitted();
+        int start=role.end();if(role.find())return Slot.unsupported("multiple output destinations");
+        String phrase=stripTerminal(text.substring(start));
+        if(phrase.isBlank() || phrase.matches("(?i)(?:them|it|(?:oak\\s+)?planks?)"))return Slot.omitted();
+        String prefix="(?:(?:them|it|(?:oak\\s+)?planks?)\\s+)?(?:to|into|in|at)\\s+(?:the\\s+)?";
+        if(phrase.matches("(?i)"+prefix+"nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)"))return Slot.nearest(phrase);
+        Matcher c=Pattern.compile("^"+prefix+"(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?"+COORD+"$",Pattern.CASE_INSENSITIVE).matcher(phrase);
+        return c.matches() ? Slot.concrete(compact(c.group(1)),null,phrase) : Slot.unsupported(phrase);
+    }
     private static Slot actor(String text, List<String> references) {
-        Matcher nearest = Pattern.compile("^\\s*(?:the\\s+)?nearest\\s+(?:citizen|villager)\\s*,?\\s*(?:please\\s+)?(?:harvest|gather|collect)\\b",
+        Matcher nearest = Pattern.compile("^\\s*(?:the\\s+)?nearest\\s+(?:citizen|villager)\\s*,?\\s*(?:please\\s+)?(?:harvest|gather|collect|make|craft|produce)\\b",
                 Pattern.CASE_INSENSITIVE).matcher(text);
         if (nearest.find()) return Slot.nearest("nearest citizen");
         Matcher leading = Pattern.compile("^\\s*(?:(?:please\\s+have|could|ask)\\s+)?"
                 + "([\\p{L}\\p{M}\\p{N}][\\p{L}\\p{M}\\p{N}_ -]{0,127}?)"
-                + "\\s*,?\\s+(?:to\\s+)?(?:please\\s+)?(?:harvest|gather|collect)\\b",
+                + "\\s*,?\\s+(?:to\\s+)?(?:please\\s+)?(?:harvest|gather|collect|make|craft|produce)\\b",
                 Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(text);
         if (leading.find()) {
             String reference = leading.group(1).strip();
             if (!reference.matches("(?i)(please|can|could|will|would|do|let us)"))
                 return Slot.concrete(reference, null, reference);
         }
-        Matcher afterAction = Pattern.compile("\\b(?:harvest|gather|collect)\\b[^,]{1,80}\\b(?:wheat|oak\\s+logs?)\\s*,\\s*([^,]{1,128})\\s*,",
+        Matcher afterAction = Pattern.compile("\\b(?:harvest|gather|collect|make|craft|produce)\\b[^,]{1,80}\\b(?:wheat|oak\\s+logs?)\\s*,\\s*([^,]{1,128})\\s*,",
                 Pattern.CASE_INSENSITIVE).matcher(text);
         if (afterAction.find()) {
             String reference = afterAction.group(1).strip();
@@ -132,7 +158,7 @@ public final class LanguageReferenceClassifier {
     }
 
     private static String harvestTail(String text) {
-        Matcher action = Pattern.compile("\\b(?:harvest|gather|collect)\\b",Pattern.CASE_INSENSITIVE).matcher(text);
+        Matcher action = Pattern.compile("\\b(?:harvest|gather|collect|make|craft|produce)\\b",Pattern.CASE_INSENSITIVE).matcher(text);
         return action.find() ? text.substring(action.end()) : text;
     }
 
@@ -168,7 +194,7 @@ public final class LanguageReferenceClassifier {
             if (!tail.matches("(?is)^(?:at|to|into|in)\\s+.+")) return Slot.unsupported(bounded(tail));
             tail = tail.replaceFirst("(?i)^(?:at|to|into|in)\\s+", "");
         } else {
-            Matcher action = Pattern.compile("\\b(?:harvest|gather|collect)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+            Matcher action = Pattern.compile("\\b(?:harvest|gather|collect|make|craft|produce)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
             String afterAction = action.find() ? text.substring(action.end()) : text;
             Matcher standalone = DEST_STANDALONE.matcher(afterAction);
             if (!standalone.find()) {
@@ -193,7 +219,7 @@ public final class LanguageReferenceClassifier {
     private static boolean unsafeActionText(String text) {
         if (Pattern.compile("\\b(?:not|never|don't|do\\s+not|cannot)\\b", Pattern.CASE_INSENSITIVE).matcher(text).find())
             return true;
-        Matcher harvests = Pattern.compile("\\b(?:harvest|gather|collect)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+        Matcher harvests = Pattern.compile("\\b(?:harvest|gather|collect|make|craft|produce)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         int actions = 0;
         while (harvests.find()) if (++actions > 1) return true;
         return Pattern.compile("\\b(?:and|then|also)\\s+(?:build|destroy|craft|name|rename|attack|harvest|gather|collect)\\b",

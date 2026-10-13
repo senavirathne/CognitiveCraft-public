@@ -24,6 +24,13 @@ import static dev.aivillages.core.kernel.VersionedSkillRepository.*;
 
 /** IMP-006 policy/schema 1. One bounded attempt; callbacks never mutate game state. */
 public final class ResearchAdmissionController {
+    private static final String PLANK_BRIEF="Propose schema-1 parameterized oak-plank production from supplied logs. "
+            + "Use the registered preflight observation once before effects. The installed static recipe consumes one oak log "
+            + "and produces four planks. Repeat ceil(amount/4) batches with separately registered input movement, "
+            + "one-log withdrawal, recipe crafting, destination movement and newly produced plank transfer in causal order. "
+            + "Transfer binds the requested amount; the host preserves final surplus in citizen custody. "
+            + "No harvesting or RB-001 dependency; use runtime actor/source/destination/amount parameters. "
+            + "For the transport proposal select preflight, batchSize=4 and five cycle primitive IDs; result={param:amount}. ";
     private static final String CROP_BRIEF = "Produce schema-1 Skill IR for crop delivery. "
             + "Use registered primitive calls with exact signatures and typed bindings. "
             + "For each of count={param:amount} iterations, execute in causal order: "
@@ -312,8 +319,8 @@ public final class ResearchAdmissionController {
         }
         attempt.generate(Generation.Role.INITIAL, "Current source observation="
                 + route.observation().status()
-                + (bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
-                + route.observation().counts().getOrDefault(bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
+                + (bound.request().capability().equals(OakPlankProduction.ID) ? ", input_logs=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
+                + route.observation().counts().getOrDefault(bound.request().capability().equals(OakPlankProduction.ID) ? "input_logs" : bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
         return attempt;
     }
     public Attempt startRepair(ValidatedRequest bound, ArtifactRef parent, EvidenceRef defect,
@@ -357,7 +364,7 @@ public final class ResearchAdmissionController {
                     || value instanceof IntValue integer && (integer.value() < parameter.minimum()
                     || integer.value() > parameter.maximum())) return false;
         }
-        return ((AreaValue)args.get("source")).value().dimension().equals(bound.observation().dimension())
+        return ResourceDelivery.sourceArea(bound.request()).dimension().equals(bound.observation().dimension())
                 && ((ContainerValue)args.get("destination")).value().dimension()
                         .equals(bound.observation().dimension());
     }
@@ -366,8 +373,9 @@ public final class ResearchAdmissionController {
                 || !capabilities.find(bound.request().capability()).filter(ResourceDelivery.spec(bound.request().capability()).orElseThrow()::equals).isPresent()
                 || !(bound.request().arguments().get("actor") instanceof ActorValue value)
                 || !control.controls(value.value(), bound.context())) return false;
-        for (Effect required : bound.request().capability().equals(OakLogDelivery.ID) ? OakLogDelivery.SPEC.effects()
-                : List.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
+        for (Effect required : bound.request().capability().equals(CropDelivery.ID)
+                ? List.of(Effect.OBSERVE,Effect.HARVEST,Effect.PICKUP,Effect.TRANSFER)
+                : ResourceDelivery.spec(bound.request().capability()).orElseThrow().effects())
             if (!authority.currentlyAllows(value.value(), required, bound.context())) return false;
         return true;
     }
@@ -431,7 +439,8 @@ public final class ResearchAdmissionController {
             if (!bound.context().equals(caller)) throw new SecurityException("Private research attempt");
         }
         private void generate(Generation.Role role, String context) {
-            String prompt = (bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
+            String prompt = (bound.request().capability().equals(OakPlankProduction.ID) ? PLANK_BRIEF
+                    : bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > settings.maxContextBytes()) {
                 finish(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED); return;
             }
@@ -774,7 +783,10 @@ public final class ResearchAdmissionController {
         }
     }
     private static List<PrimitiveSignature> primitiveBrief(CapabilityId id) {
-        var ops=id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
+        var ops=id.equals(OakPlankProduction.ID) ? List.of(GatewayPrimitives.Operation.OBSERVE_PLANK_INPUTS,
+                GatewayPrimitives.Operation.MOVE_TO_INPUT,GatewayPrimitives.Operation.WITHDRAW_OAK_LOG,
+                GatewayPrimitives.Operation.CRAFT_OAK_PLANKS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
+                GatewayPrimitives.Operation.TRANSFER_OAK_PLANKS) : id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
                 GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,
                 GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
                 GatewayPrimitives.Operation.TRANSFER_OAK_LOGS) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,

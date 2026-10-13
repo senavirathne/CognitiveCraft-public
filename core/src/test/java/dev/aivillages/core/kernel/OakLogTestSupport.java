@@ -20,7 +20,7 @@ final class OakLogTestSupport {
     }
     static List<ResourceDelivery.Receipt> chain(ValidatedRequest bound,UUID run,long quantity) {
         UUID batch=UUID.randomUUID(),drop=UUID.randomUUID();
-        return Arrays.stream(ResourceDelivery.Stage.values()).map(stage -> new ResourceDelivery.Receipt(UUID.randomUUID(),
+        return List.of(ResourceDelivery.Stage.HARVEST,ResourceDelivery.Stage.PICKUP,ResourceDelivery.Stage.DEPOSIT).stream().map(stage -> new ResourceDelivery.Receipt(UUID.randomUUID(),
                 bound.context(),run,UUID.randomUUID(),batch,((ActorValue)bound.request().arguments().get("actor")).value(),
                 ((AreaValue)bound.request().arguments().get("source")).value(),((ContainerValue)bound.request().arguments().get("destination")).value(),
                 ResourceDelivery.OAK_LOG,stage,quantity,new ResourceDelivery.BlockPosition(ACTOR.dimension(),4,0,0),List.of(drop))).toList();

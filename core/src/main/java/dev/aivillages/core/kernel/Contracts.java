@@ -14,8 +14,8 @@ public final class Contracts {
     private Contracts() { }
 
     public enum Type { INT, BOOL, ACTOR, AREA, CONTAINER, UNIT }
-    public enum Effect { OBSERVE, MOVE, HARVEST, PICKUP, TRANSFER }
-    public enum Completion { ATTRIBUTABLE_CROP_DELIVERY, ALL_CHILDREN, ATTRIBUTABLE_RESOURCE_DELIVERY }
+    public enum Effect { OBSERVE, MOVE, HARVEST, PICKUP, TRANSFER, WITHDRAW, CRAFT }
+    public enum Completion { ATTRIBUTABLE_CROP_DELIVERY, ALL_CHILDREN, ATTRIBUTABLE_RESOURCE_DELIVERY, ATTRIBUTABLE_TRANSFORMATION_DELIVERY }
 
     public record CapabilityId(String name, int version) {
         public CapabilityId {

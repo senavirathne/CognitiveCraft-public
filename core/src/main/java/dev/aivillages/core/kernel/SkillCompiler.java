@@ -368,6 +368,10 @@ public final class SkillCompiler {
             case ADD -> new Domain(Type.INT, safeAdd(a.min, b.min, path), safeAdd(a.max, b.max, path), false);
             case SUB -> new Domain(Type.INT, safeSubtract(a.min, b.max, path),
                     safeSubtract(a.max, b.min, path), false);
+            case DIV -> {
+                if(a.min<0 || b.min<=0)fail(path,"NONNEGATIVE_DIVISION_REQUIRED");
+                yield new Domain(Type.INT,a.min/b.max,a.max/b.min,false);
+            }
             case EQ, LT, GTE -> new Domain(Type.BOOL, 0, 0, false);
         };
         return new Expression(new BinaryExpr(op, left.ast, right.ast, result.type), result);
