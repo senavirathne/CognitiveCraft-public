@@ -120,6 +120,7 @@ public final class CompositionGameTests {
             else if(phase==5) {
                 var j=session.queuedJob(owner,job);
                 if(j.state()==Jobs.State.FAILED||j.state()==Jobs.State.CANCELLED||j.state()==Jobs.State.INTERRUPTED){failure="Composition failed "+j;return;}
+                if(j.current()!=null && j.current().terminal()!=null && j.current().terminal().status()!=Outcomes.ExecutionStatus.SUCCEEDED){failure="Prepared native attempt stopped "+j;return;}
                 if(j.state()!=Jobs.State.SUCCEEDED)return;
                 int[] r=ROWS[row];h.assertTrue(j.fulfilled()==r[0]&&j.children().size()==r[8],"Root credited stock or incorrect prerequisite cardinality");
                 h.assertTrue(box(source()).countItem(Items.OAK_LOG)==r[4]&&box(source()).countItem(Items.OAK_PLANKS)==r[5]&&box(source()).countItem(Items.STICK)==r[6],"Native golden surplus mismatch row="+row+" box="+box(source()));

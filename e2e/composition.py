@@ -17,12 +17,12 @@ def scenario(h):
     req=urllib.request.Request("http://127.0.0.1:11434/api/generate",data=json.dumps({"model":h.env["COGNITIVECRAFT_OLLAMA_MODEL"],"stream":False,"keep_alive":"30m"}).encode(),headers={"Content-Type":"application/json"})
     with urllib.request.urlopen(req,timeout=120) as response:require(json.load(response)["done"],"Model prewarm failed")
     h.fresh(two=True);h.enroll();h.enroll("PlayerB","Mira");h.release_gate();h.release_gate("PlayerB")
-    h.console_batch(["setblock "+" ".join(map(str,TABLE))+" minecraft:crafting_table"])
+    h.console(["setblock "+" ".join(map(str,TABLE))+" minecraft:crafting_table","setblock "+" ".join(map(str,SRC))+" minecraft:chest","setblock 15 201 9 minecraft:chest"])
     def logs(minimum=OAK_MIN,maximum=OAK_MAX):
-        h.console_batch([f"setblock {x} {minimum[1]} {minimum[2]} minecraft:oak_log" for x in range(minimum[0],maximum[0]+1)])
+        h.console([f"setblock {x} {minimum[1]} {minimum[2]} minecraft:oak_log" for x in range(minimum[0],maximum[0]+1)])
     def seed(l=0,p=0,s=0,source=SRC):
         stacks=[f'{{Slot:{i}b,id:"{item}",count:{q}}}' for i,(item,q) in enumerate(((LOG,l),(PLANK,p),(STICK,s))) if q]
-        h.console_batch(["data merge block "+" ".join(map(str,source))+" {Items:["+",".join(stacks)+"]}"])
+        h.console(["data merge block "+" ".join(map(str,source))+" {Items:["+",".join(stacks)+"]}"])
         h.wait(lambda:all(h.container(source,item)==q for item,q in ((LOG,l),(PLANK,p),(STICK,s))),"Actual eligible supplied stock",20)
     def run(command):
         response=h.command("PlayerA",command,"run="+UUID_PATTERN)
@@ -82,7 +82,7 @@ def scenario(h):
     require(rows[-1]["job"] not in h.suggestions("PlayerB","/aivillage kernel job-status "),"Foreign Job suggestion leaked")
     h.screenshot("PlayerB","rb005-private-denial",chat=True)
     logs();seed();before_language=h.container(DST,AXE);language_before=h.model_calls()
-    h.console_batch(['data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:oak_planks"}]','data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:stick"}]'])
+    h.console(['data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:oak_planks"}]','data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:stick"}]'])
     before_destinations={tuple(SRC):h.container(SRC,AXE),tuple(DST):h.container(DST,AXE)}
     answer=h.command("PlayerA","/aivillage kernel ask Ada, make me a wooden axe and store it","interpretation=("+UUID_PATTERN+")")
     ticket=re.search("interpretation=("+UUID_PATTERN+")",answer).group(1)
@@ -102,7 +102,7 @@ def scenario(h):
     warm=read(h.root/"server/process.json");require(warm["start"]>cold["start"],"Known reuse did not use a separate JVM")
     require(release==warm["releaseSha256"],"Offline reuse changed release")
     # A fresh citizen and native table/container bindings, using the established spare citizen fixture.
-    h.console_batch(["setblock 15 201 11 minecraft:crafting_table"])
+    h.console(["setblock 15 201 11 minecraft:crafting_table"])
     h.command("PlayerB","/aivillage kernel inference false","admission=false")
     fresh_source=[15,201,9];fresh_dest=[17,201,7];before=h.container(fresh_dest,AXE);calls=h.model_calls()
     offline_id=compose(4,0,0,0,source=fresh_source,destination=fresh_dest,table=[15,201,11],player="PlayerB");offline=complete(offline_id,4,before,source=fresh_source,destination=fresh_dest,player="PlayerB")

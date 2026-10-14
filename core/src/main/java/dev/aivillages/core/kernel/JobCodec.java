@@ -97,7 +97,7 @@ final class JobCodec {
     private static Attempt attempt(Map<String,Object> row, long schema) throws StrictJson.Invalid {
         fields(row,Set.of("id","generation","worker","request","allowance","usage","effects","credited",
                 "uncertain","cancellationDeliveries","executions","receipts"),
-                schema == 2 ? Set.of("terminal","resourceReceipts") : Set.of("terminal"));
+                schema == 2 || schema == 3 ? Set.of("terminal","resourceReceipts") : Set.of("terminal"));
         var references = new ArrayList<ExecutionReference>();
         for (Object value : list(row,"executions",8)) {
             var ref = map(value); exact(ref,"run","artifact","pinned");
