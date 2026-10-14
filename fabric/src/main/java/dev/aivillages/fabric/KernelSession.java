@@ -707,7 +707,10 @@ public final class KernelSession implements AutoCloseable {
         var present=new java.util.HashSet<KnowledgeAccess.Pair>();
         for(var pair:pairs.stream().limit(8).toList()){
             var teacher=villager(pair.teacher());var learner=villager(pair.learner());
-            if(teacher!=null&&learner!=null&&teacher.isAlive()&&learner.isAlive()
+            var teacherOwner=citizens.snapshot().citizens().stream().filter(c->c.actor().equals(pair.teacher())).findFirst().orElse(null);
+            var learnerOwner=citizens.snapshot().citizens().stream().filter(c->c.actor().equals(pair.learner())).findFirst().orElse(null);
+            if(teacher!=null&&learner!=null&&teacher.isAlive()&&learner.isAlive()&&teacherOwner!=null&&learnerOwner!=null
+                    &&controls(pair.teacher(),teacherOwner.owner())&&controls(pair.learner(),learnerOwner.owner())
                     &&pair.teacher().dimension().equals(pair.learner().dimension())&&teacher.distanceToSqr(learner)<=256)
                 present.add(pair);
         }

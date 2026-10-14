@@ -47,12 +47,12 @@ public final class ApprenticeshipGameTests {
             if(warm){opening=async(()->{try{return open(StrictJson.object(Files.readString(root.resolve("restart.json"))));}catch(Exception e){throw new CompletionException(e);}});return;}
             world=UUID.randomUUID();owner=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(world,UUID.randomUUID()));
             origin=h.absolutePos(new BlockPos(8,0,8));BootstrapGameTests.forceFixtureChunks(h,origin);geometry();
-            for(int x=0;x<12;x++)for(int z=0;z<10;z++)block(x,0,z,Blocks.STONE.defaultBlockState());
-            for(int x:new int[]{2,4,6})for(int z:new int[]{2,3,5,6}){
+            for(int x=0;x<14;x++)for(int z=0;z<12;z++)block(x,0,z,Blocks.STONE.defaultBlockState());
+            for(int[] field:fields())for(int z=field[1];z<=field[1]+1;z++){int x=field[0];
                 block(x,0,z,Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE,7));
                 block(x,1,z,Blocks.WHEAT.defaultBlockState().setValue(CropBlock.AGE,7));}
             block(4,1,4,Blocks.CHEST.defaultBlockState());
-            for(int n=0;n<3;n++){var p=origin.offset(10,1,6+n).subtract(h.absolutePos(BlockPos.ZERO));
+            for(int n=0;n<4;n++){var p=origin.offset(11,1,7+n).subtract(h.absolutePos(BlockPos.ZERO));
                 var villager=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,p.getX()+0.5f,p.getY(),p.getZ()+0.5f);villager.setPersistenceRequired();villagers.add(villager);}
             opening=async(()->open(Map.of("world",world.toString(),"principal",owner.principal().id().toString(),"domain",owner.scope().domainId().toString())));
         }
@@ -74,14 +74,17 @@ public final class ApprenticeshipGameTests {
             return new Stores(identities,jobs,leases,repo,evidence,source,roots,marker);
         }catch(Exception failed){throw new CompletionException(failed);}}
         void geometry(){String dim=h.getLevel().dimension().identifier().toString();chest=new ContainerRef(dim,origin.getX()+4,origin.getY()+1,origin.getZ()+4);}
-        Cuboid source(){int x=work==0||work==3?2:work==1||work==4?4:6;int z=work<3?2:5;
+        static int[][] fields(){return new int[][]{{2,2},{8,2},{6,2},{2,5},{4,5},{6,5}};}
+        Cuboid source(){int x=fields()[work][0],z=fields()[work][1];
             return new Cuboid(chest.dimension(),origin.getX()+x,origin.getY()+1,origin.getZ()+z,origin.getX()+x,origin.getY()+1,origin.getZ()+z+1);}
         void block(int x,int y,int z,net.minecraft.world.level.block.state.BlockState state){h.getLevel().setBlockAndUpdate(origin.offset(x,y,z),state);}
         int stock(){return ((Container)h.getLevel().getBlockEntity(new BlockPos(chest.x(),chest.y(),chest.z()))).countItem(Items.WHEAT);}
-        int mature(){int count=0;for(int x:new int[]{2,4,6})for(int z:new int[]{2,3,5,6}){var state=h.getLevel().getBlockState(origin.offset(x,1,z));
+        int mature(){int count=0;for(int[] field:fields())for(int z=field[1];z<=field[1]+1;z++){int x=field[0];var state=h.getLevel().getBlockState(origin.offset(x,1,z));
             if(state.is(Blocks.WHEAT)&&state.getValue(CropBlock.AGE)==7)count++;}return count;}
-        int failedDrops(){return h.getLevel().getEntitiesOfClass(ItemEntity.class,new AABB(origin.getX()+3,origin.getY(),origin.getZ()+1,origin.getX()+6,origin.getY()+4,origin.getZ()+5),
+        int failedDrops(){return h.getLevel().getEntitiesOfClass(ItemEntity.class,new AABB(origin.getX()+7,origin.getY(),origin.getZ()+1,origin.getX()+10,origin.getY()+4,origin.getZ()+5),
                 e->e.getItem().is(Items.WHEAT)).stream().mapToInt(e->e.getItem().getCount()).sum();}
+        int failedInventory(){return villagers.size()>3?villagers.get(3).getInventory().countItem(Items.WHEAT):0;}
+        int failedResources(){return failedDrops()+failedInventory();}
         void compose(){
             stores=opening.join();method=((SkillCompiler.Success)new SkillCompiler(c->Optional.of(CropDelivery.SPEC),GatewayPrimitives.instance(),ref->Optional.empty())
                     .compile(ResearchGameTests.fixtureIr())).skill().artifact().descriptor().ref();
@@ -107,7 +110,7 @@ public final class ApprenticeshipGameTests {
         void presence(){var pairs=new HashSet<Pair>();if(actors.size()>1){for(int n=1;n<actors.size();n++)if(villagers.getFirst().distanceToSqr(villagers.get(n))<=256)pairs.add(new Pair(actors.getFirst(),actors.get(n)));}
             stores.source().observe(citizens.snapshot(),jobs.snapshot(),pairs);if(access!=null)access.checkSupervision();}
         Jobs.Job job(){return jobs.query(current,owner);}
-        ActorRef actor(){return actors.get(work==0?0:work==3?2:1);}
+        ActorRef actor(){return actors.get(work==0?0:work==1?3:work==3?2:1);}
         void create(){var source=source();var request=new CapabilityRequest(CropDelivery.ID,Map.of("actor",new ActorValue(actor()),"source",new AreaValue(source),"destination",new ContainerValue(chest),"amount",new IntValue(2)));
             var allowance=new Budgets.Limits(Map.of(Budgets.Kind.CALLS,512L,Budgets.Kind.INSTRUCTIONS,8192L,Budgets.Kind.OBSERVATIONS,4096L,Budgets.Kind.ATTEMPTED_EFFECTS,64L,Budgets.Kind.COMMITTED_EFFECTS,64L,Budgets.Kind.ELAPSED_TICKS,1800L),clock.millis()+600000);
             current=UUID.randomUUID();require(jobs.create(current,current,request,owner,new ObservationRef(UUID.randomUUID(),h.getLevel().getGameTime(),source.dimension()),allowance,List.of()).accepted(),"Native practice Job creation refused");outcomes.add(current);}
@@ -115,7 +118,7 @@ public final class ApprenticeshipGameTests {
             if(citizens!=null&&phase<80){citizens.tick();jobs.tick();leases.tick();raw.tick();gateway.tick();presence();}
             switch(phase){
                 case 0->{require(opening.isDone(),"Await owner storage");compose();if(warm){require(((Number)stores.marker().get("process")).longValue()!=ProcessHandle.current().pid()||((Number)stores.marker().get("processStarted")).longValue()!=processStarted,"Reuse requires another JVM");
-                        require(stock()==8&&mature()==3&&failedDrops()==1,"Saved physical stock/resources must remain conserved");operation=async(()->{try{return KnowledgeAccessStore.open(root,world,stores.source(),KnowledgeAccessStore.repositoryCatalog(stores.repository()),clock,stores.roots());}catch(Exception e){throw new CompletionException(e);}});phase=13;}else phase=1;}
+                        require(stock()==8&&mature()==3&&failedResources()==1,"Saved physical stock/resources must remain conserved");operation=async(()->{try{return KnowledgeAccessStore.open(root,world,stores.source(),KnowledgeAccessStore.repositoryCatalog(stores.repository()),clock,stores.roots());}catch(Exception e){throw new CompletionException(e);}});phase=13;}else phase=1;}
                 case 1->{require(citizens.ready(),"Await teacher enrollment");var result=citizens.enroll(villagers.getFirst().getUUID(),chest.dimension(),owner);require(result.accepted(),"Teacher enrollment refused");actors.add(result.citizen().actor());phase=3;}
                 case 3->{require(citizens.ready()&&jobs.ready()&&leases.ready(),"Await acknowledged identities/Jobs");create();phase=4;}
                 case 4->{require(jobs.ready()&&leases.ready(),"Await acknowledged practice request");presence();
@@ -125,30 +128,31 @@ public final class ApprenticeshipGameTests {
                 case 5->{require(operation.isDone(),"Await learning reference publication");if(work>=1&&work<=3)require(((KnowledgeAccess.Result)operation.join()).code()==Code.APPLIED,"Practice access refused: "+operation.join());
                     var job=job();require(jobs.assign(current,job.guard(),UUID.randomUUID(),actor(),method,List.of(method),job.allowance(),owner).accepted(),"Ordinary Jobs assignment refused");phase=6;}
                 case 6->{require(jobs.ready()&&leases.ready(),"Await ordinary assignment and pin");var a=job().current();var e=a.executions().getFirst();var source=source();
-                    int selected=work==0?0:work==3?2:1;villagers.get(selected).setPos(source.minX()+(source.minX()-origin.getX()<=4?1.5:-0.5),source.minY(),source.minZ()+0.5);presence();
+                    int selected=work==0?0:work==1?3:work==3?2:1;villagers.get(selected).setPos(source.minX()+(source.minX()-origin.getX()<=4?1.5:-0.5),source.minY(),source.minZ()+0.5);presence();
                     var started=executor.startAdmitted(a.bound(),method,new RunCorrelation(e.runId(),method,null),new Budgets.ExecutionLimits(a.allowance(),10000),new Budgets.Ledger(a.allowance(),clock));
                     require(started instanceof BoundedSkillExecutor.Started,"Supervised native method refused: "+started);run=((BoundedSkillExecutor.Started)started).run();phase=7;}
                 case 7->{var progress=run.tick(owner);
                     if(work==1&&!supervisionLost&&progress.summary().committedEffects()>0){partialEffects=progress.summary().committedEffects();villagers.getFirst().setPos(origin.getX()+30.5,origin.getY()+1,origin.getZ()+6.5);supervisionLost=true;presence();return;}
                     if(progress.phase()!=BoundedSkillExecutor.Phase.TERMINAL)return;var sum=progress.summary();
-                    if(work==1){require(sum.outcome().status()==ExecutionStatus.BLOCKED&&sum.outcome().reason()==Reason.KNOWLEDGE_REQUIRED&&sum.committedEffects()==partialEffects,"Lost supervision must fence subsequent effects");require(stock()==2&&failedDrops()==1&&mature()==9,"Partial harvest must remain physically conserved");}
+                    if(work==1){require(sum.outcome().status()==ExecutionStatus.BLOCKED&&sum.outcome().reason()==Reason.KNOWLEDGE_REQUIRED&&sum.committedEffects()==partialEffects,"Lost supervision must fence subsequent effects");require(stock()==2&&failedResources()==1&&mature()==9,"Partial harvest must remain physically conserved");}
                     else require(sum.outcome().status()==ExecutionStatus.SUCCEEDED,"Native known outcome failed work="+work+" outcome="+sum.outcome()+" trace="+progress.trace());
                     var j=job();var a=j.current();require(jobs.recordExecutionResult(current,j.guard(),new Jobs.Report(a.id(),a.generation(),sum.committedEffects(),sum.usage(),sum.receipts(),sum.outcome()),owner).accepted(),"Actual Jobs receipts refused");phase=8;}
                 case 8->{require(jobs.ready()&&leases.ready(),"Await owner acknowledgement");var acknowledged=job();presence();
                     operation=async(()->{var result=stores.evidence().recordOutcomes(List.of(Accomplishments.OutcomeRef.of(acknowledged)),()->false);
                         if(result.code()!=Accomplishments.Code.APPLIED&&result.code()!=Accomplishments.Code.DUPLICATE)throw new AssertionError("Evidence owner refused: "+result);
                         if(work>=1&&work<=3){var learned=access.recordLearningOutcome(current,owner,()->false);if(learned.code()!=Code.APPLIED)throw new AssertionError("Learning owner refused: "+learned);}return null;});phase=9;}
-                case 9->{require(operation.isDone(),"Await evidence-backed learning");operation.join();int selected=work==0?0:work==3?2:1;
-                    villagers.get(selected).setPos(origin.getX()+10.5,origin.getY()+1,origin.getZ()+6.5+selected);
+                case 9->{require(operation.isDone(),"Await evidence-backed learning");operation.join();int selected=work==0?0:work==1?3:work==3?2:1;
+                    villagers.get(selected).setPos(origin.getX()+11.5,origin.getY()+1,origin.getZ()+7.5+selected);
                     if(work==0){operation=async(()->{try{return KnowledgeAccessStore.open(root,world,stores.source(),KnowledgeAccessStore.repositoryCatalog(stores.repository()),clock,stores.roots());}catch(Exception e){throw new CompletionException(e);}});phase=10;return;}
-                    if(work==1){require(access.snapshot().grants().isEmpty()&&!access.mayUse(actor(),method,owner),"Failed supervision granted access");villagers.getFirst().setPos(origin.getX()+10.5,origin.getY()+1,origin.getZ()+6.5);}
+                    if(work==1){require(access.snapshot().grants().isEmpty()&&!access.mayUse(actor(),method,owner),"Failed supervision granted access");villagers.getFirst().setPos(origin.getX()+11.5,origin.getY()+1,origin.getZ()+7.5);}
                     if(work>=2&&work<=3)require(access.mayUse(actor(),method,owner),"Verified practice must grant exactly the permitted method");
                     work++;if(work<5&&!warm){phase=3;return;}quietUntil=h.getLevel().getGameTime()+20;phase=70;}
                 case 10->{require(operation.isDone(),"Await shared-access migration");access=(KnowledgeAccessStore)operation.join();require(access.mayUse(actors.getFirst(),method,owner),"Absent personal row erased teacher shared access");
                     require(citizens.ready(),"Await learner enrollment");var enrolled=citizens.enroll(villagers.get(1).getUUID(),chest.dimension(),owner);require(enrolled.accepted(),"Learner enrollment refused");actors.add(enrolled.citizen().actor());phase=11;}
-                case 11->{require(citizens.ready(),"Await second learner enrollment");var enrolled=citizens.enroll(villagers.get(2).getUUID(),chest.dimension(),owner);require(enrolled.accepted(),"Second learner refused");actors.add(enrolled.citizen().actor());phase=12;}
+                case 11->{require(citizens.ready(),"Await second learner enrollment");var enrolled=citizens.enroll(villagers.get(2).getUUID(),chest.dimension(),owner);require(enrolled.accepted(),"Second learner refused");actors.add(enrolled.citizen().actor());phase=15;}
+                case 15->{require(citizens.ready(),"Await isolated failed learner enrollment");var enrolled=citizens.enroll(villagers.get(3).getUUID(),chest.dimension(),owner);require(enrolled.accepted(),"Failed-practice learner refused");actors.add(enrolled.citizen().actor());phase=12;}
                 case 12->{require(citizens.ready(),"Await acknowledged apprentice identities");presence();
-                    operation=async(()->{for(int n=1;n<3;n++)if(access.requirePersonalLearning(actors.get(n),owner,()->false).code()!=Code.APPLIED)throw new AssertionError("Explicit apprentice opt-in refused");return null;});phase=14;}
+                    operation=async(()->{for(int n=1;n<4;n++)if(access.requirePersonalLearning(actors.get(n),owner,()->false).code()!=Code.APPLIED)throw new AssertionError("Explicit apprentice opt-in refused");return null;});phase=14;}
                 case 14->{require(operation.isDone(),"Await explicit personal-access enrollment");operation.join();work=1;phase=3;}
                 case 13->{require(operation.isDone(),"Await personal-access reload");access=(KnowledgeAccessStore)operation.join();require(access.snapshot().grants().size()==2,"Reload lost/duplicated learned references");
                     require(access.mayUse(actors.get(1),method,owner),"Reload erased personal learning");work=5;phase=3;}
@@ -157,7 +161,7 @@ public final class ApprenticeshipGameTests {
             }
         }
         void verifyAndSave(){
-            require(stock()==(warm?10:8)&&mature()==(warm?1:3)&&failedDrops()==1,"World item/block conservation mismatch");
+            require(stock()==(warm?10:8)&&mature()==(warm?1:3)&&failedResources()==1,"World item/block conservation mismatch stock="+stock()+" mature="+mature()+" failedDrops="+failedDrops()+" failedInventory="+failedInventory());
             require(access.snapshot().grants().size()==2&&access.snapshot().practices().size()==3,"Learning reference count mismatch");
             require(access.snapshot().practices().stream().filter(p->p.stage()==Stage.STOPPED).count()==1,"Lost-supervision history must remain explainable");
             var foreign=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(world,UUID.randomUUID()));
@@ -166,7 +170,7 @@ public final class ApprenticeshipGameTests {
             var marker=new LinkedHashMap<String,Object>();marker.put("world",world.toString());marker.put("principal",owner.principal().id().toString());marker.put("domain",owner.scope().domainId().toString());
             marker.put("origin",List.of(origin.getX(),origin.getY(),origin.getZ()));marker.put("actors",actors.stream().map(a->a.citizenId().toString()).toList());marker.put("outcomes",outcomes.stream().map(UUID::toString).toList());
             marker.put("process",ProcessHandle.current().pid());marker.put("processStarted",processStarted);marker.put("partialEffects",partialEffects);
-            var proof=new LinkedHashMap<String,Object>(marker);proof.put("schema",1);proof.put("architecture","0.5");proof.put("phase",warm?"warm":"cold");proof.put("stock",stock());proof.put("mature",mature());proof.put("failedDrops",failedDrops());proof.put("grants",2);proof.put("practices",3);proof.put("modelCalls",0);proof.put("revision",access.snapshot().revision());
+            var proof=new LinkedHashMap<String,Object>(marker);proof.put("schema",1);proof.put("architecture","0.5");proof.put("phase",warm?"warm":"cold");proof.put("stock",stock());proof.put("mature",mature());proof.put("failedDrops",failedDrops());proof.put("failedInventory",failedInventory());proof.put("failedResources",failedResources());proof.put("grants",2);proof.put("practices",3);proof.put("modelCalls",0);proof.put("revision",access.snapshot().revision());
             operation=async(()->{try{
                 var state=root.resolve(KnowledgeAccessStore.WORLD_RELATIVE_PATH).resolve("state.jsonl");proof.put("accessBytes",Files.size(state));proof.put("accessSha256",sha(Files.readAllBytes(state)));
                 var bodies=root.resolve(VersionedSkillRepository.WORLD_RELATIVE_PATH).resolve("bodies");try(var files=Files.list(bodies)){proof.put("bodies",files.filter(p->p.getFileName().toString().endsWith(".json")).count());}

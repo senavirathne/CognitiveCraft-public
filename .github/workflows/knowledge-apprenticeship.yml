@@ -113,7 +113,7 @@ jobs:
           shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
           cold=json.loads((saved/'cold.json').read_text());warm=json.loads((saved/'warm.json').read_text())
           for phase,p,stock,mature in [('cold',cold,8,3),('warm',warm,10,1)]:
-              if (p['phase'],p['stock'],p['mature'],p['grants'],p['practices'],p['bodies'],p['failedDrops'],p['partialEffects'],p['modelCalls'])!=(phase,stock,mature,2,3,1,1,1,0):raise SystemExit('Native conservation/learning mismatch')
+              if (p['phase'],p['stock'],p['mature'],p['grants'],p['practices'],p['bodies'],p['failedResources'],p['partialEffects'],p['modelCalls'])!=(phase,stock,mature,2,3,1,1,1,0):raise SystemExit('Native conservation/learning mismatch')
               if not 0<p['accessBytes']<=1048576 or not p['accessBytes']<=p['ownerBytes']<=3145728:raise SystemExit('Unbounded access storage')
           if cold['accessSha256']!=warm['accessSha256'] or cold['revision']!=warm['revision']:raise SystemExit('Reload or successful reuse duplicated a grant')
           if (cold['process'],cold['processStarted'])==(warm['process'],warm['processStarted']):raise SystemExit('Reuse must cross a real JVM boundary')

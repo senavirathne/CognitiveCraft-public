@@ -172,7 +172,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
                 &&source.present(p.teacher(),p.learner())&&evaluateTeaching(p.teacher().actor(),p.learner().actor(),p.method(),p.learner().owner()).allowed()
                 &&p.pinned().stream().allMatch(ref->catalog.usable(ref).allowed());
         if(valid&&job.current()!=null)valid=job.current().generation()==p.generation()&&job.current().worker().equals(p.learner().actor())
-                &&job.current().executions().stream().anyMatch(e->e.artifact().equals(p.method()));
+                &&job.current().executions().stream().anyMatch(e->e.artifact().equals(p.method())&&e.pinned().containsAll(p.pinned()));
         if(valid&&job.current()==null)valid=job.generation()==p.generation()-1;
         if(!valid)lost.add(p.job());return valid;
     }

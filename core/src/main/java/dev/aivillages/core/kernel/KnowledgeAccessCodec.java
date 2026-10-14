@@ -10,12 +10,15 @@ import static dev.aivillages.core.kernel.KnowledgeAccess.*;
 
 /** Checksummed bounded JSON-lines envelope. Exact record fields and primitive types precede decoding. */
 final class KnowledgeAccessCodec {
-    static final int MAX_BYTES=1_048_576, MAX_ROWS=770;
+    static final int MAX_BYTES=1_048_576, MAX_ROWS=833;
     private static final Gson JSON=new Gson();
     private KnowledgeAccessCodec(){ }
     static byte[] encode(Snapshot snapshot)throws IOException{
         var lines=new ArrayList<String>();
-        lines.add(row("migration",Map.of("migrated",snapshot.migrated(),"citizens",snapshot.legacyCitizens(),"methods",snapshot.legacyMethods(),"personal",snapshot.personalCitizens())));
+        lines.add(row("migration",Map.of("migrated",snapshot.migrated())));
+        for(var value:snapshot.legacyCitizens())lines.add(row("legacy-citizen",value));
+        for(var value:snapshot.legacyMethods())lines.add(row("legacy-method",value));
+        for(var value:snapshot.personalCitizens())lines.add(row("personal-citizen",value));
         for(var value:snapshot.grants())lines.add(row("grant",value));
         for(var value:snapshot.practices())lines.add(row("practice",value));
         String payload=lines.isEmpty()?"":String.join("\n",lines)+"\n";
@@ -41,30 +44,39 @@ final class KnowledgeAccessCodec {
             String payload=text.substring(at+1);
             if(!sha(payload.getBytes(StandardCharsets.UTF_8)).equals(Outcomes.string(header,"sha256","$")))throw new IOException("Access checksum");
             var grants=new ArrayList<Grant>();var practices=new ArrayList<Practice>();
-            List<Enrollment> citizens=null;List<Enrollment> personal=null;List<Contracts.ArtifactRef> methods=null;boolean migrated=false;
+            var citizens=new ArrayList<Enrollment>();var personal=new ArrayList<Enrollment>();var methods=new ArrayList<Contracts.ArtifactRef>();boolean migrated=false,migrationSeen=false;
             int rows=0;
             for(String line:payload.split("\n")){
                 if(line.isEmpty())continue;if(++rows>MAX_ROWS)throw new IOException("Access row bound");
                 var row=StrictJson.object(line);Outcomes.exact(row,"kind","value");var value=Outcomes.object(row,"value","$");
                 switch(Outcomes.string(row,"kind","$")){
                     case "migration"->{
-                        if(citizens!=null)throw new IOException("Duplicate migration");
-                        Outcomes.exact(value,"migrated","citizens","methods","personal");
+                        if(migrationSeen)throw new IOException("Duplicate migration");migrationSeen=true;
                         if(!(value.get("migrated") instanceof Boolean flag))throw new IOException("Migration type");migrated=flag;
-                        if(!(value.get("citizens") instanceof List<?> es)||!(value.get("methods") instanceof List<?> ms))throw new IOException("Migration lists");
-                        citizens=new ArrayList<>();methods=new ArrayList<>();personal=new ArrayList<>();
-                        if(!(value.get("personal") instanceof List<?> ps))throw new IOException("Personal lists");
-                        for(Object p:ps)personal.add(record((Map<String,Object>)p,Enrollment.class));
-                        for(Object e:es)citizens.add(record((Map<String,Object>)e,Enrollment.class));
-                        for(Object m:ms)methods.add(record((Map<String,Object>)m,Contracts.ArtifactRef.class));
+                        if(value.size()==1)Outcomes.exact(value,"migrated");
+                        else {
+                            // Explicit backward reader for schema-1 draft embedded reference lists.
+                            if(value.containsKey("personal"))Outcomes.exact(value,"migrated","citizens","methods","personal");
+                            else Outcomes.exact(value,"migrated","citizens","methods");
+                            if(!(value.get("citizens") instanceof List<?> es)||!(value.get("methods") instanceof List<?> ms))throw new IOException("Migration lists");
+                            for(Object e:es)citizens.add(record((Map<String,Object>)e,Enrollment.class));
+                            for(Object m:ms)methods.add(record((Map<String,Object>)m,Contracts.ArtifactRef.class));
+                            if(value.containsKey("personal")){
+                                if(!(value.get("personal") instanceof List<?> ps))throw new IOException("Personal lists");
+                                for(Object e:ps)personal.add(record((Map<String,Object>)e,Enrollment.class));
+                            }
+                        }
                     }
+                    case "legacy-citizen"->citizens.add(record(value,Enrollment.class));
+                    case "legacy-method"->methods.add(record(value,Contracts.ArtifactRef.class));
+                    case "personal-citizen"->personal.add(record(value,Enrollment.class));
                     case "grant"->grants.add(record(value,Grant.class));
                     case "practice"->practices.add(record(value,Practice.class));
                     default->throw new IOException("Unknown access record");
                 }
             }
             if(Outcomes.number(header,"records","$")!=rows)throw new IOException("Access record count");
-            if(citizens==null)throw new IOException("Missing migration");
+            if(!migrationSeen)throw new IOException("Missing migration");
             return new Snapshot(world,Outcomes.number(header,"revision","$"),migrated,citizens,methods,personal,grants,practices);
         }catch(StrictJson.Invalid|RuntimeException invalid){throw new IOException("Invalid access",invalid);}
     }
