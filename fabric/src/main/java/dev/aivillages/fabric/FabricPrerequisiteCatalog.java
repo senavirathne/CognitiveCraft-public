@@ -65,7 +65,7 @@ public final class FabricPrerequisiteCatalog {
         var productions=new ArrayList<Prerequisites.Production>();productions.add(Prerequisites.Production.cropDelivery());productions.add(dev.aivillages.core.kernel.ResourceComposition.oakAcquisition());
         for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.OakPlankProduction.RECIPE)
                 && recipe.output().equals("minecraft:oak_planks") && recipe.outputPerBatch()==4 && recipe.remainders().isEmpty()
-                && recipe.inputs().size()==1 && recipe.inputs().getFirst().alternatives().equals(List.of("minecraft:oak_log")) && recipe.inputs().getFirst().quantity()==1) {
+                && recipe.inputs().size()==1 && recipe.inputs().getFirst().alternatives().contains("minecraft:oak_log") && recipe.inputs().getFirst().quantity()==1) {
             productions.add(dev.aivillages.core.kernel.RecipeProduction.of(dev.aivillages.core.kernel.OakPlankProduction.ID).relationship());unsupported.remove("minecraft:oak_planks");
         }
         for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.StickProduction.RECIPE)

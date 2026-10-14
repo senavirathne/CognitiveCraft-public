@@ -418,6 +418,7 @@ public final class KernelSession implements AutoCloseable {
                 (template,caller)->template.owner().equals(caller));
         jobs.retentionGuard(next -> {
             var roots = new java.util.HashSet<WorldRetentionManager.Key>();
+            for(var job:next.jobs())if(job.preparation()!=null && job.preparation().method()!=null)roots.add(WorldRetentionManager.artifact(job.preparation().method()));
             for (var job : next.jobs()) for (var attempt : job.attempts()) for (var executionRef : attempt.executions())
                 for (var ref : executionRef.pinned()) roots.add(WorldRetentionManager.artifact(ref));
             roots.addAll(jobs.protectedRoots().artifacts().stream().map(WorldRetentionManager::artifact).toList());

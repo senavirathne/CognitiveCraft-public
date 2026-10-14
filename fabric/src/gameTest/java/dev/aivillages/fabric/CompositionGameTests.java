@@ -45,7 +45,7 @@ public final class CompositionGameTests {
         final long started=System.currentTimeMillis();final CompletableFuture<Marker> reopening;
         final RecordedAxeGeneration recorded;final Candidates candidates=new Candidates();
         final Map<String,String> hashes=new TreeMap<>();
-        KernelSession session;BlockPos origin;Villager villager;ActorRef actor;UUID run,job;int phase,row,learn,before,oldActorAxes;long calls;
+        KernelSession session;BlockPos origin;Villager villager;ActorRef actor;UUID run,job;int phase,row,learn,before,oldActorAxes;long calls,lastProgress;
         String failure;boolean done;CompletableFuture<Void> writing,closing;
         Scene(GameTestHelper h) {
             this.h=h;var world=h.getLevel().getServer().getWorldPath(LevelResource.ROOT);root=world.resolve("rb005-native-owner");marker=world.resolve("rb005-native-marker.json");
@@ -93,7 +93,9 @@ public final class CompositionGameTests {
         void step() {
             if(System.currentTimeMillis()-started>1_500_000){failure="Finite native watchdog phase="+phase+" row="+row;return;}
             if(phase==8){if(closing.isDone()){closing.join();if(recorded!=null)recorded.close();done=true;}return;}
-            session.tick();if(!session.identityReady()||!session.jobsReady()||!session.leasesReady())return;
+            session.tick();if(System.currentTimeMillis()-lastProgress>20000){lastProgress=System.currentTimeMillis();System.out.println("RB005_PROGRESS phase="+phase+" learn="+learn+" row="+row+" jobsReady="+session.jobsReady()+" leasesReady="+session.leasesReady()+" run="+run+" job="+job);}
+            if(!session.identityReady())return;
+            if((phase<=2||phase==4)&&(!session.jobsReady()||!session.leasesReady()))return;
             if(phase==0) {
                 if(warm) {
                     if(!reopening.isDone())return;var m=reopening.join();h.assertTrue(m.process()!=ProcessHandle.current().pid(),"Same JVM is not restart proof");

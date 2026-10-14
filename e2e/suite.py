@@ -38,6 +38,7 @@ PROFILES["rb001"] = ["GP-RB-01"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
+PROFILES["rb005"] = ["GP-RB-COMPOSE-01"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
@@ -1514,6 +1515,8 @@ def main():
     registry["GP-RB-03"] = stick_scenario
     from axes import scenario as axe_scenario
     registry["GP-RB-04"] = axe_scenario
+    from composition import scenario as composition_scenario
+    registry["GP-RB-COMPOSE-01"] = composition_scenario
     try:
         if args.topology == "compose":
             h.compose("build", "minecraft")
