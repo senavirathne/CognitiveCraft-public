@@ -17,7 +17,7 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.LevelResource;
 
-/** Installed native effects, ordinary research/admission and normal prerequisite Job dispatch. */ 
+/** Installed native effects, ordinary research/admission and normal prerequisite Job dispatch. */
 public final class CompositionGameTests {
     @GameTest(maxTicks=4_000_000,padding=16)
     public void independentAdmissionGoldenGraphsAndFreshBindingsAfterBackendStoppedRestart(GameTestHelper h) {

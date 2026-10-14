@@ -321,7 +321,8 @@ class Harness:
 
     def console(self, lines, lifecycle=False):
         if lifecycle:
-            require(all(re.fullmatch(r"save-all(?: flush)?|stop|(?:op|deop) Player[AB]", line) for line in lines),
+            crash_step = self.family == "GP-RB-COMPOSE-01" and lines == ["tick step 1"]
+            require(crash_step or all(re.fullmatch(r"save-all(?: flush)?|stop|(?:op|deop) Player[AB]", line) for line in lines),
                     "Only normal save, stop and permission lifecycle commands are permitted")
         if self.actions_active and not lifecycle:
             raise AssertionError("Administrative setup forbidden during gameplay under test")

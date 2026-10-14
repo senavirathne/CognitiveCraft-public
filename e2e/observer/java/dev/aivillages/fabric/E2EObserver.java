@@ -51,6 +51,7 @@ public final class E2EObserver implements ModInitializer {
         out.addProperty("pid", ProcessHandle.current().pid());
         out.addProperty("java", System.getProperty("java.version"));
         var level = server.overworld();
+        out.addProperty("gameTick", level.getGameTime());
         out.addProperty("arenaLoaded",level.hasChunkAt(new BlockPos(2,201,5)));
         out.addProperty("arenaTicking",level.getChunkSource().isPositionTicking(0L));
         var blocks = new JsonObject(); var containers = new JsonObject();

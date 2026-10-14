@@ -25,6 +25,8 @@ def client():
     assert e['offlineProcessProof']['sameRelease'] and e['offlineProcessProof']['backendUnavailable']
     assert e['offlineProcessProof']['warm']['start']>e['offlineProcessProof']['cold']['start']
     assert e['recovered']['state']=='INTERRUPTED'
+    assert e['killBoundary']['clockMode']=='vanilla-single-step' and 1<=e['killBoundary']['clockSteps']<=512
+    assert e['killBoundary']['depositedPlanks']==8
     OUT.mkdir(parents=True,exist_ok=True);shutil.copy2(folder/'results.json',OUT/'connected-client.json')
 def junit():
     result={}
