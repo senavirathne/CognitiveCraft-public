@@ -197,7 +197,7 @@ public final class DeterministicPrerequisiteResolver {
                         CapabilityResolver.Decision decision=selected.decision();
                         step(Math.addExact(Math.addExact(decision.candidateWork(),decision.queriedPages()),1+selected.inspected()));
                         if (decision.routing().status()!=ResolutionStatus.RESOLVED) {
-                            ResolutionStatus status=decision.routing().status()==ResolutionStatus.UNSUPPORTED_RUNTIME
+                            ResolutionStatus status=ResourceComposition.make(owner) ? decision.routing().status() : decision.routing().status()==ResolutionStatus.UNSUPPORTED_RUNTIME
                                     ? ResolutionStatus.UNSUPPORTED_RUNTIME : decision.routing().status()==ResolutionStatus.UNAUTHORIZED
                                     ? ResolutionStatus.UNAUTHORIZED : ResolutionStatus.BLOCKED;
                             throw new Stop(status,decision.routing().reason()==null?Reason.RESOURCE_MISSING:decision.routing().reason(),Qualification.NONE);

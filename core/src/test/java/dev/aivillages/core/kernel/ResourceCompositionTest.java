@@ -73,6 +73,14 @@ final class ResourceCompositionTest {
         assertEquals(4,f.produced(p,LOG));assertEquals(16,f.produced(p,PLANK));assertEquals(8,f.produced(p,STICK));assertEquals(4,f.produced(p,AXE));
         assertEquals(16,p.allocations().stream().filter(a->p.nodes().stream().anyMatch(n->n.id().equals(a.producer())&&n.item().equals(PLANK))).mapToLong(AllocationIntent::quantity).sum());
     }
+    @ParameterizedTest @org.junit.jupiter.params.provider.EnumSource(value=ResolutionStatus.class,names={"MISSING_IMPLEMENTATION","INCOMPATIBLE"})
+    void resourceMethodGapRetainsDistinctResolutionOutcomeWithoutPartialGraph(ResolutionStatus status) {
+        var f=new Fixture(1);f.stock.put(PLANK,3L);f.stock.put(STICK,2L);
+        Methods methods=(p,b,o,n)->new MethodSelection(new CapabilityResolver.Decision(new Resolution(status,status==ResolutionStatus.INCOMPATIBLE?Reason.ARTIFACT_INCOMPATIBLE:null,null,"gap"),
+                null,Set.of(),new ObservationSnapshot(f.ref,ObservationStatus.PRESENT,"fixture",100,1,Map.of()),1,List.of(),1,1,true,false,null),1);
+        var proposal=new DeterministicPrerequisiteResolver(Limits.defaults(),()->100).resolve(List.of(f.need),f.catalog,f::inspect,methods,n->true,new Budgets.Ledger(ResourceComposition.allowance(1000),f.clock));
+        assertEquals(status,proposal.status());assertTrue(proposal.nodes().isEmpty());
+    }
     @Test void oldAxesCannotSatisfyMake() {var f=new Fixture(1);f.stock.put(AXE,64L);assertEquals(1,f.produced(f.resolve(),AXE));}
     @Test void rootInclusiveDepthFourPassesAndThreeRefuses() {var f=new Fixture(1);assertTrue(f.resolve().accepted());var l=Limits.defaults();
         assertEquals(Reason.BUDGET_EXHAUSTED,f.resolve(new Limits(l.demands(),l.nodes(),3,l.edges(),l.alternatives(),l.work(),l.contextBytes(),l.quantity(),l.observationAge())).reason());}
