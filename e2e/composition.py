@@ -88,9 +88,11 @@ def scenario(h):
     logs();seed();before_language=h.container(DST,AXE);language_before=h.model_calls()
     h.console(['data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:oak_planks"}]','data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:stick"}]'])
     before_destinations={tuple(SRC):h.container(SRC,AXE),tuple(DST):h.container(DST,AXE)}
+    h.command("PlayerA","/aivillage kernel inference true","admission=true");h.actions_active=True
     answer=h.command("PlayerA","/aivillage kernel ask Ada, make me a wooden axe and store it","interpretation=("+UUID_PATTERN+")")
     ticket=re.search("interpretation=("+UUID_PATTERN+")",answer).group(1)
-    interpreted=h.wait(lambda:(v if (v:=h.run_view("PlayerA",ticket)) and v.get("phase")=="SUBMITTED" else None),"Actual Needle MAKE interpretation",100)
+    interpreted=h.wait(lambda:(v if (v:=h.run_view("PlayerA",ticket)) and v.get("phase") not in ("INTERPRETING","RESOLVING") else None),"Actual Needle MAKE interpretation",100)
+    require(interpreted["phase"]=="SUBMITTED","Actual Needle MAKE refused: "+json.dumps(interpreted))
     language_job=job(interpreted["runId"])
     language_job=h.wait(lambda:job(interpreted["runId"]),"Language-created normal Job",30)
     source=[language_job["request"]["request"]["arguments"]["source"]["value"][k] for k in ("x","y","z")]
@@ -98,6 +100,7 @@ def scenario(h):
     before=before_destinations.get(tuple(destination),0)
     language=complete(interpreted["runId"],1,before,source,destination)
     require(h.model_calls()["needleCalls"]>language_before["needleCalls"] and h.model_calls()["generationCalls"]==language_before["generationCalls"],"Interpretation and known execution were not separately measured")
+    h.command("PlayerA","/aivillage kernel inference false","admission=false")
     h.screenshot("PlayerA","rb005-actual-language",chat=True)
     checkpoint=h.snapshot();cold=read(h.root/"server/process.json");release=cold["releaseSha256"]
     h.stop("server");h.compose("stop","ollama");h.env["COGNITIVECRAFT_OLLAMA_MODEL"]="";h.env["COGNITIVECRAFT_NEEDLE_DIR"]=""
