@@ -102,6 +102,9 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
         return known?Decision.allow():Decision.deny(Reason.KNOWLEDGE_REQUIRED);
     }
     @Override public boolean mayUse(ActorRef actor,ArtifactRef method,TrustedContext caller){return evaluateUse(actor,method,caller).allowed();}
+    private boolean nestedUse(ActorRef actor,ArtifactRef root,ArtifactRef method,TrustedContext caller){
+        return mayUse(actor,method,caller)||mayUse(actor,root,caller)&&catalog.usable(method).allowed()&&catalog.closure(root).contains(method);
+    }
     public Decision evaluateTeaching(ActorRef teacher,ActorRef learner,ArtifactRef method,TrustedContext caller){
         var student=enrollment(learner,caller);var mentor=source.enrollment(teacher);
         if(student==null||mentor==null||!mentor.owner().scope().worldId().equals(caller.scope().worldId())
@@ -109,7 +112,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
         if(teacher.equals(learner)||!source.present(mentor,student))return Decision.deny(Reason.ACTOR_UNAVAILABLE);
         var use=evaluateUse(teacher,method,mentor.owner());if(!use.allowed())return use;
         if(!source.qualified(mentor,method))return Decision.deny(Reason.KNOWLEDGE_REQUIRED);
-        for(var ref:catalog.closure(method))if(!mayUse(teacher,ref,mentor.owner()))return Decision.deny(Reason.KNOWLEDGE_REQUIRED);
+        for(var ref:catalog.closure(method))if(!nestedUse(teacher,method,ref,mentor.owner()))return Decision.deny(Reason.KNOWLEDGE_REQUIRED);
         return Decision.allow();
     }
     /** A frozen cartesian reference policy preserves absent legacy rows, including renamed citizens. */
@@ -187,7 +190,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
     }
     @Override public boolean mayUseInRun(ValidatedRequest request,RunCorrelation run,ArtifactRef method){
         var p=practiceForRun(run);
-        if(p==null)return mayUse(((ActorValue)request.request().arguments().get("actor")).value(),method,request.context());
+        if(p==null)return nestedUse(((ActorValue)request.request().arguments().get("actor")).value(),run.artifact(),method,request.context());
         var job=source.job(p.job());return valid(p)&&p.learner().owner().equals(request.context())&&p.method().equals(run.artifact())
                 &&hash(request.request()).equals(p.requestSha256())&&p.pinned().contains(method)
                 &&job.current().executions().stream().anyMatch(e->e.runId().equals(run.runId())&&e.artifact().equals(run.artifact()));

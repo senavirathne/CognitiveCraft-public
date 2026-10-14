@@ -62,6 +62,7 @@ public final class KernelSession implements AutoCloseable {
     private AccomplishmentService accomplishmentService;
     private KnowledgeAccessService accessService;
     private final java.util.concurrent.atomic.AtomicInteger accessQueries=new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.ConcurrentHashMap<UUID,KnowledgeAccess.Pair> learningStarts=new java.util.concurrent.ConcurrentHashMap<>();
     private volatile UUID observationSource;
     private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
     private final LocalGenerationAdapter model;
@@ -685,20 +686,23 @@ public final class KernelSession implements AutoCloseable {
     public CompletableFuture<KnowledgeAccess.Result> startApprenticeship(UUID jobId,ActorRef teacher,
                                                                         ArtifactRef method,TrustedContext caller){
         ready();var job=jobs.query(jobId,caller);
-        if(loaded.access().snapshot().practices().stream().filter(p->p.stage()==KnowledgeAccess.Stage.PRACTICING).count()>=8)
+        if(loaded.access().snapshot().practices().stream().filter(p->p.stage()==KnowledgeAccess.Stage.PRACTICING).count()+learningStarts.size()>=8)
             return CompletableFuture.completedFuture(new KnowledgeAccess.Result(KnowledgeAccess.Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,0,0,false));
         var learner=((ActorValue)job.request().request().arguments().get("actor")).value();
-        refreshLearningPresence(new KnowledgeAccess.Pair(teacher,learner));
-        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();
+        var pair=new KnowledgeAccess.Pair(teacher,learner);
+        if(learningStarts.putIfAbsent(jobId,pair)!=null)return CompletableFuture.completedFuture(new KnowledgeAccess.Result(KnowledgeAccess.Code.PENDING,null,jobId,0,0,false));
+        refreshLearningPresence(pair);
+        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();learningStarts.remove(jobId,pair);
             return CompletableFuture.failedFuture(new IllegalStateException("Learning operation bound"));}
         try{return CompletableFuture.supplyAsync(()->loaded.access().startApprenticeship(jobId,teacher,method,caller,()->closed),worker)
-                .whenComplete((ignored,error)->accessQueries.decrementAndGet());}
-        catch(RuntimeException refused){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+                .whenComplete((ignored,error)->{learningStarts.remove(jobId,pair);accessQueries.decrementAndGet();});}
+        catch(RuntimeException refused){learningStarts.remove(jobId,pair);accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
     }
     private void refreshLearningPresence(KnowledgeAccess.Pair starting){
         var pairs=new java.util.HashSet<KnowledgeAccess.Pair>();
         for(var practice:loaded.access().snapshot().practices())if(practice.stage()==KnowledgeAccess.Stage.PRACTICING)
             pairs.add(new KnowledgeAccess.Pair(practice.teacher().actor(),practice.learner().actor()));
+        pairs.addAll(learningStarts.values());
         if(starting!=null)pairs.add(starting);
         var present=new java.util.HashSet<KnowledgeAccess.Pair>();
         for(var pair:pairs.stream().limit(8).toList()){

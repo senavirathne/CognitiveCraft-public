@@ -80,7 +80,7 @@ public final class ApprenticeshipGameTests {
         int stock(){return ((Container)h.getLevel().getBlockEntity(new BlockPos(chest.x(),chest.y(),chest.z()))).countItem(Items.WHEAT);}
         int mature(){int count=0;for(int x:new int[]{2,4,6})for(int z:new int[]{2,3,5,6}){var state=h.getLevel().getBlockState(origin.offset(x,1,z));
             if(state.is(Blocks.WHEAT)&&state.getValue(CropBlock.AGE)==7)count++;}return count;}
-        int failedDrops(){return h.getLevel().getEntitiesOfClass(ItemEntity.class,new AABB(origin.offset(3,0,1),origin.offset(6,4,5)),
+        int failedDrops(){return h.getLevel().getEntitiesOfClass(ItemEntity.class,new AABB(origin.getX()+3,origin.getY(),origin.getZ()+1,origin.getX()+6,origin.getY()+4,origin.getZ()+5),
                 e->e.getItem().is(Items.WHEAT)).stream().mapToInt(e->e.getItem().getCount()).sum();}
         void compose(){
             stores=opening.join();method=((SkillCompiler.Success)new SkillCompiler(c->Optional.of(CropDelivery.SPEC),GatewayPrimitives.instance(),ref->Optional.empty())
