@@ -118,7 +118,7 @@ def scenario(h):
     # Cancel an owned graph while it waits for real intermediate production.
     cancel_id=compose(4,0,0,0);h.cancel_job("PlayerA",cancel_id)
     cancelled=h.wait(lambda:(j if (j:=job(cancel_id)) and j["state"]=="CANCELLED" else None),"Owned graph cancellation",60);h.actions_active=False
-    # Kill at an actual intermediate DEPOSIT while its terminal/link acknowledgement is outstanding.
+    # Save a complete real intermediate deposit, then kill before downstream consumption acknowledgement.
     h.console(["tick rate 5"],lifecycle=True)
     checkpoint=h.save_checkpoint();crash_id=compose(4,0,0,0)
     def intermediate():
@@ -129,7 +129,7 @@ def scenario(h):
             deposits=sum(r["quantity"] for a in child["attempts"] for r in a.get("resourceReceipts",[]) if r["stage"]=="DEPOSIT" and r["item"]["id"]==PLANK)
             downstream=[root,*[state[c] for c in root["children"] if c!=cid]]
             consumed=any(r["stage"]=="WITHDRAW" and r["item"]["id"]==PLANK for n in downstream for a in n["attempts"] for r in a.get("resourceReceipts",[]))
-            if child["request"]["request"]["capability"]["name"]=="cognitivecraft:produce_oak_planks" and child["state"] in ("ACTIVE","SUCCEEDED") and root["state"]=="WAITING" and deposits>0 and not consumed and h.container(SRC,PLANK)==deposits:
+            if child["request"]["request"]["capability"]["name"]=="cognitivecraft:produce_oak_planks" and child["state"] in ("ACTIVE","SUCCEEDED") and root["state"]=="WAITING" and deposits==child["request"]["request"]["arguments"]["amount"]["value"] and not consumed and h.container(SRC,PLANK)==deposits:
                 return {"root":root,"intermediate":child,"containers":h.snapshot()["containers"],"depositedPlanks":deposits}
         return None
     boundary=h.wait(intermediate,"Intermediate production before downstream consumption acknowledgement",200)
