@@ -119,20 +119,28 @@ def scenario(h):
     cancel_id=compose(4,0,0,0);h.cancel_job("PlayerA",cancel_id)
     cancelled=h.wait(lambda:(j if (j:=job(cancel_id)) and j["state"]=="CANCELLED" else None),"Owned graph cancellation",60);h.actions_active=False
     # Kill at an actual intermediate DEPOSIT while its terminal/link acknowledgement is outstanding.
+    h.console(["tick rate 5"],lifecycle=True)
     checkpoint=h.save_checkpoint();crash_id=compose(4,0,0,0)
     def intermediate():
         state=h.snapshot()["players"]["PlayerA"]["jobs"];root=state.get(crash_id)
         if not root:return None
         for cid in root["children"]:
             child=state[cid]
-            if child["request"]["request"]["capability"]["name"]=="cognitivecraft:produce_oak_planks" and child["state"]=="ACTIVE" and any(r["stage"]=="DEPOSIT" for a in child["attempts"] for r in a.get("resourceReceipts",[])):
-                return {"root":root,"intermediate":child,"containers":h.snapshot()["containers"]}
+            deposits=sum(r["quantity"] for a in child["attempts"] for r in a.get("resourceReceipts",[]) if r["stage"]=="DEPOSIT" and r["item"]["id"]==PLANK)
+            downstream=[root,*[state[c] for c in root["children"] if c!=cid]]
+            consumed=any(r["stage"]=="WITHDRAW" and r["item"]["id"]==PLANK for n in downstream for a in n["attempts"] for r in a.get("resourceReceipts",[]))
+            if child["request"]["request"]["capability"]["name"]=="cognitivecraft:produce_oak_planks" and child["state"] in ("ACTIVE","SUCCEEDED") and root["state"]=="WAITING" and deposits>0 and not consumed and h.container(SRC,PLANK)==deposits:
+                return {"root":root,"intermediate":child,"containers":h.snapshot()["containers"],"depositedPlanks":deposits}
         return None
-    boundary=h.wait(intermediate,"Intermediate production before linkage acknowledgement",60)
+    boundary=h.wait(intermediate,"Intermediate production before downstream consumption acknowledgement",200)
+    deposited=boundary["depositedPlanks"];saved_axes=h.container(DST,AXE)
+    checkpoint=h.save_checkpoint()
+    require(checkpoint["containersBeforeSave"].get(",".join(map(str,SRC)),{}).get(PLANK,0)==deposited,"Save did not capture the actual complete intermediate deposit")
     h.stop("server",hard=True);killed=h.world_hashes();h.actions_active=False
-    h.start("server");reconnect_players(h,["PlayerA","PlayerB"])
+    h.start("server");h.console(["tick rate 20"],lifecycle=True);reconnect_players(h,["PlayerA","PlayerB"])
     recovered=h.wait(lambda:job(crash_id),"Preserved interrupted graph after SIGKILL",30)
     require(recovered["state"]=="INTERRUPTED","Uncertain prepared chain resumed")
+    require(h.container(SRC,PLANK)==deposited and h.container(DST,AXE)==saved_axes,"SIGKILL lost acknowledged saved intermediate output or prior axes")
     stable=h.snapshot()["containers"];h.quiet(80);require(h.snapshot()["containers"]==stable,"Restart replayed uncertain crafting/consumption")
     h.command("PlayerA","/aivillage kernel job-status "+crash_id,"state=INTERRUPTED");h.screenshot("PlayerA","rb005-interrupted-no-replay",chat=True)
     return {"independentAcquisitions":acquisitions,"artifacts":hashes,"goldenRows":rows,"actualLanguage":language,"foreignDenied":foreign,
