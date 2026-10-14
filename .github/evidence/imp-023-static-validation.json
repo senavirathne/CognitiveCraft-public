@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "unit": "IMP-023",
+  "sourceBase": "4d038643449dc5e3da3e9397bcb49f9f39184d6a",
+  "documentationBase": "6535a74794d84a35fc1fe1767f4dae28d4fea4f4",
+  "checks": [
+    "recovered artifact digests",
+    "Java lexical delimiters (no type checking)",
+    "workflow YAML and two embedded Python scripts",
+    "101 defined selectors/counts",
+    "81 independent canonical policy byte combinations",
+    "documentation routing and conflict checks",
+    "git whitespace and unstaged index"
+  ],
+  "definedTestInvocations": {
+    "OrganizationRegistryTest": 69,
+    "OrganizationJournalTest": 27,
+    "OrganizationIntegrationTest": 5
+  },
+  "executedJavaTests": 0,
+  "javaBuildsRun": false,
+  "published": false,
+  "merged": false,
+  "javaFiles": {
+    "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java": "dc46475e511e0000eb08c15507f4dd9bd40688ca0ce1fa4b89979cc3742c0c5c",
+    "core/src/main/java/dev/aivillages/core/kernel/OrganizationJournal.java": "d7639a9da90681290240ef577b576f9bcd690b78556dc32f36e59231c7b56754",
+    "core/src/main/java/dev/aivillages/core/kernel/OrganizationRegistry.java": "75f4504d5b47af2d16716830be64df9cc6f8d124bea13f1e8c5cbbc9d220d2a6",
+    "core/src/main/java/dev/aivillages/core/kernel/Organizations.java": "b3c9972562c149c572ae380621097872379f3aefc70cb3928fbd6b3831e9a83c",
+    "core/src/main/java/dev/aivillages/core/kernel/SaveCompatibility.java": "18ed1b971f11a2fc656df0b32aaa7cb3778c2f5e60af76fb7ed354acfad2df4d",
+    "core/src/test/java/dev/aivillages/core/kernel/OrganizationIntegrationTest.java": "7c7247636254f69335c0de3c187ce0d2a034ecfd3409482d6f9ba3217cd134f1",
+    "core/src/test/java/dev/aivillages/core/kernel/OrganizationJournalTest.java": "ed2a077d1174d3934a2b5bccac0d36e8c8dad49cc31063fb2a8502d182c3e5c5",
+    "core/src/test/java/dev/aivillages/core/kernel/OrganizationRegistryTest.java": "817306d744a62fc4a2167cb3b519dd42f6fa66f946ffcabf786908d6e5c7bd25",
+    "fabric/src/main/java/dev/aivillages/fabric/KernelSession.java": "b640250ed5b43a729c6a61c3ef372ba78554df4b1bbcbda8a23f1158e6341627"
+  }
+}
