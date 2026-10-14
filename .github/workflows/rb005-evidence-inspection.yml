@@ -15,12 +15,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
-          import urllib.request,json,time,hashlib,io,zipfile
+          import urllib.request,urllib.parse,json,time,hashlib,io,zipfile
+          class ExternalRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl):
+                  new=super().redirect_request(req,fp,code,msg,headers,newurl)
+                  if urllib.parse.urlparse(newurl).netloc!='api.github.com':new.remove_header('Authorization')
+                  return new
+          opener=urllib.request.build_opener(ExternalRedirect())
           api='https://api.github.com/repos/senavirathne/CognitiveCraft-public'
           import os
           def get(path,binary=False):
               request=urllib.request.Request(api+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-              with urllib.request.urlopen(request,timeout=60) as response:
+              with opener.open(request,timeout=60) as response:
                   data=response.read()
               return data if binary else json.loads(data)
           runs=[38556907463]
@@ -52,6 +58,8 @@ jobs:
                                   final=next((r for r in reversed(rows) if r.get('done')),rows[-1] if rows else {})
                                   summary['usage']={k:final.get(k) for k in ('model','done','total_duration','load_duration','prompt_eval_count','prompt_eval_duration','eval_count','eval_duration')}
                               print('RB005_WIRE '+json.dumps(summary))
+                          elif path.endswith('/server/snapshot.json'):
+                              value=json.loads(z.read(path));print('RB005_FAILURE_SNAPSHOT '+json.dumps({'artifact':artifact['id'],'path':path,'tick':value.get('tick'),'needleCalls':value.get('needleCalls'),'generationCalls':value.get('generationCalls'),'actors':value.get('actors'),'players':{k:{'pos':v.get('pos'),'runs':v.get('runs')} for k,v in value.get('knownPlayers',{}).items()}})[:24000])
                           elif path.endswith(('/connected-client.json','/results.json')):
                               body=z.read(path);report=json.loads(body);row=next((r for r in report.get('results',[]) if r.get('id')=='GP-RB-COMPOSE-01'),{})
                               summary={'artifact':artifact['id'],'path':path,'sha256':hashlib.sha256(body).hexdigest(),'status':row['status']}
