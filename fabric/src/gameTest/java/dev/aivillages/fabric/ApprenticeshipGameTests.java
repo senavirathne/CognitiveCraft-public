@@ -90,8 +90,10 @@ public final class ApprenticeshipGameTests {
                     .compile(ResearchGameTests.fixtureIr())).skill().artifact().descriptor().ref();
             if(warm){var marker=stores.marker();world=id(marker,"world");owner=new TrustedContext(new PrincipalRef(id(marker,"principal")),new ScopeRef(world,id(marker,"domain")));
                 var pos=(List<?>)marker.get("origin");origin=new BlockPos(((Number)pos.get(0)).intValue(),((Number)pos.get(1)).intValue(),((Number)pos.get(2)).intValue());BootstrapGameTests.forceFixtureChunks(h,origin);geometry();
-                for(Object value:(List<?>)marker.get("actors")){UUID actor=UUID.fromString((String)value);var c=stores.citizens().snapshot().citizens().stream().filter(v->v.actor().citizenId().equals(actor)).findFirst().orElseThrow();actors.add(c.actor());
-                    var entity=h.getLevel().getEntity(c.actor().entityId());require(entity instanceof Villager,"Saved enrolled native villager must remain loaded");villagers.add((Villager)entity);}
+                var restoredActors=new ArrayList<ActorRef>();var restoredVillagers=new ArrayList<Villager>();
+                for(Object value:(List<?>)marker.get("actors")){UUID actor=UUID.fromString((String)value);var c=stores.citizens().snapshot().citizens().stream().filter(v->v.actor().citizenId().equals(actor)).findFirst().orElseThrow();
+                    var entity=h.getLevel().getEntity(c.actor().entityId());require(entity instanceof Villager,"Await saved enrolled native villager loading");restoredActors.add(c.actor());restoredVillagers.add((Villager)entity);}
+                actors.clear();actors.addAll(restoredActors);villagers.clear();villagers.addAll(restoredVillagers);outcomes.clear();
                 outcomes.addAll(((List<?>)marker.get("outcomes")).stream().map(v->UUID.fromString((String)v)).toList());partialEffects=((Number)marker.get("partialEffects")).longValue();}
             citizens=new CitizenRegistry(stores.citizens().snapshot(),(expected,next)->async(()->{try{return stores.citizens().replace(expected,next);}catch(Exception e){throw new CompletionException(e);}}),CitizenRegistry.privateAddresses(),clock,false);
             jobs=new JobLifecycleStore(stores.jobs().snapshot(),(expected,next)->async(()->{try{return stores.jobs().replace(expected,next);}catch(Exception e){throw new CompletionException(e);}}),JobLifecycleStore.privateJobs(citizens::controls),c->{},c->Optional.of(CropDelivery.SPEC),
@@ -115,7 +117,7 @@ public final class ApprenticeshipGameTests {
             var allowance=new Budgets.Limits(Map.of(Budgets.Kind.CALLS,512L,Budgets.Kind.INSTRUCTIONS,8192L,Budgets.Kind.OBSERVATIONS,4096L,Budgets.Kind.ATTEMPTED_EFFECTS,64L,Budgets.Kind.COMMITTED_EFFECTS,64L,Budgets.Kind.ELAPSED_TICKS,1800L),clock.millis()+600000);
             current=UUID.randomUUID();require(jobs.create(current,current,request,owner,new ObservationRef(UUID.randomUUID(),h.getLevel().getGameTime(),source.dimension()),allowance,List.of()).accepted(),"Native practice Job creation refused");outcomes.add(current);}
         void step(){if(phase==99)return;java.util.concurrent.locks.LockSupport.parkNanos(50_000_000);
-            if(citizens!=null&&phase<80){citizens.tick();jobs.tick();leases.tick();raw.tick();gateway.tick();presence();}
+            if(citizens!=null&&phase>0&&phase<80){citizens.tick();jobs.tick();leases.tick();raw.tick();gateway.tick();presence();}
             switch(phase){
                 case 0->{require(opening.isDone(),"Await owner storage");compose();if(warm){require(((Number)stores.marker().get("process")).longValue()!=ProcessHandle.current().pid()||((Number)stores.marker().get("processStarted")).longValue()!=processStarted,"Reuse requires another JVM");
                         require(stock()==8&&mature()==3&&failedResources()==1,"Saved physical stock/resources must remain conserved");operation=async(()->{try{return KnowledgeAccessStore.open(root,world,stores.source(),KnowledgeAccessStore.repositoryCatalog(stores.repository()),clock,stores.roots());}catch(Exception e){throw new CompletionException(e);}});phase=13;}else phase=1;}
