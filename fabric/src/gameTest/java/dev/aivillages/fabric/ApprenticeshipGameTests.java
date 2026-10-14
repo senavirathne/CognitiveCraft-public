@@ -74,14 +74,14 @@ public final class ApprenticeshipGameTests {
             return new Stores(identities,jobs,leases,repo,evidence,source,roots,marker);
         }catch(Exception failed){throw new CompletionException(failed);}}
         void geometry(){String dim=h.getLevel().dimension().identifier().toString();chest=new ContainerRef(dim,origin.getX()+4,origin.getY()+1,origin.getZ()+4);}
-        static int[][] fields(){return new int[][]{{2,2},{8,2},{6,2},{2,5},{4,5},{6,5}};}
+        static int[][] fields(){return new int[][]{{2,2},{12,2},{6,2},{2,5},{4,5},{6,5}};}
         Cuboid source(){int x=fields()[work][0],z=fields()[work][1];
             return new Cuboid(chest.dimension(),origin.getX()+x,origin.getY()+1,origin.getZ()+z,origin.getX()+x,origin.getY()+1,origin.getZ()+z+1);}
         void block(int x,int y,int z,net.minecraft.world.level.block.state.BlockState state){h.getLevel().setBlockAndUpdate(origin.offset(x,y,z),state);}
         int stock(){return ((Container)h.getLevel().getBlockEntity(new BlockPos(chest.x(),chest.y(),chest.z()))).countItem(Items.WHEAT);}
         int mature(){int count=0;for(int[] field:fields())for(int z=field[1];z<=field[1]+1;z++){int x=field[0];var state=h.getLevel().getBlockState(origin.offset(x,1,z));
             if(state.is(Blocks.WHEAT)&&state.getValue(CropBlock.AGE)==7)count++;}return count;}
-        int failedDrops(){return h.getLevel().getEntitiesOfClass(ItemEntity.class,new AABB(origin.getX()+7,origin.getY(),origin.getZ()+1,origin.getX()+10,origin.getY()+4,origin.getZ()+5),
+        int failedDrops(){return h.getLevel().getEntitiesOfClass(ItemEntity.class,new AABB(origin.getX()+11,origin.getY(),origin.getZ()+1,origin.getX()+14,origin.getY()+4,origin.getZ()+5),
                 e->e.getItem().is(Items.WHEAT)).stream().mapToInt(e->e.getItem().getCount()).sum();}
         int failedInventory(){return villagers.size()>3?villagers.get(3).getInventory().countItem(Items.WHEAT):0;}
         int failedResources(){return failedDrops()+failedInventory();}
@@ -130,14 +130,17 @@ public final class ApprenticeshipGameTests {
                 case 5->{require(operation.isDone(),"Await learning reference publication");if(work>=1&&work<=3)require(((KnowledgeAccess.Result)operation.join()).code()==Code.APPLIED,"Practice access refused: "+operation.join());
                     var job=job();require(jobs.assign(current,job.guard(),UUID.randomUUID(),actor(),method,List.of(method),job.allowance(),owner).accepted(),"Ordinary Jobs assignment refused");phase=6;}
                 case 6->{require(jobs.ready()&&leases.ready(),"Await ordinary assignment and pin");var a=job().current();var e=a.executions().getFirst();var source=source();
-                    int selected=work==0?0:work==1?3:work==3?2:1;villagers.get(selected).setPos(source.minX()+(source.minX()-origin.getX()<=4?1.5:-0.5),source.minY(),source.minZ()+0.5);presence();
+                    int selected=work==0?0:work==1?3:work==3?2:1;
+                    double standX=work==1?source.minX()+0.5:source.minX()-origin.getX()==2?source.minX()+1.2:source.minX()-origin.getX()==6?source.minX()-0.2:source.minX()+0.5;
+                    double standZ=work==1?source.minZ()+1.0:source.minZ()+(work<3?1.5:0.5);
+                    villagers.get(selected).setPos(standX,source.minY(),standZ);presence();
                     var started=executor.startAdmitted(a.bound(),method,new RunCorrelation(e.runId(),method,null),new Budgets.ExecutionLimits(a.allowance(),10000),new Budgets.Ledger(a.allowance(),clock));
                     require(started instanceof BoundedSkillExecutor.Started,"Supervised native method refused: "+started);run=((BoundedSkillExecutor.Started)started).run();phase=7;}
                 case 7->{var progress=run.tick(owner);
                     if(work==1&&!supervisionLost&&progress.summary().committedEffects()>0){partialEffects=progress.summary().committedEffects();villagers.getFirst().setPos(origin.getX()+30.5,origin.getY()+1,origin.getZ()+6.5);supervisionLost=true;presence();return;}
                     if(progress.phase()!=BoundedSkillExecutor.Phase.TERMINAL)return;var sum=progress.summary();
                     if(work==1){require(sum.outcome().status()==ExecutionStatus.BLOCKED&&sum.outcome().reason()==Reason.KNOWLEDGE_REQUIRED&&sum.committedEffects()==partialEffects,"Lost supervision must fence subsequent effects");require(stock()==2&&failedResources()==1&&mature()==9,"Partial harvest must remain physically conserved");}
-                    else require(sum.outcome().status()==ExecutionStatus.SUCCEEDED,"Native known outcome failed work="+work+" outcome="+sum.outcome()+" trace="+progress.trace());
+                    else require(sum.outcome().status()==ExecutionStatus.SUCCEEDED,"Native known outcome failed work="+work+" outcome="+sum.outcome()+" actor="+villagers.get(work==0?0:work==1?3:work==3?2:1).position()+" inventory="+villagers.get(work==0?0:work==1?3:work==3?2:1).getInventory().countItem(Items.WHEAT)+" failedResources="+failedResources()+" trace="+progress.trace());
                     var j=job();var a=j.current();require(jobs.recordExecutionResult(current,j.guard(),new Jobs.Report(a.id(),a.generation(),sum.committedEffects(),sum.usage(),sum.receipts(),sum.outcome()),owner).accepted(),"Actual Jobs receipts refused");phase=8;}
                 case 8->{require(jobs.ready()&&leases.ready(),"Await owner acknowledgement");var acknowledged=job();presence();
                     operation=async(()->{var result=stores.evidence().recordOutcomes(List.of(Accomplishments.OutcomeRef.of(acknowledged)),()->false);

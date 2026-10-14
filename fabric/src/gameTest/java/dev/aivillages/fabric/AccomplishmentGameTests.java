@@ -102,7 +102,7 @@ public final class AccomplishmentGameTests {
                 case 3->{require(citizens.ready()&&jobs.ready()&&leases.ready(),"Await acknowledged owners");current=create();phase=4;}
                 case 4->{require(jobs.ready()&&leases.ready(),"Await immutable job");var j=job(current);ActorRef actor=j.responsible();var ref=artifact.descriptor().ref();require(jobs.assign(current,j.guard(),UUID.randomUUID(),actor,ref,List.of(ref),j.allowance(),owner).accepted(),"Native assignment refused");phase=5;}
                 case 5->{require(jobs.ready()&&leases.ready(),"Await native pin");var a=job(current).current();var ref=a.executions().getFirst();
-                    if(work<2){var villager=villagers.get(work);villager.setPos(origin.getX()+3.5,origin.getY()+1,origin.getZ()+3.5);}
+                    if(work<2){var villager=villagers.get(work);villager.setPos(origin.getX()+(work==0?2.9:3.9),origin.getY()+1,origin.getZ()+2.9);}
                     var started=executor.startAdmitted(a.bound(),ref.artifact(),new RunCorrelation(ref.runId(),ref.artifact(),null),new Budgets.ExecutionLimits(a.allowance(),10000),new Budgets.Ledger(a.allowance(),clock));
                     require(started instanceof BoundedSkillExecutor.Started,"Known native work refused");run=((BoundedSkillExecutor.Started)started).run();if(work==3)run.cancel(owner);phase=6;}
                 case 6->{var progress=run.tick(owner);if(progress.phase()!=BoundedSkillExecutor.Phase.TERMINAL)return;var sum=progress.summary();
