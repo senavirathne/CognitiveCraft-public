@@ -35,9 +35,10 @@ public final class NeedleWire {
                 LanguageReferenceClassifier.classify(input.text(), input.references());
         boolean oak=classification.intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS;
         boolean stick=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS;
-        boolean plank=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick;
+        boolean axe=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES;
+        boolean plank=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick || axe;
         String sourceAlias=plank ? "stock" : oak ? "area" : "farm";
-        String resource=stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
+        String resource=axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
         String prompt = input.text(), from = null, through = null, destination = null;
         if(plank)prompt=prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?available\\s+oak\\s+(?:logs?|planks?)\\b","from stock");
 
@@ -94,7 +95,7 @@ public final class NeedleWire {
             if (statedReference(classification.destination().state()))
                 harvestProperties.put("destination", ordered("type", "string", "enum", List.of("chest"),
                         "description", "Container to deliver "+resource+" into"));
-            tools.add(ordered("name", stick ? "make_sticks" : plank ? "make_oak_planks" : oak ? "gather_oak_logs" : "harvest_wheat",
+            tools.add(ordered("name", axe ? "make_wooden_axes" : stick ? "make_sticks" : plank ? "make_oak_planks" : oak ? "gather_oak_logs" : "harvest_wheat",
                     "description", plank ? "Make new "+resource+" from available input stock and store them. Copy only stated arguments."
                             : "Acquire "+resource+" from a source area and deliver it to a container. Copy only stated arguments.",
                     "parameters", ordered("type", "object", "properties", harvestProperties,
@@ -178,6 +179,8 @@ public final class NeedleWire {
                         ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
                 case "gather_oak_logs" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS
                         ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
+                case "make_wooden_axes" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES
+                        ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
                 case "make_sticks" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS
                         ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
                 case "make_oak_planks" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS
@@ -208,7 +211,7 @@ public final class NeedleWire {
             if ("selected".equals(citizen) && prepared.explicitCitizenId() != null)
                 citizen = prepared.explicitCitizenId();
         }
-        if (required.contains("source") && !((prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS) ? "stock"
+        if (required.contains("source") && !((prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS || prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES) ? "stock"
                 : prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS ? "area" : "farm").equals(string(arguments, "source")))
             return LanguageRequests.Result.invalid();
         if (required.contains("destination") && !"chest".equals(string(arguments, "destination")))
@@ -217,7 +220,8 @@ public final class NeedleWire {
             if (!"selected".equals(citizen)) return LanguageRequests.Result.invalid();
             citizen = null;
         }
-        var extracted = new LanguageRequests.Extracted(prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS
+        var extracted = new LanguageRequests.Extracted(prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES
+                ? LanguageRequests.Action.MAKE_WOODEN_AXES : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS
                 ? LanguageRequests.Action.MAKE_STICKS : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS
                 ? LanguageRequests.Action.MAKE_OAK_PLANKS : prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS
                 ? LanguageRequests.Action.GATHER_OAK_LOGS : LanguageRequests.Action.HARVEST_WHEAT,

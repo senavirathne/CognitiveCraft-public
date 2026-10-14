@@ -118,6 +118,14 @@ final class KernelCommands {
         kernel.then(literal(sticks ? "make-sticks" : "make-planks").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
                 .then(argument("amount",IntegerArgumentType.integer(1,64)).then(plankCoords))));
         }
+        String[] axeNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","table-x","table-y","table-z"};
+        ArgumentBuilder<CommandSourceStack,?> axeCoords=argument(axeNames[8],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+            int[] at=new int[9];for(int i=0;i<9;i++)at[i]=IntegerArgumentType.getInteger(ctx,axeNames[i]);
+            var result=session.makeAxes(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5],at[6],at[7],at[8]);
+            tell(ctx,"run="+result.id()+" accepted="+result.accepted()+(result.reason()==null ? "" : " reason="+result.reason()));return result.accepted() ? 1 : 0;
+        }));
+        for(int i=7;i>=0;i--)axeCoords=argument(axeNames[i],IntegerArgumentType.integer()).then(axeCoords);
+        kernel.then(literal("make-axes").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,4)).then(axeCoords))));
         ArgumentBuilder<CommandSourceStack, ?> queueCoords=argument(names[8],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[9];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,names[i]);

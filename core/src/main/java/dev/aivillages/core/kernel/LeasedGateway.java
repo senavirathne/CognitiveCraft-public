@@ -37,6 +37,7 @@ public final class LeasedGateway implements GatewayPort {
         CropDelivery.CropReceipt consumption;
         UUID oakConsumption;
         ResourceDelivery.Receipt ingredientConsumption;
+        final java.util.ArrayDeque<Map.Entry<Ref,ResourceDelivery.Receipt>> ingredients=new java.util.ArrayDeque<>();
         Action(ActionHandle handle,Run run,PrimitiveRequirement primitive,Map<String,Value> arguments,
                Budgets.Ledger usage,long tick) {
             this.handle=handle;this.run=run;this.primitive=primitive;this.arguments=Map.copyOf(arguments);
@@ -82,6 +83,7 @@ public final class LeasedGateway implements GatewayPort {
         var source=((ContainerValue)request.request().arguments().get("source")).value();
         var target=((ContainerValue)request.request().arguments().get("destination")).value();
         var demands=new ArrayList<Demand>();
+        addAxeDemands(demands,world,request,source);
         demands.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
         demands.add(new Demand(Resource.facility(world,source),1));
         if(!target.equals(source))demands.add(new Demand(Resource.facility(world,target),1));
@@ -169,6 +171,10 @@ public final class LeasedGateway implements GatewayPort {
                     : leases.consumed(action.consuming,action.consumption,action.run.request.context());
             if(result.code()==Code.PENDING)return waitForPublication(action);
             if(!result.usable())return fail(action,result.reason());
+            if(action.ingredientConsumption!=null && !action.ingredients.isEmpty()) {
+                var next=action.ingredients.removeFirst();action.consuming=next.getKey();action.ingredientConsumption=next.getValue();
+                action.current=map(action.saved,handle,false,null);return action.current;
+            }
             action.current=map(action.saved,handle,true,action.saved.reason());return action.current;
         }
         Run run=action.run;
@@ -198,17 +204,20 @@ public final class LeasedGateway implements GatewayPort {
         ActionReceipt answer=delegate.poll(action.nativeHandle);
         action.accounted=ticks.getAsLong();
         action.current=map(answer,handle,answer.terminal(),answer.reason());
-        if(answer.terminal() && answer.reason()==null && (operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS)) {
+        if(answer.terminal() && answer.reason()==null && (operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG
+                || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_AXE_INPUTS)) {
             for(var receipt:answer.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.WITHDRAW) {
+                Ref matching=null;
                 for(Ref ref:granted.leases()) {
                     Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
-                    if(claim.resource().kind()==Kind.STOCK && claim.resource().slot()==-1 && claim.resource().item().equals(RecipeProduction.of(run.request.request().capability()).input().id())) {
-                        action.saved=answer;action.consuming=ref;action.ingredientConsumption=receipt;
-                        Result recorded=leases.consumedIngredient(ref,run.request,run.correlation,receipt,run.request.context());
-                        if(recorded.code()==Code.PENDING) {action.current=map(answer,handle,false,null);return action.current;}
-                        if(!recorded.usable())return fail(action,recorded.reason());
-                    }
+                    if(claim.resource().kind()==Kind.STOCK && claim.resource().slot()==-1 && claim.resource().item().equals(receipt.item().id()))matching=ref;
                 }
+                if(matching==null)return fail(action,Reason.REQUEST_INVALID);
+                action.ingredients.add(Map.entry(matching,receipt));
+            }
+            if(!action.ingredients.isEmpty()) {
+                var next=action.ingredients.removeFirst();action.saved=answer;action.consuming=next.getKey();action.ingredientConsumption=next.getValue();
+                action.current=map(answer,handle,false,null);return action.current;
             }
         }
         if(answer.terminal() && operation==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG && answer.committedEffects()>0) {
@@ -302,10 +311,15 @@ public final class LeasedGateway implements GatewayPort {
     private static List<Demand> recipeDemands(UUID world,ValidatedRequest request) {
         var source=((ContainerValue)request.request().arguments().get("source")).value();
         var target=((ContainerValue)request.request().arguments().get("destination")).value();
-        var result=new ArrayList<Demand>();result.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),
+        var result=new ArrayList<Demand>();addAxeDemands(result,world,request,source);result.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),
                 RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
         result.add(new Demand(Resource.facility(world,source),1));
         if(!source.equals(target))result.add(new Demand(Resource.facility(world,target),1));return List.copyOf(result);
+    }
+    private static void addAxeDemands(List<Demand> demands,UUID world,ValidatedRequest request,ContainerRef source) {
+        var d=RecipeProduction.of(request.request().capability());if(!d.axe())return;
+        demands.add(new Demand(d.secondaryStock(world,source),d.secondaryInputs(((IntValue)request.request().arguments().get("amount")).value())));
+        demands.add(new Demand(Resource.table(world,((FacilityValue)request.request().arguments().get("table")).value()),1));
     }
     private Action get(ActionHandle handle) {
         Action action=actions.get(handle.id());

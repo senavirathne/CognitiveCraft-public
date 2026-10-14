@@ -58,7 +58,7 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
         if(resource.item().equals("minecraft:crafting_table")) {
             boolean present=block.is(Blocks.CRAFTING_TABLE);
             return observation(resource,present?ObservationStatus.PRESENT:ObservationStatus.ABSENT,
-                    present?1:0,spatial,tick,scanned,null);
+                    present?1:0,present ? FabricFacilityIdentity.capture(level,pos) : spatial,tick,scanned,null);
         }
         if(!(entity instanceof Container container) || !block.is(Blocks.CHEST)&&!block.is(Blocks.BARREL)
                 || container.getContainerSize()>128
@@ -92,6 +92,8 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
             } else if(resource.item().equals("minecraft:oak_planks")) {
                 if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.OAK_PLANKS)))
                     quantity=Math.addExact(quantity,stack.getCount());
+            } else if(resource.item().equals("minecraft:stick")) {
+                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.STICK)))quantity=Math.addExact(quantity,stack.getCount());
             } else if(stack.is(Items.WHEAT)) quantity+=stack.getCount();
         }
         return observation(resource,quantity==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,quantity,

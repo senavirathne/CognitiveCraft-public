@@ -14,7 +14,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private static final Criteria WHEAT_REGION = new Criteria("cognitivecraft:mature_wheat_region");
     private static final Criteria WHEAT_CONTAINER = new Criteria("cognitivecraft:wheat_container");
 
-    private enum Stage { ACTOR, SOURCE, DESTINATION, VALIDATING, NAMING, COMPLETE }
+    private enum Stage { ACTOR, SOURCE, DESTINATION, TABLE, VALIDATING, NAMING, COMPLETE }
 
     private final WorldReferenceDiscovery.Observation world;
     private final CitizenRegistry citizens;
@@ -31,6 +31,9 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private Attempt<WorldReferenceDiscovery.InputContainerTarget> inputAttempt;
     private WorldReferenceDiscovery.InputContainerSample inputEvidence;
     private Attempt<WorldReferenceDiscovery.ItemContainerTarget> destinationAttempt;
+    private Attempt<FacilityTarget> tableAttempt;
+    private FacilityRef table;
+    private FacilitySample tableEvidence;
     private ActorRef actor;
     private Cuboid source;
     private ContainerRef destination;
@@ -89,6 +92,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             case ACTOR -> pollActor();
             case SOURCE -> pollSource();
             case DESTINATION -> pollDestination();
+            case TABLE -> pollTable();
             case VALIDATING -> finalizeHarvest();
             case NAMING -> pollNaming();
             case COMPLETE -> terminal;
@@ -107,6 +111,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         if (sourceAttempt != null) sourceAttempt.cancel();
         if (inputAttempt != null) inputAttempt.cancel();
         if (destinationAttempt != null) destinationAttempt.cancel();
+        if(tableAttempt!=null)tableAttempt.cancel();
         return true;
     }
 
@@ -271,10 +276,29 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             destination = result.value().container();
             destinationEvidence = result.value().evidence();
         }
+        if(((LanguageRequests.HarvestIntent)intent).capability().equals(WoodenAxeProduction.ID)) {
+            var reference=((LanguageRequests.HarvestIntent)intent).table();
+            if(reference.state()==ReferenceState.EXPLICIT_UNSUPPORTED)return terminal=LanguageRequests.Resolution.clarification("Choose a supported crafting table",List.of());
+            if(reference.state()==ReferenceState.EXPLICIT_CONCRETE) {var c=reference.concrete();table=new FacilityRef(actor.dimension(),c.x(),c.y(),c.z());}
+            else {var registry=new Registry();var criterion=new Criteria("cognitivecraft:crafting_table");
+                registry.register(Kind.FACILITY,criterion,search->WorldReferenceDiscovery.tables(actor,actorAnchor,world));
+                tableAttempt=registry.start(search(Kind.FACILITY,actorAnchor,criterion),clock.millis(),allowance);}
+            stage=Stage.TABLE;return LanguageRequests.Resolution.pending("Resolving authorized crafting table");
+        }
         stage = Stage.VALIDATING;
         return LanguageRequests.Resolution.pending("References selected; validating bounded evidence");
     }
 
+    private LanguageRequests.Resolution pollTable() {
+        if(tableAttempt!=null) {
+            var result=tableAttempt.poll(clock.millis(),pollAllowance);
+            if(result.phase()==Phase.RESOLVING)return LanguageRequests.Resolution.pending("Scanning complete bounded table evidence");
+            if(result.phase()!=Phase.RESOLVED)return fail(result.reason()==null ? Reason.FACILITY_MISSING : result.reason(),"No authorized loaded table found");
+            table=result.value().facility();tableEvidence=result.value().evidence();
+        } else {allowance.debit(1);tableEvidence=world.facility(actor,table);
+            if(tableEvidence.status()!=ObservationStatus.PRESENT)return fail(tableEvidence.status()==ObservationStatus.UNKNOWN ? Reason.STALE_OBSERVATION : Reason.FACILITY_MISSING,"Explicit crafting table unavailable");}
+        stage=Stage.VALIDATING;return LanguageRequests.Resolution.pending("Table selected; validating invocation");
+    }
     private LanguageRequests.Resolution finalizeHarvest() {
         LanguageRequests.HarvestIntent harvest = (LanguageRequests.HarvestIntent)intent;
         if (!citizens.controls(actor,caller)) return fail(Reason.AUTHORITY_DENIED, "Citizen control changed");
@@ -314,6 +338,11 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
                 "actor", new ActorValue(actor), "amount", new IntValue(harvest.amount()),
                 "source", RecipeProduction.is(harvest.capability()) ? new ContainerValue(new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()))
                         : new AreaValue(source), "destination", new ContainerValue(destination)));
+        if(harvest.capability().equals(WoodenAxeProduction.ID)) {
+            allowance.debit(1);var current=world.facility(actor,table);
+            if(current.status()!=ObservationStatus.PRESENT || !current.equals(tableEvidence))return fail(Reason.STALE_OBSERVATION,"Selected table changed");
+            var args=new HashMap<>(request.arguments());args.put("table",new FacilityValue(table));request=new CapabilityRequest(request.capability(),args);
+        }
         terminal = LanguageRequests.Resolution.request(request); stage = Stage.COMPLETE;
         return terminal;
     }

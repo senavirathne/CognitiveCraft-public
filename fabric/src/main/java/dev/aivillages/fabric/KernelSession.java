@@ -176,10 +176,10 @@ public final class KernelSession implements AutoCloseable {
                 var lookups = new CapabilityRetrievalIndex.LookupRegistry(
                         Map.of("harvest wheat",CropDelivery.ID,"deliver wheat",CropDelivery.ID,
                                 "collect oak logs",OakLogDelivery.ID,"deliver oak logs",OakLogDelivery.ID,
-                                "make oak planks",OakPlankProduction.ID,"produce oak planks",OakPlankProduction.ID,"make sticks",StickProduction.ID,"produce sticks",StickProduction.ID),
+                                "make oak planks",OakPlankProduction.ID,"produce oak planks",OakPlankProduction.ID,"make sticks",StickProduction.ID,"produce sticks",StickProduction.ID,"make wooden axes",WoodenAxeProduction.ID,"produce wooden axes",WoodenAxeProduction.ID),
                         Map.of(CropDelivery.ID,java.util.Set.of("farming","wheat"),
                                 OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs"),
-                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks")),capabilities);
+                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks"),WoodenAxeProduction.ID,java.util.Set.of("crafting","wooden","axes")),capabilities);
                 retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
                         new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
@@ -518,7 +518,8 @@ public final class KernelSession implements AutoCloseable {
                     throw new SecurityException("No trusted player is attached to this interpretation");
                 return new FabricWorldReferenceResolver(worldAccess,citizens,caller,player,intent,clock,
                         (source,quantity)->leases.availableStock(intent instanceof LanguageRequests.HarvestIntent h && RecipeProduction.is(h.capability())
-                                ? RecipeProduction.of(h.capability()).stock(caller.scope().worldId(),source) : ResourceLeases.Resource.oakStock(caller.scope().worldId(),source),quantity,caller));
+                                ? RecipeProduction.of(h.capability()).stock(caller.scope().worldId(),source) : ResourceLeases.Resource.oakStock(caller.scope().worldId(),source),quantity,caller),
+                        (source,quantity)->leases.availableStock(new ResourceLeases.Resource(caller.scope().worldId(),ResourceLeases.Kind.STOCK,ResourceLeases.point(source),ResourceDelivery.STICK.id(),-1),quantity,caller));
             }
             @Override public BootstrapController.Submission submit(CapabilityRequest request, TrustedContext caller) {
                 return submitRequest(request, caller, interpretingPlayer);
@@ -548,6 +549,17 @@ public final class KernelSession implements AutoCloseable {
             boolean known=current.status()==ObservationStatus.PRESENT && current.reason()==null && stock.usable();
             if(stock.usable())available=stock.available();
             long needed=RecipeProduction.of(request.capability()).inputs(((IntValue)request.arguments().get("amount")).value());
+            if(RecipeProduction.of(request.capability()).axe()) {
+                var d=RecipeProduction.of(request.capability());var source=((ContainerValue)request.arguments().get("source")).value();
+                var secondary=leases.availableStock(d.secondaryStock(context.scope().worldId(),source),current.availableSecondary(),context);
+                known=known && secondary.usable();long sticks=secondary.usable() ? secondary.available() : current.availableSecondary();
+                long required=d.secondaryInputs(((IntValue)request.arguments().get("amount")).value());
+                return new ObservationSnapshot(new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),known ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
+                        "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
+                        Map.of("input_planks",available,"required_planks",needed,"missing_planks",Math.max(0,needed-available),
+                                "input_sticks",sticks,"required_sticks",required,"missing_sticks",Math.max(0,required-sticks),
+                                "output_capacity",current.outputCapacity(),"recipe_supported",current.recipe()==null ? 0L : 1L,"unknown_cells",known ? 0L : 1L));
+            }
             return new ObservationSnapshot(new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),known ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                     "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
                     Map.of(RecipeProduction.of(request.capability()).inputCount(),available,request.capability().equals(StickProduction.ID) ? "required_planks" : "required_logs",needed,RecipeProduction.of(request.capability()).missingCount(),Math.max(0,needed-available),
@@ -761,6 +773,14 @@ public final class KernelSession implements AutoCloseable {
     }
     public BootstrapController.Submission makePlanks(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(OakPlankProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
+    public BootstrapController.Submission makeAxes(ServerPlayer player,UUID actorId,int amount,int sx,int sy,int sz,int dx,int dy,int dz,int tx,int ty,int tz) {
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
+        if(amount<1 || amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        String dimension=citizen.actor().dimension();
+        return submitRequest(new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),
+                "source",new ContainerValue(new ContainerRef(dimension,sx,sy,sz)),"destination",new ContainerValue(new ContainerRef(dimension,dx,dy,dz)),
+                "table",new FacilityValue(new FacilityRef(dimension,tx,ty,tz)))),owner,player);
+    }
     public BootstrapController.Submission makeSticks(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(StickProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
     private BootstrapController.Submission makeRecipe(CapabilityId capability,ServerPlayer player,UUID actorId,int amount,
@@ -814,7 +834,7 @@ public final class KernelSession implements AutoCloseable {
         if (entity == null || entity.level() != player.level())
             return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.ACTOR_UNAVAILABLE);
         if(RecipeProduction.is(request.capability())) {
-            if(!(request.arguments().get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>64)
+            if(!(request.arguments().get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>RecipeProduction.of(request.capability()).maximumAmount())
                 return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
             var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
             var current=gatewayWorld().recipePreflight(bound);
@@ -824,6 +844,17 @@ public final class KernelSession implements AutoCloseable {
                     ((ContainerValue)request.arguments().get("source")).value()),current.availableInputs(),owner);
             if(!free.usable())return new BootstrapController.Submission(UUID.randomUUID(),false,free.reason()==null ? Reason.STALE_OBSERVATION : free.reason());
             long needed=RecipeProduction.of(request.capability()).inputs(amount.value());
+            if(RecipeProduction.of(request.capability()).axe()) {
+                var d=RecipeProduction.of(request.capability());var source=((ContainerValue)request.arguments().get("source")).value();
+                var secondary=leases.availableStock(d.secondaryStock(owner.scope().worldId(),source),current.availableSecondary(),owner);
+                if(!secondary.usable())return new BootstrapController.Submission(UUID.randomUUID(),false,secondary.reason()==null ? Reason.STALE_OBSERVATION : secondary.reason());
+                long sticks=d.secondaryInputs(amount.value());
+                if(free.available()<needed || secondary.available()<sticks) {
+                    player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Oak planks required="+needed+" available="+free.available()+" missing="+Math.max(0,needed-free.available())
+                            +"; sticks required="+sticks+" available="+secondary.available()+" missing="+Math.max(0,sticks-secondary.available())));
+                    return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.RESOURCE_MISSING);
+                }
+            }
             if(free.available()<needed) {
                 player.sendSystemMessage(net.minecraft.network.chat.Component.literal((request.capability().equals(StickProduction.ID) ? "Oak planks required=" : "Oak logs required=")+needed+" available="+free.available()+" missing="+(needed-free.available())));
                 return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.RESOURCE_MISSING);
@@ -917,12 +948,14 @@ public final class KernelSession implements AutoCloseable {
         var oak=loaded.repository().page(OakLogDelivery.ID,"",8);
         var planks=loaded.repository().page(OakPlankProduction.ID,"",8);
         var sticks=loaded.repository().page(StickProduction.ID,"",8);
+        var axes=loaded.repository().page(WoodenAxeProduction.ID,"",8);
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
                 + " oakCatalog="+oak.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " plankCatalog="+planks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " stickCatalog="+sticks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
+                + " axeCatalog="+axes.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " revision=" + page.revision() + " recentModelCalls=" + controller.modelCalls(owner)
                 + " inference=" + controller.inferenceEnabled();
     }

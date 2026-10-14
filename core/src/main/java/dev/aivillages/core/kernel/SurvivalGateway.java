@@ -533,7 +533,7 @@ public final class SurvivalGateway implements GatewayPort {
             case PICKUP_WHEAT -> pickup(action, target);
             case PICKUP_TRACKED_WHEAT, PICKUP_TRACKED_OAK_LOGS -> pickupTracked(action);
             case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> transfer(action, target);
-            case OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> throw new AssertionError("Recipe handled above");
+            case OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> throw new AssertionError("Recipe handled above");
         }
         run.lastTick = world.tick();
     }
@@ -544,12 +544,16 @@ public final class SurvivalGateway implements GatewayPort {
         var definition=RecipeProduction.of(run.request.request().capability());
         var sourceBox=((ContainerValue)run.request.request().arguments().get("source")).value();
         var destinationBox=destination(run.request);
-        Cell target=op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.MOVE_TO_INPUT || op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS
+        Cell target=op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.MOVE_TO_INPUT || op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS
                 ? new Cell(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()) : target(action);
+        if(op==Operation.TRANSFER_WOODEN_AXES)target=new Cell(destinationBox.dimension(),destinationBox.x(),destinationBox.y(),destinationBox.z());
+        if(definition.axe() && (op==Operation.MOVE_TO_TABLE || op==Operation.CRAFT_WOODEN_AXE)) {
+            var f=((FacilityValue)run.request.request().arguments().get("table")).value();target=new Cell(f.dimension(),f.x(),f.y(),f.z());
+        }
         Reason denied=world.permit(run.request,effect,target);
         if(denied!=null) {finish(action,denied,null,null);return;}
         long requested=((IntValue)run.request.request().arguments().get("amount")).value();
-        if(op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS) {
+        if(op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS) {
             if(run.recipe!=null || run.inputsWithdrawn!=0) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
             if(!action.usage.canDebit(Kind.OBSERVATIONS,296))throw new Budgets.Exhausted();
             var observed=world.recipePreflight(run.request);
@@ -558,35 +562,35 @@ public final class SurvivalGateway implements GatewayPort {
                 finish(action,observed.reason()==null ? Reason.STALE_OBSERVATION : observed.reason(),null,null);return;
             }
             if(!observed.recipe().key().equals(definition.recipe())) {finish(action,Reason.ARTIFACT_INCOMPATIBLE,null,null);return;}
-            if(observed.availableInputs()<definition.inputs(requested)) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
+            if(observed.availableInputs()<definition.inputs(requested) || definition.axe() && observed.availableSecondary()<definition.secondaryInputs(requested)) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
             if(observed.outputCapacity()<requested) {finish(action,Reason.TARGET_UNAVAILABLE,null,null);return;}
             run.recipe=observed;run.recipeCustody=observed.custodyFingerprint();run.recipeSource=observed.sourceFingerprint();
             finish(action,null,new BoolValue(true),null);return;
         }
         if(run.recipe==null) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
-        if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_DESTINATION) {move(action,target);return;}
+        if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_DESTINATION || op==Operation.MOVE_TO_TABLE) {move(action,target);return;}
         if(!effectAllowance(action))return;
-        int work=op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS ? 64
-                : 2*(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS ? run.recipe.sourceSlots() : run.recipe.destinationSlots())+24;
+        int work=op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE ? 64
+                : 2*(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS ? run.recipe.sourceSlots() : run.recipe.destinationSlots())+24;
         action.usage.debit(Kind.OBSERVATIONS,work);
         RecipeTransaction.Mutation result;
         ResourceDelivery.Stage stage;
         int quantity,retained;
-        if(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS) {
-            if(run.inputPending || run.batchOutputs!=0 || run.inputsWithdrawn>=definition.inputs(requested)) {
+        if(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS) {
+            if(run.inputPending || run.batchOutputs!=0 || run.inputsWithdrawn>=Math.multiplyExact(definition.batches(requested),definition.totalInputs())) {
                 finish(action,Reason.REQUEST_INVALID,null,null);return;
             }
             action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
             result=world.withdrawRecipeInput(run.actor,sourceBox,run.recipe,run.recipeCustody,run.recipeSource);
             stage=ResourceDelivery.Stage.WITHDRAW;quantity=result.moved();retained=0;
             if(result.committed()) {run.craftBatch=UUID.randomUUID();run.inputsWithdrawn+=result.moved();run.inputPending=true;}
-        } else if(op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS) {
+        } else if(op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE) {
             if(!run.inputPending || run.batchOutputs!=0) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
             action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
             result=world.craftRecipe(run.actor,run.recipe,run.recipeCustody);
             stage=ResourceDelivery.Stage.CRAFT;quantity=result.produced();retained=quantity;
             if(result.committed()) {run.inputPending=false;run.batchOutputs=result.produced();run.outputsProduced+=result.produced();}
-        } else if(op==Operation.TRANSFER_OAK_PLANKS || op==Operation.TRANSFER_STICKS) {
+        } else if(op==Operation.TRANSFER_OAK_PLANKS || op==Operation.TRANSFER_STICKS || op==Operation.TRANSFER_WOODEN_AXES) {
             if(run.inputPending || run.batchOutputs<1 || run.deposited>=requested
                     || ((IntValue)action.arguments.get("amount")).value()!=requested) {
                 finish(action,Reason.REQUEST_INVALID,null,null);return;
@@ -601,21 +605,27 @@ public final class SurvivalGateway implements GatewayPort {
             committed(action);
             if(result.reason()!=null || !run.recipeCustody.equals(result.custodyBefore())
                     || !RecipeTransaction.hash(result.custodyAfter())
-                    || stage==ResourceDelivery.Stage.WITHDRAW && (quantity!=definition.inputPerBatch() || result.consumed()!=0 || result.produced()!=0)
-                    || stage==ResourceDelivery.Stage.CRAFT && (quantity!=4 || result.consumed()!=definition.inputPerBatch() || result.remainders()!=0)
-                    || stage==ResourceDelivery.Stage.DEPOSIT && (quantity<1 || quantity>4 || result.consumed()!=0 || result.produced()!=0)) {
+                    || stage==ResourceDelivery.Stage.WITHDRAW && (quantity!=definition.totalInputs() || result.consumed()!=0 || result.produced()!=0)
+                    || stage==ResourceDelivery.Stage.CRAFT && (quantity!=definition.outputPerBatch() || result.consumed()!=definition.totalInputs() || result.remainders()!=0)
+                    || stage==ResourceDelivery.Stage.DEPOSIT && (quantity<1 || quantity>definition.outputPerBatch() || result.consumed()!=0 || result.produced()!=0)) {
                 finish(action,Reason.STALE_OBSERVATION,null,null);return;
             }
             var transformation=new RecipeTransaction.Transformation(run.recipe.recipe(),result.consumed(),result.produced(),
-                    result.remainders(),retained,result.custodyBefore(),result.custodyAfter(),run.recipe.sourceIdentity(),run.recipe.destinationIdentity());
+                    result.remainders(),retained,result.custodyBefore(),result.custodyAfter(),run.recipe.sourceIdentity(),run.recipe.destinationIdentity(),run.recipe.facility(),run.recipe.facilityIdentity());
             var receipt=new ResourceDelivery.Receipt(UUID.randomUUID(),run.request.context(),run.id,action.handle.id(),run.craftBatch,
                     run.actor,ResourceLeases.point(sourceBox),destinationBox,
                     stage==ResourceDelivery.Stage.WITHDRAW ? definition.input() : definition.output(),
-                    stage,quantity,new ResourceDelivery.BlockPosition(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()),List.of(),transformation);
+                    stage,stage==ResourceDelivery.Stage.WITHDRAW && definition.axe() ? 3 : quantity,new ResourceDelivery.BlockPosition(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()),List.of(),transformation);
             run.resourceReceipts.add(receipt);action.resourceReceipts.add(receipt);
+            if(stage==ResourceDelivery.Stage.WITHDRAW && definition.axe()) {
+                var secondary=new ResourceDelivery.Receipt(UUID.randomUUID(),run.request.context(),run.id,
+                        UUID.nameUUIDFromBytes((action.handle.id()+":sticks").getBytes(java.nio.charset.StandardCharsets.UTF_8)),run.craftBatch,
+                        run.actor,receipt.source(),destinationBox,ResourceDelivery.STICK,stage,2,receipt.sourceBlock(),List.of(),transformation);
+                run.resourceReceipts.add(secondary);action.resourceReceipts.add(secondary);
+            }
             run.recipeCustody=result.custodyAfter();
             if(!result.sourceAfter().isEmpty())run.recipeSource=result.sourceAfter();
-            if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println((run.request.request().capability().equals(StickProduction.ID) ? "RB003_EFFECT run=" : "RB002_EFFECT run=")+run.id+" stage="+stage+" quantity="+quantity+" retained="+retained);
+            if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println((definition.axe() ? "RB004_EFFECT run=" : run.request.request().capability().equals(StickProduction.ID) ? "RB003_EFFECT run=" : "RB002_EFFECT run=")+run.id+" stage="+stage+" quantity="+quantity+" retained="+retained);
             finish(action,null,new IntValue(quantity),null);
         } else finish(action,result.reason()==null ? Reason.ACTION_FAILED : result.reason(),null,null);
     }
@@ -1034,7 +1044,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
                 || action.operation == Operation.APPROACH_OAK_LOG
-                || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT)
+                || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT || action.operation==Operation.MOVE_TO_TABLE)
                 && action.movementStarted && action.run != null) {
             world.stopMovement(action.run.actor);
             if (Boolean.getBoolean("cognitivecraft.gametest.trace")
@@ -1066,10 +1076,13 @@ public final class SurvivalGateway implements GatewayPort {
         boolean plank=RecipeProduction.is(request.request().capability());
         if(plank) {
             var values=request.request().arguments();
-            if(values.size()!=4 || !(values.get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>64
+            if(values.size()!=RecipeProduction.of(request.request().capability()).spec().parameters().size() || !(values.get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>RecipeProduction.of(request.request().capability()).maximumAmount()
                     || !(values.get("source") instanceof ContainerValue) || !(values.get("destination") instanceof ContainerValue))
                 return Reason.REQUEST_INVALID;
-            if((op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS) && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
+            if(RecipeProduction.of(request.request().capability()).axe() && (!(values.get("table") instanceof FacilityValue f)
+                    || !f.value().dimension().equals(((ActorValue)values.get("actor")).value().dimension())
+                    || args.containsKey("table") && !values.get("table").equals(args.get("table"))))return Reason.REQUEST_INVALID;
+            if((op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS) && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
         }
         if(request.request().capability().equals(OakLogDelivery.ID)) {
             try {
@@ -1081,7 +1094,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         if (!ResourceDelivery.isDelivery(request.request().capability())
                 || op!=Operation.MOVE_TO_DESTINATION && (plank ? !RecipeProduction.permits(request.request().capability(),op)
-                : op.plank() || op.stick() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
+                : op.plank() || op.stick() || op.axe() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
                 || !args.keySet().equals(op.signature().parameters().stream()
                 .map(Parameter::name).collect(java.util.stream.Collectors.toSet())))
             return Reason.REQUEST_INVALID;

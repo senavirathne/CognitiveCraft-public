@@ -1,0 +1,75 @@
+{
+  "unit": "RB-004",
+  "sourceBaseline": "2ed42d01e640bd7054e7d414a5e2e5da0bf7b30a",
+  "documentationBaseline": "eab6d680806ee9707691ebdebd8398c6648ba1b6",
+  "contractPublishedBeforeImplementation": "62f4bfabce0a2295a5a3834f63b57c9d1ff558e9",
+  "capability": "cognitivecraft:produce_wooden_axes",
+  "version": 1,
+  "recipe": "minecraft:wooden_axe",
+  "input": [
+    {
+      "item": "minecraft:oak_planks",
+      "components": "default",
+      "perBatch": 3
+    },
+    {
+      "item": "minecraft:stick",
+      "components": "default",
+      "perBatch": 2
+    }
+  ],
+  "output": {
+    "item": "minecraft:wooden_axe",
+    "components": "default",
+    "perBatch": 1,
+    "maximumStack": 1
+  },
+  "limits": {
+    "amount": 4,
+    "batches": 4,
+    "inputUnits": 20,
+    "receipts": 64,
+    "maxActualReceipts": 16,
+    "calls": 256,
+    "instructions": 4096,
+    "observations": 4096,
+    "travelBlocks": 128,
+    "effects": 64,
+    "ticks": 1800,
+    "actionTicks": 200,
+    "containerSlots": 128,
+    "actorSlots": 8,
+    "strictBytes": 65536,
+    "strictTokens": 4096,
+    "discoveryCells": 9801,
+    "discoveryTotalWork": 32768
+  },
+  "unchangedVersions": {
+    "ir": 1,
+    "gateway": 1,
+    "jobs": 2,
+    "leases": 1
+  },
+  "mandatoryMatrix": [
+    "RB4-T01",
+    "RB4-T02",
+    "RB4-T03",
+    "RB4-T04",
+    "RB4-T05",
+    "RB4-T06",
+    "RB4-T07",
+    "RB4-T08",
+    "RB4-T09",
+    "RB4-T10",
+    "RB4-T11"
+  ],
+  "acceptance": "pending",
+  "scopeEndsAt": "RB-004",
+  "facility": {
+    "type": "FACILITY",
+    "block": "minecraft:crafting_table",
+    "grid": "3x3",
+    "capturedIdentities": 64
+  },
+  "axeTransformationSchema": 3
+}

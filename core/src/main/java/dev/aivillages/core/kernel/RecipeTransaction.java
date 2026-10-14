@@ -12,15 +12,22 @@ public final class RecipeTransaction {
     public record Snapshot(String key,String fingerprint,long generation,int inputs,int outputs,int remainders) {
         public Snapshot {
             if(!hash(fingerprint) || generation<0
-                    || inputs!=RecipeProduction.recipe(key).inputPerBatch() || outputs!=4 || remainders!=0)throw new IllegalArgumentException("Static oak recipe envelope");
+                    || inputs!=RecipeProduction.recipe(key).totalInputs() || outputs!=RecipeProduction.recipe(key).outputPerBatch() || remainders!=0)throw new IllegalArgumentException("Static oak recipe envelope");
         }
     }
     public record Preflight(ObservationStatus status,Snapshot recipe,long availableInputs,long outputCapacity,
                             String sourceIdentity,String destinationIdentity,String sourceFingerprint,
-                            String custodyFingerprint,int sourceSlots,int destinationSlots,Reason reason) {
+                            String custodyFingerprint,int sourceSlots,int destinationSlots,Reason reason,
+                            long availableSecondary,FacilityRef facility,String facilityIdentity) {
+        public Preflight(ObservationStatus status,Snapshot recipe,long availableInputs,long outputCapacity,
+                         String sourceIdentity,String destinationIdentity,String sourceFingerprint,String custodyFingerprint,
+                         int sourceSlots,int destinationSlots,Reason reason) {
+            this(status,recipe,availableInputs,outputCapacity,sourceIdentity,destinationIdentity,sourceFingerprint,
+                    custodyFingerprint,sourceSlots,destinationSlots,reason,0,null,"");
+        }
         public Preflight {
             Objects.requireNonNull(status);
-            if(availableInputs<0 || outputCapacity<0 || sourceSlots<0 || sourceSlots>128 || destinationSlots<0
+            if(availableSecondary<0 || !text(facilityIdentity) || availableInputs<0 || outputCapacity<0 || sourceSlots<0 || sourceSlots>128 || destinationSlots<0
                     || destinationSlots>128 || !text(sourceIdentity) || !text(destinationIdentity)
                     || !text(sourceFingerprint) || !text(custodyFingerprint))throw new IllegalArgumentException("Bounded recipe preflight");
             if(status==ObservationStatus.PRESENT && reason==null && recipe==null)
@@ -31,7 +38,7 @@ public final class RecipeTransaction {
     public record Mutation(int consumed,int produced,int moved,int remainders,String custodyBefore,
                            String custodyAfter,String sourceAfter,Reason reason) {
         public Mutation {
-            if(consumed<0 || consumed>2 || produced<0 || produced>4 || moved<0 || moved>4
+            if(consumed<0 || consumed>5 || produced<0 || produced>4 || moved<0 || moved>5
                     || remainders<0 || remainders>4 || !text(custodyBefore) || !text(custodyAfter)
                     || !text(sourceAfter))throw new IllegalArgumentException("Bounded transaction result");
         }
@@ -41,9 +48,16 @@ public final class RecipeTransaction {
     /** Typed transformation payload. Acquisition receipts keep their original schema and drop lineage. */
     public record Transformation(Snapshot recipe,int consumedInputs,int producedOutputs,int remainders,
                                  int retainedOutputs,String custodyBefore,String custodyAfter,
-                                 String sourceIdentity,String destinationIdentity) {
+                                 String sourceIdentity,String destinationIdentity,FacilityRef facility,String facilityIdentity) {
+        public Transformation(Snapshot recipe,int consumedInputs,int producedOutputs,int remainders,int retainedOutputs,
+                              String custodyBefore,String custodyAfter,String sourceIdentity,String destinationIdentity) {
+            this(recipe,consumedInputs,producedOutputs,remainders,retainedOutputs,custodyBefore,custodyAfter,sourceIdentity,destinationIdentity,null,"");
+        }
         public Transformation {
             Objects.requireNonNull(recipe);
+            if(RecipeProduction.recipe(recipe.key()).axe() ? facility==null || facilityIdentity==null || facilityIdentity.isBlank()
+                    : facility!=null || !"".equals(facilityIdentity))throw new IllegalArgumentException("Transformation facility binding");
+            if(!text(facilityIdentity))throw new IllegalArgumentException("Facility identity bound");
             if(consumedInputs<0 || consumedInputs>recipe.inputs() || producedOutputs<0 || producedOutputs>4
                     || remainders!=0 || retainedOutputs<0 || retainedOutputs>4
                     || !hash(custodyBefore) || !hash(custodyAfter)

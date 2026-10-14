@@ -19,6 +19,7 @@ public final class ResourceDelivery {
     public static final ItemIdentity WHEAT = new ItemIdentity("minecraft:wheat", "default");
     public static final ItemIdentity OAK_PLANKS = new ItemIdentity("minecraft:oak_planks", "default");
     public static final ItemIdentity STICK = new ItemIdentity("minecraft:stick", "default");
+    public static final ItemIdentity WOODEN_AXE=new ItemIdentity("minecraft:wooden_axe","default");
     public enum Stage { HARVEST, PICKUP, DEPOSIT, WITHDRAW, CRAFT }
     public record BlockPosition(String dimension,int x,int y,int z) {
         public BlockPosition { new Cuboid(dimension,x,y,z,x,y,z); }
@@ -67,7 +68,7 @@ public final class ResourceDelivery {
         if (bound.request().capability().equals(CropDelivery.ID))
             return resources.isEmpty() && CropDelivery.completed(bound, run, crops);
         return crops.isEmpty() && (RecipeProduction.is(bound.request().capability())
-                ? (bound.request().capability().equals(StickProduction.ID) ? StickProduction.completed(bound,run,resources) : OakPlankProduction.completed(bound,run,resources)) : OakLogDelivery.completed(bound, run, resources));
+                ? (bound.request().capability().equals(WoodenAxeProduction.ID) ? WoodenAxeProduction.completed(bound,run,resources) : bound.request().capability().equals(StickProduction.ID) ? StickProduction.completed(bound,run,resources) : OakPlankProduction.completed(bound,run,resources)) : OakLogDelivery.completed(bound, run, resources));
     }
 
     public static boolean matches(ValidatedRequest bound, UUID run, Receipt r) {

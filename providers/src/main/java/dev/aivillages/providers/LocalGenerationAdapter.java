@@ -511,7 +511,13 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        spec.id().equals(dev.aivillages.core.kernel.StickProduction.ID)
+                        spec.id().equals(dev.aivillages.core.kernel.WoodenAxeProduction.ID)
+                                ? "Return JSON proposal only. Select cognitivecraft:observe_axe_inputs as preflight, batchSize 1, result param amount. "
+                                + "Choose six registered cycle IDs in causal order: cognitivecraft:move_to_input, cognitivecraft:withdraw_axe_inputs, "
+                                + "cognitivecraft:move_to_table, cognitivecraft:craft_wooden_axe, cognitivecraft:move_to_destination, cognitivecraft:transfer_wooden_axes. "
+                                + "Each installed 3x3 table recipe consumes three default oak planks and two sticks and assembles one fresh wooden axe. "
+                                + "Actor, source, table, destination and amount are runtime parameters. No dependency calls, gathering, Java or authority claims."
+                                : spec.id().equals(dev.aivillages.core.kernel.StickProduction.ID)
                                 ? "Return the JSON proposal only. Choose cognitivecraft:observe_stick_inputs as preflight and batchSize 4. "
                                 + "Select five registered cycle primitive IDs in causal order: cognitivecraft:move_to_input, "
                                 + "cognitivecraft:withdraw_oak_planks, cognitivecraft:craft_sticks, "
@@ -542,18 +548,20 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
     private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
+        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int batch=axe ? 1 : 4,cycleSize=axe ? 6 : 5;
         var preflight=Map.of("type","string","enum",primitives.stream().filter(p->p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         var cycleId=Map.of("type","string","enum",primitives.stream().filter(p->!p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
-                "additionalProperties",false,"properties",Map.of("preflight",preflight,"batchSize",Map.of("type","integer","enum",List.of(4)),
-                        "cycle",Map.of("type","array","items",cycleId,"minItems",5,"maxItems",5),
+                "additionalProperties",false,"properties",Map.of("preflight",preflight,"batchSize",Map.of("type","integer","enum",List.of(batch)),
+                        "cycle",Map.of("type","array","items",cycleId,"minItems",cycleSize,"maxItems",cycleSize),
                         "result",Map.of("type","object","required",List.of("param"),"additionalProperties",false,
                                 "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
     }
     private static List<Object> plankIrBody(Object proposal,List<Contracts.PrimitiveSignature> primitives) {
+        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));long batch=axe ? 1L : 4L;int cycleSize=axe ? 6 : 5;
         if(!(proposal instanceof Map<?,?> p) || !p.keySet().equals(java.util.Set.of("preflight","batchSize","cycle","result"))
-                || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(4).equals(p.get("batchSize"))
-                || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=5 || !Map.of("param","amount").equals(p.get("result")))
+                || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(batch).equals(p.get("batchSize"))
+                || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=cycleSize || !Map.of("param","amount").equals(p.get("result")))
             throw new IllegalArgumentException("Bounded recipe proposal");
         var observation=primitives.stream().filter(signature->signature.id().equals(preflight)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered preflight"));
         if(!observation.effects().equals(java.util.Set.of(Contracts.Effect.OBSERVE)))throw new IllegalArgumentException("Recipe preflight must observe once");
@@ -564,7 +572,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 throw new IllegalArgumentException("Preflight cannot enter the repeated recipe cycle");
             calls.add(plankCall(id,primitives));
         }
-        var batches=Map.of("operator","DIV","left",Map.of("operator","ADD","left",Map.of("param","amount"),"right",Map.of("int",3L)),"right",Map.of("int",4L));
+        var batches=Map.of("operator","DIV","left",Map.of("operator","ADD","left",Map.of("param","amount"),"right",Map.of("int",batch-1)),"right",Map.of("int",batch));
         return List.of(plankCall(preflight,primitives),Map.of("op","repeat","count",batches,"body",List.copyOf(calls)),
                 Map.of("op","result","value",Map.of("param","amount")));
     }
@@ -572,7 +580,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         var primitive=primitives.stream().filter(p->p.id().equals(id)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered recipe primitive"));
         var args=new java.util.LinkedHashMap<String,Object>();
         for(var parameter:primitive.parameters()) {
-            if(!List.of("actor","source","destination","amount").contains(parameter.name()))throw new IllegalArgumentException("Recipe binding");
+            if(!List.of("actor","source","destination","amount","table").contains(parameter.name()))throw new IllegalArgumentException("Recipe binding");
             args.put(parameter.name(),Map.of("param",parameter.name()));
         }
         return Map.of("op","call","kind","primitive","id",id,"version",(long)primitive.version(),"fingerprint",primitive.fingerprint(),
