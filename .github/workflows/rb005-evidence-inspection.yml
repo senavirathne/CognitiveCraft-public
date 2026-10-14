@@ -1,0 +1,61 @@
+name: RB-005 retained evidence inspection
+on:
+  push:
+    branches: [rb005-evidence-inspection]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Read original completed RB-005 artifacts without rerunning gameplay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import urllib.request,json,time,hashlib,io,zipfile
+          api='https://api.github.com/repos/senavirathne/CognitiveCraft-public'
+          import os
+          def get(path,binary=False):
+              request=urllib.request.Request(api+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(request,timeout=60) as response:
+                  data=response.read()
+              return data if binary else json.loads(data)
+          runs=[38556920359,38556907463]
+          deadline=time.monotonic()+1200
+          while True:
+              states=[get('/actions/runs/'+str(r)) for r in runs]
+              if all(s['status']=='completed' for s in states):break
+              assert time.monotonic()<deadline,'Evidence producers have not completed'
+              print('RB005_EVIDENCE_WAIT '+json.dumps([{k:s[k] for k in ('id','status','conclusion','head_sha')} for s in states]),flush=True)
+              time.sleep(30)
+          for state in states:
+              rid=state['id']
+              print('RB005_PRODUCER '+json.dumps({k:state[k] for k in ('id','status','conclusion','head_sha')}))
+              assert state['head_sha']=='375e998b9936dae9ec8009178be95aef0960eba7'
+              for artifact in get('/actions/runs/'+str(rid)+'/artifacts')['artifacts']:
+                  data=get('/actions/artifacts/'+str(artifact['id'])+'/zip',True)
+                  digest=hashlib.sha256(data).hexdigest()
+                  assert 'sha256:'+digest==artifact['digest']
+                  print('RB005_ARTIFACT '+json.dumps({'id':artifact['id'],'name':artifact['name'],'sha256':digest,'bytes':len(data)}))
+                  with zipfile.ZipFile(io.BytesIO(data)) as z:
+                      for path in z.namelist():
+                          if path.endswith(('models.json','identity.json','controlled.json','genuine-cold.json','genuine-warm.json')):
+                              body=z.read(path);value=json.loads(body)
+                              print('RB005_FILE '+json.dumps({'artifact':artifact['id'],'path':path,'sha256':hashlib.sha256(body).hexdigest(),'value':value}))
+                          elif '/generated-wire/' in path and path.endswith('.json'):
+                              body=z.read(path);summary={'artifact':artifact['id'],'path':path,'sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)}
+                              if '/response-' in path:
+                                  rows=[json.loads(line) for line in body.splitlines() if line.strip()]
+                                  final=next((r for r in reversed(rows) if r.get('done')),rows[-1] if rows else {})
+                                  summary['usage']={k:final.get(k) for k in ('model','done','total_duration','load_duration','prompt_eval_count','prompt_eval_duration','eval_count','eval_duration')}
+                              print('RB005_WIRE '+json.dumps(summary))
+                          elif path.endswith('/connected-client.json'):
+                              body=z.read(path);report=json.loads(body);row=next(r for r in report['results'] if r['id']=='GP-RB-COMPOSE-01')
+                              summary={'artifact':artifact['id'],'path':path,'sha256':hashlib.sha256(body).hexdigest(),'status':row['status']}
+                              e=row.get('evidence',{})
+                              summary.update({'artifacts':e.get('artifacts'),'models':e.get('models'),'offlineProcessProof':e.get('offlineProcessProof'),'goldenRows':[{'fixture':r.get('fixture'),'quantity':r.get('quantity'),'harvested':r.get('harvested'),'surplus':r.get('surplus'),'modelCalls':r.get('modelCalls')} for r in e.get('goldenRows',[])],'independentAcquisitions':[{'marker':a.get('marker'),'phase':a.get('phase'),'research':a.get('research')} for a in e.get('independentAcquisitions',[])],'cancelledState':e.get('cancelled',{}).get('state'),'recoveredState':e.get('recovered',{}).get('state'),'language':bool(e.get('actualLanguage')),'foreignDenied':e.get('foreignDenied'),'killBoundary':bool(e.get('killBoundary'))})
+                              print('RB005_CONNECTED '+json.dumps(summary))
+          PY
