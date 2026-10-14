@@ -37,7 +37,7 @@ public final class AxeEffectGameTests {
         int[] phase={0};RecipeTransaction.Preflight[] captured={null};String[] custody={null};CompletableFuture<?>[] reload={null};
         Villager[] walker={null};ActorRef[] walkingActor={null};long[] travel={0};boolean[] airborne={false};
         h.succeedWhen(()->{
-            if(!v.onGround() || !world.loadedForDiscovery(a)) {h.assertTrue(false,"Waiting for grounded table fixture");return;}
+            if(phase[0]<2 && (!v.onGround() || !world.loadedForDiscovery(a))) {h.assertTrue(false,"Waiting for grounded table fixture");return;}
             if(phase[0]==0) {
                 h.assertTrue(world.acquire(actor,run),"Native gateway control");
                 from.setItem(0,new ItemStack(Items.OAK_PLANKS,1));from.setItem(1,new ItemStack(Items.OAK_PLANKS,11));
