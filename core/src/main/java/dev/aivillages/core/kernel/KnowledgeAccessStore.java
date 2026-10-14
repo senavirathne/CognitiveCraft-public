@@ -244,11 +244,18 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             var learner=enrollment(a.worker(),job.origin());if(learner==null)return result(Code.DENIED,Reason.AUTHORITY_DENIED,jobId,work.count,0);
             var execution=a.executions().stream().filter(e->source.learned(job,e.artifact(),a.worker(),work)).findFirst().orElse(null);
             if(execution==null)return result(Code.PENDING,null,jobId,work.count,0);
-            if(mayUse(a.worker(),execution.artifact(),job.origin()))return result(Code.DUPLICATE,null,jobId,work.count,0);
+            var old=snapshot();
+            // A fresh world has no methods at startup. Preserve its initial shared policy for
+            // the first verified method of an outcome name, without inheriting later revisions.
+            boolean firstShared=old.legacyMethods().stream().noneMatch(r->r.capability().name().equals(execution.artifact().capability().name()));
+            if(mayUse(a.worker(),execution.artifact(),job.origin())&&!firstShared)return result(Code.DUPLICATE,null,jobId,work.count,0);
             if(!catalog.usable(execution.artifact()).allowed())return result(Code.INVALID,Reason.ARTIFACT_INCOMPATIBLE,jobId,work.count,0);
-            var old=snapshot();var grants=new ArrayList<>(old.grants());grants.add(new Grant(learner,execution.artifact(),learner,Origin.ACQUISITION,
-                    jobId,a.id(),a.generation(),execution.runId(),job.revision()));
-            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),grants,old.practices()),jobId,work.count,cancel);
+            var grants=new ArrayList<>(old.grants());
+            if(grants.stream().noneMatch(g->g.learner().equals(learner)&&g.method().equals(execution.artifact())))
+                grants.add(new Grant(learner,execution.artifact(),learner,Origin.ACQUISITION,jobId,a.id(),a.generation(),execution.runId(),job.revision()));
+            var shared=new ArrayList<>(old.legacyMethods());
+            if(firstShared){if(shared.size()==128)return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,work.count,0);shared.add(execution.artifact());}
+            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),shared,old.personalCitizens(),grants,old.practices()),jobId,work.count,cancel);
         }catch(JobOutcomeSource.Limited exhausted){return result(Code.LIMIT,Reason.BUDGET_EXHAUSTED,jobId,work.count,0);}
         catch(JobOutcomeSource.Invalid|ArithmeticException invalid){return result(Code.INVALID,Reason.REQUEST_INVALID,jobId,work.count,0);}
     }

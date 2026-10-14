@@ -396,4 +396,22 @@ class KnowledgeAccessStoreTest {
         }
     }
 
+    @Test void firstVerifiedAcquisitionInAFreshWorldPreservesOrdinarySharedUseButNotPersonalOrFutureRevisionAccess()throws Exception{
+        try(var f=new Fixture(temp)){
+            f.methods.available.clear();Path fresh=temp.resolve("fresh-shared-world");
+            try(var access=KnowledgeAccessStore.open(fresh,f.f.scene.world,f.source,f.methods,f.f.scene.clock,new RetentionRoots())){
+                var ordinary=JobLifecycleStoreTest.actor();var personal=JobLifecycleStoreTest.actor();f.enroll(ordinary,f.f.scene.owner);f.enroll(personal,f.f.scene.owner);f.observe(true);
+                assertEquals(Code.APPLIED,access.requirePersonalLearning(personal,f.f.scene.owner,()->false).code());
+                f.methods.available.put(METHOD,null);var job=f.f.scene.memory.state.jobs().getFirst();
+                assertEquals(Code.APPLIED,access.recordAcquisition(job.id(),()->false).code());
+                assertTrue(access.mayUse(ordinary,METHOD,f.f.scene.owner));assertFalse(access.mayUse(personal,METHOD,f.f.scene.owner));
+                f.methods.available.put(NEXT,null);assertFalse(access.mayUse(ordinary,NEXT,f.f.scene.owner));
+                assertEquals(List.of(METHOD),access.snapshot().legacyMethods());assertEquals(Code.DUPLICATE,access.recordAcquisition(job.id(),()->false).code());
+            }
+            try(var reopened=KnowledgeAccessStore.open(fresh,f.f.scene.world,f.source,f.methods,f.f.scene.clock,new RetentionRoots())){
+                assertEquals(List.of(METHOD),reopened.snapshot().legacyMethods());assertFalse(reopened.mayUse(f.learner,NEXT,f.f.scene.owner));
+            }
+        }
+    }
+
 }
