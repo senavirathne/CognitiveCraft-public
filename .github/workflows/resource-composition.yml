@@ -42,6 +42,7 @@ jobs:
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionOwnerTest.xml');cases=list(E.parse(p).getroot().iter('testcase'))
           assert len(cases)>=17 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           print('RB005_OWNER cases='+str(len(cases)))
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionLeaseTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==1 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           PY
       - name: Select native composed Jobs and installed resource recipes
         run: |
