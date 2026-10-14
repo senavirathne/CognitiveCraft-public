@@ -40,6 +40,17 @@ public final class NeedleWire {
         String sourceAlias=plank ? "stock" : oak ? "area" : "farm";
         String resource=axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
         String prompt = input.text(), from = null, through = null, destination = null;
+        if(axe) {
+            // Disposable textual normalization only. Core independently grounds the original text.
+            var quantity=Pattern.compile("(?i)(\\b(?:make|craft|produce)\\s+)(one|two|three|four)(\\s+wooden\\s+axes?\\b)").matcher(prompt);
+            var normalized=new StringBuffer();
+            while(quantity.find()) {
+                int value=List.of("one","two","three","four").indexOf(quantity.group(2).toLowerCase(Locale.ROOT))+1;
+                quantity.appendReplacement(normalized,java.util.regex.Matcher.quoteReplacement(quantity.group(1)+value+quantity.group(3)));
+            }
+            quantity.appendTail(normalized);prompt=normalized.toString();
+        }
+
         if(plank)prompt=prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?available\\s+oak\\s+(?:logs?|planks?)\\b","from stock");
 
         if (classification.source().state() == ReferenceState.EXPLICIT_CONCRETE) {

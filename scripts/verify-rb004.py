@@ -8,7 +8,7 @@ OUT=ROOT/'build/rb004-evidence'
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'AxeProductionTest':22,'AxeReceiptTest':10,'AxeCompilerTest':5,'AxeJobLifecycleTest':7,'AxeLeaseTest':6,'AxeBindingTest':9},
+    expected={'core':{'AxeProductionTest':22,'AxeReceiptTest':10,'AxeCompilerTest':5,'AxeJobLifecycleTest':7,'AxeLeaseTest':6,'AxeBindingTest':9,'AxeLanguageRequestTest':5},
               'providers':{'AxeNeedleWireTest':2,'AxeGenerationTest':2}}
     results={}
     for module,classes in expected.items():

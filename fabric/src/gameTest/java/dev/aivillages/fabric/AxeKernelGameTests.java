@@ -64,9 +64,12 @@ public final class AxeKernelGameTests {
         BlockPos source() {return origin.offset(4,1,round==1 || round==3 ? 7 : 4);}
         BlockPos destination() {return warm ? origin.offset(7,1,7) : round==1 || round==3 ? source() : origin.offset(7,1,4);}
         void submit() {
-            Container from=container(source());from.setItem(0,new ItemStack(Items.OAK_PLANKS,1));
+            Container from=container(source());var oldAxes=new ArrayList<ItemStack>();
+            for(int i=0;i<from.getContainerSize();i++)if(from.getItem(i).is(Items.WOODEN_AXE))oldAxes.add(from.getItem(i).copy());
+            from.clearContent();from.setItem(0,new ItemStack(Items.OAK_PLANKS,1));
             int needed=WoodenAxeProduction.planks(amount);from.setItem(1,needed>1 ? new ItemStack(Items.OAK_PLANKS,needed-1) : ItemStack.EMPTY);
-            from.setItem(3,new ItemStack(Items.STICK,WoodenAxeProduction.sticks(amount)));
+            from.setItem(2,new ItemStack(Items.STICK,WoodenAxeProduction.sticks(amount)));
+            for(int i=0;i<oldAxes.size();i++)from.setItem(i+3,oldAxes.get(i));
             before=container(destination()).countItem(Items.WOODEN_AXE);actorBefore=villager.getInventory().countItem(Items.WOODEN_AXE);
             logsBefore=villager.getInventory().countItem(Items.OAK_PLANKS);generationBefore=session.generationCalls();
             var a=source();var b=destination();var submitted=session.makeAxes(owner,actor.citizenId(),amount,a.getX(),a.getY(),a.getZ(),b.getX(),b.getY(),b.getZ(),table().getX(),table().getY(),table().getZ());

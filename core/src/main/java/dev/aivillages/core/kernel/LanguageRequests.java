@@ -350,7 +350,7 @@ public final class LanguageRequests {
                 || e.action()!=(axe ? Action.MAKE_WOODEN_AXES : stick ? Action.MAKE_STICKS : plank ? Action.MAKE_OAK_PLANKS : oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
             clarify(t, "Only registered wheat, oak-log delivery, oak-plank/stick production and citizen-naming intents are supported", List.of()); return;
         }
-        if (invalidNumericQuantity(t.input.text())) { invalid(t); return; }
+        if (invalidNumericQuantity(t.input.text(),axe ? 4 : 64)) { invalid(t); return; }
         if (e.amount() == null) {
             clarify(t, "Specify the resource quantity", List.of()); return;
         }
@@ -644,18 +644,18 @@ public final class LanguageRequests {
 
     private static boolean quantityRole(String text, String quantity) {
         return Pattern.compile("(?<![\\p{L}\\p{N}_,.+/\\-])" + Pattern.quote(quantity)
-                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
+                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|wooden\\s+axes?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
 
-    private static boolean invalidNumericQuantity(String text) {
-        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+    private static boolean invalidNumericQuantity(String text,long maximum) {
+        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|wooden\\s+axes?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         while (match.find()) {
             String raw = match.group(1);
             if (raw.chars().noneMatch(Character::isDigit)) continue;
             if (!raw.matches("[0-9]+")) return true;
             try {
                 long amount = Long.parseLong(raw);
-                if (amount < 1 || amount > 64) return true;
+                if (amount < 1 || amount > maximum) return true;
             } catch (NumberFormatException overflow) { return true; }
         }
         return false;
