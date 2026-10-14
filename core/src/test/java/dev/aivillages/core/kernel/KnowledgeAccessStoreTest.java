@@ -319,17 +319,22 @@ class KnowledgeAccessStoreTest {
     @Test void resolverKeepsKnownUnlearnedMethodsBlockedAndPreservesIncompatibilityWithoutSynthesis()throws Exception{
         try(var f=new Fixture(temp)){
             var request=new ValidatedRequest(JobLifecycleStoreTest.request(f.learner,2),f.f.scene.owner,JobLifecycleStoreTest.observation());
+            var incompatible=new AtomicBoolean();
             var candidate=new VersionedSkillRepository.Candidate(METHOD,AdmissionStatus.ADMITTED,new Compatibility(METHOD,CompatibilityStatus.COMPATIBLE,List.of(),"minecraft-26.3"),VersionedSkillRepository.Integrity.VERIFIED);
             var catalog=new CapabilityResolver.CandidateSource(){
-                public VersionedSkillRepository.Page page(CapabilityId id,String after,int size){return new VersionedSkillRepository.Page(List.of(candidate),"",true,1);}
+                public VersionedSkillRepository.Page page(CapabilityId id,String after,int size){return new VersionedSkillRepository.Page(List.of(incompatible.get()?new VersionedSkillRepository.Candidate(METHOD,AdmissionStatus.ADMITTED,
+                        new Compatibility(METHOD,CompatibilityStatus.INCOMPATIBLE,List.of(Reason.ARTIFACT_INCOMPATIBLE),"minecraft-26.3"),VersionedSkillRepository.Integrity.VERIFIED):candidate),"",true,1);}
                 public Optional<ArtifactDescriptor> descriptor(ArtifactRef ref){return Optional.of(new ArtifactDescriptor(ref,1,CropDelivery.SPEC.parameters(),Type.INT,CropDelivery.SPEC.effects(),List.of(),List.of()));}
                 public long revision(){return 1;}
             };
             var resolver=new CapabilityResolver.Engine(c->Optional.of(CropDelivery.SPEC),GatewayPrimitives.instance(),catalog,null,CapabilityResolver.cropDeliverySupport(),
                     (a,c)->c.equals(f.f.scene.owner),f.access,(a,e,c)->true,(r,m,o)->null,()->0,CapabilityResolver.Limits.defaults());
-            var observed=new ObservationSnapshot(request.observation(),ObservationStatus.PRESENT,"fixture",0,1,Map.of("mature_wheat",2L));
+            var area=((AreaValue)request.request().arguments().get("source")).value();
+            var observed=new ObservationSnapshot(request.observation(),ObservationStatus.PRESENT,"source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)),0,9,Map.of("mature_wheat",2L,"unknown_cells",0L));
             var decision=resolver.resolve(request,observed);assertEquals(ResolutionStatus.BLOCKED,decision.routing().status());assertEquals(Reason.KNOWLEDGE_REQUIRED,decision.routing().reason());
             var job=f.start();var allowed=resolver.withEligibility(f.access.policyForJob(job.id())).resolve(request,observed);assertEquals(ResolutionStatus.RESOLVED,allowed.routing().status());
+            incompatible.set(true);f.methods.available.put(METHOD,Reason.ARTIFACT_INCOMPATIBLE);
+            assertEquals(ResolutionStatus.INCOMPATIBLE,resolver.resolve(request,observed).routing().status());
         }
     }
     @Test void learnedRootAllowsOnlyItsPinnedNestedClosureWithoutMakingChildrenIndependentKnowledge()throws Exception{
@@ -373,11 +378,21 @@ class KnowledgeAccessStoreTest {
     @Test void maximumMigrationReferenceRowsRemainWithinPerRecordParserCaps()throws Exception{
         try(var f=new Fixture(temp)){
             var personal=new ArrayList<Enrollment>();var methods=new ArrayList<ArtifactRef>();
-            for(int n=0;n<64;n++)personal.add(new Enrollment(new ActorRef(new UUID(3,n),new UUID(4,n),"minecraft:"+"d".repeat(110)),f.f.scene.owner));
+            for(int n=0;n<64;n++)personal.add(new Enrollment(new ActorRef(new UUID(3,n),new UUID(4,n),"minecraft:"+"d".repeat(63)),f.f.scene.owner));
             for(int n=0;n<128;n++)methods.add(new ArtifactRef(CropDelivery.ID,String.format("%064x",n)));
             var state=new Snapshot(f.f.scene.world,1,true,List.of(),methods,personal,List.of(),List.of());
             var encoded=KnowledgeAccessCodec.encode(state);assertEquals(state,KnowledgeAccessCodec.decode(encoded,f.f.scene.world));
             assertTrue(encoded.length<1048576);assertEquals(193,new String(encoded,java.nio.charset.StandardCharsets.UTF_8).lines().count()-1);
+        }
+    }
+
+    @Test void schemaOneDraftEmbeddedMigrationReaderPreservesExactAccessReferences()throws Exception{
+        try(var f=new Fixture(temp)){
+            var state=f.access.snapshot();var value=Map.of("migrated",state.migrated(),"citizens",state.legacyCitizens(),"methods",state.legacyMethods(),"personal",state.personalCitizens());
+            String payload=StrictJson.canonical(Map.of("kind","migration","value",StrictJson.object(new com.google.gson.Gson().toJson(value))))+"\n";
+            String header=StrictJson.canonical(Map.of("schema",1L,"world",state.world().toString(),"revision",state.revision(),"records",1L,
+                    "sha256",KnowledgeAccessCodec.sha(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+            assertEquals(state,KnowledgeAccessCodec.decode((header+"\n"+payload).getBytes(java.nio.charset.StandardCharsets.UTF_8),state.world()));
         }
     }
 
