@@ -87,6 +87,7 @@ public final class DeterministicPrerequisiteResolver {
         List<Need> needs = List.of();
         Map<String, Plan> plans = new LinkedHashMap<>();
         Map<String, Pool> pools = new HashMap<>();
+        final Map<String,Supply> inspectedStock=new HashMap<>();
         List<StockUse> stock = new ArrayList<>();
         Map<String, AllocationIntent> allocations = new HashMap<>();
         int work, edges, alternatives, visited;
@@ -106,8 +107,9 @@ public final class DeterministicPrerequisiteResolver {
             String key = bindingKey(owner) + ":" + item;
             if (!path.add(key)) throw stop(Reason.REQUEST_INVALID, Qualification.CYCLE);
             try {
-                Supply proof = Objects.requireNonNull(supplies.inspect(owner, item));
-                step(Math.addExact(proof.inspected(), 1));
+                Supply proof=ResourceComposition.make(owner)?inspectedStock.get(key):null;
+                if(proof==null){proof=Objects.requireNonNull(supplies.inspect(owner,item));step(Math.addExact(proof.inspected(),1));if(ResourceComposition.make(owner))inspectedStock.put(key,proof);}
+                else step(1);
                 if (!proof.item().equals(item) || !proof.observation().dimension().equals(owner.bound().observation().dimension()))
                     throw stop(Reason.REQUEST_INVALID, Qualification.NONE);
                 if (proof.reason() == Reason.AUTHORITY_DENIED) throw unauthorized();
@@ -300,7 +302,7 @@ public final class DeterministicPrerequisiteResolver {
         long result=128;
         for(Need need:needs)result=Math.addExact(result,128L+RequestCodec.encode(need.bound().request()).getBytes(StandardCharsets.UTF_8).length);
         for(Node node:nodes)result=Math.addExact(result,node.toString().getBytes(StandardCharsets.UTF_8).length);
-        for(StockUse use:stock)result=Math.addExact(result,use.toString().getBytes(StandardCharsets.UTF_8).length);
+        for(StockUse use:stock)result=Math.addExact(result,(ResourceComposition.make(use.owner()) ? use.owner().demand()+":"+use.proof()+":"+use.quantity() : use.toString()).getBytes(StandardCharsets.UTF_8).length);
         for(AllocationIntent allocation:allocations)result=Math.addExact(result,allocation.toString().getBytes(StandardCharsets.UTF_8).length);
         return Math.toIntExact(result);
     }

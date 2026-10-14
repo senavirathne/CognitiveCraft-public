@@ -22,7 +22,7 @@ final class ResourceCompositionTest {
         final Map<String,Long> stock=new HashMap<>();
         final CapabilityRequest request;
         final Need need;
-        int methodCalls;long tick=100;boolean allowed=true;Reason stockReason,methodReason;
+        int methodCalls,inspectionWork=1;final Map<String,Integer> inspections=new HashMap<>();long tick=100;boolean allowed=true;Reason stockReason,methodReason;
         ObservationStatus stockStatus;Catalog catalog=catalog();
         final Clock clock=Clock.fixed(Instant.ofEpochMilli(1000),ZoneOffset.UTC);
         Fixture(int quantity) {
@@ -37,9 +37,9 @@ final class ResourceCompositionTest {
             }
             return new Catalog(1,recipes,productions,Set.of(),true);
         }
-        Supply inspect(Need n,String item) {long count=item.equals(AXE)?0:stock.getOrDefault(item,0L);
+        Supply inspect(Need n,String item) {inspections.merge(item,1,Integer::sum);long count=item.equals(AXE)?0:stock.getOrDefault(item,0L);
             return new Supply(item,stockStatus!=null?stockStatus:count==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,count,
-                    "same-physical-source:"+item,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),tick,1,stockReason);}
+                    "same-physical-source:"+item,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),tick,inspectionWork,stockReason);}
         MethodSelection method(Production p,long batches,long output,Need n) {
             methodCalls++;var observation=new ObservationRef(UUID.randomUUID(),tick,actor.dimension());
             var seen=new ObservationSnapshot(observation,ObservationStatus.PRESENT,"actual-fixture",tick,1,Map.of());
@@ -67,6 +67,7 @@ final class ResourceCompositionTest {
         for(var node:p.nodes())assertEquals(ResourceComposition.project(f.need,node.production().capability(),node.output()),node.request().request());
         assertEquals(p.nodes().size(),p.nodes().stream().map(Node::method).distinct().count());
     }
+    @Test void coalescedMAKEInspectsEachNativeContainerItemOncePerExpansion(){var f=new Fixture(4);f.inspectionWork=28;var p=f.resolve();assertTrue(p.accepted(),p.reason()+" "+p.metrics());assertEquals(1,f.inspections.get(PLANK));assertEquals(1,f.inspections.get(LOG));assertEquals(1,f.inspections.get(STICK));}
     @Test void quantityFourHasOneSharedPlankProducerAndFullIntermediateDeposits() {
         var f=new Fixture(4);var p=f.resolve();assertTrue(p.accepted(),p.reason()+" "+p.metrics());
         assertEquals(4,f.produced(p,LOG));assertEquals(16,f.produced(p,PLANK));assertEquals(8,f.produced(p,STICK));assertEquals(4,f.produced(p,AXE));

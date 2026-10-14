@@ -207,7 +207,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         Registry registry = new Registry();
         if(RecipeProduction.is(harvest.capability())) {
             var criterion=new Criteria(harvest.capability().equals(StickProduction.ID) ? "cognitivecraft:available_oak_plank_input_container" : "cognitivecraft:available_oak_input_container");
-            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,composition && harvest.capability().equals(WoodenAxeProduction.ID)?0:RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input()));
+            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && harvest.capability().equals(WoodenAxeProduction.ID)));
             inputAttempt=registry.start(search(Kind.CONTAINER,actorAnchor,criterion),clock.millis(),allowance);
             stage=Stage.SOURCE;return;
         }

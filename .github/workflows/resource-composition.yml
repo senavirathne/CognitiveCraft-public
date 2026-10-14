@@ -37,12 +37,13 @@ jobs:
           from pathlib import Path
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResourceCompositionTest.xml')
           cases=list(E.parse(p).getroot().iter('testcase'))
-          assert len(cases)>=18 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          assert len(cases)>=19 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           print('RB005_UNIT cases='+str(len(cases)))
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionOwnerTest.xml');cases=list(E.parse(p).getroot().iter('testcase'))
           assert len(cases)>=17 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           print('RB005_OWNER cases='+str(len(cases)))
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionLeaseTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==1 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionBindingTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==3 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           PY
       - name: Select native composed Jobs and installed resource recipes
         run: |

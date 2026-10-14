@@ -28,6 +28,7 @@ def scenario(h):
         response=h.command("PlayerA",command,"run="+UUID_PATTERN)
         require("accepted=true" in response,"Independent producer rejected: "+response)
         return re.search("run=("+UUID_PATTERN+")",response).group(1)
+    h.command("PlayerA","/aivillage kernel inference true","admission=true")
     hashes={};acquisitions=[]
     logs();seed()
     commands=[
@@ -44,6 +45,7 @@ def scenario(h):
         require(view.get("resourceReceipts"),"No native resource effects in admission")
         hashes[item]=view["marker"]["artifactSha256"];acquisitions.append(view)
         h.screenshot("PlayerA","rb005-independent-"+item.split(":")[1],chat=True)
+    h.command("PlayerA","/aivillage kernel inference false","admission=false")
     def job(jid,player="PlayerA"):
         state=h.snapshot()
         return state["players"].get(player,{}).get("jobs",{}).get(jid)
