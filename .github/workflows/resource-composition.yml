@@ -44,6 +44,10 @@ jobs:
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionOwnerTest.xml');cases=list(E.parse(p).getroot().iter('testcase'))
           assert len(cases)>=17 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           print('RB005_OWNER cases='+str(len(cases)))
+          for module,name,minimum in (('core','AxeLanguageRequestTest',9),('providers','AxeNeedleWireTest',5)):
+              p=Path(module+'/build/test-results/test/TEST-dev.aivillages.'+('core.kernel.' if module=='core' else 'providers.')+name+'.xml')
+              cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)>=minimum and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+              print('RB005_LANGUAGE '+name+' cases='+str(len(cases)))
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionLeaseTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==1 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionBindingTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==3 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           PY
