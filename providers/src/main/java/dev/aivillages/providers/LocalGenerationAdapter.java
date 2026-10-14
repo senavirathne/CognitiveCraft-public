@@ -282,7 +282,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             if (ResourceDelivery.isDelivery(call.request.capability().id())
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
-                normalized.put("body",call.request.capability().id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                normalized.put("body",dev.aivillages.core.kernel.RecipeProduction.is(call.request.capability().id())
                         ? plankIrBody(ir.get("body"),call.request.primitives()) : cropIrBody(ir.get("body"), call.request.primitives()));
                 ir = normalized;
                 candidateIr = StrictJson.canonical(ir);
@@ -494,7 +494,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 .map(Contracts.PrimitiveSignature::id).toList();
         List<String> fingerprints = request.primitives().stream()
                 .map(Contracts.PrimitiveSignature::fingerprint).distinct().toList();
-        Map<String, Object> bodyShape = spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+        Map<String, Object> bodyShape = dev.aivillages.core.kernel.RecipeProduction.is(spec.id())
                 ? plankBodyShape(request.primitives()) : ResourceDelivery.isDelivery(spec.id())
                 ? cropBodyShape(request.primitives()) : Map.of("type", "array",
                         "items", nodeShape(2, primitiveIds, fingerprints, true),
@@ -511,7 +511,16 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                        spec.id().equals(dev.aivillages.core.kernel.StickProduction.ID)
+                                ? "Return the JSON proposal only. Choose cognitivecraft:observe_stick_inputs as preflight and batchSize 4. "
+                                + "Select five registered cycle primitive IDs in causal order: cognitivecraft:move_to_input, "
+                                + "cognitivecraft:withdraw_oak_planks, cognitivecraft:craft_sticks, "
+                                + "cognitivecraft:move_to_destination, cognitivecraft:transfer_sticks. "
+                                + "The installed recipe consumes two default oak planks and produces four new sticks. "
+                                + "Return result param amount. Actor, source, destination and amount are runtime parameters. "
+                                + "The adapter binds registered signatures; the compiler, fixtures and physical trial validate the proposal. "
+                                + "No Java, harvesting, dependency calls or authority claims."
+                                : spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
                                 ? "Return the JSON proposal only. Choose a registered preflight primitive, batchSize 4, "
                                 + "and five registered cycle primitives in causal order: move to input, withdraw one log, "
                                 + "craft one real batch, move to destination, transfer produced planks. "
@@ -533,10 +542,11 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
     private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
-        var id=Map.of("type","string","enum",primitives.stream().map(Contracts.PrimitiveSignature::id).toList());
+        var preflight=Map.of("type","string","enum",primitives.stream().filter(p->p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
+        var cycleId=Map.of("type","string","enum",primitives.stream().filter(p->!p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
-                "additionalProperties",false,"properties",Map.of("preflight",id,"batchSize",Map.of("type","integer","enum",List.of(4)),
-                        "cycle",Map.of("type","array","items",id,"minItems",5,"maxItems",5),
+                "additionalProperties",false,"properties",Map.of("preflight",preflight,"batchSize",Map.of("type","integer","enum",List.of(4)),
+                        "cycle",Map.of("type","array","items",cycleId,"minItems",5,"maxItems",5),
                         "result",Map.of("type","object","required",List.of("param"),"additionalProperties",false,
                                 "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
     }
@@ -545,9 +555,13 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(4).equals(p.get("batchSize"))
                 || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=5 || !Map.of("param","amount").equals(p.get("result")))
             throw new IllegalArgumentException("Bounded recipe proposal");
+        var observation=primitives.stream().filter(signature->signature.id().equals(preflight)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered preflight"));
+        if(!observation.effects().equals(java.util.Set.of(Contracts.Effect.OBSERVE)))throw new IllegalArgumentException("Recipe preflight must observe once");
         var calls=new java.util.ArrayList<Object>();
         for(Object value:cycle) {
             if(!(value instanceof String id))throw new IllegalArgumentException("Recipe primitive ID");
+            if(primitives.stream().filter(signature->signature.id().equals(id)).anyMatch(signature->signature.effects().contains(Contracts.Effect.OBSERVE)))
+                throw new IllegalArgumentException("Preflight cannot enter the repeated recipe cycle");
             calls.add(plankCall(id,primitives));
         }
         var batches=Map.of("operator","DIV","left",Map.of("operator","ADD","left",Map.of("param","amount"),"right",Map.of("int",3L)),"right",Map.of("int",4L));

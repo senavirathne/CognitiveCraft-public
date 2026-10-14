@@ -62,8 +62,16 @@ public final class FabricPrerequisiteCatalog {
                 recipes.add(new Prerequisites.Recipe(key,output,result.count(),inputs,remainders));unsupported.add(output);
             } catch(IllegalArgumentException | NoSuchElementException invalid) {complete=false;}
         }
-        // P0 already implements harvesting and attributable delivery. There is no registered crafting effect.
+        var productions=new ArrayList<Prerequisites.Production>();productions.add(Prerequisites.Production.cropDelivery());
+        for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.StickProduction.RECIPE)
+                && recipe.output().equals("minecraft:stick") && recipe.outputPerBatch()==4 && recipe.remainders().isEmpty()
+                && recipe.inputs().stream().allMatch(i -> i.alternatives().contains("minecraft:oak_planks"))
+                && recipe.inputs().stream().mapToLong(Prerequisites.Ingredient::quantity).sum()==2) {
+            productions.add(dev.aivillages.core.kernel.RecipeProduction.of(dev.aivillages.core.kernel.StickProduction.ID).relationship());
+            unsupported.remove("minecraft:stick");
+        }
+        // Mapping is declarative; admission and current runtime owners still gate any execution.
         return new Prerequisites.Catalog(Integer.toUnsignedLong(System.identityHashCode(manager)),recipes,
-                List.of(Prerequisites.Production.cropDelivery()),unsupported,complete);
+                productions,unsupported,complete);
     }
 }

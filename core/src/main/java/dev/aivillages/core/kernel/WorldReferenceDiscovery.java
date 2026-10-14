@@ -33,6 +33,10 @@ public final class WorldReferenceDiscovery {
             }
             return new ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unsupported");
         }
+        default InputContainerSample inputContainer(ActorRef actor,ContainerRef source,ResourceDelivery.ItemIdentity item) {
+            return item.equals(ResourceDelivery.OAK_LOG) ? inputContainer(actor,source)
+                    : new InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unsupported-input");
+        }
         default InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {
             return new InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unsupported");
         }
@@ -80,6 +84,11 @@ public final class WorldReferenceDiscovery {
     public record InputContainerTarget(ContainerRef container,InputContainerSample evidence) { }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world) {
         if(required<1 || required>16)throw new IllegalArgumentException("Input batch envelope");
+        return inputContainers(actor,required,anchor,world,ResourceDelivery.OAK_LOG);
+    }
+    public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item) {
+        if(required<1 || required>32 || !item.equals(ResourceDelivery.OAK_LOG) && !item.equals(ResourceDelivery.OAK_PLANKS))
+            throw new IllegalArgumentException("Input batch envelope");
         return new Discovery<>() {
             List<Candidate<InputContainerTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;
             public Scan<InputContainerTarget> poll(int maximum) {
@@ -88,7 +97,7 @@ public final class WorldReferenceDiscovery {
                     int at=cursor++;work++;
                     var point=new Point(anchor.dimension(),anchor.x()-HORIZONTAL_RADIUS+at%width,
                             anchor.y()-VERTICAL_RANGE+at/(width*width),anchor.z()-HORIZONTAL_RADIUS+(at/width)%width);
-                    var ref=new ContainerRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.inputContainer(actor,ref);
+                    var ref=new ContainerRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.inputContainer(actor,ref,item);
                     work+=sample.slotsInspected();
                     if(sample.status()==ObservationStatus.UNKNOWN)unknown=true;
                     else if(sample.status()==ObservationStatus.PRESENT && sample.available()>=required) {
@@ -121,9 +130,9 @@ public final class WorldReferenceDiscovery {
         return new OakLogDiscovery.Source(actor,amount,anchor,world);
     }
     public static Discovery<ItemContainerTarget> itemContainers(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
-        if(capability.equals(OakPlankProduction.ID)) {
+        if(RecipeProduction.is(capability)) {
             if(amount<1 || amount>64)throw new IllegalArgumentException("Plank amount");
-            return new OakLogDiscovery.Containers(actor,amount,anchor,world,ResourceDelivery.OAK_PLANKS);
+            return new OakLogDiscovery.Containers(actor,amount,anchor,world,RecipeProduction.of(capability).output());
         }
         if(capability.equals(CropDelivery.ID)) return mapDiscovery(containers(actor,amount,anchor,world),
                 c -> new ItemContainerTarget(c.container(),new ItemContainerSample(ResourceDelivery.WHEAT,c.evidence().status(),

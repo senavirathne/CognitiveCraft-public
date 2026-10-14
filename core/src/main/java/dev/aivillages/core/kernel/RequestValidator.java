@@ -63,7 +63,7 @@ public final class RequestValidator {
             if (!environment.available(destination, observation)) return invalid("$.arguments.destination");
         }
         if (spec.completion() == Completion.ATTRIBUTABLE_TRANSFORMATION_DELIVERY) {
-            if(!spec.equals(OakPlankProduction.SPEC) || !(values.get("actor") instanceof ActorValue actor)
+            if(!RecipeProduction.is(spec.id()) || !spec.equals(RecipeProduction.of(spec.id()).spec()) || !(values.get("actor") instanceof ActorValue actor)
                     || !(values.get("source") instanceof ContainerValue source)
                     || !(values.get("destination") instanceof ContainerValue destination)
                     || !actor.value().dimension().equals(source.value().dimension())

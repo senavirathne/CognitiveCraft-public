@@ -36,6 +36,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
 PROFILES["rb001"] = ["GP-RB-01"]
 PROFILES["rb002"] = ["GP-RB-02"]
+PROFILES["rb003"] = ["GP-RB-03"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
@@ -1508,6 +1509,8 @@ def main():
     registry["GP-RB-01"] = oak_scenario
     from planks import scenario as plank_scenario
     registry["GP-RB-02"] = plank_scenario
+    from sticks import scenario as stick_scenario
+    registry["GP-RB-03"] = stick_scenario
     try:
         if args.topology == "compose":
             h.compose("build", "minecraft")

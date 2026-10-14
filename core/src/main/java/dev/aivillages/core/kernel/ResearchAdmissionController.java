@@ -319,8 +319,8 @@ public final class ResearchAdmissionController {
         }
         attempt.generate(Generation.Role.INITIAL, "Current source observation="
                 + route.observation().status()
-                + (bound.request().capability().equals(OakPlankProduction.ID) ? ", input_logs=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
-                + route.observation().counts().getOrDefault(bound.request().capability().equals(OakPlankProduction.ID) ? "input_logs" : bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
+                + (RecipeProduction.is(bound.request().capability()) ? ", "+RecipeProduction.of(bound.request().capability()).inputCount()+"=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
+                + route.observation().counts().getOrDefault(RecipeProduction.is(bound.request().capability()) ? RecipeProduction.of(bound.request().capability()).inputCount() : bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
         return attempt;
     }
     public Attempt startRepair(ValidatedRequest bound, ArtifactRef parent, EvidenceRef defect,
@@ -439,7 +439,8 @@ public final class ResearchAdmissionController {
             if (!bound.context().equals(caller)) throw new SecurityException("Private research attempt");
         }
         private void generate(Generation.Role role, String context) {
-            String prompt = (bound.request().capability().equals(OakPlankProduction.ID) ? PLANK_BRIEF
+            String prompt = (bound.request().capability().equals(StickProduction.ID) ? PLANK_BRIEF.replace("oak-plank", "stick").replace("supplied logs", "supplied oak planks").replace("one oak log", "two oak planks").replace("four planks", "four sticks").replace("one-log", "two-plank").replace("plank transfer", "stick transfer")
+                    : RecipeProduction.is(bound.request().capability()) ? PLANK_BRIEF
                     : bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > settings.maxContextBytes()) {
                 finish(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED); return;
@@ -783,10 +784,7 @@ public final class ResearchAdmissionController {
         }
     }
     private static List<PrimitiveSignature> primitiveBrief(CapabilityId id) {
-        var ops=id.equals(OakPlankProduction.ID) ? List.of(GatewayPrimitives.Operation.OBSERVE_PLANK_INPUTS,
-                GatewayPrimitives.Operation.MOVE_TO_INPUT,GatewayPrimitives.Operation.WITHDRAW_OAK_LOG,
-                GatewayPrimitives.Operation.CRAFT_OAK_PLANKS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
-                GatewayPrimitives.Operation.TRANSFER_OAK_PLANKS) : id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
+        var ops=RecipeProduction.is(id) ? RecipeProduction.operations(id) : id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
                 GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,
                 GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
                 GatewayPrimitives.Operation.TRANSFER_OAK_LOGS) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,

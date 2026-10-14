@@ -209,13 +209,13 @@ final class JobCodec {
         long schema=number(row,"schema","$");
         if(row.containsKey("binding")) {
             exact(row,"schema","binding","id","run","operation","batch","stage","quantity","transformation");
-            if(schema!=2 || !"attempt".equals(string(row,"binding","$")) || !bound.request().capability().equals(OakPlankProduction.ID))
+            if(schema!=2 || !"attempt".equals(string(row,"binding","$")) || !RecipeProduction.is(bound.request().capability()))
                 throw new StrictJson.Invalid("$","TRANSFORMATION_BINDING_SCHEMA");
             var args=bound.request().arguments();var source=((ContainerValue)args.get("source")).value();
             var stage=ResourceDelivery.Stage.valueOf(string(row,"stage","$"));
             return new ResourceDelivery.Receipt(id(row,"id"),bound.context(),id(row,"run"),id(row,"operation"),id(row,"batch"),
                     ((ActorValue)args.get("actor")).value(),ResourceLeases.point(source),((ContainerValue)args.get("destination")).value(),
-                    stage==ResourceDelivery.Stage.WITHDRAW ? ResourceDelivery.OAK_LOG : ResourceDelivery.OAK_PLANKS,stage,number(row,"quantity","$"),
+                    stage==ResourceDelivery.Stage.WITHDRAW ? RecipeProduction.of(bound.request().capability()).input() : RecipeProduction.of(bound.request().capability()).output(),stage,number(row,"quantity","$"),
                     new ResourceDelivery.BlockPosition(source.dimension(),source.x(),source.y(),source.z()),List.of(),transformation(object(row,"transformation","$")));
         }
         fields(row,Set.of("schema","id","run","operation","batch","principal","world","domain","actor","source",

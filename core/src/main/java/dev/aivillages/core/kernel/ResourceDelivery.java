@@ -18,6 +18,7 @@ public final class ResourceDelivery {
     public static final ItemIdentity OAK_LOG = new ItemIdentity("minecraft:oak_log", "default");
     public static final ItemIdentity WHEAT = new ItemIdentity("minecraft:wheat", "default");
     public static final ItemIdentity OAK_PLANKS = new ItemIdentity("minecraft:oak_planks", "default");
+    public static final ItemIdentity STICK = new ItemIdentity("minecraft:stick", "default");
     public enum Stage { HARVEST, PICKUP, DEPOSIT, WITHDRAW, CRAFT }
     public record BlockPosition(String dimension,int x,int y,int z) {
         public BlockPosition { new Cuboid(dimension,x,y,z,x,y,z); }
@@ -53,24 +54,24 @@ public final class ResourceDelivery {
     }
 
     public static boolean isDelivery(CapabilityId id) {
-        return CropDelivery.ID.equals(id) || OakLogDelivery.ID.equals(id) || OakPlankProduction.ID.equals(id);
+        return CropDelivery.ID.equals(id) || OakLogDelivery.ID.equals(id) || RecipeProduction.is(id);
     }
-    public static boolean resource(CapabilityId id) {return OakLogDelivery.ID.equals(id) || OakPlankProduction.ID.equals(id);}
+    public static boolean resource(CapabilityId id) {return OakLogDelivery.ID.equals(id) || RecipeProduction.is(id);}
     public static Optional<CapabilitySpec> spec(CapabilityId id) {
         return id.equals(CropDelivery.ID) ? Optional.of(CropDelivery.SPEC)
                 : id.equals(OakLogDelivery.ID) ? Optional.of(OakLogDelivery.SPEC)
-                : id.equals(OakPlankProduction.ID) ? Optional.of(OakPlankProduction.SPEC) : Optional.empty();
+                : RecipeProduction.is(id) ? Optional.of(RecipeProduction.of(id).spec()) : Optional.empty();
     }
     public static boolean completed(ValidatedRequest bound, UUID run, List<CropDelivery.CropReceipt> crops,
                                     List<Receipt> resources) {
         if (bound.request().capability().equals(CropDelivery.ID))
             return resources.isEmpty() && CropDelivery.completed(bound, run, crops);
-        return crops.isEmpty() && (bound.request().capability().equals(OakPlankProduction.ID)
-                ? OakPlankProduction.completed(bound,run,resources) : OakLogDelivery.completed(bound, run, resources));
+        return crops.isEmpty() && (RecipeProduction.is(bound.request().capability())
+                ? (bound.request().capability().equals(StickProduction.ID) ? StickProduction.completed(bound,run,resources) : OakPlankProduction.completed(bound,run,resources)) : OakLogDelivery.completed(bound, run, resources));
     }
 
     public static boolean matches(ValidatedRequest bound, UUID run, Receipt r) {
-        if(bound.request().capability().equals(OakPlankProduction.ID))return TransformationDelivery.matches(bound,run,r);
+        if(RecipeProduction.is(bound.request().capability()))return TransformationDelivery.matches(bound,run,r);
         if(!bound.request().capability().equals(OakLogDelivery.ID) || r.transformation()!=null) return false;
         var a = bound.request().arguments();
         return r.origin().equals(bound.context()) && r.runId().equals(run) && r.item().equals(OAK_LOG)
@@ -81,7 +82,7 @@ public final class ResourceDelivery {
 
     /** Exact duplicates are idempotent; changed IDs/operation claims and over-pickup/deposit fail closed. */
     public static long quantity(ValidatedRequest bound, UUID run, List<Receipt> receipts) {
-        if(bound.request().capability().equals(OakPlankProduction.ID))return TransformationDelivery.quantity(bound,run,receipts);
+        if(RecipeProduction.is(bound.request().capability()))return TransformationDelivery.quantity(bound,run,receipts);
         if (!bound.request().capability().equals(OakLogDelivery.ID) || receipts.size() > MAX_RECEIPTS)
             throw new IllegalArgumentException("Unsupported resource evidence");
         Map<UUID, Receipt> seen = new HashMap<>();

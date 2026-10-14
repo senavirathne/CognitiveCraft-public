@@ -50,11 +50,11 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             }
             @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
                     dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
-                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS)) {
+                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK)) {
                     var pos=new BlockPos(target.x(),target.y(),target.z());
                     if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
                         return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
-                    var c=world.inspectPlankContainer(target);
+                    var c=world.inspectRecipeContainer(target,item);
                     return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
                 }
                 if(!item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG))
@@ -66,12 +66,15 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                 return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
             }
             @Override public WorldReferenceDiscovery.InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {
+                return inputContainer(actor,source,dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG);
+            }
+            @Override public WorldReferenceDiscovery.InputContainerSample inputContainer(ActorRef actor,ContainerRef source,dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
                 var pos=new BlockPos(source.x(),source.y(),source.z());
                 if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.WITHDRAW) || inputAvailability==null)
                     return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unavailable");
                 var box=world.recipeContainer(source);
                 if(box==null)return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.ABSENT,0,0,"not-a-container");
-                var sample=world.resourceContainer(source,dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG);
+                var sample=world.resourceContainer(source,item);
                 if(sample.status()!=ObservationStatus.PRESENT || sample.reason()!=null)
                     return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,box.getContainerSize(),"unknown-stock");
                 var free=inputAvailability.apply(source,sample.quantity());

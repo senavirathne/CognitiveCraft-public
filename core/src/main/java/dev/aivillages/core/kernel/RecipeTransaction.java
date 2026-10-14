@@ -11,8 +11,8 @@ public final class RecipeTransaction {
     private RecipeTransaction() { }
     public record Snapshot(String key,String fingerprint,long generation,int inputs,int outputs,int remainders) {
         public Snapshot {
-            if(!OakPlankProduction.RECIPE.equals(key) || !hash(fingerprint) || generation<0
-                    || inputs!=1 || outputs!=4 || remainders!=0)throw new IllegalArgumentException("Static oak recipe envelope");
+            if(!hash(fingerprint) || generation<0
+                    || inputs!=RecipeProduction.recipe(key).inputPerBatch() || outputs!=4 || remainders!=0)throw new IllegalArgumentException("Static oak recipe envelope");
         }
     }
     public record Preflight(ObservationStatus status,Snapshot recipe,long availableInputs,long outputCapacity,
@@ -31,7 +31,7 @@ public final class RecipeTransaction {
     public record Mutation(int consumed,int produced,int moved,int remainders,String custodyBefore,
                            String custodyAfter,String sourceAfter,Reason reason) {
         public Mutation {
-            if(consumed<0 || consumed>1 || produced<0 || produced>4 || moved<0 || moved>4
+            if(consumed<0 || consumed>2 || produced<0 || produced>4 || moved<0 || moved>4
                     || remainders<0 || remainders>4 || !text(custodyBefore) || !text(custodyAfter)
                     || !text(sourceAfter))throw new IllegalArgumentException("Bounded transaction result");
         }
@@ -44,7 +44,7 @@ public final class RecipeTransaction {
                                  String sourceIdentity,String destinationIdentity) {
         public Transformation {
             Objects.requireNonNull(recipe);
-            if(consumedInputs<0 || consumedInputs>1 || producedOutputs<0 || producedOutputs>4
+            if(consumedInputs<0 || consumedInputs>recipe.inputs() || producedOutputs<0 || producedOutputs>4
                     || remainders!=0 || retainedOutputs<0 || retainedOutputs>4
                     || !hash(custodyBefore) || !hash(custodyAfter)
                     || sourceIdentity==null || sourceIdentity.isBlank() || !text(sourceIdentity)
