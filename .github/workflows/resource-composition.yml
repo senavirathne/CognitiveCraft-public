@@ -37,7 +37,7 @@ jobs:
           from pathlib import Path
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResourceCompositionTest.xml')
           cases=list(E.parse(p).getroot().iter('testcase'))
-          assert len(cases)>=19 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          assert len(cases)>=20 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
           print('RB005_UNIT cases='+str(len(cases)))
           p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionOwnerTest.xml');cases=list(E.parse(p).getroot().iter('testcase'))
           assert len(cases)>=17 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
@@ -132,7 +132,7 @@ jobs:
           python3 scripts/verify-rb004.py identity
       - name: Acquire existing pinned Needle test backend
         run: python3 tools/needle/install.py build/needle
-      - name: Actual connected client GP-RB-04
+      - name: Actual connected client GP-RB-COMPOSE-01
         run: |
           python3 e2e/suite.py --profile rb005 --root build/e2e/rb005
           python3 scripts/verify-rb005.py client

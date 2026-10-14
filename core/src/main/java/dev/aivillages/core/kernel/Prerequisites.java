@@ -211,6 +211,6 @@ public final class Prerequisites {
     static UUID stableId(String value) { return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8)); }
     static String bindingKey(Need need) {
         var args = new TreeMap<>(need.bound().request().arguments()); args.remove("amount");
-        return need.origin() + ":" + need.bound().request().capability() + ":" + args + ":" + need.allocation() + ":" + need.acquisitionSource();
+        return need.origin() + ":" + need.bound().request().capability() + ":" + args + ":" + need.allocation() + (need.acquisitionSource()==null?"":":"+need.acquisitionSource());
     }
 }
