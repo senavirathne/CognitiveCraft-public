@@ -61,13 +61,13 @@ public final class CompositionGameTests {
         BlockPos oak(){return origin.offset(warm?10:2,1,6);}
         Container box(BlockPos p){return (Container)h.getLevel().getBlockEntity(p);}
         ContainerRef ref(BlockPos p){return new ContainerRef(actor.dimension(),p.getX(),p.getY(),p.getZ());}
-        Cuboid oakArea(){var p=oak();return new Cuboid(actor.dimension(),p.getX(),p.getY(),p.getZ(),p.getX(),p.getY()+3,p.getZ());}
+        Cuboid oakArea(){var p=oak();return new Cuboid(actor.dimension(),p.getX(),p.getY(),p.getZ(),p.getX()+3,p.getY(),p.getZ());}
         void setup() {
             BootstrapGameTests.forceFixtureChunks(h,origin);
             for(int x=0;x<19;x++)for(int z=0;z<10;z++)h.getLevel().setBlock(origin.offset(x,0,z),Blocks.STONE.defaultBlockState(),3);
             for(var p:List.of(source(),destination()))h.getLevel().setBlock(p,Blocks.CHEST.defaultBlockState(),3);
             h.getLevel().setBlock(table(),Blocks.CRAFTING_TABLE.defaultBlockState(),3);
-            for(int y=0;y<4;y++)h.getLevel().setBlock(oak().above(y),Blocks.OAK_LOG.defaultBlockState(),3);
+            for(int x=0;x<4;x++)h.getLevel().setBlock(oak().east(x),Blocks.OAK_LOG.defaultBlockState(),3);
         }
         void supplied(int logs,int planks,int sticks) {
             box(source()).clearContent();
@@ -84,7 +84,7 @@ public final class CompositionGameTests {
             h.assertTrue(submitted.accepted(),"Independent admission refused "+submitted);run=submitted.id();phase=3;
         }
         void compose() {
-            int[] r=ROWS[row];supplied(r[1],r[2],r[3]);for(int y=0;y<4;y++)h.getLevel().setBlock(oak().above(y),Blocks.OAK_LOG.defaultBlockState(),3);
+            int[] r=ROWS[row];supplied(r[1],r[2],r[3]);for(int x=0;x<4;x++)h.getLevel().setBlock(oak().east(x),Blocks.OAK_LOG.defaultBlockState(),3);
             if(row==6)box(destination()).setItem(20,new ItemStack(Items.WOODEN_AXE)); // Old output never fulfills MAKE.
             before=box(destination()).countItem(Items.WOODEN_AXE);oldActorAxes=villager.getInventory().countItem(Items.WOODEN_AXE);calls=session.generationCalls();
             var submitted=session.composeAxes(owner,actor.citizenId(),r[0],ref(source()),ref(destination()),new FacilityRef(actor.dimension(),table().getX(),table().getY(),table().getZ()),oakArea());
