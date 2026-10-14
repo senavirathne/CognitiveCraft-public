@@ -561,6 +561,7 @@ public final class SurvivalGateway implements GatewayPort {
             if(observed.reason()!=null || observed.status()!=ObservationStatus.PRESENT) {
                 finish(action,observed.reason()==null ? Reason.STALE_OBSERVATION : observed.reason(),null,null);return;
             }
+            if(definition.axe() && (!Objects.equals(observed.facility(),((FacilityValue)run.request.request().arguments().get("table")).value()) || observed.facilityIdentity().isBlank())) {finish(action,Reason.STALE_OBSERVATION,null,null);return;}
             if(!observed.recipe().key().equals(definition.recipe())) {finish(action,Reason.ARTIFACT_INCOMPATIBLE,null,null);return;}
             if(observed.availableInputs()<definition.inputs(requested) || definition.axe() && observed.availableSecondary()<definition.secondaryInputs(requested)) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
             if(observed.outputCapacity()<requested) {finish(action,Reason.TARGET_UNAVAILABLE,null,null);return;}

@@ -14,6 +14,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.gamerules.GameRules;
 
 /** Native effects prove recipe semantics, real slots and facility invalidation. */
 public final class AxeEffectGameTests {
@@ -49,6 +50,15 @@ public final class AxeEffectGameTests {
                 var preflight=world.recipePreflight(bound);
                 h.assertTrue(preflight.status()==ObservationStatus.PRESENT && preflight.recipe().inputs()==5 && preflight.recipe().outputs()==1
                         && preflight.availableInputs()==12 && preflight.availableSecondary()==8 && preflight.outputCapacity()==4,"Installed mirrored 3x3 qualification/two-input stock");
+                var rules=h.getLevel().getGameRules();boolean grief=rules.get(GameRules.MOB_GRIEFING);
+                try {rules.set(GameRules.MOB_GRIEFING,false,h.getLevel().getServer());h.assertTrue(world.recipePreflight(bound).reason()==Reason.AUTHORITY_DENIED,"Revoked table use permission accepted");}
+                finally {rules.set(GameRules.MOB_GRIEFING,grief,h.getLevel().getServer());}
+                var far=t.offset(12,0,0);h.getLevel().setBlock(far,Blocks.CRAFTING_TABLE.defaultBlockState(),3);
+                var args=new HashMap<>(bound.request().arguments());args.put("table",new FacilityValue(new FacilityRef(dim,far.getX(),far.getY(),far.getZ())));
+                var farBound=new ValidatedRequest(new CapabilityRequest(WoodenAxeProduction.ID,args),owner,bound.observation());
+                var farCapture=world.recipePreflight(farBound);h.assertTrue(farCapture.reason()==null,"Far loaded facility fixture unavailable");
+                h.assertTrue(world.craftRecipe(actor,farCapture,farCapture.custodyFingerprint()).reason()==Reason.TARGET_UNAVAILABLE,"Out-of-reach table crafted");
+                h.getLevel().setBlock(far,Blocks.AIR.defaultBlockState(),3);
                 captured[0]=preflight;
                 h.getLevel().setBlock(t,Blocks.AIR.defaultBlockState(),3);
                 h.assertTrue(world.recipePreflight(bound).reason()==Reason.FACILITY_MISSING,"No real table was accepted");

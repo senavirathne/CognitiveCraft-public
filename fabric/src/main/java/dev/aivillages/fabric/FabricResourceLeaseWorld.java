@@ -57,8 +57,10 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
             return observation(resource,ObservationStatus.ABSENT,0,spatial,tick,scanned,Reason.TARGET_INVALID);
         if(resource.item().equals("minecraft:crafting_table")) {
             boolean present=block.is(Blocks.CRAFTING_TABLE);
+            String tableIdentity=present ? FabricFacilityIdentity.capture(level,pos) : spatial;
+            if(tableIdentity==null)return observation(resource,ObservationStatus.UNKNOWN,0,"table-capture-cap",tick,scanned,Reason.BUDGET_EXHAUSTED);
             return observation(resource,present?ObservationStatus.PRESENT:ObservationStatus.ABSENT,
-                    present?1:0,present ? FabricFacilityIdentity.capture(level,pos) : spatial,tick,scanned,null);
+                    present?1:0,tableIdentity,tick,scanned,null);
         }
         if(!(entity instanceof Container container) || !block.is(Blocks.CHEST)&&!block.is(Blocks.BARREL)
                 || container.getContainerSize()>128

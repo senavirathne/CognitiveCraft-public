@@ -70,7 +70,7 @@ def scenario(h):
         table = SECOND_TABLE if player == "PlayerB" else TABLE
         citizen = h.citizens[actor_player or player]
         text = f"/aivillage kernel make-axes {citizen} {quantity} " + " ".join(map(str, source+destination+table))
-        answer = h.command(player, text, "run="+UUID_PATTERN if actor_player is None else DENIED_PATTERN)
+        answer = h.command(player, text, "run="+UUID_PATTERN if actor_player is None else DENIED_PATTERN+"|unavailable in your control scope")
         if actor_player is not None:
             return answer
         if "accepted=false reason=BUDGET_EXHAUSTED" in answer:

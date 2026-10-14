@@ -85,8 +85,8 @@ public final class LeasedGateway implements GatewayPort {
         var demands=new ArrayList<Demand>();
         addAxeDemands(demands,world,request,source);
         demands.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
-        demands.add(new Demand(Resource.facility(world,source),1));
-        if(!target.equals(source))demands.add(new Demand(Resource.facility(world,target),1));
+        if(!RecipeProduction.of(request.request().capability()).axe())demands.add(new Demand(Resource.facility(world,source),1));
+        if(RecipeProduction.of(request.request().capability()).axe() || !target.equals(source))demands.add(new Demand(Resource.facility(world,target),1));
         return new Binding(owners.byRun(request,run),demands);
     }
     /** Advisory owner inspection avoids consuming assignment generations for a known conflict. */
@@ -313,8 +313,8 @@ public final class LeasedGateway implements GatewayPort {
         var target=((ContainerValue)request.request().arguments().get("destination")).value();
         var result=new ArrayList<Demand>();addAxeDemands(result,world,request,source);result.add(new Demand(RecipeProduction.of(request.request().capability()).stock(world,source),
                 RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
-        result.add(new Demand(Resource.facility(world,source),1));
-        if(!source.equals(target))result.add(new Demand(Resource.facility(world,target),1));return List.copyOf(result);
+        if(!RecipeProduction.of(request.request().capability()).axe())result.add(new Demand(Resource.facility(world,source),1));
+        if(RecipeProduction.of(request.request().capability()).axe() || !source.equals(target))result.add(new Demand(Resource.facility(world,target),1));return List.copyOf(result);
     }
     private static void addAxeDemands(List<Demand> demands,UUID world,ValidatedRequest request,ContainerRef source) {
         var d=RecipeProduction.of(request.request().capability());if(!d.axe())return;
