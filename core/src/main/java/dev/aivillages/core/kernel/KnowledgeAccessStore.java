@@ -224,8 +224,10 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             if(stopped==null){
                 if(!hash(job.request().request()).equals(p.requestSha256())||!catalog.usable(p.method()).allowed())return result(Code.INVALID,Reason.ARTIFACT_INCOMPATIBLE,jobId,work.count,0);
                 var attempt=job.current();var run=attempt.executions().stream().filter(e->e.artifact().equals(p.method())).findFirst().orElseThrow(JobOutcomeSource.Invalid::new);
-                if(grants.stream().noneMatch(g->g.learner().equals(p.learner())&&g.method().equals(p.method())))
+                if(grants.stream().noneMatch(g->g.learner().equals(p.learner())&&g.method().equals(p.method()))){
+                    if(grants.size()>=limits.grants())return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,work.count,0);
                     grants.add(new Grant(p.learner(),p.method(),p.teacher(),Origin.PRACTICE,jobId,attempt.id(),attempt.generation(),run.runId(),job.revision()));
+                }
             }
             var completed=p.finish(stopped==null?Stage.LEARNED:Stage.STOPPED,stopped);
             var history=old.practices().stream().map(v->v.job().equals(jobId)?completed:v).toList();
@@ -251,8 +253,10 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             if(mayUse(a.worker(),execution.artifact(),job.origin())&&!firstShared)return result(Code.DUPLICATE,null,jobId,work.count,0);
             if(!catalog.usable(execution.artifact()).allowed())return result(Code.INVALID,Reason.ARTIFACT_INCOMPATIBLE,jobId,work.count,0);
             var grants=new ArrayList<>(old.grants());
-            if(grants.stream().noneMatch(g->g.learner().equals(learner)&&g.method().equals(execution.artifact())))
+            if(grants.stream().noneMatch(g->g.learner().equals(learner)&&g.method().equals(execution.artifact()))){
+                if(grants.size()>=limits.grants())return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,work.count,0);
                 grants.add(new Grant(learner,execution.artifact(),learner,Origin.ACQUISITION,jobId,a.id(),a.generation(),execution.runId(),job.revision()));
+            }
             var shared=new ArrayList<>(old.legacyMethods());
             if(firstShared){if(shared.size()==128)return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,work.count,0);shared.add(execution.artifact());}
             return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),shared,old.personalCitizens(),grants,old.practices()),jobId,work.count,cancel);
@@ -266,6 +270,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
         var origin=old.grants().stream().filter(g->g.learner().equals(learner)&&g.method().equals(from)).findFirst().orElse(null);
         if(origin==null)return result(Code.INVALID,Reason.KNOWLEDGE_REQUIRED,null,0,0);
         if(mayUse(actor,to,caller))return result(Code.DUPLICATE,null,null,0,0);
+        if(old.grants().size()>=limits.grants())return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,null,0,0);
         var grants=new ArrayList<>(old.grants());grants.add(new Grant(learner,to,origin.teacher(),Origin.COMPATIBLE_MIGRATION,
                 origin.job(),origin.attempt(),origin.generation(),origin.run(),origin.jobRevision()));
         return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),grants,old.practices()),null,grants.size(),cancel);

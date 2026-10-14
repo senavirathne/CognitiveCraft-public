@@ -42,7 +42,7 @@
     "core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessJournal.java": "39bfe5034b4a0a0e39501d6d91ab26b456f6c919cc290e0187d0085443d855d0",
     "core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessCodec.java": "670e9283e75a392cecdb60968dd8db6954fe1a936d5fbef132e14a8a8b33926c",
     "core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccess.java": "487976a0add33b942a9c4bd10d3ea054e7a894a34911536d0f8adaea5bf08df5",
-    "core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessStore.java": "4dbc35685b7f4c46fa806a7230754a23fac11ba16d0a54bb4e5306fa28d092f5",
+    "core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessStore.java": "355cc349008df14e464596753389c2007b19d27deffbfe8037985f2dc4eff1f6",
     "core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessService.java": "38869e9d8b4ce530e6cf4f9c2bc77b6b4ef02803a109f8843993415fc956692e",
     "core/src/main/java/dev/aivillages/core/kernel/Contracts.java": "d682ad22c9c8e025b884fbb164e19eadcb266445dd0854c35f054440bae1eae4",
     "core/src/main/java/dev/aivillages/core/kernel/BoundedSkillExecutor.java": "20afe2c459b4158da42542700ad4f2af9e4a3a2c6bcae97bd2df5870015dbd2d",

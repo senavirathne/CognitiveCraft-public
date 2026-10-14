@@ -414,4 +414,13 @@ class KnowledgeAccessStoreTest {
         }
     }
 
+    @Test void compatibleVersionMigrationAtGrantCapacityReturnsTypedLimitAndPreservesKnownAccess()throws Exception{
+        try(var f=new Fixture(temp)){
+            var job=f.complete(f.assign(f.start()));assertEquals(Code.APPLIED,f.finish(job).code());f.methods.available.put(NEXT,null);
+            f.access.close();f.access=f.open(new Limits(1,64,8,1048576,8192),(t,l,m)->false,List.of(new VersionTransfer(METHOD,NEXT,"compatible-v2")),p->{});
+            var before=f.access.snapshot();assertEquals(Code.LIMIT,f.access.migrateMethod(f.learner,METHOD,NEXT,f.f.scene.owner,()->false).code());
+            assertEquals(before,f.access.snapshot());assertTrue(f.access.mayUse(f.learner,METHOD,f.f.scene.owner));assertFalse(f.access.mayUse(f.learner,NEXT,f.f.scene.owner));
+        }
+    }
+
 }
