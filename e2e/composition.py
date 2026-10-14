@@ -9,6 +9,7 @@ def scenario(h):
     require(h.topology=="compose","Composition requires actual configured backends and real network clients")
     private=h.root/"needle";shutil.copytree(ROOT/"build/needle",private,dirs_exist_ok=True)
     h.env["COGNITIVECRAFT_OLLAMA_MODEL"]="qwen3:4b-instruct-2507-q4_K_M";h.env["COGNITIVECRAFT_NEEDLE_DIR"]="/evidence/needle"
+    h.env["COGNITIVECRAFT_E2E_SNAPSHOT_TICKS"]="1"
     h.compose("up","-d","ollama");h.compose("exec","-T","ollama","ollama","pull",h.env["COGNITIVECRAFT_OLLAMA_MODEL"])
     def tags():
         try:return json.load(urllib.request.urlopen("http://127.0.0.1:11434/api/tags",timeout=5))
@@ -85,7 +86,10 @@ def scenario(h):
     foreign=h.command("PlayerB","/aivillage kernel job-status "+rows[-1]["job"],DENIED_PATTERN)
     require(rows[-1]["job"] not in h.suggestions("PlayerB","/aivillage kernel job-status "),"Foreign Job suggestion leaked")
     h.screenshot("PlayerB","rb005-private-denial",chat=True)
-    logs();seed();before_language=h.container(DST,AXE);language_before=h.model_calls()
+    # Ground implicit references beside supplied real logs. The idle citizen may
+    # wander beyond the deliberately bounded implicit oak-acquisition envelope.
+    # Zero-stock harvesting is already proved by the structured golden rows.
+    h.walk("PlayerA",SRC,reach=1);seed(2,0,0);language_before=h.model_calls()
     h.console(['data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:oak_planks"}]','data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:stick"}]'])
     before_destinations={tuple(SRC):h.container(SRC,AXE),tuple(DST):h.container(DST,AXE)}
     h.command("PlayerA","/aivillage kernel inference true","admission=true");h.actions_active=True
@@ -99,6 +103,7 @@ def scenario(h):
     destination=[language_job["request"]["request"]["arguments"]["destination"]["value"][k] for k in ("x","y","z")]
     before=before_destinations.get(tuple(destination),0)
     language=complete(interpreted["runId"],1,before,source,destination)
+    require(source==SRC and len(language["graph"])==3,"Language did not compose the supplied logs through independent plank/stick/axe Jobs")
     require(h.model_calls()["needleCalls"]>language_before["needleCalls"] and h.model_calls()["generationCalls"]==language_before["generationCalls"],"Interpretation and known execution were not separately measured")
     h.command("PlayerA","/aivillage kernel inference false","admission=false")
     h.screenshot("PlayerA","rb005-actual-language",chat=True)
@@ -119,7 +124,7 @@ def scenario(h):
     cancel_id=compose(4,0,0,0);h.cancel_job("PlayerA",cancel_id)
     cancelled=h.wait(lambda:(j if (j:=job(cancel_id)) and j["state"]=="CANCELLED" else None),"Owned graph cancellation",60);h.actions_active=False
     # Save a complete real intermediate deposit, then kill before downstream consumption acknowledgement.
-    h.console(["tick rate 5"],lifecycle=True)
+    h.console(["tick rate 5"])
     checkpoint=h.save_checkpoint();crash_id=compose(4,0,0,0)
     def intermediate():
         state=h.snapshot()["players"]["PlayerA"]["jobs"];root=state.get(crash_id)
@@ -137,7 +142,7 @@ def scenario(h):
     checkpoint=h.save_checkpoint()
     require(checkpoint["containersBeforeSave"].get(",".join(map(str,SRC)),{}).get(PLANK,0)==deposited,"Save did not capture the actual complete intermediate deposit")
     h.stop("server",hard=True);killed=h.world_hashes();h.actions_active=False
-    h.start("server");h.console(["tick rate 20"],lifecycle=True);reconnect_players(h,["PlayerA","PlayerB"])
+    h.start("server");h.console(["tick rate 20"]);reconnect_players(h,["PlayerA","PlayerB"])
     recovered=h.wait(lambda:job(crash_id),"Preserved interrupted graph after SIGKILL",30)
     require(recovered["state"]=="INTERRUPTED","Uncertain prepared chain resumed")
     require(h.container(SRC,PLANK)==deposited and h.container(DST,AXE)==saved_axes,"SIGKILL lost acknowledged saved intermediate output or prior axes")
