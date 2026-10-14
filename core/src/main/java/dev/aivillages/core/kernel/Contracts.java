@@ -261,6 +261,11 @@ public final class Contracts {
     public interface EligibilityPolicy {
         boolean mayUse(ActorRef actor, ArtifactRef artifact, TrustedContext context);
     }
+    /** IMP-022: temporary learning access is bound to one owner-approved attempt, never a trial. */
+    public interface AttemptEligibilityPolicy extends EligibilityPolicy {
+        boolean mayUseInRun(ValidatedRequest request, RunCorrelation run, ArtifactRef method);
+        boolean mayContinue(ValidatedRequest request, RunCorrelation run, Set<ArtifactRef> pinned);
+    }
     public interface AuthorityPolicy {
         boolean currentlyAllows(ActorRef actor, Effect effect, TrustedContext context);
     }

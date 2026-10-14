@@ -45,7 +45,7 @@ public final class KernelSession implements AutoCloseable {
                           RetentionRoots roots, WorldRetentionManager retention,
                           WorldRetentionService retentionService, ObservedWorldKnowledgeStore observations,
                           ObservedKnowledgeService knowledgeService, PlanJournal plans, PlanJournal.Snapshot initialPlans,
-                          BlueprintStore blueprints, AccomplishmentLedger accomplishments) { }
+                          BlueprintStore blueprints, AccomplishmentLedger accomplishments, KnowledgeAccessStore access) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -60,6 +60,9 @@ public final class KernelSession implements AutoCloseable {
     private final java.util.concurrent.atomic.AtomicBoolean blueprintClosing=new java.util.concurrent.atomic.AtomicBoolean();
     private final java.util.concurrent.atomic.AtomicInteger accomplishmentQueries=new java.util.concurrent.atomic.AtomicInteger();
     private AccomplishmentService accomplishmentService;
+    private KnowledgeAccessService accessService;
+    private final java.util.concurrent.atomic.AtomicInteger accessQueries=new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.ConcurrentHashMap<UUID,KnowledgeAccess.Pair> learningStarts=new java.util.concurrent.ConcurrentHashMap<>();
     private volatile UUID observationSource;
     private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
     private final LocalGenerationAdapter model;
@@ -161,6 +164,7 @@ public final class KernelSession implements AutoCloseable {
             PlanJournal plans = null;
             BlueprintStore blueprints = null;
             AccomplishmentLedger accomplishments = null;
+            KnowledgeAccessStore access = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -204,6 +208,13 @@ public final class KernelSession implements AutoCloseable {
                 retention.register(accomplishments.retentionOwner());
                 accomplishments.capacity(amount->retention.assessReplacement("accomplishments",WorldRetentionManager.Category.EVIDENCE,amount)
                         .status()==WorldRetentionManager.Capacity.AVAILABLE);
+                final var learningEvidence=accomplishments;
+                access=KnowledgeAccessStore.openUnmigrated(world,journal.state().worldId(),
+                        new KnowledgeAccessSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot,learningEvidence::snapshot),
+                        KnowledgeAccessStore.repositoryCatalog(repository),clock,roots);
+                retention.register(access.retentionOwner());
+                access.capacity(amount->retention.assessReplacement("knowledge-access",WorldRetentionManager.Category.EVIDENCE,amount)
+                        .status()==WorldRetentionManager.Capacity.AVAILABLE);
                 plans.capacity(bytes -> retention.assessReplacement("plans",WorldRetentionManager.Category.EVIDENCE,
                         new WorldRetentionManager.Amount(bytes*3L,24)).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 var knowledgeService = new ObservedKnowledgeService(observations);
@@ -220,6 +231,9 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16, 10_485_760));
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
+                var accessMigration=access.migrateSharedAccess(()->false);
+                if(!access.readOnly()&&accessMigration.code()!=KnowledgeAccess.Code.APPLIED&&accessMigration.code()!=KnowledgeAccess.Code.DUPLICATE)
+                    throw new IllegalStateException("Shared access migration unavailable: "+accessMigration);
                 var observationMigration = observations.migrate(observations.revision(), () -> false);
                 if (observationMigration.status() != ObservedWorldKnowledgeStore.Status.UNCHANGED
                         && observationMigration.status() != ObservedWorldKnowledgeStore.Status.MIGRATED
@@ -230,8 +244,9 @@ public final class KernelSession implements AutoCloseable {
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
-                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments);
+                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments,access);
             } catch (Exception failure) {
+                if(access!=null)try{access.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(accomplishments!=null)try{accomplishments.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(blueprints!=null)try{blueprints.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(plans!=null)try{plans.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
@@ -272,7 +287,9 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        refreshLearningPresence(null);
         accomplishmentService.maintain(jobs.snapshot(),worker);
+        accessService.maintain(jobs.snapshot(),worker);
         loaded.knowledgeService().beginTick();
         loaded.knowledgeService().maintain(worker);
         loaded.retentionService().beginTick();
@@ -324,6 +341,7 @@ public final class KernelSession implements AutoCloseable {
         var staging = new ResearchAdmissionController.TrialArtifacts(repository);
         var grants = new ResearchAdmissionController.TrialGrants(clock);
         CapabilityResolver.ControlPolicy control = this::controls;
+        var access=loaded.access();
         AuthorityPolicy authority = (actor, effect, context) -> controls(actor, context)
                 && villager(actor) != null;
         BoundedSkillExecutor.ControlPolicy runControl = new BoundedSkillExecutor.ControlPolicy() {
@@ -349,13 +367,13 @@ public final class KernelSession implements AutoCloseable {
                 (request, run) -> LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
                 () -> server.overworld().getGameTime(), 1200, 200, 64, 512);
         var executor = new BoundedSkillExecutor(staging, capabilities, primitives,
-                CapabilityResolver.enrolledWorldSkills(control), grants, runControl, leasedGateway,
+                access, grants, runControl, leasedGateway,
                 leasedGateway::releaseRun, clock, () -> server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8, 16, 32, 64));
         var resolver = new CapabilityResolver.Engine(capabilities, primitives,
                 loaded.retrieval().candidates(), loaded.retrieval().authoritativeFallback(),
                 PlanningGoals.support(), control,
-                CapabilityResolver.enrolledWorldSkills(control), authority,
+                access, authority,
                 CapabilityResolver.cropPrerequisites(),
                 () -> server.overworld().getGameTime(), CapabilityResolver.Limits.defaults());
         broker = new AIWorkBroker(generationSource, clock, AIWorkBroker.Settings.defaults(),
@@ -367,7 +385,7 @@ public final class KernelSession implements AutoCloseable {
                 }, AIWorkBroker.Sharing.privateScopes());
         var research = new ResearchAdmissionController(capabilities, primitives, repository,
                 broker, new CropFixtureRunner(staging, capabilities, primitives,
-                        CapabilityResolver.enrolledWorldSkills(control), worker, clock),
+                        access, worker, clock),
                 new ResearchAdmissionController.TrialPort() {
                     final ResearchAdmissionController.ExecutorTrialPort delegate =
                             new ResearchAdmissionController.ExecutorTrialPort(executor);
@@ -415,6 +433,8 @@ public final class KernelSession implements AutoCloseable {
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
         accomplishmentService=new AccomplishmentService(loaded.accomplishments());
+        accessService=new KnowledgeAccessService(access);
+        refreshLearningPresence(null);
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock);
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
@@ -484,13 +504,14 @@ public final class KernelSession implements AutoCloseable {
                 (request,run)->LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run),
                 ()->server.overworld().getGameTime(),1200,200,8,512);
         var dispatchExecutor=new BoundedSkillExecutor(staging,capabilities,primitives,
-                CapabilityResolver.enrolledWorldSkills(control),grants,runControl,dispatchGateway,
+                access,grants,runControl,dispatchGateway,
                 dispatchGateway::releaseRun,clock,()->server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8,16,32,64));
         dispatcher=new WorkerDispatcher(jobs,citizens,this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
                 job->job.request().request().capability().equals(CropDelivery.ID) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
+        dispatcher.jobResolver((job,request,observation)->resolver.withEligibility(access.policyForJob(job.id())).resolve(request,observation));
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
             @Override public List<String> references(TrustedContext caller) {
@@ -651,6 +672,51 @@ public final class KernelSession implements AutoCloseable {
     }
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
     /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
+    /** Host-facing IMP-022 API. No player command/client feature is introduced by this data owner. */
+    public KnowledgeAccess.Decision knowledgeEligibility(ActorRef actor,ArtifactRef method,TrustedContext caller){
+        ready();return loaded.access().evaluateUse(actor,method,caller);
+    }
+    public CompletableFuture<KnowledgeAccess.Result> requirePersonalLearning(ActorRef actor,TrustedContext caller){
+        ready();if(!controls(actor,caller))throw new SecurityException("Apprentice control");
+        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(new IllegalStateException("Learning operation bound"));}
+        try{return CompletableFuture.supplyAsync(()->loaded.access().requirePersonalLearning(actor,caller,()->closed),worker)
+                .whenComplete((ignored,error)->accessQueries.decrementAndGet());}
+        catch(RuntimeException refused){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+    }
+    public CompletableFuture<KnowledgeAccess.Result> startApprenticeship(UUID jobId,ActorRef teacher,
+                                                                        ArtifactRef method,TrustedContext caller){
+        ready();var job=jobs.query(jobId,caller);
+        if(loaded.access().snapshot().practices().stream().filter(p->p.stage()==KnowledgeAccess.Stage.PRACTICING).count()+learningStarts.size()>=8)
+            return CompletableFuture.completedFuture(new KnowledgeAccess.Result(KnowledgeAccess.Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,0,0,false));
+        var learner=((ActorValue)job.request().request().arguments().get("actor")).value();
+        var pair=new KnowledgeAccess.Pair(teacher,learner);
+        if(learningStarts.putIfAbsent(jobId,pair)!=null)return CompletableFuture.completedFuture(new KnowledgeAccess.Result(KnowledgeAccess.Code.PENDING,null,jobId,0,0,false));
+        refreshLearningPresence(pair);
+        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();learningStarts.remove(jobId,pair);
+            return CompletableFuture.failedFuture(new IllegalStateException("Learning operation bound"));}
+        try{return CompletableFuture.supplyAsync(()->loaded.access().startApprenticeship(jobId,teacher,method,caller,()->closed),worker)
+                .whenComplete((ignored,error)->{learningStarts.remove(jobId,pair);accessQueries.decrementAndGet();});}
+        catch(RuntimeException refused){learningStarts.remove(jobId,pair);accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+    }
+    private void refreshLearningPresence(KnowledgeAccess.Pair starting){
+        var pairs=new java.util.HashSet<KnowledgeAccess.Pair>();
+        for(var practice:loaded.access().snapshot().practices())if(practice.stage()==KnowledgeAccess.Stage.PRACTICING)
+            pairs.add(new KnowledgeAccess.Pair(practice.teacher().actor(),practice.learner().actor()));
+        pairs.addAll(learningStarts.values());
+        if(starting!=null)pairs.add(starting);
+        var present=new java.util.HashSet<KnowledgeAccess.Pair>();
+        for(var pair:pairs.stream().limit(8).toList()){
+            var teacher=villager(pair.teacher());var learner=villager(pair.learner());
+            var teacherOwner=citizens.snapshot().citizens().stream().filter(c->c.actor().equals(pair.teacher())).findFirst().orElse(null);
+            var learnerOwner=citizens.snapshot().citizens().stream().filter(c->c.actor().equals(pair.learner())).findFirst().orElse(null);
+            if(teacher!=null&&learner!=null&&teacher.isAlive()&&learner.isAlive()&&teacherOwner!=null&&learnerOwner!=null
+                    &&controls(pair.teacher(),teacherOwner.owner())&&controls(pair.learner(),learnerOwner.owner())
+                    &&pair.teacher().dimension().equals(pair.learner().dimension())&&teacher.distanceToSqr(learner)<=256)
+                present.add(pair);
+        }
+        loaded.access().source().observe(citizens.snapshot(),jobs.snapshot(),present);
+    }
+
     public CompletableFuture<Accomplishments.Query> accomplishments(ServerPlayer player,UUID citizenId,int maximum){
         if(!server.isSameThread())throw new IllegalStateException("Evidence intake requires server thread");
         ready();var owner=caller(player);var citizen=citizens.query(citizenId,owner);
@@ -948,6 +1014,7 @@ public final class KernelSession implements AutoCloseable {
         closeRequested = true;
         blueprintClosing.set(true);
         if(accomplishmentService!=null)accomplishmentService.close();
+        if(accessService!=null)accessService.close();
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
         if(planner!=null)planner.close();
@@ -967,7 +1034,7 @@ public final class KernelSession implements AutoCloseable {
                     opened.retentionService().closeWorker();
                     opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.accomplishments(),opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.access(),opened.accomplishments(),opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);

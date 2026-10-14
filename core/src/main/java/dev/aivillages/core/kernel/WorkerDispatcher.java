@@ -38,6 +38,9 @@ public final class WorkerDispatcher {
         Start start(ValidatedRequest bound, ArtifactRef artifact, UUID run,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage);
     }
+    @FunctionalInterface public interface JobResolver {
+        CapabilityResolver.Decision resolve(Jobs.Job job, ValidatedRequest request, ObservationSnapshot observation);
+    }
     public interface Claims {
         default ResourceLeases.Result preflight(Jobs.Job job,ValidatedRequest proposed) {
             return new ResourceLeases.Result(ResourceLeases.Code.VALID,null,null,List.of(),0,0);
@@ -119,6 +122,7 @@ public final class WorkerDispatcher {
     private final CitizenRegistry citizens;
     private final BootstrapController.Observer observer;
     private final BootstrapController.Resolver resolver;
+    private JobResolver jobResolver;
     private final ExecutionPort execution;
     private final Claims claims;
     private final Predicate<Jobs.Job> accepts;
@@ -139,10 +143,13 @@ public final class WorkerDispatcher {
         this.jobs=Objects.requireNonNull(jobs);this.citizens=Objects.requireNonNull(citizens);
         this.observer=Objects.requireNonNull(observer);this.resolver=Objects.requireNonNull(resolver);
         this.execution=Objects.requireNonNull(execution);this.claims=Objects.requireNonNull(claims);
+        this.jobResolver=(job,request,observation)->resolver.resolve(request,observation);
         this.accepts=Objects.requireNonNull(accepts);this.clock=Objects.requireNonNull(clock);
         this.ticks=Objects.requireNonNull(ticks);this.settings=Objects.requireNonNull(settings);
     }
     public Settings settings(){return settings;}
+    /** Owner composition only; dispatch still owns assignments, attempts, limits and claims. */
+    public void jobResolver(JobResolver policy){checkThread();jobResolver=Objects.requireNonNull(policy);}
     public List<Decision> diagnostics(UUID id,TrustedContext caller) {
         checkThread();Jobs.Job job=jobs.query(id,caller);
         if(!job.origin().equals(caller))throw new SecurityException("Private dispatch diagnostics");
@@ -201,7 +208,7 @@ public final class WorkerDispatcher {
                     ValidatedRequest proposed=jobs.bindWorker(job.id(),job.guard(),actor,job.origin());
                     var snapshot=observer.capture(proposed.request(),actor);
                     var bound=new ValidatedRequest(proposed.request(),job.origin(),snapshot.reference());
-                    var decision=resolver.resolve(bound,snapshot);work.resolutions++;
+                    var decision=jobResolver.resolve(job,bound,snapshot);work.resolutions++;
                     last=decision(job,actor,Code.BLOCKED,decision,decision.routing().reason());
                     if(decision.routing().status()==ResolutionStatus.RESOLVED) {
                         var available=claims.preflight(job,bound);
@@ -302,7 +309,7 @@ public final class WorkerDispatcher {
                 try {
                     var observed=observer.capture(attempt.bound().request(),l.worker);
                     l.bound=new ValidatedRequest(attempt.bound().request(),l.origin,observed.reference());
-                    var checked=resolver.resolve(l.bound,observed);work.resolutions++;
+                    var checked=jobResolver.resolve(job,l.bound,observed);work.resolutions++;
                     if(checked.routing().status()!=ResolutionStatus.RESOLVED || !l.artifact.equals(checked.routing().artifact())) {
                         remember(decision(job,l.worker,Code.BLOCKED,checked,checked.routing().reason()),work);
                         stop(l,checked.routing().reason()==null?Reason.STALE_OBSERVATION:checked.routing().reason(),false);

@@ -35,7 +35,7 @@ public final class AccomplishmentLedger implements AutoCloseable {
     }
     public synchronized void capacity(Predicate<WorldRetentionManager.Amount> assessment){capacity=Objects.requireNonNull(assessment);}
     /** Trusted immutable composition view. Player clients use the scoped query methods. */
-    public synchronized Snapshot snapshot(){return journal.snapshot();}
+    public Snapshot snapshot(){return journal.snapshot();}
     public synchronized boolean readOnly(){return journal.readOnly();}
     public synchronized Result recordOutcomes(List<OutcomeRef> references,BooleanSupplier cancel){
         Objects.requireNonNull(references);Objects.requireNonNull(cancel);

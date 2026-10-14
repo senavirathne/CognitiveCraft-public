@@ -4,7 +4,7 @@ on:
     branches: [main, feature/imp011-job-lifecycle]
     paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
   pull_request:
-    branches: [main]
+    branches: [main, work/imp-021]
     paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/job-lifecycle.yml']
   workflow_dispatch:
 permissions:
