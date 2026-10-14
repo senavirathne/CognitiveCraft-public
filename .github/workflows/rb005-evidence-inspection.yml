@@ -29,24 +29,38 @@ jobs:
               with opener.open(request,timeout=60) as response:
                   data=response.read()
               return data if binary else json.loads(data)
-          runs=[38556907463]
+          runs=[38560272512]
           deadline=time.monotonic()+1200
           while True:
               states=[get('/actions/runs/'+str(r)) for r in runs]
-              if all(s['status']=='completed' for s in states):break
+              if all(get('/actions/runs/'+str(s['id'])+'/artifacts')['artifacts'] for s in states):break
               assert time.monotonic()<deadline,'Evidence producers have not completed'
               print('RB005_EVIDENCE_WAIT '+json.dumps([{k:s[k] for k in ('id','status','conclusion','head_sha')} for s in states]),flush=True)
               time.sleep(30)
           for state in states:
               rid=state['id']
               print('RB005_PRODUCER '+json.dumps({k:state[k] for k in ('id','status','conclusion','head_sha')}))
-              assert state['head_sha']=='375e998b9936dae9ec8009178be95aef0960eba7'
+              assert state['head_sha']=='0882b2651b66ecf411d0b0c6d6143d40b8da1b74'
               for artifact in get('/actions/runs/'+str(rid)+'/artifacts')['artifacts']:
                   data=get('/actions/artifacts/'+str(artifact['id'])+'/zip',True)
                   digest=hashlib.sha256(data).hexdigest()
                   assert 'sha256:'+digest==artifact['digest']
                   print('RB005_ARTIFACT '+json.dumps({'id':artifact['id'],'name':artifact['name'],'sha256':digest,'bytes':len(data)}))
                   with zipfile.ZipFile(io.BytesIO(data)) as z:
+                      runner_path=next((p for p in z.namelist() if p.endswith('/needle/needle')),None)
+                      model_path=next((p for p in z.namelist() if p.endswith('/needle/needle3.cact')),None)
+                      if runner_path and model_path:
+                          import tempfile,pathlib,subprocess
+                          runner=z.read(runner_path);model=z.read(model_path)
+                          assert hashlib.sha256(runner).hexdigest()=='b197ceaef3b300a0b14c3a4fde92305527e43f9256c53d2a53d2a2fe8fe69678'
+                          assert hashlib.sha256(model).hexdigest()=='c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38'
+                          tools=[{'name':'make_wooden_axes','description':'Make new wooden axes from available input stock and store them. Copy only stated arguments.','parameters':{'type':'object','properties':{'citizen':{'type':'string','enum':['Ada'],'description':'Citizen who will craft and store'},'amount':{'type':'integer','description':'How many new wooden axes to craft and store'}},'required':['citizen','amount']}}]
+                          with tempfile.TemporaryDirectory() as scratch:
+                              root=pathlib.Path(scratch);binary=root/'needle';binary.write_bytes(runner);binary.chmod(0o700)
+                              weights=root/'needle3.cact';weights.write_bytes(model);definitions=root/'tools.json';definitions.write_text(json.dumps(tools,separators=(',',':')))
+                              for prompt in ('Ada, make me a wooden axe and store it.','Ada, make a wooden axe and store it.','Ada, make 1 wooden axe and store it.'):
+                                  response=subprocess.run([str(binary),'--model',str(weights),'--tools',str(definitions),'--prompt',prompt,'--max','384','--threads','1','--fail-input-overflow'],capture_output=True,text=True,timeout=30,env={'NEEDLE_TELEMETRY':'0','DO_NOT_TRACK':'1'})
+                                  print('RB005_NEEDLE_PROBE '+json.dumps({'artifact':artifact['id'],'prompt':prompt,'code':response.returncode,'output':response.stdout[:8192]}))
                       for path in z.namelist():
                           if path.endswith(('models.json','identity.json','controlled.json','genuine-cold.json','genuine-warm.json')):
                               body=z.read(path);value=json.loads(body)
