@@ -86,12 +86,15 @@ def scenario(h):
     foreign=h.command("PlayerB","/aivillage kernel job-status "+rows[-1]["job"],DENIED_PATTERN)
     require(rows[-1]["job"] not in h.suggestions("PlayerB","/aivillage kernel job-status "),"Foreign Job suggestion leaked")
     h.screenshot("PlayerB","rb005-private-denial",chat=True)
-    # Ground implicit references beside supplied real logs. The idle citizen may
-    # wander beyond the deliberately bounded implicit oak-acquisition envelope.
-    # Zero-stock harvesting is already proved by the structured golden rows.
-    h.walk("PlayerA",SRC,reach=1);seed(2,0,0);language_before=h.model_calls()
+    # Implicit container ranking is anchored to the normally wandering citizen.
+    # Give every accessible staging candidate the same supplied-log shortfall,
+    # retaining existing axes. Zero-stock harvesting is proved by the golden rows.
+    language_sources=[SRC,DST,[15,201,9],[17,201,7],[18,201,10]]
+    seed();language_before=h.model_calls()
     h.console(['data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:oak_planks"}]','data remove block '+" ".join(map(str,DST))+' Items[{id:"minecraft:stick"}]'])
-    before_destinations={tuple(SRC):h.container(SRC,AXE),tuple(DST):h.container(DST,AXE)}
+    h.console(["item replace block "+" ".join(map(str,box))+" container.26 with minecraft:oak_log 2" for box in language_sources]+["setblock 20 201 13 minecraft:air"])
+    h.wait(lambda:all(h.container(box,LOG)==2 for box in language_sources),"Supplied logs at every implicit staging candidate",20)
+    before_destinations={tuple(box):h.container(box,AXE) for box in language_sources}
     h.command("PlayerA","/aivillage kernel inference true","admission=true");h.actions_active=True
     answer=h.command("PlayerA","/aivillage kernel ask Ada, make me a wooden axe and store it","interpretation=("+UUID_PATTERN+")")
     ticket=re.search("interpretation=("+UUID_PATTERN+")",answer).group(1)
@@ -103,7 +106,7 @@ def scenario(h):
     destination=[language_job["request"]["request"]["arguments"]["destination"]["value"][k] for k in ("x","y","z")]
     before=before_destinations.get(tuple(destination),0)
     language=complete(interpreted["runId"],1,before,source,destination)
-    require(source==SRC and len(language["graph"])==3,"Language did not compose the supplied logs through independent plank/stick/axe Jobs")
+    require(source in language_sources and len(language["graph"])==3,"Language did not compose the supplied logs through independent plank/stick/axe Jobs")
     require(h.model_calls()["needleCalls"]>language_before["needleCalls"] and h.model_calls()["generationCalls"]==language_before["generationCalls"],"Interpretation and known execution were not separately measured")
     h.command("PlayerA","/aivillage kernel inference false","admission=false")
     h.screenshot("PlayerA","rb005-actual-language",chat=True)
