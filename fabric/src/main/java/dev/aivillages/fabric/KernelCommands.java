@@ -126,6 +126,16 @@ final class KernelCommands {
         }));
         for(int i=7;i>=0;i--)axeCoords=argument(axeNames[i],IntegerArgumentType.integer()).then(axeCoords);
         kernel.then(literal("make-axes").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,4)).then(axeCoords))));
+        String[] composeNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","table-x","table-y","table-z","oak-min-x","oak-min-y","oak-min-z","oak-max-x","oak-max-y","oak-max-z"};
+        ArgumentBuilder<CommandSourceStack,?> composeCoords=argument(composeNames[14],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+            int[] at=new int[15];for(int i=0;i<15;i++)at[i]=IntegerArgumentType.getInteger(ctx,composeNames[i]);var player=ctx.getSource().getPlayerOrException();String dimension=player.level().dimension().identifier().toString();
+            var result=session.composeAxes(player,uuid(ctx,"actor-id"),IntegerArgumentType.getInteger(ctx,"amount"),
+                    new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[0],at[1],at[2]),new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[3],at[4],at[5]),
+                    new dev.aivillages.core.kernel.Contracts.FacilityRef(dimension,at[6],at[7],at[8]),new dev.aivillages.core.kernel.Contracts.Cuboid(dimension,at[9],at[10],at[11],at[12],at[13],at[14]));
+            tell(ctx,"job="+result.id()+" accepted="+result.accepted()+(result.reason()==null?"":" reason="+result.reason()));return result.accepted()?1:0;
+        }));
+        for(int i=13;i>=0;i--)composeCoords=argument(composeNames[i],IntegerArgumentType.integer()).then(composeCoords);
+        kernel.then(literal("compose-axes").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,4)).then(composeCoords))));
         ArgumentBuilder<CommandSourceStack, ?> queueCoords=argument(names[8],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[9];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,names[i]);

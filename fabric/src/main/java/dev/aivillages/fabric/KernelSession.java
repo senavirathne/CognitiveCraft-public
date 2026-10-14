@@ -281,6 +281,7 @@ public final class KernelSession implements AutoCloseable {
         broker.step();
         controller.tick();
         planner.tick();
+        prerequisites.tick();
         dispatchGateway.tick();
         if(dispatchRevision!=jobs.snapshot().revision()) {
             dispatchScopes=jobs.snapshot().jobs().stream().filter(j->!controller.ownsSubmission(j.submissionId()))
@@ -410,7 +411,7 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(this::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
-        prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock);
+        prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock,this::observePrerequisite);
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
                 (expected,next)->CompletableFuture.supplyAsync(()->{try{return loaded.plans().replace(expected,next);}catch(Exception failure){throw new java.util.concurrent.CompletionException(failure);}},worker),
@@ -522,7 +523,7 @@ public final class KernelSession implements AutoCloseable {
                         (source,quantity)->leases.availableStock(new ResourceLeases.Resource(caller.scope().worldId(),ResourceLeases.Kind.STOCK,ResourceLeases.point(source),ResourceDelivery.STICK.id(),-1),quantity,caller));
             }
             @Override public BootstrapController.Submission submit(CapabilityRequest request, TrustedContext caller) {
-                return submitRequest(request, caller, interpretingPlayer);
+                return submitRequest(request, caller, interpretingPlayer,true);
             }
             @Override public void cancel(UUID run, TrustedContext caller) { controller.cancel(run, caller); }
             @Override public List<UUID> cancellableRunIds(TrustedContext caller) {
@@ -781,6 +782,48 @@ public final class KernelSession implements AutoCloseable {
                 "source",new ContainerValue(new ContainerRef(dimension,sx,sy,sz)),"destination",new ContainerValue(new ContainerRef(dimension,dx,dy,dz)),
                 "table",new FacilityValue(new FacilityRef(dimension,tx,ty,tz)))),owner,player);
     }
+    public BootstrapController.Submission composeAxes(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,FacilityRef table,Cuboid oakSource) {
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
+        if(amount<1||amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        var request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),"source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(table)));
+        return composeRequest(request,owner,player,oakSource);
+    }
+    private BootstrapController.Submission composeRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,Cuboid oakSource) {
+        UUID id=UUID.randomUUID();var actor=((ActorValue)request.arguments().get("actor")).value();
+        if(player==null||!player.getUUID().equals(owner.principal().id())||!controls(actor,owner))return new BootstrapController.Submission(id,false,Reason.AUTHORITY_DENIED);
+        if(villager(actor)==null||villager(actor).level()!=player.level())return new BootstrapController.Submission(id,false,Reason.ACTOR_UNAVAILABLE);
+        try {
+            if(oakSource!=null && (!oakSource.dimension().equals(actor.dimension())||sourceCells(oakSource)>256))return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);
+            var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
+            if(oakSource!=null)for(long x=oakSource.minX();x<=oakSource.maxX();x++)for(long y=oakSource.minY();y<=oakSource.maxY();y++)for(long z=oakSource.minZ();z<=oakSource.maxZ();z++) {
+                var reason=gatewayWorld().permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(oakSource.dimension(),(int)x,(int)y,(int)z));
+                if(reason!=null)return new BootstrapController.Submission(id,false,reason);
+            }
+            var preflight=gatewayWorld().recipePreflight(bound);
+            if(preflight.reason()!=null)return new BootstrapController.Submission(id,false,preflight.reason());
+            if(preflight.outputCapacity()<((IntValue)request.arguments().get("amount")).value())return new BootstrapController.Submission(id,false,Reason.TARGET_UNAVAILABLE);
+            jobs.tick();
+            var change=jobs.stageComposition(id,request,owner,bound.observation(),ResourceComposition.allowance(clock.millis()));
+            if(change.accepted())prerequisites.stage(id,oakSource);
+            return new BootstrapController.Submission(id,change.accepted(),change.reason());
+        }catch(IllegalArgumentException|ArithmeticException invalid){return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);}
+    }
+    private Cuboid compositionOakEnvelope(ActorRef actor) {
+        var v=villager(actor);if(v==null)return null;var at=v.blockPosition();
+        // One explicit bounded implicit envelope: 9*9*3=243 loaded cells. No substitution of explicit sources.
+        return new Cuboid(actor.dimension(),at.getX()-4,at.getY()-1,at.getZ()-4,at.getX()+4,at.getY()+1,at.getZ()+4);
+    }
+    private ObservationSnapshot observePrerequisite(CapabilityRequest request) {
+        var actor=((ActorValue)request.arguments().get("actor")).value();var citizen=citizens.find(actor.citizenId());
+        if(citizen==null||!controls(actor,citizen.owner()))throw new SecurityException("Current resource authority");
+        var bound=new ValidatedRequest(request,citizen.owner(),new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
+        if(request.capability().equals(OakLogDelivery.ID)) {
+            var area=((AreaValue)request.arguments().get("source")).value();
+            for(long x=area.minX();x<=area.maxX();x++)for(long y=area.minY();y<=area.maxY();y++)for(long z=area.minZ();z<=area.maxZ();z++)
+                if(gatewayWorld().permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(area.dimension(),(int)x,(int)y,(int)z))==Reason.AUTHORITY_DENIED)throw new SecurityException("Explicit source denied");
+        }
+        return observe(request,actor);
+    }
     public BootstrapController.Submission makeSticks(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(StickProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
     private BootstrapController.Submission makeRecipe(CapabilityId capability,ServerPlayer player,UUID actorId,int amount,
@@ -826,7 +869,8 @@ public final class KernelSession implements AutoCloseable {
         return submitRequest(request, owner, player);
     }
     private BootstrapController.Submission submitRequest(CapabilityRequest request, TrustedContext owner,
-                                                        ServerPlayer player) {
+                                                        ServerPlayer player) {return submitRequest(request,owner,player,false);}
+    private BootstrapController.Submission submitRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,boolean composition) {
         var actor = ((ActorValue)request.arguments().get("actor")).value();
         if (player == null || !player.getUUID().equals(owner.principal().id()) || !controls(actor, owner))
             return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.AUTHORITY_DENIED);
@@ -852,6 +896,7 @@ public final class KernelSession implements AutoCloseable {
                 if(free.available()<needed || secondary.available()<sticks) {
                     player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Oak planks required="+needed+" available="+free.available()+" missing="+Math.max(0,needed-free.available())
                             +"; sticks required="+sticks+" available="+secondary.available()+" missing="+Math.max(0,sticks-secondary.available())));
+                    if(composition)return composeRequest(request,owner,player,compositionOakEnvelope(actor));
                     return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.RESOURCE_MISSING);
                 }
             }

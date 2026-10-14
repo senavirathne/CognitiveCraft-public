@@ -114,7 +114,7 @@ public final class WorldReferenceDiscovery {
         return inputContainers(actor,required,anchor,world,ResourceDelivery.OAK_LOG);
     }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item) {
-        if(required<1 || required>32 || !item.equals(ResourceDelivery.OAK_LOG) && !item.equals(ResourceDelivery.OAK_PLANKS))
+        if(required<0 || required>32 || !item.equals(ResourceDelivery.OAK_LOG) && !item.equals(ResourceDelivery.OAK_PLANKS))
             throw new IllegalArgumentException("Input batch envelope");
         return new Discovery<>() {
             List<Candidate<InputContainerTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;

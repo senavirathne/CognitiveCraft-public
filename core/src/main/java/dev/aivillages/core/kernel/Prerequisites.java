@@ -27,11 +27,16 @@ public final class Prerequisites {
     }
     /** Job responsibility is context, not proof that pre-existing stock completed that job's outcome. */
     public record Need(UUID demand, Jobs.Guard guard, ValidatedRequest bound, String item,
-                       long quantity, AllocationPolicy allocation) {
+                       long quantity, AllocationPolicy allocation, Cuboid acquisitionSource) {
+        public Need(UUID demand, Jobs.Guard guard, ValidatedRequest bound, String item, long quantity, AllocationPolicy allocation) {
+            this(demand,guard,bound,item,quantity,allocation,null);
+        }
         public Need {
             Objects.requireNonNull(demand); Objects.requireNonNull(guard); Objects.requireNonNull(bound);
             itemId(item); Objects.requireNonNull(allocation);
             if (quantity < 1) throw new IllegalArgumentException("Positive exact material quantity");
+            if(acquisitionSource!=null && (!acquisitionSource.dimension().equals(bound.observation().dimension())
+                    || ResourceLeases.cells(acquisitionSource)>256))throw new IllegalArgumentException("Bounded acquisition source");
             if (bound.request().arguments().size() > 16 || bound.request().arguments().keySet().stream()
                     .anyMatch(key -> key.length() > 64 || !key.matches("[a-z][a-zA-Z0-9_]{0,63}")))
                 throw new IllegalArgumentException("Bounded request binding");
@@ -206,6 +211,6 @@ public final class Prerequisites {
     static UUID stableId(String value) { return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8)); }
     static String bindingKey(Need need) {
         var args = new TreeMap<>(need.bound().request().arguments()); args.remove("amount");
-        return need.origin() + ":" + need.bound().request().capability() + ":" + args + ":" + need.allocation();
+        return need.origin() + ":" + need.bound().request().capability() + ":" + args + ":" + need.allocation() + ":" + need.acquisitionSource();
     }
 }

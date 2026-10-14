@@ -75,7 +75,8 @@ public final class JobLifecycleStore {
             var rows = rows();
             boolean changed = false;
             for (Job job : initial.jobs()) if (job.state() == State.ACTIVE || job.state() == State.CANCELLING
-                    || job.current() != null && job.current().open() && job.state() != State.INTERRUPTED) {
+                    || job.current() != null && job.current().open() && job.state() != State.INTERRUPTED
+                    || job.preparation()!=null && !job.state().terminal() && job.state()!=State.INTERRUPTED) {
                 var edit = new Edit(job);
                 edit.state = State.INTERRUPTED; edit.reason = Reason.INTERRUPTED;
                 var attempts = new ArrayList<>(job.attempts());
@@ -191,6 +192,14 @@ public final class JobLifecycleStore {
     }
     public Change create(UUID id, UUID submission, CapabilityRequest request, TrustedContext caller,
                          ObservationRef observation, Budgets.Limits allowance, List<UUID> dependencies) {
+        return create(id,submission,request,caller,observation,allowance,dependencies,false);
+    }
+    public Change stageComposition(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
+        if(!request.capability().equals(WoodenAxeProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        return create(id,id,request,caller,observation,allowance,List.of(),true);
+    }
+    private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
+                          Budgets.Limits allowance,List<UUID> dependencies,boolean staged) {
         thread(); var work = new Work();
         if (!sameWorld(caller)) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
@@ -209,6 +218,7 @@ public final class JobLifecycleStore {
             checkCapacity(rows);
             checkGraph(job.id(), rows, work);
             job = dependencyState(job, rows, false);
+            if(staged) {var edit=new Edit(job);edit.preparation=new Preparation(null,List.of());edit.state=State.WAITING;edit.reason=Reason.RESOURCE_MISSING;job=edit.finish(EventKind.DEPENDENCY,settings.events());}
             rows.put(id, job);
             var failed = new HashSet<UUID>();
             for (UUID dependency : dependencies) if (rows.get(dependency).state() == State.CANCELLED
@@ -345,6 +355,7 @@ public final class JobLifecycleStore {
         thread(); var work = new Work();
         if (proposal == null || !proposal.accepted()) return reject(Reason.REQUEST_INVALID, work);
         if (!ready()) return reject(unavailableReason(), work);
+        if(proposal.needs().stream().anyMatch(ResourceComposition::make))return admitResourcePrerequisites(proposal,observations,instructions,caller);
         try {
             var roots = new LinkedHashMap<UUID, Job>();
             for (var need : proposal.needs()) {
@@ -434,6 +445,112 @@ public final class JobLifecycleStore {
             return reject(Reason.REQUEST_INVALID, work);
         }
     }
+    private Change admitResourcePrerequisites(Prerequisites.Proposal proposal,Map<UUID,ObservationRef> observations,int instructions,TrustedContext caller) {
+        var work=new Work();
+        try {
+            if(proposal.needs().size()!=1 || !ResourceComposition.make(proposal.needs().getFirst())
+                    || proposal.nodes().isEmpty() || proposal.nodes().size()>4 || observations.size()!=proposal.nodes().size())return reject(Reason.REQUEST_INVALID,work);
+            var need=proposal.needs().getFirst();Job root=controlled(need.demand(),caller);
+            if(root==null || !policy.controls(root.responsible(),root.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+            if(!root.request().equals(need.bound()) || root.state().terminal() || root.state()==State.INTERRUPTED)return reject(Reason.STALE_OBSERVATION,work);
+            var nodes=new HashMap<UUID,Prerequisites.Node>();
+            for(var node:proposal.nodes()) {
+                if(!node.owner().equals(root.id()) || !ResourceComposition.registered(node.production())
+                        || !node.production().output().equals(node.item()) || !node.request().context().equals(root.origin())
+                        || !ResourceComposition.project(need,node.production().capability(),node.output()).equals(node.request().request())
+                        || !node.method().capability().equals(node.production().capability()) || observations.get(node.id())==null
+                        || nodes.put(node.id(),node)!=null)return reject(Reason.REQUEST_INVALID,work);
+            }
+            var rootNode=nodes.get(root.id());
+            if(rootNode==null || !rootNode.request().request().equals(root.request().request()))return reject(Reason.REQUEST_INVALID,work);
+            var preparations=new HashMap<UUID,Preparation>();
+            for(var node:proposal.nodes()) {
+                var materials=new ArrayList<MaterialIntent>();
+                for(var allocation:proposal.allocations())if(allocation.demand().equals(node.id())) {
+                    var producer=nodes.get(allocation.producer());
+                    if(producer==null || allocation.policy()!=Prerequisites.AllocationPolicy.MATERIAL_ONLY
+                            || !node.dependencies().contains(producer.id())
+                            || allocation.quantity()>ResourceComposition.inputQuantity(node.request().request(),producer.item()))return reject(Reason.REQUEST_INVALID,work);
+                    materials.add(new MaterialIntent(producer.id(),producer.item(),allocation.quantity()));
+                }
+                preparations.put(node.id(),new Preparation(node.method(),materials));
+            }
+            if(root.preparation()!=null && root.preparation().method()!=null) {
+                for(var node:proposal.nodes()) {
+                    var old=find(node.id());
+                    if(old==null || !old.request().request().equals(node.request().request()) || !old.preparation().equals(preparations.get(node.id())))return reject(Reason.STALE_OBSERVATION,work);
+                }
+                return duplicate(root,work);
+            }
+            if(!root.children().isEmpty() || !root.dependencies().isEmpty())return reject(Reason.STALE_OBSERVATION,work);
+            var rows=rows();preparation(rows,proposal.needs(),instructions,caller,work);
+            for(var node:proposal.nodes())if(!node.id().equals(root.id())) {
+                if(rows.containsKey(node.id()))return reject(Reason.STALE_OBSERVATION,work);
+                var validation=RequestValidator.validate(node.request().request(),root.origin(),observations.get(node.id()),capabilities,environment);
+                if(validation instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
+                var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+                for(var kind:Budgets.Kind.values())maxima.put(kind,Math.max(0,available(root.id(),kind,rows)));
+                for(var kind:List.of(Budgets.Kind.REPAIRS,Budgets.Kind.INPUT_BYTES,Budgets.Kind.OUTPUT_BYTES,Budgets.Kind.CANDIDATES,Budgets.Kind.TRIALS))maxima.put(kind,0L);
+                var child=fresh(node.id(),node.id(),((RequestValidator.Accepted)validation).value(),root.id(),new Budgets.Limits(maxima,root.allowance().deadlineEpochMillis()),node.dependencies());
+                var edit=new Edit(child);edit.preparation=preparations.get(node.id());rows.put(node.id(),edit.finish(EventKind.PINNED,settings.events()));
+            }
+            var edit=new Edit(rows.get(root.id()));edit.preparation=preparations.get(root.id());
+            edit.children=proposal.nodes().stream().map(Prerequisites.Node::id).filter(id->!id.equals(root.id())).toList();
+            // Existing Jobs requires all owned children to be dependencies; this also retains parent accounting.
+            edit.dependencies=edit.children;edit.state=edit.dependencies.isEmpty()?State.READY:State.WAITING;edit.reason=null;
+            rows.put(root.id(),edit.finish(EventKind.DEPENDENCY,settings.events()));
+            checkCapacity(rows);checkGraph(root.id(),rows,work);
+            for(var node:proposal.nodes())rows.put(node.id(),dependencyState(rows.get(node.id()),rows,false));
+            return publish(rows,state.allocations(),rows.get(root.id()),null,work.edges);
+        } catch(Limited limited){return reject(limited.reason,work);}
+        catch(IllegalArgumentException|NullPointerException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
+    public boolean materialReady(Job job) {
+        thread();var p=job.preparation();if(p==null)return true;if(p.method()==null)return false;
+        for(var intent:p.materials()) {
+            long allocated=state.allocations().stream().filter(a->a.material() && a.demand().equals(job.id()) && a.producer().equals(intent.producer()) && a.item().equals(intent.item()))
+                    .mapToLong(Allocation::quantity).reduce(0,Math::addExact);
+            if(allocated!=intent.quantity())return false;
+        }
+        return true;
+    }
+    /** Receipt lineage + current stock proof. Neither alone creates an input entitlement. */
+    public Change allocateMaterial(Allocation allocation,Guard guard,Prerequisites.Supply stock,long currentTick,TrustedContext caller) {
+        thread();var work=new Work();Job demand=controlled(allocation.demand(),caller),producer=controlled(allocation.producer(),caller);
+        if(demand==null||producer==null||!producer.origin().equals(demand.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        var existing=state.allocations().stream().filter(a->a.id().equals(allocation.id())).findFirst();
+        if(existing.isPresent())return existing.get().equals(allocation)?duplicate(demand,work):reject(Reason.REQUEST_INVALID,work);
+        var denied=guard(demand,guard,work);if(denied!=null)return denied;
+        if(!allocation.material() || demand.state()!=State.READY || producer.state()!=State.SUCCEEDED)return reject(Reason.REQUEST_INVALID,work);
+        if(stock.reason()==Reason.AUTHORITY_DENIED)return reject(Reason.AUTHORITY_DENIED,work);
+        if(stock.reason()!=null)return reject(stock.reason(),work);
+        if(!stock.item().equals(allocation.item()) || stock.status()!=ObservationStatus.PRESENT || stock.tick()>currentTick
+                || currentTick-stock.tick()>10 || stock.available()<allocation.quantity())return reject(Reason.STALE_OBSERVATION,work);
+        try {
+            var allocations=new ArrayList<>(state.allocations());allocations.add(allocation);
+            validateMaterialAllocation(allocation,new Snapshot(state.worldId(),state.revision(),state.jobs(),allocations));
+            var rows=rows();rows.put(demand.id(),new Edit(demand).finish(EventKind.ALLOCATED,settings.events()));
+            return publish(rows,allocations,rows.get(demand.id()),null,work.edges);
+        } catch(IllegalArgumentException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
+    private static void validateMaterialAllocation(Allocation allocation,Snapshot snapshot) {
+        Job producer=snapshot.jobs().stream().filter(j->j.id().equals(allocation.producer())).findFirst().orElseThrow();
+        Job demand=snapshot.jobs().stream().filter(j->j.id().equals(allocation.demand())).findFirst().orElseThrow();
+        var preparation=demand.preparation();
+        if(!allocation.material() || preparation==null || !producer.origin().equals(demand.origin()) || !demand.dependencies().contains(producer.id()))throw new IllegalArgumentException("Material owner linkage");
+        var intent=preparation.materials().stream().filter(m->m.producer().equals(producer.id())&&m.item().equals(allocation.item())).findFirst().orElseThrow();
+        Attempt attempt=producer.attempts().stream().filter(a->a.id().equals(allocation.attempt())).findFirst().orElseThrow();
+        var receipt=attempt.resourceReceipts().stream().filter(r->r.receiptId().equals(allocation.receipt())).findFirst().orElseThrow();
+        if(attempt.open() || receipt.stage()!=ResourceDelivery.Stage.DEPOSIT || !receipt.item().equals(ResourceComposition.item(allocation.item()))
+                || !(demand.request().request().arguments().get("source") instanceof ContainerValue source)
+                || !source.value().equals(receipt.destination()) || ResourceComposition.inputQuantity(demand.request().request(),allocation.item())<intent.quantity())throw new IllegalArgumentException("Material receipt/source");
+        long pair=0,receiptUse=0;
+        for(var a:snapshot.allocations()) {
+            if(a.receipt().equals(receipt.receiptId()))receiptUse=Math.addExact(receiptUse,a.quantity());
+            if(a.material()&&a.demand().equals(demand.id())&&a.producer().equals(producer.id())&&a.item().equals(allocation.item()))pair=Math.addExact(pair,a.quantity());
+        }
+        if(pair>intent.quantity() || receiptUse>receipt.quantity() || batchQuantity(attempt,receipt.runId(),receipt.batchId())<receipt.quantity())throw new IllegalArgumentException("Material overspend");
+    }
     private void preparation(Map<UUID, Job> rows, List<Prerequisites.Need> needs, int instructions,
                              TrustedContext caller, Work work) {
         if (needs == null || needs.isEmpty() || needs.size() > 8 || instructions < 0 || instructions > 512
@@ -465,7 +582,7 @@ public final class JobLifecycleStore {
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
         try {
-            if (!ResourceDelivery.isDelivery(job.request().request().capability())
+            if (!materialReady(job) || !ResourceDelivery.isDelivery(job.request().request().capability())
                     || (job.state() != State.READY && !(job.state() == State.WAITING && artifact == null))
                     || job.current() != null && job.current().open()
                     || !dependenciesSucceeded(job, rows(), work))
@@ -484,7 +601,8 @@ public final class JobLifecycleStore {
             ValidatedRequest bound = remainingRequest(job, worker);
             var validated = RequestValidator.validate(bound.request(), job.origin(), bound.observation(), capabilities, environment);
             if (validated instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
-            if (artifact != null && !artifact.capability().equals(bound.request().capability()))
+            if (artifact != null && (!artifact.capability().equals(bound.request().capability())
+                    || job.preparation()!=null && !artifact.equals(job.preparation().method())))
                 return reject(Reason.REQUEST_INVALID, work);
             var references = artifact == null ? List.<ExecutionReference>of()
                     : List.of(new ExecutionReference(attemptId, artifact, pinned));
@@ -677,6 +795,7 @@ public final class JobLifecycleStore {
     public Change allocate(Allocation allocation, Guard demandGuard, long pairMaximum, TrustedContext caller) {
         thread(); var work = new Work(); Job demand = controlled(allocation.demand(), caller);
         Job producer = controlled(allocation.producer(), caller);
+        if (allocation.material())return reject(Reason.REQUEST_INVALID,work);
         if (demand == null || producer == null || !producer.origin().equals(demand.origin()))
             return reject(Reason.AUTHORITY_DENIED, work);
         // A direct oak request promises newly acquired output from this invocation.
@@ -698,6 +817,7 @@ public final class JobLifecycleStore {
             if (pairMaximum < 1) return reject(Reason.REQUEST_INVALID, work);
             long receiptUse = 0, batchUse = 0, demandUse = 0, pairUse = 0;
             for (Allocation used : state.allocations()) {
+                if(used.material())continue;
                 if (used.demand().equals(demand.id())) demandUse = Math.addExact(demandUse, used.quantity());
                 if (used.demand().equals(demand.id()) && used.producer().equals(producer.id()))
                     pairUse = Math.addExact(pairUse, used.quantity());
@@ -733,6 +853,7 @@ public final class JobLifecycleStore {
         for (Snapshot snapshot : pending == null ? List.of(state) : List.of(state, pending))
             for (Job job : snapshot.jobs()) {
                 jobs.add(job.id()); jobs.addAll(job.dependencies()); jobs.addAll(job.children());
+                if(job.preparation()!=null && job.preparation().method()!=null)artifacts.add(job.preparation().method());
                 for (Attempt a : job.attempts()) {
                     runs.add(a.id());
                     for (var ref : a.executions()) { runs.add(ref.runId()); artifacts.addAll(ref.pinned()); }
@@ -794,7 +915,7 @@ public final class JobLifecycleStore {
                             ? new Event(revision,event.kind(),event.attempt(),event.generation()) : event).toList();
                     rows.put(updated.id(),new Job(updated.id(),updated.submissionId(),revision,updated.request(),updated.parent(),
                             updated.dependencies(),updated.children(),updated.state(),updated.reason(),updated.cancellationOutcome(),
-                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events));
+                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events,updated.preparation()));
                 }
             }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
@@ -866,7 +987,7 @@ public final class JobLifecycleStore {
             return increment ? edit.finish(EventKind.TRANSITIONED, settings.events())
                     : new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(), job.dependencies(),
                     job.children(), edit.state, job.reason(), job.cancellationOutcome(), job.allowance(),
-                    job.usage(), job.generation(), job.attempts(), job.events());
+                    job.usage(), job.generation(), job.attempts(), job.events(),job.preparation());
         }
         return job;
     }
@@ -950,7 +1071,7 @@ public final class JobLifecycleStore {
     }
     private ValidatedRequest remainingRequest(Job job, ActorRef worker) {
         var args = new HashMap<>(job.request().request().arguments()); args.put("actor", new ActorValue(worker));
-        long allocated = state.allocations().stream().filter(a -> a.demand().equals(job.id()))
+        long allocated = state.allocations().stream().filter(a -> a.demand().equals(job.id()) && !a.material())
                 .mapToLong(Allocation::quantity).reduce(0, Math::addExact);
         long remaining = ((IntValue)args.get("amount")).value() - job.fulfilled() - allocated;
         if (remaining <= 0) throw new Limited(Reason.REQUEST_INVALID);
@@ -972,7 +1093,7 @@ public final class JobLifecycleStore {
     private static Job copyUsage(Job job, Map<Budgets.Kind, Long> usage) {
         return new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(),
                 job.dependencies(), job.children(), job.state(), job.reason(), job.cancellationOutcome(),
-                job.allowance(), usage, job.generation(), job.attempts(), job.events());
+                job.allowance(), usage, job.generation(), job.attempts(), job.events(),job.preparation());
     }
     private static void validateReceipt(Attempt attempt, CropDelivery.CropReceipt receipt) {
         if (!attempt.bound().request().capability().equals(CropDelivery.ID)
@@ -1040,6 +1161,7 @@ public final class JobLifecycleStore {
                 || snapshot.allocations().size() > settings.allocations()) throw new IllegalArgumentException("Job quota");
         Map<UUID, Job> rows = new HashMap<>(); snapshot.jobs().forEach(j -> rows.put(j.id(), j));
         for (Allocation allocation : snapshot.allocations()) {
+            if(allocation.material()){validateMaterialAllocation(allocation,snapshot);continue;}
             Job producer = rows.get(allocation.producer()), demand = rows.get(allocation.demand());
             if (producer == null || demand == null || producer.id().equals(demand.id())
                     || ResourceDelivery.resource(demand.request().request().capability())
@@ -1052,6 +1174,7 @@ public final class JobLifecycleStore {
                 throw new IllegalArgumentException("Unobserved allocation");
             long receiptSpent = 0, batchSpent = 0, demandSpent = 0;
             for (Allocation other : snapshot.allocations()) {
+                if(other.material())continue;
                 if (other.receipt().equals(receipt.receiptId())) receiptSpent = Math.addExact(receiptSpent, other.quantity());
                 if (other.producer().equals(producer.id()) && other.attempt().equals(attempt.id())) {
                     var source = credit(attempt,other.receipt());
@@ -1082,6 +1205,11 @@ public final class JobLifecycleStore {
                         : !(job.request().request().arguments().get("source") instanceof AreaValue))
                     || !(job.request().request().arguments().get("destination") instanceof ContainerValue))
                 throw new IllegalArgumentException("Bound job request");
+            if(job.preparation()!=null) {
+                var p=job.preparation();
+                if(p.method()!=null&&!p.method().capability().equals(job.request().request().capability()))throw new IllegalArgumentException("Prepared method capability");
+                for(var m:p.materials())if(!job.dependencies().contains(m.producer()) || m.quantity()>ResourceComposition.inputQuantity(job.request().request(),m.item()))throw new IllegalArgumentException("Prepared material");
+            }
             var syntax = RequestValidator.validate(job.request().request(), job.origin(), job.request().observation(),
                     PlanningGoals.catalog(),
                     new RequestEnvironment() {
@@ -1131,7 +1259,7 @@ public final class JobLifecycleStore {
             if (job.state() == State.FAILED && job.reason() == null
                     || job.state() == State.ACTIVE && (job.current() == null || !job.current().open()))
                 throw new IllegalArgumentException("Job state evidence");
-            long allocated = snapshot.allocations().stream().filter(a -> a.demand().equals(job.id()))
+            long allocated = snapshot.allocations().stream().filter(a -> a.demand().equals(job.id()) && !a.material())
                     .mapToLong(Allocation::quantity).reduce(0,Math::addExact);
             if (job.state() == State.SUCCEEDED && (goal
                     ? !PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())

@@ -1,0 +1,54 @@
+name: RB-005 resource composition acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/resource-composition.yml']
+  push:
+    branches: [main,rb-005-resource-composition]
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/resource-composition.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rb005-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  owners-and-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Compile source and native integration
+        run: bash gradlew --no-daemon --stacktrace :core:compileJava :providers:compileJava :fabric:compileJava :fabric:gameTestClasses
+      - name: Execute scoped composition and all module regressions
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+          python3 - <<'PY'
+          import xml.etree.ElementTree as E
+          from pathlib import Path
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResourceCompositionTest.xml')
+          cases=list(E.parse(p).getroot().iter('testcase'))
+          assert len(cases)>=18 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          print('RB005_UNIT cases='+str(len(cases)))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb005-owner-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/libs/

@@ -51,7 +51,7 @@ public final class DeterministicPrerequisiteResolver {
                 for (Need need : group) {
                     long used = Math.min(stock, need.quantity()); stock -= used;
                     long produced = need.quantity() - used;
-                    if (produced > 0) expansion.allocate(need.demand(), solved.node, produced, need.allocation());
+                    if (produced > 0 && !Objects.equals(solved.node,need.demand())) expansion.allocate(need.demand(), solved.node, produced, need.allocation());
                 }
             }
             List<Node> nodes = expansion.plans.values().stream().map(Plan::node)
@@ -149,7 +149,8 @@ public final class DeterministicPrerequisiteResolver {
                             if (plans.size() == limits.nodes() || visited == limits.nodes())
                                 throw stop(Reason.BUDGET_EXHAUSTED, Qualification.LIMIT);
                             visited++;
-                            planned = new Plan(stableId("production:1:" + owner.demand() + ":" + key + ":" + option.id()), owner, item, option);
+                            planned = new Plan(ResourceComposition.make(owner) && item.equals(owner.item()) ? owner.demand()
+                                    : stableId("production:1:" + owner.demand() + ":" + key + ":" + option.id()), owner, item, option);
                             plans.put(key, planned);
                         }
                         long total = Math.addExact(planned.wanted, deficit);
@@ -162,7 +163,7 @@ public final class DeterministicPrerequisiteResolver {
                         Map<String, Long> remainder = Map.of();
                         if (!option.recipe().isEmpty()) {
                             Recipe recipe = catalog.recipes().stream().filter(r -> r.id().equals(option.recipe())).findFirst().orElseThrow();
-                            ingredients=recipe.inputs(); remainder=recipe.remainders();
+                            ingredients=ResourceComposition.make(owner) ? option.inputs() : recipe.inputs(); remainder=recipe.remainders();
                         }
                         for (Ingredient ingredient : ingredients) {
                             if (addedBatches == 0) break;
@@ -202,7 +203,9 @@ public final class DeterministicPrerequisiteResolver {
                         if (!decision.complete() || decision.selectedBindings()==null || decision.routing().artifact()==null
                                 || !decision.selectedBindings().context().equals(owner.origin())
                                 || !decision.selectedBindings().request().capability().equals(option.capability())
-                                || !compatibleBindings(owner.bound(), decision.selectedBindings(), produced)
+                                || !(ResourceComposition.make(owner)
+                                    ? ResourceComposition.project(owner,option.capability(),produced).equals(decision.selectedBindings().request())
+                                    : compatibleBindings(owner.bound(), decision.selectedBindings(), produced))
                                 || !decision.selectedBindings().observation().equals(decision.observation().reference())
                                 || decision.observation().status()!=ObservationStatus.PRESENT
                                 || decision.observation().observedTick()>tick

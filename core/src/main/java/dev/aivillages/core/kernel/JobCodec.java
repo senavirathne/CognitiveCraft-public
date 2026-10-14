@@ -10,7 +10,7 @@ final class JobCodec {
     private JobCodec() { }
     static String job(Job job) {
         var row = new LinkedHashMap<String,Object>();
-        row.put("kind", "job"); row.put("schema", resourceForm(job) ? 2L : (long)SCHEMA);
+        row.put("kind", "job"); row.put("schema", job.preparation()!=null ? 3L : resourceForm(job) ? 2L : (long)SCHEMA);
         row.put("id", job.id().toString()); row.put("submission", job.submissionId().toString());
         row.put("revision", job.revision()); row.put("request", bound(job.request()));
         if (job.parent() != null) row.put("parent", job.parent().toString());
@@ -20,6 +20,11 @@ final class JobCodec {
         if (job.cancellationOutcome() != null) row.put("cancellationOutcome", job.cancellationOutcome().name());
         row.put("allowance", limits(job.allowance())); row.put("usage", usageMap(job.usage()));
         row.put("generation", job.generation());
+        if(job.preparation()!=null) {
+            var prepared=new LinkedHashMap<String,Object>();if(job.preparation().method()!=null)prepared.put("method",ref(job.preparation().method()));
+            prepared.put("materials",job.preparation().materials().stream().map(m->Map.of("producer",m.producer().toString(),"item",m.item(),"quantity",m.quantity())).toList());
+            row.put("preparation",prepared);
+        }
         row.put("attempts", job.attempts().stream().map(JobCodec::attempt).toList());
         row.put("events", job.events().stream().map(e -> {
             var event = new LinkedHashMap<String,Object>();
@@ -31,17 +36,25 @@ final class JobCodec {
         return StrictJson.canonical(row);
     }
     static String allocation(Allocation allocation) {
-        return StrictJson.canonical(Map.of("kind", "allocation", "schema", (long)SCHEMA,
-                "id", allocation.id().toString(), "producer", allocation.producer().toString(),
-                "attempt", allocation.attempt().toString(), "receipt", allocation.receipt().toString(),
-                "demand", allocation.demand().toString(), "quantity", allocation.quantity()));
+        var row=new LinkedHashMap<String,Object>();row.put("kind","allocation");row.put("schema",allocation.material()?2L:(long)SCHEMA);
+        row.put("id",allocation.id().toString());row.put("producer",allocation.producer().toString());row.put("attempt",allocation.attempt().toString());
+        row.put("receipt",allocation.receipt().toString());row.put("demand",allocation.demand().toString());row.put("quantity",allocation.quantity());
+        if(allocation.material())row.put("item",allocation.item());return StrictJson.canonical(row);
     }
+
     static Job job(Map<String,Object> row) throws StrictJson.Invalid {
         fields(row, Set.of("kind","schema","id","submission","revision","request","dependencies","children",
-                "state","allowance","usage","generation","attempts","events"), Set.of("parent","reason","cancellationOutcome"));
+                "state","allowance","usage","generation","attempts","events"), Set.of("parent","reason","cancellationOutcome","preparation"));
         long schema = number(row,"schema","$");
-        if (!"job".equals(string(row,"kind","$")) || schema != SCHEMA && schema != 2)
+        if (!"job".equals(string(row,"kind","$")) || schema != SCHEMA && schema != 2 && schema != 3)
             throw new StrictJson.Invalid("$", "JOB_SCHEMA");
+        Preparation preparation=null;
+        if(row.containsKey("preparation")) {
+            if(schema!=3)throw new StrictJson.Invalid("$","PREPARATION_SCHEMA");
+            var p=object(row,"preparation","$");fields(p,Set.of("materials"),Set.of("method"));var materials=new ArrayList<MaterialIntent>();
+            for(var v:list(p,"materials",8)){var m=map(v);exact(m,"producer","item","quantity");materials.add(new MaterialIntent(id(m,"producer"),string(m,"item","$"),number(m,"quantity","$")));}
+            preparation=new Preparation(p.containsKey("method")?ref(object(p,"method","$")):null,materials);
+        } else if(schema==3)throw new StrictJson.Invalid("$","PREPARATION_REQUIRED");
         var attempts = new ArrayList<Attempt>();
         for (Object value : list(row,"attempts",8)) attempts.add(attempt(map(value), schema));
         var events = new ArrayList<Event>();
@@ -57,14 +70,14 @@ final class JobCodec {
                 row.containsKey("reason") ? Reason.valueOf(string(row,"reason","$")) : null,
                 row.containsKey("cancellationOutcome") ? State.valueOf(string(row,"cancellationOutcome","$")) : null,
                 limits(object(row,"allowance","$")),usage(object(row,"usage","$")),
-                number(row,"generation","$"),attempts,events);
+                number(row,"generation","$"),attempts,events,preparation);
     }
     static Allocation allocation(Map<String,Object> row) throws StrictJson.Invalid {
-        exact(row,"kind","schema","id","producer","attempt","receipt","demand","quantity");
-        if (!"allocation".equals(string(row,"kind","$")) || number(row,"schema","$") != SCHEMA)
+        fields(row,Set.of("kind","schema","id","producer","attempt","receipt","demand","quantity"),Set.of("item"));
+        if (!"allocation".equals(string(row,"kind","$")) || number(row,"schema","$") != (row.containsKey("item")?2:SCHEMA))
             throw new StrictJson.Invalid("$","ALLOCATION_SCHEMA");
         return new Allocation(id(row,"id"),id(row,"producer"),id(row,"attempt"),id(row,"receipt"),
-                id(row,"demand"),number(row,"quantity","$"));
+                id(row,"demand"),number(row,"quantity","$"),row.containsKey("item")?string(row,"item","$"):"");
     }
     private static Map<String,Object> attempt(Attempt attempt) {
         var row = new LinkedHashMap<String,Object>();
