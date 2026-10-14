@@ -151,6 +151,12 @@ public final class CapabilityResolver {
             this.limits = Objects.requireNonNull(limits);
         }
 
+        /** A trusted Jobs adapter may narrow eligibility for one practice job. Other checks are identical. */
+        public Engine withEligibility(EligibilityPolicy policy) {
+            return new Engine(capabilities, primitives, primary, authoritativeFallback, support,
+                    control, policy, authority, prerequisites, tick, limits);
+        }
+
         public Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot) {
             CapabilitySpec spec = checkedRequest(request);
             Objects.requireNonNull(snapshot);
