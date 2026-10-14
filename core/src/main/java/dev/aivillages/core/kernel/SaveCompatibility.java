@@ -76,6 +76,7 @@ public final class SaveCompatibility {
                 currentReader(PlanJournal.DOMAIN, PlanJournal.SCHEMA),
                 currentReader(Blueprint.DOMAIN, Blueprint.SCHEMA),
                 currentReader(BlueprintStore.DOMAIN, BlueprintStore.SCHEMA),
+                currentReader(Accomplishments.DOMAIN, Accomplishments.SCHEMA),
                 new Reader(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA, Set.of(1, 2))),
                 List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
                         new Format(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA), false)));

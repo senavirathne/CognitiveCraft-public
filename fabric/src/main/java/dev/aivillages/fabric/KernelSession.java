@@ -45,7 +45,7 @@ public final class KernelSession implements AutoCloseable {
                           RetentionRoots roots, WorldRetentionManager retention,
                           WorldRetentionService retentionService, ObservedWorldKnowledgeStore observations,
                           ObservedKnowledgeService knowledgeService, PlanJournal plans, PlanJournal.Snapshot initialPlans,
-                          BlueprintStore blueprints) { }
+                          BlueprintStore blueprints, AccomplishmentLedger accomplishments) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -58,6 +58,8 @@ public final class KernelSession implements AutoCloseable {
     private final BlueprintValidator.Registry blueprintRegistry;
     private final java.util.concurrent.atomic.AtomicInteger blueprintQueries=new java.util.concurrent.atomic.AtomicInteger();
     private final java.util.concurrent.atomic.AtomicBoolean blueprintClosing=new java.util.concurrent.atomic.AtomicBoolean();
+    private final java.util.concurrent.atomic.AtomicInteger accomplishmentQueries=new java.util.concurrent.atomic.AtomicInteger();
+    private AccomplishmentService accomplishmentService;
     private volatile UUID observationSource;
     private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
     private final LocalGenerationAdapter model;
@@ -158,6 +160,7 @@ public final class KernelSession implements AutoCloseable {
             ObservedWorldKnowledgeStore observations = null;
             PlanJournal plans = null;
             BlueprintStore blueprints = null;
+            AccomplishmentLedger accomplishments = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -198,6 +201,13 @@ public final class KernelSession implements AutoCloseable {
                 retention.register(plans.retentionOwner());
                 blueprints=BlueprintStore.open(world,journal.state().worldId());
                 retention.register(blueprints.retentionOwner());
+                final var accomplishmentJobs=jobs;
+                final var accomplishmentCitizens=identities;
+                accomplishments=AccomplishmentLedger.open(world,journal.state().worldId(),
+                        new JobOutcomeSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot),roots);
+                retention.register(accomplishments.retentionOwner());
+                accomplishments.capacity(amount->retention.assessReplacement("accomplishments",WorldRetentionManager.Category.EVIDENCE,amount)
+                        .status()==WorldRetentionManager.Capacity.AVAILABLE);
                 plans.capacity(bytes -> retention.assessReplacement("plans",WorldRetentionManager.Category.EVIDENCE,
                         new WorldRetentionManager.Amount(bytes*3L,24)).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 var knowledgeService = new ObservedKnowledgeService(observations);
@@ -224,8 +234,9 @@ public final class KernelSession implements AutoCloseable {
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
-                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints);
+                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments);
             } catch (Exception failure) {
+                if(accomplishments!=null)try{accomplishments.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(blueprints!=null)try{blueprints.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(plans!=null)try{plans.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if (observations != null) try { observations.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
@@ -265,6 +276,7 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        accomplishmentService.maintain(jobs.snapshot(),worker);
         loaded.knowledgeService().beginTick();
         loaded.knowledgeService().maintain(worker);
         loaded.retentionService().beginTick();
@@ -410,6 +422,7 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(this::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        accomplishmentService=new AccomplishmentService(loaded.accomplishments());
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock);
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
@@ -691,6 +704,22 @@ public final class KernelSession implements AutoCloseable {
         ready(); return jobs.bySubmission(submission, caller);
     }
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
+    /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
+    public CompletableFuture<Accomplishments.Query> accomplishments(ServerPlayer player,UUID citizenId,int maximum){
+        if(!server.isSameThread())throw new IllegalStateException("Evidence intake requires server thread");
+        ready();var owner=caller(player);var citizen=citizens.query(citizenId,owner);
+        return accomplishmentWork(()->loaded.accomplishments().query(citizen.actor(),owner,maximum));
+    }
+    CompletableFuture<Accomplishments.Query> accomplishments(ActorRef actor,TrustedContext caller,int maximum){
+        if(!server.isSameThread())throw new IllegalStateException("Evidence intake requires server thread");
+        ready();return accomplishmentWork(()->loaded.accomplishments().query(actor,caller,maximum));
+    }
+    private <T> CompletableFuture<T> accomplishmentWork(java.util.function.Supplier<T> operation){
+        if(accomplishmentQueries.incrementAndGet()>8){accomplishmentQueries.decrementAndGet();
+            return CompletableFuture.failedFuture(new IllegalStateException("Evidence query capacity"));}
+        try{return CompletableFuture.supplyAsync(operation,worker).whenComplete((ignored,error)->accomplishmentQueries.decrementAndGet());}
+        catch(RuntimeException refused){accomplishmentQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+    }
     private boolean publishRoots(String source, java.util.Set<WorldRetentionManager.Key> keys) {
         if (keys.size() > RetentionRoots.MAX_ROOTS) return false;
         desiredRoots.put(source, java.util.Set.copyOf(keys));
@@ -1049,6 +1078,7 @@ public final class KernelSession implements AutoCloseable {
         if (closeRequested) return;
         closeRequested = true;
         blueprintClosing.set(true);
+        if(accomplishmentService!=null)accomplishmentService.close();
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
         if(planner!=null)planner.close();
@@ -1068,7 +1098,7 @@ public final class KernelSession implements AutoCloseable {
                     opened.retentionService().closeWorker();
                     opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.accomplishments(),opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);
