@@ -126,6 +126,15 @@ def scenario(h):
     # Cancel an owned graph while it waits for real intermediate production.
     cancel_id=compose(4,0,0,0);h.cancel_job("PlayerA",cancel_id)
     cancelled=h.wait(lambda:(j if (j:=job(cancel_id)) and j["state"]=="CANCELLED" else None),"Owned graph cancellation",60);h.actions_active=False
+    # Finish ordinary known work at the staging chest before clock-controlled
+    # capture. Long approaches retain their normal wall-clock deadline.
+    require(h.container(fresh_source,AXE)==0,"Crash input setup may not replace prior axes")
+    seed(1,0,0,source=fresh_source);approach_calls=h.model_calls()
+    approach_id=run("/aivillage kernel make-planks "+h.citizens["PlayerA"]+" 4 "+" ".join(map(str,fresh_source+fresh_source)))
+    approach=h.terminal("PlayerA",approach_id,180)
+    require(approach.get("marker",{}).get("outcome")=="SUCCEEDED" and approach["marker"]["artifactSha256"]==hashes[PLANK],"Known normal-pacing crash-stage approach failed: "+json.dumps(approach))
+    require(h.container(fresh_source,PLANK)==4 and h.model_calls()==approach_calls,"Crash-stage approach lacked actual native output or invoked inference")
+    h.actions_active=False
     # Save a complete real intermediate deposit, then kill before downstream consumption acknowledgement.
     freeze_offset=len(h.server_log())
     h.console(["tick rate 20","tick freeze"])
@@ -170,4 +179,4 @@ def scenario(h):
     h.command("PlayerA","/aivillage kernel job-status "+crash_id,"state=INTERRUPTED");h.screenshot("PlayerA","rb005-interrupted-no-replay",chat=True)
     return {"independentAcquisitions":acquisitions,"artifacts":hashes,"goldenRows":rows,"actualLanguage":language,"foreignDenied":foreign,
             "offlineWarmReuse":offline,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},
-            "cancelled":cancelled,"killBoundary":boundary,"recovered":recovered,"checkpoint":checkpoint,"killedWorldHashes":killed,"models":models}
+            "cancelled":cancelled,"crashApproach":approach,"killBoundary":boundary,"recovered":recovered,"checkpoint":checkpoint,"killedWorldHashes":killed,"models":models}

@@ -27,6 +27,8 @@ def client():
     assert e['recovered']['state']=='INTERRUPTED'
     assert e['killBoundary']['clockMode']=='vanilla-single-step' and 1<=e['killBoundary']['clockSteps']<=512
     assert e['killBoundary']['depositedPlanks']==8
+    assert e['crashApproach']['marker']['outcome']=='SUCCEEDED'
+    assert e['crashApproach']['marker']['artifactSha256']==e['artifacts']['minecraft:oak_planks']
     OUT.mkdir(parents=True,exist_ok=True);shutil.copy2(folder/'results.json',OUT/'connected-client.json')
 def junit():
     result={}
