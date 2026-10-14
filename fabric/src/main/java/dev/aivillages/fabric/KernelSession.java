@@ -208,7 +208,7 @@ public final class KernelSession implements AutoCloseable {
                 accomplishments.capacity(amount->retention.assessReplacement("accomplishments",WorldRetentionManager.Category.EVIDENCE,amount)
                         .status()==WorldRetentionManager.Capacity.AVAILABLE);
                 final var learningEvidence=accomplishments;
-                access=KnowledgeAccessStore.open(world,journal.state().worldId(),
+                access=KnowledgeAccessStore.openUnmigrated(world,journal.state().worldId(),
                         new KnowledgeAccessSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot,learningEvidence::snapshot),
                         KnowledgeAccessStore.repositoryCatalog(repository),clock,roots);
                 retention.register(access.retentionOwner());
@@ -230,6 +230,9 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16, 10_485_760));
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
+                var accessMigration=access.migrateSharedAccess(()->false);
+                if(!access.readOnly()&&accessMigration.code()!=KnowledgeAccess.Code.APPLIED&&accessMigration.code()!=KnowledgeAccess.Code.DUPLICATE)
+                    throw new IllegalStateException("Shared access migration unavailable: "+accessMigration);
                 var observationMigration = observations.migrate(observations.revision(), () -> false);
                 if (observationMigration.status() != ObservedWorldKnowledgeStore.Status.UNCHANGED
                         && observationMigration.status() != ObservedWorldKnowledgeStore.Status.MIGRATED
@@ -671,6 +674,13 @@ public final class KernelSession implements AutoCloseable {
     /** Host-facing IMP-022 API. No player command/client feature is introduced by this data owner. */
     public KnowledgeAccess.Decision knowledgeEligibility(ActorRef actor,ArtifactRef method,TrustedContext caller){
         ready();return loaded.access().evaluateUse(actor,method,caller);
+    }
+    public CompletableFuture<KnowledgeAccess.Result> requirePersonalLearning(ActorRef actor,TrustedContext caller){
+        ready();if(!controls(actor,caller))throw new SecurityException("Apprentice control");
+        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(new IllegalStateException("Learning operation bound"));}
+        try{return CompletableFuture.supplyAsync(()->loaded.access().requirePersonalLearning(actor,caller,()->closed),worker)
+                .whenComplete((ignored,error)->accessQueries.decrementAndGet());}
+        catch(RuntimeException refused){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
     }
     public CompletableFuture<KnowledgeAccess.Result> startApprenticeship(UUID jobId,ActorRef teacher,
                                                                         ArtifactRef method,TrustedContext caller){

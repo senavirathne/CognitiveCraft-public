@@ -15,7 +15,7 @@ final class KnowledgeAccessCodec {
     private KnowledgeAccessCodec(){ }
     static byte[] encode(Snapshot snapshot)throws IOException{
         var lines=new ArrayList<String>();
-        lines.add(row("migration",Map.of("migrated",snapshot.migrated(),"citizens",snapshot.legacyCitizens(),"methods",snapshot.legacyMethods())));
+        lines.add(row("migration",Map.of("migrated",snapshot.migrated(),"citizens",snapshot.legacyCitizens(),"methods",snapshot.legacyMethods(),"personal",snapshot.personalCitizens())));
         for(var value:snapshot.grants())lines.add(row("grant",value));
         for(var value:snapshot.practices())lines.add(row("practice",value));
         String payload=lines.isEmpty()?"":String.join("\n",lines)+"\n";
@@ -41,7 +41,7 @@ final class KnowledgeAccessCodec {
             String payload=text.substring(at+1);
             if(!sha(payload.getBytes(StandardCharsets.UTF_8)).equals(Outcomes.string(header,"sha256","$")))throw new IOException("Access checksum");
             var grants=new ArrayList<Grant>();var practices=new ArrayList<Practice>();
-            List<Enrollment> citizens=null;List<Contracts.ArtifactRef> methods=null;boolean migrated=false;
+            List<Enrollment> citizens=null;List<Enrollment> personal=null;List<Contracts.ArtifactRef> methods=null;boolean migrated=false;
             int rows=0;
             for(String line:payload.split("\n")){
                 if(line.isEmpty())continue;if(++rows>MAX_ROWS)throw new IOException("Access row bound");
@@ -49,10 +49,12 @@ final class KnowledgeAccessCodec {
                 switch(Outcomes.string(row,"kind","$")){
                     case "migration"->{
                         if(citizens!=null)throw new IOException("Duplicate migration");
-                        Outcomes.exact(value,"migrated","citizens","methods");
+                        Outcomes.exact(value,"migrated","citizens","methods","personal");
                         if(!(value.get("migrated") instanceof Boolean flag))throw new IOException("Migration type");migrated=flag;
                         if(!(value.get("citizens") instanceof List<?> es)||!(value.get("methods") instanceof List<?> ms))throw new IOException("Migration lists");
-                        citizens=new ArrayList<>();methods=new ArrayList<>();
+                        citizens=new ArrayList<>();methods=new ArrayList<>();personal=new ArrayList<>();
+                        if(!(value.get("personal") instanceof List<?> ps))throw new IOException("Personal lists");
+                        for(Object p:ps)personal.add(record((Map<String,Object>)p,Enrollment.class));
                         for(Object e:es)citizens.add(record((Map<String,Object>)e,Enrollment.class));
                         for(Object m:ms)methods.add(record((Map<String,Object>)m,Contracts.ArtifactRef.class));
                     }
@@ -63,7 +65,7 @@ final class KnowledgeAccessCodec {
             }
             if(Outcomes.number(header,"records","$")!=rows)throw new IOException("Access record count");
             if(citizens==null)throw new IOException("Missing migration");
-            return new Snapshot(world,Outcomes.number(header,"revision","$"),migrated,citizens,methods,grants,practices);
+            return new Snapshot(world,Outcomes.number(header,"revision","$"),migrated,citizens,methods,personal,grants,practices);
         }catch(StrictJson.Invalid|RuntimeException invalid){throw new IOException("Invalid access",invalid);}
     }
     private static <T>T record(Map<String,Object> data,Class<T> type)throws IOException{

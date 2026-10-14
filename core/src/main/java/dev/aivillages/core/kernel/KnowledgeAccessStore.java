@@ -62,14 +62,21 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
     public static KnowledgeAccessStore open(Path world,UUID id,KnowledgeAccessSource source,Catalog catalog,Clock clock,RetentionRoots roots)throws IOException{
         return open(world,id,source,catalog,clock,roots,Limits.defaults(),(t,l,m)->false,List.of(),p->{});
     }
+    public static KnowledgeAccessStore openUnmigrated(Path world,UUID id,KnowledgeAccessSource source,Catalog catalog,Clock clock,RetentionRoots roots)throws IOException{
+        return open(world,id,source,catalog,clock,roots,Limits.defaults(),(t,l,m)->false,List.of(),p->{},false);
+    }
     static KnowledgeAccessStore open(Path world,UUID id,KnowledgeAccessSource source,Catalog catalog,Clock clock,RetentionRoots roots,
                                      Limits limits,TeachingSharing sharing,List<VersionTransfer> versions,KnowledgeAccessJournal.Faults faults)throws IOException{
+        return open(world,id,source,catalog,clock,roots,limits,sharing,versions,faults,true);
+    }
+    private static KnowledgeAccessStore open(Path world,UUID id,KnowledgeAccessSource source,Catalog catalog,Clock clock,RetentionRoots roots,
+                                     Limits limits,TeachingSharing sharing,List<VersionTransfer> versions,KnowledgeAccessJournal.Faults faults,boolean migrate)throws IOException{
         var journal=KnowledgeAccessJournal.open(world,id,faults);
         var owner=new KnowledgeAccessStore(journal,source,catalog,limits,clock,roots,sharing,versions);
         try{
             var update=roots.publishNext("knowledge-access",protectedRoots(journal.snapshot()),!journal.readOnly());
             if(update!=RetentionRoots.Update.APPLIED&&update!=RetentionRoots.Update.UNCHANGED)throw new IOException("Access recovery roots unavailable");
-            if(!journal.readOnly()&&!journal.snapshot().migrated()){
+            if(migrate&&!journal.readOnly()&&!journal.snapshot().migrated()){
                 var result=owner.migrateSharedAccess(()->false);
                 if(result.code()!=Code.APPLIED)throw new IOException("Shared access migration: "+result.code());
             }
@@ -90,7 +97,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
         var enrolled=enrollment(actor,caller);if(enrolled==null)return Decision.deny(Reason.AUTHORITY_DENIED);
         var available=catalog.usable(method);if(!available.allowed())return available;
         var state=snapshot();
-        boolean known=state.legacyCitizens().contains(enrolled)&&state.legacyMethods().contains(method)
+        boolean known=!state.personalCitizens().contains(enrolled)&&state.legacyMethods().contains(method)
                 ||state.grants().stream().anyMatch(g->g.learner().equals(enrolled)&&g.method().equals(method));
         return known?Decision.allow():Decision.deny(Reason.KNOWLEDGE_REQUIRED);
     }
@@ -114,8 +121,18 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             var enrolled=citizens.citizens().stream().map(c->new Enrollment(c.actor(),c.owner())).toList();
             var methods=catalog.admittedMethods();if(methods.size()>128)return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,null,0,0);
             if(enrolled.size()+methods.size()>limits.work())return result(Code.LIMIT,Reason.BUDGET_EXHAUSTED,null,limits.work(),0);
-            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,enrolled,methods,List.of(),List.of()),null,enrolled.size()+methods.size(),cancel);
+            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,enrolled,methods,List.of(),List.of(),List.of()),null,enrolled.size()+methods.size(),cancel);
         }catch(RuntimeException failed){return result(Code.UNAVAILABLE,Reason.STORAGE_UNAVAILABLE,null,0,0);}
+    }
+    /** Explicit opt-in for a newly enrolled apprentice. Grandfathered citizens cannot forget known methods. */
+    public synchronized Result requirePersonalLearning(ActorRef actor,TrustedContext caller,BooleanSupplier cancel){
+        var enrolled=enrollment(actor,caller);var old=snapshot();
+        if(enrolled==null)return result(Code.DENIED,Reason.AUTHORITY_DENIED,null,0,0);
+        if(old.legacyCitizens().contains(enrolled))return result(Code.DENIED,Reason.KNOWLEDGE_REQUIRED,null,0,0);
+        if(old.personalCitizens().contains(enrolled))return result(Code.DUPLICATE,null,null,0,0);
+        if(old.personalCitizens().size()==64)return result(Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,null,0,0);
+        var personal=new ArrayList<>(old.personalCitizens());personal.add(enrolled);
+        return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),personal,old.grants(),old.practices()),null,personal.size(),cancel);
     }
     /** Jobs must have acknowledged a fresh practice request; this call never assigns or executes it. */
     public synchronized Result startApprenticeship(UUID jobId,ActorRef teacher,ArtifactRef method,TrustedContext caller,BooleanSupplier cancel){
@@ -140,7 +157,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             var practice=new Practice(jobId,source.enrollment(teacher),enrollment(learner,caller),method,pinned,
                     hash(job.request().request()),Math.addExact(job.generation(),1),job.allowance().deadlineEpochMillis(),Stage.PRACTICING,"");
             var history=new ArrayList<>(old.practices());history.add(practice);
-            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.grants(),history),jobId,work,cancel);
+            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),old.grants(),history),jobId,work,cancel);
         }catch(RuntimeException invalid){return result(Code.INVALID,Reason.REQUEST_INVALID,jobId,0,0);}
     }
     private Practice practice(UUID job){return snapshot().practices().stream().filter(p->p.job().equals(job)).findFirst().orElse(null);}
@@ -209,7 +226,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             }
             var completed=p.finish(stopped==null?Stage.LEARNED:Stage.STOPPED,stopped);
             var history=old.practices().stream().map(v->v.job().equals(jobId)?completed:v).toList();
-            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),grants,history),jobId,work.count,cancel);
+            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),grants,history),jobId,work.count,cancel);
         }catch(JobOutcomeSource.Limited exhausted){return result(Code.LIMIT,Reason.BUDGET_EXHAUSTED,jobId,work.count,0);}
         catch(JobOutcomeSource.Invalid|ArithmeticException invalid){return result(Code.INVALID,Reason.REQUEST_INVALID,jobId,work.count,0);}
         catch(RuntimeException failure){return result(Code.UNAVAILABLE,Reason.STORAGE_UNAVAILABLE,jobId,work.count,0);}
@@ -228,7 +245,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
             if(!catalog.usable(execution.artifact()).allowed())return result(Code.INVALID,Reason.ARTIFACT_INCOMPATIBLE,jobId,work.count,0);
             var old=snapshot();var grants=new ArrayList<>(old.grants());grants.add(new Grant(learner,execution.artifact(),learner,Origin.ACQUISITION,
                     jobId,a.id(),a.generation(),execution.runId(),job.revision()));
-            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),grants,old.practices()),jobId,work.count,cancel);
+            return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),grants,old.practices()),jobId,work.count,cancel);
         }catch(JobOutcomeSource.Limited exhausted){return result(Code.LIMIT,Reason.BUDGET_EXHAUSTED,jobId,work.count,0);}
         catch(JobOutcomeSource.Invalid|ArithmeticException invalid){return result(Code.INVALID,Reason.REQUEST_INVALID,jobId,work.count,0);}
     }
@@ -241,7 +258,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
         if(mayUse(actor,to,caller))return result(Code.DUPLICATE,null,null,0,0);
         var grants=new ArrayList<>(old.grants());grants.add(new Grant(learner,to,origin.teacher(),Origin.COMPATIBLE_MIGRATION,
                 origin.job(),origin.attempt(),origin.generation(),origin.run(),origin.jobRevision()));
-        return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),grants,old.practices()),null,grants.size(),cancel);
+        return publish(old,new Snapshot(old.world(),Math.addExact(old.revision(),1),true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),grants,old.practices()),null,grants.size(),cancel);
     }
     private Result publish(Snapshot old,Snapshot next,UUID job,int work,BooleanSupplier cancel){
         if(readOnly())return result(Code.UNAVAILABLE,Reason.STORAGE_UNAVAILABLE,job,work,0);
@@ -275,7 +292,7 @@ public final class KnowledgeAccessStore implements AttemptEligibilityPolicy,Auto
         }
         return Set.copyOf(result);
     }
-    private static long records(Snapshot state){return 1L+state.legacyCitizens().size()+state.legacyMethods().size()+state.grants().size()+state.practices().size();}
+    private static long records(Snapshot state){return 1L+state.legacyCitizens().size()+state.legacyMethods().size()+state.personalCitizens().size()+state.grants().size()+state.practices().size();}
     public WorldRetentionManager.Owner retentionOwner(){return new RetentionFileOwner("knowledge-access",journal.directory(),WorldRetentionManager.Category.EVIDENCE,
             ()->snapshot().revision(),()->records(snapshot()),8,3L*KnowledgeAccessCodec.MAX_BYTES);}
     @Override public synchronized void close()throws IOException{journal.close();}

@@ -55,24 +55,27 @@ public final class KnowledgeAccess {
     }
     /** Migration freezes both the existing citizen bindings and exact admitted method revisions. */
     public record Snapshot(UUID world,long revision,boolean migrated,List<Enrollment> legacyCitizens,
-                           List<ArtifactRef> legacyMethods,List<Grant> grants,List<Practice> practices) {
+                           List<ArtifactRef> legacyMethods,List<Enrollment> personalCitizens,List<Grant> grants,List<Practice> practices) {
         public Snapshot {
             Objects.requireNonNull(world);legacyCitizens=List.copyOf(legacyCitizens);legacyMethods=List.copyOf(legacyMethods);
-            grants=List.copyOf(grants);practices=List.copyOf(practices);
-            if(revision<0||legacyCitizens.size()>64||legacyMethods.size()>128||grants.size()>512||practices.size()>64
+            personalCitizens=List.copyOf(personalCitizens);grants=List.copyOf(grants);practices=List.copyOf(practices);
+            if(revision<0||legacyCitizens.size()>64||legacyMethods.size()>128||personalCitizens.size()>64||grants.size()>512||practices.size()>64
                     ||new HashSet<>(legacyCitizens).size()!=legacyCitizens.size()
                     ||new HashSet<>(legacyMethods).size()!=legacyMethods.size()
+                    ||new HashSet<>(personalCitizens).size()!=personalCitizens.size()
+                    ||personalCitizens.stream().anyMatch(legacyCitizens::contains)
                     ||grants.stream().map(g->List.of(g.learner(),g.method())).distinct().count()!=grants.size()
                     ||practices.stream().map(Practice::job).distinct().count()!=practices.size()
                     ||practices.stream().filter(p->p.stage()==Stage.PRACTICING).count()>8)
                 throw new IllegalArgumentException("Access snapshot bounds");
             for(var e:legacyCitizens)if(!e.owner().scope().worldId().equals(world))throw new IllegalArgumentException("Foreign access");
+            for(var e:personalCitizens)if(!e.owner().scope().worldId().equals(world))throw new IllegalArgumentException("Foreign personal access");
             for(var g:grants)if(!g.learner().owner().scope().worldId().equals(world))throw new IllegalArgumentException("Foreign grant");
             for(var p:practices)if(!p.learner().owner().scope().worldId().equals(world))throw new IllegalArgumentException("Foreign practice");
-            if(!migrated&&(!legacyCitizens.isEmpty()||!legacyMethods.isEmpty()||!grants.isEmpty()||!practices.isEmpty()))
+            if(!migrated&&(!legacyCitizens.isEmpty()||!legacyMethods.isEmpty()||!personalCitizens.isEmpty()||!grants.isEmpty()||!practices.isEmpty()))
                 throw new IllegalArgumentException("Unmigrated records");
         }
-        public static Snapshot empty(UUID world){return new Snapshot(world,0,false,List.of(),List.of(),List.of(),List.of());}
+        public static Snapshot empty(UUID world){return new Snapshot(world,0,false,List.of(),List.of(),List.of(),List.of(),List.of());}
     }
     public record Decision(boolean allowed,Reason reason) {
         public Decision { if(allowed==(reason!=null))throw new IllegalArgumentException("Access decision"); }

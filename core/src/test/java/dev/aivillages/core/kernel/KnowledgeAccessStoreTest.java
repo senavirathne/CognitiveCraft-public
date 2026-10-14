@@ -36,7 +36,7 @@ class KnowledgeAccessStoreTest {
         Fixture(Path path)throws Exception{this.path=path;ledger=f.open(path);
             var teaching=f.successful(2);assertEquals(Accomplishments.Code.APPLIED,AccomplishmentLedgerTest.record(ledger,teaching).code());
             source=new KnowledgeAccessSource(()->f.override.get()==null?f.scene.memory.state:f.override.get(),f.citizens::get,ledger::snapshot);
-            access=open(Limits.defaults(),(t,l,m)->false,List.of(),p->{});enroll(learner,f.scene.owner);observe(true);}
+            access=open(Limits.defaults(),(t,l,m)->false,List.of(),p->{});enroll(learner,f.scene.owner);observe(true);assertEquals(Code.APPLIED,access.requirePersonalLearning(learner,f.scene.owner,()->false).code());}
         KnowledgeAccessStore open(Limits limits,KnowledgeAccessStore.TeachingSharing sharing,List<VersionTransfer> versions,KnowledgeAccessJournal.Faults faults)throws IOException{
             return KnowledgeAccessStore.open(path,f.scene.world,source,methods,f.scene.clock,roots,limits,sharing,versions,faults);}
         void enroll(ActorRef actor,TrustedContext owner){var old=f.citizens.get();var records=new ArrayList<>(old.citizens());
@@ -179,7 +179,8 @@ class KnowledgeAccessStoreTest {
         try(var f=new Fixture(temp)){
             var first=f.complete(f.assign(f.start()));assertEquals(Code.APPLIED,f.finish(first).code());
             for(int n=0;n<15;n++){
-                var another=JobLifecycleStoreTest.actor();f.enroll(another,f.f.scene.owner);
+                var another=JobLifecycleStoreTest.actor();f.enroll(another,f.f.scene.owner);f.observe(true);
+                assertEquals(Code.APPLIED,f.access.requirePersonalLearning(another,f.f.scene.owner,()->false).code());
                 UUID id=UUID.randomUUID();assertTrue(f.f.scene.store.create(id,id,JobLifecycleStoreTest.request(another,2),f.f.scene.owner,
                         JobLifecycleStoreTest.observation(),JobLifecycleStoreTest.limits(11000),List.of()).accepted());f.f.scene.settle();
                 f.source.observe(f.f.citizens.get(),f.f.scene.memory.state,Set.of(new Pair(f.teacher,another)));
@@ -271,8 +272,47 @@ class KnowledgeAccessStoreTest {
         try(var f=new Fixture(temp)){
             byte[] valid=KnowledgeAccessCodec.encode(f.access.snapshot());assertEquals(f.access.snapshot(),KnowledgeAccessCodec.decode(valid,f.f.scene.world));
             var text=new String(valid,java.nio.charset.StandardCharsets.UTF_8);
-            assertThrows(IOException.class,()->KnowledgeAccessCodec.decode(text.replace("\"revision\":1","\"revision\":\"1\"").getBytes(java.nio.charset.StandardCharsets.UTF_8),f.f.scene.world));
-            assertThrows(IOException.class,()->KnowledgeAccessCodec.decode(text.replace("\"revision\":1","\"other\":1,\"revision\":1").getBytes(java.nio.charset.StandardCharsets.UTF_8),f.f.scene.world));
+            assertThrows(IOException.class,()->KnowledgeAccessCodec.decode(text.replace("\"revision\":"+f.access.snapshot().revision(),"\"revision\":\"1\"").getBytes(java.nio.charset.StandardCharsets.UTF_8),f.f.scene.world));
+            assertThrows(IOException.class,()->KnowledgeAccessCodec.decode(text.replace("\"revision\":"+f.access.snapshot().revision(),"\"other\":1,\"revision\":1").getBytes(java.nio.charset.StandardCharsets.UTF_8),f.f.scene.world));
         }
     }
+    @Test void missingPersonalRowPreservesInitialSharedPolicyButExplicitNewApprenticeRequiresLearning()throws Exception{
+        try(var f=new Fixture(temp)){
+            var fresh=JobLifecycleStoreTest.actor();f.enroll(fresh,f.f.scene.owner);f.observe(true);
+            assertTrue(f.access.mayUse(fresh,METHOD,f.f.scene.owner));
+            assertEquals(Code.APPLIED,f.access.requirePersonalLearning(fresh,f.f.scene.owner,()->false).code());
+            assertEquals(Reason.KNOWLEDGE_REQUIRED,f.access.evaluateUse(fresh,METHOD,f.f.scene.owner).reason());
+            assertEquals(Code.DENIED,f.access.requirePersonalLearning(f.teacher,f.f.scene.owner,()->false).code());
+            assertTrue(f.access.mayUse(f.teacher,METHOD,f.f.scene.owner));
+        }
+    }
+    @ParameterizedTest @ValueSource(ints={0,1,2})
+    void startWorkAllowanceIsCheckedAtZeroNAndOneOverN(int maximum)throws Exception{
+        try(var f=new Fixture(temp)){
+            var job=f.create();f.access.close();f.access=f.open(new Limits(512,64,8,1048576,maximum),(t,l,m)->false,List.of(),p->{});
+            assertEquals(maximum<2?Code.LIMIT:Code.APPLIED,f.access.startApprenticeship(job.id(),f.teacher,METHOD,f.f.scene.owner,()->false).code());
+        }
+    }
+    @ParameterizedTest @ValueSource(ints={0,1})
+    void encodedByteBudgetAcceptsExactNAndRejectsOneByteOverN(int less)throws Exception{
+        try(var f=new Fixture(temp)){
+            var job=f.create();var old=f.access.snapshot();
+            var practice=new Practice(job.id(),new Enrollment(f.teacher,f.f.scene.owner),new Enrollment(f.learner,f.f.scene.owner),METHOD,List.of(METHOD),
+                    KnowledgeAccessCodec.sha(RequestCodec.encode(job.request().request()).getBytes(java.nio.charset.StandardCharsets.UTF_8)),1,job.allowance().deadlineEpochMillis(),Stage.PRACTICING,"");
+            int bytes=KnowledgeAccessCodec.encode(new Snapshot(old.world(),old.revision()+1,true,old.legacyCitizens(),old.legacyMethods(),old.personalCitizens(),old.grants(),List.of(practice))).length;
+            f.access.close();f.access=f.open(new Limits(512,64,8,bytes-less,8192),(t,l,m)->false,List.of(),p->{});
+            assertEquals(less==0?Code.APPLIED:Code.LIMIT,f.access.startApprenticeship(job.id(),f.teacher,METHOD,f.f.scene.owner,()->false).code());
+        }
+    }
+    @Test void registeredReaderAndDeferredMigrationAccountThroughExistingRetentionPolicy()throws Exception{
+        try(var f=new Fixture(temp)){
+            assertTrue(SaveCompatibility.registered().readable(new SaveCompatibility.Format(KnowledgeAccess.DOMAIN,1)));
+            assertFalse(SaveCompatibility.registered().readable(new SaveCompatibility.Format(KnowledgeAccess.DOMAIN,2)));
+            Path another=temp.resolve("bounded-new-owner");try(var unmigrated=KnowledgeAccessStore.openUnmigrated(another,f.f.scene.world,f.source,f.methods,f.f.scene.clock,new RetentionRoots())){
+                unmigrated.capacity(a->false);assertEquals(Code.LIMIT,unmigrated.migrateSharedAccess(()->false).code());assertFalse(unmigrated.snapshot().migrated());
+                assertFalse(Files.exists(another.resolve(KnowledgeAccessStore.WORLD_RELATIVE_PATH).resolve("state.jsonl")));
+            }
+        }
+    }
+
 }
