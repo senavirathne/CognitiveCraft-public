@@ -63,6 +63,7 @@ public final class AxeEffectGameTests {
                 h.getLevel().setBlock(t,Blocks.AIR.defaultBlockState(),3);
                 h.assertTrue(world.recipePreflight(bound).reason()==Reason.FACILITY_MISSING,"No real table was accepted");
                 h.getLevel().setBlock(t,Blocks.CRAFTING_TABLE.defaultBlockState(),3);
+                v.getInventory().setItem(0,new ItemStack(Items.WOODEN_AXE));
                 captured[0]=world.recipePreflight(bound);
                 var withdrawn=world.withdrawRecipeInput(actor,source,captured[0],captured[0].custodyFingerprint(),captured[0].sourceFingerprint());
                 h.assertTrue(withdrawn.reason()==null && withdrawn.moved()==5 && from.countItem(Items.OAK_PLANKS)==9 && from.countItem(Items.STICK)==6,"Atomic split-stack two-input withdrawal");
@@ -73,10 +74,11 @@ public final class AxeEffectGameTests {
                 captured[0]=world.recipePreflight(bound);
                 var crafted=world.craftRecipe(actor,captured[0],captured[0].custodyFingerprint());
                 h.assertTrue(crafted.reason()==null && crafted.consumed()==5 && crafted.produced()==1 && crafted.remainders()==0,"Installed native assemble/remaining items");
-                var axe=v.getInventory().getItem(0);h.assertTrue(axe.is(Items.WOODEN_AXE) && axe.getMaxStackSize()==1 && axe.getDamageValue()==0
+                var axe=v.getInventory().getItem(1);h.assertTrue(axe.is(Items.WOODEN_AXE) && axe.getMaxStackSize()==1 && axe.getDamageValue()==0
                         && FabricRecipeTransactions.plain(axe,Items.WOODEN_AXE),"Actual assembled result components/stack maximum");
                 var deposited=world.depositRecipeOutput(actor,destination,captured[0],crafted.custodyAfter(),1);
                 h.assertTrue(deposited.reason()==null && to.countItem(Items.WOODEN_AXE)==2 && to.getItem(0).getDamageValue()==9,"New multi-slot deposit touched worn axe");
+                h.assertTrue(v.getInventory().getItem(0).is(Items.WOODEN_AXE) && v.getInventory().getItem(1).isEmpty(),"Deposit physically removed old pristine axe instead of new stack");
                 captured[0]=world.recipePreflight(bound);withdrawn=world.withdrawRecipeInput(actor,source,captured[0],captured[0].custodyFingerprint(),captured[0].sourceFingerprint());
                 custody[0]=withdrawn.custodyAfter();v.getInventory().setItem(7,new ItemStack(Items.STONE));
                 h.assertTrue(world.craftRecipe(actor,captured[0],custody[0]).reason()==Reason.STALE_OBSERVATION,"Custody contamination ignored");v.getInventory().setItem(7,ItemStack.EMPTY);
@@ -88,9 +90,9 @@ public final class AxeEffectGameTests {
                 h.assertTrue(v.getInventory().countItem(Items.OAK_PLANKS)==3 && v.getInventory().countItem(Items.STICK)==2,"Reload lost input custody");
                 var fresh=world.recipePreflight(bound);h.assertTrue(fresh.recipe().generation()>captured[0].recipe().generation(),"Fresh recipe generation absent");
                 var crafted=world.craftRecipe(actor,fresh,fresh.custodyFingerprint());h.assertTrue(crafted.reason()==null,"New qualified native craft");
-                world.release(actor,run);h.assertTrue(v.getInventory().countItem(Items.WOODEN_AXE)==1,"Cancellation discarded real crafted axe");
+                world.release(actor,run);h.assertTrue(v.getInventory().countItem(Items.WOODEN_AXE)==2,"Cancellation discarded real crafted axe");
                 h.assertTrue(world.craftRecipe(actor,fresh,crafted.custodyAfter()).reason()==Reason.ACTOR_UNAVAILABLE,"Revoked host control crafted");
-                System.out.println("RB004_EFFECTS installed3x3=true mirrored=true components=true realSlots=true splitTwoIngredients=true tableLoss=true replacementRejected=true recipeReloadBlocked=true cancellationCustody=true revokedControl=true");phase[0]=2;
+                System.out.println("RB004_EFFECTS installed3x3=true mirrored=true components=true realSlots=true oldPristineSlotRetained=true splitTwoIngredients=true tableLoss=true replacementRejected=true recipeReloadBlocked=true cancellationCustody=true revokedControl=true");phase[0]=2;
             }
         });
     }

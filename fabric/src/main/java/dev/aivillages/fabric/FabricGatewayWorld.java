@@ -193,6 +193,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return v != null && GatewayControl.holds(v, runId);
     }
     @Override public void release(ActorRef actor, UUID runId) {
+        if(holds(actor,runId))recipeTransactions.release(actor);
         Villager v = villager(actor);
         if (v != null) {
             if (GatewayControl.holds(v, runId)) terminal(v, routes.get(v.getUUID()),

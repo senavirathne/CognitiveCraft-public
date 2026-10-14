@@ -23,6 +23,9 @@ final class FabricRecipeTransactions {
     private final FabricGatewayWorld world;
     private final Map<String,RecipeManager> managers=new HashMap<>();
     private final Map<String,RecipeView> snapshots=new HashMap<>();
+    private record AxeCustody(int slot,ItemStack actual,String fingerprint) { }
+    private final Map<ActorRef,AxeCustody> axeCustody=new HashMap<>();
+    void release(ActorRef actor) {axeCustody.remove(actor);}
     FabricRecipeTransactions(ServerLevel level,FabricGatewayWorld world) {this.level=level;this.world=world;}
     private record RecipeView(CraftingRecipe recipe,RecipeTransaction.Snapshot snapshot) { }
     private static Item inputItem(RecipeProduction.Definition d) {return d.inputPerBatch()==1 ? Items.OAK_LOG : Items.OAK_PLANKS;}
@@ -174,9 +177,16 @@ final class FabricRecipeTransactions {
         if(actual.isEmpty() || !remove(next,inputItem(d),d.inputPerBatch()))return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
         if(d.axe() && !remove(next,Items.STICK,2))return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
         var input=input(actual,d);if(!validResult(recipe.recipe(),input,d))return RecipeTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);
-        var output=recipe.recipe().assemble(input);next=insert(next,v.getInventory(),output.copy());
+        var output=recipe.recipe().assemble(input);int outputSlot=-1;
+        if(d.axe()) {
+            if(!axeCustody.containsKey(actor) && axeCustody.size()>=64)return RecipeTransaction.Mutation.blocked(Reason.BUDGET_EXHAUSTED);
+            for(int i=0;i<next.size();i++)if(next.get(i).isEmpty() && v.getInventory().canPlaceItem(i,output)) {outputSlot=i;break;}
+            if(outputSlot<0)return RecipeTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
+        }
+        next=insert(next,v.getInventory(),output.copy());
         if(next==null)return RecipeTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
         apply(v.getInventory(),next);output.onCraftedBySystem(level);
+        if(d.axe())axeCustody.put(actor,new AxeCustody(outputSlot,v.getInventory().getItem(outputSlot),fingerprint(v.getInventory())));
         return new RecipeTransaction.Mutation(d.totalInputs(),output.getCount(),0,0,custody,fingerprint(v.getInventory()),"",null);
     }
     RecipeTransaction.Mutation deposit(ActorRef actor,ContainerRef target,RecipeTransaction.Preflight captured,String custody,int quantity) {
@@ -184,11 +194,19 @@ final class FabricRecipeTransactions {
         Reason denied=guard(v,to,target,captured.destinationIdentity(),custody);
         if(denied!=null)return RecipeTransaction.Mutation.blocked(denied);
         if(quantity<1 || quantity>d.outputPerBatch())return RecipeTransaction.Mutation.blocked(Reason.REQUEST_INVALID);
-        var inventory=copy(v.getInventory());var actual=inventory.stream().filter(s->plain(s,outputItem(d))).findFirst().orElse(ItemStack.EMPTY);
-        if(actual.isEmpty() || !remove(inventory,outputItem(d),quantity))return RecipeTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
+        var inventory=copy(v.getInventory());ItemStack actual;
+        if(d.axe()) {
+            var witness=axeCustody.get(actor);
+            if(witness==null || !witness.fingerprint().equals(custody) || quantity!=1 || v.getInventory().getItem(witness.slot())!=witness.actual()
+                    || !plain(witness.actual(),Items.WOODEN_AXE) || witness.actual().getCount()!=1)return RecipeTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
+            actual=witness.actual();inventory.set(witness.slot(),ItemStack.EMPTY);
+        } else {
+            actual=inventory.stream().filter(stack->plain(stack,outputItem(d))).findFirst().orElse(ItemStack.EMPTY);
+            if(actual.isEmpty() || !remove(inventory,outputItem(d),quantity))return RecipeTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
+        }
         var destination=insert(copy(to),to,actual.copyWithCount(quantity));
         if(destination==null)return RecipeTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
-        apply(v.getInventory(),inventory);apply(to,destination);
+        apply(v.getInventory(),inventory);apply(to,destination);if(d.axe())axeCustody.remove(actor);
         return new RecipeTransaction.Mutation(0,0,quantity,0,custody,fingerprint(v.getInventory()),
                 captured.sourceIdentity().equals(captured.destinationIdentity()) ? fingerprint(to) : "",null);
     }
