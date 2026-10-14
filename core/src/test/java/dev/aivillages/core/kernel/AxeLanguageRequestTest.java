@@ -40,6 +40,9 @@ class AxeLanguageRequestTest {
     }
     @Test void numberWordIsGroundedWithoutInventingAnAmount(){var f=new Fixture();assertEquals(Phase.SUBMITTED,f.interpret(TEXT.replace("1 wooden axe","one wooden axe"),1).phase());}
     @Test void extractedDifferentQuantityCannotDispatch(){var f=new Fixture();assertEquals(Phase.CLARIFICATION,f.interpret(TEXT,2).phase());assertEquals(0,f.submissions);}
+    @Test void ingredientQuantityCannotSubstituteForRequestedOutput() {
+        var f=new Fixture();assertEquals(Phase.CLARIFICATION,f.interpret("Ada, make one wooden axe using two sticks and store it.",2).phase());assertEquals(0,f.submissions);
+    }
     @Test void invalidExplicitProductionAmountsCannotDispatch(){
         for(String amount:List.of("0","5","1.5","999999999999999999999")){var f=new Fixture();assertEquals(Phase.REJECTED,f.interpret(TEXT.replace("1 wooden axe",amount+" wooden axe"),1).phase());assertEquals(0,f.submissions);}
     }

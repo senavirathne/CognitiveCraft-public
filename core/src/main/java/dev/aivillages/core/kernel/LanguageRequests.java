@@ -355,7 +355,7 @@ public final class LanguageRequests {
             clarify(t, "Specify the resource quantity", List.of()); return;
         }
         if (e.amount() < 1 || e.amount() > (axe ? 4 : oak ? OakLogDelivery.MAX_AMOUNT : 64)) { invalid(t); return; }
-        if ((!oak && !plank && !stick && !axe && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount())) {
+        if ((!oak && !plank && !stick && !axe && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount(),axe)) {
             clarify(t, "Resource quantity must be stated explicitly", List.of()); return;
         }
 
@@ -642,13 +642,15 @@ public final class LanguageRequests {
         return new Coordinates(result[0], result[1], result[2]);
     }
 
-    private static boolean quantityRole(String text, String quantity) {
+    private static boolean quantityRole(String text, String quantity,boolean axe) {
+        String items=axe ? "wooden\\s+axes?" : "(?:wheat|sticks?|oak\\s+(?:logs?|planks?))";
         return Pattern.compile("(?<![\\p{L}\\p{N}_,.+/\\-])" + Pattern.quote(quantity)
-                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|wooden\\s+axes?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
+                + "\\s+(?:units?\\s+of\\s+)?"+items+"\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
 
     private static boolean invalidNumericQuantity(String text,long maximum) {
-        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|wooden\\s+axes?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+        String items=maximum==4 ? "wooden\\s+axes?" : "(?:wheat|sticks?|oak\\s+(?:logs?|planks?))";
+        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?"+items+"\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         while (match.find()) {
             String raw = match.group(1);
             if (raw.chars().noneMatch(Character::isDigit)) continue;
@@ -661,13 +663,13 @@ public final class LanguageRequests {
         return false;
     }
 
-    private static boolean groundedAmount(String text, long amount) {
-        if (quantityRole(text, String.valueOf(amount))) return true;
+    private static boolean groundedAmount(String text, long amount,boolean axe) {
+        if (quantityRole(text, String.valueOf(amount),axe)) return true;
         String[] words = {"", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
                 "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
-        if (amount < words.length) return quantityRole(text, words[(int)amount]);
+        if (amount < words.length) return quantityRole(text, words[(int)amount],axe);
         String[] tens = {"", "", "twenty", "thirty", "forty", "fifty", "sixty"};
         String word = tens[(int)amount / 10] + (amount % 10 == 0 ? "" : " " + words[(int)amount % 10]);
-        return quantityRole(text.replace('-', ' '), word);
+        return quantityRole(text.replace('-', ' '), word,axe);
     }
 }
