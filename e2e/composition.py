@@ -25,6 +25,7 @@ def scenario(h):
         h.console(["data merge block "+" ".join(map(str,source))+" {Items:["+",".join(stacks)+"]}"])
         h.wait(lambda:all(h.container(source,item)==q for item,q in ((LOG,l),(PLANK,p),(STICK,s))),"Actual eligible supplied stock",20)
     def run(command):
+        h.actions_active=True
         response=h.command("PlayerA",command,"run="+UUID_PATTERN)
         require("accepted=true" in response,"Independent producer rejected: "+response)
         return re.search("run=("+UUID_PATTERN+")",response).group(1)
@@ -44,7 +45,7 @@ def scenario(h):
         require(view.get("marker",{}).get("outcome")=="ADMITTED","Genuine independent admission failed: "+view["description"])
         require(view.get("resourceReceipts"),"No native resource effects in admission")
         hashes[item]=view["marker"]["artifactSha256"];acquisitions.append(view)
-        h.screenshot("PlayerA","rb005-independent-"+item.split(":")[1],chat=True)
+        h.screenshot("PlayerA","rb005-independent-"+item.split(":")[1],chat=True);h.actions_active=False
     h.command("PlayerA","/aivillage kernel inference false","admission=false")
     def job(jid,player="PlayerA"):
         state=h.snapshot()
@@ -68,6 +69,7 @@ def scenario(h):
             cap=node["request"]["request"]["capability"]["name"]
             require(node["preparation"]["method"]["sha256"]==hashes[mapping[cap]],"Independent executable method changed in composition")
             require(node["state"]=="SUCCEEDED" and node["attempts"],"Dependency bypassed normal dispatch")
+        h.actions_active=False
         return {"job":jid,"root":root,"graph":graph,"source":source,"destination":destination}
     rows=[]
     fixtures=[(1,0,3,2,0,0,0,0),(1,0,5,0,0,0,2,0),(1,1,2,0,0,1,2,0),(1,2,0,0,0,3,2,0),(1,0,0,0,0,3,2,2),(1,2,0,2,1,1,0,0),(4,0,0,0,0,0,0,4)]
@@ -112,7 +114,7 @@ def scenario(h):
     require(h.model_calls()==calls,"Stopped-backend known execution invoked inference")
     # Cancel an owned graph while it waits for real intermediate production.
     cancel_id=compose(4,0,0,0);h.cancel_job("PlayerA",cancel_id)
-    cancelled=h.wait(lambda:(j if (j:=job(cancel_id)) and j["state"]=="CANCELLED" else None),"Owned graph cancellation",60)
+    cancelled=h.wait(lambda:(j if (j:=job(cancel_id)) and j["state"]=="CANCELLED" else None),"Owned graph cancellation",60);h.actions_active=False
     # Kill at an actual intermediate DEPOSIT while its terminal/link acknowledgement is outstanding.
     checkpoint=h.save_checkpoint();crash_id=compose(4,0,0,0)
     def intermediate():

@@ -45,7 +45,7 @@ public final class CompositionGameTests {
         final long started=System.currentTimeMillis();final CompletableFuture<Marker> reopening;
         final RecordedAxeGeneration recorded;final Candidates candidates=new Candidates();
         final Map<String,String> hashes=new TreeMap<>();
-        KernelSession session;BlockPos origin;Villager villager;ActorRef actor;UUID run,job;int phase,row,learn,before,oldActorAxes;long calls,lastProgress;
+        KernelSession session;BlockPos origin;Villager villager;ActorRef actor;UUID run,job;int phase,row,learn,before,oldActorAxes;long calls,lastProgress,graphStarted;
         String failure;boolean done;CompletableFuture<Void> writing,closing;
         Scene(GameTestHelper h) {
             this.h=h;var world=h.getLevel().getServer().getWorldPath(LevelResource.ROOT);root=world.resolve("rb005-native-owner");marker=world.resolve("rb005-native-marker.json");
@@ -88,7 +88,7 @@ public final class CompositionGameTests {
             if(row==6)box(destination()).setItem(20,new ItemStack(Items.WOODEN_AXE)); // Old output never fulfills MAKE.
             before=box(destination()).countItem(Items.WOODEN_AXE);oldActorAxes=villager.getInventory().countItem(Items.WOODEN_AXE);calls=session.generationCalls();
             var submitted=session.composeAxes(owner,actor.citizenId(),r[0],ref(source()),ref(destination()),new FacilityRef(actor.dimension(),table().getX(),table().getY(),table().getZ()),oakArea());
-            h.assertTrue(submitted.accepted(),"Canonical composition refused "+submitted);job=submitted.id();phase=5;
+            h.assertTrue(submitted.accepted(),"Canonical composition refused "+submitted);job=submitted.id();graphStarted=System.currentTimeMillis();phase=5;
         }
         void step() {
             if(System.currentTimeMillis()-started>1_500_000){failure="Finite native watchdog phase="+phase+" row="+row;return;}
@@ -99,7 +99,8 @@ public final class CompositionGameTests {
             if(phase==0) {
                 if(warm) {
                     if(!reopening.isDone())return;var m=reopening.join();h.assertTrue(m.process()!=ProcessHandle.current().pid(),"Same JVM is not restart proof");
-                    owner.setUUID(m.principal());origin=new BlockPos(m.x(),m.y(),m.z());hashes.putAll(m.artifacts());
+                    owner.setUUID(UUID.randomUUID());origin=new BlockPos(m.x(),m.y(),m.z());hashes.putAll(m.artifacts());
+                    BootstrapGameTests.forceFixtureChunks(h,origin);var original=h.getLevel().getEntity(m.originalActor());h.assertTrue(original instanceof Villager && ((Villager)original).getInventory().countItem(Items.WOODEN_AXE)==1,"Saved old axe/citizen was not preserved");
                 } else origin=h.absolutePos(new BlockPos(64,0,64));
                 setup();var p=origin.offset(warm?10:1,1,1).subtract(h.absolutePos(BlockPos.ZERO));villager=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,p.getX(),p.getY(),p.getZ());villager.setNoAi(false);villager.setPersistenceRequired();
                 owner.setPos(villager.getX(),villager.getY(),villager.getZ());actor=session.enroll(owner,villager);
@@ -121,6 +122,7 @@ public final class CompositionGameTests {
                 var j=session.queuedJob(owner,job);
                 if(j.state()==Jobs.State.FAILED||j.state()==Jobs.State.CANCELLED||j.state()==Jobs.State.INTERRUPTED){failure="Composition failed "+j;return;}
                 if(j.current()!=null && j.current().terminal()!=null && j.current().terminal().status()!=Outcomes.ExecutionStatus.SUCCEEDED){failure="Prepared native attempt stopped "+j;return;}
+                if(System.currentTimeMillis()-graphStarted>120000){failure="Bounded native graph watchdog root="+j+" children="+j.children().stream().map(id->session.queuedJob(owner,id)).toList()+" dispatch="+j.children().stream().map(id->session.dispatchDiagnostics(owner,id)).toList();return;}
                 if(j.state()!=Jobs.State.SUCCEEDED)return;
                 int[] r=ROWS[row];h.assertTrue(j.fulfilled()==r[0]&&j.children().size()==r[8],"Root credited stock or incorrect prerequisite cardinality");
                 h.assertTrue(box(source()).countItem(Items.OAK_LOG)==r[4]&&box(source()).countItem(Items.OAK_PLANKS)==r[5]&&box(source()).countItem(Items.STICK)==r[6],"Native golden surplus mismatch row="+row+" box="+box(source()));
@@ -128,6 +130,7 @@ public final class CompositionGameTests {
                 long harvested=0;
                 var graph=new ArrayList<Jobs.Job>();graph.add(j);for(var child:j.children())graph.add(session.queuedJob(owner,child));
                 for(var node:graph) {
+                    if(warm)h.assertTrue(node.attempts().stream().allMatch(a->a.worker().equals(actor)),"Warm graph did not execute with the fresh controlled actor");
                     h.assertTrue(node.state()==Jobs.State.SUCCEEDED&&node.preparation()!=null&&node.preparation().method().sha256().equals(hashes.get(node.request().request().capability().name())),"Changed independent method identity");
                     for(var a:node.attempts())for(var receipt:a.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.HARVEST)harvested+=receipt.quantity();
                 }
