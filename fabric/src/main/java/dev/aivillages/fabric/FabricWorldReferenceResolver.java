@@ -24,6 +24,12 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
     FabricWorldReferenceResolver(FabricGatewayWorld world,CitizenRegistry citizens,TrustedContext caller,ServerPlayer player,
             LanguageRequests.Intent intent,Clock clock,
             java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> inputAvailability) {
+        this(world,citizens,caller,player,intent,clock,inputAvailability,null);
+    }
+    FabricWorldReferenceResolver(FabricGatewayWorld world,CitizenRegistry citizens,TrustedContext caller,ServerPlayer player,
+            LanguageRequests.Intent intent,Clock clock,
+            java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> inputAvailability,
+            java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> secondaryAvailability) {
         Objects.requireNonNull(world); Objects.requireNonNull(player);
         if (!player.getUUID().equals(caller.principal().id()))
             throw new SecurityException("Language caller mismatch");
@@ -32,6 +38,15 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                 at.getX(),at.getY(),at.getZ());
         WorldReferenceDiscovery.Observation observations = new WorldReferenceDiscovery.Observation() {
             @Override public SurvivalGateway.ActorState actor(ActorRef actor) { return world.actor(actor); }
+            @Override public WorldReferenceDiscovery.FacilitySample facility(ActorRef actor,FacilityRef table) {
+                var pos=new BlockPos(table.x(),table.y(),table.z());
+                if(!table.dimension().equals(anchor.dimension()) || !world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.CRAFT))
+                    return new WorldReferenceDiscovery.FacilitySample(ObservationStatus.UNKNOWN,"unavailable");
+                var level=player.level();
+                if(!level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE))return new WorldReferenceDiscovery.FacilitySample(ObservationStatus.ABSENT,"not-table");
+                var identity=FabricFacilityIdentity.capture(level,pos);
+                return new WorldReferenceDiscovery.FacilitySample(identity==null ? ObservationStatus.UNKNOWN : ObservationStatus.PRESENT,identity==null ? "table-capture-cap" : identity);
+            }
             @Override public SurvivalGateway.CropState crop(ActorRef actor, Point point) {
                 var cell = new SurvivalGateway.Cell(point.dimension(),point.x(),point.y(),point.z());
                 BlockPos pos = new BlockPos(point.x(),point.y(),point.z());
@@ -50,7 +65,7 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             }
             @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
                     dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
-                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK)) {
+                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.WOODEN_AXE)) {
                     var pos=new BlockPos(target.x(),target.y(),target.z());
                     if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
                         return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
@@ -79,7 +94,17 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                     return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,box.getContainerSize(),"unknown-stock");
                 var free=inputAvailability.apply(source,sample.quantity());
                 if(!free.usable())return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,box.getContainerSize(),"stock-owner-pending");
-                return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.PRESENT,free.available(),box.getContainerSize(),
+                long available=free.available();int work=box.getContainerSize();
+                if(intent instanceof LanguageRequests.HarvestIntent h && h.capability().equals(dev.aivillages.core.kernel.WoodenAxeProduction.ID)) {
+                    var sticks=world.resourceContainer(source,dev.aivillages.core.kernel.ResourceDelivery.STICK);
+                    if(sticks.status()!=ObservationStatus.PRESENT || sticks.reason()!=null || secondaryAvailability==null)
+                        return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,work,"unknown-stick-stock");
+                    var secondary=secondaryAvailability.apply(source,sticks.quantity());
+                    if(!secondary.usable())return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,work,"stick-owner-pending");
+                    available=Math.min(available,Math.multiplyExact(secondary.available()/2,3));work=Math.multiplyExact(work,2);
+                    if(work>128)return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.UNKNOWN,0,128,"input-inspection-cap");
+                }
+                return new WorldReferenceDiscovery.InputContainerSample(ObservationStatus.PRESENT,available,work,
                         "input-container:"+pos.asLong()+":"+System.identityHashCode(box)+":"+world.recipeContainerFingerprint(source).substring(0,16));
             }
             @Override public WorldReferenceDiscovery.ContainerSample container(ActorRef actor, ContainerRef target) {

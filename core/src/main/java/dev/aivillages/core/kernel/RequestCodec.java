@@ -57,6 +57,11 @@ public final class RequestCodec {
                                 coord(value, "minZ", path), coord(value, "maxX", path),
                                 coord(value, "maxY", path), coord(value, "maxZ", path)));
                     }
+                    case "FACILITY" -> {
+                        Outcomes.exact(value,"type","dimension","x","y","z");
+                        yield new FacilityValue(new FacilityRef(Outcomes.string(value,"dimension",path),
+                                coord(value,"x",path),coord(value,"y",path),coord(value,"z",path)));
+                    }
                     case "CONTAINER" -> {
                         Outcomes.exact(value, "type", "dimension", "x", "y", "z");
                         yield new ContainerValue(new ContainerRef(Outcomes.string(value, "dimension", path),
@@ -97,6 +102,9 @@ public final class RequestCodec {
                 fields.put("dimension", c.dimension());
                 fields.put("x", (long) c.x()); fields.put("y", (long) c.y());
                 fields.put("z", (long) c.z());
+            } else if(value instanceof FacilityValue facility) {
+                var f=facility.value();fields.put("dimension",f.dimension());
+                fields.put("x",(long)f.x());fields.put("y",(long)f.y());fields.put("z",(long)f.z());
             } else throw new IllegalArgumentException("Unsupported value");
             arguments.put(entry.getKey(), fields);
         }

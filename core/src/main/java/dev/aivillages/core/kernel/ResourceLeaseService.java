@@ -265,10 +265,10 @@ public final class ResourceLeaseService {
         Lease row=find(ref.id());Result error=reference(row,ref,caller,tick,true);if(error!=null)return error;
         var owner=facts(row.owner(),caller);
         if(!RecipeProduction.is(bound.request().capability()) || !TransformationDelivery.matches(bound,run.runId(),receipt)
-                || receipt.stage()!=ResourceDelivery.Stage.WITHDRAW || receipt.quantity()!=RecipeProduction.of(bound.request().capability()).inputPerBatch()
+                || receipt.stage()!=ResourceDelivery.Stage.WITHDRAW || receipt.quantity()!=RecipeProduction.of(bound.request().capability()).withdrawalUnits(receipt.item())
                 || !receipt.actor().equals(owner.worker()) || !run.runId().equals(owner.run())
                 || row.resource().kind()!=Kind.STOCK || row.resource().slot()!=-1
-                || !row.resource().item().equals(RecipeProduction.of(bound.request().capability()).input().id()) || !row.resource().area().equals(receipt.source()))
+                || !row.resource().item().equals(receipt.item().id()) || !row.resource().area().equals(receipt.source()))
             return result(Code.REJECTED,Reason.REQUEST_INVALID);
         UUID operation=receipt.operationId();Long previous=row.consumed().get(operation);
         if(previous!=null)return result(previous==receipt.quantity() ? Code.VALID : Code.REJECTED,previous==receipt.quantity() ? null : Reason.REQUEST_INVALID);

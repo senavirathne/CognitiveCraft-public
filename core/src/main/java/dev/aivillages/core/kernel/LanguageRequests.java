@@ -29,7 +29,7 @@ public final class LanguageRequests {
         }
     }
 
-    public enum Action { HARVEST_WHEAT, NAME_CITIZEN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS }
+    public enum Action { HARVEST_WHEAT, NAME_CITIZEN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS, MAKE_WOODEN_AXES }
 
     /** Untrusted semantic extraction. Reference provenance is derived independently from raw text. */
     public record Extracted(Action action, String citizen, Long amount, String from, String through,
@@ -66,7 +66,12 @@ public final class LanguageRequests {
     public sealed interface Intent permits HarvestIntent, NamingIntent { }
     public record HarvestIntent(WorldReferenceResolver.Reference<ActorRef> actor, long amount,
                                 WorldReferenceResolver.Reference<AreaCoordinates> source,
-                                WorldReferenceResolver.Reference<Coordinates> destination, CapabilityId capability) implements Intent {
+                                WorldReferenceResolver.Reference<Coordinates> destination, CapabilityId capability,
+                                WorldReferenceResolver.Reference<Coordinates> table) implements Intent {
+        public HarvestIntent(WorldReferenceResolver.Reference<ActorRef> actor,long amount,WorldReferenceResolver.Reference<AreaCoordinates> source,
+                             WorldReferenceResolver.Reference<Coordinates> destination,CapabilityId capability) {
+            this(actor,amount,source,destination,capability,WorldReferenceResolver.Reference.omitted());
+        }
         public HarvestIntent(WorldReferenceResolver.Reference<ActorRef> actor,long amount,
                              WorldReferenceResolver.Reference<AreaCoordinates> source,
                              WorldReferenceResolver.Reference<Coordinates> destination) {
@@ -75,7 +80,7 @@ public final class LanguageRequests {
         public HarvestIntent {
             Objects.requireNonNull(actor); Objects.requireNonNull(source); Objects.requireNonNull(destination);
             if (!ResourceDelivery.isDelivery(capability) || amount < 1
-                    || amount > (capability.equals(OakLogDelivery.ID) ? OakLogDelivery.MAX_AMOUNT : 64))
+                    || amount > (capability.equals(WoodenAxeProduction.ID) ? 4 : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.MAX_AMOUNT : 64))
                 throw new IllegalArgumentException("Quantity/capability");
         }
     }
@@ -340,16 +345,17 @@ public final class LanguageRequests {
         boolean oak=classified.intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS;
         boolean plank=classified.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS;
         boolean stick=classified.intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS;
-        if ((!oak && !plank && !stick && classified.intent()!=LanguageReferenceClassifier.Intent.HARVEST_WHEAT)
-                || e.action()!=(stick ? Action.MAKE_STICKS : plank ? Action.MAKE_OAK_PLANKS : oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
+        boolean axe=classified.intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES;
+        if ((!oak && !plank && !stick && !axe && classified.intent()!=LanguageReferenceClassifier.Intent.HARVEST_WHEAT)
+                || e.action()!=(axe ? Action.MAKE_WOODEN_AXES : stick ? Action.MAKE_STICKS : plank ? Action.MAKE_OAK_PLANKS : oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
             clarify(t, "Only registered wheat, oak-log delivery, oak-plank/stick production and citizen-naming intents are supported", List.of()); return;
         }
-        if (invalidNumericQuantity(t.input.text())) { invalid(t); return; }
+        if (invalidNumericQuantity(t.input.text(),axe ? 4 : 64)) { invalid(t); return; }
         if (e.amount() == null) {
             clarify(t, "Specify the resource quantity", List.of()); return;
         }
-        if (e.amount() < 1 || e.amount() > (oak ? OakLogDelivery.MAX_AMOUNT : 64)) { invalid(t); return; }
-        if ((!oak && !plank && !stick && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount())) {
+        if (e.amount() < 1 || e.amount() > (axe ? 4 : oak ? OakLogDelivery.MAX_AMOUNT : 64)) { invalid(t); return; }
+        if ((!oak && !plank && !stick && !axe && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount(),axe)) {
             clarify(t, "Resource quantity must be stated explicitly", List.of()); return;
         }
 
@@ -363,7 +369,8 @@ public final class LanguageRequests {
         try {
             t.handle = null; t.result = null;
             t.resolution = Objects.requireNonNull(binding.resolve(
-                    new HarvestIntent(actor, e.amount(), source, destination,stick ? StickProduction.ID : plank ? OakPlankProduction.ID : oak ? OakLogDelivery.ID : CropDelivery.ID), t.owner));
+                    new HarvestIntent(actor, e.amount(), source, destination,axe ? WoodenAxeProduction.ID : stick ? StickProduction.ID : plank ? OakPlankProduction.ID : oak ? OakLogDelivery.ID : CropDelivery.ID,
+                            new WorldReferenceResolver.Reference<>(classified.table().state(),classified.table().state()==ReferenceState.EXPLICIT_CONCRETE ? coordinate(classified.table().first()) : null,classified.table().evidence())), t.owner));
             t.view = new View(t.id, Phase.RESOLVING, null, "Resolving world references", List.of(), null);
             pollResolution(t);
         } catch (SecurityException denied) {
@@ -635,32 +642,34 @@ public final class LanguageRequests {
         return new Coordinates(result[0], result[1], result[2]);
     }
 
-    private static boolean quantityRole(String text, String quantity) {
+    private static boolean quantityRole(String text, String quantity,boolean axe) {
+        String items=axe ? "wooden\\s+axes?" : "(?:wheat|sticks?|oak\\s+(?:logs?|planks?))";
         return Pattern.compile("(?<![\\p{L}\\p{N}_,.+/\\-])" + Pattern.quote(quantity)
-                + "\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
+                + "\\s+(?:units?\\s+of\\s+)?"+items+"\\b", Pattern.CASE_INSENSITIVE).matcher(text).find();
     }
 
-    private static boolean invalidNumericQuantity(String text) {
-        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?(?:wheat|sticks?|oak\\s+(?:logs?|planks?))\\b", Pattern.CASE_INSENSITIVE).matcher(text);
+    private static boolean invalidNumericQuantity(String text,long maximum) {
+        String items=maximum==4 ? "wooden\\s+axes?" : "(?:wheat|sticks?|oak\\s+(?:logs?|planks?))";
+        var match = Pattern.compile("(\\S+)\\s+(?:units?\\s+of\\s+)?"+items+"\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         while (match.find()) {
             String raw = match.group(1);
             if (raw.chars().noneMatch(Character::isDigit)) continue;
             if (!raw.matches("[0-9]+")) return true;
             try {
                 long amount = Long.parseLong(raw);
-                if (amount < 1 || amount > 64) return true;
+                if (amount < 1 || amount > maximum) return true;
             } catch (NumberFormatException overflow) { return true; }
         }
         return false;
     }
 
-    private static boolean groundedAmount(String text, long amount) {
-        if (quantityRole(text, String.valueOf(amount))) return true;
+    private static boolean groundedAmount(String text, long amount,boolean axe) {
+        if (quantityRole(text, String.valueOf(amount),axe)) return true;
         String[] words = {"", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
                 "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
-        if (amount < words.length) return quantityRole(text, words[(int)amount]);
+        if (amount < words.length) return quantityRole(text, words[(int)amount],axe);
         String[] tens = {"", "", "twenty", "thirty", "forty", "fifty", "sixty"};
         String word = tens[(int)amount / 10] + (amount % 10 == 0 ? "" : " " + words[(int)amount % 10]);
-        return quantityRole(text.replace('-', ' '), word);
+        return quantityRole(text.replace('-', ' '), word,axe);
     }
 }

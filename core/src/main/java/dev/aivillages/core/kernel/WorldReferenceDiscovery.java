@@ -20,6 +20,7 @@ public final class WorldReferenceDiscovery {
         ActorState actor(ActorRef actor);
         CropState crop(ActorRef actor, Point point);
         ContainerSample container(ActorRef actor, ContainerRef container);
+        default FacilitySample facility(ActorRef actor,FacilityRef table) {return new FacilitySample(ObservationStatus.UNKNOWN,"unsupported");}
         default ItemBlock itemBlock(ActorRef actor,Point point,ResourceDelivery.ItemIdentity item) {
             if(item.equals(ResourceDelivery.WHEAT)) {
                 CropState c=crop(actor,point); return new ItemBlock(c.status(),c.matureWheat(),c.identity(),0);
@@ -40,6 +41,32 @@ public final class WorldReferenceDiscovery {
         default InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {
             return new InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unsupported");
         }
+    }
+    public record FacilitySample(ObservationStatus status,String identity) {
+        public FacilitySample {Objects.requireNonNull(status);if(identity==null || identity.length()>128)throw new IllegalArgumentException("Facility sample");}
+    }
+    public record FacilityTarget(FacilityRef facility,FacilitySample evidence) { }
+    public static Discovery<FacilityTarget> tables(ActorRef actor,Point anchor,Observation world) {
+        return new Discovery<>() {
+            List<Candidate<FacilityTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;
+            public Scan<FacilityTarget> poll(int maximum) {
+                int work=0,width=HORIZONTAL_RADIUS*2+1;
+                while(cursor<SEARCH_CELLS && work<maximum) {
+                    int at=cursor++;work++;var point=new Point(anchor.dimension(),anchor.x()-HORIZONTAL_RADIUS+at%width,
+                            anchor.y()-VERTICAL_RANGE+at/(width*width),anchor.z()-HORIZONTAL_RADIUS+(at/width)%width);
+                    var f=new FacilityRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.facility(actor,f);
+                    if(sample.status()==ObservationStatus.UNKNOWN)unknown=true;
+                    else if(sample.status()==ObservationStatus.PRESENT) {
+                        if(candidates.size()>=MAX_CANDIDATES)return Scan.complete(List.of(),work,Reason.BUDGET_EXHAUSTED,List.of("table-candidate-cap"));
+                        candidates.add(new Candidate<>(new FacilityTarget(f,sample),point,sample.identity()));
+                    }
+                }
+                if(cursor<SEARCH_CELLS)return Scan.progress(List.of(),work,List.of());
+                return unknown ? Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-table-envelope"))
+                        : Scan.complete(candidates,work,Reason.FACILITY_MISSING,List.of());
+            }
+            public void cancel() {cursor=SEARCH_CELLS;candidates=List.of();}
+        };
     }
     public record ContainerSample(ObservationStatus status, int wheatCapacity, int slotsInspected, String identity) {
         public ContainerSample {

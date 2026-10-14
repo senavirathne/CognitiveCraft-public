@@ -72,6 +72,8 @@ public final class RequestValidator {
                     || !environment.enrolled(actor.value(),context)
                     || !environment.available(source.value(),observation)
                     || !environment.available(destination.value(),observation)) return invalid("$.arguments");
+            if(RecipeProduction.of(spec.id()).axe() && (!(values.get("table") instanceof FacilityValue table)
+                    || !actor.value().dimension().equals(table.value().dimension())))return invalid("$.arguments.table");
         }
         if (spec.completion() == Completion.ALL_CHILDREN) {
             if (!spec.equals(PlanningGoals.SPEC) || !PlanningGoals.valid(input)) return invalid("$.arguments");

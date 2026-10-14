@@ -9,19 +9,20 @@ public final class TransformationDelivery {
     private TransformationDelivery() { }
     public static boolean matches(ValidatedRequest bound,UUID run,Receipt r) {
         if(!RecipeProduction.is(bound.request().capability()) || r.transformation()==null)return false;
-        var a=bound.request().arguments();
+        var d=RecipeProduction.of(bound.request().capability());var a=bound.request().arguments();
+        if(d.axe() && (!(a.get("table") instanceof FacilityValue table) || !table.value().equals(r.transformation().facility())))return false;
         return r.origin().equals(bound.context()) && r.runId().equals(run)
                 && a.get("actor") instanceof ActorValue actor && actor.value().equals(r.actor())
                 && a.get("source") instanceof ContainerValue source && ResourceLeases.point(source.value()).equals(r.source())
                 && a.get("destination") instanceof ContainerValue destination && destination.value().equals(r.destination())
                 && r.dropIds().isEmpty() && r.sourceBlock().inside(r.source())
                 && r.transformation().recipe().key().equals(RecipeProduction.of(bound.request().capability()).recipe())
-                && r.item().equals(r.stage()==Stage.WITHDRAW ? RecipeProduction.of(bound.request().capability()).input()
-                        : RecipeProduction.of(bound.request().capability()).output());
+                && r.item().equals(r.stage()==Stage.WITHDRAW ? r.item().equals(ResourceDelivery.STICK) && d.axe() ? ResourceDelivery.STICK : d.input() : d.output());
     }
     public static long quantity(ValidatedRequest bound,UUID run,List<Receipt> receipts) {
         if(!RecipeProduction.is(bound.request().capability()) || receipts.size()>MAX_RECEIPTS)
             throw new IllegalArgumentException("Transformation receipt bounds");
+        if(RecipeProduction.of(bound.request().capability()).axe())return axeQuantity(bound,run,receipts);
         int inputs=RecipeProduction.of(bound.request().capability()).inputPerBatch();
         Map<UUID,Receipt> seen=new HashMap<>(); Set<UUID> operations=new HashSet<>();
         Map<UUID,List<Receipt>> batches=new LinkedHashMap<>();
@@ -75,9 +76,56 @@ public final class TransformationDelivery {
             throw new IllegalArgumentException("Output over-credit");
         return total;
     }
+    private static long axeQuantity(ValidatedRequest bound,UUID run,List<Receipt> receipts) {
+        Map<UUID,Receipt> ids=new HashMap<>();Set<UUID> operations=new HashSet<>();
+        Map<UUID,List<Receipt>> batches=new LinkedHashMap<>();
+        for(var r:receipts) {
+            if(!matches(bound,run,r))throw new IllegalArgumentException("Axe receipt binding");
+            var old=ids.putIfAbsent(r.receiptId(),r);
+            if(old!=null) {if(!old.equals(r))throw new IllegalArgumentException("Changed receipt");continue;}
+            if(!operations.add(r.operationId()))throw new IllegalArgumentException("Duplicate axe effect");
+            batches.computeIfAbsent(r.batchId(),key->new java.util.ArrayList<>()).add(r);
+        }
+        if(batches.size()>WoodenAxeProduction.MAX_BATCHES)throw new IllegalArgumentException("Axe batch cap");
+        Receipt previous=null;long total=0;int index=0;
+        for(var rows:batches.values()) {
+            Receipt planks=null,sticks=null,craft=null,deposit=null;
+            for(var r:rows) {
+                var t=r.transformation();
+                if(r.stage()==Stage.WITHDRAW) {
+                    if(craft!=null || deposit!=null || t.consumedInputs()!=0 || t.producedOutputs()!=0 || t.retainedOutputs()!=0)
+                        throw new IllegalArgumentException("Invalid axe withdrawal");
+                    if(r.item().equals(ResourceDelivery.OAK_PLANKS) && planks==null && sticks==null && r.quantity()==3)planks=r;
+                    else if(r.item().equals(ResourceDelivery.STICK) && sticks==null && planks!=null && r.quantity()==2
+                            && same(planks,r) && planks.transformation().custodyBefore().equals(t.custodyBefore())
+                            && planks.transformation().custodyAfter().equals(t.custodyAfter()))sticks=r;
+                    else throw new IllegalArgumentException("Missing paired atomic inputs");
+                } else if(r.stage()==Stage.CRAFT) {
+                    if(planks==null || sticks==null || craft!=null || deposit!=null || r.quantity()!=1
+                            || t.consumedInputs()!=5 || t.producedOutputs()!=1 || t.retainedOutputs()!=1
+                            || !same(sticks,r) || !sticks.transformation().custodyAfter().equals(t.custodyBefore()))
+                        throw new IllegalArgumentException("Axe input consumption lineage");
+                    craft=r;
+                } else if(r.stage()==Stage.DEPOSIT) {
+                    if(craft==null || deposit!=null || r.quantity()!=1 || t.consumedInputs()!=0 || t.producedOutputs()!=0
+                            || t.retainedOutputs()!=0 || !same(craft,r) || !craft.transformation().custodyAfter().equals(t.custodyBefore()))
+                        throw new IllegalArgumentException("Axe output custody lineage");
+                    deposit=r;total=Math.addExact(total,1);
+                } else throw new IllegalArgumentException("Not axe production");
+            }
+            if(planks==null || sticks==null || previous!=null && (!same(previous,planks)
+                    || !previous.transformation().custodyAfter().equals(planks.transformation().custodyBefore())))
+                throw new IllegalArgumentException("Axe invocation/custody changed");
+            if(deposit==null && ++index<batches.size())throw new IllegalArgumentException("Unfinished axe batch");
+            if(deposit!=null)index++;
+            previous=deposit;
+        }
+        if(total>((IntValue)bound.request().arguments().get("amount")).value())throw new IllegalArgumentException("Axe over-credit");
+        return total;
+    }
     private static boolean same(Receipt a,Receipt b) {
         var x=a.transformation();var y=b.transformation();
-        return x.recipe().equals(y.recipe()) && x.sourceIdentity().equals(y.sourceIdentity())
+        return Objects.equals(x.facility(),y.facility()) && x.facilityIdentity().equals(y.facilityIdentity()) && x.recipe().equals(y.recipe()) && x.sourceIdentity().equals(y.sourceIdentity())
                 && x.destinationIdentity().equals(y.destinationIdentity());
     }
 }

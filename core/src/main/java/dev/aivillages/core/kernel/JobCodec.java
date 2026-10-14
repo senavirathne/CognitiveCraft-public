@@ -187,6 +187,12 @@ final class JobCodec {
     private static Map<String,Object> resourceReceipt(ResourceDelivery.Receipt r,ValidatedRequest bound) {
         if(r.transformation()!=null) {
             if(!TransformationDelivery.matches(bound,r.runId(),r))throw new IllegalArgumentException("Transformation attempt binding");
+            if(RecipeProduction.of(bound.request().capability()).axe()) {
+                var fields=new LinkedHashMap<String,Object>();
+                fields.put("schema",3L);fields.put("binding","attempt");fields.put("id",r.receiptId().toString());fields.put("run",r.runId().toString());
+                fields.put("operation",r.operationId().toString());fields.put("batch",r.batchId().toString());fields.put("stage",r.stage().name());
+                fields.put("quantity",r.quantity());fields.put("item",r.item().id());fields.put("transformation",transformation(r.transformation()));return fields;
+            }
             return Map.of("schema",2L,"binding","attempt","id",r.receiptId().toString(),"run",r.runId().toString(),
                     "operation",r.operationId().toString(),"batch",r.batchId().toString(),"stage",r.stage().name(),
                     "quantity",r.quantity(),"transformation",transformation(r.transformation()));
@@ -208,14 +214,15 @@ final class JobCodec {
     private static ResourceDelivery.Receipt resourceReceipt(Map<String,Object> row,ValidatedRequest bound) throws StrictJson.Invalid {
         long schema=number(row,"schema","$");
         if(row.containsKey("binding")) {
-            exact(row,"schema","binding","id","run","operation","batch","stage","quantity","transformation");
-            if(schema!=2 || !"attempt".equals(string(row,"binding","$")) || !RecipeProduction.is(bound.request().capability()))
+            if(schema==3)exact(row,"schema","binding","id","run","operation","batch","stage","quantity","item","transformation");
+            else exact(row,"schema","binding","id","run","operation","batch","stage","quantity","transformation");
+            if(schema!=2 && schema!=3 || schema==3 && !bound.request().capability().equals(WoodenAxeProduction.ID) || schema==2 && bound.request().capability().equals(WoodenAxeProduction.ID) || !"attempt".equals(string(row,"binding","$")) || !RecipeProduction.is(bound.request().capability()))
                 throw new StrictJson.Invalid("$","TRANSFORMATION_BINDING_SCHEMA");
             var args=bound.request().arguments();var source=((ContainerValue)args.get("source")).value();
             var stage=ResourceDelivery.Stage.valueOf(string(row,"stage","$"));
             return new ResourceDelivery.Receipt(id(row,"id"),bound.context(),id(row,"run"),id(row,"operation"),id(row,"batch"),
                     ((ActorValue)args.get("actor")).value(),ResourceLeases.point(source),((ContainerValue)args.get("destination")).value(),
-                    stage==ResourceDelivery.Stage.WITHDRAW ? RecipeProduction.of(bound.request().capability()).input() : RecipeProduction.of(bound.request().capability()).output(),stage,number(row,"quantity","$"),
+                    schema==3 ? new ResourceDelivery.ItemIdentity(string(row,"item","$"),"default") : stage==ResourceDelivery.Stage.WITHDRAW ? RecipeProduction.of(bound.request().capability()).input() : RecipeProduction.of(bound.request().capability()).output(),stage,number(row,"quantity","$"),
                     new ResourceDelivery.BlockPosition(source.dimension(),source.x(),source.y(),source.z()),List.of(),transformation(object(row,"transformation","$")));
         }
         fields(row,Set.of("schema","id","run","operation","batch","principal","world","domain","actor","source",
@@ -237,15 +244,20 @@ final class JobCodec {
                 "inputs",r.inputs(),"outputs",r.outputs(),"remainders",r.remainders()));
         row.put("consumed",t.consumedInputs());row.put("produced",t.producedOutputs());row.put("remainders",t.remainders());
         row.put("retained",t.retainedOutputs());row.put("before",t.custodyBefore());row.put("after",t.custodyAfter());
-        row.put("sourceIdentity",t.sourceIdentity());row.put("destinationIdentity",t.destinationIdentity());return row;
+        row.put("sourceIdentity",t.sourceIdentity());row.put("destinationIdentity",t.destinationIdentity());
+        if(t.facility()!=null) {var f=t.facility();row.put("facility",Map.of("dimension",f.dimension(),"x",f.x(),"y",f.y(),"z",f.z()));row.put("facilityIdentity",t.facilityIdentity());}
+        return row;
     }
     private static RecipeTransaction.Transformation transformation(Map<String,Object> row) throws StrictJson.Invalid {
-        exact(row,"recipe","consumed","produced","remainders","retained","before","after","sourceIdentity","destinationIdentity");
+        if(row.containsKey("facility"))exact(row,"recipe","consumed","produced","remainders","retained","before","after","sourceIdentity","destinationIdentity","facility","facilityIdentity");
+        else exact(row,"recipe","consumed","produced","remainders","retained","before","after","sourceIdentity","destinationIdentity");
+        FacilityRef facility=null;
+        if(row.containsKey("facility")) {var f=object(row,"facility","$");exact(f,"dimension","x","y","z");facility=new FacilityRef(string(f,"dimension","$"),integer(f,"x"),integer(f,"y"),integer(f,"z"));}
         var r=object(row,"recipe","$");exact(r,"key","fingerprint","generation","inputs","outputs","remainders");
         return new RecipeTransaction.Transformation(new RecipeTransaction.Snapshot(string(r,"key","$"),string(r,"fingerprint","$"),
                 number(r,"generation","$"),integer(r,"inputs"),integer(r,"outputs"),integer(r,"remainders")),
                 integer(row,"consumed"),integer(row,"produced"),integer(row,"remainders"),integer(row,"retained"),
-                string(row,"before","$"),string(row,"after","$"),string(row,"sourceIdentity","$"),string(row,"destinationIdentity","$"));
+                string(row,"before","$"),string(row,"after","$"),string(row,"sourceIdentity","$"),string(row,"destinationIdentity","$"),facility,facility==null ? "" : string(row,"facilityIdentity","$"));
     }
     private static List<String> ids(List<UUID> ids) { return ids.stream().map(UUID::toString).toList(); }
     private static List<UUID> uuidList(Map<String,Object> row,String key,int maximum) throws StrictJson.Invalid {

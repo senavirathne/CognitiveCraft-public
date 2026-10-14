@@ -200,7 +200,7 @@ public final class CapabilityResolver {
             if(RecipeProduction.is(spec.id())) {
                 if(snapshot.counts().getOrDefault("recipe_supported",0L)!=1)
                     return decision(ResolutionStatus.UNSUPPORTED_RUNTIME,Reason.UNSUPPORTED_PRIMITIVE,null,request,snapshot,-1,List.of(),0,0,false,false);
-                if(snapshot.counts().getOrDefault(RecipeProduction.of(spec.id()).missingCount(),0L)>0)
+                if(snapshot.counts().getOrDefault(RecipeProduction.of(spec.id()).missingCount(),0L)>0 || spec.id().equals(WoodenAxeProduction.ID) && snapshot.counts().getOrDefault("missing_sticks",0L)>0)
                     return decision(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,request,snapshot,-1,List.of(),0,0,false,false);
                 if(snapshot.counts().getOrDefault("output_capacity",0L)<((IntValue)request.request().arguments().get("amount")).value())
                     return decision(ResolutionStatus.BLOCKED,Reason.TARGET_UNAVAILABLE,null,request,snapshot,-1,List.of(),0,0,false,false);
@@ -293,6 +293,8 @@ public final class CapabilityResolver {
                         || !target.value().dimension().equals(actor.value().dimension()))
                     throw new IllegalArgumentException("REQUEST_INVALID");
             }
+            if(spec.id().equals(WoodenAxeProduction.ID) && (!(input.arguments().get("table") instanceof FacilityValue facility)
+                    || !facility.value().dimension().equals(actor.value().dimension())))throw new IllegalArgumentException("REQUEST_INVALID");
             return spec;
         }
 

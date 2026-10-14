@@ -364,6 +364,8 @@ public final class ResearchAdmissionController {
                     || value instanceof IntValue integer && (integer.value() < parameter.minimum()
                     || integer.value() > parameter.maximum())) return false;
         }
+        if(bound.request().capability().equals(WoodenAxeProduction.ID)
+                && !((FacilityValue)args.get("table")).value().dimension().equals(bound.observation().dimension()))return false;
         return ResourceDelivery.sourceArea(bound.request()).dimension().equals(bound.observation().dimension())
                 && ((ContainerValue)args.get("destination")).value().dimension()
                         .equals(bound.observation().dimension());
@@ -439,7 +441,11 @@ public final class ResearchAdmissionController {
             if (!bound.context().equals(caller)) throw new SecurityException("Private research attempt");
         }
         private void generate(Generation.Role role, String context) {
-            String prompt = (bound.request().capability().equals(StickProduction.ID) ? PLANK_BRIEF.replace("oak-plank", "stick").replace("supplied logs", "supplied oak planks").replace("one oak log", "two oak planks").replace("four planks", "four sticks").replace("one-log", "two-plank").replace("plank transfer", "stick transfer")
+            String prompt = (bound.request().capability().equals(WoodenAxeProduction.ID)
+                    ? "Propose a parameterized independent wooden-axe recipe method. Supplied oak planks and sticks, real bound table, amount 1..4. "
+                    + "Observe once; repeat amount batches of move to input, withdraw all five inputs, move to table, craft, move to destination, transfer one new axe. "
+                    + "No producers, provisioning or dependencies. Table and chest coordinates are invocation data. "
+                    : bound.request().capability().equals(StickProduction.ID) ? PLANK_BRIEF.replace("oak-plank", "stick").replace("supplied logs", "supplied oak planks").replace("one oak log", "two oak planks").replace("four planks", "four sticks").replace("one-log", "two-plank").replace("plank transfer", "stick transfer")
                     : RecipeProduction.is(bound.request().capability()) ? PLANK_BRIEF
                     : bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > settings.maxContextBytes()) {
