@@ -9,7 +9,7 @@ on:
       - 'fabric/**'
       - '.github/workflows/citizen-identity.yml'
   pull_request:
-    branches: [main, imp-007-bootstrap-controller, feature/default-nearest-world-references]
+    branches: [main, imp-007-bootstrap-controller, feature/default-nearest-world-references, work/imp-021]
     paths:
       - 'e2e/**'
       - 'core/**'
