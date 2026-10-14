@@ -114,7 +114,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     @Override public Movement moveRecipe(ActorRef actor,Cell target,int maximum) {
         Villager v=recipeActor(actor);
         if(v==null)return new Movement(false,true,0,0);
-        if(!v.onGround()) {recipeSettled.remove(v.getUUID());return new Movement(false,false,0,0);}
+        if(!v.onGround()) {
+            recipeSettled.remove(v.getUUID());long travel=sampleTravel(v);
+            return travel>1 ? terminal(v,routes.get(v.getUUID()),"invalid-travel",0,travel) : new Movement(false,false,0,travel);
+        }
         var result=move(actor,target,maximum);
         if(!result.reached()) {recipeSettled.remove(v.getUUID());return result;}
         var motion=v.getDeltaMovement();
@@ -310,6 +313,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return navigate(actor,new Cell(dimension(),standing.getX(),standing.getY(),standing.getZ()),maximum,
                 true,false,drop.position(),actual);
     }
+    private long sampleTravel(Villager v) {
+        BlockPos now=v.blockPosition(),previous=previousPosition.put(v.getUUID(),now);
+        return previous==null ? 0 : Math.max(Math.abs((long)now.getX()-previous.getX()),
+                Math.max(Math.abs((long)now.getY()-previous.getY()),Math.abs((long)now.getZ()-previous.getZ())));
+    }
     private Movement navigate(ActorRef actor, Cell target, int maxNavigationCalls, boolean sourceApproach) {
         return navigate(actor,target,maxNavigationCalls,sourceApproach,false);
     }
@@ -331,10 +339,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             if(visible!=null)point=visible;
         }
         BlockPos rayTarget=ownedDrop ? interactionBlock : targetPos;
-        BlockPos previous = previousPosition.put(v.getUUID(), now);
-        long travel = previous == null ? 0 : Math.max(Math.abs((long)now.getX() - previous.getX()),
-                Math.max(Math.abs((long)now.getY() - previous.getY()),
-                        Math.abs((long)now.getZ() - previous.getZ())));
+        long travel=sampleTravel(v);
         if (travel > 1) return terminal(v, routes.get(v.getUUID()), "invalid-travel", 0, travel);
         v.getLookControl().setLookAt(point.x,point.y,point.z);
         boolean adjacent=oakApproachGeometry(v,targetPos);

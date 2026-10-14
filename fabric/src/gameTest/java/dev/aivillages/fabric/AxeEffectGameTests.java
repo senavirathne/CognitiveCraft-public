@@ -12,6 +12,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -34,6 +35,7 @@ public final class AxeEffectGameTests {
                 "source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(table))),owner,new ObservationRef(UUID.randomUUID(),0,dim));
         var world=new FabricGatewayWorld(h.getLevel());Container from=(Container)h.getLevel().getBlockEntity(a);Container to=(Container)h.getLevel().getBlockEntity(b);
         int[] phase={0};RecipeTransaction.Preflight[] captured={null};String[] custody={null};CompletableFuture<?>[] reload={null};
+        Villager[] walker={null};ActorRef[] walkingActor={null};long[] travel={0};boolean[] airborne={false};
         h.succeedWhen(()->{
             if(!v.onGround() || !world.loadedForDiscovery(a)) {h.assertTrue(false,"Waiting for grounded table fixture");return;}
             if(phase[0]==0) {
@@ -92,7 +94,23 @@ public final class AxeEffectGameTests {
                 var crafted=world.craftRecipe(actor,fresh,fresh.custodyFingerprint());h.assertTrue(crafted.reason()==null,"New qualified native craft");
                 world.release(actor,run);h.assertTrue(v.getInventory().countItem(Items.WOODEN_AXE)==2,"Cancellation discarded real crafted axe");
                 h.assertTrue(world.craftRecipe(actor,fresh,crafted.custodyAfter()).reason()==Reason.ACTOR_UNAVAILABLE,"Revoked host control crafted");
-                System.out.println("RB004_EFFECTS installed3x3=true mirrored=true components=true realSlots=true oldPristineSlotRetained=true splitTwoIngredients=true tableLoss=true replacementRejected=true recipeReloadBlocked=true cancellationCustody=true revokedControl=true");phase[0]=2;
+                for(int x=8;x<=16;x++)for(int z=8;z<=10;z++)h.setBlock(x,0,z,Blocks.STONE);
+                for(int x=8;x<=16;x++)for(int y=1;y<=2;y++) {h.setBlock(x,y,8,Blocks.STONE);h.setBlock(x,y,10,Blocks.STONE);}
+                h.setBlock(11,1,9,Blocks.CRAFTING_TABLE);h.setBlock(16,1,9,Blocks.CHEST);
+                walker[0]=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,9,1,9);walker[0].setNoAi(false);
+                walkingActor[0]=new ActorRef(UUID.randomUUID(),walker[0].getUUID(),dim);
+                h.assertTrue(world.acquire(walkingActor[0],run),"Ordinary table-jump fixture control");phase[0]=2;
+            }
+            if(phase[0]==2) {
+                var goal=h.absolutePos(new BlockPos(16,1,9));
+                var movement=world.moveRecipe(walkingActor[0],new SurvivalGateway.Cell(dim,goal.getX(),goal.getY(),goal.getZ()),1);
+                if(!walker[0].onGround())airborne[0]=true;
+                h.assertTrue(movement.travelBlocks()<=1 && movement.chargedWork()<=1 && !movement.impossible(),"Ordinary airborne movement violated the unchanged poll envelope");
+                travel[0]+=movement.travelBlocks();
+                if(!movement.reached()) {h.assertTrue(false,"Waiting for actual constrained table jump");return;}
+                h.assertTrue(airborne[0] && travel[0]>0 && travel[0]<=128 && walker[0].onGround(),"Airborne physical travel and final grounded settling were not witnessed");
+                world.release(walkingActor[0],run);
+                System.out.println("RB004_EFFECTS installed3x3=true mirrored=true components=true realSlots=true oldPristineSlotRetained=true splitTwoIngredients=true tableLoss=true replacementRejected=true recipeReloadBlocked=true cancellationCustody=true revokedControl=true ordinaryTableJumpTracked=true travel="+travel[0]);phase[0]=3;
             }
         });
     }
