@@ -55,7 +55,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             BooleanSupplier cancelled) {
         long before = usage.snapshot().getOrDefault(Kind.INSTRUCTIONS, 0L);
         ValidatedRequest small = variant(bound, 1, false);
-        ValidatedRequest changed = variant(bound,bound.request().capability().equals(WoodenAxeProduction.ID) ? 4 : RecipeProduction.is(bound.request().capability()) ? 5 : 2,true);
+        ValidatedRequest changed = variant(bound,(bound.request().capability().equals(WoodenAxeProduction.ID) || bound.request().capability().equals(CraftingTableProduction.ID)) ? 4 : RecipeProduction.is(bound.request().capability()) ? 5 : 2,true);
         int cases = 0;
         for (ValidatedRequest test : List.of(small, changed)) {
             if (cancelled.getAsBoolean())
@@ -182,7 +182,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                     || args.containsKey("source") && !bound.request().arguments().get("source").equals(args.get("source"))
                     || args.containsKey("destination") && !bound.request().arguments().get("destination").equals(args.get("destination")))
                 return fail(handle,Reason.REQUEST_INVALID);
-            if(op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS) {
+            if(op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.OBSERVE_TABLE_INPUTS) {
                 if(prepared || !new IntValue(amount()).equals(args.get("amount")))return fail(handle,Reason.REQUEST_INVALID);
                 prepared=true;return new ActionReceipt(handle,true,0,List.of(),null,new BoolValue(true),null);
             }
@@ -192,13 +192,13 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                 return new ActionReceipt(handle,true,0,List.of(),null,new BoolValue(true),null);
             }
             ResourceDelivery.Stage stage;int q,consumed=0,produced=0,retained=0;
-            if(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS) {
+            if(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS || op==Operation.WITHDRAW_TABLE_PLANKS) {
                 if(position!=1 || stock<definition.inputPerBatch() || inputHeld || outputs>0)return fail(handle,Reason.RESOURCE_MISSING);
                 stock-=definition.inputPerBatch();inputHeld=true;batch=UUID.randomUUID();stage=ResourceDelivery.Stage.WITHDRAW;q=definition.inputPerBatch();
-            } else if(op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE) {
+            } else if(op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE || op==Operation.CRAFT_CRAFTING_TABLE) {
                 if(!inputHeld || position!=(definition.axe() ? 3 : 1))return fail(handle,Reason.RESOURCE_MISSING);
                 inputHeld=false;outputs=definition.outputPerBatch();q=outputs;consumed=definition.totalInputs();produced=outputs;retained=outputs;stage=ResourceDelivery.Stage.CRAFT;
-            } else if(op==Operation.TRANSFER_OAK_PLANKS || op==Operation.TRANSFER_STICKS || op==Operation.TRANSFER_WOODEN_AXES) {
+            } else if(op==Operation.TRANSFER_OAK_PLANKS || op==Operation.TRANSFER_STICKS || op==Operation.TRANSFER_WOODEN_AXES || op==Operation.TRANSFER_CRAFTING_TABLES) {
                 if(position!=2 || outputs<1 || delivered>=amount() || !new IntValue(amount()).equals(args.get("amount")))return fail(handle,Reason.REQUEST_INVALID);
                 q=Math.min(outputs,amount()-delivered);outputs-=q;delivered+=q;retained=outputs;stage=ResourceDelivery.Stage.DEPOSIT;
             } else return fail(handle,Reason.UNSUPPORTED_PRIMITIVE);

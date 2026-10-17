@@ -10,12 +10,13 @@ public final class RecipeProduction {
     public record Definition(CapabilitySpec spec,String recipe,ResourceDelivery.ItemIdentity input,
                              ResourceDelivery.ItemIdentity output,int inputPerBatch) {
         public boolean axe() {return spec.id().equals(WoodenAxeProduction.ID);}
-        public int outputPerBatch() {return axe() ? 1 : 4;}
+        public boolean table() {return spec.id().equals(CraftingTableProduction.ID);}
+        public int outputPerBatch() {return axe() || table() ? 1 : 4;}
         public int totalInputs() {return inputPerBatch+(axe() ? 2 : 0);}
         public int secondaryInputs(long amount) {return axe() ? WoodenAxeProduction.sticks(amount) : 0;}
-        public int maximumAmount() {return axe() ? 4 : 64;}
-        public int maximumBatches() {return axe() ? 4 : 16;}
-        public int batches(long amount) {return axe() ? WoodenAxeProduction.batches(amount) : OakPlankProduction.batches(amount);}
+        public int maximumAmount() {return axe() || table() ? 4 : 64;}
+        public int maximumBatches() {return axe() || table() ? 4 : 16;}
+        public int batches(long amount) {return table() ? CraftingTableProduction.batches(amount) : axe() ? WoodenAxeProduction.batches(amount) : OakPlankProduction.batches(amount);}
         public int withdrawalUnits(ResourceDelivery.ItemIdentity item) {
             return input.equals(item) ? inputPerBatch : axe() && ResourceDelivery.STICK.equals(item) ? 2 : 0;
         }
@@ -40,27 +41,34 @@ public final class RecipeProduction {
             ResourceDelivery.OAK_PLANKS,ResourceDelivery.STICK,2);
     private static final Definition AXES=new Definition(WoodenAxeProduction.SPEC,WoodenAxeProduction.RECIPE,
             ResourceDelivery.OAK_PLANKS,ResourceDelivery.WOODEN_AXE,3);
-    public static boolean is(CapabilityId id) {return OakPlankProduction.ID.equals(id) || StickProduction.ID.equals(id) || WoodenAxeProduction.ID.equals(id);}
+    private static final Definition TABLES=new Definition(CraftingTableProduction.SPEC,CraftingTableProduction.RECIPE,
+            ResourceDelivery.OAK_PLANKS,ResourceDelivery.CRAFTING_TABLE,4);
+    public static boolean is(CapabilityId id) {return OakPlankProduction.ID.equals(id) || StickProduction.ID.equals(id) || WoodenAxeProduction.ID.equals(id) || CraftingTableProduction.ID.equals(id);}
     public static Definition of(CapabilityId id) {
         if(OakPlankProduction.ID.equals(id))return PLANKS;
         if(StickProduction.ID.equals(id))return STICKS;
         if(WoodenAxeProduction.ID.equals(id))return AXES;
+        if(CraftingTableProduction.ID.equals(id))return TABLES;
         throw new IllegalArgumentException("Unsupported production capability");
     }
     public static Definition recipe(String key) {
         if(OakPlankProduction.RECIPE.equals(key))return PLANKS;
         if(StickProduction.RECIPE.equals(key))return STICKS;
         if(WoodenAxeProduction.RECIPE.equals(key))return AXES;
+        if(CraftingTableProduction.RECIPE.equals(key))return TABLES;
         throw new IllegalArgumentException("Unsupported static recipe");
     }
     public static boolean permits(CapabilityId id,Operation op) {
         if(!is(id))return false;
         return op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_DESTINATION
                 || id.equals(WoodenAxeProduction.ID) && op.axe()
+                || id.equals(CraftingTableProduction.ID) && op.table()
                 || id.equals(StickProduction.ID) && op.stick()
                 || id.equals(OakPlankProduction.ID) && op.plank();
     }
     public static List<Operation> operations(CapabilityId id) {
+        if(id.equals(CraftingTableProduction.ID))return List.of(Operation.OBSERVE_TABLE_INPUTS,Operation.MOVE_TO_INPUT,
+                Operation.WITHDRAW_TABLE_PLANKS,Operation.CRAFT_CRAFTING_TABLE,Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_CRAFTING_TABLES);
         if(id.equals(WoodenAxeProduction.ID))return List.of(Operation.OBSERVE_AXE_INPUTS,Operation.MOVE_TO_INPUT,
                 Operation.WITHDRAW_AXE_INPUTS,Operation.MOVE_TO_TABLE,Operation.CRAFT_WOODEN_AXE,Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_WOODEN_AXES);
         return id.equals(StickProduction.ID) ? List.of(Operation.OBSERVE_STICK_INPUTS,Operation.MOVE_TO_INPUT,

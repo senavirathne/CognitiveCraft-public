@@ -6,15 +6,16 @@ import static dev.aivillages.core.kernel.Contracts.*;
 /** Exact registered prerequisite projections. No program, scheduler, inventory or model. */
 public final class ResourceComposition {
     private ResourceComposition() { }
-    public static final List<String> RECIPE_KEYS=List.of(OakPlankProduction.RECIPE,StickProduction.RECIPE,WoodenAxeProduction.RECIPE);
+    public static final List<String> RECIPE_KEYS=List.of(OakPlankProduction.RECIPE,StickProduction.RECIPE,WoodenAxeProduction.RECIPE,CraftingTableProduction.RECIPE);
     public static boolean make(Prerequisites.Need need) {
-        return need.bound().request().capability().equals(WoodenAxeProduction.ID)
-                && need.item().equals(ResourceDelivery.WOODEN_AXE.id())
+        return (need.bound().request().capability().equals(WoodenAxeProduction.ID) && need.item().equals(ResourceDelivery.WOODEN_AXE.id())
+                || need.bound().request().capability().equals(CraftingTableProduction.ID) && need.item().equals(ResourceDelivery.CRAFTING_TABLE.id()))
                 && need.allocation()==Prerequisites.AllocationPolicy.MATERIAL_ONLY;
     }
     public static CapabilityRequest project(Prerequisites.Need need,CapabilityId capability,long quantity) {
         if(!make(need))throw new IllegalArgumentException("Registered axe MAKE goal required");
         var root=need.bound().request();var a=root.arguments();
+        if(capability.equals(root.capability())) {var bound=new HashMap<>(a);bound.put("amount",new IntValue(quantity));return new CapabilityRequest(capability,bound);}
         if(capability.equals(WoodenAxeProduction.ID))return new CapabilityRequest(capability,Map.of(
                 "actor",a.get("actor"),"amount",new IntValue(quantity),"source",a.get("source"),
                 "destination",a.get("destination"),"table",a.get("table")));
@@ -23,7 +24,7 @@ public final class ResourceComposition {
             return new CapabilityRequest(capability,Map.of("actor",a.get("actor"),"amount",new IntValue(quantity),
                     "source",new AreaValue(need.acquisitionSource()),"destination",a.get("source")));
         }
-        if(capability.equals(OakPlankProduction.ID)||capability.equals(StickProduction.ID))
+        if(capability.equals(OakPlankProduction.ID)||capability.equals(StickProduction.ID)||capability.equals(CraftingTableProduction.ID))
             return new CapabilityRequest(capability,Map.of("actor",a.get("actor"),"amount",new IntValue(quantity),
                     "source",a.get("source"),"destination",a.get("source")));
         throw new IllegalArgumentException("Unsupported producer projection");
@@ -36,7 +37,7 @@ public final class ResourceComposition {
                 && production.equals(RecipeProduction.of(production.capability()).relationship());
     }
     public static ResourceDelivery.ItemIdentity item(String id) {
-        return List.of(ResourceDelivery.OAK_LOG,ResourceDelivery.OAK_PLANKS,ResourceDelivery.STICK,ResourceDelivery.WOODEN_AXE)
+        return List.of(ResourceDelivery.OAK_LOG,ResourceDelivery.OAK_PLANKS,ResourceDelivery.STICK,ResourceDelivery.WOODEN_AXE,ResourceDelivery.CRAFTING_TABLE)
                 .stream().filter(i->i.id().equals(id)).findFirst().orElseThrow(()->new IllegalArgumentException("Unsupported material"));
     }
     public static long inputQuantity(CapabilityRequest request,String item) {

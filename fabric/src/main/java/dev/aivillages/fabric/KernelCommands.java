@@ -102,12 +102,14 @@ final class KernelCommands {
         for(int i=names.length-2;i>=0;i--) oakCoords=argument(names[i],IntegerArgumentType.integer()).then(oakCoords);
         kernel.then(literal("gather-oak").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
                 .then(argument("amount",IntegerArgumentType.integer(1,dev.aivillages.core.kernel.OakLogDelivery.MAX_AMOUNT)).then(oakCoords))));
-        for(boolean sticks:new boolean[]{false,true}) {
+        for(String recipe:new String[]{"planks","sticks","tables"}) {
         String[] plankNames={"source-x","source-y","source-z","chest-x","chest-y","chest-z"};
         ArgumentBuilder<CommandSourceStack, ?> plankCoords=argument(plankNames[5],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[6];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,plankNames[i]);
-                    var result=sticks ? session.makeSticks(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                    var result=recipe.equals("tables") ? session.makeTables(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                            IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5])
+                            : recipe.equals("sticks") ? session.makeSticks(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
                             IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5])
                             : session.makePlanks(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
                             IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5]);
@@ -115,8 +117,8 @@ final class KernelCommands {
                     return result.accepted() ? 1 : 0;
                 }));
         for(int i=4;i>=0;i--)plankCoords=argument(plankNames[i],IntegerArgumentType.integer()).then(plankCoords);
-        kernel.then(literal(sticks ? "make-sticks" : "make-planks").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
-                .then(argument("amount",IntegerArgumentType.integer(1,64)).then(plankCoords))));
+        kernel.then(literal("make-"+recipe).then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
+                .then(argument("amount",IntegerArgumentType.integer(1,recipe.equals("tables") ? 4 : 64)).then(plankCoords))));
         }
         String[] axeNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","table-x","table-y","table-z"};
         ArgumentBuilder<CommandSourceStack,?> axeCoords=argument(axeNames[8],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
@@ -136,6 +138,17 @@ final class KernelCommands {
         }));
         for(int i=13;i>=0;i--)composeCoords=argument(composeNames[i],IntegerArgumentType.integer()).then(composeCoords);
         kernel.then(literal("compose-axes").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,4)).then(composeCoords))));
+        String[] tableNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","oak-min-x","oak-min-y","oak-min-z","oak-max-x","oak-max-y","oak-max-z"};
+        ArgumentBuilder<CommandSourceStack,?> tableCoords=argument(tableNames[11],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+            int[] at=new int[12];for(int i=0;i<12;i++)at[i]=IntegerArgumentType.getInteger(ctx,tableNames[i]);
+            var player=ctx.getSource().getPlayerOrException();String dim=player.level().dimension().identifier().toString();
+            var result=session.composeTables(player,uuid(ctx,"actor-id"),IntegerArgumentType.getInteger(ctx,"amount"),
+                    new dev.aivillages.core.kernel.Contracts.ContainerRef(dim,at[0],at[1],at[2]),new dev.aivillages.core.kernel.Contracts.ContainerRef(dim,at[3],at[4],at[5]),
+                    new dev.aivillages.core.kernel.Contracts.Cuboid(dim,at[6],at[7],at[8],at[9],at[10],at[11]));
+            tell(ctx,"job="+result.id()+" accepted="+result.accepted()+(result.reason()==null?"":" reason="+result.reason()));return result.accepted()?1:0;
+        }));
+        for(int i=10;i>=0;i--)tableCoords=argument(tableNames[i],IntegerArgumentType.integer()).then(tableCoords);
+        kernel.then(literal("compose-tables").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,4)).then(tableCoords))));
         ArgumentBuilder<CommandSourceStack, ?> queueCoords=argument(names[8],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[9];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,names[i]);

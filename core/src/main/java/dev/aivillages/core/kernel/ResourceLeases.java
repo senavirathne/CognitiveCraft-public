@@ -35,7 +35,7 @@ public final class ResourceLeases {
             boolean point = area.minX()==area.maxX() && area.minY()==area.maxY() && area.minZ()==area.maxZ();
             boolean valid = switch (kind) {
                 case STOCK -> slot == -1 && (item.equals("minecraft:mature_wheat")
-                        || point && (item.equals("minecraft:wheat") || item.equals("minecraft:oak_log") || item.equals("minecraft:oak_planks") || item.equals("minecraft:stick")))
+                        || point && (item.equals("minecraft:wheat") || item.equals("minecraft:oak_log") || item.equals("minecraft:oak_planks") || item.equals("minecraft:stick") || item.equals("minecraft:crafting_table")))
                         || slot == -2 && item.equals("minecraft:oak_log");
                 case EQUIPMENT -> point && slot >= 0 && slot < 128 && item.equals("minecraft:iron_hoe");
                 case FACILITY -> point && slot == -1 && (item.equals("minecraft:storage")

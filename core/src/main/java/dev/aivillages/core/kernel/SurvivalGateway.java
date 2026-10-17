@@ -533,7 +533,7 @@ public final class SurvivalGateway implements GatewayPort {
             case PICKUP_WHEAT -> pickup(action, target);
             case PICKUP_TRACKED_WHEAT, PICKUP_TRACKED_OAK_LOGS -> pickupTracked(action);
             case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> transfer(action, target);
-            case OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> throw new AssertionError("Recipe handled above");
+            case OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> throw new AssertionError("Recipe handled above");
         }
         run.lastTick = world.tick();
     }
@@ -544,16 +544,16 @@ public final class SurvivalGateway implements GatewayPort {
         var definition=RecipeProduction.of(run.request.request().capability());
         var sourceBox=((ContainerValue)run.request.request().arguments().get("source")).value();
         var destinationBox=destination(run.request);
-        Cell target=op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.MOVE_TO_INPUT || op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS
+        Cell target=op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.OBSERVE_TABLE_INPUTS || op==Operation.MOVE_TO_INPUT || op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS || op==Operation.WITHDRAW_TABLE_PLANKS
                 ? new Cell(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()) : target(action);
-        if(op==Operation.TRANSFER_WOODEN_AXES)target=new Cell(destinationBox.dimension(),destinationBox.x(),destinationBox.y(),destinationBox.z());
-        if(definition.axe() && (op==Operation.MOVE_TO_TABLE || op==Operation.CRAFT_WOODEN_AXE)) {
+        if(op==Operation.TRANSFER_WOODEN_AXES || op==Operation.TRANSFER_CRAFTING_TABLES)target=new Cell(destinationBox.dimension(),destinationBox.x(),destinationBox.y(),destinationBox.z());
+        if(definition.axe() && (op==Operation.MOVE_TO_TABLE || op==Operation.CRAFT_WOODEN_AXE || op==Operation.CRAFT_CRAFTING_TABLE)) {
             var f=((FacilityValue)run.request.request().arguments().get("table")).value();target=new Cell(f.dimension(),f.x(),f.y(),f.z());
         }
         Reason denied=world.permit(run.request,effect,target);
         if(denied!=null) {finish(action,denied,null,null);return;}
         long requested=((IntValue)run.request.request().arguments().get("amount")).value();
-        if(op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS) {
+        if(op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.OBSERVE_TABLE_INPUTS) {
             if(run.recipe!=null || run.inputsWithdrawn!=0) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
             if(!action.usage.canDebit(Kind.OBSERVATIONS,296))throw new Budgets.Exhausted();
             var observed=world.recipePreflight(run.request);
@@ -571,13 +571,13 @@ public final class SurvivalGateway implements GatewayPort {
         if(run.recipe==null) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
         if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_DESTINATION || op==Operation.MOVE_TO_TABLE) {move(action,target);return;}
         if(!effectAllowance(action))return;
-        int work=op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE ? 64
-                : 2*(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS ? run.recipe.sourceSlots() : run.recipe.destinationSlots())+24;
+        int work=op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE || op==Operation.CRAFT_CRAFTING_TABLE ? 64
+                : 2*(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS || op==Operation.WITHDRAW_TABLE_PLANKS ? run.recipe.sourceSlots() : run.recipe.destinationSlots())+24;
         action.usage.debit(Kind.OBSERVATIONS,work);
         RecipeTransaction.Mutation result;
         ResourceDelivery.Stage stage;
         int quantity,retained;
-        if(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS) {
+        if(op==Operation.WITHDRAW_OAK_LOG || op==Operation.WITHDRAW_OAK_PLANKS || op==Operation.WITHDRAW_AXE_INPUTS || op==Operation.WITHDRAW_TABLE_PLANKS) {
             if(run.inputPending || run.batchOutputs!=0 || run.inputsWithdrawn>=Math.multiplyExact(definition.batches(requested),definition.totalInputs())) {
                 finish(action,Reason.REQUEST_INVALID,null,null);return;
             }
@@ -585,13 +585,13 @@ public final class SurvivalGateway implements GatewayPort {
             result=world.withdrawRecipeInput(run.actor,sourceBox,run.recipe,run.recipeCustody,run.recipeSource);
             stage=ResourceDelivery.Stage.WITHDRAW;quantity=result.moved();retained=0;
             if(result.committed()) {run.craftBatch=UUID.randomUUID();run.inputsWithdrawn+=result.moved();run.inputPending=true;}
-        } else if(op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE) {
+        } else if(op==Operation.CRAFT_OAK_PLANKS || op==Operation.CRAFT_STICKS || op==Operation.CRAFT_WOODEN_AXE || op==Operation.CRAFT_CRAFTING_TABLE) {
             if(!run.inputPending || run.batchOutputs!=0) {finish(action,Reason.RESOURCE_MISSING,null,null);return;}
             action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
             result=world.craftRecipe(run.actor,run.recipe,run.recipeCustody);
             stage=ResourceDelivery.Stage.CRAFT;quantity=result.produced();retained=quantity;
             if(result.committed()) {run.inputPending=false;run.batchOutputs=result.produced();run.outputsProduced+=result.produced();}
-        } else if(op==Operation.TRANSFER_OAK_PLANKS || op==Operation.TRANSFER_STICKS || op==Operation.TRANSFER_WOODEN_AXES) {
+        } else if(op==Operation.TRANSFER_OAK_PLANKS || op==Operation.TRANSFER_STICKS || op==Operation.TRANSFER_WOODEN_AXES || op==Operation.TRANSFER_CRAFTING_TABLES) {
             if(run.inputPending || run.batchOutputs<1 || run.deposited>=requested
                     || ((IntValue)action.arguments.get("amount")).value()!=requested) {
                 finish(action,Reason.REQUEST_INVALID,null,null);return;
@@ -626,7 +626,7 @@ public final class SurvivalGateway implements GatewayPort {
             }
             run.recipeCustody=result.custodyAfter();
             if(!result.sourceAfter().isEmpty())run.recipeSource=result.sourceAfter();
-            if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println((definition.axe() ? "RB004_EFFECT run=" : run.request.request().capability().equals(StickProduction.ID) ? "RB003_EFFECT run=" : "RB002_EFFECT run=")+run.id+" stage="+stage+" quantity="+quantity+" retained="+retained);
+            if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println((definition.table() ? "RB006A_EFFECT run=" : definition.axe() ? "RB004_EFFECT run=" : run.request.request().capability().equals(StickProduction.ID) ? "RB003_EFFECT run=" : "RB002_EFFECT run=")+run.id+" stage="+stage+" quantity="+quantity+" retained="+retained);
             finish(action,null,new IntValue(quantity),null);
         } else finish(action,result.reason()==null ? Reason.ACTION_FAILED : result.reason(),null,null);
     }
@@ -1083,7 +1083,7 @@ public final class SurvivalGateway implements GatewayPort {
             if(RecipeProduction.of(request.request().capability()).axe() && (!(values.get("table") instanceof FacilityValue f)
                     || !f.value().dimension().equals(((ActorValue)values.get("actor")).value().dimension())
                     || args.containsKey("table") && !values.get("table").equals(args.get("table"))))return Reason.REQUEST_INVALID;
-            if((op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS) && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
+            if((op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.OBSERVE_TABLE_INPUTS) && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
         }
         if(request.request().capability().equals(OakLogDelivery.ID)) {
             try {
@@ -1095,7 +1095,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         if (!ResourceDelivery.isDelivery(request.request().capability())
                 || op!=Operation.MOVE_TO_DESTINATION && (plank ? !RecipeProduction.permits(request.request().capability(),op)
-                : op.plank() || op.stick() || op.axe() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
+                : op.plank() || op.stick() || op.axe() || op.table() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
                 || !args.keySet().equals(op.signature().parameters().stream()
                 .map(Parameter::name).collect(java.util.stream.Collectors.toSet())))
             return Reason.REQUEST_INVALID;

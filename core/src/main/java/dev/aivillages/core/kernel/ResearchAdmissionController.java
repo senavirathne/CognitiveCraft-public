@@ -445,6 +445,7 @@ public final class ResearchAdmissionController {
                     ? "Propose a parameterized independent wooden-axe recipe method. Supplied oak planks and sticks, real bound table, amount 1..4. "
                     + "Observe once; repeat amount batches of move to input, withdraw all five inputs, move to table, craft, move to destination, transfer one new axe. "
                     + "No producers, provisioning or dependencies. Table and chest coordinates are invocation data. "
+                    : bound.request().capability().equals(CraftingTableProduction.ID) ? "Propose independent schema-1 crafting-table item production. Use observe_table_inputs once, batchSize=1, five cycle IDs: move_to_input, withdraw_table_planks, craft_crafting_table, move_to_destination, transfer_crafting_tables. Four actual oak planks produce one table item in inventory 2x2; no facility or producer dependency. All bindings are runtime parameters and result is amount. "
                     : bound.request().capability().equals(StickProduction.ID) ? PLANK_BRIEF.replace("oak-plank", "stick").replace("supplied logs", "supplied oak planks").replace("one oak log", "two oak planks").replace("four planks", "four sticks").replace("one-log", "two-plank").replace("plank transfer", "stick transfer")
                     : RecipeProduction.is(bound.request().capability()) ? PLANK_BRIEF
                     : bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
