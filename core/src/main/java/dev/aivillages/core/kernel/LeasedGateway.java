@@ -216,7 +216,8 @@ public final class LeasedGateway implements GatewayPort {
         action.accounted=ticks.getAsLong();
         action.current=map(answer,handle,answer.terminal(),answer.reason());
         if(answer.terminal() && answer.reason()==null && (operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG
-                || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_AXE_INPUTS)) {
+                || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_AXE_INPUTS
+                || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_PLANKS)) {
             for(var receipt:answer.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.WITHDRAW) {
                 Ref matching=null;
                 for(Ref ref:granted.leases()) {

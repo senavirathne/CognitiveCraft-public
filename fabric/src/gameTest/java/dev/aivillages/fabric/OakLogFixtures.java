@@ -9,13 +9,17 @@ import static dev.aivillages.core.kernel.GatewayPrimitives.Operation;
 /** Explicit test proposal. Production contains no built-in oak task program. */
 final class OakLogFixtures {
     static String program() {
+        return program(20);
+    }
+    static String program(int waits) {
+        if(waits<1 || waits>40)throw new IllegalArgumentException("Bounded test proposal wait");
         var actor=Map.<String,Object>of("actor",Map.of("param","actor"));
         var source=Map.<String,Object>of("actor",Map.of("param","actor"),"source",Map.of("param","source"));
         var dest=Map.<String,Object>of("actor",Map.of("param","actor"),"destination",Map.of("param","destination"));
         var transfer=new HashMap<String,Object>(dest); transfer.put("amount",Map.of("int",1L));
         var body=List.of(Map.of("op","repeat","count",Map.of("param","amount"),"body",List.of(
                 call(Operation.APPROACH_OAK_LOG,"approach",source),call(Operation.HARVEST_NEXT_OAK_LOG,"harvest",source),
-                Map.of("op","repeat","count",Map.of("int",20L),"body",List.of(call(Operation.OBSERVE_OAK_INVENTORY,"wait",actor))),
+                Map.of("op","repeat","count",Map.of("int",(long)waits),"body",List.of(call(Operation.OBSERVE_OAK_INVENTORY,"wait",actor))),
                 call(Operation.APPROACH_OAK_LOG,"atDrop",source),
                 call(Operation.PICKUP_TRACKED_OAK_LOGS,"pickup",actor),call(Operation.MOVE_TO_DESTINATION,"atDestination",dest),
                 call(Operation.TRANSFER_OAK_LOGS,"deposit",transfer))),Map.of("op","result","value",Map.of("param","amount")));
@@ -26,9 +30,12 @@ final class OakLogFixtures {
                 "fingerprint",op.signature().fingerprint(),"args",args,"into",into);
     }
     static final class ControlledGeneration implements GenerationPort {
+        final int waits;
+        ControlledGeneration(){this(20);}
+        ControlledGeneration(int waits){this.waits=waits;}
         int calls;
         public Generation.Handle generate(Generation.Request request,Budgets.InferenceLimits limits,Budgets.Ledger usage) {
-            calls++;String candidate=program();
+            calls++;String candidate=program(waits);
             usage.debit(Budgets.Kind.CALLS,1);usage.debit(Budgets.Kind.INPUT_BYTES,128);
             usage.debit(Budgets.Kind.OUTPUT_BYTES,candidate.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
             var result=new Generation.Result(request.id(),request.bound().context(),request.role(),Generation.Outcome.CANDIDATE,

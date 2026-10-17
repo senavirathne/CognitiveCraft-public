@@ -13,7 +13,7 @@ import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 public final class LanguageReferenceClassifier {
     private LanguageReferenceClassifier() { }
 
-    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS, MAKE_WOODEN_AXES }
+    public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS, MAKE_WOODEN_AXES, MAKE_CRAFTING_TABLES }
 
     public record Slot(ReferenceState state, String first, String second, String evidence) {
         public Slot {
@@ -91,6 +91,11 @@ public final class LanguageReferenceClassifier {
                     Slot.omitted(), naming.proposedName());
         }
         Slot actor = actor(text, references);
+        if(Pattern.compile("\\b(?:make|produce|craft)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && Pattern.compile("\\bcrafting\\s+tables?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
+                && !Pattern.compile("\\b(?:place|build|furnaces?|axes?|houses?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
+            return new Classification(Intent.MAKE_CRAFTING_TABLES,actor,recipeSource(text,true),
+                    text.matches("(?is).*\\b(?:store|put|deposit)\\b.*\\bin\\s+the\\s+chest[.!?]*\\s*$") ? Slot.nearest("unqualified chest") : plankDestination(text),null);
         if(Pattern.compile("\\b(?:make|produce|craft)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && Pattern.compile("\\bwooden\\s+axes?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && !Pattern.compile("\\b(?:birch|spruce|stripped|swords?|stone|iron|diamond)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())

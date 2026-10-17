@@ -29,13 +29,13 @@ final class FabricRecipeTransactions {
     FabricRecipeTransactions(ServerLevel level,FabricGatewayWorld world) {this.level=level;this.world=world;}
     private record RecipeView(CraftingRecipe recipe,RecipeTransaction.Snapshot snapshot) { }
     private static Item inputItem(RecipeProduction.Definition d) {return d.inputPerBatch()==1 ? Items.OAK_LOG : Items.OAK_PLANKS;}
-    private static Item outputItem(RecipeProduction.Definition d) {return d.axe() ? Items.WOODEN_AXE : d.inputPerBatch()==1 ? Items.OAK_PLANKS : Items.STICK;}
+    private static Item outputItem(RecipeProduction.Definition d) {return d.table() ? Items.CRAFTING_TABLE : d.axe() ? Items.WOODEN_AXE : d.inputPerBatch()==1 ? Items.OAK_PLANKS : Items.STICK;}
 
     private RecipeView capture(String key) {
-        var d=RecipeProduction.recipe(key);if(d.axe())return captureAxe(key,d);boolean stick=d.inputPerBatch()==2;
+        var d=RecipeProduction.recipe(key);if(d.axe())return captureAxe(key,d);boolean stick=d.inputPerBatch()==2,table=d.table();
         var current=level.getServer().getRecipeManager();
         var holder=current.byKey(ResourceKey.create(Registries.RECIPE,Identifier.parse(key)));
-        if(holder.isEmpty() || holder.get().value().getClass()!=(stick ? ShapedRecipe.class : ShapelessRecipe.class))return null;
+        if(holder.isEmpty() || holder.get().value().getClass()!=(stick || table ? ShapedRecipe.class : ShapelessRecipe.class))return null;
         var recipe=(CraftingRecipe)holder.get().value();if(recipe.isSpecial())return null;
         var placement=recipe.placementInfo();var slots=placement.slotsToIngredientIndex();
         if(placement.isImpossibleToPlace() || placement.ingredients().isEmpty() || placement.ingredients().size()>d.inputPerBatch()
@@ -47,9 +47,10 @@ final class FabricRecipeTransactions {
             var names=options.stream().map(i->i.unwrapKey().orElseThrow().identifier().toString()).sorted().toList();
             if(!names.contains(d.input().id()))return null;alternatives.add(names);
         }
-        for(int position=0;position<(stick ? 2 : 4);position++) {
+        for(int position=0;position<(table ? 1 : stick ? 2 : 4);position++) {
             var grid=new ArrayList<ItemStack>(List.of(ItemStack.EMPTY,ItemStack.EMPTY,ItemStack.EMPTY,ItemStack.EMPTY));
-            grid.set(position,new ItemStack(inputItem(d)));
+            if(table)for(int i=0;i<4;i++)grid.set(i,new ItemStack(inputItem(d)));
+            else grid.set(position,new ItemStack(inputItem(d)));
             if(stick)grid.set(position+2,new ItemStack(inputItem(d)));
             if(!validResult(recipe,CraftingInput.of(2,2,grid),d))return null;
         }
@@ -60,14 +61,15 @@ final class FabricRecipeTransactions {
                 if(recipe.matches(CraftingInput.of(2,2,grid),level))return null;
         }
         // Preserve the accepted plank semantic fingerprint exactly.
-        String semantic=stick ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots
+        if(table && recipe.matches(CraftingInput.of(2,2,List.of(new ItemStack(Items.OAK_PLANKS),new ItemStack(Items.OAK_PLANKS),new ItemStack(Items.OAK_PLANKS),ItemStack.EMPTY)),level))return null;
+        String semantic=table ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots+"|four-default-oak-planks|one-default-crafting-table|no-remainders" : stick ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots
                 +"|two-vertical-default-oak-planks|four-default-sticks|no-remainders"
                 : "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives.getFirst()+"|one-default-oak-log|four-default-oak-planks|no-remainders";
         String fingerprint=RecipeTransaction.fingerprint(semantic);var old=snapshots.get(key);
         long generation=old==null ? 1 : old.snapshot().generation();
         if(old!=null && (managers.get(key)!=current || old.recipe()!=recipe || !old.snapshot().fingerprint().equals(fingerprint)))
             generation=Math.incrementExact(generation);
-        var result=new RecipeView(recipe,new RecipeTransaction.Snapshot(key,fingerprint,generation,d.inputPerBatch(),4,0));
+        var result=new RecipeView(recipe,new RecipeTransaction.Snapshot(key,fingerprint,generation,d.inputPerBatch(),d.outputPerBatch(),0));
         managers.put(key,current);snapshots.put(key,result);return result;
     }
     private RecipeView captureAxe(String key,RecipeProduction.Definition d) {
@@ -224,6 +226,7 @@ final class FabricRecipeTransactions {
     }
     private static CraftingInput input(ItemStack actual,RecipeProduction.Definition d) {
         if(d.axe())return axeInput(false);
+        if(d.table())return CraftingInput.of(2,2,List.of(actual.copyWithCount(1),actual.copyWithCount(1),actual.copyWithCount(1),actual.copyWithCount(1)));
         return CraftingInput.of(2,2,List.of(actual.copyWithCount(1),ItemStack.EMPTY,d.inputPerBatch()==2 ? actual.copyWithCount(1) : ItemStack.EMPTY,ItemStack.EMPTY));
     }
     private static boolean remove(List<ItemStack> slots,Item item,int count) {

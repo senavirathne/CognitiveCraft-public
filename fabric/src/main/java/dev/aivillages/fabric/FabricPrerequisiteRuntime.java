@@ -130,7 +130,7 @@ public final class FabricPrerequisiteRuntime {
         var root=jobs.snapshot().jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);
         if(root==null)return new JobLink(false);
         if(root.state().terminal()||root.state()==Jobs.State.INTERRUPTED)return new JobLink(true);
-        var need=new Need(root.id(),root.guard(),root.request(),ResourceDelivery.WOODEN_AXE.id(),((IntValue)root.request().request().arguments().get("amount")).value(),AllocationPolicy.MATERIAL_ONLY,source);
+        var need=new Need(root.id(),root.guard(),root.request(),RecipeProduction.of(root.request().request().capability()).output().id(),((IntValue)root.request().request().arguments().get("amount")).value(),AllocationPolicy.MATERIAL_ONLY,source);
         var result=resolve(List.of(need),root.origin(),ResourceComposition.RECIPE_KEYS);
         if(result.admission().status()==ResolutionStatus.RESOLVED)return new JobLink(true);
         // Rejected expansion bills first; wait for its asynchronous write before publishing the blocker.
