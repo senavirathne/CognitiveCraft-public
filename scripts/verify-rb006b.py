@@ -44,6 +44,8 @@ def client():
     assert e['existingFacility']['placements']==0 and e['existingFacility']['tableJobs']==0
     assert e['existingItem']['placements']==1 and e['existingItem']['tableJobs']==0
     assert e['emptyProvision']['harvested']==3 and e['offlineWarmReuse']['harvested']==3
+    assert e['clockMode']=='vanilla-1-tps' and e['crashPlacementApproach']
+    assert e['killBoundary']['phase']=='EXECUTING' and any(r['stage']=='PLACE' for r in e['killBoundary']['resourceReceipts'])
     assert 1<=e['clockSteps']<=512 and 'INTERRUPTED' in e['recovered']['description'] and 'minecraft:crafting_table' in e['savedBlock']
     proof=e['offlineProcessProof'];assert proof['sameRelease'] and proof['backendUnavailable'] and proof['warm']['start']>proof['cold']['start']
     assert len(rows[0]['screenshots'])>=6

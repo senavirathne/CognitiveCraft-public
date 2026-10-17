@@ -137,19 +137,26 @@ def scenario(h):
     seed(source=SECOND);logs();before=h.container(SECOND_DEST,AXE);calls=h.model_calls()
     offline=finish_goal(submit_goal(WARM,"PlayerB"),WARM,before,1,1,3,"PlayerB",surplus=(3,2));require(h.model_calls()==calls,"Offline fresh-worker facility graph used inference")
     h.screenshot("PlayerB","rb006b-offline-fresh-worker-facility",chat=True)
-    # Ordinary known table manufacture brings Mira to staging before the precise save boundary.
-    h.console(["setblock "+coord(NEXT)+" minecraft:air"]);seed(p=4,source=SECOND)
-    approach_id=run("/aivillage kernel make-tables "+h.citizens["PlayerB"]+" 1 "+coord(SECOND+SECOND),"PlayerB");approach=h.terminal("PlayerB",approach_id,180)
-    require(approach["marker"]["outcome"]=="SUCCEEDED" and h.container(SECOND,TABLE)==1,"Normal approach did not produce the actual crash-fixture item");h.actions_active=False
-    h.console(["tick rate 20","tick freeze"]);old_inv=inv("PlayerB");rid=place(SECOND,NEXT,"PlayerB");boundary=None;steps=0;deadline=time.monotonic()+300
+    # Complete ordinary manufacture and placement before resetting this fixture site.
+    # The citizen then starts within the source/site interaction area without teleporting.
+    h.console(["setblock "+coord(NEXT)+" minecraft:air"]);seed(p=8,source=SECOND)
+    approach_id=run("/aivillage kernel make-tables "+h.citizens["PlayerB"]+" 2 "+coord(SECOND+SECOND),"PlayerB");approach=h.terminal("PlayerB",approach_id,180)
+    require(approach["marker"]["outcome"]=="SUCCEEDED" and h.container(SECOND,TABLE)==2,"Normal approach did not produce the actual crash-fixture items");h.actions_active=False
+    approach_inv=inv("PlayerB");approach_run=place(SECOND,NEXT,"PlayerB")
+    placement_approach=complete_placement(approach_run,SECOND,NEXT,2,approach_inv,"PlayerB")
+    h.console(["setblock "+coord(NEXT)+" minecraft:air","tick rate 1"])
+    h.wait(lambda:"minecraft:air" in block(NEXT),"Reset completed approved-site fixture before slow-clock capture",20)
+    # A frozen world still allows pure controller slices at normal server speed.
+    # Slow the vanilla server clock instead, preserving the actual learned method,
+    # all production limits and the bounded unfinished-after-PLACE requirement.
+    old_inv=inv("PlayerB");start_tick=h.snapshot()["gameTick"];rid=place(SECOND,NEXT,"PlayerB");boundary=None;steps=0;deadline=time.monotonic()+300
     while steps<=512 and time.monotonic()<deadline:
-        view=h.run_view("PlayerB",rid)
+        state=h.snapshot();steps=state["gameTick"]-start_tick;view=h.run_view("PlayerB",rid)
         if view and view.get("phase")=="EXECUTING" and any(r["stage"]=="PLACE" for r in view.get("resourceReceipts",[])):
             boundary=view;break
         if view and view.get("phase")=="TERMINAL":raise AssertionError("Placement boundary completed before capture: "+json.dumps(view))
         if steps==512:break
-        tick=h.snapshot()["gameTick"];h.console(["tick step 1"],lifecycle=True);observed=h.wait(lambda:(s if (s:=h.snapshot())["gameTick"]>tick else None),"One actual placement-boundary tick",15)
-        require(observed["gameTick"]==tick+1,"Placement boundary advanced multiple ticks");steps+=1
+        tick=state["gameTick"];h.wait(lambda:(s if (s:=h.snapshot())["gameTick"]>tick else None),"Next actual slow-clock placement tick",15)
     require(boundary is not None and "minecraft:crafting_table" in block(NEXT) and h.container(SECOND,TABLE)==0 and inv("PlayerB").get(TABLE,0)==old_inv.get(TABLE,0),"No real consumed-item placement at bounded crash boundary")
     saved_inv=inv("PlayerB");saved_containers=h.snapshot()["containers"];saved_block=block(NEXT);checkpoint=h.save_checkpoint();h.stop("server",hard=True);killed=h.world_hashes();h.actions_active=False
     h.start("server");h.console(["tick unfreeze","tick rate 20"]);reconnect_players(h,["PlayerA","PlayerB"])
@@ -158,4 +165,4 @@ def scenario(h):
     h.quiet(80);require(inv("PlayerB")==saved_inv and h.snapshot()["containers"]==saved_containers and block(NEXT)==saved_block,"Placement replayed after process restart")
     h.screenshot("PlayerB","rb006b-saved-placement-no-replay",chat=True)
     return {"independentAcquisitions":acquisitions,"artifacts":hashes,"placement":placed,"existingFacility":existing,"existingItem":supplied,"emptyProvision":empty,"foreignDenied":foreign,"competingRoots":race,"cancelled":cancelled,
-            "offlineWarmReuse":offline,"models":models,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},"crashApproach":approach,"killBoundary":boundary,"clockSteps":steps,"checkpoint":checkpoint,"killedWorldHashes":killed,"recovered":recovered,"savedInventory":saved_inv,"savedBlock":saved_block}
+            "offlineWarmReuse":offline,"models":models,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},"crashApproach":approach,"crashPlacementApproach":placement_approach,"killBoundary":boundary,"clockMode":"vanilla-1-tps","clockSteps":steps,"checkpoint":checkpoint,"killedWorldHashes":killed,"recovered":recovered,"savedInventory":saved_inv,"savedBlock":saved_block}
