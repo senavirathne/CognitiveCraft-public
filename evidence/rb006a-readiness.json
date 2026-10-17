@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "unit": "RB-006A",
+  "status": "implementation_acceptance_pending",
+  "sourceBaseline": "ced4257a0e1ad51bec0b1f5b52292c0a63ee6898",
+  "sourceBaselineTree": "01f1d654bb9af29750038796d8ac5a30ec9ce27e",
+  "documentationFirst": "49ef777b5dbb72b3b937bc6f1e9d3b25fab78f13",
+  "documentationPr": 13,
+  "prerequisiteSourcePr": 31,
+  "request": {
+    "capability": "cognitivecraft:produce_crafting_tables",
+    "version": 1,
+    "amount": [
+      1,
+      4
+    ],
+    "inputsPerBatch": 4,
+    "outputsPerBatch": 1,
+    "facility": false
+  },
+  "schemaDecision": "Existing transformation receipt 2 and Job 2/3; legacy unchanged",
+  "ownerPaths": [
+    "RecipeProduction",
+    "FabricRecipeTransactions",
+    "ResourceComposition",
+    "JobLifecycleStore",
+    "LeasedGateway",
+    "WorldReferenceBinding",
+    "KernelSession"
+  ],
+  "rootLimits": {
+    "calls": 1024,
+    "instructions": 32768,
+    "observations": 32768,
+    "travel": 512,
+    "attemptedEffects": 256,
+    "committedEffects": 256,
+    "ticks": 7200,
+    "milliseconds": 600000
+  },
+  "graphLimits": {
+    "demands": 8,
+    "nodes": 16,
+    "depth": 4,
+    "edges": 64,
+    "work": 512,
+    "contextBytes": 16384,
+    "recipeKeys": 8
+  },
+  "buildExecution": "GitHub Actions only",
+  "acceptance": "GP-RB-06A",
+  "controlledCases": "TableEffectGameTests; TableKernelGameTests; TableCompositionGameTests",
+  "genuineCases": "TableKernelGameTests cold and stopped-backend warm; actual connected tableitems.py",
+  "remaining": "All current acceptance pending; RB-006B placement remains separate"
+}

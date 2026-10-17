@@ -81,6 +81,12 @@ public final class FabricPrerequisiteCatalog {
                 && recipe.inputs().stream().filter(i->i.alternatives().equals(List.of("minecraft:stick"))).mapToLong(Prerequisites.Ingredient::quantity).sum()==2) {
             productions.add(dev.aivillages.core.kernel.RecipeProduction.of(dev.aivillages.core.kernel.WoodenAxeProduction.ID).relationship());unsupported.remove("minecraft:wooden_axe");
         }
+        for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.CraftingTableProduction.RECIPE)
+                && recipe.output().equals("minecraft:crafting_table") && recipe.outputPerBatch()==1 && recipe.remainders().isEmpty()
+                && recipe.inputs().stream().allMatch(i->i.alternatives().contains("minecraft:oak_planks"))
+                && recipe.inputs().stream().mapToLong(Prerequisites.Ingredient::quantity).sum()==4) {
+            productions.add(dev.aivillages.core.kernel.RecipeProduction.of(dev.aivillages.core.kernel.CraftingTableProduction.ID).relationship());unsupported.remove("minecraft:crafting_table");
+        }
         // Mapping is declarative; admission and current runtime owners still gate any execution.
         return new Prerequisites.Catalog(Integer.toUnsignedLong(System.identityHashCode(manager)),recipes,
                 productions,unsupported,complete);

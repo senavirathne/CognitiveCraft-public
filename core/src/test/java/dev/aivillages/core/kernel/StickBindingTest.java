@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class StickBindingTest {
     static final class Fixture {
+        final ResourceDelivery.ItemIdentity output;
         final WorldReferenceBindingTest.Fixture identity=new WorldReferenceBindingTest.Fixture();
         final ActorRef actor=identity.add(1,10,0,"Ada",true,true);
         final Map<ContainerRef,InputContainerSample> inputs=new HashMap<>();
@@ -19,11 +20,12 @@ class StickBindingTest {
             public InputContainerSample inputContainer(ActorRef a,ContainerRef c,ResourceDelivery.ItemIdentity item){
                 assertEquals(ResourceDelivery.OAK_PLANKS,item);return inputs.getOrDefault(c,new InputContainerSample(ObservationStatus.ABSENT,0,0,"empty"));}
             public ItemContainerSample itemContainer(ActorRef a,ContainerRef c,ResourceDelivery.ItemIdentity item){
-                assertEquals(ResourceDelivery.STICK,item);var s=identity.world.container(a,c);
+                assertEquals(output,item);var s=identity.world.container(a,c);
                 return new ItemContainerSample(item,s.status(),s.wheatCapacity(),s.slotsInspected(),s.identity());
             }
         };
-        Fixture(){identity.open();stock(11,4);identity.world.box(14,0,64);}
+        Fixture(){this(ResourceDelivery.STICK);}
+        Fixture(ResourceDelivery.ItemIdentity output){this.output=output;identity.open();stock(11,4);identity.world.box(14,0,64);}
         ContainerRef box(int x){return new ContainerRef(actor.dimension(),x,64,0);}
         void stock(int x,long n){inputs.put(box(x),new InputContainerSample(ObservationStatus.PRESENT,n,27,"input:"+x+":"+n));}
         WorldReferenceBinding bind(Reference<ActorRef> a,Reference<LanguageRequests.AreaCoordinates> source){

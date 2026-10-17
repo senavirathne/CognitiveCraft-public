@@ -70,6 +70,12 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         MOVE_TO_TABLE("move_to_table",Type.BOOL,Effect.MOVE,actor(),new Parameter("table",Type.FACILITY,0,0)),
         CRAFT_WOODEN_AXE("craft_wooden_axe",Type.INT,Effect.CRAFT,actor(),new Parameter("table",Type.FACILITY,0,0)),
         TRANSFER_WOODEN_AXES("transfer_wooden_axes",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),
+                new Parameter("amount",Type.INT,1,4)),
+        OBSERVE_TABLE_INPUTS("observe_table_inputs",Type.BOOL,Effect.OBSERVE,actor(),new Parameter("source",Type.CONTAINER,0,0),
+                new Parameter("amount",Type.INT,1,4)),
+        WITHDRAW_TABLE_PLANKS("withdraw_table_planks",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
+        CRAFT_CRAFTING_TABLE("craft_crafting_table",Type.INT,Effect.CRAFT,actor()),
+        TRANSFER_CRAFTING_TABLES("transfer_crafting_tables",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),
                 new Parameter("amount",Type.INT,1,4));
 
         private final PrimitiveSignature signature;
@@ -84,6 +90,7 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
                 || this==WITHDRAW_OAK_LOG || this==CRAFT_OAK_PLANKS || this==TRANSFER_OAK_PLANKS;}
         public boolean stick() {return this==OBSERVE_STICK_INPUTS || this==WITHDRAW_OAK_PLANKS || this==CRAFT_STICKS || this==TRANSFER_STICKS;}
         public boolean axe() {return this==OBSERVE_AXE_INPUTS || this==WITHDRAW_AXE_INPUTS || this==MOVE_TO_TABLE || this==CRAFT_WOODEN_AXE || this==TRANSFER_WOODEN_AXES;}
+        public boolean table() {return this==OBSERVE_TABLE_INPUTS || this==WITHDRAW_TABLE_PLANKS || this==CRAFT_CRAFTING_TABLE || this==TRANSFER_CRAFTING_TABLES;}
         public boolean oak() { return !plank() && !stick() && !axe() && name().contains("OAK"); }
         public PrimitiveRequirement requirement() {
             return new PrimitiveRequirement(signature.id(), signature.version(), signature.fingerprint());
