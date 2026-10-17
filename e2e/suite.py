@@ -40,6 +40,7 @@ PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
 PROFILES["rb005"] = ["GP-RB-COMPOSE-01"]
+PROFILES["rb006a"] = ["GP-RB-06A"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
@@ -322,7 +323,7 @@ class Harness:
 
     def console(self, lines, lifecycle=False):
         if lifecycle:
-            crash_step = self.family == "GP-RB-COMPOSE-01" and lines == ["tick step 1"]
+            crash_step = self.family in ("GP-RB-COMPOSE-01","GP-RB-06A","GP-RB-06B") and lines == ["tick step 1"]
             require(crash_step or all(re.fullmatch(r"save-all(?: flush)?|stop|(?:op|deop) Player[AB]", line) for line in lines),
                     "Only normal save, stop and permission lifecycle commands are permitted")
         if self.actions_active and not lifecycle:
@@ -1521,6 +1522,8 @@ def main():
     registry["GP-RB-04"] = axe_scenario
     from composition import scenario as composition_scenario
     registry["GP-RB-COMPOSE-01"] = composition_scenario
+    from tableitems import scenario as table_item_scenario
+    registry["GP-RB-06A"] = table_item_scenario
     try:
         if args.topology == "compose":
             h.compose("build", "minecraft")

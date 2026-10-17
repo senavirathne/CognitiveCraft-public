@@ -175,12 +175,10 @@ public final class KernelSession implements AutoCloseable {
                         VersionedSkillRepository.Limits.defaults(), guard,
                         TrustedContext::equals, VersionedSkillRepository.FaultInjector.none());
                 var lookups = new CapabilityRetrievalIndex.LookupRegistry(
-                        Map.of("harvest wheat",CropDelivery.ID,"deliver wheat",CropDelivery.ID,
-                                "collect oak logs",OakLogDelivery.ID,"deliver oak logs",OakLogDelivery.ID,
-                                "make oak planks",OakPlankProduction.ID,"produce oak planks",OakPlankProduction.ID,"make sticks",StickProduction.ID,"produce sticks",StickProduction.ID,"make wooden axes",WoodenAxeProduction.ID,"produce wooden axes",WoodenAxeProduction.ID),
+                        Map.ofEntries(Map.entry("harvest wheat",CropDelivery.ID),Map.entry("deliver wheat",CropDelivery.ID),Map.entry("collect oak logs",OakLogDelivery.ID),Map.entry("deliver oak logs",OakLogDelivery.ID),Map.entry("make oak planks",OakPlankProduction.ID),Map.entry("produce oak planks",OakPlankProduction.ID),Map.entry("make sticks",StickProduction.ID),Map.entry("produce sticks",StickProduction.ID),Map.entry("make wooden axes",WoodenAxeProduction.ID),Map.entry("produce wooden axes",WoodenAxeProduction.ID),Map.entry("make crafting tables",CraftingTableProduction.ID),Map.entry("produce crafting tables",CraftingTableProduction.ID)),
                         Map.of(CropDelivery.ID,java.util.Set.of("farming","wheat"),
                                 OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs"),
-                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks"),WoodenAxeProduction.ID,java.util.Set.of("crafting","wooden","axes")),capabilities);
+                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks"),WoodenAxeProduction.ID,java.util.Set.of("crafting","wooden","axes"),CraftingTableProduction.ID,java.util.Set.of("crafting","oak","tables")),capabilities);
                 retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
                         new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
@@ -573,7 +571,7 @@ public final class KernelSession implements AutoCloseable {
             }
             return new ObservationSnapshot(new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),known ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                     "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
-                    Map.of(RecipeProduction.of(request.capability()).inputCount(),available,request.capability().equals(StickProduction.ID) ? "required_planks" : "required_logs",needed,RecipeProduction.of(request.capability()).missingCount(),Math.max(0,needed-available),
+                    Map.of(RecipeProduction.of(request.capability()).inputCount(),available,!RecipeProduction.of(request.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "required_planks" : "required_logs",needed,RecipeProduction.of(request.capability()).missingCount(),Math.max(0,needed-available),
                             "output_capacity",current.outputCapacity(),"recipe_supported",current.recipe()==null ? 0L : 1L,"unknown_cells",known ? 0L : 1L));
         }
         Cuboid area = ((AreaValue)request.arguments().get("source")).value();
@@ -834,6 +832,14 @@ public final class KernelSession implements AutoCloseable {
         }
         return observe(request,actor);
     }
+    public BootstrapController.Submission makeTables(ServerPlayer player,UUID actorId,int amount,
+            int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(CraftingTableProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
+    public BootstrapController.Submission composeTables(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,Cuboid oakSource) {
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
+        if(amount<1 || amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        return composeRequest(new CapabilityRequest(CraftingTableProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),
+                "source",new ContainerValue(source),"destination",new ContainerValue(destination))),owner,player,oakSource);
+    }
     public BootstrapController.Submission makeSticks(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(StickProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
     private BootstrapController.Submission makeRecipe(CapabilityId capability,ServerPlayer player,UUID actorId,int amount,
@@ -841,7 +847,7 @@ public final class KernelSession implements AutoCloseable {
         ready();var owner=caller(player);var citizen=citizens.find(actorId);
         if(citizen==null)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
         if(!citizen.owner().equals(owner))throw new SecurityException("This kernel run belongs to another principal");
-        if(amount<1 || amount>64)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        if(amount<1 || amount>RecipeProduction.of(capability).maximumAmount())return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
         return submitRequest(new CapabilityRequest(capability,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),
                 "source",new ContainerValue(new ContainerRef(citizen.actor().dimension(),sx,sy,sz)),
                 "destination",new ContainerValue(new ContainerRef(citizen.actor().dimension(),dx,dy,dz)))),owner,player);
@@ -911,7 +917,8 @@ public final class KernelSession implements AutoCloseable {
                 }
             }
             if(free.available()<needed) {
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal((request.capability().equals(StickProduction.ID) ? "Oak planks required=" : "Oak logs required=")+needed+" available="+free.available()+" missing="+(needed-free.available())));
+                if(composition && request.capability().equals(CraftingTableProduction.ID))return composeRequest(request,owner,player,compositionOakEnvelope(actor));
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal((!RecipeProduction.of(request.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "Oak planks required=" : "Oak logs required=")+needed+" available="+free.available()+" missing="+(needed-free.available())));
                 return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.RESOURCE_MISSING);
             }
             if(current.outputCapacity()<amount.value())return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.TARGET_UNAVAILABLE);
@@ -1004,6 +1011,7 @@ public final class KernelSession implements AutoCloseable {
         var planks=loaded.repository().page(OakPlankProduction.ID,"",8);
         var sticks=loaded.repository().page(StickProduction.ID,"",8);
         var axes=loaded.repository().page(WoodenAxeProduction.ID,"",8);
+        var tables=loaded.repository().page(CraftingTableProduction.ID,"",8);
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
@@ -1011,6 +1019,7 @@ public final class KernelSession implements AutoCloseable {
                 + " plankCatalog="+planks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " stickCatalog="+sticks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " axeCatalog="+axes.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
+                + " tableItemCatalog="+tables.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " revision=" + page.revision() + " recentModelCalls=" + controller.modelCalls(owner)
                 + " inference=" + controller.inferenceEnabled();
     }

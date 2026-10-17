@@ -206,8 +206,8 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         automaticSource = true;
         Registry registry = new Registry();
         if(RecipeProduction.is(harvest.capability())) {
-            var criterion=new Criteria(harvest.capability().equals(StickProduction.ID) ? "cognitivecraft:available_oak_plank_input_container" : "cognitivecraft:available_oak_input_container");
-            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && harvest.capability().equals(WoodenAxeProduction.ID)));
+            var criterion=new Criteria(!RecipeProduction.of(harvest.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "cognitivecraft:available_oak_plank_input_container" : "cognitivecraft:available_oak_input_container");
+            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID))));
             inputAttempt=registry.start(search(Kind.CONTAINER,actorAnchor,criterion),clock.millis(),allowance);
             stage=Stage.SOURCE;return;
         }
@@ -257,7 +257,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         }
         automaticDestination = true;
         Registry registry = new Registry();
-        Criteria targetCriteria=RecipeProduction.is(harvest.capability()) ? new Criteria(harvest.capability().equals(StickProduction.ID) ? "cognitivecraft:stick_container" : "cognitivecraft:oak_plank_container")
+        Criteria targetCriteria=RecipeProduction.is(harvest.capability()) ? new Criteria(harvest.capability().equals(CraftingTableProduction.ID) ? "cognitivecraft:crafting_table_item_container" : harvest.capability().equals(StickProduction.ID) ? "cognitivecraft:stick_container" : "cognitivecraft:oak_plank_container")
                 : harvest.capability().equals(OakLogDelivery.ID) ? new Criteria("cognitivecraft:oak_log_container") : WHEAT_CONTAINER;
         registry.register(Kind.CONTAINER, targetCriteria,
                 search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),sourceAnchor,world));
@@ -311,7 +311,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
                 if(allowance.remaining()<MAX_CONTAINER_SLOTS+1)return fail(Reason.BUDGET_EXHAUSTED,"Input validation budget exhausted");
                 var current=world.inputContainer(actor,new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()),RecipeProduction.of(harvest.capability()).input());
                 allowance.debit(current.slotsInspected()+1);
-                if(current.status()!=ObservationStatus.PRESENT || current.available()<(composition && harvest.capability().equals(WoodenAxeProduction.ID)?0:RecipeProduction.of(harvest.capability()).inputs(harvest.amount())) || !current.equals(inputEvidence))
+                if(current.status()!=ObservationStatus.PRESENT || current.available()<(composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID))?0:RecipeProduction.of(harvest.capability()).inputs(harvest.amount())) || !current.equals(inputEvidence))
                     return fail(Reason.STALE_OBSERVATION,"Selected input stock changed");
                 sourceValidated=true;return LanguageRequests.Resolution.pending("Input stock validated; checking output storage");
             }

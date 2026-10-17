@@ -24,6 +24,7 @@ public final class TransformationDelivery {
             throw new IllegalArgumentException("Transformation receipt bounds");
         if(RecipeProduction.of(bound.request().capability()).axe())return axeQuantity(bound,run,receipts);
         int inputs=RecipeProduction.of(bound.request().capability()).inputPerBatch();
+        int output=RecipeProduction.of(bound.request().capability()).outputPerBatch();
         Map<UUID,Receipt> seen=new HashMap<>(); Set<UUID> operations=new HashSet<>();
         Map<UUID,List<Receipt>> batches=new LinkedHashMap<>();
         for(var r:receipts) {
@@ -33,10 +34,10 @@ public final class TransformationDelivery {
             if(!operations.add(r.operationId()))throw new IllegalArgumentException("Repeated physical operation");
             batches.computeIfAbsent(r.batchId(),ignored->new ArrayList<>()).add(r);
         }
-        if(batches.size()>OakPlankProduction.MAX_BATCHES)throw new IllegalArgumentException("Craft batch limit");
+        if(batches.size()>RecipeProduction.of(bound.request().capability()).maximumBatches())throw new IllegalArgumentException("Craft batch limit");
         long total=0;Receipt previous=null;int batchIndex=0;
         for(var rows:batches.values()) {
-            if(previous!=null && (previous.quantity()!=4 || rows.getFirst().stage()!=Stage.WITHDRAW
+            if(previous!=null && (previous.quantity()!=output || rows.getFirst().stage()!=Stage.WITHDRAW
                     || !same(previous,rows.getFirst())
                     || !previous.transformation().custodyAfter().equals(rows.getFirst().transformation().custodyBefore())))
                 throw new IllegalArgumentException("Changed invocation or interrupted custody between batches");
@@ -51,15 +52,15 @@ public final class TransformationDelivery {
                         withdraw=r;
                     }
                     case CRAFT -> {
-                        if(withdraw==null || craft!=null || deposit!=null || r.quantity()!=4
-                                || t.consumedInputs()!=inputs || t.producedOutputs()!=4 || t.retainedOutputs()!=4
+                        if(withdraw==null || craft!=null || deposit!=null || r.quantity()!=output
+                                || t.consumedInputs()!=inputs || t.producedOutputs()!=output || t.retainedOutputs()!=output
                                 || !same(withdraw,r) || !withdraw.transformation().custodyAfter().equals(t.custodyBefore()))
                             throw new IllegalArgumentException("Missing consumed-input lineage");
                         craft=r;
                     }
                     case DEPOSIT -> {
-                        if(craft==null || deposit!=null || r.quantity()>4 || t.consumedInputs()!=0
-                                || t.producedOutputs()!=0 || t.retainedOutputs()!=4-r.quantity()
+                        if(craft==null || deposit!=null || r.quantity()>output || t.consumedInputs()!=0
+                                || t.producedOutputs()!=0 || t.retainedOutputs()!=output-r.quantity()
                                 || !same(craft,r) || !craft.transformation().custodyAfter().equals(t.custodyBefore()))
                             throw new IllegalArgumentException("Missing new-output custody");
                         deposit=r;total=Math.addExact(total,r.quantity());

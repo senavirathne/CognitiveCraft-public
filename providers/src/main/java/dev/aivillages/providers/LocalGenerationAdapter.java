@@ -511,7 +511,11 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        spec.id().equals(dev.aivillages.core.kernel.WoodenAxeProduction.ID)
+                        spec.id().equals(dev.aivillages.core.kernel.CraftingTableProduction.ID)
+                                ? "Return JSON proposal only. Select cognitivecraft:observe_table_inputs as preflight, batchSize 1 and result param amount. "
+                                + "Choose five cycle IDs in causal order: cognitivecraft:move_to_input, cognitivecraft:withdraw_table_planks, cognitivecraft:craft_crafting_table, cognitivecraft:move_to_destination, cognitivecraft:transfer_crafting_tables. "
+                                + "Four default oak planks in the installed inventory 2x2 recipe assemble one new crafting-table item. No existing table, placement, gathering or producer dependency. Runtime parameters actor/source/destination/amount only. "
+                                : spec.id().equals(dev.aivillages.core.kernel.WoodenAxeProduction.ID)
                                 ? "Return JSON proposal only. Select cognitivecraft:observe_axe_inputs as preflight, batchSize 1, result param amount. "
                                 + "Choose six registered cycle IDs in causal order: cognitivecraft:move_to_input, cognitivecraft:withdraw_axe_inputs, "
                                 + "cognitivecraft:move_to_table, cognitivecraft:craft_wooden_axe, cognitivecraft:move_to_destination, cognitivecraft:transfer_wooden_axes. "
@@ -548,7 +552,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
     private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
-        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int batch=axe ? 1 : 4,cycleSize=axe ? 6 : 5;
+        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int batch=axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1 : 4,cycleSize=axe ? 6 : 5;
         var preflight=Map.of("type","string","enum",primitives.stream().filter(p->p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         var cycleId=Map.of("type","string","enum",primitives.stream().filter(p->!p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
@@ -558,7 +562,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                                 "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
     }
     private static List<Object> plankIrBody(Object proposal,List<Contracts.PrimitiveSignature> primitives) {
-        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));long batch=axe ? 1L : 4L;int cycleSize=axe ? 6 : 5;
+        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));long batch=axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1L : 4L;int cycleSize=axe ? 6 : 5;
         if(!(proposal instanceof Map<?,?> p) || !p.keySet().equals(java.util.Set.of("preflight","batchSize","cycle","result"))
                 || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(batch).equals(p.get("batchSize"))
                 || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=cycleSize || !Map.of("param","amount").equals(p.get("result")))
