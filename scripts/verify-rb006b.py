@@ -45,7 +45,7 @@ def client():
     assert e['existingItem']['placements']==1 and e['existingItem']['tableJobs']==0
     assert e['emptyProvision']['harvested']==3 and e['offlineWarmReuse']['harvested']==3
     assert e['raceCompletedAxes'] in (1,2) and len(e['raceCancellations'])==2-e['raceCompletedAxes']
-    assert len({rows[0]['origin']['principal']['id'] for rows in e['competingRoots']})==2
+    assert len({rows[0]['request']['context']['principal']['id'] for rows in e['competingRoots']})==2
     for cancelled in e['raceCancellations']:
         j=cancelled['view'];assert j['state']=='CANCELLED' and j['fulfilled']==0
         assert all(not a['effects'] and not a.get('resourceReceipts') for a in j['attempts'])
