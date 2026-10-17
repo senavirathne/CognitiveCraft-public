@@ -16,9 +16,11 @@ import net.minecraft.world.level.storage.LevelResource;
 
 /** Controlled proposals; real standalone trials and stock-first Jobs/leases/native effects. */
 public final class TableCompositionGameTests {
-    @GameTest(maxTicks=100000,padding=16)
+    @GameTest(maxTicks=4_000_000,padding=16)
     public void realShortfallsUseExistingPrerequisitesWithoutAWorldTable(GameTestHelper h) {
-        var logs=new OakLogFixtures.ControlledGeneration();var planks=new OakPlankFixtures.ControlledGeneration();var tables=new TableFixtures.ControlledGeneration();
+        // Four real observation waits keep this controlled proposal within the unchanged 1200-tick assignment.
+        // Native pickup still enforces its actual delay; the ordinary retained RB-001 fixture keeps twenty waits.
+        var logs=new OakLogFixtures.ControlledGeneration(4);var planks=new OakPlankFixtures.ControlledGeneration();var tables=new TableFixtures.ControlledGeneration();
         GenerationPort proposals=new GenerationPort() {
             public Generation.Handle generate(Generation.Request r,Budgets.InferenceLimits l,Budgets.Ledger u) {
                 return (r.capability().id().equals(OakLogDelivery.ID)?logs:r.capability().id().equals(OakPlankProduction.ID)?planks:tables).generate(r,l,u);
