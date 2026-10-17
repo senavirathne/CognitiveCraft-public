@@ -288,6 +288,8 @@ public final class SkillCompiler {
             if(RecipeProduction.is(context.spec.id()) && GatewayPrimitives.instance().operation(
                     new PrimitiveRequirement(primitiveId,primitiveVersion,fingerprint)).filter(op -> RecipeProduction.permits(context.spec.id(),op)).isEmpty())
                 fail(at,"FORBIDDEN_EFFECT");
+            if(CraftingTablePlacement.is(context.spec.id()) && GatewayPrimitives.instance().operation(
+                    new PrimitiveRequirement(primitiveId,primitiveVersion,fingerprint)).filter(CraftingTablePlacement::permits).isEmpty())fail(at,"FORBIDDEN_EFFECT");
             if (!signature.fingerprint().equals(fingerprint)) fail(at + ".fingerprint", "PRIMITIVE_INCOMPATIBLE");
             parameters = signature.parameters(); output = signature.resultType(); effects = signature.effects();
             context.primitiveRequirements.add(new PrimitiveRequirement(primitiveId,

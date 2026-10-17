@@ -55,7 +55,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             BooleanSupplier cancelled) {
         long before = usage.snapshot().getOrDefault(Kind.INSTRUCTIONS, 0L);
         ValidatedRequest small = variant(bound, 1, false);
-        ValidatedRequest changed = variant(bound,(bound.request().capability().equals(WoodenAxeProduction.ID) || bound.request().capability().equals(CraftingTableProduction.ID)) ? 4 : RecipeProduction.is(bound.request().capability()) ? 5 : 2,true);
+        ValidatedRequest changed = variant(bound,CraftingTablePlacement.is(bound.request().capability()) ? 1 : (bound.request().capability().equals(WoodenAxeProduction.ID) || bound.request().capability().equals(CraftingTableProduction.ID)) ? 4 : RecipeProduction.is(bound.request().capability()) ? 5 : 2,true);
         int cases = 0;
         for (ValidatedRequest test : List.of(small, changed)) {
             if (cancelled.getAsBoolean())
@@ -97,7 +97,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         : dependencies.compatibility(queried);
             }
         };
-        GatewayPort fake = RecipeProduction.is(test.request().capability()) ? new FakePlanks(test,usage) : new FakeCrops(test, usage);
+        GatewayPort fake = CraftingTablePlacement.is(test.request().capability()) ? new FakePlacement(test,usage) : RecipeProduction.is(test.request().capability()) ? new FakePlanks(test,usage) : new FakeCrops(test, usage);
         AtomicLong ticks = new AtomicLong();
         UUID authorization = UUID.randomUUID();
         BoundedSkillExecutor.TrialPermit permit = new BoundedSkillExecutor.TrialPermit(ref,
@@ -149,13 +149,46 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                     source.minY(), source.minZ(), source.maxX() + dx, source.maxY(), source.maxZ())));
             }
             if(args.get("table") instanceof FacilityValue f) {var t=f.value();args.put("table",new FacilityValue(new FacilityRef(t.dimension(),t.x()==Integer.MAX_VALUE ? t.x()-1 : t.x()+1,t.y(),t.z())));}
-            ContainerRef target = ((ContainerValue)args.get("destination")).value();
+            if(args.get("target") instanceof FacilityValue f){var t=f.value();args.put("target",new FacilityValue(new FacilityRef(t.dimension(),t.x()+1,t.y(),t.z())));}
+            if(args.get("destination") instanceof ContainerValue destination) {
+            ContainerRef target = destination.value();
             int tx = target.x() == Integer.MAX_VALUE ? -1 : 1;
             args.put("destination", new ContainerValue(new ContainerRef(target.dimension(),
                     target.x() + tx, target.y(), target.z())));
+            }
         }
         return new ValidatedRequest(new CapabilityRequest(original.request().capability(), args),
                 original.context(), original.observation());
+    }
+
+    /** Explicit isolated simulation; only the subsequent native trial proves world placement. */
+    private static final class FakePlacement implements GatewayPort {
+        private record Action(RunCorrelation run,Operation operation,Map<String,Value> arguments) { }
+        final ValidatedRequest bound;final Budgets.Ledger usage;final Map<ActionHandle,Action> pending=new HashMap<>();
+        int next;UUID batch;String custody=RecipeTransaction.fingerprint("placement-fixture:0");
+        FakePlacement(ValidatedRequest bound,Budgets.Ledger usage){this.bound=bound;this.usage=usage;}
+        public ActionHandle start(ValidatedRequest request,RunCorrelation run,PrimitiveRequirement p,Map<String,Value> args,Budgets.Ledger ignored){
+            var h=new ActionHandle(UUID.randomUUID(),run.runId());pending.put(h,new Action(run,GatewayPrimitives.instance().operation(p).orElse(null),Map.copyOf(args)));return h;
+        }
+        public ActionReceipt poll(ActionHandle h){
+            var a=pending.remove(h);if(a==null || next>=5 || a.operation()!=CraftingTablePlacement.operations().get(next))return fail(h,Reason.REQUEST_INVALID);
+            for(var entry:a.arguments().entrySet())if(!Objects.equals(bound.request().arguments().get(entry.getKey()),entry.getValue()))return fail(h,Reason.REQUEST_INVALID);
+            var op=a.operation();next++;
+            if(op==Operation.OBSERVE_TABLE_SITE || op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_PLACEMENT)
+                return new ActionReceipt(h,true,0,List.of(),null,new BoolValue(true),null);
+            usage.debit(Kind.ATTEMPTED_EFFECTS,1);usage.debit(Kind.COMMITTED_EFFECTS,1);
+            var source=((ContainerValue)bound.request().arguments().get("source")).value();String before=custody;
+            custody=RecipeTransaction.fingerprint("placement-fixture:"+next);
+            boolean placed=op==Operation.PLACE_CRAFTING_TABLE;if(!placed)batch=UUID.randomUUID();
+            var evidence=new PlacementTransaction.Evidence(CraftingTablePlacement.target(bound.request()),"fixture-source",RecipeTransaction.fingerprint("fixture-site"),before,custody,
+                    placed?"minecraft:crafting_table":"minecraft:air",placed?"fixture-table":"");
+            var receipt=new ResourceDelivery.Receipt(UUID.randomUUID(),bound.context(),a.run().runId(),h.id(),batch,
+                    ((ActorValue)bound.request().arguments().get("actor")).value(),ResourceLeases.point(source),CraftingTablePlacement.address(bound.request()),ResourceDelivery.CRAFTING_TABLE,
+                    placed?ResourceDelivery.Stage.PLACE:ResourceDelivery.Stage.WITHDRAW,1,new ResourceDelivery.BlockPosition(source.dimension(),source.x(),source.y(),source.z()),List.of(),null,evidence);
+            return new ActionReceipt(h,true,1,List.of(),null,new IntValue(1),null,List.of(receipt));
+        }
+        ActionReceipt fail(ActionHandle h,Reason reason){return new ActionReceipt(h,true,0,List.of(),reason);}
+        public ActionReceipt cancel(ActionHandle h){pending.remove(h);return fail(h,Reason.CANCELLED);}
     }
 
     /** Explicit fake fixture only; passing this data simulation never proves Minecraft crafting. */
@@ -321,7 +354,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         yield new ActionReceipt(handle, true, 1, records, null,
                                 new IntValue(requested), null,resources);
                     }
-                    case OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
+                    case OBSERVE_TABLE_SITE,WITHDRAW_TABLE_ITEM,MOVE_TO_PLACEMENT,PLACE_CRAFTING_TABLE,OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
                     case MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION, APPROACH_OAK_LOG -> {
                         if ((action.operation() == Operation.MOVE_TO_SOURCE || action.operation()==Operation.APPROACH_OAK_LOG)
                                 && !bound.request().arguments().get("source").equals(args.get("source")))

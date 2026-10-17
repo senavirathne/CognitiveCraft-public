@@ -76,7 +76,11 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         WITHDRAW_TABLE_PLANKS("withdraw_table_planks",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
         CRAFT_CRAFTING_TABLE("craft_crafting_table",Type.INT,Effect.CRAFT,actor()),
         TRANSFER_CRAFTING_TABLES("transfer_crafting_tables",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),
-                new Parameter("amount",Type.INT,1,4));
+                new Parameter("amount",Type.INT,1,4)),
+        OBSERVE_TABLE_SITE("observe_table_site",Type.BOOL,Effect.OBSERVE,actor(),new Parameter("source",Type.CONTAINER,0,0),new Parameter("target",Type.FACILITY,0,0)),
+        WITHDRAW_TABLE_ITEM("withdraw_table_item",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
+        MOVE_TO_PLACEMENT("move_to_placement",Type.BOOL,Effect.MOVE,actor(),new Parameter("target",Type.FACILITY,0,0)),
+        PLACE_CRAFTING_TABLE("place_crafting_table",Type.INT,Effect.PLACE,actor(),new Parameter("target",Type.FACILITY,0,0));
 
         private final PrimitiveSignature signature;
         Operation(String name, Type result, Effect effect, Parameter... parameters) {
@@ -91,6 +95,7 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         public boolean stick() {return this==OBSERVE_STICK_INPUTS || this==WITHDRAW_OAK_PLANKS || this==CRAFT_STICKS || this==TRANSFER_STICKS;}
         public boolean axe() {return this==OBSERVE_AXE_INPUTS || this==WITHDRAW_AXE_INPUTS || this==MOVE_TO_TABLE || this==CRAFT_WOODEN_AXE || this==TRANSFER_WOODEN_AXES;}
         public boolean table() {return this==OBSERVE_TABLE_INPUTS || this==WITHDRAW_TABLE_PLANKS || this==CRAFT_CRAFTING_TABLE || this==TRANSFER_CRAFTING_TABLES;}
+        public boolean placement(){return this==OBSERVE_TABLE_SITE || this==WITHDRAW_TABLE_ITEM || this==MOVE_TO_PLACEMENT || this==PLACE_CRAFTING_TABLE;}
         public boolean oak() { return !plank() && !stick() && !axe() && name().contains("OAK"); }
         public PrimitiveRequirement requirement() {
             return new PrimitiveRequirement(signature.id(), signature.version(), signature.fingerprint());

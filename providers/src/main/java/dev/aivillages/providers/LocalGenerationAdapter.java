@@ -282,7 +282,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             if (ResourceDelivery.isDelivery(call.request.capability().id())
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
-                normalized.put("body",dev.aivillages.core.kernel.RecipeProduction.is(call.request.capability().id())
+                normalized.put("body",(dev.aivillages.core.kernel.RecipeProduction.is(call.request.capability().id()) || dev.aivillages.core.kernel.CraftingTablePlacement.is(call.request.capability().id()))
                         ? plankIrBody(ir.get("body"),call.request.primitives()) : cropIrBody(ir.get("body"), call.request.primitives()));
                 ir = normalized;
                 candidateIr = StrictJson.canonical(ir);
@@ -494,7 +494,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                 .map(Contracts.PrimitiveSignature::id).toList();
         List<String> fingerprints = request.primitives().stream()
                 .map(Contracts.PrimitiveSignature::fingerprint).distinct().toList();
-        Map<String, Object> bodyShape = dev.aivillages.core.kernel.RecipeProduction.is(spec.id())
+        Map<String, Object> bodyShape = (dev.aivillages.core.kernel.RecipeProduction.is(spec.id()) || dev.aivillages.core.kernel.CraftingTablePlacement.is(spec.id()))
                 ? plankBodyShape(request.primitives()) : ResourceDelivery.isDelivery(spec.id())
                 ? cropBodyShape(request.primitives()) : Map.of("type", "array",
                         "items", nodeShape(2, primitiveIds, fingerprints, true),
@@ -511,7 +511,9 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         String wire = StrictJson.canonical(Map.of("model", config.model(), "stream", false,
                 "format", shape, "options", Map.of("temperature", 0, "num_predict", config.maxOutputTokens()),
                 "messages", List.of(Map.of("role", "system", "content",
-                        spec.id().equals(dev.aivillages.core.kernel.CraftingTableProduction.ID)
+                        spec.id().equals(dev.aivillages.core.kernel.CraftingTablePlacement.ID)
+                                ? "Return JSON proposal only. Preflight cognitivecraft:observe_table_site, batchSize 1, result param amount. Select exactly four cycle IDs in order: cognitivecraft:move_to_input, cognitivecraft:withdraw_table_item, cognitivecraft:move_to_placement, cognitivecraft:place_crafting_table. Runtime actor/source/target/amount. One existing item is consumed to place a real table at the exact approved site. No crafting, harvesting, searching or dependencies."
+                                : spec.id().equals(dev.aivillages.core.kernel.CraftingTableProduction.ID)
                                 ? "Return JSON proposal only. Select cognitivecraft:observe_table_inputs as preflight, batchSize 1 and result param amount. "
                                 + "Choose five cycle IDs in causal order: cognitivecraft:move_to_input, cognitivecraft:withdraw_table_planks, cognitivecraft:craft_crafting_table, cognitivecraft:move_to_destination, cognitivecraft:transfer_crafting_tables. "
                                 + "Four default oak planks in the installed inventory 2x2 recipe assemble one new crafting-table item. No existing table, placement, gathering or producer dependency. Runtime parameters actor/source/destination/amount only. "
@@ -552,7 +554,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
     private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
-        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int batch=axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1 : 4,cycleSize=axe ? 6 : 5;
+        boolean placement=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_site"));boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int batch=placement || axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1 : 4,cycleSize=placement ? 4 : axe ? 6 : 5;
         var preflight=Map.of("type","string","enum",primitives.stream().filter(p->p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         var cycleId=Map.of("type","string","enum",primitives.stream().filter(p->!p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
@@ -562,7 +564,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                                 "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
     }
     private static List<Object> plankIrBody(Object proposal,List<Contracts.PrimitiveSignature> primitives) {
-        boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));long batch=axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1L : 4L;int cycleSize=axe ? 6 : 5;
+        boolean placement=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_site"));boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));long batch=placement || axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1L : 4L;int cycleSize=placement ? 4 : axe ? 6 : 5;
         if(!(proposal instanceof Map<?,?> p) || !p.keySet().equals(java.util.Set.of("preflight","batchSize","cycle","result"))
                 || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(batch).equals(p.get("batchSize"))
                 || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=cycleSize || !Map.of("param","amount").equals(p.get("result")))
@@ -584,7 +586,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         var primitive=primitives.stream().filter(p->p.id().equals(id)).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered recipe primitive"));
         var args=new java.util.LinkedHashMap<String,Object>();
         for(var parameter:primitive.parameters()) {
-            if(!List.of("actor","source","destination","amount","table").contains(parameter.name()))throw new IllegalArgumentException("Recipe binding");
+            if(!List.of("actor","source","destination","amount","table","target").contains(parameter.name()))throw new IllegalArgumentException("Recipe binding");
             args.put(parameter.name(),Map.of("param",parameter.name()));
         }
         return Map.of("op","call","kind","primitive","id",id,"version",(long)primitive.version(),"fingerprint",primitive.fingerprint(),

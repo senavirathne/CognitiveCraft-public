@@ -1,0 +1,55 @@
+name: RB-006B table placement and facility acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/table-placement.yml','.github/implementation/RB-006B*']
+  push:
+    branches: [main,rb-006b-facility-provisioning]
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/table-placement.yml','.github/implementation/RB-006B*']
+permissions:
+  contents: read
+concurrency:
+  group: rb006b-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  owners-and-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: All modules and native compilation
+        run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+      - name: Select actual survival placement effects
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementEffectGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+      - name: Actual BlockItem consumption, safe site, races and current facility
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          rg 'RB006B_EFFECTS blockItem=true consumed=1' fabric/build/gametest-run/logs/latest.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb006b-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/gametest-run/
+            fabric/build/libs/

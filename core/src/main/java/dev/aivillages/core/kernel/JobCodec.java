@@ -198,6 +198,14 @@ final class JobCodec {
                 || job.attempts().stream().anyMatch(a -> !a.resourceReceipts().isEmpty());
     }
     private static Map<String,Object> resourceReceipt(ResourceDelivery.Receipt r,ValidatedRequest bound) {
+        if(r.placement()!=null) {
+            if(!CraftingTablePlacement.matches(bound,r.runId(),r))throw new IllegalArgumentException("Placement attempt binding");
+            var p=r.placement();var target=p.target();
+            var evidence=Map.of("target",Map.of("dimension",target.dimension(),"x",(long)target.x(),"y",(long)target.y(),"z",(long)target.z()),
+                    "sourceIdentity",p.sourceIdentity(),"site",p.siteFingerprint(),"before",p.custodyBefore(),"after",p.custodyAfter(),"blockState",p.blockState(),"facilityIdentity",p.facilityIdentity());
+            return Map.of("schema",4L,"binding","attempt","id",r.receiptId().toString(),"run",r.runId().toString(),"operation",r.operationId().toString(),
+                    "batch",r.batchId().toString(),"stage",r.stage().name(),"quantity",r.quantity(),"placement",evidence);
+        }
         if(r.transformation()!=null) {
             if(!TransformationDelivery.matches(bound,r.runId(),r))throw new IllegalArgumentException("Transformation attempt binding");
             if(RecipeProduction.of(bound.request().capability()).axe()) {
@@ -226,6 +234,18 @@ final class JobCodec {
     }
     private static ResourceDelivery.Receipt resourceReceipt(Map<String,Object> row,ValidatedRequest bound) throws StrictJson.Invalid {
         long schema=number(row,"schema","$");
+        if(schema==4) {
+            exact(row,"schema","binding","id","run","operation","batch","stage","quantity","placement");
+            if(!"attempt".equals(string(row,"binding","$")) || !CraftingTablePlacement.is(bound.request().capability()))throw new StrictJson.Invalid("$","PLACEMENT_BINDING_SCHEMA");
+            var p=object(row,"placement","$");exact(p,"target","sourceIdentity","site","before","after","blockState","facilityIdentity");
+            var t=object(p,"target","$");exact(t,"dimension","x","y","z");
+            var evidence=new PlacementTransaction.Evidence(new FacilityRef(string(t,"dimension","$"),integer(t,"x"),integer(t,"y"),integer(t,"z")),
+                    string(p,"sourceIdentity","$"),string(p,"site","$"),string(p,"before","$"),string(p,"after","$"),string(p,"blockState","$"),string(p,"facilityIdentity","$"));
+            var source=((ContainerValue)bound.request().arguments().get("source")).value();
+            return new ResourceDelivery.Receipt(id(row,"id"),bound.context(),id(row,"run"),id(row,"operation"),id(row,"batch"),
+                    ((ActorValue)bound.request().arguments().get("actor")).value(),ResourceLeases.point(source),CraftingTablePlacement.address(bound.request()),ResourceDelivery.CRAFTING_TABLE,
+                    ResourceDelivery.Stage.valueOf(string(row,"stage","$")),number(row,"quantity","$"),new ResourceDelivery.BlockPosition(source.dimension(),source.x(),source.y(),source.z()),List.of(),null,evidence);
+        }
         if(row.containsKey("binding")) {
             if(schema==3)exact(row,"schema","binding","id","run","operation","batch","stage","quantity","item","transformation");
             else exact(row,"schema","binding","id","run","operation","batch","stage","quantity","transformation");

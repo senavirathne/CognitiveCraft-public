@@ -480,7 +480,8 @@ public final class BoundedSkillExecutor {
             terminal = new Execution(status, reason, effects,
                     status == ExecutionStatus.SUCCEEDED ?
                             new EvidenceRef(correlation.runId().toString(),
-                                    RecipeProduction.is(request.request().capability()) ? "transformation-delivery:1"
+                                    CraftingTablePlacement.is(request.request().capability()) ? "table-placement:1"
+                                            : RecipeProduction.is(request.request().capability()) ? "transformation-delivery:1"
                                             : request.request().capability().equals(OakLogDelivery.ID)
                                             ? "resource-delivery:1" : "crop-delivery:1",
                                     request.context().scope().domainId().toString()) : null);

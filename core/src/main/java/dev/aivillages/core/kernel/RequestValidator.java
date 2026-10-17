@@ -75,6 +75,13 @@ public final class RequestValidator {
             if(RecipeProduction.of(spec.id()).axe() && (!(values.get("table") instanceof FacilityValue table)
                     || !actor.value().dimension().equals(table.value().dimension())))return invalid("$.arguments.table");
         }
+        if(spec.completion()==Completion.ATTRIBUTABLE_PLACEMENT) {
+            if(!spec.equals(CraftingTablePlacement.SPEC) || !CraftingTablePlacement.valid(input))return invalid("$.arguments");
+            var actor=((ActorValue)values.get("actor")).value();var source=((ContainerValue)values.get("source")).value();var target=CraftingTablePlacement.target(input);
+            if(!actor.dimension().equals(observation.dimension()) || !environment.enrolled(actor,context)
+                    || !environment.available(source,observation)
+                    || !environment.loaded(new Cuboid(target.dimension(),target.x(),target.y(),target.z(),target.x(),target.y(),target.z()),observation))return invalid("$.arguments");
+        }
         if (spec.completion() == Completion.ALL_CHILDREN) {
             if (!spec.equals(PlanningGoals.SPEC) || !PlanningGoals.valid(input)) return invalid("$.arguments");
             var actor=((ActorValue)values.get("actor")).value();

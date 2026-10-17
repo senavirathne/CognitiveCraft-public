@@ -44,6 +44,7 @@ public final class CapabilityResolver {
         return spec -> spec.equals(CropDelivery.SPEC)
                 ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,
                         Set.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
+                : spec.equals(CraftingTablePlacement.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,spec.effects())
                 : RecipeProduction.is(spec.id()) && spec.equals(RecipeProduction.of(spec.id()).spec()) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,spec.effects())
                 : spec.equals(OakLogDelivery.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE, OakLogDelivery.SPEC.effects())
                 : new Envelope(Domain.UNSUPPORTED, Set.of());
@@ -153,13 +154,19 @@ public final class CapabilityResolver {
             this.limits = Objects.requireNonNull(limits);
         }
 
-        public Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot) { return resolve(request,snapshot,false); }
+        public Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot) { return resolve(request,snapshot,false,false); }
         /** Method retrieval for guarded prerequisite admission; material readiness is still required at dispatch. */
         public Decision resolveForPrerequisite(ValidatedRequest request, ObservationSnapshot snapshot) {
             if(!ResourceDelivery.resource(request.request().capability()))throw new IllegalArgumentException("Registered resource method");
-            return resolve(request,snapshot,true);
+            return resolve(request,snapshot,true,false);
         }
-        private Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot,boolean preparation) {
+        /** Selection only, for the declared approved future facility; no execution permit is issued. */
+        public Decision resolveForFacilityPrerequisite(ValidatedRequest request,ObservationSnapshot snapshot) {
+            if(!FacilityPrerequisites.root(request.request()) || snapshot.counts().getOrDefault("site_usable",0L)!=1
+                    || snapshot.counts().getOrDefault("missing_facility",0L)!=1)throw new IllegalArgumentException("Validated future table required");
+            return resolve(request,snapshot,true,true);
+        }
+        private Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot,boolean preparation,boolean futureFacility) {
             CapabilitySpec spec = checkedRequest(request);
             Objects.requireNonNull(snapshot);
             ActorRef actor = ((ActorValue) request.request().arguments().get("actor")).value();
@@ -184,7 +191,8 @@ public final class CapabilityResolver {
                 if (!envelope.unavoidableEffects().contains(required)) continue;
                 boolean present = false;
                 for (GatewayPrimitives.Operation operation : GatewayPrimitives.Operation.values()) {
-                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.plank() || operation.stick())
+                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.plank() || operation.stick() || operation.axe() || operation.table() || operation.placement())
+                            || CraftingTablePlacement.is(spec.id()) && !CraftingTablePlacement.permits(operation)
                             || RecipeProduction.is(spec.id()) && !RecipeProduction.permits(spec.id(),operation)
                             || spec.id().equals(OakLogDelivery.ID) && !operation.oak()
                             && operation != GatewayPrimitives.Operation.MOVE_TO_DESTINATION) continue;
@@ -203,7 +211,15 @@ public final class CapabilityResolver {
                 return decision(ResolutionStatus.BLOCKED, Reason.STALE_OBSERVATION, null,
                         request, snapshot, -1, List.of(), 0, 0, false, false);
             // An inspected source with no mature crop cannot support this completion predicate.
+            if(CraftingTablePlacement.is(spec.id())) {
+                if(snapshot.counts().getOrDefault("site_usable",0L)!=1)
+                    return decision(ResolutionStatus.BLOCKED,Reason.TARGET_INVALID,null,request,snapshot,-1,List.of(),0,0,false,false);
+                if(!preparation && snapshot.counts().getOrDefault("table_items",0L)<1)
+                    return decision(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,request,snapshot,-1,List.of(),0,0,false,false);
+            }
             if(RecipeProduction.is(spec.id())) {
+                if(!futureFacility && snapshot.counts().getOrDefault("missing_facility",0L)>0)
+                    return decision(ResolutionStatus.BLOCKED,Reason.FACILITY_MISSING,null,request,snapshot,-1,List.of(),0,0,false,false);
                 if(snapshot.counts().getOrDefault("recipe_supported",0L)!=1)
                     return decision(ResolutionStatus.UNSUPPORTED_RUNTIME,Reason.UNSUPPORTED_PRIMITIVE,null,request,snapshot,-1,List.of(),0,0,false,false);
                 if(!preparation && (snapshot.counts().getOrDefault(RecipeProduction.of(spec.id()).missingCount(),0L)>0 || spec.id().equals(WoodenAxeProduction.ID) && snapshot.counts().getOrDefault("missing_sticks",0L)>0))
@@ -294,9 +310,9 @@ public final class CapabilityResolver {
                 throw new IllegalArgumentException("REQUEST_INVALID");
             if (ResourceDelivery.isDelivery(spec.id())) {
                 if (!ResourceDelivery.spec(spec.id()).filter(spec::equals).isPresent()
-                        || !(input.arguments().get("destination") instanceof ContainerValue target)
+                        || CraftingTablePlacement.is(spec.id()) && !CraftingTablePlacement.valid(input)
                         || !ResourceDelivery.sourceArea(input).dimension().equals(actor.value().dimension())
-                        || !target.value().dimension().equals(actor.value().dimension()))
+                        || !ResourceDelivery.destinationAddress(input).dimension().equals(actor.value().dimension()))
                     throw new IllegalArgumentException("REQUEST_INVALID");
             }
             if(spec.id().equals(WoodenAxeProduction.ID) && (!(input.arguments().get("table") instanceof FacilityValue facility)
