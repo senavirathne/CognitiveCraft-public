@@ -186,7 +186,7 @@ public final class WorkerDispatcher {
         for(Jobs.Job job:page.jobs()) {
             examined=job.id();
             work.jobs++;
-            if(!accepts.test(job) || live.containsKey(job.id()) || !dispatchable(job))continue;
+            if(!accepts.test(job) || live.containsKey(job.id()) || !dispatchable(job) || !jobs.materialReady(job))continue;
             Decision last=new Decision(job.id(),null,Code.BLOCKED,null,Reason.ACTOR_UNAVAILABLE,List.of(),"UUID circular order");
             CapabilityResolver.Decision chosen=null;ActorRef selected=null;
             for(var address:workers.citizens()) {
@@ -204,6 +204,7 @@ public final class WorkerDispatcher {
                     var decision=resolver.resolve(bound,snapshot);work.resolutions++;
                     last=decision(job,actor,Code.BLOCKED,decision,decision.routing().reason());
                     if(decision.routing().status()==ResolutionStatus.RESOLVED) {
+                        if(job.preparation()!=null && !job.preparation().method().equals(decision.routing().artifact())) {last=decision(job,actor,Code.BLOCKED,decision,Reason.STALE_OBSERVATION);continue;}
                         var available=claims.preflight(job,bound);
                         if(available.usable()){chosen=decision;selected=actor;break;}
                         last=decision(job,actor,Code.BLOCKED,decision,available.reason()==null?Reason.TARGET_UNAVAILABLE:available.reason());
@@ -267,6 +268,11 @@ public final class WorkerDispatcher {
             }
             try {
                 var allowance=jobs.remainingAllowance(job.id(),l.origin);
+                if(job.preparation()!=null) {
+                    var cap=OakLogDelivery.executionLimits(clock.millis()).total();var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+                    for(var kind:Budgets.Kind.values())maxima.put(kind,Math.min(cap.maximum(kind),allowance.maximum(kind)));
+                    allowance=new Budgets.Limits(maxima,Math.min(cap.deadlineEpochMillis(),allowance.deadlineEpochMillis()));
+                }
                 var change=jobs.assign(job.id(),job.guard(),l.run,l.worker,l.artifact,l.pinned,allowance,l.origin);
                 if(!change.accepted()){remember(decision(job,l.worker,Code.BLOCKED,l.resolution,change.reason()),work);live.remove(l.job);return;}
                 l.generation=change.job().generation();l.phase=Phase.ASSIGNING;

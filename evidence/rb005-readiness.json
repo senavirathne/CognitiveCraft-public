@@ -1,0 +1,82 @@
+{
+  "unit": "RB-005",
+  "status": "implementation_acceptance_running",
+  "sourceBaseline": "b90678a061e6e326cce0ece2c96a63e526fff3c5",
+  "sourceBaselineTree": "875557e44112697256b5c33f10ab0f9f668caf16",
+  "documentationBaseline": "614a258945d048a513b3fd16e3e6872158c263b3",
+  "documentationFirst": "26869a21a30d70b3fdc3a1d0de0698e045727766",
+  "sourcePullRequest": 31,
+  "documentationPullRequest": 12,
+  "acceptedPrerequisites": {
+    "RB001": 24,
+    "RB002": 25,
+    "RB003": 28,
+    "RB004": 30
+  },
+  "architecture": "0.5",
+  "contracts": 1,
+  "ir": 1,
+  "gateway": 1,
+  "schemas": {
+    "legacyJobs": [
+      1,
+      2
+    ],
+    "preparedJobs": 3,
+    "legacyAllocations": 1,
+    "materialAllocations": 2,
+    "transformationReceipts": [
+      2,
+      3
+    ]
+  },
+  "capabilities": [
+    "cognitivecraft:deliver_oak_logs@1",
+    "cognitivecraft:produce_oak_planks@1",
+    "cognitivecraft:produce_sticks@1",
+    "cognitivecraft:produce_wooden_axes@1"
+  ],
+  "interfaces": {
+    "graph": "core/src/main/java/dev/aivillages/core/kernel/DeterministicPrerequisiteResolver.java",
+    "admission": "core/src/main/java/dev/aivillages/core/kernel/PrerequisiteAdmission.java",
+    "jobs": "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java",
+    "stock": "core/src/main/java/dev/aivillages/core/kernel/LeasePrerequisiteSupplies.java",
+    "dispatch": "core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java",
+    "runtime": "fabric/src/main/java/dev/aivillages/fabric/FabricPrerequisiteRuntime.java"
+  },
+  "bounds": {
+    "demands": 8,
+    "visitedProductions": 16,
+    "rootInclusiveDepth": 4,
+    "edges": 64,
+    "expansionAndAdmissionWork": 512,
+    "contextBytes": 16384,
+    "installedKeys": 8,
+    "rootCalls": 1024,
+    "rootInstructions": 32768,
+    "rootObservations": 32768,
+    "rootTravel": 512,
+    "rootEffects": 256,
+    "rootTicks": 7200,
+    "deadlineMillis": 600000
+  },
+  "mandatoryMatrix": [
+    "RB5-T01",
+    "RB5-T02",
+    "RB5-T03",
+    "RB5-T04",
+    "RB5-T05",
+    "RB5-T06",
+    "RB5-T07",
+    "RB5-T08",
+    "RB5-T09",
+    "RB5-T10"
+  ],
+  "testSelectors": {
+    "ResourceCompositionTest": 20,
+    "CompositionOwnerTest": 17,
+    "CompositionLeaseTest": 1,
+    "CompositionBindingTest": 3
+  },
+  "implementationPolicy": "GitHub Actions only; merge after every mandatory final-source acceptance gate passes; stop at RB-005"
+}

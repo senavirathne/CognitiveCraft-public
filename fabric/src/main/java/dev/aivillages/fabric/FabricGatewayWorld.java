@@ -37,7 +37,7 @@ import net.minecraft.world.phys.Vec3;
 /** Minecraft 26.3 server-thread adapter. It never requests an unloaded chunk. */
 public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private final ServerLevel level;
-    private final Map<UUID, BlockPos> previousPosition = new HashMap<>();
+    private final Map<UUID, MovementTravel> movementTravel = new HashMap<>();
     private final Map<UUID, Route> routes = new HashMap<>();
     private final Map<UUID,Long> recipeSettled=new HashMap<>();
     private final FabricRecipeTransactions recipeTransactions;
@@ -178,6 +178,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         Villager v = villager(actor);
         if (v == null) return new ActorState(false, false, actor.dimension(), 0, 0, 0, 0);
         BlockPos p = v.blockPosition();
+        observeTravel(v);
         return new ActorState(loaded(p), v.isAlive(), dimension(), p.getX(), p.getY(), p.getZ(),
                 v.getInventory().countItem(Items.WHEAT));
     }
@@ -188,7 +189,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         v.getNavigation().stop();
         ((PathNavigationAccessor)v.getNavigation()).cognitivecraft$setHasDelayedRecomputation(false);
         v.getMoveControl().setWantedPosition(v.getX(), v.getY(), v.getZ(), 0.0);
-        previousPosition.put(v.getUUID(), v.blockPosition());
+        BlockPos p=v.blockPosition();
+        movementTravel.put(v.getUUID(),new MovementTravel(tick(),p.getX(),p.getY(),p.getZ()));
         return true;
     }
     @Override public boolean holds(ActorRef actor, UUID runId) {
@@ -203,7 +205,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                     "run-release", 0, 0);
             GatewayControl.release(v, runId);
         } else GatewayControl.releaseByEntity(actor.entityId(), runId);
-        previousPosition.remove(actor.entityId());
+        movementTravel.remove(actor.entityId());
         routes.remove(actor.entityId());
         recipeSettled.remove(actor.entityId());
     }
@@ -313,10 +315,16 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return navigate(actor,new Cell(dimension(),standing.getX(),standing.getY(),standing.getZ()),maximum,
                 true,false,drop.position(),actual);
     }
+    private void observeTravel(Villager v) {
+        MovementTravel measured=movementTravel.get(v.getUUID());
+        if(measured!=null) {
+            BlockPos p=v.blockPosition();measured.observe(tick(),p.getX(),p.getY(),p.getZ());
+        }
+    }
     private long sampleTravel(Villager v) {
-        BlockPos now=v.blockPosition(),previous=previousPosition.put(v.getUUID(),now);
-        return previous==null ? 0 : Math.max(Math.abs((long)now.getX()-previous.getX()),
-                Math.max(Math.abs((long)now.getY()-previous.getY()),Math.abs((long)now.getZ()-previous.getZ())));
+        observeTravel(v);
+        MovementTravel measured=movementTravel.get(v.getUUID());
+        return measured==null ? 0 : measured.charge();
     }
     private Movement navigate(ActorRef actor, Cell target, int maxNavigationCalls, boolean sourceApproach) {
         return navigate(actor,target,maxNavigationCalls,sourceApproach,false);
@@ -492,6 +500,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 new NavigationRoute.Position(v.getX(), v.getY(), v.getZ()));
     }
     private Movement terminal(Villager v, Route route, String reason, int work, long travel) {
+        MovementTravel measured=movementTravel.get(v.getUUID());
+        if(reason.equals("physical-reach-and-los") && measured!=null && !measured.drained()) {
+            stopOwnedNavigation(v,route);
+            return new Movement(false,false,work,travel);
+        }
         if (route != null) {
             route.policy.terminal(reason);
             stopOwnedNavigation(v, route);

@@ -18,9 +18,14 @@ public final class FabricPrerequisiteRuntime {
     private final Limits limits=Limits.defaults();
     private final LeasePrerequisiteSupplies supplies;
     private final PrerequisiteAdmission admission;
+    private final java.util.function.Function<CapabilityRequest,ObservationSnapshot> observations;
+    private final Map<UUID,Cuboid> staged=new LinkedHashMap<>();
+    private long linkedTick=-1;
     public FabricPrerequisiteRuntime(MinecraftServer server,JobLifecycleStore jobs,ResourceLeaseService leases,
-                                      CapabilityResolver.Engine resolver,Clock clock) {
-        this.server=Objects.requireNonNull(server);this.jobs=Objects.requireNonNull(jobs);
+                                      CapabilityResolver.Engine resolver,Clock clock) {this(server,jobs,leases,resolver,clock,null);}
+    public FabricPrerequisiteRuntime(MinecraftServer server,JobLifecycleStore jobs,ResourceLeaseService leases,
+                                      CapabilityResolver.Engine resolver,Clock clock,java.util.function.Function<CapabilityRequest,ObservationSnapshot> observations) {
+        this.observations=observations;this.server=Objects.requireNonNull(server);this.jobs=Objects.requireNonNull(jobs);
         this.resolver=Objects.requireNonNull(resolver);this.clock=Objects.requireNonNull(clock);
         supplies=new LeasePrerequisiteSupplies(leases,()->server.overworld().getGameTime());
         admission=new PrerequisiteAdmission(jobs,limits,()->server.overworld().getGameTime());
@@ -65,6 +70,16 @@ public final class FabricPrerequisiteRuntime {
         return jobs.mayControl(need.demand(),need.guard().generation(),need.origin());
     }
     private MethodSelection method(Production production,long batches,long output,Need need) {
+        if(ResourceComposition.make(need)) {
+            if(observations==null || !ResourceComposition.registered(production))throw new IllegalArgumentException("Registered resource preparation");
+            if(production.capability().equals(OakLogDelivery.ID)&&need.acquisitionSource()==null)throw new IllegalArgumentException("Missing acquisition source");
+            var request=ResourceComposition.project(need,production.capability(),output);var seen=observations.apply(request);
+            var bound=new ValidatedRequest(request,need.origin(),seen.reference());
+            var selected=resolver.resolveForPrerequisite(bound,seen);
+            if(production.capability().equals(OakLogDelivery.ID)&&seen.counts().getOrDefault("oak_logs",0L)<output)
+                selected=new CapabilityResolver.Decision(new Resolution(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,"insufficient oak source"),null,selected.constraints(),seen,selected.catalogRevision(),selected.candidates(),selected.queriedPages(),selected.candidateWork(),selected.complete(),selected.fallbackUsed(),null);
+            return new MethodSelection(selected,seen.scannedCells());
+        }
         if(!production.equals(Production.cropDelivery()) || output>64)throw new IllegalArgumentException("Existing P0 production only");
         var supply=supplies.inspect(need,"minecraft:mature_wheat");
         var arguments=new HashMap<>(need.bound().request().arguments());arguments.put("amount",new IntValue(Math.toIntExact(output)));
@@ -75,5 +90,54 @@ public final class FabricPrerequisiteRuntime {
                 supply.inspected(),Map.of("mature_wheat",supply.available(),"unknown_cells",supply.status()==ObservationStatus.UNKNOWN?1L:0L));
         return new MethodSelection(resolver.resolve(request,observation),supply.inspected());
     }
+    public void stage(UUID root,Cuboid oakSource) {thread();if(staged.size()>=32)throw new IllegalStateException("Bounded staged admission");staged.put(root,oakSource);}
+    /** Only acknowledgement/linkage, one Job publication per tick. Scheduling remains WorkerDispatcher. */
+    public void tick() {
+        thread();long tick=server.overworld().getGameTime();if(linkedTick==tick || !jobs.ready())return;linkedTick=tick;
+        if(!staged.isEmpty()) {
+            var entry=staged.entrySet().iterator().next();
+            if(stagedFailures.containsKey(entry.getKey())) {
+                var root=jobs.query(entry.getKey(),jobs.snapshot().jobs().stream().filter(j->j.id().equals(entry.getKey())).findFirst().orElseThrow().origin());
+                var change=jobs.transition(root.id(),root.guard(),Jobs.State.FAILED,stagedFailures.get(root.id()),root.origin());
+                if(change.accepted()){stagedFailures.remove(root.id());staged.remove(root.id());}return;
+            }
+            JobLink result=admitStaged(entry.getKey(),entry.getValue());
+            if(result.done)staged.remove(entry.getKey());return;
+        }
+        for(var demand:jobs.snapshot().jobs()) {
+            if(demand.preparation()==null || demand.state()!=Jobs.State.READY || jobs.materialReady(demand))continue;
+            for(var intent:demand.preparation().materials()) {
+                long assigned=jobs.snapshot().allocations().stream().filter(a->a.material() && a.demand().equals(demand.id()) && a.producer().equals(intent.producer()) && a.item().equals(intent.item()))
+                        .mapToLong(Jobs.Allocation::quantity).sum();
+                long missing=intent.quantity()-assigned;if(missing<=0)continue;
+                var producer=jobs.query(intent.producer(),demand.origin());
+                if(producer.state()!=Jobs.State.SUCCEEDED)continue;
+                for(var attempt:producer.attempts())if(!attempt.open())for(var receipt:attempt.resourceReceipts()) {
+                    if(receipt.stage()!=ResourceDelivery.Stage.DEPOSIT || !receipt.item().id().equals(intent.item()))continue;
+                    long spent=jobs.snapshot().allocations().stream().filter(a->a.receipt().equals(receipt.receiptId())).mapToLong(Jobs.Allocation::quantity).sum();
+                    long quantity=Math.min(missing,receipt.quantity()-spent);if(quantity<=0)continue;
+                    var need=new Need(demand.id(),demand.guard(),demand.request(),intent.item(),quantity,AllocationPolicy.MATERIAL_ONLY);
+                    var stock=supplies.inspect(need,intent.item());
+                    UUID id=UUID.nameUUIDFromBytes(("material:1:"+demand.id()+":"+producer.id()+":"+receipt.receiptId()).getBytes(StandardCharsets.UTF_8));
+                    var change=jobs.allocateMaterial(new Jobs.Allocation(id,producer.id(),attempt.id(),receipt.receiptId(),demand.id(),quantity,intent.item()),demand.guard(),stock,tick,demand.origin());
+                    if(change.accepted())return;
+                }
+            }
+        }
+    }
+    private record JobLink(boolean done) { }
+    private JobLink admitStaged(UUID id,Cuboid source) {
+        var root=jobs.snapshot().jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);
+        if(root==null)return new JobLink(false);
+        if(root.state().terminal()||root.state()==Jobs.State.INTERRUPTED)return new JobLink(true);
+        var need=new Need(root.id(),root.guard(),root.request(),ResourceDelivery.WOODEN_AXE.id(),((IntValue)root.request().request().arguments().get("amount")).value(),AllocationPolicy.MATERIAL_ONLY,source);
+        var result=resolve(List.of(need),root.origin(),ResourceComposition.RECIPE_KEYS);
+        if(result.admission().status()==ResolutionStatus.RESOLVED)return new JobLink(true);
+        // Rejected expansion bills first; wait for its asynchronous write before publishing the blocker.
+        if(jobs.ready())jobs.transition(root.id(),root.guard(),Jobs.State.FAILED,result.admission().reason()==null?Reason.RESOURCE_MISSING:result.admission().reason(),root.origin());
+        else stagedFailures.put(id,result.admission().reason()==null?Reason.RESOURCE_MISSING:result.admission().reason());
+        return new JobLink(false);
+    }
+    private final Map<UUID,Reason> stagedFailures=new HashMap<>();
     private void thread(){if(!server.isSameThread())throw new IllegalStateException("Prerequisites game thread");}
 }

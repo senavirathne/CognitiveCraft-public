@@ -42,6 +42,7 @@ public final class NeedleWire {
         String prompt = input.text(), from = null, through = null, destination = null;
         if(axe) {
             // Disposable textual normalization only. Core independently grounds the original text.
+            prompt=Pattern.compile("(?i)(\\b(?:make|craft|produce)\\s+)(?:(?:me|us)\\s+)?a(\\s+wooden\\s+axe\\b)").matcher(prompt).replaceAll(m->java.util.regex.Matcher.quoteReplacement(m.group(1)+"1"+m.group(2)));
             var quantity=Pattern.compile("(?i)(\\b(?:make|craft|produce)\\s+)(one|two|three|four)(\\s+wooden\\s+axes?\\b)").matcher(prompt);
             var normalized=new StringBuffer();
             while(quantity.find()) {

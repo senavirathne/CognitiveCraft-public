@@ -51,7 +51,7 @@ public final class DeterministicPrerequisiteResolver {
                 for (Need need : group) {
                     long used = Math.min(stock, need.quantity()); stock -= used;
                     long produced = need.quantity() - used;
-                    if (produced > 0) expansion.allocate(need.demand(), solved.node, produced, need.allocation());
+                    if (produced > 0 && !Objects.equals(solved.node,need.demand())) expansion.allocate(need.demand(), solved.node, produced, need.allocation());
                 }
             }
             List<Node> nodes = expansion.plans.values().stream().map(Plan::node)
@@ -87,6 +87,7 @@ public final class DeterministicPrerequisiteResolver {
         List<Need> needs = List.of();
         Map<String, Plan> plans = new LinkedHashMap<>();
         Map<String, Pool> pools = new HashMap<>();
+        final Map<String,Supply> inspectedStock=new HashMap<>();
         List<StockUse> stock = new ArrayList<>();
         Map<String, AllocationIntent> allocations = new HashMap<>();
         int work, edges, alternatives, visited;
@@ -106,8 +107,9 @@ public final class DeterministicPrerequisiteResolver {
             String key = bindingKey(owner) + ":" + item;
             if (!path.add(key)) throw stop(Reason.REQUEST_INVALID, Qualification.CYCLE);
             try {
-                Supply proof = Objects.requireNonNull(supplies.inspect(owner, item));
-                step(Math.addExact(proof.inspected(), 1));
+                Supply proof=ResourceComposition.make(owner)?inspectedStock.get(key):null;
+                if(proof==null){proof=Objects.requireNonNull(supplies.inspect(owner,item));step(Math.addExact(proof.inspected(),1));if(ResourceComposition.make(owner))inspectedStock.put(key,proof);}
+                else step(1);
                 if (!proof.item().equals(item) || !proof.observation().dimension().equals(owner.bound().observation().dimension()))
                     throw stop(Reason.REQUEST_INVALID, Qualification.NONE);
                 if (proof.reason() == Reason.AUTHORITY_DENIED) throw unauthorized();
@@ -149,7 +151,8 @@ public final class DeterministicPrerequisiteResolver {
                             if (plans.size() == limits.nodes() || visited == limits.nodes())
                                 throw stop(Reason.BUDGET_EXHAUSTED, Qualification.LIMIT);
                             visited++;
-                            planned = new Plan(stableId("production:1:" + owner.demand() + ":" + key + ":" + option.id()), owner, item, option);
+                            planned = new Plan(ResourceComposition.make(owner) && item.equals(owner.item()) ? owner.demand()
+                                    : stableId("production:1:" + owner.demand() + ":" + key + ":" + option.id()), owner, item, option);
                             plans.put(key, planned);
                         }
                         long total = Math.addExact(planned.wanted, deficit);
@@ -162,7 +165,7 @@ public final class DeterministicPrerequisiteResolver {
                         Map<String, Long> remainder = Map.of();
                         if (!option.recipe().isEmpty()) {
                             Recipe recipe = catalog.recipes().stream().filter(r -> r.id().equals(option.recipe())).findFirst().orElseThrow();
-                            ingredients=recipe.inputs(); remainder=recipe.remainders();
+                            ingredients=ResourceComposition.make(owner) ? option.inputs() : recipe.inputs(); remainder=recipe.remainders();
                         }
                         for (Ingredient ingredient : ingredients) {
                             if (addedBatches == 0) break;
@@ -194,7 +197,7 @@ public final class DeterministicPrerequisiteResolver {
                         CapabilityResolver.Decision decision=selected.decision();
                         step(Math.addExact(Math.addExact(decision.candidateWork(),decision.queriedPages()),1+selected.inspected()));
                         if (decision.routing().status()!=ResolutionStatus.RESOLVED) {
-                            ResolutionStatus status=decision.routing().status()==ResolutionStatus.UNSUPPORTED_RUNTIME
+                            ResolutionStatus status=ResourceComposition.make(owner) ? decision.routing().status() : decision.routing().status()==ResolutionStatus.UNSUPPORTED_RUNTIME
                                     ? ResolutionStatus.UNSUPPORTED_RUNTIME : decision.routing().status()==ResolutionStatus.UNAUTHORIZED
                                     ? ResolutionStatus.UNAUTHORIZED : ResolutionStatus.BLOCKED;
                             throw new Stop(status,decision.routing().reason()==null?Reason.RESOURCE_MISSING:decision.routing().reason(),Qualification.NONE);
@@ -202,7 +205,9 @@ public final class DeterministicPrerequisiteResolver {
                         if (!decision.complete() || decision.selectedBindings()==null || decision.routing().artifact()==null
                                 || !decision.selectedBindings().context().equals(owner.origin())
                                 || !decision.selectedBindings().request().capability().equals(option.capability())
-                                || !compatibleBindings(owner.bound(), decision.selectedBindings(), produced)
+                                || !(ResourceComposition.make(owner)
+                                    ? ResourceComposition.project(owner,option.capability(),produced).equals(decision.selectedBindings().request())
+                                    : compatibleBindings(owner.bound(), decision.selectedBindings(), produced))
                                 || !decision.selectedBindings().observation().equals(decision.observation().reference())
                                 || decision.observation().status()!=ObservationStatus.PRESENT
                                 || decision.observation().observedTick()>tick
@@ -297,7 +302,7 @@ public final class DeterministicPrerequisiteResolver {
         long result=128;
         for(Need need:needs)result=Math.addExact(result,128L+RequestCodec.encode(need.bound().request()).getBytes(StandardCharsets.UTF_8).length);
         for(Node node:nodes)result=Math.addExact(result,node.toString().getBytes(StandardCharsets.UTF_8).length);
-        for(StockUse use:stock)result=Math.addExact(result,use.toString().getBytes(StandardCharsets.UTF_8).length);
+        for(StockUse use:stock)result=Math.addExact(result,(ResourceComposition.make(use.owner()) ? use.owner().demand()+":"+use.proof()+":"+use.quantity() : use.toString()).getBytes(StandardCharsets.UTF_8).length);
         for(AllocationIntent allocation:allocations)result=Math.addExact(result,allocation.toString().getBytes(StandardCharsets.UTF_8).length);
         return Math.toIntExact(result);
     }
