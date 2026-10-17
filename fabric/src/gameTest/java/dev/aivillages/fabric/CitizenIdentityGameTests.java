@@ -527,7 +527,7 @@ public final class CitizenIdentityGameTests {
             if (!legacySha.equals(proof.legacySha256())) throw new IllegalStateException("Migration rewrote legacy source");
             var identity = StrictJson.object(Files.readString(world.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH).resolve("state.json")));
             var journal = StrictJson.object(Files.readString(world.resolve(BootstrapJournal.WORLD_RELATIVE_PATH).resolve("state.json")));
-            if (!Long.valueOf(1).equals(identity.get("schema")) || !Long.valueOf(2).equals(journal.get("schema"))
+            if (!Long.valueOf(CitizenIdentityStore.SCHEMA).equals(identity.get("schema")) || !Long.valueOf(2).equals(journal.get("schema"))
                     || journal.containsKey("enrollment")) throw new IllegalStateException("Identity has two writable owners");
             long revision = ((Number)identity.get("revision")).longValue();
             if (!(identity.get("citizens") instanceof java.util.List<?> rows) || rows.size() != 3)
@@ -536,7 +536,7 @@ public final class CitizenIdentityGameTests {
             if (!warm) writeProof(world, new Proof(proof.first(), proof.second(), proof.other(), proof.owner(),
                     proof.foreign(), proof.acquired(), proof.namedRun(), proof.secondRun(), proof.otherRun(),
                     proof.cancelled(), proof.artifact(), proof.origin(), legacySha, revision, proof.process()));
-            System.out.println("IMP-008 durable identitySchema=1 journalSchema=2 legacySha256=" + legacySha
+            System.out.println("IMP-008 durable identitySchema=" + CitizenIdentityStore.SCHEMA + " journalSchema=2 legacySha256=" + legacySha
                     + " registryRevision=" + revision + " migrationOnce=true warm=" + warm);
         } catch (Exception failure) { throw new IllegalStateException(failure); }
     }

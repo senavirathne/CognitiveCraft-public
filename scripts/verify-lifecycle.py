@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import time
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 import headless
@@ -25,11 +26,10 @@ def main():
     with ZipFile(jar, "w") as archive:
         for name, data in entries.items():
             archive.writestr(name, data)
-    directory = ROOT / "build/lifecycle-run"
+    directory = ROOT / "build/lifecycle-run" / str(time.time_ns())
     evidence = ROOT / "build/lifecycle-evidence"
-    shutil.rmtree(directory, ignore_errors=True)
     if evidence.exists():
-        previous = evidence.with_name("lifecycle-evidence-previous-" + str(__import__("time").time_ns()))
+        previous = evidence.with_name("lifecycle-evidence-previous-" + str(time.time_ns()))
         evidence.rename(previous)
     evidence.mkdir(parents=True, exist_ok=True)
     (directory / "mods").mkdir(parents=True)
