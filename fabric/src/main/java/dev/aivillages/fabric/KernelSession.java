@@ -86,9 +86,9 @@ public final class KernelSession implements AutoCloseable {
     private List<TrustedContext> dispatchScopes=List.of();
     private long dispatchRevision=-1;
     private int dispatchScopeCursor;
-    private final Map<UUID, CitizenRegistry.Availability> availabilityFacts = new LinkedHashMap<>();
+    private CitizenLifecycle lifecycle;
+    private FabricCitizenLifecycle lifecycleAdapter;
     private UUID pendingEnrollmentEntity;
-    private int availabilityCursor;
     private boolean closed;
     private boolean closeRequested;
     private final CompletableFuture<Void> storeClosure = new CompletableFuture<>();
@@ -119,9 +119,10 @@ public final class KernelSession implements AutoCloseable {
                 PrimitiveDiagnosticStore.Faults.none());
     }
     /** Isolated real-store/fault fixtures retain the production composition and worker owners. */
-    KernelSession(MinecraftServer server,Path world,LanguageRequests.Port injectedLanguage,
+    KernelSession(MinecraftServer server,Path suppliedWorld,LanguageRequests.Port injectedLanguage,
                   GenerationPort injectedGeneration,PrimitiveDiagnostics.Sink injectedSink,
                   PrimitiveDiagnostics.Policy diagnosticPolicy,PrimitiveDiagnosticStore.Faults faults) {
+        final Path world = suppliedWorld.toAbsolutePath().normalize();
         this.server = server;
         blueprintRegistry=FabricBlueprintRegistry.capture();
         var configuration=diagnosticPolicy==null?PrimitiveDiagnosticConfig.read(System.getenv())
@@ -271,7 +272,7 @@ public final class KernelSession implements AutoCloseable {
         refreshRetentionRoots();
         loaded.retentionService().maintain(worker);
         loaded.retrieval().maintain(worker);
-        refreshAvailability();
+        lifecycleAdapter.step();
         if (pendingEnrollmentEntity != null && citizens.ready()) pendingEnrollmentEntity = null;
         language.tick();
         if (!language.pending()) interpretingPlayer = null;
@@ -316,7 +317,7 @@ public final class KernelSession implements AutoCloseable {
         var staging = new ResearchAdmissionController.TrialArtifacts(repository);
         var grants = new ResearchAdmissionController.TrialGrants(clock);
         CapabilityResolver.ControlPolicy control = this::controls;
-        AuthorityPolicy authority = (actor, effect, context) -> controls(actor, context)
+        AuthorityPolicy authority = (actor, effect, context) -> controls(actor, context) && citizens.available(actor)
                 && villager(actor) != null;
         BoundedSkillExecutor.ControlPolicy runControl = new BoundedSkillExecutor.ControlPolicy() {
             @Override public boolean mayInspect(TrustedContext caller, TrustedContext owner,
@@ -499,6 +500,14 @@ public final class KernelSession implements AutoCloseable {
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
                 job->ResourceDelivery.isDelivery(job.request().request().capability()) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
+
+        lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
+            // Notify both owners; short-circuiting would leave the second owner's work running.
+            boolean bootstrapStopped = controller.interruptActor(actor);
+            boolean dispatchStopped = dispatcher.interruptActor(actor);
+            return bootstrapStopped && dispatchStopped;
+        }, jobs, leases), CitizenLifecycle.Settings.production(), server.overworld().getGameTime());
+        lifecycleAdapter = new FabricCitizenLifecycle(server, citizens, lifecycle);
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
             @Override public List<String> references(TrustedContext caller) {
@@ -980,52 +989,27 @@ public final class KernelSession implements AutoCloseable {
     boolean jobsReady() { return jobs != null && jobs.ready(); }
     boolean leasesReady() { return leases != null && leases.ready(); }
     ResourceLeaseService leaseOwner() { return leases; }
-    boolean identityReady() { return citizens != null && citizens.ready(); }
+    boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
+            && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.query(citizenId, caller(player));
     }
 
     public void entityLoaded(Entity entity) {
-        if (entity instanceof Villager && entity.isAlive()) recordAvailability(entity, CitizenRegistry.Availability.LOADED);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.loaded(entity);
     }
     public void entityUnloaded(Entity entity) {
-        recordAvailability(entity, CitizenRegistry.Availability.UNLOADED);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.unloaded(entity);
     }
     public void entityUnavailable(Entity entity) {
-        recordAvailability(entity, CitizenRegistry.Availability.UNAVAILABLE);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.died(entity);
     }
     public void entityReplacementUnresolved(Entity entity) {
-        recordAvailability(entity, CitizenRegistry.Availability.REPLACEMENT_UNRESOLVED);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.replacement(entity);
     }
-    private void recordAvailability(Entity entity, CitizenRegistry.Availability fact) {
-        if (citizens == null || closed) return;
-        citizens.snapshot().citizens().stream().filter(c -> c.actor().entityId().equals(entity.getUUID()))
-                .findFirst().ifPresent(c -> {
-                    UUID id = c.actor().citizenId();
-                    var previous = availabilityFacts.get(id);
-                    if (fact != CitizenRegistry.Availability.UNLOADED
-                            || previous != CitizenRegistry.Availability.UNAVAILABLE
-                            && previous != CitizenRegistry.Availability.REPLACEMENT_UNRESOLVED)
-                        availabilityFacts.put(id, fact == CitizenRegistry.Availability.LOADED
-                                && !c.actor().dimension().equals(entity.level().dimension().identifier().toString())
-                                ? CitizenRegistry.Availability.UNKNOWN : fact);
-                });
-    }
-    private void refreshAvailability() {
-        if (!availabilityFacts.isEmpty()) {
-            var entry = availabilityFacts.entrySet().iterator().next();
-            var changed = citizens.observeAvailability(entry.getKey(), entry.getValue());
-            if (changed.accepted()) availabilityFacts.remove(entry.getKey());
-            return;
-        }
-        var rows = citizens.snapshot().citizens();
-        if (rows.isEmpty()) return;
-        availabilityCursor %= rows.size();
-        var citizen = rows.get(availabilityCursor);
-        availabilityCursor = (availabilityCursor + 1) % rows.size();
-        var loadedActor = villager(citizen.actor());
-        refreshLoadedAvailability(citizens, citizen, loadedActor != null);
-    }
+    CitizenLifecycle lifecycleOwner() { return lifecycle; }
+    FabricCitizenLifecycle lifecycleAdapter() { return lifecycleAdapter; }
+    int lifecycleLookups() { return lifecycleAdapter == null ? 0 : lifecycleAdapter.lastLookups(); }
 
     static void refreshLoadedAvailability(CitizenRegistry citizens, CitizenRegistry.Citizen citizen,
                                           boolean loaded) {

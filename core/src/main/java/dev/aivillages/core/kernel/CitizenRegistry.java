@@ -30,10 +30,14 @@ public final class CitizenRegistry implements BootstrapController.Identity {
 
     /** Names are values. Identity, control and the bound entity are immutable. No aliases are retained. */
     public record Citizen(ActorRef actor, TrustedContext owner, String displayName,
-                          Availability availability) {
+                          Availability availability, CitizenLifecycle.Marker lifecycle) {
+        public Citizen(ActorRef actor, TrustedContext owner, String displayName, Availability availability) {
+            this(actor, owner, displayName, availability, CitizenLifecycle.Marker.initial());
+        }
         public Citizen {
             Objects.requireNonNull(actor); Objects.requireNonNull(owner);
             Objects.requireNonNull(availability);
+            Objects.requireNonNull(lifecycle);
             if (displayName != null && !normalizeName(displayName).equals(displayName))
                 throw new IllegalArgumentException("Noncanonical citizen name");
         }
@@ -197,7 +201,7 @@ public final class CitizenRegistry implements BootstrapController.Identity {
         Reason unavailable = unavailableReason();
         if (unavailable != null) return rejected(unavailable);
         if (normalized.equals(citizen.displayName())) return new Change(current(citizen), null, false);
-        Citizen renamed = new Citizen(citizen.actor(), citizen.owner(), normalized, citizen.availability());
+        Citizen renamed = new Citizen(citizen.actor(), citizen.owner(), normalized, citizen.availability(), citizen.lifecycle());
         return publish(replacing(renamed), renamed);
     }
 
@@ -206,12 +210,52 @@ public final class CitizenRegistry implements BootstrapController.Identity {
         thread(); Objects.requireNonNull(availability);
         Citizen citizen = byId(citizenId);
         if (citizen == null) return rejected(Reason.ACTOR_UNAVAILABLE);
+        if (availability == Availability.LOADED && (citizen.lifecycle().blocked() || citizen.lifecycle().pending()))
+            return rejected(Reason.ACTOR_UNAVAILABLE);
         observed.put(citizenId, availability);
         Reason unavailable = unavailableReason();
         if (unavailable != null) return rejected(unavailable);
         if (citizen.availability() == availability) return new Change(current(citizen), null, false);
-        Citizen updated = new Citizen(citizen.actor(), citizen.owner(), citizen.displayName(), availability);
+        Citizen updated = new Citizen(citizen.actor(), citizen.owner(), citizen.displayName(), availability, citizen.lifecycle());
         return publish(replacing(updated), updated);
+    }
+
+    /** Immediate observation fence; this does not grant control or write a second store. */
+    public void fenceAvailability(UUID citizenId, Availability availability) {
+        thread(); if (byId(citizenId) != null) observed.put(citizenId, Objects.requireNonNull(availability));
+    }
+    public boolean available(ActorRef actor) {
+        thread(); Citizen c = byId(actor.citizenId());
+        return !fenced && !readOnly && c != null && c.actor().equals(actor)
+                && !c.lifecycle().blocked() && !c.lifecycle().pending()
+                && current(c).availability() == Availability.LOADED;
+    }
+    /** IMP-029 trusted coordination seam. Identity/control/binding remain immutable. */
+    public Change reconcileLifecycle(UUID citizenId, CitizenLifecycle.Marker marker) {
+        thread(); Citizen c = byId(citizenId);
+        if (c == null) return rejected(Reason.ACTOR_UNAVAILABLE);
+        if (!validLifecycleExtension(c.lifecycle(), marker)) return rejected(Reason.STALE_OBSERVATION);
+        Reason unavailable = unavailableReason();
+        if (unavailable != null) return rejected(unavailable);
+        if (c.lifecycle().equals(marker)) return new Change(current(c), null, false);
+        Citizen updated = new Citizen(c.actor(), c.owner(), c.displayName(), marker.availability(), marker);
+        return publish(replacing(updated), updated);
+    }
+    static boolean validLifecycleExtension(CitizenLifecycle.Marker old, CitizenLifecycle.Marker next) {
+        if (old.equals(next)) return true;
+        if (old.blocked() && !(old.generation() == next.generation()
+                && (old.event() == next.event() || !old.terminal() && next.event() == CitizenLifecycle.Event.DEATH
+                || old.event() == CitizenLifecycle.Event.REMOVE && next.event() == CitizenLifecycle.Event.DEATH)
+                && next.acknowledged() >= old.acknowledged())) return false;
+        if (next.event() == CitizenLifecycle.Event.LOAD)
+            return !old.blocked() && !old.pending() && old.generation() != Long.MAX_VALUE
+                    && next.generation() == old.generation() + 1;
+        if (!old.blocked() && old.acknowledged() == 7 && next.generation() == old.generation()
+                && next.event() == CitizenLifecycle.Event.VERIFY && next.acknowledged() == 0) return true;
+        return (next.generation() == old.generation()
+                && (old.event() != next.event() || next.acknowledged() >= old.acknowledged()))
+                || !old.blocked() && !old.pending() && old.generation() != Long.MAX_VALUE
+                && next.generation() == old.generation() + 1;
     }
 
     /** Private metadata is returned only to its controlling principal and scope. */
@@ -275,7 +319,7 @@ public final class CitizenRegistry implements BootstrapController.Identity {
     }
     private Citizen current(Citizen citizen) {
         return new Citizen(citizen.actor(), citizen.owner(), citizen.displayName(),
-                observed.getOrDefault(citizen.actor().citizenId(), Availability.UNKNOWN));
+                observed.getOrDefault(citizen.actor().citizenId(), Availability.UNKNOWN), citizen.lifecycle());
     }
     private Address address(Citizen citizen) {
         var live = current(citizen);

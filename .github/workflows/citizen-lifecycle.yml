@@ -1,0 +1,54 @@
+name: Citizen lifecycle reconciliation acceptance
+on:
+  push:
+    branches: [main, work/imp-029]
+    paths: ['core/**', 'fabric/**', 'scripts/**', '.github/workflows/citizen-lifecycle.yml']
+  pull_request:
+    paths: ['core/**', 'fabric/**', 'scripts/**', '.github/workflows/citizen-lifecycle.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: citizen-lifecycle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: All affected modules and production build
+        run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+      - name: Actual event mapping and physical partial loss in separate saved-world JVMs
+        run: python3 scripts/verify-lifecycle.py
+      - name: Require executed lifecycle matrices
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for suite, minimum in [('CitizenLifecycleTest',24),('CitizenLifecycleStorageTest',9),('CitizenWorkReconcilerTest',3)]:
+              cases=list(ET.parse(Path('core/build/test-results/test')/('TEST-dev.aivillages.core.kernel.'+suite+'.xml')).getroot().iter('testcase'))
+              if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Missing passing lifecycle matrix '+suite)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: citizen-lifecycle-${{ github.run_id }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            build/lifecycle-evidence/
+            build/lifecycle-run/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/

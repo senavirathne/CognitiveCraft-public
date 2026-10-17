@@ -240,10 +240,12 @@ public final class CitizenIdentityGameTests {
                 }
                 case 14 -> {
                     identityReady();
+                    var savedEntity = CitizenLifecycleGameTests.unload(first);
                     session.entityUnloaded(first); session.tick();
                     require(session.citizen(owner, actor.citizenId()).availability()
                             == CitizenRegistry.Availability.UNLOADED, "Unload fact deleted or reclassified identity");
                     require(session.citizen(owner, actor.citizenId()).actor().equals(actor), "Unload changed binding");
+                    first = CitizenLifecycleGameTests.reload(h, savedEntity);
                     session.entityLoaded(first); quietUntil = h.getLevel().getGameTime() + 40; phase = 15;
                 }
                 case 15 -> {

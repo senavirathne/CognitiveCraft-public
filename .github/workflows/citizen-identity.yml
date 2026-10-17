@@ -131,7 +131,8 @@ jobs:
           warm = json.loads((evidence / 'identity-warm-state.json').read_text())
           if cold['bootstrapMigration'] != warm['bootstrapMigration'] or len(warm['citizens']) != 3:
               raise SystemExit('Migration repeated or duplicated identities')
-          if cold['citizens'] != warm['citizens']:
+          stable=lambda rows:[{k:v for k,v in c.items() if k!='lifecycle'} for c in rows]
+          if stable(cold['citizens']) != stable(warm['citizens']):
               raise SystemExit('Names, control scopes, entity bindings or availability changed on reload')
           PY
       - name: Preserve focused identity evidence

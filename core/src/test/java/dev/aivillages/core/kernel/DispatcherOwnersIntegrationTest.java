@@ -117,6 +117,24 @@ class DispatcherOwnersIntegrationTest {
         void until(java.util.function.BooleanSupplier done){for(int n=0;n<1000&&!done.getAsBoolean();n++)step();assertTrue(done.getAsBoolean(),()->jobs.snapshot().jobs().stream().map(j->j.state()+" "+dispatcher.diagnostics(j.id(),j.origin())+" "+j.attempts().stream().map(a->a.terminal()).toList()).toList().toString());}
         public void close()throws Exception{dispatcher.close();index.close();io.shutdown();assertTrue(io.awaitTermination(5,TimeUnit.SECONDS));}
     }
+    @Test void lifecycleNotificationDrainsHandlesOnceAndKeepsPartialCustodyUncertain() throws Exception {
+        try (var s=new Scene(false)) {
+            var id=s.create(ACTOR,OWNER,5); s.until(()->s.world.containerWheat==2);
+            s.citizens.fenceAvailability(ACTOR.citizenId(),CitizenRegistry.Availability.UNLOADED);
+            boolean stopped=false;
+            for(int n=0;n<100&&!stopped;n++) {
+                stopped=s.dispatcher.interruptActor(ACTOR); s.step();
+            }
+            assertTrue(stopped,"Repeated notifications must not reset the publication phase");
+            var interrupted=s.job(id,OWNER);
+            assertEquals(Jobs.State.INTERRUPTED,interrupted.state()); assertTrue(interrupted.current().uncertain());
+            assertEquals(2,interrupted.fulfilled()); assertEquals(2,s.world.containerWheat);
+            int attempts=interrupted.attempts().size();
+            for(int n=0;n<100;n++)s.step();
+            assertEquals(attempts,s.job(id,OWNER).attempts().size()); assertEquals(2,s.world.containerWheat);
+            assertEquals(0,s.raw.activeRuns()); assertEquals(0,s.modelCalls);
+        }
+    }
     static Map<String,Object> call(Operation op,Map<String,Object> args,String into){return Map.of("op","call","kind","primitive","id",op.signature().id(),"version",1L,"fingerprint",op.signature().fingerprint(),"args",args,"into",into);}
     @Test void realKnownMethodDispatchesThroughEveryOwnerWithNoModelAndConservesFiveUnits()throws Exception{try(var s=new Scene(false)){var a=s.create(ACTOR,OWNER,3);var b=s.create(s.second,s.foreign,2);s.until(()->s.job(a,OWNER).state()==Jobs.State.SUCCEEDED&&s.job(b,s.foreign).state()==Jobs.State.SUCCEEDED);assertEquals(5,s.world.containerWheat);assertEquals(0,s.world.actorWheat);assertEquals(0,s.world.crops.size());assertEquals(0,s.modelCalls);assertEquals(2,s.started.size());assertEquals(5,s.job(a,OWNER).fulfilled()+s.job(b,s.foreign).fulfilled());assertTrue(s.index.counters().pages()>0||s.index.counters().fallbackPages()>0);assertThrows(SecurityException.class,()->s.dispatcher.diagnostics(a,s.foreign));}}
     @Test void realResolverKeepsBlockedFirstStrategyAndExecutesAdmittedAlternative()throws Exception{try(var s=new Scene(true)){var id=s.create(ACTOR,OWNER,2);s.until(()->s.job(id,OWNER).state()==Jobs.State.SUCCEEDED);var job=s.job(id,OWNER);assertNotEquals(s.blocked,job.current().executions().getFirst().artifact());assertEquals(2,s.world.containerWheat);assertEquals(0,s.modelCalls);assertTrue(s.dispatcher.diagnostics(id,OWNER).getFirst().alternatives().stream().anyMatch(c->c.ref().equals(s.blocked)&&c.state()==CapabilityResolver.CandidateState.BLOCKED));}}
