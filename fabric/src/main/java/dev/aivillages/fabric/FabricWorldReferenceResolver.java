@@ -65,7 +65,7 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             }
             @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
                     dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
-                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.WOODEN_AXE)) {
+                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.WOODEN_AXE) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.CRAFTING_TABLE)) {
                     var pos=new BlockPos(target.x(),target.y(),target.z());
                     if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
                         return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");

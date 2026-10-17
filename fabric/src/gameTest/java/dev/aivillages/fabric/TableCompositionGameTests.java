@@ -43,6 +43,9 @@ public final class TableCompositionGameTests {
         int[] phase={0},learn={0},row={0},before={0};ActorRef[] actor={null};UUID[] run={null},root={null};
         long[] calls={0},submittedAt={0};Map<CapabilityId,String> hashes=new HashMap<>();CompletableFuture<?>[] closing={null};
         h.succeedWhen(()->{
+            // Pace the fast test-server clock while actual asynchronous journal writes complete.
+            // Production ticks, assignment limits, action deadlines and the wall watchdog are unchanged.
+            java.util.concurrent.locks.LockSupport.parkNanos(2_000_000);
             if(phase[0]==7){h.assertTrue(closing[0].isDone(),"Waiting for table composition storage closure");closing[0].join();return;}
             session.tick();h.assertTrue(session.identityReady(),"Waiting for table composition identity");
             if((phase[0]<=2 || phase[0]==4) && (!session.jobsReady() || !session.leasesReady())){h.assertTrue(false,"Waiting for owner publication");return;}
