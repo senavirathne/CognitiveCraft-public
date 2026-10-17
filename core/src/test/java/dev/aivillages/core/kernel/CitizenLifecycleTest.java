@@ -108,6 +108,17 @@ final class CitizenLifecycleTest {
         assertEquals(Event.MISSING, s.marker().event()); assertFalse(s.marker().terminal());
         s.fact(Event.LOAD, Source.LOADED_LOOKUP); s.settle(); assertTrue(s.registry.available(s.actor));
     }
+    @Test void reliableDelayedChunkReasonUpgradesMissingWithoutRepeatingOwnerCleanup() {
+        var s = new Scene(); s.load(); long generation = s.marker().generation();
+        s.fact(Event.MISSING, Source.UNKNOWN_REMOVAL); s.settle();
+        int jobs = s.owners.jobs, leases = s.owners.leases;
+        assertEquals(Decision.ACCEPTED, s.fact(Event.UNLOAD, Source.CHUNK_UNLOAD)); s.settle();
+        assertEquals(Event.UNLOAD, s.marker().event()); assertEquals(generation, s.marker().generation());
+        assertEquals(Availability.UNLOADED, s.registry.query(s.actor.citizenId(), s.owner).availability());
+        assertEquals(jobs, s.owners.jobs); assertEquals(leases, s.owners.leases);
+        assertEquals(Decision.DUPLICATE, s.fact(Event.MISSING, Source.UNKNOWN_REMOVAL));
+        assertFalse(s.registry.available(s.actor));
+    }
     @Test void deathDuringStalledRenameImmediatelyStopsWorkAndRetainsCommittedName() {
         var s = new Scene(); s.load(); s.memory.hold = true;
         assertTrue(s.registry.rename(s.actor.citizenId(), "Mira", s.owner).accepted());

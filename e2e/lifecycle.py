@@ -17,9 +17,9 @@ def scenario(h):
                     "Verified pre-unload binding")
     # Disposable setup moves the spawn ticket away. The clients then leave normally;
     # production reconciliation only observes the resulting native unload callbacks.
-    h.console(["setworldspawn 10000 80 10000"])
+    h.console(["fill 9996 200 9996 10004 200 10004 minecraft:stone", "setworldspawn 10000 201 10000"])
     for player in ("PlayerA", "PlayerB"):
-        h.command(player, "/tp 10000 90 10000", "Teleported")
+        h.command(player, "/tp 10000 201 10000", "Teleported")
     unloaded = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "UNLOADED" else None),
                       "Actual arena chunk unload", 100)
     require(unloaded["lifecycle"]["event"] == "UNLOAD", "Chunk absence inferred death")
@@ -74,6 +74,8 @@ def scenario(h):
     h.screenshot("PlayerA", "interrupted-partial-delivery-after-death", chat=True)
     roster = h.snapshot()["knownPlayers"]["PlayerA"]["citizens"]
     h.console(['summon minecraft:villager 2.5 201 2.5 {PersistenceRequired:1b,CustomName:"Ada"}'])
+    h.wait(lambda: any(actor["uuid"] != entity and actor.get("name") == "Ada"
+                       for actor in h.snapshot()["actors"]), "Actual unrelated same-name successor")
     h.quiet(20)
     require(h.snapshot()["knownPlayers"]["PlayerA"]["citizens"] == roster
             and citizen("PlayerA", a)["lifecycle"]["event"] == "DEATH", "Same-name successor inherited a citizen")

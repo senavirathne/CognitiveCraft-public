@@ -73,6 +73,14 @@ final class FabricCitizenLifecycle {
         for (int n = 0; n < Math.min(lifecycle.settings().lookups(), rows.size()); n++) {
             var c = rows.get(cursor++ % rows.size());
             if (lifecycle.marker(c.actor().citizenId()).blocked()) continue;
+            Binding binding = bindings.get(c.actor().citizenId());
+            // Vanilla stops tracking before its asynchronous chunk save assigns the
+            // native removal reason. Revisit only that exact instance/generation;
+            // an absent UUID alone remains MISSING rather than proving an unload.
+            if (lifecycle.marker(c.actor().citizenId()).event() == Event.MISSING && binding != null
+                    && binding.generation() == lifecycle.marker(c.actor().citizenId()).generation()
+                    && binding.entity().getRemovalReason() != null)
+                unloaded(binding.entity());
             var level = server.getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(c.actor().dimension())));
             lastLookups++;
             Entity entity = level == null ? null : level.getEntity(c.actor().entityId());

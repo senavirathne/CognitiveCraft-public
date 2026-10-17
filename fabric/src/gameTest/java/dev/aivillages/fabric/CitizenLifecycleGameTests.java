@@ -51,7 +51,13 @@ public final class CitizenLifecycleGameTests {
     @GameTest(maxTicks=200) public void killedEntityIsConfirmedDeath(GameTestHelper h) { run(h, Entity.RemovalReason.KILLED); }
     @GameTest(maxTicks=200) public void dimensionRemovalRemainsUnresolved(GameTestHelper h) { run(h, Entity.RemovalReason.CHANGED_DIMENSION); }
     @GameTest(maxTicks=200) public void ambiguousCallbackNeverInfersDeath(GameTestHelper h) { run(h, null); }
+    @GameTest(maxTicks=200) public void delayedChunkRemovalReasonIsRevisitedWithoutAnotherTrackingCallback(GameTestHelper h) {
+        run(h, Entity.RemovalReason.UNLOADED_TO_CHUNK, true);
+    }
     private void run(GameTestHelper h, Entity.RemovalReason reason) {
+        run(h, reason, false);
+    }
+    private void run(GameTestHelper h, Entity.RemovalReason reason, boolean delayedReason) {
         h.setBlock(1,0,1,Blocks.STONE);
         Villager original=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,1,1); original.setPersistenceRequired();
         UUID world=UUID.randomUUID(), principal=UUID.randomUUID();
@@ -75,7 +81,18 @@ public final class CitizenLifecycleGameTests {
             if(phase[0]==0) {
                 h.assertTrue(registry.available(actor),"Waiting for verified live binding");
                 generation[0]=marker.generation(); phase[0]=1;
-                if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK)saved[0]=unload(original);
+                if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK) {
+                    if(delayedReason) {
+                        // Match vanilla's stopTracking -> save -> setRemoved ordering.
+                        // No second ENTITY_UNLOAD callback reaches this adapter.
+                        adapter.unloaded(original);
+                        h.assertTrue(coordinator.marker(actor.citizenId()).event()==Event.MISSING,
+                                "An empty native reason must remain ambiguous");
+                        ADAPTERS.remove(original.getUUID());
+                    }
+                    saved[0]=unload(original);
+                    if(delayedReason) relay(original.getUUID(),adapter);
+                }
                 else if(reason==null)adapter.unloaded(original); // Null reason is explicitly ambiguous, not a fabricated death.
                 else original.remove(reason);
                 h.assertTrue(!registry.available(actor),"Real callback failed to fence synchronously");

@@ -51,7 +51,7 @@ def main():
                 env=env, stdout=output, stderr=subprocess.STDOUT, timeout=300)
         cases = [] if not report.exists() else [c for c in ET.parse(report).getroot().iter("testcase")
                                                if c.get("name", "").startswith("ai_villages_tests:")]
-        if result.returncode or len(cases) != 6 or any(c.find(tag) is not None for c in cases
+        if result.returncode or len(cases) != 7 or any(c.find(tag) is not None for c in cases
                                                        for tag in ("failure", "error", "skipped")):
             raise RuntimeError("Lifecycle " + phase + " failed; inspect " + str(evidence))
         identity = directory / "lifecycle-state/data/cognitivecraft/citizens/v1/state.json"
