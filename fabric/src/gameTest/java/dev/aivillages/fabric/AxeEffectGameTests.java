@@ -102,6 +102,10 @@ public final class AxeEffectGameTests {
                 h.assertTrue(world.acquire(walkingActor[0],run),"Ordinary table-jump fixture control");phase[0]=2;
             }
             if(phase[0]==2) {
+                // Gateway lifecycle samples held actors every tick, while bounded
+                // dispatch may poll this execution only once in several ticks.
+                world.actor(walkingActor[0]);
+                if(h.getLevel().getGameTime()%8!=0) {h.assertTrue(false,"Waiting for bounded delayed movement poll");return;}
                 var goal=h.absolutePos(new BlockPos(16,1,9));
                 var movement=world.moveRecipe(walkingActor[0],new SurvivalGateway.Cell(dim,goal.getX(),goal.getY(),goal.getZ()),1);
                 if(!walker[0].onGround())airborne[0]=true;
@@ -110,7 +114,7 @@ public final class AxeEffectGameTests {
                 if(!movement.reached()) {h.assertTrue(false,"Waiting for actual constrained table jump");return;}
                 h.assertTrue(airborne[0] && travel[0]>0 && travel[0]<=128 && walker[0].onGround(),"Airborne physical travel and final grounded settling were not witnessed");
                 world.release(walkingActor[0],run);
-                System.out.println("RB004_EFFECTS installed3x3=true mirrored=true components=true realSlots=true oldPristineSlotRetained=true splitTwoIngredients=true tableLoss=true replacementRejected=true recipeReloadBlocked=true cancellationCustody=true revokedControl=true ordinaryTableJumpTracked=true travel="+travel[0]);phase[0]=3;
+                System.out.println("RB004_EFFECTS installed3x3=true mirrored=true components=true realSlots=true oldPristineSlotRetained=true splitTwoIngredients=true tableLoss=true replacementRejected=true recipeReloadBlocked=true cancellationCustody=true revokedControl=true ordinaryTableJumpTracked=true delayedPollTicks=8 travel="+travel[0]);phase[0]=3;
             }
         });
     }

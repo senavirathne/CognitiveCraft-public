@@ -664,6 +664,7 @@ public final class LanguageRequests {
     }
 
     private static boolean groundedAmount(String text, long amount,boolean axe) {
+        if (axe && amount==1 && Pattern.compile("\\b(?:make|craft|produce)\\s+(?:(?:me|us)\\s+)?a\\s+wooden\\s+axe\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()) return true;
         if (quantityRole(text, String.valueOf(amount),axe)) return true;
         String[] words = {"", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
                 "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};

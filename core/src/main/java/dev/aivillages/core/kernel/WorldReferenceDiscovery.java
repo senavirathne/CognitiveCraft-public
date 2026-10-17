@@ -114,6 +114,9 @@ public final class WorldReferenceDiscovery {
         return inputContainers(actor,required,anchor,world,ResourceDelivery.OAK_LOG);
     }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item) {
+        return inputContainers(actor,required,anchor,world,item,false);
+    }
+    public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item,boolean allowShortfall) {
         if(required<1 || required>32 || !item.equals(ResourceDelivery.OAK_LOG) && !item.equals(ResourceDelivery.OAK_PLANKS))
             throw new IllegalArgumentException("Input batch envelope");
         return new Discovery<>() {
@@ -127,12 +130,13 @@ public final class WorldReferenceDiscovery {
                     var ref=new ContainerRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.inputContainer(actor,ref,item);
                     work+=sample.slotsInspected();
                     if(sample.status()==ObservationStatus.UNKNOWN)unknown=true;
-                    else if(sample.status()==ObservationStatus.PRESENT && sample.available()>=required) {
+                    else if(sample.status()==ObservationStatus.PRESENT && (sample.available()>=required || allowShortfall)) {
                         if(candidates.size()>=MAX_CANDIDATES)return Scan.complete(List.of(),work,Reason.BUDGET_EXHAUSTED,List.of("input-container-candidate-limit"));
                         candidates.add(new Candidate<>(new InputContainerTarget(ref,sample),point,sample.identity()));
                     }
                 }
                 if(cursor<SEARCH_CELLS)return Scan.progress(List.of(),work,List.of());
+                if(allowShortfall && candidates.stream().anyMatch(c->c.value().evidence().available()>=required))candidates=candidates.stream().filter(c->c.value().evidence().available()>=required).toList();
                 return unknown ? Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-input-container-envelope"))
                         : Scan.complete(candidates,work,Reason.RESOURCE_MISSING,List.of());
             }
