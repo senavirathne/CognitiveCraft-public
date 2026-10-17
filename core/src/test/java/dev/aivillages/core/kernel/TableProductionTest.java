@@ -40,6 +40,7 @@ class TableProductionTest {
     @Test void shortageAndUnknownStockHaveNoEffects() {
         var world=new TableTestSupport.World();world.planks=3;var d=new TableTestSupport.Driver(1,world);
         assertEquals(Reason.RESOURCE_MISSING,d.action(OBSERVE_TABLE_INPUTS).reason());assertEquals(0,d.effects);
+        d.gateway.releaseRun(d.run);
         world.known=false;var unknown=new TableTestSupport.Driver(1,world);
         assertEquals(Reason.STALE_OBSERVATION,unknown.action(OBSERVE_TABLE_INPUTS).reason());assertEquals(0,world.withdrawals);
     }

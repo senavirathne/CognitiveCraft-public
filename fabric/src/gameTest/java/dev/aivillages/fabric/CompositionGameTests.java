@@ -119,6 +119,10 @@ public final class CompositionGameTests {
                 if(++learn<4)phase=2;else{session.inference(false);phase=4;}
             } else if(phase==4)compose();
             else if(phase==5) {
+                if(!session.queuedJobIds(owner,false).contains(job)) {
+                    if(System.currentTimeMillis()-graphStarted>120000)failure="Bounded native root publication watchdog job="+job;
+                    return;
+                }
                 var j=session.queuedJob(owner,job);
                 if(j.state()==Jobs.State.FAILED||j.state()==Jobs.State.CANCELLED||j.state()==Jobs.State.INTERRUPTED){failure="Composition failed "+j;return;}
                 if(j.current()!=null && j.current().terminal()!=null && j.current().terminal().status()!=Outcomes.ExecutionStatus.SUCCEEDED){failure="Prepared native attempt stopped "+j;return;}
