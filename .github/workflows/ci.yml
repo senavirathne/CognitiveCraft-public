@@ -649,7 +649,7 @@ jobs:
           text = log.read_text()
           for token in ('IMP-008 identity accepted warm=false', 'candidates=2 foreignCandidates=1',
                         'serialCitizens=3 cancelledEffects=0 newModelCalls=0 delivered=3',
-                        'identitySchema=1 journalSchema=2', 'migrationOnce=true warm=false'):
+                        'identitySchema=2 journalSchema=2', 'migrationOnce=true warm=false'):
               if token not in text: raise SystemExit('Missing identity acceptance marker: ' + token)
           shutil.copy2(report, evidence / 'identity-cold.xml')
           shutil.copy2(log, evidence / 'identity-cold.log')
@@ -684,7 +684,7 @@ jobs:
           text = log.read_text()
           for token in ('IMP-008 identity accepted warm=true', 'candidates=2 foreignCandidates=1',
                         'serialCitizens=3 cancelledEffects=0 newModelCalls=0 delivered=5',
-                        'identitySchema=1 journalSchema=2', 'migrationOnce=true warm=true'):
+                        'identitySchema=2 journalSchema=2', 'migrationOnce=true warm=true'):
               if token not in text: raise SystemExit('Missing reload acceptance marker: ' + token)
           shutil.copy2(report, evidence / 'identity-warm.xml')
           shutil.copy2(log, evidence / 'identity-warm.log')
@@ -704,7 +704,8 @@ jobs:
           warm = json.loads((evidence / 'identity-warm-state.json').read_text())
           if cold['bootstrapMigration'] != warm['bootstrapMigration'] or len(warm['citizens']) != 3:
               raise SystemExit('Migration repeated or duplicated identities')
-          if cold['citizens'] != warm['citizens']:
+          stable=lambda rows:[{k:v for k,v in c.items() if k!='lifecycle'} for c in rows]
+          if stable(cold['citizens']) != stable(warm['citizens']):
               raise SystemExit('Names, control scopes, entity bindings or availability changed on reload')
           counts = {'cold':14,'warm':14,'gateway-cold':10,'gateway-warm':10,'controller':20,
                     'interruption-cold':1,'interruption-warm':1,'hardkill-setup':1,'hardkill-warm':1,

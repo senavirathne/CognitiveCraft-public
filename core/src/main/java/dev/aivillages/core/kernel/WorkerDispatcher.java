@@ -90,6 +90,7 @@ public final class WorkerDispatcher {
     private enum Phase { CHARGED, READYING, ASSIGNING, CLAIMING, RUNNING, STOPPING, PUBLISHING, RECONCILING }
     private static final class Cursor { UUID job, worker, monitor; int scannedWorkers; }
     private static final class Live {
+        boolean lifecycleLost;
         final UUID job, run;
         final TrustedContext origin;
         final ActorRef worker;
@@ -246,6 +247,19 @@ public final class WorkerDispatcher {
         try { return citizens.query(l.worker.citizenId(),l.origin).availability()==CitizenRegistry.Availability.LOADED; }
         catch(SecurityException denied){return false;}
     }
+    /** Only matching immutable actor handles are stopped; other assignments keep their claims. */
+    public boolean interruptActor(ActorRef actor) {
+        checkThread(); boolean stopped = true;
+        for (Live l : live.values()) if (l.worker.equals(actor)) {
+            stopped = false; l.lifecycleLost = true;
+            if (l.phase == Phase.PUBLISHING || l.phase == Phase.RECONCILING) continue;
+            stop(l, Reason.INTERRUPTED, false);
+            if (l.handle != null) {
+                if (l.cancel) l.handle.cancel(l.origin); else l.handle.interrupt(l.origin);
+            }
+        }
+        return stopped;
+    }
     private void advance(Live l,Work work,long tick) {
         Jobs.Job job;
         try { job=jobs.query(l.job,l.origin); }
@@ -283,6 +297,7 @@ public final class WorkerDispatcher {
         }
         if(l.phase==Phase.PUBLISHING || l.phase==Phase.RECONCILING) {
             if(!jobs.ready())return;
+            if(l.lifecycleLost && attempt.terminal()!=null) { live.remove(l.job); return; }
             if(l.phase==Phase.RECONCILING){if(!attempt.open())live.remove(l.job);return;}
             if(attempt.terminal()==null)return;
             if(job.state()==Jobs.State.INTERRUPTED && attempt.uncertain()) {
@@ -364,7 +379,7 @@ public final class WorkerDispatcher {
             l.report=new Jobs.Report(l.run,l.generation,summary.committedEffects(),summary.usage(),summary.receipts(),summary.outcome(),summary.resourceReceipts());
         }else {
             ExecutionStatus status=l.cancel?ExecutionStatus.CANCELLED:
-                    l.failure==Reason.ACTOR_UNAVAILABLE || l.failure==Reason.ACTION_TIMEOUT || l.failure==Reason.STALE_OBSERVATION
+                    l.failure==Reason.INTERRUPTED || l.failure==Reason.ACTOR_UNAVAILABLE || l.failure==Reason.ACTION_TIMEOUT || l.failure==Reason.STALE_OBSERVATION
                             ?ExecutionStatus.INTERRUPTED:ExecutionStatus.BLOCKED;
             Reason reason=status==ExecutionStatus.INTERRUPTED?Reason.INTERRUPTED:status==ExecutionStatus.CANCELLED?Reason.CANCELLED:l.failure;
             l.report=new Jobs.Report(l.run,l.generation,0,Map.of(),List.of(),new Outcomes.Execution(status,reason,0,null));

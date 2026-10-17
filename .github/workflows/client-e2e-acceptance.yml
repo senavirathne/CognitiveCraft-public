@@ -101,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [deterministic, nlu, resilience]
+        profile: [deterministic, nlu, resilience, lifecycle]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -145,7 +145,7 @@ jobs:
         if: failure()
         run: python3 e2e/diagnostics.py build/e2e/${{ matrix.profile }}
   qualification:
-    name: Require all 13 families and exact-layer IMP-001–019 evidence
+    name: Require 14 families and exact-layer owner evidence
     needs: [genuine-acquisition, gameplay]
     if: always()
     runs-on: ubuntu-latest

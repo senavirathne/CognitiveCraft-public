@@ -26,14 +26,15 @@ from fixtures import ARENA, commands as arena_commands, write as write_fixture, 
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
             "E2E-LEGACY-001", "E2E-CANCEL-001", "E2E-MUTATION-001", "E2E-CLIENT-LOSS-001",
-            "E2E-RECOVERY-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001", "E2E-LEASE-001"]
+            "E2E-RECOVERY-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001", "E2E-LEASE-001", "GP-E2E-029"]
 PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x not in
-            ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001")],
+            ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001", "GP-E2E-029")],
             "ai": ["E2E-AI-001", "E2E-NLU-001"],
             "acquire": ["E2E-AI-001"], "nlu": ["E2E-NLU-001"],
             "environment": ["E2E-PHYSICAL-001"],
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
+PROFILES["lifecycle"] = ["GP-E2E-029"]
 PROFILES["rb001"] = ["GP-RB-01"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
@@ -1506,6 +1507,8 @@ def main():
                 "E2E-CLIENT-LOSS-001": client_loss, "E2E-RECOVERY-001": graceful_recovery,
                 "E2E-RECOVERY-002": hard_recovery, "E2E-NLU-001": natural_language,
                 "E2E-AI-001": acquire_real_skill, "E2E-LEASE-001": queued_competition}
+    from lifecycle import scenario as lifecycle_scenario
+    registry["GP-E2E-029"] = lifecycle_scenario
     from oak import scenario as oak_scenario
     registry["GP-RB-01"] = oak_scenario
     from planks import scenario as plank_scenario

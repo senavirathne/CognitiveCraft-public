@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -240,10 +241,12 @@ public final class CitizenIdentityGameTests {
                 }
                 case 14 -> {
                     identityReady();
+                    var savedEntity = CitizenLifecycleGameTests.unload(first);
                     session.entityUnloaded(first); session.tick();
                     require(session.citizen(owner, actor.citizenId()).availability()
                             == CitizenRegistry.Availability.UNLOADED, "Unload fact deleted or reclassified identity");
                     require(session.citizen(owner, actor.citizenId()).actor().equals(actor), "Unload changed binding");
+                    first = CitizenLifecycleGameTests.reload(h, savedEntity);
                     session.entityLoaded(first); quietUntil = h.getLevel().getGameTime() + 40; phase = 15;
                 }
                 case 15 -> {
@@ -441,7 +444,13 @@ public final class CitizenIdentityGameTests {
             try { return h.getLevel().getServer().getCommands().getDispatcher().execute(ROOT + " kernel " + suffix, source); }
             catch (Exception failure) { throw new IllegalStateException("Identity command " + suffix, failure); }
         }
-        void identityReady() { h.assertTrue(session.identityReady(), "Waiting for acknowledged identity publication"); }
+        void identityReady() {
+            h.assertTrue(session.identityReady(), "Waiting for acknowledged identity publication");
+            for (var player : List.of(owner, other))
+                h.assertTrue(session.citizens(player).citizens().stream().allMatch(c ->
+                        c.availability() == CitizenRegistry.Availability.LOADED),
+                        "Waiting for actual loaded-binding verification before a new physical task");
+        }
         void require(boolean condition, String message) {
             if (!condition) { fatal = message; h.fail(message); }
         }
@@ -525,7 +534,7 @@ public final class CitizenIdentityGameTests {
             if (!legacySha.equals(proof.legacySha256())) throw new IllegalStateException("Migration rewrote legacy source");
             var identity = StrictJson.object(Files.readString(world.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH).resolve("state.json")));
             var journal = StrictJson.object(Files.readString(world.resolve(BootstrapJournal.WORLD_RELATIVE_PATH).resolve("state.json")));
-            if (!Long.valueOf(1).equals(identity.get("schema")) || !Long.valueOf(2).equals(journal.get("schema"))
+            if (!Long.valueOf(CitizenIdentityStore.SCHEMA).equals(identity.get("schema")) || !Long.valueOf(2).equals(journal.get("schema"))
                     || journal.containsKey("enrollment")) throw new IllegalStateException("Identity has two writable owners");
             long revision = ((Number)identity.get("revision")).longValue();
             if (!(identity.get("citizens") instanceof java.util.List<?> rows) || rows.size() != 3)
@@ -534,7 +543,7 @@ public final class CitizenIdentityGameTests {
             if (!warm) writeProof(world, new Proof(proof.first(), proof.second(), proof.other(), proof.owner(),
                     proof.foreign(), proof.acquired(), proof.namedRun(), proof.secondRun(), proof.otherRun(),
                     proof.cancelled(), proof.artifact(), proof.origin(), legacySha, revision, proof.process()));
-            System.out.println("IMP-008 durable identitySchema=1 journalSchema=2 legacySha256=" + legacySha
+            System.out.println("IMP-008 durable identitySchema=" + CitizenIdentityStore.SCHEMA + " journalSchema=2 legacySha256=" + legacySha
                     + " registryRevision=" + revision + " migrationOnce=true warm=" + warm);
         } catch (Exception failure) { throw new IllegalStateException(failure); }
     }

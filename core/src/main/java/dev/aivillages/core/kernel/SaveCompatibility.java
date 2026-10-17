@@ -66,7 +66,7 @@ public final class SaveCompatibility {
     public static Registry registered() {
         return new Registry(List.of(new Reader(BOOTSTRAP, BootstrapJournal.IDENTITY_REFERENCE_SCHEMA,
                 Set.of(BootstrapJournal.SCHEMA, BootstrapJournal.IDENTITY_REFERENCE_SCHEMA)),
-                currentReader(CITIZENS, CitizenIdentityStore.SCHEMA), currentReader("skill-body", RepositoryCodec.SCHEMA),
+                new Reader(CITIZENS, CitizenIdentityStore.SCHEMA, Set.of(1, 2)), currentReader("skill-body", RepositoryCodec.SCHEMA),
                 currentReader("skill-manifest", VersionedSkillRepository.MANIFEST_SCHEMA),
                 new Reader("jobs",JobJournal.RESOURCE_SCHEMA,Set.of(JobJournal.SCHEMA,JobJournal.RESOURCE_SCHEMA)),
                 currentReader("leases", ResourceLeaseJournal.SCHEMA),
@@ -77,7 +77,8 @@ public final class SaveCompatibility {
                 currentReader(Blueprint.DOMAIN, Blueprint.SCHEMA),
                 currentReader(BlueprintStore.DOMAIN, BlueprintStore.SCHEMA),
                 new Reader(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA, Set.of(1, 2))),
-                List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
+                List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(CITIZENS, 1),
+                        new Format(CITIZENS, CitizenIdentityStore.SCHEMA), false), new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
                         new Format(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA), false)));
     }
     private static Reader currentReader(String domain, int schema) { return new Reader(domain, schema, Set.of(schema)); }

@@ -64,7 +64,7 @@ class QualificationTests(unittest.TestCase):
         for name in ("IMP-018","IMP-019"):
             self.assertEqual("PASS",units[name]["unit_result"])
             self.assertEqual("NOT_CLIENT_EXPOSED",units[name]["network_E2E_result"])
-        self.assertEqual("BLOCKED_BY_IMPLEMENTATION",units["IMP-029"]["network_E2E_result"])
+        self.assertEqual("PASS",units["IMP-029"]["network_E2E_result"])
 
     def test_missing_network_family_cannot_pass_on_all_green_owner_workflows(self):
         self.results["results"].pop();self.write("results.json",self.results)
