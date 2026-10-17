@@ -20,13 +20,18 @@ def scenario(h):
     h.console(["fill 9996 200 9996 10004 200 10004 minecraft:stone", "setworldspawn 10000 201 10000"])
     for player in ("PlayerA", "PlayerB"):
         h.command(player, "/tp 10000 201 10000", "Teleported")
-    unloaded = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "UNLOADED" else None),
+    unloaded = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "UNLOADED"
+                              and c["lifecycle"]["event"] == "UNLOAD" and c["lifecycle"]["acknowledged"] == 7 else None),
                       "Actual arena chunk unload", 100)
     require(unloaded["lifecycle"]["event"] == "UNLOAD", "Chunk absence inferred death")
     for player, pos in (("PlayerA", "2.5 201 5.5"), ("PlayerB", "15.5 201 5.5")):
         h.command(player, "/tp " + pos, "Teleported")
-    reloaded = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "LOADED" else None),
+    reloaded = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "LOADED"
+                              and c["lifecycle"]["event"] == "LOAD"
+                              and c["lifecycle"]["generation"] == before["lifecycle"]["generation"] + 1 else None),
                       "Same serialized native entity returned", 70)
+    h.wait(lambda: (c if (c := citizen("PlayerB", b)) and c["availability"] == "LOADED"
+                    and c["lifecycle"]["event"] == "LOAD" else None), "Independent citizen verified after reload")
     require(reloaded["actor"] == before["actor"] and reloaded["owner"] == before["owner"]
             and reloaded["displayName"] == before["displayName"]
             and reloaded["lifecycle"]["generation"] == before["lifecycle"]["generation"] + 1,
