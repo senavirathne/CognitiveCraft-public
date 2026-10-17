@@ -13,7 +13,8 @@ def scenario(h):
     def citizen(player, identifier):
         return (h.snapshot() or {}).get("knownPlayers", {}).get(player, {}).get("lifecycle", {}).get(identifier)
 
-    before = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "LOADED" else None),
+    before = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["availability"] == "LOADED"
+                            and c["lifecycle"]["event"] == "LOAD" else None),
                     "Verified pre-unload binding")
     # Disposable setup moves the spawn ticket away. The clients then leave normally;
     # production reconciliation only observes the resulting native unload callbacks.
@@ -54,14 +55,14 @@ def scenario(h):
                              and h.receipts(v, "DEPOSIT") > 0 else None), "Actual partial deposit before death", 80)
     # A vanilla player command supplies the actual engine death; no observer mutation.
     h.command("PlayerA", "/kill " + entity, "Killed")
+    dead = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["lifecycle"]["event"] == "DEATH"
+                           and c["lifecycle"]["acknowledged"] == 7 else None), "Durable death cleanup")
     terminal = h.terminal("PlayerA", run)
     require(terminal.get("marker", {}).get("outcome") == "INTERRUPTED", "Citizen loss became success or cancellation")
     stored = h.container(ARENA["destination"]) - initial
     require(0 < stored < 6 and h.receipts(terminal, "DEPOSIT") == stored, "Partial physical delivery was lost or invented")
     job = terminal["responsibility"]
     require(job["state"] == "INTERRUPTED" and job["attempts"][-1]["uncertain"], "Uncertain responsibility became reusable")
-    dead = h.wait(lambda: (c if (c := citizen("PlayerA", a)) and c["lifecycle"]["event"] == "DEATH"
-                           and c["lifecycle"]["acknowledged"] == 7 else None), "Durable death cleanup")
     require(dead["actor"] == before["actor"] and dead["owner"] == before["owner"], "Death transferred identity or scope")
     h.wait(lambda: not any(l["state"] == "ACTIVE" for l in h.snapshot()["knownPlayers"]["PlayerA"].get("leases", [])),
            "Only affected holder's claims were released")
@@ -94,9 +95,16 @@ def scenario(h):
                        "Retained terminal identity after abrupt restart")
     require(recovered["availability"] == "UNAVAILABLE" and recovered["actor"] == before["actor"], "Crash revived a terminal binding")
     h.quiet(40)
+    restored = h.run_view("PlayerA", run)
+    require(restored["marker"]["effects"] == terminal["marker"]["effects"]
+            and restored["responsibility"]["state"] == "INTERRUPTED"
+            and restored["responsibility"]["attempts"][-1]["receipts"] == job["attempts"][-1]["receipts"],
+            "Restart changed retained effects, receipts or responsibility")
     require(h.container(ARENA["destination"]) == initial + stored and h.model_calls() == baseline,
             "Restart replayed partial work or called a model")
     require(h.menu_count("PlayerA", ARENA["destination"]) == initial + stored, "Restarted client material state diverged")
+    require(a in h.command("PlayerA", "/aivillage kernel citizens", "UNAVAILABLE"), "Inactive citizen missing from real client roster")
+    h.command("PlayerA", "/aivillage kernel status " + run, "INTERRUPTED")
     h.screenshot("PlayerA", "terminal-citizen-and-materials-after-restart", chat=True)
     return {"citizen": a, "entity": entity, "run": run, "otherJob": other_job, "partial": partial,
             "terminal": terminal, "stored": stored, "checkpoint": checkpoint, "modelCalls": 0,

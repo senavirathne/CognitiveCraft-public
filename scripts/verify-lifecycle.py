@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -12,6 +11,13 @@ from zipfile import ZipFile
 import headless
 
 ROOT = headless.ROOT
+
+
+def verified_copy(source, destination):
+    data = source.read_bytes()
+    destination.write_bytes(data)
+    if destination.read_bytes() != data:
+        raise RuntimeError("Lifecycle fixture copy differs: " + str(destination))
 
 
 def main():
@@ -26,17 +32,15 @@ def main():
     with ZipFile(jar, "w") as archive:
         for name, data in entries.items():
             archive.writestr(name, data)
-    directory = ROOT / "build/lifecycle-run" / str(time.time_ns())
-    evidence = ROOT / "build/lifecycle-evidence"
-    if evidence.exists():
-        previous = evidence.with_name("lifecycle-evidence-previous-" + str(time.time_ns()))
-        evidence.rename(previous)
+    campaign = str(time.time_ns())
+    directory = ROOT / "build/lifecycle-run" / campaign
+    evidence = ROOT / "build/lifecycle-evidence" / campaign
     evidence.mkdir(parents=True, exist_ok=True)
     (directory / "mods").mkdir(parents=True)
     (directory / "server.properties").write_text("online-mode=false\n")
     for mod in (headless.SDK / "fabric-api.jar", headless.SDK / "gametest.jar", jar,
                 ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"):
-        shutil.copy2(mod, directory / "mods" / mod.name)
+        verified_copy(mod, directory / "mods" / mod.name)
     counts = {}
     for phase in ("cold", "warm"):
         report = evidence / (phase + ".xml")
@@ -55,7 +59,7 @@ def main():
                                                        for tag in ("failure", "error", "skipped")):
             raise RuntimeError("Lifecycle " + phase + " failed; inspect " + str(evidence))
         identity = directory / "lifecycle-state/data/cognitivecraft/citizens/v1/state.json"
-        shutil.copy2(identity, evidence / (phase + "-identity.json"))
+        verified_copy(identity, evidence / (phase + "-identity.json"))
         saved = json.loads(identity.read_text())
         proof_data = json.loads((directory / "lifecycle-state/lifecycle-proof.json").read_text())
         terminal = next(c for c in saved["citizens"] if c["citizenId"] == proof_data["citizen"])
@@ -69,12 +73,13 @@ def main():
         if len(found) != 1:
             raise RuntimeError("Missing physical lifecycle proof")
         proof = found[0]
-    shutil.copy2(proof, evidence / "physical-proof.json")
+    verified_copy(proof, evidence / "physical-proof.json")
     release = ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"
     (evidence / "acceptance.json").write_text(json.dumps({"schema": 1, "unit": "IMP-029",
         "source": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "sourceTree": subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, text=True).strip(),
         "releaseSha256": hashlib.sha256(release.read_bytes()).hexdigest(), "phases": counts,
-        "identitySchema": 2, "modelsConfigured": False}, indent=2) + "\n")
+        "identitySchema": 2, "modelsConfigured": False, "fixtureCopiesVerified": True}, indent=2) + "\n")
 
 
 if __name__ == "__main__":
