@@ -56,6 +56,11 @@ def main():
             raise RuntimeError("Lifecycle " + phase + " failed; inspect " + str(evidence))
         identity = directory / "lifecycle-state/data/cognitivecraft/citizens/v1/state.json"
         shutil.copy2(identity, evidence / (phase + "-identity.json"))
+        saved = json.loads(identity.read_text())
+        proof_data = json.loads((directory / "lifecycle-state/lifecycle-proof.json").read_text())
+        terminal = next(c for c in saved["citizens"] if c["citizenId"] == proof_data["citizen"])
+        if terminal["lifecycle"]["event"] != "DEATH" or terminal["lifecycle"]["acknowledged"] != 7:
+            raise RuntimeError("Native " + phase + " checkpoint lost terminal data")
         counts[phase] = len(cases)
         print("IMP-029 native", phase, len(cases), "PASS", flush=True)
     proof = directory / "lifecycle-state/lifecycle-proof.json"

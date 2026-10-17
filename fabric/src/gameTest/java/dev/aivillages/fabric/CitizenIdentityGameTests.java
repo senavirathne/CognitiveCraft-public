@@ -23,6 +23,7 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -443,7 +444,13 @@ public final class CitizenIdentityGameTests {
             try { return h.getLevel().getServer().getCommands().getDispatcher().execute(ROOT + " kernel " + suffix, source); }
             catch (Exception failure) { throw new IllegalStateException("Identity command " + suffix, failure); }
         }
-        void identityReady() { h.assertTrue(session.identityReady(), "Waiting for acknowledged identity publication"); }
+        void identityReady() {
+            h.assertTrue(session.identityReady(), "Waiting for acknowledged identity publication");
+            for (var player : List.of(owner, other))
+                h.assertTrue(session.citizens(player).citizens().stream().allMatch(c ->
+                        c.availability() == CitizenRegistry.Availability.LOADED),
+                        "Waiting for actual loaded-binding verification before a new physical task");
+        }
         void require(boolean condition, String message) {
             if (!condition) { fatal = message; h.fail(message); }
         }

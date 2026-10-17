@@ -110,7 +110,7 @@ public final class CitizenLifecycleRestartGameTests {
                 case 9 -> {h.assertTrue(h.getLevel().getGameTime()>=quiet,"Checking late effects");
                     h.assertTrue(stock()==partial&&session.generationCalls()==modelBaseline&&session.languageCalls()==0,"Late replay or inference");
                     closing=session.storeClosure();session.close();phase=10;}
-                case 10 -> {await(closing);writing=CompletableFuture.runAsync(()->{try{Files.writeString(world.resolve("lifecycle-proof.json"),new Gson().toJson(proof));
+                case 10 -> {await(closing);h.getLevel().getServer().saveEverything(true,true,true);writing=CompletableFuture.runAsync(()->{try{Files.writeString(world.resolve("lifecycle-proof.json"),new Gson().toJson(proof));
                         System.out.println("IMP-029 cold durable="+Files.readString(world.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH).resolve("state.json")));}catch(Exception e){throw new IllegalStateException(e);}});phase=11;}
                 case 11 -> {await(writing);phase=20;}
                 case 12 -> {await(reading);proof=reading.join();h.assertTrue(proof.process()!=ProcessHandle.current().pid(),"Warm phase reused JVM");
@@ -121,7 +121,7 @@ public final class CitizenLifecycleRestartGameTests {
                             &&c.lifecycle().acknowledged()==7&&c.availability()==CitizenRegistry.Availability.UNAVAILABLE,"Terminal saved binding revived: "+c);
                     var view=session.status(owner,proof.run());var job=session.job(proof.run(),c.owner()).orElseThrow();
                     h.assertTrue(view.marker().effects()==proof.effects()&&job.fulfilled()==proof.deposited()&&job.current().receipts().size()==proof.receipts()
-                            &&job.state()==Jobs.State.INTERRUPTED&&stock()==proof.deposited(),"Saved effects/receipts lost or replayed");
+                            &&job.state()==Jobs.State.INTERRUPTED&&stock()==proof.deposited(),"Saved effects/receipts lost or replayed: effects="+view.marker().effects()+" expected="+proof.effects()+" fulfilled="+job.fulfilled()+" receipts="+job.current().receipts().size()+" stock="+stock()+" expectedStock="+proof.deposited()+" state="+job.state());
                     h.assertTrue(session.generationCalls()==1&&session.languageCalls()==0&&session.lifecycleLookups()<=1,"Unbounded recovery or model dependence");
                     closing=session.storeClosure();session.close();phase=18;}
                 case 18 -> {await(closing);phase=20;}
