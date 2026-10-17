@@ -321,7 +321,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         yield new ActionReceipt(handle, true, 1, records, null,
                                 new IntValue(requested), null,resources);
                     }
-                    case OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
+                    case OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
                     case MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION, APPROACH_OAK_LOG -> {
                         if ((action.operation() == Operation.MOVE_TO_SOURCE || action.operation()==Operation.APPROACH_OAK_LOG)
                                 && !bound.request().arguments().get("source").equals(args.get("source")))
