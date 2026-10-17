@@ -70,7 +70,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
         String fact = skill.artifact().descriptor().ref().sha256() + ":" + small.request()
                 + ":" + changed.request() + ":two-custody-cases";
         return new ResearchAdmissionController.FixtureEvidence(true,
-                new EvidenceRef(sha256(fact), RecipeProduction.is(bound.request().capability()) ? "transformation-fixture:1"
+                new EvidenceRef(sha256(fact), CraftingTablePlacement.is(bound.request().capability()) ? "placement-fixture:1" : RecipeProduction.is(bound.request().capability()) ? "transformation-fixture:1"
                         : bound.request().capability().equals(OakLogDelivery.ID) ? "resource-fixture:1" : "crop-fixture:1",
                         bound.context().scope().worldId().toString()),
                 null, cases, Math.min(4_096, usage.snapshot().getOrDefault(

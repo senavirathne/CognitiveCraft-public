@@ -5,7 +5,7 @@ import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET,zipfi
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'build/rb006b-evidence'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'PlacementProductionTest':23}}
+    expected={'core':{'PlacementProductionTest':23,'PlacementJobLifecycleTest':9},'providers':{'PlacementGenerationTest':2}}
     result={};scoped={}
     for module in ('core','providers','fabric'):
         paths=list((ROOT/module/'build/test-results/test').glob('TEST-*.xml'));cases=[c for p in paths for c in ET.parse(p).getroot().iter('testcase')]
@@ -23,6 +23,9 @@ def native(phase,classname,marker):
     assert len(cases)==1 and classname in cases[0].get('name','') and not any(cases[0].find(t) is not None for t in ('failure','error','skipped'))
     count=sum(marker in line for line in log.read_text().splitlines());expected=3 if classname=='placement_kernel_game_tests' and phase!='genuine-warm' else 1
     assert count==expected,(phase,count,expected)
+    if classname=='placement_kernel_game_tests' and phase!='genuine-warm':
+        genuine='true' if phase=='genuine-cold' else 'false'
+        assert sum(('RB006B_ADMISSION genuine='+genuine) in line for line in log.read_text().splitlines())==6
     OUT.mkdir(parents=True,exist_ok=True)
     for p,suffix in ((report,'.xml'),(log,'.log')):shutil.copy2(p,OUT/(phase+suffix))
     (OUT/(phase+'.json')).write_text(json.dumps({'phase':phase,'cases':1,'rows':count,'xmlSha256':sha(report),'logSha256':sha(log)},indent=2)+'\n')
@@ -30,7 +33,7 @@ def identity():
     jar=ROOT/'fabric/build/libs/ai-villages-0.1.0.jar'
     with zipfile.ZipFile(jar) as z:
         names=z.namelist();assert 'dev/aivillages/core/kernel/CraftingTablePlacement.class' in names
-        assert not any('TableFixtures' in n or 'TableTestSupport' in n or 'TableKernelGameTests' in n or 'TableCompositionGameTests' in n for n in names)
+        assert not any('TableFixtures' in n or 'TableTestSupport' in n or 'TableKernelGameTests' in n or 'TableCompositionGameTests' in n or 'PlacementFixtures' in n or 'PlacementKernelGameTests' in n or 'PlacementEffectGameTests' in n for n in names)
     git=lambda arg:subprocess.check_output(['git','rev-parse',arg],cwd=ROOT,text=True).strip()
     value={'source':git('HEAD'),'tree':git('HEAD^{tree}'),'jarSha256':sha(jar),'java':25,'gradle':'9.7.0','minecraft':'26.3','loader':'0.19.5','fabricApi':'0.161.0+26.3','loom':'1.18.1'}
     OUT.mkdir(parents=True,exist_ok=True);(OUT/'identity.json').write_text(json.dumps(value,indent=2)+'\n');print('RB006B_IDENTITY '+json.dumps(value))
