@@ -20,6 +20,12 @@ public final class FabricPrerequisiteRuntime {
     private final PrerequisiteAdmission admission;
     private final java.util.function.Function<CapabilityRequest,ObservationSnapshot> observations;
     private final Map<UUID,Cuboid> staged=new LinkedHashMap<>();
+    public record FacilityObservation(boolean existing,ObservationSnapshot axe,ObservationSnapshot placement,Reason reason) { }
+    private java.util.function.Function<CapabilityRequest,FacilityObservation> facilities;
+    private static final class FacilityStage {final Cuboid oak;boolean charged;FacilityStage(Cuboid oak){this.oak=oak;}}
+    private final Map<UUID,FacilityStage> facilityStages=new LinkedHashMap<>();
+    public void facilities(java.util.function.Function<CapabilityRequest,FacilityObservation> capture){thread();facilities=Objects.requireNonNull(capture);}
+    public void stageFacility(UUID root,Cuboid oak){thread();if(facilityStages.size()+staged.size()>=32)throw new IllegalStateException("Bounded staged facility admission");facilityStages.put(root,new FacilityStage(oak));}
     private long linkedTick=-1;
     public FabricPrerequisiteRuntime(MinecraftServer server,JobLifecycleStore jobs,ResourceLeaseService leases,
                                       CapabilityResolver.Engine resolver,Clock clock) {this(server,jobs,leases,resolver,clock,null);}
@@ -90,7 +96,7 @@ public final class FabricPrerequisiteRuntime {
                 supply.inspected(),Map.of("mature_wheat",supply.available(),"unknown_cells",supply.status()==ObservationStatus.UNKNOWN?1L:0L));
         return new MethodSelection(resolver.resolve(request,observation),supply.inspected());
     }
-    public void stage(UUID root,Cuboid oakSource) {thread();if(staged.size()>=32)throw new IllegalStateException("Bounded staged admission");staged.put(root,oakSource);}
+    public void stage(UUID root,Cuboid oakSource) {thread();if(staged.size()+facilityStages.size()>=32)throw new IllegalStateException("Bounded staged admission");staged.put(root,oakSource);}
     /** Only acknowledgement/linkage, one Job publication per tick. Scheduling remains WorkerDispatcher. */
     public void tick() {
         thread();long tick=server.overworld().getGameTime();if(linkedTick==tick || !jobs.ready())return;linkedTick=tick;
@@ -104,6 +110,7 @@ public final class FabricPrerequisiteRuntime {
             JobLink result=admitStaged(entry.getKey(),entry.getValue());
             if(result.done)staged.remove(entry.getKey());return;
         }
+        if(advanceFacility())return;
         for(var demand:jobs.snapshot().jobs()) {
             if(demand.preparation()==null || demand.state()!=Jobs.State.READY || jobs.materialReady(demand))continue;
             for(var intent:demand.preparation().materials()) {
@@ -126,6 +133,62 @@ public final class FabricPrerequisiteRuntime {
         }
     }
     private record JobLink(boolean done) { }
+    /** Advances owner acknowledgements only. Every effect runs through the ordinary dispatcher. */
+    private boolean advanceFacility(){
+        if(facilityStages.isEmpty())return false;
+        var entry=facilityStages.entrySet().iterator().next();var stage=entry.getValue();
+        var root=jobs.snapshot().jobs().stream().filter(j->j.id().equals(entry.getKey())).findFirst().orElse(null);
+        if(root==null)return false;
+        if(root.state().terminal() || root.state()==Jobs.State.INTERRUPTED){facilityStages.remove(root.id());return false;}
+        try{
+            if(!jobs.mayControl(root.id(),root.generation(),root.origin()))return facilityFailure(root,Reason.AUTHORITY_DENIED);
+            if(clock.millis()>root.allowance().deadlineEpochMillis())return facilityFailure(root,Reason.BUDGET_EXHAUSTED);
+            var children=root.children().stream().map(id->jobs.query(id,root.origin())).toList();
+            for(var child:children){
+                if(child.state()==Jobs.State.FAILED || child.state()==Jobs.State.CANCELLED || child.state()==Jobs.State.INTERRUPTED)
+                    return facilityFailure(root,child.reason()==null?Reason.INTERRUPTED:child.reason());
+                if(child.state()!=Jobs.State.SUCCEEDED)return false;
+            }
+            var current=facilities.apply(root.request().request());
+            if(current.reason()!=null)return facilityFailure(root,current.reason());
+            if(current.existing()){
+                facilityStages.remove(root.id());stage(root.id(),stage.oak);return false;
+            }
+            // A completed placement without a currently usable table cannot satisfy ENSURE or be repeated.
+            if(children.stream().anyMatch(j->CraftingTablePlacement.is(j.request().request().capability())))return facilityFailure(root,Reason.FACILITY_MISSING);
+            var axe=resolver.resolveForFacilityPrerequisite(new ValidatedRequest(root.request().request(),root.origin(),current.axe().reference()),current.axe());
+            var request=FacilityPrerequisites.placement(root.request().request());
+            var place=resolver.resolveForPrerequisite(new ValidatedRequest(request,root.origin(),current.placement().reference()),current.placement());
+            if(axe.routing().status()!=ResolutionStatus.RESOLVED)return facilityFailure(root,axe.routing().reason()==null?Reason.ARTIFACT_INVALID:axe.routing().reason());
+            if(place.routing().status()!=ResolutionStatus.RESOLVED)return facilityFailure(root,place.routing().reason()==null?Reason.ARTIFACT_INVALID:place.routing().reason());
+            if(!stage.charged){
+                var charged=jobs.charge(root.id(),root.guard(),Map.of(Budgets.Kind.INSTRUCTIONS,(long)(axe.candidateWork()+place.candidateWork()+32),Budgets.Kind.OBSERVATIONS,446L),root.origin());
+                if(charged.accepted()){stage.charged=true;return true;}
+                return facilityFailure(root,charged.reason()==null?Reason.BUDGET_EXHAUSTED:charged.reason());
+            }
+            boolean supplied=current.placement().counts().getOrDefault("table_items",0L)>=1;
+            if(!children.isEmpty()){
+                // Completed MAKE is provenance, never stock: require both its real deposit and fresh physical stock.
+                var made=children.getFirst();boolean deposited=made.request().request().equals(FacilityPrerequisites.item(root.request().request()))
+                        && made.attempts().stream().filter(a->!a.open()).flatMap(a->a.resourceReceipts().stream()).anyMatch(r->r.stage()==ResourceDelivery.Stage.DEPOSIT && r.item().equals(ResourceDelivery.CRAFTING_TABLE)
+                        && r.destination().equals(((ContainerValue)request.arguments().get("source")).value()) && r.quantity()>=1);
+                if(!deposited || !supplied)return facilityFailure(root,Reason.RESOURCE_MISSING);
+            }
+            var observation=supplied?current.placement():observations.apply(FacilityPrerequisites.item(root.request().request()));
+            var change=jobs.admitFacilityChild(root.id(),root.guard(),!supplied,observation.reference(),supplied?place.routing().artifact():null,root.origin());
+            if(change.accepted()){
+                if(!supplied)stage(change.job().id(),stage.oak);
+                return true;
+            }
+            return facilityFailure(root,change.reason()==null?Reason.STALE_OBSERVATION:change.reason());
+        }catch(SecurityException denied){return facilityFailure(root,Reason.AUTHORITY_DENIED);}
+        catch(RuntimeException stale){return facilityFailure(root,Reason.STALE_OBSERVATION);}
+    }
+    private boolean facilityFailure(Jobs.Job root,Reason reason){
+        if(!jobs.ready())return true;
+        var change=jobs.transition(root.id(),root.guard(),Jobs.State.FAILED,reason,root.origin());
+        if(change.accepted())facilityStages.remove(root.id());return true;
+    }
     private JobLink admitStaged(UUID id,Cuboid source) {
         var root=jobs.snapshot().jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);
         if(root==null)return new JobLink(false);

@@ -158,6 +158,9 @@ public final class SurvivalGateway implements GatewayPort {
         public ItemTransfer { if (deposited < 0 || deposited > 1) throw new IllegalArgumentException("Item transfer"); }
     }
     public interface WorldAccess {
+        default PlacementTransaction.Preflight placementPreflight(ValidatedRequest request) {return PlacementTransaction.Preflight.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
+        default PlacementTransaction.Mutation withdrawTableItem(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String source) {return PlacementTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
+        default PlacementTransaction.Mutation placeTable(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String source) {return PlacementTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
         default Movement moveRecipe(ActorRef actor,Cell target,int maximum) {return move(actor,target,maximum);}
         default RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {return RecipeTransaction.Preflight.unsupported();}
         default RecipeTransaction.Mutation withdrawRecipeInput(ActorRef actor,ContainerRef source,
@@ -261,6 +264,9 @@ public final class SurvivalGateway implements GatewayPort {
         final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         final List<ResourceDelivery.Receipt> resourceReceipts = new ArrayList<>();
         RecipeTransaction.Preflight recipe;
+        PlacementTransaction.Preflight placement;
+        String placementCustody="",placementSource="";
+        boolean tableWithdrawn,tablePlaced;
         String recipeCustody="",recipeSource="";
         UUID craftBatch;
         int inputsWithdrawn,outputsProduced,batchOutputs;
@@ -275,6 +281,7 @@ public final class SurvivalGateway implements GatewayPort {
         Run(ActorRef actor, ValidatedRequest request, UUID id, long wheat, long tick) {
             this.actor = actor; this.request = request; this.id = id;
             item=RecipeProduction.is(request.request().capability()) ? RecipeProduction.of(request.request().capability()).output()
+                    : CraftingTablePlacement.is(request.request().capability()) ? ResourceDelivery.CRAFTING_TABLE
                     : request.request().capability().equals(OakLogDelivery.ID) ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT;
             expectedItems = wheat; lastTick = tick;
         }
@@ -509,6 +516,9 @@ public final class SurvivalGateway implements GatewayPort {
         if (!authority.currentlyAllows(run.actor, effect, run.request.context())) {
             finish(action, Reason.AUTHORITY_DENIED, null, null); return;
         }
+        if(CraftingTablePlacement.is(run.request.request().capability())) {
+            stepPlacement(action,effect);run.lastTick=world.tick();return;
+        }
         if(RecipeProduction.is(run.request.request().capability())) {
             stepRecipe(action,effect);run.lastTick=world.tick();return;
         }
@@ -533,9 +543,59 @@ public final class SurvivalGateway implements GatewayPort {
             case PICKUP_WHEAT -> pickup(action, target);
             case PICKUP_TRACKED_WHEAT, PICKUP_TRACKED_OAK_LOGS -> pickupTracked(action);
             case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> transfer(action, target);
-            case OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> throw new AssertionError("Recipe handled above");
+            case OBSERVE_TABLE_SITE,WITHDRAW_TABLE_ITEM,MOVE_TO_PLACEMENT,PLACE_CRAFTING_TABLE,OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> throw new AssertionError("Resource operation handled above");
         }
         run.lastTick = world.tick();
+    }
+
+    private void stepPlacement(Active action,Effect effect) {
+        Run run=action.run;Operation op=action.operation;var args=run.request.request().arguments();
+        var sourceBox=((ContainerValue)args.get("source")).value();var site=CraftingTablePlacement.target(run.request.request());
+        Cell target=op==Operation.MOVE_TO_INPUT || op==Operation.WITHDRAW_TABLE_ITEM
+                ? new Cell(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z())
+                : new Cell(site.dimension(),site.x(),site.y(),site.z());
+        Reason denied=world.permit(run.request,effect,target);if(denied!=null){finish(action,denied,null,null);return;}
+        if(op==Operation.OBSERVE_TABLE_SITE){
+            if(run.placement!=null || run.tableWithdrawn){finish(action,Reason.REQUEST_INVALID,null,null);return;}
+            action.usage.debit(Kind.OBSERVATIONS,150);var captured=world.placementPreflight(run.request);
+            if(captured.status()!=ObservationStatus.PRESENT || captured.reason()!=null){finish(action,captured.reason()==null?Reason.STALE_OBSERVATION:captured.reason(),null,null);return;}
+            if(!site.equals(captured.target()) || !sourceBox.equals(captured.source())){finish(action,Reason.STALE_OBSERVATION,null,null);return;}
+            if(captured.availableItems()<1){finish(action,Reason.RESOURCE_MISSING,null,null);return;}
+            run.placement=captured;run.placementCustody=captured.custodyFingerprint();run.placementSource=captured.sourceFingerprint();
+            finish(action,null,new BoolValue(true),null);return;
+        }
+        if(run.placement==null){finish(action,Reason.REQUEST_INVALID,null,null);return;}
+        if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_PLACEMENT){move(action,target);return;}
+        if(!effectAllowance(action))return;
+        action.usage.debit(Kind.OBSERVATIONS,2*run.placement.sourceSlots()+30);
+        PlacementTransaction.Mutation result;ResourceDelivery.Stage stage;
+        if(op==Operation.WITHDRAW_TABLE_ITEM){
+            if(run.tableWithdrawn || run.tablePlaced){finish(action,Reason.REQUEST_INVALID,null,null);return;}
+            action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
+            result=world.withdrawTableItem(run.actor,run.placement,run.placementCustody,run.placementSource);stage=ResourceDelivery.Stage.WITHDRAW;
+        }else if(op==Operation.PLACE_CRAFTING_TABLE){
+            if(!run.tableWithdrawn || run.tablePlaced){finish(action,Reason.RESOURCE_MISSING,null,null);return;}
+            action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
+            result=world.placeTable(run.actor,run.placement,run.placementCustody,run.placementSource);stage=ResourceDelivery.Stage.PLACE;
+        }else{finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
+        if(!result.committed()){finish(action,result.reason()==null?Reason.ACTION_FAILED:result.reason(),null,null);return;}
+        committed(action);
+        // An inconsistent native effect stays in the world and counts against the attempt; it cannot fulfill PLACE.
+        if(result.reason()!=null || !run.placementCustody.equals(result.custodyBefore()) || !RecipeTransaction.hash(result.custodyAfter())
+                || stage==ResourceDelivery.Stage.WITHDRAW && (result.withdrawn()!=1 || result.consumed()!=0 || result.placed() || !RecipeTransaction.hash(result.sourceAfter()))
+                || stage==ResourceDelivery.Stage.PLACE && (result.withdrawn()!=0 || result.consumed()!=1 || !result.placed() || result.facilityIdentity().isBlank())){
+            finish(action,result.reason()==null?Reason.STALE_OBSERVATION:result.reason(),null,null);return;
+        }
+        if(stage==ResourceDelivery.Stage.WITHDRAW){run.tableWithdrawn=true;run.craftBatch=UUID.randomUUID();run.placementSource=result.sourceAfter();}
+        else run.tablePlaced=true;
+        var evidence=new PlacementTransaction.Evidence(site,run.placement.sourceIdentity(),run.placement.siteFingerprint(),
+                result.custodyBefore(),result.custodyAfter(),stage==ResourceDelivery.Stage.WITHDRAW?"minecraft:air":"minecraft:crafting_table",result.facilityIdentity());
+        var receipt=new ResourceDelivery.Receipt(UUID.randomUUID(),run.request.context(),run.id,action.handle.id(),run.craftBatch,run.actor,
+                ResourceLeases.point(sourceBox),CraftingTablePlacement.address(run.request.request()),ResourceDelivery.CRAFTING_TABLE,stage,1,
+                new ResourceDelivery.BlockPosition(sourceBox.dimension(),sourceBox.x(),sourceBox.y(),sourceBox.z()),List.of(),null,evidence);
+        run.resourceReceipts.add(receipt);action.resourceReceipts.add(receipt);run.placementCustody=result.custodyAfter();
+        if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println("RB006B_EFFECT run="+run.id+" stage="+stage+" consumed="+result.consumed()+" placed="+result.placed());
+        finish(action,null,new IntValue(1),null);
     }
 
     /** The same gateway owns these transient batches; only explicit primitives perform effects. */
@@ -726,7 +786,7 @@ public final class SurvivalGateway implements GatewayPort {
                 ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation == Operation.MOVE_TO_SOURCE
                 ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
-                : RecipeProduction.is(action.run.request.request().capability())
+                : RecipeProduction.is(action.run.request.request().capability()) || CraftingTablePlacement.is(action.run.request.request().capability())
                 ? world.moveRecipe(action.run.actor,target,limits.navigationCallsPerPoll())
                 : world.move(action.run.actor, target, limits.navigationCallsPerPoll());
         if (movement.chargedWork() > limits.navigationCallsPerPoll()
@@ -1045,7 +1105,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
                 || action.operation == Operation.APPROACH_OAK_LOG
-                || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT || action.operation==Operation.MOVE_TO_TABLE)
+                || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT || action.operation==Operation.MOVE_TO_TABLE || action.operation==Operation.MOVE_TO_PLACEMENT)
                 && action.movementStarted && action.run != null) {
             world.stopMovement(action.run.actor);
             if (Boolean.getBoolean("cognitivecraft.gametest.trace")
@@ -1074,6 +1134,9 @@ public final class SurvivalGateway implements GatewayPort {
         if (!world.onGameThread()) throw new IllegalStateException("Gateway requires the server thread");
     }
     private static Reason validate(ValidatedRequest request, Operation op, Map<String, Value> args) {
+        boolean placement=CraftingTablePlacement.is(request.request().capability());
+        if(placement && (!CraftingTablePlacement.valid(request.request()) || !CraftingTablePlacement.permits(op)
+                || args.containsKey("target") && !Objects.equals(args.get("target"),request.request().arguments().get("target"))))return Reason.REQUEST_INVALID;
         boolean plank=RecipeProduction.is(request.request().capability());
         if(plank) {
             var values=request.request().arguments();
@@ -1094,8 +1157,8 @@ public final class SurvivalGateway implements GatewayPort {
             } catch(ArithmeticException overflow) { return Reason.REQUEST_INVALID; }
         }
         if (!ResourceDelivery.isDelivery(request.request().capability())
-                || op!=Operation.MOVE_TO_DESTINATION && (plank ? !RecipeProduction.permits(request.request().capability(),op)
-                : op.plank() || op.stick() || op.axe() || op.table() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
+                || !placement && op!=Operation.MOVE_TO_DESTINATION && (plank ? !RecipeProduction.permits(request.request().capability(),op)
+                : op.placement() || op.plank() || op.stick() || op.axe() || op.table() || request.request().capability().equals(OakLogDelivery.ID)!=op.oak())
                 || !args.keySet().equals(op.signature().parameters().stream()
                 .map(Parameter::name).collect(java.util.stream.Collectors.toSet())))
             return Reason.REQUEST_INVALID;
@@ -1120,7 +1183,7 @@ public final class SurvivalGateway implements GatewayPort {
         return ResourceDelivery.sourceArea(request.request());
     }
     private static ContainerRef destination(ValidatedRequest request) {
-        return ((ContainerValue)request.request().arguments().get("destination")).value();
+        return ResourceDelivery.destinationAddress(request.request());
     }
     private long inventoryQuantity(Run run) {
         return run.item.equals(ResourceDelivery.WHEAT) ? world.actor(run.actor).inventoryWheat()

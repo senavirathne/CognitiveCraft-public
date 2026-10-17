@@ -174,10 +174,10 @@ public final class KernelSession implements AutoCloseable {
                         VersionedSkillRepository.Limits.defaults(), guard,
                         TrustedContext::equals, VersionedSkillRepository.FaultInjector.none());
                 var lookups = new CapabilityRetrievalIndex.LookupRegistry(
-                        Map.ofEntries(Map.entry("harvest wheat",CropDelivery.ID),Map.entry("deliver wheat",CropDelivery.ID),Map.entry("collect oak logs",OakLogDelivery.ID),Map.entry("deliver oak logs",OakLogDelivery.ID),Map.entry("make oak planks",OakPlankProduction.ID),Map.entry("produce oak planks",OakPlankProduction.ID),Map.entry("make sticks",StickProduction.ID),Map.entry("produce sticks",StickProduction.ID),Map.entry("make wooden axes",WoodenAxeProduction.ID),Map.entry("produce wooden axes",WoodenAxeProduction.ID),Map.entry("make crafting tables",CraftingTableProduction.ID),Map.entry("produce crafting tables",CraftingTableProduction.ID)),
+                        Map.ofEntries(Map.entry("harvest wheat",CropDelivery.ID),Map.entry("deliver wheat",CropDelivery.ID),Map.entry("collect oak logs",OakLogDelivery.ID),Map.entry("deliver oak logs",OakLogDelivery.ID),Map.entry("make oak planks",OakPlankProduction.ID),Map.entry("produce oak planks",OakPlankProduction.ID),Map.entry("make sticks",StickProduction.ID),Map.entry("produce sticks",StickProduction.ID),Map.entry("make wooden axes",WoodenAxeProduction.ID),Map.entry("produce wooden axes",WoodenAxeProduction.ID),Map.entry("place crafting table",CraftingTablePlacement.ID),Map.entry("make crafting tables",CraftingTableProduction.ID),Map.entry("produce crafting tables",CraftingTableProduction.ID)),
                         Map.of(CropDelivery.ID,java.util.Set.of("farming","wheat"),
                                 OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs"),
-                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks"),WoodenAxeProduction.ID,java.util.Set.of("crafting","wooden","axes"),CraftingTableProduction.ID,java.util.Set.of("crafting","oak","tables")),capabilities);
+                                OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks"),WoodenAxeProduction.ID,java.util.Set.of("crafting","wooden","axes"),CraftingTableProduction.ID,java.util.Set.of("crafting","oak","tables"),CraftingTablePlacement.ID,java.util.Set.of("placement","table")),capabilities);
                 retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
                         new CapabilityRetrievalIndex.Identity(journal.state().worldId(), UUID.randomUUID()),
                         CapabilityRetrievalIndex.repositorySource(repository, lookups, () -> 0), lookups,
@@ -410,6 +410,7 @@ public final class KernelSession implements AutoCloseable {
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock,this::observePrerequisite);
+        prerequisites.facilities(this::observeFacilityPreparation);
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
                 (expected,next)->CompletableFuture.supplyAsync(()->{try{return loaded.plans().replace(expected,next);}catch(Exception failure){throw new java.util.concurrent.CompletionException(failure);}},worker),
@@ -474,13 +475,13 @@ public final class KernelSession implements AutoCloseable {
                     public Budgets.ResearchLimits issue(long now) { return researchLimits(now); }
                     public Budgets.ResearchLimits issue(CapabilityId capability,long now) {
                         var base=researchLimits(now);
-                        return RecipeProduction.is(capability) ? OakPlankProduction.researchLimits(now,base)
+                        return (RecipeProduction.is(capability) || CraftingTablePlacement.is(capability)) ? OakPlankProduction.researchLimits(now,base)
                                 : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.researchLimits(now,base) : base;
                     }
                 },new BootstrapController.ExecutionBudget() {
                     public Budgets.ExecutionLimits issue(long now) { return executionLimits(now); }
                     public Budgets.ExecutionLimits issue(CapabilityId capability,long now) {
-                        return RecipeProduction.is(capability) ? OakPlankProduction.executionLimits(now)
+                        return (RecipeProduction.is(capability) || CraftingTablePlacement.is(capability)) ? OakPlankProduction.executionLimits(now)
                                 : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
                     }
                 },clock,citizens,jobs);
@@ -537,6 +538,16 @@ public final class KernelSession implements AutoCloseable {
                 (long)source.maxY()-source.minY()+1),(long)source.maxZ()-source.minZ()+1);
     }
     private ObservationSnapshot observe(CapabilityRequest request, ActorRef actor) {
+        if(CraftingTablePlacement.is(request.capability())) {
+            long tick=server.overworld().getGameTime();var context=citizens.find(actor.citizenId()).owner();var area=ResourceDelivery.sourceArea(request);
+            var bound=new ValidatedRequest(request,context,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()));
+            var current=gatewayWorld().placementPreflight(bound);var source=((ContainerValue)request.arguments().get("source")).value();
+            var stock=leases.availableStock(LeasedGateway.sourceResource(context.scope().worldId(),bound),current.availableItems(),context);
+            boolean known=current.status()==ObservationStatus.PRESENT && current.reason()==null && stock.usable();
+            return new ObservationSnapshot(bound.observation(),known?ObservationStatus.PRESENT:ObservationStatus.UNKNOWN,
+                    "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
+                    Map.of("table_items",stock.usable()?stock.available():0L,"site_usable",known?1L:0L,"unknown_cells",known?0L:1L));
+        }
         if(RecipeProduction.is(request.capability())) {
             var area=ResourceDelivery.sourceArea(request);
             long tick=server.overworld().getGameTime();
@@ -787,6 +798,44 @@ public final class KernelSession implements AutoCloseable {
         var request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),"source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(table)));
         return composeRequest(request,owner,player,oakSource);
     }
+    public BootstrapController.Submission provisionAxe(ServerPlayer player,UUID actorId,ContainerRef source,ContainerRef destination,FacilityRef target,Cuboid oakSource){
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);UUID id=UUID.randomUUID();
+        var request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(1),"source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(target)));
+        if(!source.dimension().equals(citizen.actor().dimension()) || oakSource==null || !oakSource.dimension().equals(source.dimension()) || sourceCells(oakSource)>256)
+            return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);
+        var checked=observeFacilityPreparation(request);
+        if(checked.reason()!=null)return new BootstrapController.Submission(id,false,checked.reason());
+        if(checked.existing())return composeRequest(request,owner,player,oakSource);
+        var bound=new ValidatedRequest(request,owner,checked.axe().reference());
+        for(long x=oakSource.minX();x<=oakSource.maxX();x++)for(long y=oakSource.minY();y<=oakSource.maxY();y++)for(long z=oakSource.minZ();z<=oakSource.maxZ();z++){
+            var denied=gatewayWorld().permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(oakSource.dimension(),(int)x,(int)y,(int)z));
+            if(denied!=null)return new BootstrapController.Submission(id,false,denied);
+        }
+        jobs.tick();var change=jobs.stageComposition(id,request,owner,bound.observation(),ResourceComposition.allowance(clock.millis()));
+        if(change.accepted())prerequisites.stageFacility(id,oakSource);
+        return new BootstrapController.Submission(id,change.accepted(),change.reason());
+    }
+    private FabricPrerequisiteRuntime.FacilityObservation observeFacilityPreparation(CapabilityRequest request){
+        var actor=((ActorValue)request.arguments().get("actor")).value();var citizen=citizens.find(actor.citizenId());
+        if(citizen==null || !controls(actor,citizen.owner()))throw new SecurityException("Current facility authority");
+        var context=citizen.owner();long tick=server.overworld().getGameTime();var ref=new ObservationRef(UUID.randomUUID(),tick,actor.dimension());
+        var bound=new ValidatedRequest(request,context,ref);var existing=gatewayWorld().recipePreflight(bound);
+        if(existing.reason()==null && existing.status()==ObservationStatus.PRESENT)return new FabricPrerequisiteRuntime.FacilityObservation(true,observe(request,actor),null,null);
+        if(existing.reason()!=Reason.FACILITY_MISSING)return new FabricPrerequisiteRuntime.FacilityObservation(false,null,null,existing.reason()==null?Reason.STALE_OBSERVATION:existing.reason());
+        var placement=FacilityPrerequisites.placement(request);var site=gatewayWorld().placementPreflight(new ValidatedRequest(placement,context,ref));
+        if(site.reason()!=null)return new FabricPrerequisiteRuntime.FacilityObservation(false,null,null,site.reason());
+        var current=gatewayWorld().futureFacilityRecipe(bound);
+        if(current.reason()!=null)return new FabricPrerequisiteRuntime.FacilityObservation(false,null,null,current.reason());
+        var area=ResourceDelivery.sourceArea(request);var source=((ContainerValue)request.arguments().get("source")).value();var definition=RecipeProduction.of(WoodenAxeProduction.ID);
+        var planks=leases.availableStock(definition.stock(context.scope().worldId(),source),current.availableInputs(),context);
+        var sticks=leases.availableStock(definition.secondaryStock(context.scope().worldId(),source),current.availableSecondary(),context);
+        if(!planks.usable() || !sticks.usable())return new FabricPrerequisiteRuntime.FacilityObservation(false,null,null,Reason.STALE_OBSERVATION);
+        var counts=Map.ofEntries(Map.entry("input_planks",planks.available()),Map.entry("required_planks",3L),Map.entry("missing_planks",Math.max(0,3-planks.available())),
+                Map.entry("input_sticks",sticks.available()),Map.entry("required_sticks",2L),Map.entry("missing_sticks",Math.max(0,2-sticks.available())),Map.entry("output_capacity",current.outputCapacity()),
+                Map.entry("recipe_supported",1L),Map.entry("unknown_cells",0L),Map.entry("missing_facility",1L),Map.entry("site_usable",1L));
+        var preview=new ObservationSnapshot(ref,ObservationStatus.PRESENT,"source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,counts);
+        return new FabricPrerequisiteRuntime.FacilityObservation(false,preview,observe(placement,actor),null);
+    }
     private BootstrapController.Submission composeRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,Cuboid oakSource) {
         UUID id=UUID.randomUUID();var actor=((ActorValue)request.arguments().get("actor")).value();
         if(player==null||!player.getUUID().equals(owner.principal().id())||!controls(actor,owner))return new BootstrapController.Submission(id,false,Reason.AUTHORITY_DENIED);
@@ -825,6 +874,10 @@ public final class KernelSession implements AutoCloseable {
     }
     public BootstrapController.Submission makeTables(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(CraftingTableProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
+    public BootstrapController.Submission placeTable(ServerPlayer player,UUID actorId,ContainerRef source,FacilityRef target) {
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
+        return submitRequest(new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(1),"source",new ContainerValue(source),"target",new FacilityValue(target))),owner,player);
+    }
     public BootstrapController.Submission composeTables(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,Cuboid oakSource) {
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
         if(amount<1 || amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
@@ -884,6 +937,14 @@ public final class KernelSession implements AutoCloseable {
         var entity = villager(actor);
         if (entity == null || entity.level() != player.level())
             return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.ACTOR_UNAVAILABLE);
+        if(CraftingTablePlacement.is(request.capability())) {
+            if(!CraftingTablePlacement.valid(request))return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+            var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
+            var current=gatewayWorld().placementPreflight(bound);
+            if(current.reason()!=null)return new BootstrapController.Submission(UUID.randomUUID(),false,current.reason());
+            var free=leases.availableStock(LeasedGateway.sourceResource(owner.scope().worldId(),bound),current.availableItems(),owner);
+            if(!free.usable() || free.available()<1)return new BootstrapController.Submission(UUID.randomUUID(),false,free.reason()==null?Reason.RESOURCE_MISSING:free.reason());
+        }
         if(RecipeProduction.is(request.capability())) {
             if(!(request.arguments().get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>RecipeProduction.of(request.capability()).maximumAmount())
                 return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
@@ -1003,6 +1064,7 @@ public final class KernelSession implements AutoCloseable {
         var sticks=loaded.repository().page(StickProduction.ID,"",8);
         var axes=loaded.repository().page(WoodenAxeProduction.ID,"",8);
         var tables=loaded.repository().page(CraftingTableProduction.ID,"",8);
+        var placement=loaded.repository().page(CraftingTablePlacement.ID,"",8);
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
@@ -1011,6 +1073,7 @@ public final class KernelSession implements AutoCloseable {
                 + " stickCatalog="+sticks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " axeCatalog="+axes.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " tableItemCatalog="+tables.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
+                + " placementCatalog="+placement.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " revision=" + page.revision() + " recentModelCalls=" + controller.modelCalls(owner)
                 + " inference=" + controller.inferenceEnabled();
     }

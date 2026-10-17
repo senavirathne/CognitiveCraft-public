@@ -63,6 +63,7 @@ public final class LeasedGateway implements GatewayPort {
         this.duration=duration;this.waitingTicks=waitingTicks;this.maxRuns=maxRuns;this.maxHandles=maxHandles;
     }
     public static Binding workspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
+        if(CraftingTablePlacement.is(request.request().capability()))return new Binding(owners.byRun(request,run),placementDemands(request));
         if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
         UUID world=request.context().scope().worldId();
         Cuboid source=ResourceDelivery.sourceArea(request.request());
@@ -71,6 +72,7 @@ public final class LeasedGateway implements GatewayPort {
                 new Demand(Resource.facility(world,destination),1)));
     }
     public static Binding cropWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
+        if(CraftingTablePlacement.is(request.request().capability()))return workspaces(owners,request,run);
         if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
         Binding spaces=workspaces(owners,request,run);
         var demands=new ArrayList<>(spaces.demands());
@@ -98,8 +100,8 @@ public final class LeasedGateway implements GatewayPort {
         if(!anchor.equals(((ActorValue)request.request().arguments().get("actor")).value()))
             return new Result(Code.VALID,null,null,List.of(),0,0);
         Cuboid source=ResourceDelivery.sourceArea(request.request());
-        ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
-        var demands=RecipeProduction.is(request.request().capability())
+        ContainerRef destination=ResourceDelivery.destinationAddress(request.request());
+        var demands=CraftingTablePlacement.is(request.request().capability()) ? placementDemands(request) : RecipeProduction.is(request.request().capability())
                 ? recipeDemands(world,request) : List.of(new Demand(sourceResource(world,request),((IntValue)request.request().arguments().get("amount")).value()),
                 new Demand(Resource.space(world,source),1),new Demand(Resource.facility(world,destination),1));
         int inspected=0;
@@ -217,7 +219,7 @@ public final class LeasedGateway implements GatewayPort {
         action.current=map(answer,handle,answer.terminal(),answer.reason());
         if(answer.terminal() && answer.reason()==null && (operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG
                 || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_AXE_INPUTS
-                || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_PLANKS)) {
+                || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_ITEM)) {
             for(var receipt:answer.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.WITHDRAW) {
                 Ref matching=null;
                 for(Ref ref:granted.leases()) {
@@ -314,7 +316,9 @@ public final class LeasedGateway implements GatewayPort {
         return new ActionReceipt(handle,terminal,r.committedEffects(),r.cropReceipts(),reason,
                 reason==null?r.result():null,reason==null?r.observation():null,r.resourceReceipts());
     }
-    private static Resource sourceResource(UUID world,ValidatedRequest request) {
+    public static Resource sourceResource(UUID world,ValidatedRequest request) {
+        if(CraftingTablePlacement.is(request.request().capability()))return new Resource(world,Kind.STOCK,
+                ResourceLeases.point(((ContainerValue)request.request().arguments().get("source")).value()),ResourceDelivery.CRAFTING_TABLE.id(),-1);
         if(RecipeProduction.is(request.request().capability()))
             return RecipeProduction.of(request.request().capability()).stock(world,((ContainerValue)request.request().arguments().get("source")).value());
         Cuboid source=ResourceDelivery.sourceArea(request.request());
@@ -327,6 +331,11 @@ public final class LeasedGateway implements GatewayPort {
                 RecipeProduction.of(request.request().capability()).inputs(((IntValue)request.request().arguments().get("amount")).value())));
         if(!RecipeProduction.of(request.request().capability()).axe())result.add(new Demand(Resource.facility(world,source),1));
         if(RecipeProduction.of(request.request().capability()).axe() || !source.equals(target))result.add(new Demand(Resource.facility(world,target),1));return List.copyOf(result);
+    }
+    private static List<Demand> placementDemands(ValidatedRequest request) {
+        var source=((ContainerValue)request.request().arguments().get("source")).value();var world=request.context().scope().worldId();
+        return List.of(new Demand(sourceResource(world,request),1),new Demand(Resource.facility(world,source),1),
+                new Demand(Resource.space(world,CraftingTablePlacement.workspace(request.request())),1));
     }
     private static void addAxeDemands(List<Demand> demands,UUID world,ValidatedRequest request,ContainerRef source) {
         var d=RecipeProduction.of(request.request().capability());if(!d.axe())return;

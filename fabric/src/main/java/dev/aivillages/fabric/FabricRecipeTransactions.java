@@ -113,6 +113,13 @@ final class FabricRecipeTransactions {
         return plain(actual,outputItem(d)) && actual.getCount()==d.outputPerBatch() && actual.getMaxStackSize()==(d.axe() ? 1 : 64) && remainders.size()<=(d.axe() ? 9 : 4) && remainders.stream().allMatch(ItemStack::isEmpty);
     }
     RecipeTransaction.Preflight preflight(ValidatedRequest bound) {
+        return preflight(bound,false);
+    }
+    RecipeTransaction.Preflight futureFacilityPreflight(ValidatedRequest bound) {
+        if(!FacilityPrerequisites.root(bound.request()))return blocked(Reason.REQUEST_INVALID);
+        return preflight(bound,true);
+    }
+    private RecipeTransaction.Preflight preflight(ValidatedRequest bound,boolean futureFacility) {
         var d=RecipeProduction.of(bound.request().capability());
         var actor=((ActorValue)bound.request().arguments().get("actor")).value();
         var source=((ContainerValue)bound.request().arguments().get("source")).value();
@@ -128,7 +135,7 @@ final class FabricRecipeTransactions {
         var recipe=capture(d.recipe());if(recipe==null)return blocked(Reason.UNSUPPORTED_PRIMITIVE);
         FacilityRef facility=d.axe() && bound.request().arguments().get("table") instanceof FacilityValue f ? f.value() : null;
         String facilityIdentity="";
-        if(d.axe()) {
+        if(d.axe() && !futureFacility) {
             var denied=tableGuard(facility,null,v,false);if(denied!=null)return blocked(denied);
             facilityIdentity=FabricFacilityIdentity.capture(level,new BlockPos(facility.x(),facility.y(),facility.z()));
         }
@@ -147,7 +154,7 @@ final class FabricRecipeTransactions {
             return blocked(Reason.TARGET_UNAVAILABLE);
         return new RecipeTransaction.Preflight(ObservationStatus.PRESENT,recipe.snapshot(),available,capacity(to,output),
                 identity(source,from),identity(target,to),fingerprint(from),fingerprint(v.getInventory()),
-                from.getContainerSize(),to.getContainerSize(),null,secondary,facility,facilityIdentity);
+                from.getContainerSize(),to.getContainerSize(),null,secondary,futureFacility?null:facility,facilityIdentity);
     }
     private RecipeTransaction.Preflight blocked(Reason r) {
         return new RecipeTransaction.Preflight(ObservationStatus.UNKNOWN,null,0,0,"","","","",0,0,r);
@@ -229,24 +236,24 @@ final class FabricRecipeTransactions {
         if(d.table())return CraftingInput.of(2,2,List.of(actual.copyWithCount(1),actual.copyWithCount(1),actual.copyWithCount(1),actual.copyWithCount(1)));
         return CraftingInput.of(2,2,List.of(actual.copyWithCount(1),ItemStack.EMPTY,d.inputPerBatch()==2 ? actual.copyWithCount(1) : ItemStack.EMPTY,ItemStack.EMPTY));
     }
-    private static boolean remove(List<ItemStack> slots,Item item,int count) {
+    static boolean remove(List<ItemStack> slots,Item item,int count) {
         int remaining=count;for(int i=0;i<slots.size() && remaining>0;i++) {var s=slots.get(i);if(!plain(s,item))continue;
             int n=Math.min(remaining,s.getCount());slots.set(i,s.copyWithCount(s.getCount()-n));remaining-=n;}return remaining==0;
     }
-    private static String identity(ContainerRef ref,Container c) {return "recipe-container:"+new BlockPos(ref.x(),ref.y(),ref.z()).asLong()+":"+System.identityHashCode(c);}
+    static String identity(ContainerRef ref,Container c) {return "recipe-container:"+new BlockPos(ref.x(),ref.y(),ref.z()).asLong()+":"+System.identityHashCode(c);}
     static String fingerprint(Container c) {
         StringBuilder rows=new StringBuilder();for(int i=0;i<c.getContainerSize();i++)rows.append(i).append(':').append(ItemStack.hashItemAndComponents(c.getItem(i))).append(':').append(c.getItem(i).getCount()).append(';');
         return RecipeTransaction.fingerprint(rows.toString());
     }
-    private static List<ItemStack> copy(Container c) {var result=new ArrayList<ItemStack>();for(int i=0;i<c.getContainerSize();i++)result.add(c.getItem(i).copy());return result;}
-    private static void apply(Container c,List<ItemStack> contents) {for(int i=0;i<contents.size();i++)c.setItem(i,contents.get(i));c.setChanged();}
+    static List<ItemStack> copy(Container c) {var result=new ArrayList<ItemStack>();for(int i=0;i<c.getContainerSize();i++)result.add(c.getItem(i).copy());return result;}
+    static void apply(Container c,List<ItemStack> contents) {for(int i=0;i<contents.size();i++)c.setItem(i,contents.get(i));c.setChanged();}
     private static int capacity(Container c,ItemStack item) {
         int result=0;for(int i=0;i<c.getContainerSize();i++) {var s=c.getItem(i);
             if(!c.canPlaceItem(i,item) || !s.isEmpty() && !ItemStack.isSameItemSameComponents(s,item))continue;
             int maximum=Math.min(item.getMaxStackSize(),c.getMaxStackSize(item));if(!s.isEmpty())maximum=Math.min(maximum,s.getMaxStackSize());
             result=Math.addExact(result,Math.max(0,maximum-s.getCount()));}return result;
     }
-    private static List<ItemStack> insert(List<ItemStack> slots,Container policy,ItemStack actual) {
+    static List<ItemStack> insert(List<ItemStack> slots,Container policy,ItemStack actual) {
         int remaining=actual.getCount();for(int pass=0;pass<2;pass++)for(int i=0;i<slots.size() && remaining>0;i++) {var s=slots.get(i);
             if(!policy.canPlaceItem(i,actual) || pass==0 && (s.isEmpty() || !ItemStack.isSameItemSameComponents(s,actual)) || pass==1 && !s.isEmpty())continue;
             int maximum=Math.min(actual.getMaxStackSize(),policy.getMaxStackSize(actual));if(!s.isEmpty())maximum=Math.min(maximum,s.getMaxStackSize());

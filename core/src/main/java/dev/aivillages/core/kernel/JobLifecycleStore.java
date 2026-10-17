@@ -198,6 +198,37 @@ public final class JobLifecycleStore {
         if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         return create(id,id,request,caller,observation,allowance,List.of(),true);
     }
+    /** One table-only prerequisite publication; original Jobs owns every child and inherited budget. */
+    public Change admitFacilityChild(UUID parent,Guard expected,boolean makeItem,ObservationRef observation,ArtifactRef method,TrustedContext caller) {
+        thread();var work=new Work();if(!ready())return reject(unavailableReason(),work);
+        try {
+            Job root=controlled(parent,caller);
+            if(root==null || !policy.controls(root.responsible(),root.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+            if(!root.guard().equals(expected) || !FacilityPrerequisites.root(root.request().request())
+                    || root.state().terminal() || root.state()==State.INTERRUPTED || root.current()!=null
+                    || root.preparation()==null || root.preparation().method()!=null)return reject(Reason.STALE_OBSERVATION,work);
+            var rows=rows();
+            if(!FacilityPrerequisites.completedChildren(root,rows) || makeItem && !root.children().isEmpty())return reject(Reason.STALE_OBSERVATION,work);
+            var request=makeItem?FacilityPrerequisites.item(root.request().request()):FacilityPrerequisites.placement(root.request().request());
+            if(makeItem ? method!=null : method==null || !method.capability().equals(CraftingTablePlacement.ID))return reject(Reason.REQUEST_INVALID,work);
+            UUID id=UUID.nameUUIDFromBytes(("facility-child:1:"+parent+":"+request.capability().name()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            if(rows.containsKey(id))return duplicate(rows.get(id),work);
+            var checked=RequestValidator.validate(request,root.origin(),observation,capabilities,environment);
+            if(checked instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
+            var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+            for(var kind:Budgets.Kind.values())maxima.put(kind,Math.max(0,available(parent,kind,rows)));
+            for(var kind:List.of(Budgets.Kind.REPAIRS,Budgets.Kind.INPUT_BYTES,Budgets.Kind.OUTPUT_BYTES,Budgets.Kind.CANDIDATES,Budgets.Kind.TRIALS))maxima.put(kind,0L);
+            var child=fresh(id,id,((RequestValidator.Accepted)checked).value(),parent,new Budgets.Limits(maxima,root.allowance().deadlineEpochMillis()),List.of());
+            var childEdit=new Edit(child);childEdit.preparation=new Preparation(method,List.of());
+            childEdit.state=makeItem?State.WAITING:State.READY;childEdit.reason=makeItem?Reason.RESOURCE_MISSING:null;
+            child=childEdit.finish(EventKind.DEPENDENCY,settings.events());rows.put(id,child);
+            var rootEdit=new Edit(root);var children=new ArrayList<>(root.children());children.add(id);
+            rootEdit.children=List.copyOf(children);rootEdit.dependencies=rootEdit.children;rootEdit.state=State.WAITING;rootEdit.reason=null;
+            rows.put(parent,rootEdit.finish(EventKind.DEPENDENCY,settings.events()));
+            checkCapacity(rows);checkGraph(parent,rows,work);return publish(rows,state.allocations(),child,null,work.edges);
+        }catch(Limited limited){return reject(limited.reason,work);}
+        catch(IllegalArgumentException|NullPointerException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
     private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
                           Budgets.Limits allowance,List<UUID> dependencies,boolean staged) {
         thread(); var work = new Work();
@@ -482,7 +513,7 @@ public final class JobLifecycleStore {
                 }
                 return duplicate(root,work);
             }
-            if(!root.children().isEmpty() || !root.dependencies().isEmpty())return reject(Reason.STALE_OBSERVATION,work);
+            if(!FacilityPrerequisites.completedChildren(root,rows()))return reject(Reason.STALE_OBSERVATION,work);
             var rows=rows();preparation(rows,proposal.needs(),instructions,caller,work);
             for(var node:proposal.nodes())if(!node.id().equals(root.id())) {
                 if(rows.containsKey(node.id()))return reject(Reason.STALE_OBSERVATION,work);
@@ -495,7 +526,8 @@ public final class JobLifecycleStore {
                 var edit=new Edit(child);edit.preparation=preparations.get(node.id());rows.put(node.id(),edit.finish(EventKind.PINNED,settings.events()));
             }
             var edit=new Edit(rows.get(root.id()));edit.preparation=preparations.get(root.id());
-            edit.children=proposal.nodes().stream().map(Prerequisites.Node::id).filter(id->!id.equals(root.id())).toList();
+            var allChildren=new ArrayList<>(root.children());allChildren.addAll(proposal.nodes().stream().map(Prerequisites.Node::id).filter(id->!id.equals(root.id())).toList());
+            edit.children=List.copyOf(allChildren);
             // Existing Jobs requires all owned children to be dependencies; this also retains parent accounting.
             edit.dependencies=edit.children;edit.state=edit.dependencies.isEmpty()?State.READY:State.WAITING;edit.reason=null;
             rows.put(root.id(),edit.finish(EventKind.DEPENDENCY,settings.events()));
@@ -1200,10 +1232,10 @@ public final class JobLifecycleStore {
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
                     || quantity.value() < 1 || quantity.value() > 64
                     || !(job.request().request().arguments().get("actor") instanceof ActorValue)
-                    || (RecipeProduction.is(job.request().request().capability())
+                    || (RecipeProduction.is(job.request().request().capability()) || CraftingTablePlacement.is(job.request().request().capability())
                         ? !(job.request().request().arguments().get("source") instanceof ContainerValue)
                         : !(job.request().request().arguments().get("source") instanceof AreaValue))
-                    || !(job.request().request().arguments().get("destination") instanceof ContainerValue))
+                    || (CraftingTablePlacement.is(job.request().request().capability()) ? !CraftingTablePlacement.valid(job.request().request()) : !(job.request().request().arguments().get("destination") instanceof ContainerValue)))
                 throw new IllegalArgumentException("Bound job request");
             if(job.preparation()!=null) {
                 var p=job.preparation();

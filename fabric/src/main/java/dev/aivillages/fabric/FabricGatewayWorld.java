@@ -41,6 +41,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private final Map<UUID, Route> routes = new HashMap<>();
     private final Map<UUID,Long> recipeSettled=new HashMap<>();
     private final FabricRecipeTransactions recipeTransactions;
+    private final FabricTablePlacement tablePlacement;
     private static final int MAX_PATH_NODES = 128;
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
@@ -83,8 +84,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private NavigationSummary lastNavigationSummary;
     NavigationSummary lastNavigationSummary() { return lastNavigationSummary; }
     public FabricGatewayWorld(ServerLevel level) {
-        this.level = java.util.Objects.requireNonNull(level);recipeTransactions=new FabricRecipeTransactions(level,this);
+        this.level = java.util.Objects.requireNonNull(level);recipeTransactions=new FabricRecipeTransactions(level,this);tablePlacement=new FabricTablePlacement(level,this);
     }
+    @Override public dev.aivillages.core.kernel.PlacementTransaction.Preflight placementPreflight(ValidatedRequest request){return tablePlacement.preflight(request);}
+    @Override public dev.aivillages.core.kernel.PlacementTransaction.Mutation withdrawTableItem(ActorRef actor,dev.aivillages.core.kernel.PlacementTransaction.Preflight captured,String custody,String source){return tablePlacement.withdraw(actor,captured,custody,source);}
+    @Override public dev.aivillages.core.kernel.PlacementTransaction.Mutation placeTable(ActorRef actor,dev.aivillages.core.kernel.PlacementTransaction.Preflight captured,String custody,String source){return tablePlacement.place(actor,captured,custody,source);}
     Villager recipeActor(ActorRef actor) {
         Villager v=villager(actor);return v!=null && loaded(v.blockPosition()) ? v : null;
     }
@@ -99,6 +103,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     @Override public dev.aivillages.core.kernel.RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {
         return recipeTransactions.preflight(request);
     }
+    dev.aivillages.core.kernel.RecipeTransaction.Preflight futureFacilityRecipe(ValidatedRequest request){return recipeTransactions.futureFacilityPreflight(request);}
     @Override public dev.aivillages.core.kernel.RecipeTransaction.Mutation withdrawRecipeInput(ActorRef actor,ContainerRef source,
             dev.aivillages.core.kernel.RecipeTransaction.Preflight captured,String custody,String sourceFingerprint) {
         return recipeTransactions.withdraw(actor,source,captured,custody,sourceFingerprint);
@@ -231,7 +236,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (!loaded(pos)) return effect == Effect.OBSERVE ? null : Reason.TARGET_UNAVAILABLE;
         if (!level.mayInteract(v, pos)) return Reason.AUTHORITY_DENIED;
         if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER
-                || effect==Effect.WITHDRAW || effect==Effect.CRAFT)
+                || effect==Effect.WITHDRAW || effect==Effect.CRAFT || effect==Effect.PLACE)
                 && !level.getGameRules().get(GameRules.MOB_GRIEFING)) return Reason.AUTHORITY_DENIED;
         return null;
     }

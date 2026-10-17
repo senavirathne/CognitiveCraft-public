@@ -264,8 +264,11 @@ public final class ResourceLeaseService {
             return result(Code.REJECTED,Reason.REQUEST_INVALID);
         Lease row=find(ref.id());Result error=reference(row,ref,caller,tick,true);if(error!=null)return error;
         var owner=facts(row.owner(),caller);
-        if(!RecipeProduction.is(bound.request().capability()) || !TransformationDelivery.matches(bound,run.runId(),receipt)
-                || receipt.stage()!=ResourceDelivery.Stage.WITHDRAW || receipt.quantity()!=RecipeProduction.of(bound.request().capability()).withdrawalUnits(receipt.item())
+        boolean supported=CraftingTablePlacement.is(bound.request().capability())
+                ? CraftingTablePlacement.matches(bound,run.runId(),receipt) && receipt.quantity()==1
+                : RecipeProduction.is(bound.request().capability()) && TransformationDelivery.matches(bound,run.runId(),receipt)
+                    && receipt.quantity()==RecipeProduction.of(bound.request().capability()).withdrawalUnits(receipt.item());
+        if(!supported || receipt.stage()!=ResourceDelivery.Stage.WITHDRAW
                 || !receipt.actor().equals(owner.worker()) || !run.runId().equals(owner.run())
                 || row.resource().kind()!=Kind.STOCK || row.resource().slot()!=-1
                 || !row.resource().item().equals(receipt.item().id()) || !row.resource().area().equals(receipt.source()))

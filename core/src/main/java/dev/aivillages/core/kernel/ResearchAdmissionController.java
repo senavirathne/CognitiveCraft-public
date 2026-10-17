@@ -367,7 +367,7 @@ public final class ResearchAdmissionController {
         if(bound.request().capability().equals(WoodenAxeProduction.ID)
                 && !((FacilityValue)args.get("table")).value().dimension().equals(bound.observation().dimension()))return false;
         return ResourceDelivery.sourceArea(bound.request()).dimension().equals(bound.observation().dimension())
-                && ((ContainerValue)args.get("destination")).value().dimension()
+                && ResourceDelivery.destinationAddress(bound.request()).dimension()
                         .equals(bound.observation().dimension());
     }
     private boolean allowed(ValidatedRequest bound) {
@@ -441,7 +441,9 @@ public final class ResearchAdmissionController {
             if (!bound.context().equals(caller)) throw new SecurityException("Private research attempt");
         }
         private void generate(Generation.Role role, String context) {
-            String prompt = (bound.request().capability().equals(WoodenAxeProduction.ID)
+            String prompt = (CraftingTablePlacement.is(bound.request().capability())
+                    ? "Propose independent schema-1 placement of one actual crafting-table item. Observe_table_site once, batchSize 1; select four cycle IDs move_to_input, withdraw_table_item, move_to_placement, place_crafting_table in causal order. Bind actor/source/target/amount runtime parameters; amount is exactly one. No producer, search, demolition or dependency. Completion requires the real consumed-item placement. "
+                    : bound.request().capability().equals(WoodenAxeProduction.ID)
                     ? "Propose a parameterized independent wooden-axe recipe method. Supplied oak planks and sticks, real bound table, amount 1..4. "
                     + "Observe once; repeat amount batches of move to input, withdraw all five inputs, move to table, craft, move to destination, transfer one new axe. "
                     + "No producers, provisioning or dependencies. Table and chest coordinates are invocation data. "
@@ -791,7 +793,7 @@ public final class ResearchAdmissionController {
         }
     }
     private static List<PrimitiveSignature> primitiveBrief(CapabilityId id) {
-        var ops=RecipeProduction.is(id) ? RecipeProduction.operations(id) : id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
+        var ops=CraftingTablePlacement.is(id) ? CraftingTablePlacement.operations() : RecipeProduction.is(id) ? RecipeProduction.operations(id) : id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
                 GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,
                 GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
                 GatewayPrimitives.Operation.TRANSFER_OAK_LOGS) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,

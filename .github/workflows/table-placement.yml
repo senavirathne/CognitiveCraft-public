@@ -1,0 +1,147 @@
+name: RB-006B table placement and facility acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/table-placement.yml','.github/implementation/RB-006B*']
+  push:
+    branches: [main,rb-006b-facility-provisioning]
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/table-placement.yml','.github/implementation/RB-006B*']
+permissions:
+  contents: read
+concurrency:
+  group: rb006b-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  owners-and-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: All modules and native compilation
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+          python3 scripts/verify-rb006b.py junit
+          python3 scripts/verify-rb006b.py identity
+      - name: Select actual survival placement effects
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementEffectGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+      - name: Actual BlockItem consumption, safe site, races and current facility
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb006b.py native --phase effects --class-name placement_effect_game_tests --marker RB006B_EFFECTS
+          mv fabric/build/gametest-run fabric/build/rb006b-effects-run
+      - name: Select independent admission and facility graph fixture
+        run: |
+          python3 - <<'PYSEL'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementKernelGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PYSEL
+      - name: Controlled independent admission and exact facility golden rows
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb006b.py native --phase controlled --class-name placement_kernel_game_tests --marker 'RB006B_NATIVE phase=cold genuine=false'
+          mv fabric/build/gametest-run fabric/build/rb006b-controlled-run
+      - name: Start pinned configured generation backend
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-rb006b-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:11434/api/version && break; sleep 2; done
+          docker exec cognitivecraft-rb006b-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+          curl --fail --silent http://127.0.0.1:11434/api/tags > build/rb006b-evidence/models.json
+          curl --fail --silent --show-error http://127.0.0.1:11434/api/generate --header 'Content-Type: application/json' --data '{"model":"qwen3:4b-instruct-2507-q4_K_M","stream":false,"keep_alive":"30m"}' | python3 -c 'import json,sys; assert json.load(sys.stdin)["done"]'
+      - name: Genuine independent admissions and exact physical facility graphs
+        timeout-minutes: 25
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+          COGNITIVECRAFT_RB006B_GENUINE: 'true'
+          COGNITIVECRAFT_RB006B_PHASE: cold
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb006b.py native --phase genuine-cold --class-name placement_kernel_game_tests --marker 'RB006B_NATIVE phase=cold genuine=true'
+      - name: Stop actual backend and prove endpoint unavailable
+        run: |
+          docker stop cognitivecraft-rb006b-ollama
+          test "$(docker inspect --format='{{.State.Running}}' cognitivecraft-rb006b-ollama)" = false
+          if curl --silent --max-time 2 http://127.0.0.1:11434/api/version >/dev/null; then exit 1; fi
+      - name: Fresh citizen and approved site in a new JVM on the same save
+        env:
+          COGNITIVECRAFT_RB006B_GENUINE: 'true'
+          COGNITIVECRAFT_RB006B_PHASE: warm
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb006b.py native --phase genuine-warm --class-name placement_kernel_game_tests --marker 'RB006B_NATIVE phase=warm genuine=true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb006b-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            build/rb006b-evidence/
+            fabric/build/rb006b-effects-run/
+            fabric/build/rb006b-controlled-run/
+            fabric/build/gametest-run/
+            fabric/build/libs/
+
+  connected-client:
+    name: GP-RB-06B genuine placement, facility Jobs, two principals and abrupt restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Production binary and existing harness regressions
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/verify-rb006b.py identity
+      - name: Actual connected client approved placement and facility provisioning
+        run: |
+          python3 e2e/suite.py --profile rb006b --root build/e2e/rb006b
+          python3 scripts/verify-rb006b.py client
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb006b-connected-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb006b-evidence/
+            build/e2e/rb006b/
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar

@@ -149,6 +149,24 @@ final class KernelCommands {
         }));
         for(int i=10;i>=0;i--)tableCoords=argument(tableNames[i],IntegerArgumentType.integer()).then(tableCoords);
         kernel.then(literal("compose-tables").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,4)).then(tableCoords))));
+        String[] placeNames={"source-x","source-y","source-z","target-x","target-y","target-z"};
+        ArgumentBuilder<CommandSourceStack,?> placeCoords=argument(placeNames[5],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+            int[] at=new int[6];for(int i=0;i<6;i++)at[i]=IntegerArgumentType.getInteger(ctx,placeNames[i]);
+            var player=ctx.getSource().getPlayerOrException();String dim=player.level().dimension().identifier().toString();
+            var result=session.placeTable(player,uuid(ctx,"actor-id"),new dev.aivillages.core.kernel.Contracts.ContainerRef(dim,at[0],at[1],at[2]),new dev.aivillages.core.kernel.Contracts.FacilityRef(dim,at[3],at[4],at[5]));
+            tell(ctx,"run="+result.id()+" accepted="+result.accepted()+(result.reason()==null?"":" reason="+result.reason()));return result.accepted()?1:0;
+        }));
+        for(int i=4;i>=0;i--)placeCoords=argument(placeNames[i],IntegerArgumentType.integer()).then(placeCoords);
+        kernel.then(literal("place-table").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(placeCoords)));
+        ArgumentBuilder<CommandSourceStack,?> provisionCoords=argument(composeNames[14],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+            int[] at=new int[15];for(int i=0;i<15;i++)at[i]=IntegerArgumentType.getInteger(ctx,composeNames[i]);
+            var player=ctx.getSource().getPlayerOrException();String dim=player.level().dimension().identifier().toString();
+            var result=session.provisionAxe(player,uuid(ctx,"actor-id"),new dev.aivillages.core.kernel.Contracts.ContainerRef(dim,at[0],at[1],at[2]),new dev.aivillages.core.kernel.Contracts.ContainerRef(dim,at[3],at[4],at[5]),
+                    new dev.aivillages.core.kernel.Contracts.FacilityRef(dim,at[6],at[7],at[8]),new dev.aivillages.core.kernel.Contracts.Cuboid(dim,at[9],at[10],at[11],at[12],at[13],at[14]));
+            tell(ctx,"job="+result.id()+" accepted="+result.accepted()+(result.reason()==null?"":" reason="+result.reason()));return result.accepted()?1:0;
+        }));
+        for(int i=13;i>=0;i--)provisionCoords=argument(composeNames[i],IntegerArgumentType.integer()).then(provisionCoords);
+        kernel.then(literal("provision-axe").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(provisionCoords)));
         ArgumentBuilder<CommandSourceStack, ?> queueCoords=argument(names[8],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[9];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,names[i]);
