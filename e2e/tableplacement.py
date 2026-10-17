@@ -117,14 +117,34 @@ def scenario(h):
     require(empty["job"] not in h.suggestions("PlayerB","/aivillage kernel job-status "),"Foreign facility root appeared in suggestions");h.screenshot("PlayerB","rb006b-private-denial",chat=True)
     # Two original scopes request one missing approved facility. Only one placement may occur.
     seed(p=6,s=4,t=2,source=SECOND);before=h.container(SECOND_DEST,AXE);calls=h.model_calls();first=submit_goal(RACE);second=submit_goal(RACE,"PlayerB")
+    def stopped_before_axe(rows):
+        root=rows[0];attempts=root["attempts"]
+        return (root["state"]=="WAITING" and root.get("reason")=="TARGET_UNAVAILABLE" and root["fulfilled"]==0
+                and root["dependencies"] and attempts and all(j["state"]=="SUCCEEDED" for j in rows[1:])
+                and any(j["request"]["request"]["capability"]["name"]=="cognitivecraft:place_crafting_table" for j in rows[1:])
+                and all((a.get("terminal") or {}).get("status")=="BLOCKED" and a["terminal"].get("reason")=="TARGET_UNAVAILABLE"
+                        and not a["effects"] and not a.get("resourceReceipts") and not a.get("receipts") and not a.get("uncertain") for a in attempts))
     def both():
         a=graph(first,"PlayerA");b=graph(second,"PlayerB")
         if not a or not b:return None
         if any(j["state"] in ("FAILED","CANCELLED","INTERRUPTED") for j in a+b):raise AssertionError("Competing facility roots failed: "+json.dumps(a+b))
-        return (a,b) if a[0]["state"]==b[0]["state"]=="SUCCEEDED" else None
-    race=h.wait(both,"Two original scopes share one actual approved facility",240)
+        return (a,b) if (any(rows[0]["state"]=="SUCCEEDED" for rows in (a,b))
+                        and all(rows[0]["state"]=="SUCCEEDED" or stopped_before_axe(rows) for rows in (a,b))) else None
+    race=h.wait(both,"Two original scopes share one facility or report an explicit zero-effect workspace blocker",240)
     place_receipts=[r for rows in race for j in rows for a in j["attempts"] for r in a.get("resourceReceipts",[]) if r["stage"]=="PLACE"]
-    require(len(place_receipts)==1 and h.container(SECOND,TABLE)==1 and h.container(SECOND_DEST,AXE)==before+2 and h.model_calls()==calls,"Competing scopes placed or consumed twice")
+    completed_axes=sum(rows[0]["state"]=="SUCCEEDED" for rows in race)
+    require(len(place_receipts)==1 and h.container(SECOND,TABLE)==1 and h.container(SECOND_DEST,AXE)==before+completed_axes and h.model_calls()==calls,"Competing scopes placed or consumed twice")
+    require((h.container(SECOND,PLANK),h.container(SECOND,STICK))==(6-3*completed_axes,4-2*completed_axes),"Competing scopes lost or duplicated recipe inputs")
+    race_cancellations=[]
+    for player,rows in zip(("PlayerA","PlayerB"),race):
+        if rows[0]["state"]=="SUCCEEDED":continue
+        require(stopped_before_axe(rows),"Unclassified competing-root result")
+        jid=rows[0]["id"];h.cancel_job(player,jid)
+        stopped=h.wait(lambda:(j if (j:=h.job_view(player,jid)) and j["state"]=="CANCELLED" else None),"Owner cancels the zero-effect blocked axe root",60)
+        require(stopped["fulfilled"]==0 and all(not a["effects"] and not a.get("resourceReceipts") for a in stopped["attempts"]),"Cancelled contention root acquired axe credit or effects")
+        race_cancellations.append({"player":player,"job":jid,"view":stopped})
+    race_stock=h.snapshot()["containers"];race_block=block(RACE);h.quiet(80)
+    require(h.snapshot()["containers"]==race_stock and block(RACE)==race_block and "minecraft:crafting_table" in race_block,"Contention cancellation changed completed placement or retained stock")
     h.actions_active=False
     # Cancellation retains actual partial effects and prevents later work; it never compensates items.
     h.console(["setblock "+coord(NEXT)+" minecraft:air"]);seed(p=3,s=2,t=1,source=SECOND);cancel_id=submit_goal(NEXT);h.cancel_job("PlayerA",cancel_id)
@@ -164,5 +184,5 @@ def scenario(h):
     require(inv("PlayerB")==saved_inv and h.snapshot()["containers"]==saved_containers and block(NEXT)==saved_block,"Saved actual placement was lost, duplicated or refunded")
     h.quiet(80);require(inv("PlayerB")==saved_inv and h.snapshot()["containers"]==saved_containers and block(NEXT)==saved_block,"Placement replayed after process restart")
     h.screenshot("PlayerB","rb006b-saved-placement-no-replay",chat=True)
-    return {"independentAcquisitions":acquisitions,"artifacts":hashes,"placement":placed,"existingFacility":existing,"existingItem":supplied,"emptyProvision":empty,"foreignDenied":foreign,"competingRoots":race,"cancelled":cancelled,
+    return {"independentAcquisitions":acquisitions,"artifacts":hashes,"placement":placed,"existingFacility":existing,"existingItem":supplied,"emptyProvision":empty,"foreignDenied":foreign,"competingRoots":race,"raceCompletedAxes":completed_axes,"raceCancellations":race_cancellations,"raceRetainedStock":race_stock,"cancelled":cancelled,
             "offlineWarmReuse":offline,"models":models,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},"crashApproach":approach,"crashPlacementApproach":placement_approach,"killBoundary":boundary,"clockMode":"vanilla-1-tps","clockSteps":steps,"checkpoint":checkpoint,"killedWorldHashes":killed,"recovered":recovered,"savedInventory":saved_inv,"savedBlock":saved_block}
