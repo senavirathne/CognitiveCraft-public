@@ -34,7 +34,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import xml.etree.ElementTree as ET
-          for suite, minimum in [('CitizenLifecycleTest',24),('CitizenLifecycleStorageTest',9),('CitizenWorkReconcilerTest',3)]:
+          for suite, minimum in [('CitizenLifecycleTest',26),('CitizenLifecycleStorageTest',9),('CitizenWorkReconcilerTest',3)]:
               cases=list(ET.parse(Path('core/build/test-results/test')/('TEST-dev.aivillages.core.kernel.'+suite+'.xml')).getroot().iter('testcase'))
               if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
                   raise SystemExit('Missing passing lifecycle matrix '+suite)

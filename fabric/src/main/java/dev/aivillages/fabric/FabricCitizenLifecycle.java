@@ -25,6 +25,9 @@ final class FabricCitizenLifecycle {
         this.server = server; this.identities = identities; this.lifecycle = lifecycle;
     }
     void loaded(Entity entity) {
+        loaded(entity, Source.ENTITY_LOAD);
+    }
+    private void loaded(Entity entity, Source source) {
         checkThread();
         if (!(entity instanceof Villager v) || !v.isAlive() || v.isRemoved() || v.isBaby()) return;
         var c = known(entity); if (c == null) return;
@@ -36,7 +39,7 @@ final class FabricCitizenLifecycle {
         if (old != null && old.entity() != entity && current.event() == Event.LOAD)
             offer(c, old.generation(), Event.MISSING, Source.MISSING_LOOKUP);
         lifecycle.offer(new Fact(identities.snapshot().worldId(), c.actor(), lifecycle.marker(id).generation(),
-                Event.LOAD, Source.ENTITY_LOAD, tick()));
+                Event.LOAD, source, tick()));
         bindings.put(id, new Binding(entity, lifecycle.marker(id).generation()));
     }
     void died(Entity entity) { loss(entity, Event.DEATH, Source.AFTER_DEATH); }
@@ -84,7 +87,7 @@ final class FabricCitizenLifecycle {
             var level = server.getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(c.actor().dimension())));
             lastLookups++;
             Entity entity = level == null ? null : level.getEntity(c.actor().entityId());
-            if (entity instanceof Villager && entity.isAlive() && !entity.isRemoved()) loaded(entity);
+            if (entity instanceof Villager && entity.isAlive() && !entity.isRemoved()) loaded(entity, Source.LOADED_LOOKUP);
             else if (lifecycle.marker(c.actor().citizenId()).event() == Event.LOAD)
                 offer(c, lifecycle.marker(c.actor().citizenId()).generation(), Event.MISSING, Source.MISSING_LOOKUP);
         }

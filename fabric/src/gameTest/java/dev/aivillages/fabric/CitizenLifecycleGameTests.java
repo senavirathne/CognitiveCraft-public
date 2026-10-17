@@ -80,6 +80,7 @@ public final class CitizenLifecycleGameTests {
             var marker=coordinator.marker(actor.citizenId());
             if(phase[0]==0) {
                 h.assertTrue(registry.available(actor),"Waiting for verified live binding");
+                h.assertTrue(marker.source()==Source.LOADED_LOOKUP,"A bounded lookup was mislabeled as a native callback");
                 generation[0]=marker.generation(); phase[0]=1;
                 if(reason==Entity.RemovalReason.UNLOADED_TO_CHUNK) {
                     if(delayedReason) {

@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "scope": "IMP-001 through IMP-019; IMP-014.1 and IMP-028; conditional IMP-029",
+  "scope": "IMP-001 through IMP-019; IMP-014.1, IMP-028 and IMP-029",
   "implementationBaseline": "01c623f4915e8f760659eac1a1426e1bbca6e3a5",
   "brokerRecheck": "IMP-014 is merged in public PR 6; archived absent status is superseded",
   "units": [
@@ -626,7 +626,7 @@
     {
       "unit": "IMP-029",
       "role": "lifecycle owner",
-      "implementation_status": "IMPLEMENTED_PENDING_ACCEPTANCE",
+      "implementation_status": "IMPLEMENTED",
       "implementation": "CitizenLifecycle / CitizenWorkReconciler / FabricCitizenLifecycle",
       "families": [
         "GP-E2E-029"
