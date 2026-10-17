@@ -38,13 +38,15 @@ def identity():
     value={'source':git('HEAD'),'tree':git('HEAD^{tree}'),'jarSha256':sha(jar),'java':25,'gradle':'9.7.0','minecraft':'26.3','loader':'0.19.5','fabricApi':'0.161.0+26.3','loom':'1.18.1'}
     OUT.mkdir(parents=True,exist_ok=True);(OUT/'identity.json').write_text(json.dumps(value,indent=2)+'\n');print('RB006B_IDENTITY '+json.dumps(value))
 def client():
-    folder=ROOT/'build/e2e/rb006b';data=json.loads((folder/'results.json').read_text());rows=[r for r in data['results'] if r['id']=='GP-RB-06A'];assert len(rows)==1 and rows[0]['status']=='PASS'
-    e=rows[0]['evidence'];assert all(e.get(k) for k in ('canonicalProduction','actualLanguage','knownBindings','offlineWarmReuse','foreignDenied','killBoundary','recovered','checkpoint','crashApproach'))
-    assert e['canonicalProduction']['quantity']==1 and e['knownBindings'][0]['quantity']==4 and e['offlineWarmReuse']['quantity']==4
-    assert len({e[k]['artifact'] for k in ('canonicalProduction','offlineWarmReuse')})==1
-    assert e['noFacilityCreated'] and 1<=e['clockSteps']<=512 and 'INTERRUPTED' in e['recovered']['description']
+    folder=ROOT/'build/e2e/rb006b';data=json.loads((folder/'results.json').read_text());rows=[r for r in data['results'] if r['id']=='GP-RB-06B'];assert len(rows)==1 and rows[0]['status']=='PASS'
+    e=rows[0]['evidence'];assert all(e.get(k) for k in ('independentAcquisitions','placement','existingFacility','existingItem','emptyProvision','offlineWarmReuse','foreignDenied','competingRoots','cancelled','killBoundary','recovered','checkpoint'))
+    assert len(e['independentAcquisitions'])==6 and len(e['artifacts'])==6
+    assert e['existingFacility']['placements']==0 and e['existingFacility']['tableJobs']==0
+    assert e['existingItem']['placements']==1 and e['existingItem']['tableJobs']==0
+    assert e['emptyProvision']['harvested']==3 and e['offlineWarmReuse']['harvested']==3
+    assert 1<=e['clockSteps']<=512 and 'INTERRUPTED' in e['recovered']['description'] and 'minecraft:crafting_table' in e['savedBlock']
     proof=e['offlineProcessProof'];assert proof['sameRelease'] and proof['backendUnavailable'] and proof['warm']['start']>proof['cold']['start']
-    assert len(rows[0]['screenshots'])>=4
+    assert len(rows[0]['screenshots'])>=6
     OUT.mkdir(parents=True,exist_ok=True);shutil.copy2(folder/'results.json',OUT/'connected-client.json')
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('mode',choices=['junit','native','identity','client']);p.add_argument('--phase');p.add_argument('--class-name');p.add_argument('--marker');a=p.parse_args()

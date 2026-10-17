@@ -40,6 +40,7 @@ PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
 PROFILES["rb005"] = ["GP-RB-COMPOSE-01"]
 PROFILES["rb006a"] = ["GP-RB-06A"]
+PROFILES["rb006b"] = ["GP-RB-06B"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
@@ -1521,6 +1522,8 @@ def main():
     registry["GP-RB-COMPOSE-01"] = composition_scenario
     from tableitems import scenario as table_item_scenario
     registry["GP-RB-06A"] = table_item_scenario
+    from tableplacement import scenario as table_placement_scenario
+    registry["GP-RB-06B"] = table_placement_scenario
     try:
         if args.topology == "compose":
             h.compose("build", "minecraft")
