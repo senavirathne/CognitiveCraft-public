@@ -28,7 +28,10 @@ jobs:
           java-version: '25'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
       - name: All modules and native compilation
-        run: bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+          python3 scripts/verify-rb006b.py junit
+          python3 scripts/verify-rb006b.py identity
       - name: Select actual survival placement effects
         run: |
           python3 - <<'PY'
@@ -39,7 +42,20 @@ jobs:
       - name: Actual BlockItem consumption, safe site, races and current facility
         run: |
           bash gradlew --no-daemon --stacktrace :fabric:runGameTest
-          rg 'RB006B_EFFECTS blockItem=true consumed=1' fabric/build/gametest-run/logs/latest.log
+          python3 scripts/verify-rb006b.py native --phase effects --class-name placement_effect_game_tests --marker RB006B_EFFECTS
+          mv fabric/build/gametest-run fabric/build/rb006b-effects-run
+      - name: Select independent admission and facility graph fixture
+        run: |
+          python3 - <<'PYSEL'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementKernelGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PYSEL
+      - name: Controlled independent admission and exact facility golden rows
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb006b.py native --phase controlled --class-name placement_kernel_game_tests --marker 'RB006B_NATIVE phase=cold genuine=false'
+          mv fabric/build/gametest-run fabric/build/rb006b-controlled-run
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -51,5 +67,8 @@ jobs:
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/
+            build/rb006b-evidence/
+            fabric/build/rb006b-effects-run/
+            fabric/build/rb006b-controlled-run/
             fabric/build/gametest-run/
             fabric/build/libs/
