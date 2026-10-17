@@ -5,7 +5,7 @@ import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET,zipfi
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'build/rb006a-evidence'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'TableProductionTest':16,'TableJobLifecycleTest':7,'TableLanguageRequestTest':9,'TableCompositionTest':7},
+    expected={'core':{'TableProductionTest':16,'TableJobLifecycleTest':7,'TableLanguageRequestTest':9,'TableCompositionTest':7,'TableLeaseTest':5},
               'providers':{'TableGenerationTest':2,'TableNeedleWireTest':5}}
     result={};scoped={}
     for module in ('core','providers','fabric'):
