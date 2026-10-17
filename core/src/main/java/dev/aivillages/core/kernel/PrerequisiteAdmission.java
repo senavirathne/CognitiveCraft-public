@@ -41,7 +41,9 @@ public final class PrerequisiteAdmission {
                     Jobs.Job root=jobs.query(need.demand(),caller);
                     if(!root.origin().equals(need.origin()) || !root.request().equals(need.bound()))throw new SecurityException();
                 }
+                var checkedStock=new HashSet<String>();
                 for(StockUse used:proposal.stock()) {
+                    if(ResourceComposition.make(used.owner()) && !checkedStock.add(used.owner().demand()+":"+used.proof().item()+":"+used.proof().identity())){work=add(work,1);continue;}
                     Supply proof=Objects.requireNonNull(supplies.inspect(used.owner(),used.proof().item()));
                     work=add(work,1+proof.inspected());
                     if(proof.reason()==Reason.AUTHORITY_DENIED)throw new SecurityException();

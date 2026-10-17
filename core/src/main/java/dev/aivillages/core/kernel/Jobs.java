@@ -107,11 +107,24 @@ public final class Jobs {
         public boolean open() { return terminal == null || uncertain; }
         public int receiptCount() { return receipts.size() + resourceReceipts.size(); }
     }
+    public record MaterialIntent(UUID producer,String item,long quantity) {
+        public MaterialIntent { Objects.requireNonNull(producer);ResourceComposition.item(item);if(quantity<1||quantity>64)throw new IllegalArgumentException("Material intention"); }
+    }
+    /** Null method denotes staged, non-executable admission. Values are owned by Jobs, never inventory. */
+    public record Preparation(ArtifactRef method,List<MaterialIntent> materials) {
+        public Preparation { materials=List.copyOf(materials);if(materials.size()>8 || materials.stream().map(m->m.producer()+":"+m.item()).distinct().count()!=materials.size()
+                || method==null&&!materials.isEmpty())throw new IllegalArgumentException("Bounded preparation"); }
+    }
     public record Job(UUID id, UUID submissionId, long revision, ValidatedRequest request,
                       UUID parent, List<UUID> dependencies, List<UUID> children,
                       State state, Reason reason, State cancellationOutcome,
                       Budgets.Limits allowance, Map<Budgets.Kind, Long> usage,
-                      long generation, List<Attempt> attempts, List<Event> events) {
+                      long generation, List<Attempt> attempts, List<Event> events, Preparation preparation) {
+        public Job(UUID id,UUID submissionId,long revision,ValidatedRequest request,UUID parent,List<UUID> dependencies,List<UUID> children,
+                   State state,Reason reason,State cancellationOutcome,Budgets.Limits allowance,Map<Budgets.Kind,Long> usage,
+                   long generation,List<Attempt> attempts,List<Event> events) {
+            this(id,submissionId,revision,request,parent,dependencies,children,state,reason,cancellationOutcome,allowance,usage,generation,attempts,events,null);
+        }
         public Job {
             Objects.requireNonNull(id); Objects.requireNonNull(submissionId);
             Objects.requireNonNull(request); Objects.requireNonNull(state); Objects.requireNonNull(allowance);
@@ -156,11 +169,14 @@ public final class Jobs {
         }
     }
     public record Allocation(UUID id, UUID producer, UUID attempt, UUID receipt,
-                             UUID demand, long quantity) {
+                             UUID demand, long quantity,String item) {
+        public Allocation(UUID id,UUID producer,UUID attempt,UUID receipt,UUID demand,long quantity) {this(id,producer,attempt,receipt,demand,quantity,"");}
+        public boolean material() {return !item.isEmpty();}
         public Allocation {
             Objects.requireNonNull(id); Objects.requireNonNull(producer); Objects.requireNonNull(attempt);
             Objects.requireNonNull(receipt); Objects.requireNonNull(demand);
             if (quantity < 1) throw new IllegalArgumentException("Positive output allocation");
+            Objects.requireNonNull(item);if(!item.isEmpty())ResourceComposition.item(item);
         }
     }
     public record Snapshot(UUID worldId, long revision, List<Job> jobs, List<Allocation> allocations) {
@@ -254,10 +270,11 @@ public final class Jobs {
         List<Attempt> attempts;
         Map<Budgets.Kind, Long> usage;
         long generation;
+        Preparation preparation;
         Edit(Job job) {
             old = job; state = job.state(); reason = job.reason(); cancellationOutcome = job.cancellationOutcome();
             dependencies = job.dependencies(); children = job.children(); attempts = job.attempts();
-            usage = job.usage(); generation = job.generation();
+            usage = job.usage(); generation = job.generation(); preparation=job.preparation();
         }
         Job finish(EventKind kind, int eventCap) {
             long revision = Math.addExact(old.revision(), 1);
@@ -266,7 +283,7 @@ public final class Jobs {
             events.add(new Event(revision, kind, attempts.isEmpty() ? null : attempts.getLast().id(), generation));
             return new Job(old.id(), old.submissionId(), revision, old.request(), old.parent(),
                     dependencies, children, state, reason, cancellationOutcome, old.allowance(),
-                    usage, generation, attempts, events);
+                    usage, generation, attempts, events,preparation);
         }
     }
 }

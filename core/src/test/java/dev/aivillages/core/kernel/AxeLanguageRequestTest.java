@@ -50,4 +50,17 @@ class AxeLanguageRequestTest {
         var f=new Fixture();f.world.identity.add(2,9,0,"Ada",true,true);f.world.identity.open();
         assertEquals(Phase.CLARIFICATION,f.interpret(TEXT,1).phase());assertEquals(0,f.submissions);
     }
+
+    @Test void singularArticleAndRecipientStateExactlyOneOutput() {
+        for(String phrase:List.of("Ada, make me a wooden axe and store it.","Ada, craft a wooden axe and store it.","Ada, produce us a wooden axe and store it.")) {
+            var f=new Fixture();var result=f.interpret(phrase,1);
+            assertEquals(Phase.SUBMITTED,result.phase(),result.toString());assertEquals(new IntValue(1),f.request.arguments().get("amount"));
+        }
+    }
+    @Test void singularArticleCannotGroundModelQuantityTwo() {
+        var f=new Fixture();assertEquals(Phase.CLARIFICATION,f.interpret("Ada, make me a wooden axe and store it.",2).phase());assertEquals(0,f.submissions);
+    }
+    @Test void ingredientArticleCannotReplaceRequestedOutputQuantity() {
+        var f=new Fixture();assertEquals(Phase.CLARIFICATION,f.interpret("Ada, make two wooden axes using a wooden axe and store them.",1).phase());assertEquals(0,f.submissions);
+    }
 }

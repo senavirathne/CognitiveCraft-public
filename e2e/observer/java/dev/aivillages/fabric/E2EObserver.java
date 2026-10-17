@@ -30,6 +30,8 @@ public final class E2EObserver implements ModInitializer {
         var thread = new Thread(r, "e2e-observation-writer"); thread.setDaemon(true); return thread;
     });
     private long ticks;
+    private final int snapshotTicks = Math.max(1, Math.min(5,
+            Integer.parseInt(System.getenv().getOrDefault("COGNITIVECRAFT_E2E_SNAPSHOT_TICKS", "5"))));
     private final Map<UUID,ServerPlayer> observedPlayers = new LinkedHashMap<>();
     private final Map<UUID,CompletableFuture<ObservedWorldKnowledgeStore.EvidenceSnapshot>> knowledgeQueries = new HashMap<>();
     private final Map<UUID,JsonElement> knowledgeViews = new HashMap<>();
@@ -37,7 +39,7 @@ public final class E2EObserver implements ModInitializer {
     @Override public void onInitialize() {
         writer.scheduleWithFixedDelay(this::flush, 0, 100, TimeUnit.MILLISECONDS);
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (++ticks % 5 == 0) pending.set(JSON.toJson(snapshot(server)));
+            if (++ticks % snapshotTicks == 0) pending.set(JSON.toJson(snapshot(server)));
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> { flush(); writer.shutdown(); });
     }
@@ -49,6 +51,7 @@ public final class E2EObserver implements ModInitializer {
         out.addProperty("pid", ProcessHandle.current().pid());
         out.addProperty("java", System.getProperty("java.version"));
         var level = server.overworld();
+        out.addProperty("gameTick", level.getGameTime());
         out.addProperty("arenaLoaded",level.hasChunkAt(new BlockPos(2,201,5)));
         out.addProperty("arenaTicking",level.getChunkSource().isPositionTicking(0L));
         var blocks = new JsonObject(); var containers = new JsonObject();
@@ -71,7 +74,18 @@ public final class E2EObserver implements ModInitializer {
         }
         out.add("blocks", blocks); out.add("containers", containers);
         var actors = new JsonArray();
-        for (var villager : level.getEntitiesOfClass(Villager.class, new AABB(-3,199,-3,23,206,17))) {
+        var observedActors = new LinkedHashMap<UUID,Villager>();
+        for (var villager : level.getEntitiesOfClass(Villager.class, new AABB(-3,199,-3,23,206,17)))
+            observedActors.put(villager.getUUID(),villager);
+        // The legacy speech fixture includes a corridor beyond the crop arena.
+        // Retain its enrolled, already loaded subject without loading any chunks.
+        var legacy = AiVillages.session();
+        if (legacy != null) for (var agent : legacy.agents().stream().limit(32).toList()) {
+            var villager = legacy.find(agent);
+            if (villager != null && villager.level() == level)
+                observedActors.put(villager.getUUID(),villager);
+        }
+        for (var villager : observedActors.values()) {
             var inventory = new JsonObject();
             for (int i = 0; i < villager.getInventory().getContainerSize(); i++) {
                 var item = villager.getInventory().getItem(i);

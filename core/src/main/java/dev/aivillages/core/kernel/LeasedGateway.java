@@ -130,7 +130,18 @@ public final class LeasedGateway implements GatewayPort {
     public Result validate(ValidatedRequest request,RunCorrelation correlation) {
         Result group=prepare(request,correlation);
         if(!group.usable())return group;
-        for(Ref ref:group.leases()) { Result valid=leases.validate(ref,request.context());if(!valid.usable())return valid; }
+        var pending=new HashSet<UUID>();
+        // An atomic native withdrawal has already removed these units. Only the saved trusted
+        // receipts' own consumption acknowledgements may temporarily cover their exact claims.
+        for(Action action:actions.values())if(action.run.correlation.equals(correlation) && action.saved!=null
+                && !action.current.terminal() && action.ingredientConsumption!=null) {
+            pending.add(action.consuming.id());
+            for(var ingredient:action.ingredients)pending.add(ingredient.getKey().id());
+        }
+        for(Ref ref:group.leases()) {
+            if(pending.contains(ref.id()))continue;
+            Result valid=leases.validate(ref,request.context());if(!valid.usable())return valid;
+        }
         return group;
     }
     public boolean released(UUID run) { checkThread();return !runs.containsKey(run); }

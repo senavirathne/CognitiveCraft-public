@@ -153,7 +153,13 @@ public final class CapabilityResolver {
             this.limits = Objects.requireNonNull(limits);
         }
 
-        public Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot) {
+        public Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot) { return resolve(request,snapshot,false); }
+        /** Method retrieval for guarded prerequisite admission; material readiness is still required at dispatch. */
+        public Decision resolveForPrerequisite(ValidatedRequest request, ObservationSnapshot snapshot) {
+            if(!ResourceDelivery.resource(request.request().capability()))throw new IllegalArgumentException("Registered resource method");
+            return resolve(request,snapshot,true);
+        }
+        private Decision resolve(ValidatedRequest request, ObservationSnapshot snapshot,boolean preparation) {
             CapabilitySpec spec = checkedRequest(request);
             Objects.requireNonNull(snapshot);
             ActorRef actor = ((ActorValue) request.request().arguments().get("actor")).value();
@@ -200,7 +206,7 @@ public final class CapabilityResolver {
             if(RecipeProduction.is(spec.id())) {
                 if(snapshot.counts().getOrDefault("recipe_supported",0L)!=1)
                     return decision(ResolutionStatus.UNSUPPORTED_RUNTIME,Reason.UNSUPPORTED_PRIMITIVE,null,request,snapshot,-1,List.of(),0,0,false,false);
-                if(snapshot.counts().getOrDefault(RecipeProduction.of(spec.id()).missingCount(),0L)>0 || spec.id().equals(WoodenAxeProduction.ID) && snapshot.counts().getOrDefault("missing_sticks",0L)>0)
+                if(!preparation && (snapshot.counts().getOrDefault(RecipeProduction.of(spec.id()).missingCount(),0L)>0 || spec.id().equals(WoodenAxeProduction.ID) && snapshot.counts().getOrDefault("missing_sticks",0L)>0))
                     return decision(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,request,snapshot,-1,List.of(),0,0,false,false);
                 if(snapshot.counts().getOrDefault("output_capacity",0L)<((IntValue)request.request().arguments().get("amount")).value())
                     return decision(ResolutionStatus.BLOCKED,Reason.TARGET_UNAVAILABLE,null,request,snapshot,-1,List.of(),0,0,false,false);

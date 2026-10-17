@@ -1,0 +1,156 @@
+name: RB-005 resource composition acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/resource-composition.yml']
+  push:
+    branches: [main,rb-005-resource-composition]
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/resource-composition.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rb005-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  owners-and-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Compile source and native integration
+        run: bash gradlew --no-daemon --stacktrace :core:compileJava :providers:compileJava :fabric:compileJava :fabric:gameTestClasses
+      - name: Execute scoped composition and all module regressions
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+          python3 scripts/verify-rb005.py junit
+          python3 scripts/verify-rb005.py identity
+          python3 - <<'PY'
+          import xml.etree.ElementTree as E
+          from pathlib import Path
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.ResourceCompositionTest.xml')
+          cases=list(E.parse(p).getroot().iter('testcase'))
+          assert len(cases)>=22 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          print('RB005_UNIT cases='+str(len(cases)))
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionOwnerTest.xml');cases=list(E.parse(p).getroot().iter('testcase'))
+          assert len(cases)>=17 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          print('RB005_OWNER cases='+str(len(cases)))
+          for module,name,minimum in (('core','AxeLanguageRequestTest',9),('providers','AxeNeedleWireTest',5)):
+              p=Path(module+'/build/test-results/test/TEST-dev.aivillages.'+('core.kernel.' if module=='core' else 'providers.')+name+'.xml')
+              cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)>=minimum and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+              print('RB005_LANGUAGE '+name+' cases='+str(len(cases)))
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionLeaseTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==1 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          p=Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.CompositionBindingTest.xml');cases=list(E.parse(p).getroot().iter('testcase'));assert len(cases)==3 and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+          PY
+      - name: Select native composed Jobs and installed resource recipes
+        run: |
+          python3 - <<'SELECT'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.CompositionGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          SELECT
+      - name: Controlled independent admission and native golden matrix
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb005.py native --phase controlled
+          mv fabric/build/gametest-run fabric/build/rb005-controlled-run
+      - name: Start pinned configured backend
+        timeout-minutes: 12
+        run: |
+          docker run --detach --name cognitivecraft-rb-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:11434/api/version && break; sleep 2; done
+          docker exec cognitivecraft-rb-ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
+          mkdir -p build/rb005-evidence
+          curl --fail --silent http://127.0.0.1:11434/api/tags > build/rb005-evidence/models.json
+          curl --fail --silent --show-error http://127.0.0.1:11434/api/generate --header 'Content-Type: application/json' --data '{"model":"qwen3:4b-instruct-2507-q4_K_M","stream":false,"keep_alive":"30m"}' | python3 -c 'import json,sys; assert json.load(sys.stdin)["done"]'
+      - name: Genuine independent acquisition then model-free composed native matrix
+        timeout-minutes: 27
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+          COGNITIVECRAFT_RB005_GENUINE: 'true'
+          COGNITIVECRAFT_RB005_PHASE: cold
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb005.py native --phase genuine-cold
+      - name: Stop actual backend and verify unavailable endpoint
+        run: |
+          docker stop cognitivecraft-rb-ollama
+          test "$(docker inspect --format='{{.State.Running}}' cognitivecraft-rb-ollama)" = false
+          if curl --silent --max-time 2 http://127.0.0.1:11434/api/version >/dev/null; then exit 1; fi
+      - name: Fresh bindings in a separate JVM reopening the same save
+        env:
+          COGNITIVECRAFT_RB005_GENUINE: 'true'
+          COGNITIVECRAFT_RB005_PHASE: warm
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb005.py native --phase genuine-warm
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb005-owner-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/libs/
+            fabric/build/rb005-controlled-run/
+            fabric/build/gametest-run/
+            build/rb005-evidence/
+
+  connected-client:
+    name: GP-RB-COMPOSE-01 independent Jobs, language, privacy and intermediate recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Production binary and existing harness tests
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/verify-rb005.py identity
+      - name: Acquire existing pinned Needle test backend
+        run: python3 tools/needle/install.py build/needle
+      - name: Actual connected client GP-RB-COMPOSE-01
+        run: |
+          python3 e2e/suite.py --profile rb005 --root build/e2e/rb005
+          python3 scripts/verify-rb005.py client
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb005-connected-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb005-evidence/
+            build/e2e/rb005/
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar
