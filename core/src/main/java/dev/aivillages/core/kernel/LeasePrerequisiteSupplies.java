@@ -19,7 +19,7 @@ public final class LeasePrerequisiteSupplies implements Supplies {
         UUID world=need.origin().scope().worldId();
         if(ResourceComposition.make(need) && item.equals(RecipeProduction.of(need.bound().request().capability()).output().id()))
             return new Supply(item,ObservationStatus.ABSENT,0,"make-new-axes",need.bound().observation(),ticks.getAsLong(),0,null);
-        if((item.equals("minecraft:oak_log")||item.equals("minecraft:oak_planks")||item.equals("minecraft:stick"))
+        if((item.equals("minecraft:birch_log")||item.equals("minecraft:birch_planks")||item.equals("minecraft:oak_log")||item.equals("minecraft:oak_planks")||item.equals("minecraft:stick"))
                 && arguments.get("source") instanceof ContainerValue source)
             resource=new ResourceLeases.Resource(world,ResourceLeases.Kind.STOCK,ResourceLeases.point(source.value()),item,-1);
         else if(item.equals("minecraft:wheat") && arguments.get("destination") instanceof ContainerValue destination)

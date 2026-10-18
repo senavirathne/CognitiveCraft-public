@@ -62,11 +62,16 @@ public final class FabricPrerequisiteCatalog {
                 recipes.add(new Prerequisites.Recipe(key,output,result.count(),inputs,remainders));unsupported.add(output);
             } catch(IllegalArgumentException | NoSuchElementException invalid) {complete=false;}
         }
-        var productions=new ArrayList<Prerequisites.Production>();productions.add(Prerequisites.Production.cropDelivery());productions.add(dev.aivillages.core.kernel.ResourceComposition.oakAcquisition());
+        var productions=new ArrayList<Prerequisites.Production>();productions.add(Prerequisites.Production.cropDelivery());productions.add(dev.aivillages.core.kernel.ResourceComposition.oakAcquisition());productions.add(dev.aivillages.core.kernel.ResourceComposition.birchAcquisition());
         for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.OakPlankProduction.RECIPE)
                 && recipe.output().equals("minecraft:oak_planks") && recipe.outputPerBatch()==4 && recipe.remainders().isEmpty()
                 && recipe.inputs().size()==1 && recipe.inputs().getFirst().alternatives().contains("minecraft:oak_log") && recipe.inputs().getFirst().quantity()==1) {
             productions.add(dev.aivillages.core.kernel.RecipeProduction.of(dev.aivillages.core.kernel.OakPlankProduction.ID).relationship());unsupported.remove("minecraft:oak_planks");
+        }
+        for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.BirchPlankProduction.RECIPE)
+                && recipe.output().equals("minecraft:birch_planks") && recipe.outputPerBatch()==4 && recipe.remainders().isEmpty()
+                && recipe.inputs().size()==1 && recipe.inputs().getFirst().alternatives().contains("minecraft:birch_log") && recipe.inputs().getFirst().quantity()==1) {
+            productions.add(dev.aivillages.core.kernel.RecipeProduction.of(dev.aivillages.core.kernel.BirchPlankProduction.ID).relationship());unsupported.remove("minecraft:birch_planks");
         }
         for(var recipe:recipes)if(recipe.id().equals(dev.aivillages.core.kernel.StickProduction.RECIPE)
                 && recipe.output().equals("minecraft:stick") && recipe.outputPerBatch()==4 && recipe.remainders().isEmpty()

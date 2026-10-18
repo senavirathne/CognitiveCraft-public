@@ -55,7 +55,7 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                 return world.crop(cell);
             }
             @Override public SurvivalGateway.ItemBlock itemBlock(ActorRef actor,Point point,dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
-                if(!item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG))
+                if(!dev.aivillages.core.kernel.LogAcquisition.log(item))
                     return WorldReferenceDiscovery.Observation.super.itemBlock(actor,point,item);
                 var cell=new SurvivalGateway.Cell(point.dimension(),point.x(),point.y(),point.z());
                 var pos=new BlockPos(point.x(),point.y(),point.z());
@@ -65,19 +65,19 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             }
             @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
                     dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item) {
-                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.WOODEN_AXE) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.CRAFTING_TABLE)) {
+                if(item.equals(dev.aivillages.core.kernel.ResourceDelivery.BIRCH_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_PLANKS) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.STICK) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.WOODEN_AXE) || item.equals(dev.aivillages.core.kernel.ResourceDelivery.CRAFTING_TABLE)) {
                     var pos=new BlockPos(target.x(),target.y(),target.z());
                     if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
                         return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
                     var c=world.inspectRecipeContainer(target,item);
                     return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
                 }
-                if(!item.equals(dev.aivillages.core.kernel.ResourceDelivery.OAK_LOG))
+                if(!dev.aivillages.core.kernel.LogAcquisition.log(item))
                     return WorldReferenceDiscovery.Observation.super.itemContainer(actor,target,item);
                 var pos=new BlockPos(target.x(),target.y(),target.z());
                 if(!world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.TRANSFER))
                     return new WorldReferenceDiscovery.ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unavailable");
-                var c=world.inspectOakContainer(target);
+                var c=world.inspectLogContainer(target,item);
                 return new WorldReferenceDiscovery.ItemContainerSample(item,c.status(),c.capacity(),c.slotsInspected(),c.identity());
             }
             @Override public WorldReferenceDiscovery.InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {

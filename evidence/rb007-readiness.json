@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "unit": "RB-007",
+  "sourceBaseline": "d01dcf1c8fb9c6df8d9ae4a2dc805f4276e1bdd1",
+  "documentationBaseline": "73217271df32feb7813004f1e3acce4e891ad037",
+  "documentationFirstContract": "69ee4adfeefa387947db64b2b8fe6e4257c49d28",
+  "acceptedPrerequisites": {"RB-005": 31, "RB-006A": 32, "RB-006B": 34},
+  "capabilities": {"cognitivecraft:deliver_birch_logs": {"version": 1, "amount": [1,8]}, "cognitivecraft:produce_birch_planks": {"version": 1, "amount": [1,64]}},
+  "newPrimitiveSignatures": 11,
+  "owners": ["ResourceDelivery", "RecipeProduction", "SurvivalGateway", "FabricGatewayWorld", "FabricRecipeTransactions", "RequestValidator", "CapabilityResolver", "ResearchAdmissionController", "CropFixtureRunner", "WorldReferenceBinding", "WorldReferenceDiscovery", "LanguageRequests", "NeedleWire", "LocalGenerationAdapter", "JobLifecycleStore", "ResourceComposition", "LeasePrerequisiteSupplies", "ResourceLeaseService", "FabricPrerequisiteCatalog", "FabricPrerequisiteRuntime", "KernelSession"],
+  "unchangedOwners": ["VersionedSkillRepository", "RepositoryCodec", "BootstrapJournal", "JobJournal", "LeaseJournal", "WorkerDispatcher", "AIWorkBroker", "WorldRetentionManager"],
+  "schemaChanges": [],
+  "architecture": "0.5",
+  "testExecution": "GitHub Actions only",
+  "acceptance": "pending",
+  "explicitReferenceDecoderFailure": {"source": "fcb84e906a94adcd293b3841082834ffcc8362e0", "run": 39087892210, "job": 117558196973, "artifact": 12121732618, "artifactSha256": "4d218f9d160d220c6439cf06a7ee8d55fa91e3baee367cbe58bedca1889a0df0", "owner": "NeedleWire.decodeHarvest", "cause": "The preparation path emitted birch area/stock source aliases but the decoder omitted both new intents and expected farm.", "correction": "Share the exact intent-to-source-alias mapping between preparation and strict decoding; test both explicit-coordinate round trips and wrong-alias rejection."},
+  "requirements": ["RB7-T01","RB7-T02","RB7-T03","RB7-T04","RB7-T05","RB7-T06","RB7-T07","RB7-T08","RB7-T09","RB7-T10"],
+  "firstFailure": {"source": "2c0a98c840ed751d1f3741d06f3a86e432c7cda5", "run": 39085454615, "artifact": 12120801488, "artifactSha256": "cdd53cfd1f25b69dcd47e0e72f905506e5d81a72268c73f7a7c553ec0827617f", "coreCases": 1467, "failed": 7, "cause": "Three historical classifier expectations predate birch registration; four new composition fixtures counted old target-item stock instead of following production MAKE stock semantics."},
+  "secondHeadEvidence": {"source": "1d02d4ded8f4e66aa24eff26d991088965bb1630", "run": 39085758765, "nativeJob": 117551855603, "nativeConclusion": "success", "moduleCases": 1606, "scopedCases": 40, "nativeArtifact": 12121166484, "nativeArtifactSha256": "2ba03b024bcdee05c390fb9e5752228c175aa04cd1de9f3397d9c3d8cf3affa1", "connectedJob": 117551855724, "connectedConclusion": "failure-before-gameplay", "connectedArtifact": 12120752583, "connectedArtifactSha256": "7fc94aafd0c60f55d87ba9c05e5c478c1d7edb492ba1de658742dfd3b8430a3a", "cause": "Connected-client workflow omitted the existing pinned Needle installation. Added the same installation step used by accepted resource-family workflows; no runtime or gate changed.", "otherRequiredWorkflows": {"success": 27, "total": 27}}
+}

@@ -22,19 +22,23 @@ final class OakLogDiscovery {
                 anchor.y()-VERTICAL_RANGE+cursor/(width*width),anchor.z()-HORIZONTAL_RADIUS+(cursor/width)%width);
     }
     static final class Source implements Discovery<SourceArea> {
-        final ActorRef actor; final int amount; final Point anchor; final Observation world;
+        final ActorRef actor; final int amount; final Point anchor; final Observation world; final ResourceDelivery.ItemIdentity item;
         Map<Point,Boolean> logs=new LinkedHashMap<>(); List<Point> points=List.of(),selected=new ArrayList<>();
         List<Candidate<SourceArea>> candidates=new ArrayList<>(); Set<Cuboid> seen=new HashSet<>();
         int cursor,seed,other; boolean unknown,cancelled,prepared;
         Source(ActorRef actor,int amount,Point anchor,Observation world) {
-            this.actor=actor;this.amount=amount;this.anchor=anchor;this.world=world;
+            this(actor,amount,anchor,world,ResourceDelivery.OAK_LOG);
+        }
+        Source(ActorRef actor,int amount,Point anchor,Observation world,ResourceDelivery.ItemIdentity item) {
+            if(!LogAcquisition.log(item))throw new IllegalArgumentException("Exact log descriptor");
+            this.actor=actor;this.amount=amount;this.anchor=anchor;this.world=world;this.item=item;
         }
         public Scan<SourceArea> poll(int maxWork) {
             if(cancelled) return Scan.complete(List.of(),0,Reason.CANCELLED,List.of());
             int work=0;
             while(cursor<SEARCH_CELLS && work<maxWork) {
                 Point p=searchPoint(anchor,cursor++); work++;
-                ItemBlock block=world.itemBlock(actor,p,ResourceDelivery.OAK_LOG);
+                ItemBlock block=world.itemBlock(actor,p,item);
                 if(block.status()==ObservationStatus.UNKNOWN) unknown=true;
                 else if(block.status()==ObservationStatus.PRESENT && block.eligible()) {
                     if(logs.size()==RETAINED_LOGS) return Scan.complete(List.of(),work,Reason.BUDGET_EXHAUSTED,List.of("oak-retained-log-limit"));
@@ -67,8 +71,8 @@ final class OakLogDiscovery {
                 if(volume(area)<=MAX_REGION_CELLS && seen.add(area)) {
                     var retained=new LinkedHashMap<Point,Boolean>();
                     for(Point p:points) if(new ResourceDelivery.BlockPosition(p.dimension(),p.x(),p.y(),p.z()).inside(area)) retained.put(p,true);
-                    String identity="oak:"+UUID.nameUUIDFromBytes(area.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    candidates.add(new Candidate<>(new SourceArea(area,retained,null),rank,identity));
+                    String identity=(item.equals(ResourceDelivery.OAK_LOG) ? "oak:" : "birch:")+UUID.nameUUIDFromBytes(area.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    candidates.add(new Candidate<>(new SourceArea(area,retained,null,item),rank,identity));
                 }
                 seed++; other=0; selected=new ArrayList<>();
             }

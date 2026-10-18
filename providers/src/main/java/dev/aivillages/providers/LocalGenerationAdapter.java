@@ -532,7 +532,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                                 + "Return result param amount. Actor, source, destination and amount are runtime parameters. "
                                 + "The adapter binds registered signatures; the compiler, fixtures and physical trial validate the proposal. "
                                 + "No Java, harvesting, dependency calls or authority claims."
-                                : spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID)
+                                : (spec.id().equals(dev.aivillages.core.kernel.OakPlankProduction.ID) || spec.id().equals(dev.aivillages.core.kernel.BirchPlankProduction.ID))
                                 ? "Return the JSON proposal only. Choose a registered preflight primitive, batchSize 4, "
                                 + "and five registered cycle primitives in causal order: move to input, withdraw one log, "
                                 + "craft one real batch, move to destination, transfer produced planks. "
@@ -603,8 +603,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                         "count", Map.of("type", "integer", "minimum", 20, "maximum", 30)),
                 "additionalProperties", false);
         boolean movement = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:move_to_source")
-                || p.id().equals("cognitivecraft:approach_oak_log"));
-        int finishCount = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:approach_oak_log"))
+                || (p.id().equals("cognitivecraft:approach_oak_log") || p.id().equals("cognitivecraft:approach_birch_log")));
+        int finishCount = primitives.stream().anyMatch(p -> (p.id().equals("cognitivecraft:approach_oak_log") || p.id().equals("cognitivecraft:approach_birch_log")))
                 ? 4 : movement ? 3 : 2;
         Map<String,Object> prepare = movement ? Map.of("type","array","items",primitiveId,"minItems",2,"maxItems",2) : primitiveId;
         var loop = Map.of("type", "object", "required", List.of("count", "body"),
@@ -623,8 +623,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
     private static List<Object> cropIrBody(Object proposal,
             List<Contracts.PrimitiveSignature> primitives) {
         boolean movement = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:move_to_source")
-                || p.id().equals("cognitivecraft:approach_oak_log"));
-        boolean oak = primitives.stream().anyMatch(p -> p.id().equals("cognitivecraft:approach_oak_log"));
+                || (p.id().equals("cognitivecraft:approach_oak_log") || p.id().equals("cognitivecraft:approach_birch_log")));
+        boolean oak = primitives.stream().anyMatch(p -> (p.id().equals("cognitivecraft:approach_oak_log") || p.id().equals("cognitivecraft:approach_birch_log")));
         int finishCount=oak ? 4 : movement ? 3 : 2;
         if (!(proposal instanceof Map<?, ?> parts)
                 || !parts.keySet().equals(java.util.Set.of("loop", "result"))
@@ -658,7 +658,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         for (Object value : finish) {
             if (!(value instanceof String id)) throw new IllegalArgumentException("Primitive ID");
             var call=new java.util.LinkedHashMap<String,Object>(cropCall(id,primitives));
-            if(oak && id.equals("cognitivecraft:approach_oak_log"))call.put("into","approach_oak_drop");
+            if(oak && (id.equals("cognitivecraft:approach_oak_log") || id.equals("cognitivecraft:approach_birch_log")))call.put("into",id.endsWith("birch_log") ? "approach_birch_drop" : "approach_oak_drop");
             calls.add(call);
         }
         return List.of(Map.of("op","repeat","count",Map.of("param","amount"),"body",List.copyOf(calls)),

@@ -51,7 +51,7 @@ public final class RequestValidator {
             ActorRef actor = actorValue.value();
             Cuboid source = areaValue.value();
             ContainerRef destination = destinationValue.value();
-            if (spec.id().equals(OakLogDelivery.ID)) {
+            if (LogAcquisition.is(spec.id())) {
                 try { if(ResourceLeases.cells(source)>256) return invalid("$.arguments.source"); }
                 catch(ArithmeticException overflow) { return invalid("$.arguments.source"); }
             }

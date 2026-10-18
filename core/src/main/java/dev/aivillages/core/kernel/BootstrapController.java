@@ -450,7 +450,7 @@ public final class BootstrapController {
                             status == ExecutionStatus.SUCCEEDED ? new EvidenceRef(run.artifact.sha256(),
                                     "jobs:1", CraftingTablePlacement.is(run.request.capability()) ? "attributable-table-placement"
                                             : RecipeProduction.is(run.request.capability()) ? "attributable-transformation-delivery"
-                                    : run.request.capability().equals(OakLogDelivery.ID)
+                                    : LogAcquisition.is(run.request.capability())
                                     ? "attributable-resource-delivery" : "attributable-crop-delivery") : null);
                 }
                 changed = jobs.recordExecutionResult(job.id(), job.guard(), new Jobs.Report(job.current().id(),

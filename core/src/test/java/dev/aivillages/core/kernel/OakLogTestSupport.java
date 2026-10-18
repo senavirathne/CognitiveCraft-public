@@ -125,8 +125,9 @@ final class OakLogTestSupport {
         final World world; final ValidatedRequest request; final UUID run=UUID.randomUUID();
         final SurvivalGateway gateway; final Budgets.Ledger budget;
         final List<ResourceDelivery.Receipt> receipts=new ArrayList<>();
-        GatewayScene(int amount,long actorLogs,long chestLogs) {
-            request=bound(amount);world=new World(amount,actorLogs,chestLogs);
+        GatewayScene(int amount,long actorLogs,long chestLogs) {this(amount,actorLogs,chestLogs,OakLogDelivery.ID);}
+        GatewayScene(int amount,long actorLogs,long chestLogs,CapabilityId capability) {
+            var original=bound(amount);request=new ValidatedRequest(new CapabilityRequest(capability,original.request().arguments()),original.context(),original.observation());world=new World(amount,actorLogs,chestLogs);
             gateway=new SurvivalGateway(world,(a,e,c)->world.authorized && c.equals(OWNER),
                     new Limits(1,64,64,16,256,1,200,32),CLOCK);
             budget=new Budgets.Ledger(OakLogDelivery.executionLimits(CLOCK.millis()).total(),CLOCK);
@@ -134,7 +135,7 @@ final class OakLogTestSupport {
         ActionHandle start(GatewayPrimitives.Operation op) {
             Map<String,Value> args=new HashMap<>();
             for(Parameter p:op.signature().parameters())args.put(p.name(),p.name().equals("amount") ? new IntValue(1) : request.request().arguments().get(p.name()));
-            return gateway.start(request,new RunCorrelation(run,new ArtifactRef(OakLogDelivery.ID,"a".repeat(64)),null),op.requirement(),args,budget);
+            return gateway.start(request,new RunCorrelation(run,new ArtifactRef(request.request().capability(),"a".repeat(64)),null),op.requirement(),args,budget);
         }
         ActionReceipt finish(ActionHandle handle) {
             ActionReceipt r=null;
@@ -145,7 +146,7 @@ final class OakLogTestSupport {
         void deliverOne() {
             for(var op:List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,
                     GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,GatewayPrimitives.Operation.TRANSFER_OAK_LOGS))
-                org.junit.jupiter.api.Assertions.assertNull(action(op).reason(),op.toString());
+                org.junit.jupiter.api.Assertions.assertNull(action(request.request().capability().equals(BirchLogDelivery.ID) ? BirchResourceFamilyTest.birch(op) : op).reason(),op.toString());
         }
     }
 }

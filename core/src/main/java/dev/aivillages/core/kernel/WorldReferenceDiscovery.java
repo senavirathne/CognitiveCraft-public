@@ -84,8 +84,13 @@ public final class WorldReferenceDiscovery {
                 throw new IllegalArgumentException("Field evidence bounds");
         }
     }
-    public record SourceArea(Cuboid area,Map<Point,Boolean> eligible,WheatField originalWheat) {
+    public record SourceArea(Cuboid area,Map<Point,Boolean> eligible,WheatField originalWheat,ResourceDelivery.ItemIdentity item) {
+        public SourceArea(Cuboid area,Map<Point,Boolean> eligible,WheatField originalWheat) {
+            this(area,eligible,originalWheat,originalWheat==null ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT);
+        }
         public SourceArea {
+            Objects.requireNonNull(item);
+            if(originalWheat==null ? !LogAcquisition.log(item) : !item.equals(ResourceDelivery.WHEAT))throw new IllegalArgumentException("Source material");
             eligible=Map.copyOf(eligible);
             if(volume(area)>MAX_REGION_CELLS || eligible.size()>MAX_REGION_CELLS)
                 throw new IllegalArgumentException("Source evidence");
@@ -117,7 +122,7 @@ public final class WorldReferenceDiscovery {
         return inputContainers(actor,required,anchor,world,item,false);
     }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item,boolean allowShortfall) {
-        if(required<1 || required>32 || !item.equals(ResourceDelivery.OAK_LOG) && !item.equals(ResourceDelivery.OAK_PLANKS))
+        if(required<1 || required>32 || !LogAcquisition.log(item) && !item.equals(ResourceDelivery.OAK_PLANKS))
             throw new IllegalArgumentException("Input batch envelope");
         return new Discovery<>() {
             List<Candidate<InputContainerTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;
@@ -156,9 +161,9 @@ public final class WorldReferenceDiscovery {
     public static Discovery<SourceArea> sources(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
         if(capability.equals(CropDelivery.ID)) return mapDiscovery(wheat(actor,amount,anchor,world),
                 f -> new SourceArea(f.area(),f.wheat(),f));
-        if(!capability.equals(OakLogDelivery.ID) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
+        if(!LogAcquisition.is(capability) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
             throw new IllegalArgumentException("Source capability");
-        return new OakLogDiscovery.Source(actor,amount,anchor,world);
+        return new OakLogDiscovery.Source(actor,amount,anchor,world,LogAcquisition.item(capability));
     }
     public static Discovery<ItemContainerTarget> itemContainers(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
         if(RecipeProduction.is(capability)) {
@@ -168,9 +173,9 @@ public final class WorldReferenceDiscovery {
         if(capability.equals(CropDelivery.ID)) return mapDiscovery(containers(actor,amount,anchor,world),
                 c -> new ItemContainerTarget(c.container(),new ItemContainerSample(ResourceDelivery.WHEAT,c.evidence().status(),
                         c.evidence().wheatCapacity(),c.evidence().slotsInspected(),c.evidence().identity())));
-        if(!capability.equals(OakLogDelivery.ID) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
+        if(!LogAcquisition.is(capability) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
             throw new IllegalArgumentException("Container capability");
-        return new OakLogDiscovery.Containers(actor,amount,anchor,world);
+        return new OakLogDiscovery.Containers(actor,amount,anchor,world,LogAcquisition.item(capability));
     }
     public static final class SourceValidation {
         private final SourceArea source; private final ActorRef actor; private final Observation world;
@@ -186,7 +191,7 @@ public final class WorldReferenceDiscovery {
             while(work<maximum && cursor<size) {
                 Point p=new Point(a.dimension(),a.minX()+cursor%width,a.minY()+cursor/(width*depth),a.minZ()+(cursor/width)%depth);
                 cursor++; work++;
-                var current=world.itemBlock(actor,p,ResourceDelivery.OAK_LOG);
+                var current=world.itemBlock(actor,p,source.item());
                 boolean expected=source.eligible().containsKey(p);
                 if(current.status()==ObservationStatus.UNKNOWN || (current.status()==ObservationStatus.PRESENT && current.eligible())!=expected)
                     return new ValidationStep(work,true,Reason.STALE_OBSERVATION);

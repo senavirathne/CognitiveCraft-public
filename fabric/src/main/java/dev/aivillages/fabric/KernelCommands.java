@@ -91,23 +91,27 @@ final class KernelCommands {
                 .then(argument("actor-id", StringArgumentType.word())
                         .suggests(this::suggestCitizenIds)
                         .then(argument("amount", IntegerArgumentType.integer()).then(coords))));
+        for(boolean birch:new boolean[]{false,true}) {
         ArgumentBuilder<CommandSourceStack, ?> oakCoords=argument(names[8],IntegerArgumentType.integer())
                 .executes(c -> safe(c,(ctx,session) -> {
                     int[] at=new int[9]; for(int i=0;i<at.length;i++) at[i]=IntegerArgumentType.getInteger(ctx,names[i]);
-                    var result=session.gatherOak(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                    var result=birch ? session.gatherBirch(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                            IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5],at[6],at[7],at[8]) : session.gatherOak(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
                             IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5],at[6],at[7],at[8]);
                     tell(ctx,"run="+result.id()+" accepted="+result.accepted()+(result.reason()==null ? "" : " reason="+result.reason()));
                     return result.accepted() ? 1 : 0;
                 }));
         for(int i=names.length-2;i>=0;i--) oakCoords=argument(names[i],IntegerArgumentType.integer()).then(oakCoords);
-        kernel.then(literal("gather-oak").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
+        kernel.then(literal(birch ? "gather-birch" : "gather-oak").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
                 .then(argument("amount",IntegerArgumentType.integer(1,dev.aivillages.core.kernel.OakLogDelivery.MAX_AMOUNT)).then(oakCoords))));
-        for(String recipe:new String[]{"planks","sticks","tables"}) {
+        }
+        for(String recipe:new String[]{"planks","birch-planks","sticks","tables"}) {
         String[] plankNames={"source-x","source-y","source-z","chest-x","chest-y","chest-z"};
         ArgumentBuilder<CommandSourceStack, ?> plankCoords=argument(plankNames[5],IntegerArgumentType.integer())
                 .executes(c->safe(c,(ctx,session)->{
                     int[] at=new int[6];for(int i=0;i<at.length;i++)at[i]=IntegerArgumentType.getInteger(ctx,plankNames[i]);
-                    var result=recipe.equals("tables") ? session.makeTables(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                    var result=recipe.equals("birch-planks") ? session.makeBirchPlanks(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
+                            IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5]) : recipe.equals("tables") ? session.makeTables(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
                             IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5])
                             : recipe.equals("sticks") ? session.makeSticks(ctx.getSource().getPlayerOrException(),uuid(ctx,"actor-id"),
                             IntegerArgumentType.getInteger(ctx,"amount"),at[0],at[1],at[2],at[3],at[4],at[5])
@@ -120,6 +124,17 @@ final class KernelCommands {
         kernel.then(literal("make-"+recipe).then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
                 .then(argument("amount",IntegerArgumentType.integer(1,recipe.equals("tables") ? 4 : 64)).then(plankCoords))));
         }
+        String[] birchNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","log-min-x","log-min-y","log-min-z","log-max-x","log-max-y","log-max-z"};
+        ArgumentBuilder<CommandSourceStack,?> birchCoords=argument(birchNames[11],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+            int[] at=new int[12];for(int i=0;i<12;i++)at[i]=IntegerArgumentType.getInteger(ctx,birchNames[i]);
+            var player=ctx.getSource().getPlayerOrException();String dimension=player.level().dimension().identifier().toString();
+            var result=session.composeBirchPlanks(player,uuid(ctx,"actor-id"),IntegerArgumentType.getInteger(ctx,"amount"),
+                    new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[0],at[1],at[2]),new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[3],at[4],at[5]),
+                    new dev.aivillages.core.kernel.Contracts.Cuboid(dimension,at[6],at[7],at[8],at[9],at[10],at[11]));
+            tell(ctx,"job="+result.id()+" accepted="+result.accepted()+(result.reason()==null ? "" : " reason="+result.reason()));return result.accepted()?1:0;
+        }));
+        for(int i=10;i>=0;i--)birchCoords=argument(birchNames[i],IntegerArgumentType.integer()).then(birchCoords);
+        kernel.then(literal("compose-birch-planks").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,64)).then(birchCoords))));
         String[] axeNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","table-x","table-y","table-z"};
         ArgumentBuilder<CommandSourceStack,?> axeCoords=argument(axeNames[8],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
             int[] at=new int[9];for(int i=0;i<9;i++)at[i]=IntegerArgumentType.getInteger(ctx,axeNames[i]);

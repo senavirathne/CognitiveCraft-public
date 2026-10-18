@@ -482,7 +482,7 @@ public final class BoundedSkillExecutor {
                             new EvidenceRef(correlation.runId().toString(),
                                     CraftingTablePlacement.is(request.request().capability()) ? "table-placement:1"
                                             : RecipeProduction.is(request.request().capability()) ? "transformation-delivery:1"
-                                            : request.request().capability().equals(OakLogDelivery.ID)
+                                            : LogAcquisition.is(request.request().capability())
                                             ? "resource-delivery:1" : "crop-delivery:1",
                                     request.context().scope().domainId().toString()) : null);
             try { if (stopConfirmed) release.release(correlation.runId()); }

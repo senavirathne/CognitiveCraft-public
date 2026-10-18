@@ -35,8 +35,8 @@ public final class ResourceLeases {
             boolean point = area.minX()==area.maxX() && area.minY()==area.maxY() && area.minZ()==area.maxZ();
             boolean valid = switch (kind) {
                 case STOCK -> slot == -1 && (item.equals("minecraft:mature_wheat")
-                        || point && (item.equals("minecraft:wheat") || item.equals("minecraft:oak_log") || item.equals("minecraft:oak_planks") || item.equals("minecraft:stick") || item.equals("minecraft:crafting_table")))
-                        || slot == -2 && item.equals("minecraft:oak_log");
+                        || point && (item.equals("minecraft:wheat") || item.equals("minecraft:oak_log") || item.equals("minecraft:birch_log") || item.equals("minecraft:birch_planks") || item.equals("minecraft:oak_planks") || item.equals("minecraft:stick") || item.equals("minecraft:crafting_table")))
+                        || slot == -2 && (item.equals("minecraft:oak_log") || item.equals("minecraft:birch_log"));
                 case EQUIPMENT -> point && slot >= 0 && slot < 128 && item.equals("minecraft:iron_hoe");
                 case FACILITY -> point && slot == -1 && (item.equals("minecraft:storage")
                         || item.equals("minecraft:crafting_table"));
@@ -63,6 +63,7 @@ public final class ResourceLeases {
         public static Resource table(UUID world,FacilityRef f) {
             return new Resource(world,Kind.FACILITY,new Cuboid(f.dimension(),f.x(),f.y(),f.z(),f.x(),f.y(),f.z()),"minecraft:crafting_table",-1);
         }
+        public boolean logBlocks() {return kind==Kind.STOCK && slot==-2 && (item.equals("minecraft:oak_log") || item.equals("minecraft:birch_log"));}
         public boolean oakBlocks() { return kind==Kind.STOCK && slot==-2 && item.equals("minecraft:oak_log"); }
         public static Resource facility(UUID world, ContainerRef c) {
             return new Resource(world,Kind.FACILITY,point(c),"minecraft:storage",-1);

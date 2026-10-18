@@ -41,6 +41,7 @@ PROFILES["rb004"] = ["GP-RB-04"]
 PROFILES["rb005"] = ["GP-RB-COMPOSE-01"]
 PROFILES["rb006a"] = ["GP-RB-06A"]
 PROFILES["rb006b"] = ["GP-RB-06B"]
+PROFILES["rb007"] = ["GP-RB-07"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 DENIED_PATTERN = r"(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope"
 
@@ -323,7 +324,7 @@ class Harness:
 
     def console(self, lines, lifecycle=False):
         if lifecycle:
-            crash_step = self.family in ("GP-RB-COMPOSE-01","GP-RB-06A","GP-RB-06B") and lines == ["tick step 1"]
+            crash_step = self.family in ("GP-RB-COMPOSE-01","GP-RB-06A","GP-RB-06B","GP-RB-07") and lines == ["tick step 1"]
             require(crash_step or all(re.fullmatch(r"save-all(?: flush)?|stop|(?:op|deop) Player[AB]", line) for line in lines),
                     "Only normal save, stop and permission lifecycle commands are permitted")
         if self.actions_active and not lifecycle:
@@ -1524,6 +1525,8 @@ def main():
     registry["GP-RB-06A"] = table_item_scenario
     from tableplacement import scenario as table_placement_scenario
     registry["GP-RB-06B"] = table_placement_scenario
+    from birch import scenario as birch_scenario
+    registry["GP-RB-07"] = birch_scenario
     try:
         if args.topology == "compose":
             h.compose("build", "minecraft")

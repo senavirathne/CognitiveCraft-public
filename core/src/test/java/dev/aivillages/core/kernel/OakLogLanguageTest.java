@@ -17,7 +17,7 @@ class OakLogLanguageTest {
         assertEquals("4,64,0",explicit.source().first());
     }
     @Test void unsupportedSpeciesActionsAndExplicitLabelsNeverBecomeOmittedDefaults() {
-        for(String text:List.of("Ada, collect 4 birch logs","Ada, collect 4 stripped oak logs","Ada, collect 4 oak logs and craft planks"))
+        for(String text:List.of("Ada, collect 4 oak and birch logs","Ada, collect 4 stripped oak logs","Ada, collect 4 oak logs and craft planks"))
             assertEquals(LanguageReferenceClassifier.Intent.UNKNOWN,LanguageReferenceClassifier.classify(text,List.of("Ada")).intent());
         var label=LanguageReferenceClassifier.classify("Ada, collect 4 oak logs from the grove by my house and deliver them to my chest",List.of("Ada"));
         assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,label.source().state());

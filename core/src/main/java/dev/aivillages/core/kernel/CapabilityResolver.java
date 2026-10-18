@@ -46,7 +46,7 @@ public final class CapabilityResolver {
                         Set.of(Effect.OBSERVE, Effect.HARVEST, Effect.PICKUP, Effect.TRANSFER))
                 : spec.equals(CraftingTablePlacement.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,spec.effects())
                 : RecipeProduction.is(spec.id()) && spec.equals(RecipeProduction.of(spec.id()).spec()) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE,spec.effects())
-                : spec.equals(OakLogDelivery.SPEC) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE, OakLogDelivery.SPEC.effects())
+                : LogAcquisition.is(spec.id()) && spec.equals(LogAcquisition.spec(spec.id())) ? new Envelope(Domain.DIRECT_SYNTHESIZABLE, spec.effects())
                 : new Envelope(Domain.UNSUPPORTED, Set.of());
     }
 
@@ -191,11 +191,10 @@ public final class CapabilityResolver {
                 if (!envelope.unavoidableEffects().contains(required)) continue;
                 boolean present = false;
                 for (GatewayPrimitives.Operation operation : GatewayPrimitives.Operation.values()) {
-                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.plank() || operation.stick() || operation.axe() || operation.table() || operation.placement())
+                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.birchLog() || operation.birchPlank() || operation.plank() || operation.stick() || operation.axe() || operation.table() || operation.placement())
                             || CraftingTablePlacement.is(spec.id()) && !CraftingTablePlacement.permits(operation)
                             || RecipeProduction.is(spec.id()) && !RecipeProduction.permits(spec.id(),operation)
-                            || spec.id().equals(OakLogDelivery.ID) && !operation.oak()
-                            && operation != GatewayPrimitives.Operation.MOVE_TO_DESTINATION) continue;
+                            || LogAcquisition.is(spec.id()) && !LogAcquisition.permits(spec.id(),operation)) continue;
                     PrimitiveSignature signature = operation.signature();
                     if (signature.effects().contains(required) && primitives.find(signature.id(),
                             signature.version()).filter(actual -> actual.equals(signature)).isPresent()) {

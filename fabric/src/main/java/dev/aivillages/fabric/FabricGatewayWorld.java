@@ -10,6 +10,7 @@ import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.SurvivalGateway;
 import dev.aivillages.core.kernel.ResourceDelivery;
+import dev.aivillages.core.kernel.LogAcquisition;
 import dev.aivillages.core.kernel.SurvivalGateway.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -304,15 +305,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return navigate(actor,target,maxNavigationCalls,true);
     }
     @Override public Movement approachResource(ActorRef actor,Cell target,int maximum,ResourceDelivery.ItemIdentity item) {
-        return item.equals(ResourceDelivery.OAK_LOG) ? navigate(actor,target,maximum,false,true)
+        return LogAcquisition.log(item) ? navigate(actor,target,maximum,false,true)
                 : SurvivalGateway.WorldAccess.super.approachResource(actor,target,maximum,item);
     }
     @Override public Movement approachResourceDrop(ActorRef actor,UUID id,int expected,int maximum,ResourceDelivery.ItemIdentity item) {
-        if(!item.equals(ResourceDelivery.OAK_LOG))
+        if(!LogAcquisition.log(item))
             return SurvivalGateway.WorldAccess.super.approachResourceDrop(actor,id,expected,maximum,item);
         Villager v=villager(actor);Entity entity=level.getEntity(id);
         if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive()
-                || !defaultOak(drop.getItem()) || drop.getItem().getCount()!=expected)
+                || !defaultLog(drop.getItem(),item) || drop.getItem().getCount()!=expected)
             return new Movement(false,true,0,0);
         BlockPos actual=drop.blockPosition();
         if(!loaded(actual) || !level.mayInteract(v,actual))return new Movement(false,true,0,0);
@@ -545,6 +546,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 && level.getBlockState(foot.above()).getCollisionShape(level,foot.above()).isEmpty()
                 && !level.getBlockState(foot.below()).getCollisionShape(level,foot.below()).isEmpty();
     }
+    private static boolean defaultLog(ItemStack stack,ResourceDelivery.ItemIdentity item) {
+        return !stack.isEmpty() && ItemStack.isSameItemSameComponents(stack,new ItemStack(FabricResourceItems.item(item)));
+    }
     private static boolean defaultOak(ItemStack stack) {
         return !stack.isEmpty() && ItemStack.isSameItemSameComponents(stack,new ItemStack(Items.OAK_LOG));
     }
@@ -555,13 +559,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return container!=null && container.getContainerSize()<=128 ? container : null;
     }
     record ItemContainerInspection(ObservationStatus status,int capacity,int slotsInspected,String identity) { }
-    ItemContainerInspection inspectOakContainer(ContainerRef target) {
+    ItemContainerInspection inspectOakContainer(ContainerRef target) {return inspectLogContainer(target,ResourceDelivery.OAK_LOG);}
+    ItemContainerInspection inspectLogContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
         BlockPos p=new BlockPos(target.x(),target.y(),target.z());
         if (!target.dimension().equals(dimension()) || !loaded(p))
             return new ItemContainerInspection(ObservationStatus.UNKNOWN,0,0,"unavailable");
         Container c=oakBox(p);
         if(c==null) return new ItemContainerInspection(ObservationStatus.ABSENT,0,0,"unsuitable");
-        var sample=itemCapacity(c,new ItemStack(Items.OAK_LOG));
+        var sample=itemCapacity(c,new ItemStack(FabricResourceItems.item(item)));
         return new ItemContainerInspection(sample.known() ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                 sample.capacity(),sample.slotsInspected(),"container:"+p.asLong());
     }
@@ -570,7 +575,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos p=new BlockPos(target.x(),target.y(),target.z());
         if(!target.dimension().equals(dimension()) || !loaded(p))return new ItemContainerInspection(ObservationStatus.UNKNOWN,0,0,"unavailable");
         Container c=oakBox(p);if(c==null)return new ItemContainerInspection(ObservationStatus.ABSENT,0,0,"unsuitable");
-        var sample=itemCapacity(c,new ItemStack(item.equals(ResourceDelivery.CRAFTING_TABLE) ? Items.CRAFTING_TABLE : item.equals(ResourceDelivery.WOODEN_AXE) ? Items.WOODEN_AXE : item.equals(ResourceDelivery.STICK) ? Items.STICK : Items.OAK_PLANKS));
+        var sample=itemCapacity(c,new ItemStack(FabricResourceItems.item(item)));
         return new ItemContainerInspection(sample.known() ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,sample.capacity(),sample.slotsInspected(),
                 "plank-container:"+p.asLong()+":"+System.identityHashCode(c));
     }
@@ -583,14 +588,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                     ItemStack.isSameItemSameComponents(current,item),current.getCount(),limit);
         });
     }
-    private static String oakInventoryFingerprint(Container c) {
+    private static String logInventoryFingerprint(Container c,ResourceDelivery.ItemIdentity item) {
         // Default oak stacks are fungible, but their slot/count footprint may not change
         // outside a witnessed pickup/transfer. Other slots still affect live capacity.
         StringBuilder rows=new StringBuilder();
         for(int i=0;i<c.getContainerSize();i++) {
             ItemStack stack=c.getItem(i);
             rows.append(i).append(':').append(stack.isEmpty() ? "empty" :
-                    defaultOak(stack) ? "oak" : stack.is(Items.OAK_LOG) ? "unsupported-oak" : "other")
+                    defaultLog(stack,item) ? (item.equals(ResourceDelivery.OAK_LOG) ? "oak" : "birch") : stack.is(FabricResourceItems.item(item)) ? (item.equals(ResourceDelivery.OAK_LOG) ? "unsupported-oak" : "unsupported-birch") : "other")
                     .append(':').append(stack.getCount()).append(';');
         }
         try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
@@ -598,12 +603,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         catch(java.security.NoSuchAlgorithmException impossible) { throw new AssertionError(impossible); }
     }
     @Override public ItemBlock resourceBlock(Cell target,ResourceDelivery.ItemIdentity item) {
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceBlock(target,item);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceBlock(target,item);
         BlockPos p=position(target);
         if(!target.dimension().equals(dimension()) || !loaded(p))
             return new ItemBlock(ObservationStatus.UNKNOWN,false,target.identity(),0);
         var state=level.getBlockState(p);
-        if(!state.is(Blocks.OAK_LOG)) return new ItemBlock(ObservationStatus.ABSENT,false,target.identity(),0);
+        if(!state.is(FabricResourceItems.log(item))) return new ItemBlock(ObservationStatus.ABSENT,false,target.identity(),0);
         float hardness=state.getDestroySpeed(level,p);
         long ticks=(long)Math.ceil((double)hardness*30.0);
         boolean supported=Float.isFinite(hardness) && hardness>0 && !state.requiresCorrectToolForDrops()
@@ -611,11 +616,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return new ItemBlock(ObservationStatus.PRESENT,supported,state.toString(),supported ? (int)ticks : 0);
     }
     @Override public ItemStock resourceInventory(ActorRef actor,ResourceDelivery.ItemIdentity item) {
-        if(item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
+        if(item.equals(ResourceDelivery.BIRCH_PLANKS) || item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
             var v=recipeActor(actor);if(v==null)return new ItemStock(ObservationStatus.UNKNOWN,"unavailable",0,0,"",null);
             return recipeStock(v.getInventory(),"actor:"+actor.entityId(),item);
         }
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceInventory(actor,item);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceInventory(actor,item);
         Villager v=villager(actor);
         if(v==null || !loaded(v.blockPosition()))
             return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",null);
@@ -623,30 +628,30 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(c.getContainerSize()>128) return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",Reason.BUDGET_EXHAUSTED);
         for(int slot=0;slot<c.getContainerSize();slot++) {
             ItemStack stack=c.getItem(slot);
-            if(defaultOak(stack)) quantity=Math.addExact(quantity,stack.getCount());
-            else if(stack.is(Items.OAK_LOG)) reason=Reason.TARGET_INVALID;
+            if(defaultLog(stack,item)) quantity=Math.addExact(quantity,stack.getCount());
+            else if(stack.is(FabricResourceItems.item(item))) reason=Reason.TARGET_INVALID;
         }
-        var capacity=itemCapacity(c,new ItemStack(Items.OAK_LOG));
+        var capacity=itemCapacity(c,new ItemStack(FabricResourceItems.item(item)));
         return new ItemStock(ObservationStatus.PRESENT,"actor:"+actor.entityId(),quantity,capacity.capacity(),
-                oakInventoryFingerprint(c),reason);
+                logInventoryFingerprint(c,item),reason);
     }
     @Override public ItemStock resourceContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
-        if(item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
+        if(item.equals(ResourceDelivery.BIRCH_PLANKS) || item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
             Container c=recipeContainer(target);if(c==null)return new ItemStock(ObservationStatus.UNKNOWN,"unavailable",0,0,"",null);
             return recipeStock(c,"container:"+new BlockPos(target.x(),target.y(),target.z()).asLong(),item);
         }
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceContainer(target,item);
-        var inspection=inspectOakContainer(target);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceContainer(target,item);
+        var inspection=inspectLogContainer(target,item);
         long quantity=0;
         if(inspection.status()==ObservationStatus.PRESENT) {
             Container c=oakBox(new BlockPos(target.x(),target.y(),target.z()));
-            for(int slot=0;slot<c.getContainerSize();slot++) if(defaultOak(c.getItem(slot)))
+            for(int slot=0;slot<c.getContainerSize();slot++) if(defaultLog(c.getItem(slot),item))
                 quantity=Math.addExact(quantity,c.getItem(slot).getCount());
         }
         return new ItemStock(inspection.status(),inspection.identity(),quantity,inspection.capacity(),"",null);
     }
     @Override public Reason resourceBreakEligibility(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item) {
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceBreakEligibility(actor,target,item);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceBreakEligibility(actor,target,item);
         Villager v=villager(actor); BlockPos p=position(target);
         if(v==null || !target.dimension().equals(dimension()) || !loaded(p)) return Reason.TARGET_UNAVAILABLE;
         if(!level.mayInteract(v,p) || !level.getGameRules().get(GameRules.MOB_GRIEFING)
@@ -657,7 +662,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return resourceBlock(target,item).eligible() ? null : Reason.TARGET_INVALID;
     }
     @Override public ItemHarvest resourceHarvest(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item,long elapsedTicks) {
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceHarvest(actor,target,item,elapsedTicks);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceHarvest(actor,target,item,elapsedTicks);
         Reason reason=resourceBreakEligibility(actor,target,item);
         if(reason!=null) return new ItemHarvest(false,List.of(),reason);
         ItemBlock witness=resourceBlock(target,item);
@@ -665,9 +670,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         Villager v=villager(actor); BlockPos p=position(target); var state=level.getBlockState(p);
         List<ItemStack> loot=Block.getDrops(state,level,p,null,v,ItemStack.EMPTY);
         long oakUnits=0;
-        for(ItemStack stack:loot) if(stack.is(Items.OAK_LOG) && !stack.isEmpty()) oakUnits=Math.addExact(oakUnits,stack.getCount());
-        if(loot.size()>64 || oakUnits>64 || loot.stream().anyMatch(s -> s.is(Items.OAK_LOG)
-                && (!defaultOak(s) || s.getCount()>s.getMaxStackSize())))
+        for(ItemStack stack:loot) if(stack.is(FabricResourceItems.item(item)) && !stack.isEmpty()) oakUnits=Math.addExact(oakUnits,stack.getCount());
+        if(loot.size()>64 || oakUnits>64 || loot.stream().anyMatch(s -> s.is(FabricResourceItems.item(item))
+                && (!defaultLog(s,item) || s.getCount()>s.getMaxStackSize())))
             return new ItemHarvest(false,List.of(),Reason.TARGET_INVALID);
         ItemStock capacity=resourceInventory(actor,item);
         if(capacity.status()!=ObservationStatus.PRESENT || capacity.reason()!=null || capacity.capacity()<oakUnits)
@@ -681,30 +686,30 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             // Vanilla merge equality includes target. A unique target prevents both foreign
             // stock and other batches merging into this entity; manual gateway pickup keeps
             // the exact stack. The tick mixin clears the target when actor control is lost.
-            if(defaultOak(stack)) entity.setTarget(entity.getUUID());
+            if(defaultLog(stack,item)) entity.setTarget(entity.getUUID());
             if(!level.addFreshEntity(entity)) { failed=true; continue; }
-            if(defaultOak(stack)) tracked.add(new ItemDrop(entity.getUUID(),stack.getCount()));
+            if(defaultLog(stack,item)) tracked.add(new ItemDrop(entity.getUUID(),stack.getCount()));
         }
         return new ItemHarvest(true,tracked,failed ? Reason.ACTION_FAILED : null);
     }
     @Override public ItemDropState resourceDrop(UUID id,ResourceDelivery.ItemIdentity item) {
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceDrop(id,item);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceDrop(id,item);
         Entity entity=level.getEntity(id);
         if(!(entity instanceof ItemEntity drop) || drop.isRemoved())
             return new ItemDropState(ObservationStatus.ABSENT,new Cell(dimension(),0,0,0),0);
         BlockPos p=drop.blockPosition();
         return new ItemDropState(loaded(p) ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
-                new Cell(dimension(),p.getX(),p.getY(),p.getZ()),defaultOak(drop.getItem()) ? drop.getItem().getCount() : 0);
+                new Cell(dimension(),p.getX(),p.getY(),p.getZ()),defaultLog(drop.getItem(),item) ? drop.getItem().getCount() : 0);
     }
     @Override public ItemPickup resourcePickup(ActorRef actor,UUID id,int expected,ResourceDelivery.ItemIdentity item) {
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourcePickup(actor,id,expected,item);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourcePickup(actor,id,expected,item);
         Villager v=villager(actor); Entity entity=level.getEntity(id);
         if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive() || !loaded(drop.blockPosition()))
             return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
         if(!level.mayInteract(v,drop.blockPosition()) || !level.getGameRules().get(GameRules.MOB_GRIEFING))
             return new ItemPickup(0,expected,Reason.AUTHORITY_DENIED);
         ItemStack stack=drop.getItem();
-        if(!defaultOak(stack) || stack.getCount()!=expected) return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
+        if(!defaultLog(stack,item) || stack.getCount()!=expected) return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
         if(drop.hasPickUpDelay() || !canReach(v,drop.position(),drop.blockPosition()))
             return new ItemPickup(0,expected,Reason.TARGET_UNAVAILABLE);
         ItemStack remaining=v.getInventory().addItem(stack.copy()); int moved=stack.getCount()-remaining.getCount();
@@ -713,7 +718,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         v.getInventory().setChanged(); return new ItemPickup(moved,remaining.getCount(),null);
     }
     @Override public ItemTransfer resourceTransferOne(ActorRef actor,ContainerRef target,ResourceDelivery.ItemIdentity item) {
-        if(!item.equals(ResourceDelivery.OAK_LOG)) return SurvivalGateway.WorldAccess.super.resourceTransferOne(actor,target,item);
+        if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceTransferOne(actor,target,item);
         Villager v=villager(actor); BlockPos p=new BlockPos(target.x(),target.y(),target.z());
         if(v==null || !target.dimension().equals(dimension()) || !loaded(p) || !canReach(v,p))
             return new ItemTransfer(0,Reason.TARGET_UNAVAILABLE);
@@ -721,7 +726,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             return new ItemTransfer(0,Reason.AUTHORITY_DENIED);
         Container c=oakBox(p); if(c==null) return new ItemTransfer(0,Reason.TARGET_INVALID);
         var inventory=v.getInventory(); int from=-1,to=-1;
-        for(int i=0;i<inventory.getContainerSize();i++) if(defaultOak(inventory.getItem(i))) { from=i; break; }
+        for(int i=0;i<inventory.getContainerSize();i++) if(defaultLog(inventory.getItem(i),item)) { from=i; break; }
         if(from<0) return new ItemTransfer(0,Reason.RESOURCE_MISSING);
         ItemStack one=inventory.getItem(from).copyWithCount(1);
         for(int i=0;i<c.getContainerSize();i++) {
@@ -737,7 +742,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         inventory.setChanged(); c.setChanged(); return new ItemTransfer(1,null);
     }
     private ItemStock recipeStock(Container c,String identity,ResourceDelivery.ItemIdentity item) {
-        var nativeItem=item.equals(ResourceDelivery.CRAFTING_TABLE) ? Items.CRAFTING_TABLE : item.equals(ResourceDelivery.WOODEN_AXE) ? Items.WOODEN_AXE : item.equals(ResourceDelivery.STICK) ? Items.STICK : Items.OAK_PLANKS;
+        var nativeItem=FabricResourceItems.item(item);
         long quantity=0;Reason invalid=null;
         for(int i=0;i<c.getContainerSize();i++) {
             ItemStack s=c.getItem(i);

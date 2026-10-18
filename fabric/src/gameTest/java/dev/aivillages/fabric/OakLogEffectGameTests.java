@@ -20,11 +20,15 @@ import net.minecraft.world.level.gamerules.GameRules;
 /** Actual installed survival/loot, per-entity merge isolation and component-preserving physical slots. */
 public final class OakLogEffectGameTests {
     @GameTest(maxTicks=1600,padding=16)
-    public void actualBareHandTimingLootAndComponentPreservingCustody(GameTestHelper h) {
+    public void actualBareHandTimingLootAndComponentPreservingCustody(GameTestHelper h) {effects(h,false);}
+    void effects(GameTestHelper h,boolean birch) {
+        var log=birch?ResourceDelivery.BIRCH_LOG:ResourceDelivery.OAK_LOG;var nativeLog=FabricResourceItems.item(log);
+        var logBlock=FabricResourceItems.log(log);var otherBlock=birch?Blocks.OAK_LOG:Blocks.BIRCH_LOG;
+        var capability=birch?BirchLogDelivery.ID:OakLogDelivery.ID;
         for(int x=0;x<10;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
-        h.setBlock(3,1,3,Blocks.OAK_LOG);h.setBlock(7,1,3,Blocks.CHEST);h.setBlock(4,1,5,Blocks.BIRCH_LOG);
+        h.setBlock(3,1,3,logBlock);h.setBlock(7,1,3,Blocks.CHEST);h.setBlock(4,1,5,otherBlock);
         var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,3);v.setNoAi(false);
-        h.setBlock(3,1,6,Blocks.OAK_LOG);h.setBlock(3,2,6,Blocks.STONE);
+        h.setBlock(3,1,6,logBlock);h.setBlock(3,2,6,Blocks.STONE);
         var probe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,2,6);
         var dropProbe=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,1,2,6);
         var probeLog=h.absolutePos(new BlockPos(3,1,6));
@@ -42,33 +46,33 @@ public final class OakLogEffectGameTests {
         var source=new Cuboid(dim,p.getX(),p.getY(),p.getZ(),p.getX(),p.getY(),p.getZ());
         var box=new ContainerRef(dim,c.getX(),c.getY(),c.getZ());var id=UUID.randomUUID();
         var owner=new TrustedContext(new PrincipalRef(id),new ScopeRef(UUID.randomUUID(),id));
-        var request=new ValidatedRequest(new CapabilityRequest(OakLogDelivery.ID,Map.of("actor",new ActorValue(actor),"source",new AreaValue(source),
+        var request=new ValidatedRequest(new CapabilityRequest(capability,Map.of("actor",new ActorValue(actor),"source",new AreaValue(source),
                 "destination",new ContainerValue(box),"amount",new IntValue(1))),owner,new ObservationRef(UUID.randomUUID(),0,dim));
         var world=new FabricGatewayWorld(h.getLevel());
         var gateway=new SurvivalGateway(world,(a,e,o)->o.equals(owner),new SurvivalGateway.Limits(1,64,64,16,256,1,200,32),Clock.systemUTC());
         var budget=new Budgets.Ledger(OakLogDelivery.executionLimits(System.currentTimeMillis()).total(),Clock.systemUTC());
-        UUID run=UUID.randomUUID();var correlation=new RunCorrelation(run,new ArtifactRef(OakLogDelivery.ID,"d".repeat(64)),null);
-        var custom=new ItemStack(Items.OAK_LOG,3);custom.set(DataComponents.CUSTOM_NAME,Component.literal("retain-components"));
-        var container=(Container)h.getLevel().getBlockEntity(c);container.setItem(0,custom.copy());container.setItem(1,new ItemStack(Items.OAK_LOG,63));
+        UUID run=UUID.randomUUID();var correlation=new RunCorrelation(run,new ArtifactRef(capability,"d".repeat(64)),null);
+        var custom=new ItemStack(nativeLog,3);custom.set(DataComponents.CUSTOM_NAME,Component.literal("retain-components"));
+        var container=(Container)h.getLevel().getBlockEntity(c);container.setItem(0,custom.copy());container.setItem(1,new ItemStack(nativeLog,63));
         for(int slot=2;slot<container.getContainerSize();slot++)container.setItem(slot,new ItemStack(Items.STONE,64));
-        v.getInventory().setItem(0,new ItemStack(Items.OAK_LOG,3));
-        var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(Items.OAK_LOG,17));
+        v.getInventory().setItem(0,new ItemStack(nativeLog,3));
+        var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(nativeLog,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
         boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false},nativeDropReach={false},ownedDropDetour={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
-                Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS);
+                Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS).stream().map(op->BirchFixtures.operation(op,birch)).toList();
         h.succeedWhen(() -> {
             if(phase[0]>=2 && phase[0]<=3) {
                 for(var receipt:receipts)if(receipt.stage()==ResourceDelivery.Stage.HARVEST)
                     for(var drop:receipt.dropIds()) {
-                        var state=world.resourceDrop(drop,ResourceDelivery.OAK_LOG);
+                        var state=world.resourceDrop(drop,log);
                         if(state.status()==ObservationStatus.PRESENT && state.cell().y()==p.getY()-1)
                             partialSurfaceDrop[0]=true;
                     }
             }
             if(phase[0]==0 && !v.onGround()) {
-                var movement=world.approachResource(actor,new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ()),1,ResourceDelivery.OAK_LOG);
+                var movement=world.approachResource(actor,new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ()),1,log);
                 h.assertTrue(!movement.reached() && !movement.impossible() && movement.chargedWork()==0,
                         "Airborne oak approach consumed a ground path or returned a false terminal result");
                 airborneDeferred[0]=true;
@@ -83,12 +87,12 @@ public final class OakLogEffectGameTests {
                         net.minecraft.world.level.ClipContext.Fluid.NONE,probe));
                     h.assertTrue(centerHit.getBlockPos().equals(probeLog.above()),"Probe did not witness the actual overhang center occlusion");
                     h.assertTrue(world.resourceBreakEligibility(probeActor,new SurvivalGateway.Cell(dim,probeLog.getX(),probeLog.getY(),probeLog.getZ()),
-                        ResourceDelivery.OAK_LOG)==null,"Visible lower oak portion was rejected under unchanged native range");
+                        log)==null,"Visible lower oak portion was rejected under unchanged native range");
                     // Separate controlled fixture item in a vacated cell. The
                     // genuine produced loot below is never moved or replaced.
                     h.setBlock(3,1,6,Blocks.AIR);
                     reachableDrop[0]=new ItemEntity(h.getLevel(),probeLog.getX()+.5,probeLog.getY()+.1,
-                            probeLog.getZ()+.5,new ItemStack(Items.OAK_LOG,1));
+                            probeLog.getZ()+.5,new ItemStack(nativeLog,1));
                     reachableDrop[0].setThrower(dropProbe);reachableDrop[0].setTarget(reachableDrop[0].getUUID());
                     h.assertTrue(h.getLevel().addFreshEntity(reachableDrop[0]),"Native fixture item was not registered");
                     h.assertTrue(world.acquire(dropProbeActor,dropProbeRun),"Native probe control was not acquired");
@@ -96,11 +100,11 @@ public final class OakLogEffectGameTests {
                 if(!nativeDropReach[0]) {
                     double distance=dropProbe.distanceToSqr(reachableDrop[0].position());
                     h.assertTrue(distance>1.5*1.5 && distance<=2.5*2.5,"Native item reach fixture left its declared interval");
-                    var preparation=world.approachResourceDrop(dropProbeActor,reachableDrop[0].getUUID(),1,1,ResourceDelivery.OAK_LOG);
+                    var preparation=world.approachResourceDrop(dropProbeActor,reachableDrop[0].getUUID(),1,1,log);
                     h.assertTrue(!preparation.impossible() && preparation.chargedWork()==0,
                             "Reachable native item incorrectly required a low-ceiling path");
                     h.assertTrue(reachableDrop[0].isAlive() && reachableDrop[0].getItem().getCount()==1
-                                    && dropProbe.getInventory().countItem(Items.OAK_LOG)==0,
+                                    && dropProbe.getInventory().countItem(nativeLog)==0,
                             "Movement preparation mutated native stock");
                     if(!preparation.reached()) {h.assertTrue(false,"Waiting for native grounded item preparation");return;}
                     nativeDropReach[0]=true;world.release(dropProbeActor,dropProbeRun);
@@ -108,7 +112,7 @@ public final class OakLogEffectGameTests {
                 if(!ownedDropDetour[0]) {
                     if(occludedDrop[0]==null) {
                         occludedDrop[0]=new ItemEntity(h.getLevel(),occludedCell.getX()+.875,occludedCell.getY()+.1,
-                                occludedCell.getZ()+.735,new ItemStack(Items.OAK_LOG,1));
+                                occludedCell.getZ()+.735,new ItemStack(nativeLog,1));
                         occludedDrop[0].setThrower(occludedProbe);occludedDrop[0].setTarget(occludedDrop[0].getUUID());
                         h.assertTrue(h.getLevel().addFreshEntity(occludedDrop[0]),"Occluded controlled item was not registered");
                         var hit=h.getLevel().clip(new net.minecraft.world.level.ClipContext(occludedProbe.getEyePosition(),
@@ -116,11 +120,11 @@ public final class OakLogEffectGameTests {
                                 net.minecraft.world.level.ClipContext.Fluid.NONE,occludedProbe));
                         h.assertTrue(hit.getBlockPos().equals(occludedCell.above()),"Controlled item did not witness actual overhang occlusion");
                     }
-                    var preparation=world.approachResourceDrop(occludedActor,occludedDrop[0].getUUID(),1,1,ResourceDelivery.OAK_LOG);
+                    var preparation=world.approachResourceDrop(occludedActor,occludedDrop[0].getUUID(),1,1,log);
                     detourWork[0]+=preparation.chargedWork();
                     h.assertTrue(!preparation.impossible() && detourWork[0]<=5,"Bounded owned-drop adjacent approaches failed");
                     h.assertTrue(occludedDrop[0].isAlive() && occludedDrop[0].getItem().getCount()==1
-                            && occludedProbe.getInventory().countItem(Items.OAK_LOG)==0,"Owned-drop detour mutated native stock");
+                            && occludedProbe.getInventory().countItem(nativeLog)==0,"Owned-drop detour mutated native stock");
                     if(!preparation.reached()) {h.assertTrue(false,"Waiting for actual adjacent owned-drop navigation");return;}
                     h.assertTrue(detourWork[0]>0 && !occludedProbe.blockPosition().equals(occludedCell),
                             "Occluded owned drop did not use real adjacent native movement");
@@ -132,27 +136,27 @@ public final class OakLogEffectGameTests {
                     ownedDropDetour[0]=true;world.release(occludedActor,occludedRun);
                 }
                 var cell=new SurvivalGateway.Cell(dim,p.getX(),p.getY(),p.getZ());
-                h.assertTrue(world.resourceBlock(cell,ResourceDelivery.OAK_LOG).breakTicks()==60,"Pinned oak survival timing differs");
-                h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_UNAVAILABLE,
+                h.assertTrue(world.resourceBlock(cell,log).breakTicks()==60,"Pinned oak survival timing differs");
+                h.assertTrue(world.resourceBreakEligibility(actor,cell,log)==Outcomes.Reason.TARGET_UNAVAILABLE,
                         "Distant worker cell was accepted as face-adjacent oak arrival");
-                var birch=h.absolutePos(new BlockPos(4,1,5));
-                h.assertTrue(!world.resourceBlock(new SurvivalGateway.Cell(dim,birch.getX(),birch.getY(),birch.getZ()),ResourceDelivery.OAK_LOG).eligible(),"Another species entered the oak allowlist");
+                var foreignLog=h.absolutePos(new BlockPos(4,1,5));
+                h.assertTrue(!world.resourceBlock(new SurvivalGateway.Cell(dim,foreignLog.getX(),foreignLog.getY(),foreignLog.getZ()),log).eligible(),"Another species entered the oak allowlist");
                 v.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(Items.IRON_AXE));
-                h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.TARGET_INVALID,"Equipped tool escaped bare-hand restriction");
+                h.assertTrue(world.resourceBreakEligibility(actor,cell,log)==Outcomes.Reason.TARGET_INVALID,"Equipped tool escaped bare-hand restriction");
                 v.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,ItemStack.EMPTY);
                 boolean drops=h.getLevel().getGameRules().get(GameRules.BLOCK_DROPS),grief=h.getLevel().getGameRules().get(GameRules.MOB_GRIEFING);
                 try {
                     h.getLevel().getGameRules().set(GameRules.BLOCK_DROPS,false,h.getLevel().getServer());
-                    h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.AUTHORITY_DENIED,"BLOCK_DROPS ignored");
+                    h.assertTrue(world.resourceBreakEligibility(actor,cell,log)==Outcomes.Reason.AUTHORITY_DENIED,"BLOCK_DROPS ignored");
                     h.getLevel().getGameRules().set(GameRules.BLOCK_DROPS,true,h.getLevel().getServer());
                     h.getLevel().getGameRules().set(GameRules.MOB_GRIEFING,false,h.getLevel().getServer());
-                    h.assertTrue(world.resourceBreakEligibility(actor,cell,ResourceDelivery.OAK_LOG)==Outcomes.Reason.AUTHORITY_DENIED,"MOB_GRIEFING ignored");
+                    h.assertTrue(world.resourceBreakEligibility(actor,cell,log)==Outcomes.Reason.AUTHORITY_DENIED,"MOB_GRIEFING ignored");
                 } finally {
                     h.getLevel().getGameRules().set(GameRules.BLOCK_DROPS,drops,h.getLevel().getServer());
                     h.getLevel().getGameRules().set(GameRules.MOB_GRIEFING,grief,h.getLevel().getServer());
                 }
-                v.getInventory().setItem(0,custom.copy());h.assertTrue(world.resourceInventory(actor,ResourceDelivery.OAK_LOG).reason()==Outcomes.Reason.TARGET_INVALID,"Actor components erased");
-                v.getInventory().setItem(0,new ItemStack(Items.OAK_LOG,3));
+                v.getInventory().setItem(0,custom.copy());h.assertTrue(world.resourceInventory(actor,log).reason()==Outcomes.Reason.TARGET_INVALID,"Actor components erased");
+                v.getInventory().setItem(0,new ItemStack(nativeLog,3));
             }
             if(phase[0]>=operations.size()) {
                 h.assertTrue(airborneDeferred[0],"Falling-worker approach regression did not execute");
@@ -160,24 +164,24 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(endpointRefined[0],"Real native path endpoint refinement did not execute");
                 h.assertTrue(ownedDropDetour[0],"Occluded adjacent owned-drop regression did not execute");
                 h.assertTrue(nativeDropReach[0],"Native low-ceiling item preparation regression did not execute");
-                h.assertTrue(OakLogDelivery.completed(request,run,receipts),"Trusted native receipt chain incomplete");
-                h.assertTrue(v.getInventory().countItem(Items.OAK_LOG)==3,"Preloaded actor stock spent as output");
+                h.assertTrue(ResourceDelivery.completed(request,run,List.of(),receipts),"Trusted native receipt chain incomplete");
+                h.assertTrue(v.getInventory().countItem(nativeLog)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println("RB001_EFFECTS breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" ownedDropDetour="+ownedDropDetour[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println((birch?"RB007_LOG_EFFECTS":"RB001_EFFECTS")+" breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" ownedDropDetour="+ownedDropDetour[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);
-            if(op==Operation.PICKUP_TRACKED_OAK_LOGS && h.getLevel().getGameTime()-harvested[0]<20) {h.assertTrue(false,"Waiting for actual pickup delay");return;}
+            if(op.shared()==Operation.PICKUP_TRACKED_OAK_LOGS && h.getLevel().getGameTime()-harvested[0]<20) {h.assertTrue(false,"Waiting for actual pickup delay");return;}
             if(handle[0]==null) {
                 var args=new HashMap<String,Value>();for(var parameter:op.signature().parameters())args.put(parameter.name(),parameter.name().equals("amount") ? new IntValue(1) : request.request().arguments().get(parameter.name()));
                 handle[0]=gateway.start(request,correlation,op.requirement(),args,budget);
-                if(op==Operation.HARVEST_NEXT_OAK_LOG)first[0]=h.getLevel().getGameTime();
+                if(op.shared()==Operation.HARVEST_NEXT_OAK_LOG)first[0]=h.getLevel().getGameTime();
             }
             var result=gateway.poll(handle[0]);
-            if(op==Operation.HARVEST_NEXT_OAK_LOG && h.getLevel().getGameTime()-first[0]<60)
-                h.assertTrue(h.getLevel().getBlockState(p).is(Blocks.OAK_LOG),"Oak was removed before survival break time");
+            if(op.shared()==Operation.HARVEST_NEXT_OAK_LOG && h.getLevel().getGameTime()-first[0]<60)
+                h.assertTrue(h.getLevel().getBlockState(p).is(logBlock),"Oak was removed before survival break time");
             if(result.terminal()) {
                 h.assertTrue(result.reason()==null,"Oak native effect failed "+op+" "+result.reason());
                 if(phase[0]==0) {
@@ -187,7 +191,7 @@ public final class OakLogEffectGameTests {
                                     && Math.abs(v.getY()-p.getY())<=0.125,
                             "Standing oak arrival was reported before actual horizontal movement settled");
                 }
-                receipts.addAll(result.resourceReceipts());if(op==Operation.HARVEST_NEXT_OAK_LOG) {
+                receipts.addAll(result.resourceReceipts());if(op.shared()==Operation.HARVEST_NEXT_OAK_LOG) {
                     harvested[0]=h.getLevel().getGameTime();
                     // Simulate ordinary hoeing after harvest. The actual produced
                     // entity lands naturally; its position/count is never rewritten.

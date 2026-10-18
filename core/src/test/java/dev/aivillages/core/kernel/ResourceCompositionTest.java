@@ -25,19 +25,21 @@ final class ResourceCompositionTest {
         int methodCalls,inspectionWork=1;final Map<String,Integer> inspections=new HashMap<>();long tick=100;boolean allowed=true;Reason stockReason,methodReason;
         ObservationStatus stockStatus;Catalog catalog=catalog();
         final Clock clock=Clock.fixed(Instant.ofEpochMilli(1000),ZoneOffset.UTC);
-        Fixture(int quantity) {
-            request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(actor),"amount",new IntValue(quantity),
+        Fixture(int quantity) {this(quantity,WoodenAxeProduction.ID);}
+        Fixture(int quantity,CapabilityId capability) {
+            var arguments=new HashMap<String,Value>(Map.of("actor",new ActorValue(actor),"amount",new IntValue(quantity),
                     "source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(new FacilityRef(actor.dimension(),3,2,3))));
-            need=new Need(id,new Jobs.Guard(2,0),new ValidatedRequest(request,owner,ref),AXE,quantity,AllocationPolicy.MATERIAL_ONLY,oak);
+            if(!capability.equals(WoodenAxeProduction.ID))arguments.remove("table");request=new CapabilityRequest(capability,arguments);
+            need=new Need(id,new Jobs.Guard(2,0),new ValidatedRequest(request,owner,ref),RecipeProduction.of(capability).output().id(),quantity,AllocationPolicy.MATERIAL_ONLY,oak);
         }
         static Catalog catalog() {
-            var recipes=new ArrayList<Recipe>();var productions=new ArrayList<Production>();productions.add(ResourceComposition.oakAcquisition());
-            for(var cap:List.of(OakPlankProduction.ID,StickProduction.ID,WoodenAxeProduction.ID)) {
+            var recipes=new ArrayList<Recipe>();var productions=new ArrayList<Production>();productions.add(ResourceComposition.oakAcquisition());productions.add(ResourceComposition.birchAcquisition());
+            for(var cap:List.of(BirchPlankProduction.ID,OakPlankProduction.ID,StickProduction.ID,WoodenAxeProduction.ID)) {
                 var p=RecipeProduction.of(cap).relationship();productions.add(p);recipes.add(new Recipe(p.recipe(),p.output(),p.outputPerBatch(),p.inputs(),Map.of()));
             }
             return new Catalog(1,recipes,productions,Set.of(),true);
         }
-        Supply inspect(Need n,String item) {inspections.merge(item,1,Integer::sum);long count=item.equals(AXE)?0:stock.getOrDefault(item,0L);
+        Supply inspect(Need n,String item) {inspections.merge(item,1,Integer::sum);long count=item.equals(n.item())?0:stock.getOrDefault(item,0L);
             return new Supply(item,stockStatus!=null?stockStatus:count==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,count,
                     "same-physical-source:"+item,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),tick,inspectionWork,stockReason);}
         MethodSelection method(Production p,long batches,long output,Need n) {
