@@ -56,6 +56,10 @@ public final class BlueprintStagingGameTests {
         void seed(){reset();int planks=row==0||row==4?5:row==1?2:0,logs=row==1||row==2?1:row==3?2:0;
             if(planks>0)box(box()).setItem(0,new ItemStack(Items.OAK_PLANKS,planks));if(logs>0)box(box()).setItem(1,new ItemStack(Items.OAK_LOG,logs));
             if(row==3)h.getLevel().setBlock(site(),Blocks.OAK_PLANKS.defaultBlockState(),3);actorBefore=villager.getInventory().countItem(Items.OAK_PLANKS);calls=session.generationCalls();material=request(false);phase=6;}
+        void cancel(int next){var change=session.cancelQueuedJob(owner,job);h.assertTrue(change.accepted(),"Cancellation rejected "+change);phase=next;}
+        boolean cancellationAcknowledged(){return session.jobsReady()&&session.leasesReady()
+                &&session.queuedJob(owner,job).state()==Jobs.State.CANCELLED
+                &&session.leaseOwner().snapshot().leases().stream().noneMatch(l->l.owner().job().equals(job)&&l.state()==ResourceLeases.State.ACTIVE);}
         void step(){
             if(System.currentTimeMillis()-started>900000){failure="Bounded RB008 watchdog phase="+phase+" row="+row;return;}
             if(phase==12){if(closing.isDone()){closing.join();done=true;}return;}
@@ -78,14 +82,16 @@ public final class BlueprintStagingGameTests {
                 if(++learn<2)phase=2;else{session.inference(false);storing=session.storeBlueprint(owner,body(),"rb008-plank-only");phase=4;}
             }else if(phase==4){if(!storing.isDone())return;var stored=storing.join();h.assertTrue(stored.ref()!=null,"Blueprint publication failed "+stored);blueprint=stored.ref();phase=5;}
             else if(phase==5){if(!session.jobsReady()||!session.leasesReady())return;seed();}
-            else if(phase==6){if(!material.isDone())return;var r=material.join();h.assertTrue(r.job()==null&&r.report().canStage(),"Preflight rejected "+r);
+            else if(phase==6){if(!material.isDone())return;var r=material.join();if(r.job()!=null||!r.report().canStage()){failure="Preflight rejected row="+row+" "+r;return;}
                 h.assertTrue(session.generationCalls()==calls,"Preflight called inference");long expected=row==0||row==4?0:row==1?3:row==2?5:4;
                 h.assertTrue(r.report().shortage()==expected,"Wrong exact shortage "+r.report());material=request(true);phase=7;}
             else if(phase==7){if(!material.isDone())return;var r=material.join();h.assertTrue(r.accepted(),"Stage rejected "+r);job=r.job();phase=8;}
             else if(phase==8){if(!session.queuedJobIds(owner,false).contains(job))return;var j=session.queuedJob(owner,job);
                 if(j.state()==Jobs.State.FAILED||j.state()==Jobs.State.CANCELLED||j.state()==Jobs.State.INTERRUPTED){failure="Native staging stopped "+j+" children="+j.children().stream().map(id->session.queuedJob(owner,id)).toList();return;}
                 if(j.state()!=Jobs.State.SUCCEEDED)return;status=session.blueprintMaterialStatus(owner,job);phase=9;}
-            else if(phase==9){if(!status.isDone())return;var current=status.join();h.assertTrue(current.currentlyAllocated(),"No current physical allocation "+current);
+            else if(phase==9){if(!status.isDone())return;var current=status.join();if(!current.currentlyAllocated()){
+                    if(current.report().reason()==Outcomes.Reason.STORAGE_UNAVAILABLE){if(session.jobsReady()&&session.leasesReady())status=session.blueprintMaterialStatus(owner,job);return;}
+                    failure="No current physical allocation row="+row+" "+current;return;}
                 var j=current.job();int q=row==3?4:5;h.assertTrue(box(box()).countItem(Items.OAK_PLANKS)==q&&current.allocated()==q,"Staged item conservation mismatch");
                 h.assertTrue(session.generationCalls()==calls&&j.attempts().isEmpty(),"Staging root executed or inferred");
                 for(int i=0;i<5;i++)h.assertTrue(h.getLevel().getBlockState(site().east(i)).is(row==3&&i==0?Blocks.OAK_PLANKS:Blocks.AIR),"Staging placed blueprint blocks");
@@ -96,8 +102,10 @@ public final class BlueprintStagingGameTests {
                 try{session.cancelQueuedJob(foreign,job);h.fail("Foreign stage cancellation allowed");}catch(SecurityException expected){}
                 System.out.println("RB008_NATIVE phase="+(warm?"warm":"cold")+" row="+row+" required="+q+" allocated="+current.allocated()+" modelCalls=0 job="+j.id()+" children="+j.children());
                 if(row==4){box(box()).setItem(0,new ItemStack(Items.OAK_PLANKS,4));status=session.blueprintMaterialStatus(owner,job);phase=10;}
-                else{session.cancelQueuedJob(owner,job);row++;phase=5;}
-            }else if(phase==10){if(!status.isDone())return;h.assertTrue(!status.join().currentlyAllocated(),"Moved-away stock remained allocated");session.cancelQueuedJob(owner,job);
+                else cancel(16);
+            }else if(phase==10){if(!status.isDone())return;h.assertTrue(!status.join().currentlyAllocated(),"Moved-away stock remained allocated");cancel(17);
+            }else if(phase==16){if(cancellationAcknowledged()){row++;phase=5;}
+            }else if(phase==17){if(!cancellationAcknowledged())return;
                 if(warm){closing=session.storeClosure();session.close();phase=12;}else{phase=11;}
             }else if(phase==11){if(!session.jobsReady()||!session.leasesReady())return;
                 // Persist an accepted, not-yet-advanced stage demand and its exact immutable ref.
