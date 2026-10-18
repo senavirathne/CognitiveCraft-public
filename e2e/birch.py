@@ -138,7 +138,7 @@ def scenario(h):
     require(h.model_calls()==calls,"Backend-stopped reuse invoked inference");h.screenshot("PlayerB","rb007-offline-fresh-citizen-and-bindings",chat=True)
     # Cancellation keeps the real first harvest and fences subsequent effects.
     rid=gather(8);boundary=h.wait(lambda:(v if (v:=h.run_view("PlayerA",rid)) and any(r["stage"]=="HARVEST" for r in v.get("resourceReceipts",[])) else None),"Actual birch cancellation boundary",90)
-    h.command("PlayerA","/aivillage kernel cancel "+rid,"cancel");cancelled=h.terminal("PlayerA",rid,90);h.actions_active=False
+    h.command("PlayerA","/aivillage kernel cancel "+rid,"run="+rid);cancelled=h.terminal("PlayerA",rid,90);h.actions_active=False
     require("CANCELLED" in cancelled["description"],"Birch cancellation did not terminate")
     conserved=h.container(SRC,LOG);h.quiet(60);require(h.container(SRC,LOG)==conserved,"Late cancelled birch work deposited output")
     # Bring the worker to staging by ordinary known crafting before the exact craft/save kill boundary.
