@@ -12,8 +12,9 @@ final class OakPlankTestSupport {
     static final TrustedContext OWNER=JobLifecycleStoreTest.owner(UUID.randomUUID());
     static final ActorRef ACTOR=JobLifecycleStoreTest.actor();
     static final ContainerRef SOURCE=new ContainerRef(ACTOR.dimension(),1,0,1),TARGET=new ContainerRef(ACTOR.dimension(),4,0,1);
-    static ValidatedRequest bound(int amount) {
-        return new ValidatedRequest(new CapabilityRequest(OakPlankProduction.ID,Map.of("actor",new ActorValue(ACTOR),
+    static ValidatedRequest bound(int amount) {return bound(amount,OakPlankProduction.ID);}
+    static ValidatedRequest bound(int amount,CapabilityId capability) {
+        return new ValidatedRequest(new CapabilityRequest(capability,Map.of("actor",new ActorValue(ACTOR),
                 "amount",new IntValue(amount),"source",new ContainerValue(SOURCE),"destination",new ContainerValue(TARGET))),OWNER,JobLifecycleStoreTest.observation());
     }
     static String program() {
@@ -34,12 +35,12 @@ final class OakPlankTestSupport {
         final SurvivalGateway gateway;final List<ResourceDelivery.Receipt> receipts=new ArrayList<>();long effects;
         Driver(int amount) {this(amount,new World());}
         Driver(int amount,World world) {
-            this.world=world;bound=bound(amount);usage=new Budgets.Ledger(OakPlankProduction.executionLimits(1000).total(),CLOCK);
+            this.world=world;bound=bound(amount,world.capability);usage=new Budgets.Ledger(OakPlankProduction.executionLimits(1000).total(),CLOCK);
             gateway=new SurvivalGateway(world,(a,e,c)->world.authorized,new Limits(8,512,64,16,256,1,200,32),CLOCK);
         }
         ActionReceipt action(GatewayPrimitives.Operation op) {
             var args=new LinkedHashMap<String,Value>();op.signature().parameters().forEach(p->args.put(p.name(),bound.request().arguments().get(p.name())));
-            var ref=new ArtifactRef(OakPlankProduction.ID,"a".repeat(64));
+            var ref=new ArtifactRef(world.capability,"a".repeat(64));
             var h=gateway.start(bound,new RunCorrelation(run,ref,null),op.requirement(),args,usage);
             ActionReceipt result=null;
             for(int i=0;i<240;i++) {world.tick++;result=gateway.poll(h);if(result.terminal())break;}
@@ -47,11 +48,9 @@ final class OakPlankTestSupport {
             receipts.addAll(result.resourceReceipts());effects+=result.committedEffects();return result;
         }
         void produce() {
-            require(action(GatewayPrimitives.Operation.OBSERVE_PLANK_INPUTS));
+            var ops=RecipeProduction.operations(world.capability);require(action(ops.getFirst()));
             for(int i=0;i<OakPlankProduction.batches(((IntValue)bound.request().arguments().get("amount")).value());i++) {
-                require(action(GatewayPrimitives.Operation.MOVE_TO_INPUT));require(action(GatewayPrimitives.Operation.WITHDRAW_OAK_LOG));
-                require(action(GatewayPrimitives.Operation.CRAFT_OAK_PLANKS));require(action(GatewayPrimitives.Operation.MOVE_TO_DESTINATION));
-                require(action(GatewayPrimitives.Operation.TRANSFER_OAK_PLANKS));
+                for(var op:ops.subList(1,ops.size()))require(action(op));
             }
         }
         void require(ActionReceipt receipt) {if(receipt.reason()!=null)throw new AssertionError(receipt.reason());}
@@ -60,7 +59,9 @@ final class OakPlankTestSupport {
         long tick;int logs=16,actorLogs,actorPlanks,chestPlanks,withdrawals,crafts,deposits,other;
         int outputCapacity=4096;boolean authorized=true,known=true,recipeChanged,fullCustody,targetChanged,unreachable;
         UUID held;
-        final RecipeTransaction.Snapshot recipe=new RecipeTransaction.Snapshot(OakPlankProduction.RECIPE,RecipeTransaction.fingerprint("test-recipe"),1,1,4,0);
+        final CapabilityId capability;final RecipeTransaction.Snapshot recipe;
+        World() {this(OakPlankProduction.ID);}
+        World(CapabilityId capability) {this.capability=capability;recipe=new RecipeTransaction.Snapshot(RecipeProduction.of(capability).recipe(),RecipeTransaction.fingerprint("test-recipe"),1,1,4,0);}
         String custody() {return RecipeTransaction.fingerprint(actorLogs+":"+actorPlanks+":"+other);}
         String sourceHash() {return RecipeTransaction.fingerprint("logs:"+logs);}
         public boolean onGameThread() {return true;}public long tick() {return tick;}

@@ -44,12 +44,12 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
                     var state=level.getBlockState(pos);
                     if(state.is(Blocks.WHEAT)&&((CropBlock)Blocks.WHEAT).isMaxAge(state))quantity++;
                 }
-                if(resource.oakBlocks() && level.getBlockState(pos).is(Blocks.OAK_LOG)) quantity++;
+                if(resource.logBlocks() && level.getBlockState(pos).is(FabricResourceItems.log(new dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity(resource.item(),"default")))) quantity++;
             }
         String spatial=resource.dimension()+":"+area.minX()+","+area.minY()+","+area.minZ()+":"
                 +area.maxX()+","+area.maxY()+","+area.maxZ();
         if(resource.kind()==Kind.SPACE)return observation(resource,ObservationStatus.PRESENT,1,spatial,tick,scanned,null);
-        if(resource.item().equals("minecraft:mature_wheat") || resource.oakBlocks())
+        if(resource.item().equals("minecraft:mature_wheat") || resource.logBlocks())
             return observation(resource,quantity==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,quantity,spatial,tick,scanned,null);
         BlockPos pos=new BlockPos(area.minX(),area.minY(),area.minZ());
         var block=level.getBlockState(pos);var entity=level.getBlockEntity(pos);
@@ -88,7 +88,9 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
         }
         for(int slot=0;slot<container.getContainerSize();slot++) {
             var stack=container.getItem(slot);
-            if(resource.item().equals("minecraft:oak_log")) {
+            if(resource.item().equals("minecraft:birch_log") || resource.item().equals("minecraft:birch_planks")) {
+                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(FabricResourceItems.item(new dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity(resource.item(),"default")))))quantity=Math.addExact(quantity,stack.getCount());
+            } else if(resource.item().equals("minecraft:oak_log")) {
                 if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.OAK_LOG)))
                     quantity=Math.addExact(quantity,stack.getCount());
             } else if(resource.item().equals("minecraft:oak_planks")) {

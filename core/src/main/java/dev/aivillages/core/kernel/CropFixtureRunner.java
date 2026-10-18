@@ -71,7 +71,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                 + ":" + changed.request() + ":two-custody-cases";
         return new ResearchAdmissionController.FixtureEvidence(true,
                 new EvidenceRef(sha256(fact), CraftingTablePlacement.is(bound.request().capability()) ? "placement-fixture:1" : RecipeProduction.is(bound.request().capability()) ? "transformation-fixture:1"
-                        : bound.request().capability().equals(OakLogDelivery.ID) ? "resource-fixture:1" : "crop-fixture:1",
+                        : LogAcquisition.is(bound.request().capability()) ? "resource-fixture:1" : "crop-fixture:1",
                         bound.context().scope().worldId().toString()),
                 null, cases, Math.min(4_096, usage.snapshot().getOrDefault(
                         Kind.INSTRUCTIONS, 0L) - before));
@@ -210,7 +210,9 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
         public ActionReceipt poll(ActionHandle handle) {
             var action=pending.remove(handle);
             if(action==null)return fail(handle,Reason.UNSUPPORTED_PRIMITIVE);
-            var op=action.getValue().getKey();var args=action.getValue().getValue();
+            var op=action.getValue().getKey();
+            if(!RecipeProduction.permits(bound.request().capability(),op))return fail(handle,Reason.REQUEST_INVALID);
+            op=op.shared();var args=action.getValue().getValue();
             if(!bound.request().arguments().get("actor").equals(args.get("actor"))
                     || args.containsKey("source") && !bound.request().arguments().get("source").equals(args.get("source"))
                     || args.containsKey("destination") && !bound.request().arguments().get("destination").equals(args.get("destination")))
@@ -286,30 +288,30 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             if (action == null || action.operation() == null)
                 return receipt(handle, Reason.UNSUPPORTED_PRIMITIVE);
             Map<String, Value> args = action.arguments();
-            if(action.operation()!=Operation.MOVE_TO_DESTINATION && action.operation().oak()!=oak())
+            if(oak() ? !LogAcquisition.permits(bound.request().capability(),action.operation()) : action.operation().birchLog() || action.operation().birchPlank() || action.operation().oak())
                 return receipt(handle,Reason.REQUEST_INVALID);
             if (!bound.request().arguments().get("actor").equals(args.get("actor")))
                 return receipt(handle, Reason.AUTHORITY_DENIED);
             try {
-                return switch (action.operation()) {
-                    case OBSERVE_SOURCE, OBSERVE_OAK_SOURCE -> {
+                return switch (action.operation().shared()) {
+                    case OBSERVE_BIRCH_SOURCE, OBSERVE_SOURCE, OBSERVE_OAK_SOURCE -> {
                         usage.debit(Kind.OBSERVATIONS, 1);
                         if (!bound.request().arguments().get("source").equals(args.get("source")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         yield observed(handle, standing, "source");
                     }
-                    case OBSERVE_INVENTORY, OBSERVE_OAK_INVENTORY -> {
+                    case OBSERVE_BIRCH_INVENTORY, OBSERVE_INVENTORY, OBSERVE_OAK_INVENTORY -> {
                         usage.debit(Kind.OBSERVATIONS, 1);
                         yield observed(handle, carried.stream().mapToInt(Drop::count).sum(), "inventory");
                     }
-                    case OBSERVE_CONTAINER, OBSERVE_OAK_CONTAINER -> {
+                    case OBSERVE_BIRCH_CONTAINER, OBSERVE_CONTAINER, OBSERVE_OAK_CONTAINER -> {
                         usage.debit(Kind.OBSERVATIONS, 1);
                         if (!bound.request().arguments().get("destination").equals(args.get("destination")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         yield observed(handle, delivered, "container");
                     }
-                    case HARVEST_NEXT_WHEAT, HARVEST_WHEAT, HARVEST_NEXT_OAK_LOG -> {
-                        if ((action.operation() == Operation.HARVEST_NEXT_WHEAT || action.operation()==Operation.HARVEST_NEXT_OAK_LOG)
+                    case HARVEST_NEXT_BIRCH_LOG, HARVEST_NEXT_WHEAT, HARVEST_WHEAT, HARVEST_NEXT_OAK_LOG -> {
+                        if ((action.operation() == Operation.HARVEST_NEXT_WHEAT || action.operation().shared()==Operation.HARVEST_NEXT_OAK_LOG)
                                 ? !bound.request().arguments().get("source").equals(args.get("source"))
                                 : !atSource(args)) yield receipt(handle, Reason.TARGET_INVALID);
                         if (standing == 0) yield receipt(handle, Reason.RESOURCE_MISSING);
@@ -320,7 +322,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         ground.add(drop);
                         yield effect(action, drop, CropDelivery.Stage.HARVEST, 1);
                     }
-                    case PICKUP_TRACKED_WHEAT, PICKUP_WHEAT, PICKUP_TRACKED_OAK_LOGS -> {
+                    case PICKUP_TRACKED_BIRCH_LOGS, PICKUP_TRACKED_WHEAT, PICKUP_WHEAT, PICKUP_TRACKED_OAK_LOGS -> {
                         if (action.operation() == Operation.PICKUP_WHEAT && !atSource(args))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         if (ground.isEmpty()) yield receipt(handle, Reason.RESOURCE_MISSING);
@@ -330,7 +332,7 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         carried.add(drop);
                         yield effect(action, drop, CropDelivery.Stage.PICKUP, drop.count());
                     }
-                    case TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> {
+                    case TRANSFER_BIRCH_LOGS, TRANSFER_WHEAT, TRANSFER_OAK_LOGS -> {
                         if (!bound.request().arguments().get("destination").equals(args.get("destination")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         long requested = ((IntValue)args.get("amount")).value();
@@ -354,9 +356,9 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
                         yield new ActionReceipt(handle, true, 1, records, null,
                                 new IntValue(requested), null,resources);
                     }
-                    case OBSERVE_TABLE_SITE,WITHDRAW_TABLE_ITEM,MOVE_TO_PLACEMENT,PLACE_CRAFTING_TABLE,OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
-                    case MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION, APPROACH_OAK_LOG -> {
-                        if ((action.operation() == Operation.MOVE_TO_SOURCE || action.operation()==Operation.APPROACH_OAK_LOG)
+                    case OBSERVE_BIRCH_PLANK_INPUTS,WITHDRAW_BIRCH_LOG,CRAFT_BIRCH_PLANKS,TRANSFER_BIRCH_PLANKS,OBSERVE_TABLE_SITE,WITHDRAW_TABLE_ITEM,MOVE_TO_PLACEMENT,PLACE_CRAFTING_TABLE,OBSERVE_TABLE_INPUTS,WITHDRAW_TABLE_PLANKS,CRAFT_CRAFTING_TABLE,TRANSFER_CRAFTING_TABLES,OBSERVE_PLANK_INPUTS,OBSERVE_STICK_INPUTS,OBSERVE_AXE_INPUTS,MOVE_TO_TABLE,WITHDRAW_AXE_INPUTS,CRAFT_WOODEN_AXE,TRANSFER_WOODEN_AXES,MOVE_TO_INPUT,WITHDRAW_OAK_LOG,WITHDRAW_OAK_PLANKS,CRAFT_OAK_PLANKS,CRAFT_STICKS,TRANSFER_OAK_PLANKS,TRANSFER_STICKS -> receipt(handle,Reason.UNSUPPORTED_PRIMITIVE);
+                    case APPROACH_BIRCH_LOG, MOVE, MOVE_TO_SOURCE, MOVE_TO_DESTINATION, APPROACH_OAK_LOG -> {
+                        if ((action.operation() == Operation.MOVE_TO_SOURCE || action.operation().shared()==Operation.APPROACH_OAK_LOG)
                                 && !bound.request().arguments().get("source").equals(args.get("source")))
                             yield receipt(handle, Reason.TARGET_INVALID);
                         if (action.operation() == Operation.MOVE_TO_DESTINATION
@@ -388,11 +390,11 @@ public final class CropFixtureRunner implements ResearchAdmissionController.Fixt
             return new ActionReceipt(action.handle(), true, 1,
                     List.of(crop(action, drop.batch(), stage, count)), null, new IntValue(count), null);
         }
-        private boolean oak() { return bound.request().capability().equals(OakLogDelivery.ID); }
+        private boolean oak() { return LogAcquisition.is(bound.request().capability()); }
         private ResourceDelivery.Receipt resource(Action action,UUID batch,CropDelivery.Stage stage,int count) {
             var a=bound.request().arguments(); var source=((AreaValue)a.get("source")).value();
             return new ResourceDelivery.Receipt(UUID.randomUUID(),bound.context(),action.run().runId(),action.handle().id(),batch,
-                    ((ActorValue)a.get("actor")).value(),source,((ContainerValue)a.get("destination")).value(),ResourceDelivery.OAK_LOG,
+                    ((ActorValue)a.get("actor")).value(),source,((ContainerValue)a.get("destination")).value(),LogAcquisition.item(bound.request().capability()),
                     ResourceDelivery.Stage.valueOf(stage.name()),count,
                     new ResourceDelivery.BlockPosition(source.dimension(),source.minX(),source.minY(),source.minZ()),List.of(batch));
         }

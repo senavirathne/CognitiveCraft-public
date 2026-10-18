@@ -28,8 +28,8 @@ final class FabricRecipeTransactions {
     void release(ActorRef actor) {axeCustody.remove(actor);}
     FabricRecipeTransactions(ServerLevel level,FabricGatewayWorld world) {this.level=level;this.world=world;}
     private record RecipeView(CraftingRecipe recipe,RecipeTransaction.Snapshot snapshot) { }
-    private static Item inputItem(RecipeProduction.Definition d) {return d.inputPerBatch()==1 ? Items.OAK_LOG : Items.OAK_PLANKS;}
-    private static Item outputItem(RecipeProduction.Definition d) {return d.table() ? Items.CRAFTING_TABLE : d.axe() ? Items.WOODEN_AXE : d.inputPerBatch()==1 ? Items.OAK_PLANKS : Items.STICK;}
+    private static Item inputItem(RecipeProduction.Definition d) {return FabricResourceItems.item(d.input());}
+    private static Item outputItem(RecipeProduction.Definition d) {return FabricResourceItems.item(d.output());}
 
     private RecipeView capture(String key) {
         var d=RecipeProduction.recipe(key);if(d.axe())return captureAxe(key,d);boolean stick=d.inputPerBatch()==2,table=d.table();
@@ -64,7 +64,7 @@ final class FabricRecipeTransactions {
         if(table && recipe.matches(CraftingInput.of(2,2,List.of(new ItemStack(Items.OAK_PLANKS),new ItemStack(Items.OAK_PLANKS),new ItemStack(Items.OAK_PLANKS),ItemStack.EMPTY)),level))return null;
         String semantic=table ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots+"|four-default-oak-planks|one-default-crafting-table|no-remainders" : stick ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots
                 +"|two-vertical-default-oak-planks|four-default-sticks|no-remainders"
-                : "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives.getFirst()+"|one-default-oak-log|four-default-oak-planks|no-remainders";
+                : "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives.getFirst()+"|one-default-"+(d.input().equals(ResourceDelivery.BIRCH_LOG) ? "birch-log|four-default-birch-planks" : "oak-log|four-default-oak-planks")+"|no-remainders";
         String fingerprint=RecipeTransaction.fingerprint(semantic);var old=snapshots.get(key);
         long generation=old==null ? 1 : old.snapshot().generation();
         if(old!=null && (managers.get(key)!=current || old.recipe()!=recipe || !old.snapshot().fingerprint().equals(fingerprint)))

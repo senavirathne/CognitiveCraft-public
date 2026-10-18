@@ -15,6 +15,8 @@ public final class ResourceDelivery {
                     || !"default".equals(components)) throw new IllegalArgumentException("Item identity/components");
         }
     }
+    public static final ItemIdentity BIRCH_LOG = new ItemIdentity("minecraft:birch_log", "default");
+    public static final ItemIdentity BIRCH_PLANKS = new ItemIdentity("minecraft:birch_planks", "default");
     public static final ItemIdentity OAK_LOG = new ItemIdentity("minecraft:oak_log", "default");
     public static final ItemIdentity WHEAT = new ItemIdentity("minecraft:wheat", "default");
     public static final ItemIdentity OAK_PLANKS = new ItemIdentity("minecraft:oak_planks", "default");
@@ -66,12 +68,12 @@ public final class ResourceDelivery {
     }
 
     public static boolean isDelivery(CapabilityId id) {
-        return CropDelivery.ID.equals(id) || OakLogDelivery.ID.equals(id) || RecipeProduction.is(id) || CraftingTablePlacement.is(id);
+        return CropDelivery.ID.equals(id) || LogAcquisition.is(id) || RecipeProduction.is(id) || CraftingTablePlacement.is(id);
     }
-    public static boolean resource(CapabilityId id) {return OakLogDelivery.ID.equals(id) || RecipeProduction.is(id) || CraftingTablePlacement.is(id);}
+    public static boolean resource(CapabilityId id) {return LogAcquisition.is(id) || RecipeProduction.is(id) || CraftingTablePlacement.is(id);}
     public static Optional<CapabilitySpec> spec(CapabilityId id) {
         return CraftingTablePlacement.is(id) ? Optional.of(CraftingTablePlacement.SPEC) : id.equals(CropDelivery.ID) ? Optional.of(CropDelivery.SPEC)
-                : id.equals(OakLogDelivery.ID) ? Optional.of(OakLogDelivery.SPEC)
+                : LogAcquisition.is(id) ? Optional.of(LogAcquisition.spec(id))
                 : RecipeProduction.is(id) ? Optional.of(RecipeProduction.of(id).spec()) : Optional.empty();
     }
     public static boolean completed(ValidatedRequest bound, UUID run, List<CropDelivery.CropReceipt> crops,
@@ -80,15 +82,15 @@ public final class ResourceDelivery {
         if (bound.request().capability().equals(CropDelivery.ID))
             return resources.isEmpty() && CropDelivery.completed(bound, run, crops);
         return crops.isEmpty() && (RecipeProduction.is(bound.request().capability())
-                ? (bound.request().capability().equals(CraftingTableProduction.ID) ? CraftingTableProduction.completed(bound,run,resources) : bound.request().capability().equals(WoodenAxeProduction.ID) ? WoodenAxeProduction.completed(bound,run,resources) : bound.request().capability().equals(StickProduction.ID) ? StickProduction.completed(bound,run,resources) : OakPlankProduction.completed(bound,run,resources)) : OakLogDelivery.completed(bound, run, resources));
+                ? (bound.request().capability().equals(CraftingTableProduction.ID) ? CraftingTableProduction.completed(bound,run,resources) : bound.request().capability().equals(WoodenAxeProduction.ID) ? WoodenAxeProduction.completed(bound,run,resources) : bound.request().capability().equals(StickProduction.ID) ? StickProduction.completed(bound,run,resources) : bound.request().capability().equals(BirchPlankProduction.ID) ? BirchPlankProduction.completed(bound,run,resources) : OakPlankProduction.completed(bound,run,resources)) : bound.request().capability().equals(BirchLogDelivery.ID) ? BirchLogDelivery.completed(bound,run,resources) : OakLogDelivery.completed(bound, run, resources));
     }
 
     public static boolean matches(ValidatedRequest bound, UUID run, Receipt r) {
         if(CraftingTablePlacement.is(bound.request().capability()))return CraftingTablePlacement.matches(bound,run,r);
         if(RecipeProduction.is(bound.request().capability()))return TransformationDelivery.matches(bound,run,r);
-        if(!bound.request().capability().equals(OakLogDelivery.ID) || r.transformation()!=null) return false;
+        if(!LogAcquisition.is(bound.request().capability()) || r.transformation()!=null || r.placement()!=null) return false;
         var a = bound.request().arguments();
-        return r.origin().equals(bound.context()) && r.runId().equals(run) && r.item().equals(OAK_LOG)
+        return r.origin().equals(bound.context()) && r.runId().equals(run) && r.item().equals(LogAcquisition.item(bound.request().capability()))
                 && a.get("actor") instanceof ActorValue actor && actor.value().equals(r.actor())
                 && a.get("source") instanceof AreaValue area && area.value().equals(r.source())
                 && a.get("destination") instanceof ContainerValue target && target.value().equals(r.destination());
@@ -98,7 +100,7 @@ public final class ResourceDelivery {
     public static long quantity(ValidatedRequest bound, UUID run, List<Receipt> receipts) {
         if(CraftingTablePlacement.is(bound.request().capability()))return CraftingTablePlacement.quantity(bound,run,receipts);
         if(RecipeProduction.is(bound.request().capability()))return TransformationDelivery.quantity(bound,run,receipts);
-        if (!bound.request().capability().equals(OakLogDelivery.ID) || receipts.size() > MAX_RECEIPTS)
+        if (!LogAcquisition.is(bound.request().capability()) || receipts.size() > MAX_RECEIPTS)
             throw new IllegalArgumentException("Unsupported resource evidence");
         Map<UUID, Receipt> seen = new HashMap<>();
         Map<UUID, long[]> batches = new HashMap<>();

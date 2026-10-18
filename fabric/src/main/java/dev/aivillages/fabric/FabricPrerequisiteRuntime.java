@@ -78,11 +78,11 @@ public final class FabricPrerequisiteRuntime {
     private MethodSelection method(Production production,long batches,long output,Need need) {
         if(ResourceComposition.make(need)) {
             if(observations==null || !ResourceComposition.registered(production))throw new IllegalArgumentException("Registered resource preparation");
-            if(production.capability().equals(OakLogDelivery.ID)&&need.acquisitionSource()==null)throw new IllegalArgumentException("Missing acquisition source");
+            if(LogAcquisition.is(production.capability())&&need.acquisitionSource()==null)throw new IllegalArgumentException("Missing acquisition source");
             var request=ResourceComposition.project(need,production.capability(),output);var seen=observations.apply(request);
             var bound=new ValidatedRequest(request,need.origin(),seen.reference());
             var selected=resolver.resolveForPrerequisite(bound,seen);
-            if(production.capability().equals(OakLogDelivery.ID)&&seen.counts().getOrDefault("oak_logs",0L)<output)
+            if(LogAcquisition.is(production.capability())&&seen.counts().getOrDefault(LogAcquisition.count(production.capability()),0L)<output)
                 selected=new CapabilityResolver.Decision(new Resolution(ResolutionStatus.BLOCKED,Reason.RESOURCE_MISSING,null,"insufficient oak source"),null,selected.constraints(),seen,selected.catalogRevision(),selected.candidates(),selected.queriedPages(),selected.candidateWork(),selected.complete(),selected.fallbackUsed(),null);
             return new MethodSelection(selected,seen.scannedCells());
         }

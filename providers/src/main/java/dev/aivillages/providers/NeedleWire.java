@@ -33,13 +33,15 @@ public final class NeedleWire {
     public static Prepared prepare(LanguageRequests.Input input) {
         LanguageReferenceClassifier.Classification classification =
                 LanguageReferenceClassifier.classify(input.text(), input.references());
-        boolean oak=classification.intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS;
+        boolean birch=classification.intent()==LanguageReferenceClassifier.Intent.GATHER_BIRCH_LOGS;
+        boolean birchPlank=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_BIRCH_PLANKS;
+        boolean oak=birch || classification.intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS;
         boolean stick=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS;
         boolean axe=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES;
         boolean table=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_CRAFTING_TABLES;
-        boolean plank=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick || axe || table;
+        boolean plank=birchPlank || classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick || axe || table;
         String sourceAlias=plank ? "stock" : oak ? "area" : "farm";
-        String resource=table ? "crafting tables" : axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
+        String resource=birch ? "birch logs" : birchPlank ? "birch planks" : table ? "crafting tables" : axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
         String prompt = input.text(), from = null, through = null, destination = null;
         if(axe || table) {
             // Disposable textual normalization only. Core independently grounds the original text.
@@ -53,7 +55,7 @@ public final class NeedleWire {
             quantity.appendTail(normalized);prompt=normalized.toString();
         }
 
-        if(plank)prompt=prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?available\\s+oak\\s+(?:logs?|planks?)\\b","from stock");
+        if(plank)prompt=prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?available\\s+(?:oak|birch)\\s+(?:logs?|planks?)\\b","from stock");
 
         if (classification.source().state() == ReferenceState.EXPLICIT_CONCRETE) {
             from = classification.source().first();
@@ -75,7 +77,7 @@ public final class NeedleWire {
         }
 
         if (classification.source().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:field|farm|oak\\s+logs?|log\\s+area|chest|container|barrel)\\b", "from "+sourceAlias);
+            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:field|farm|(?:oak|birch)\\s+logs?|log\\s+area|chest|container|barrel)\\b", "from "+sourceAlias);
         if (classification.destination().state() == ReferenceState.EXPLICIT_NEAREST)
             prompt = prompt.replaceFirst("(?i)\\b(?:to|into|in)\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)\\b", "to chest");
 
@@ -108,7 +110,7 @@ public final class NeedleWire {
             if (statedReference(classification.destination().state()))
                 harvestProperties.put("destination", ordered("type", "string", "enum", List.of("chest"),
                         "description", "Container to deliver "+resource+" into"));
-            tools.add(ordered("name", table ? "make_crafting_tables" : axe ? "make_wooden_axes" : stick ? "make_sticks" : plank ? "make_oak_planks" : oak ? "gather_oak_logs" : "harvest_wheat",
+            tools.add(ordered("name", birch ? "gather_birch_logs" : birchPlank ? "make_birch_planks" : table ? "make_crafting_tables" : axe ? "make_wooden_axes" : stick ? "make_sticks" : plank ? "make_oak_planks" : oak ? "gather_oak_logs" : "harvest_wheat",
                     "description", plank ? "Make new "+resource+" from available input stock and store them. Copy only stated arguments."
                             : "Acquire "+resource+" from a source area and deliver it to a container. Copy only stated arguments.",
                     "parameters", ordered("type", "object", "properties", harvestProperties,
@@ -190,6 +192,10 @@ public final class NeedleWire {
             return switch (tool) {
                 case "harvest_wheat" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.HARVEST_WHEAT
                         ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
+                case "gather_birch_logs" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_BIRCH_LOGS
+                        ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
+                case "make_birch_planks" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_BIRCH_PLANKS
+                        ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
                 case "gather_oak_logs" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS
                         ? decodeHarvest(arguments,confidence,prepared) : LanguageRequests.Result.invalid();
                 case "make_crafting_tables" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_CRAFTING_TABLES
@@ -235,7 +241,9 @@ public final class NeedleWire {
             if (!"selected".equals(citizen)) return LanguageRequests.Result.invalid();
             citizen = null;
         }
-        var extracted = new LanguageRequests.Extracted(prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_CRAFTING_TABLES
+        var extracted = new LanguageRequests.Extracted(prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_BIRCH_LOGS ? LanguageRequests.Action.GATHER_BIRCH_LOGS
+                : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_BIRCH_PLANKS ? LanguageRequests.Action.MAKE_BIRCH_PLANKS
+                : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_CRAFTING_TABLES
                 ? LanguageRequests.Action.MAKE_CRAFTING_TABLES : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES
                 ? LanguageRequests.Action.MAKE_WOODEN_AXES : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS
                 ? LanguageRequests.Action.MAKE_STICKS : prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS

@@ -174,8 +174,9 @@ public final class KernelSession implements AutoCloseable {
                         VersionedSkillRepository.Limits.defaults(), guard,
                         TrustedContext::equals, VersionedSkillRepository.FaultInjector.none());
                 var lookups = new CapabilityRetrievalIndex.LookupRegistry(
-                        Map.ofEntries(Map.entry("harvest wheat",CropDelivery.ID),Map.entry("deliver wheat",CropDelivery.ID),Map.entry("collect oak logs",OakLogDelivery.ID),Map.entry("deliver oak logs",OakLogDelivery.ID),Map.entry("make oak planks",OakPlankProduction.ID),Map.entry("produce oak planks",OakPlankProduction.ID),Map.entry("make sticks",StickProduction.ID),Map.entry("produce sticks",StickProduction.ID),Map.entry("make wooden axes",WoodenAxeProduction.ID),Map.entry("produce wooden axes",WoodenAxeProduction.ID),Map.entry("place crafting table",CraftingTablePlacement.ID),Map.entry("make crafting tables",CraftingTableProduction.ID),Map.entry("produce crafting tables",CraftingTableProduction.ID)),
+                        Map.ofEntries(Map.entry("collect birch logs",BirchLogDelivery.ID),Map.entry("deliver birch logs",BirchLogDelivery.ID),Map.entry("make birch planks",BirchPlankProduction.ID),Map.entry("produce birch planks",BirchPlankProduction.ID),Map.entry("harvest wheat",CropDelivery.ID),Map.entry("deliver wheat",CropDelivery.ID),Map.entry("collect oak logs",OakLogDelivery.ID),Map.entry("deliver oak logs",OakLogDelivery.ID),Map.entry("make oak planks",OakPlankProduction.ID),Map.entry("produce oak planks",OakPlankProduction.ID),Map.entry("make sticks",StickProduction.ID),Map.entry("produce sticks",StickProduction.ID),Map.entry("make wooden axes",WoodenAxeProduction.ID),Map.entry("produce wooden axes",WoodenAxeProduction.ID),Map.entry("place crafting table",CraftingTablePlacement.ID),Map.entry("make crafting tables",CraftingTableProduction.ID),Map.entry("produce crafting tables",CraftingTableProduction.ID)),
                         Map.of(CropDelivery.ID,java.util.Set.of("farming","wheat"),
+                                BirchLogDelivery.ID,java.util.Set.of("gathering","birch","logs"),BirchPlankProduction.ID,java.util.Set.of("crafting","birch","planks"),
                                 OakLogDelivery.ID,java.util.Set.of("gathering","oak","logs"),
                                 OakPlankProduction.ID,java.util.Set.of("crafting","oak","planks"),StickProduction.ID,java.util.Set.of("crafting","oak","sticks"),WoodenAxeProduction.ID,java.util.Set.of("crafting","wooden","axes"),CraftingTableProduction.ID,java.util.Set.of("crafting","oak","tables"),CraftingTablePlacement.ID,java.util.Set.of("placement","table")),capabilities);
                 retrieval = new CapabilityRetrievalIndex(world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH),
@@ -337,7 +338,7 @@ public final class KernelSession implements AutoCloseable {
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
         leasedGateway = new LeasedGateway(gateway, leases,
-                (request, run) -> request.request().capability().equals(OakLogDelivery.ID)
+                (request, run) -> LogAcquisition.is(request.request().capability())
                         ? LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run)
                         : LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
                 () -> server.overworld().getGameTime(), 1200, 200, 64, 512);
@@ -476,13 +477,13 @@ public final class KernelSession implements AutoCloseable {
                     public Budgets.ResearchLimits issue(CapabilityId capability,long now) {
                         var base=researchLimits(now);
                         return (RecipeProduction.is(capability) || CraftingTablePlacement.is(capability)) ? OakPlankProduction.researchLimits(now,base)
-                                : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.researchLimits(now,base) : base;
+                                : LogAcquisition.is(capability) ? OakLogDelivery.researchLimits(now,base) : base;
                     }
                 },new BootstrapController.ExecutionBudget() {
                     public Budgets.ExecutionLimits issue(long now) { return executionLimits(now); }
                     public Budgets.ExecutionLimits issue(CapabilityId capability,long now) {
                         return (RecipeProduction.is(capability) || CraftingTablePlacement.is(capability)) ? OakPlankProduction.executionLimits(now)
-                                : capability.equals(OakLogDelivery.ID) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
+                                : LogAcquisition.is(capability) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
                     }
                 },clock,citizens,jobs);
         controller.evidenceSink(loaded.retentionService()::offer);
@@ -573,7 +574,7 @@ public final class KernelSession implements AutoCloseable {
             }
             return new ObservationSnapshot(new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),known ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                     "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
-                    Map.of(RecipeProduction.of(request.capability()).inputCount(),available,!RecipeProduction.of(request.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "required_planks" : "required_logs",needed,RecipeProduction.of(request.capability()).missingCount(),Math.max(0,needed-available),
+                    Map.of(RecipeProduction.of(request.capability()).inputCount(),available,!LogAcquisition.log(RecipeProduction.of(request.capability()).input()) ? "required_planks" : "required_logs",needed,RecipeProduction.of(request.capability()).missingCount(),Math.max(0,needed-available),
                             "output_capacity",current.outputCapacity(),"recipe_supported",current.recipe()==null ? 0L : 1L,"unknown_cells",known ? 0L : 1L));
         }
         Cuboid area = ((AreaValue)request.arguments().get("source")).value();
@@ -585,10 +586,10 @@ public final class KernelSession implements AutoCloseable {
             for (long y = area.minY(); y <= area.maxY(); y++)
                 for (long z = area.minZ(); z <= area.maxZ(); z++) {
                     var cell=new SurvivalGateway.Cell(area.dimension(),(int)x,(int)y,(int)z);
-                    if(request.capability().equals(OakLogDelivery.ID)
+                    if(LogAcquisition.is(request.capability())
                             && !world.discoverable(actor,new BlockPos((int)x,(int)y,(int)z),Effect.HARVEST)) { scanned++;unknown++;continue; }
-                    var block=world.resourceBlock(cell,request.capability().equals(OakLogDelivery.ID)
-                            ? ResourceDelivery.OAK_LOG : ResourceDelivery.WHEAT);
+                    var block=world.resourceBlock(cell,LogAcquisition.is(request.capability())
+                            ? LogAcquisition.item(request.capability()) : ResourceDelivery.WHEAT);
                     scanned++;
                     if (block.status() == ObservationStatus.UNKNOWN) unknown++;
                     else if (block.eligible()) mature++;
@@ -600,7 +601,7 @@ public final class KernelSession implements AutoCloseable {
                 actor.dimension()), unknown > 0 ? ObservationStatus.UNKNOWN
                         : mature > 0 ? ObservationStatus.PRESENT : ObservationStatus.ABSENT,
                 identity, tick, scanned,
-                Map.of(request.capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat", mature, "unknown_cells", unknown));
+                Map.of(LogAcquisition.is(request.capability()) ? LogAcquisition.count(request.capability()) : "mature_wheat", mature, "unknown_cells", unknown));
     }
 
     private Budgets.ResearchLimits researchLimits(long now) {
@@ -778,6 +779,18 @@ public final class KernelSession implements AutoCloseable {
             int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
         return delivery(CropDelivery.ID,player,actorId,amount,x1,y1,z1,x2,y2,z2,cx,cy,cz);
     }
+    public BootstrapController.Submission gatherBirch(ServerPlayer player,UUID actorId,int amount,
+            int x1,int y1,int z1,int x2,int y2,int z2,int cx,int cy,int cz) {
+        return delivery(BirchLogDelivery.ID,player,actorId,amount,x1,y1,z1,x2,y2,z2,cx,cy,cz);
+    }
+    public BootstrapController.Submission makeBirchPlanks(ServerPlayer player,UUID actorId,int amount,
+            int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(BirchPlankProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
+    public BootstrapController.Submission composeBirchPlanks(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,Cuboid birchSource) {
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
+        if(amount<1 || amount>64)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        return composeRequest(new CapabilityRequest(BirchPlankProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),
+                "source",new ContainerValue(source),"destination",new ContainerValue(destination))),owner,player,birchSource);
+    }
     public BootstrapController.Submission gatherOak(ServerPlayer player, UUID actorId, int amount,
             int x1, int y1, int z1, int x2, int y2, int z2, int cx, int cy, int cz) {
         return delivery(OakLogDelivery.ID,player,actorId,amount,x1,y1,z1,x2,y2,z2,cx,cy,cz);
@@ -865,7 +878,7 @@ public final class KernelSession implements AutoCloseable {
         var actor=((ActorValue)request.arguments().get("actor")).value();var citizen=citizens.find(actor.citizenId());
         if(citizen==null||!controls(actor,citizen.owner()))throw new SecurityException("Current resource authority");
         var bound=new ValidatedRequest(request,citizen.owner(),new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
-        if(request.capability().equals(OakLogDelivery.ID)) {
+        if(LogAcquisition.is(request.capability())) {
             var area=((AreaValue)request.arguments().get("source")).value();
             for(long x=area.minX();x<=area.maxX();x++)for(long y=area.minY();y<=area.maxY();y++)for(long z=area.minZ();z<=area.maxZ();z++)
                 if(gatewayWorld().permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(area.dimension(),(int)x,(int)y,(int)z))==Reason.AUTHORITY_DENIED)throw new SecurityException("Explicit source denied");
@@ -969,13 +982,13 @@ public final class KernelSession implements AutoCloseable {
                 }
             }
             if(free.available()<needed) {
-                if(composition && request.capability().equals(CraftingTableProduction.ID))return composeRequest(request,owner,player,compositionOakEnvelope(actor));
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal((!RecipeProduction.of(request.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "Oak planks required=" : "Oak logs required=")+needed+" available="+free.available()+" missing="+(needed-free.available())));
+                if(composition && (request.capability().equals(CraftingTableProduction.ID) || request.capability().equals(BirchPlankProduction.ID)))return composeRequest(request,owner,player,compositionOakEnvelope(actor));
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal((request.capability().equals(BirchPlankProduction.ID) ? "Birch logs required=" : !LogAcquisition.log(RecipeProduction.of(request.capability()).input()) ? "Oak planks required=" : "Oak logs required=")+needed+" available="+free.available()+" missing="+(needed-free.available())));
                 return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.RESOURCE_MISSING);
             }
             if(current.outputCapacity()<amount.value())return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.TARGET_UNAVAILABLE);
         }
-        if(request.capability().equals(OakLogDelivery.ID)) {
+        if(LogAcquisition.is(request.capability())) {
             var area=((AreaValue)request.arguments().get("source")).value();
             if(sourceCells(area)>256) return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
             var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
@@ -1059,6 +1072,7 @@ public final class KernelSession implements AutoCloseable {
         if (citizens.snapshot().citizens().stream().noneMatch(c -> c.owner().equals(owner)))
             throw new SecurityException("This kernel catalog requires an enrolled citizen in your scope");
         var page = loaded.repository().page(CropDelivery.ID, "", 8);
+        var birch=loaded.repository().page(BirchLogDelivery.ID,"",8);var birchPlanks=loaded.repository().page(BirchPlankProduction.ID,"",8);
         var oak=loaded.repository().page(OakLogDelivery.ID,"",8);
         var planks=loaded.repository().page(OakPlankProduction.ID,"",8);
         var sticks=loaded.repository().page(StickProduction.ID,"",8);
@@ -1068,6 +1082,8 @@ public final class KernelSession implements AutoCloseable {
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
+                + " birchCatalog="+birch.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
+                + " birchPlankCatalog="+birchPlanks.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " oakCatalog="+oak.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " plankCatalog="+planks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " stickCatalog="+sticks.candidates().stream().map(c -> c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()

@@ -195,7 +195,7 @@ public final class JobLifecycleStore {
         return create(id,submission,request,caller,observation,allowance,dependencies,false);
     }
     public Change stageComposition(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
-        if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID) && !request.capability().equals(BirchPlankProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         return create(id,id,request,caller,observation,allowance,List.of(),true);
     }
     /** One table-only prerequisite publication; original Jobs owns every child and inherited budget. */

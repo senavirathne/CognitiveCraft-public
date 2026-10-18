@@ -242,7 +242,8 @@ public final class ResourceLeaseService {
         Lease row=find(ref.id()); Result error=reference(row,ref,caller,tick,true);
         if(error!=null) return error;
         OwnerFacts facts=facts(row.owner(),caller);
-        if(!bound.request().capability().equals(OakLogDelivery.ID) || !row.resource().oakBlocks()
+        if(!LogAcquisition.is(bound.request().capability()) || !row.resource().logBlocks()
+                || !row.resource().item().equals(LogAcquisition.item(bound.request().capability()).id())
                 || !((ActorValue)bound.request().arguments().get("actor")).value().equals(facts.worker())
                 || !run.runId().equals(facts.run())
                 || !((AreaValue)bound.request().arguments().get("source")).value().equals(row.resource().area()))
@@ -353,7 +354,7 @@ public final class ResourceLeaseService {
         return switch(a.kind()) {
             case SPACE,FACILITY -> true;
             case EQUIPMENT -> a.slot()==b.slot();
-            case STOCK -> a.item().equals(b.item()) && a.slot()==b.slot();
+            case STOCK -> a.slot()==b.slot() && (a.slot()==-2 || a.item().equals(b.item()));
         };
     }
     private boolean live(Lease l,long tick) {

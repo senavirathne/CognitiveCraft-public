@@ -205,10 +205,10 @@ public final class LeasedGateway implements GatewayPort {
         var operation=GatewayPrimitives.instance().operation(action.primitive).orElse(null);
         if(operation==GatewayPrimitives.Operation.HARVEST_WHEAT
                 || operation==GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT
-                || operation==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG) {
+                || operation.shared()==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG) {
             for(Ref ref:granted.leases()) {
                 Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
-                if((claim.resource().item().equals("minecraft:mature_wheat") || claim.resource().oakBlocks()) && claim.remaining()<1)
+                if((claim.resource().item().equals("minecraft:mature_wheat") || claim.resource().logBlocks()) && claim.remaining()<1)
                     return fail(action,Reason.RESOURCE_MISSING);
             }
         }
@@ -217,7 +217,7 @@ public final class LeasedGateway implements GatewayPort {
         ActionReceipt answer=delegate.poll(action.nativeHandle);
         action.accounted=ticks.getAsLong();
         action.current=map(answer,handle,answer.terminal(),answer.reason());
-        if(answer.terminal() && answer.reason()==null && (operation==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG
+        if(answer.terminal() && answer.reason()==null && (operation.shared()==GatewayPrimitives.Operation.WITHDRAW_OAK_LOG
                 || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_AXE_INPUTS
                 || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_ITEM)) {
             for(var receipt:answer.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.WITHDRAW) {
@@ -234,10 +234,10 @@ public final class LeasedGateway implements GatewayPort {
                 action.current=map(answer,handle,false,null);return action.current;
             }
         }
-        if(answer.terminal() && operation==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG && answer.committedEffects()>0) {
+        if(answer.terminal() && operation.shared()==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG && answer.committedEffects()>0) {
             for(Ref ref:granted.leases()) {
                 Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
-                if(claim.resource().oakBlocks()) {
+                if(claim.resource().logBlocks()) {
                     action.saved=answer; action.consuming=ref; action.oakConsumption=action.nativeHandle.id();
                     Result recorded=leases.consumedOakBlock(ref,run.request,run.correlation,action.oakConsumption,run.request.context());
                     if(recorded.code()==Code.PENDING) { action.current=map(answer,handle,false,null); return action.current; }
@@ -322,7 +322,7 @@ public final class LeasedGateway implements GatewayPort {
         if(RecipeProduction.is(request.request().capability()))
             return RecipeProduction.of(request.request().capability()).stock(world,((ContainerValue)request.request().arguments().get("source")).value());
         Cuboid source=ResourceDelivery.sourceArea(request.request());
-        return request.request().capability().equals(OakLogDelivery.ID) ? Resource.oakBlocks(world,source) : Resource.crops(world,source);
+        return LogAcquisition.is(request.request().capability()) ? LogAcquisition.blocks(world,request.request().capability(),source) : Resource.crops(world,source);
     }
     private static List<Demand> recipeDemands(UUID world,ValidatedRequest request) {
         var source=((ContainerValue)request.request().arguments().get("source")).value();

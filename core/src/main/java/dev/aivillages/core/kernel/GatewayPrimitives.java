@@ -80,7 +80,18 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         OBSERVE_TABLE_SITE("observe_table_site",Type.BOOL,Effect.OBSERVE,actor(),new Parameter("source",Type.CONTAINER,0,0),new Parameter("target",Type.FACILITY,0,0)),
         WITHDRAW_TABLE_ITEM("withdraw_table_item",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
         MOVE_TO_PLACEMENT("move_to_placement",Type.BOOL,Effect.MOVE,actor(),new Parameter("target",Type.FACILITY,0,0)),
-        PLACE_CRAFTING_TABLE("place_crafting_table",Type.INT,Effect.PLACE,actor(),new Parameter("target",Type.FACILITY,0,0));
+        PLACE_CRAFTING_TABLE("place_crafting_table",Type.INT,Effect.PLACE,actor(),new Parameter("target",Type.FACILITY,0,0)),
+        OBSERVE_BIRCH_SOURCE("observe_birch_source",Type.INT,Effect.OBSERVE,actor(),new Parameter("source",Type.AREA,0,0)),
+        OBSERVE_BIRCH_INVENTORY("observe_birch_inventory",Type.INT,Effect.OBSERVE,actor()),
+        OBSERVE_BIRCH_CONTAINER("observe_birch_container",Type.INT,Effect.OBSERVE,actor(),new Parameter("destination",Type.CONTAINER,0,0)),
+        APPROACH_BIRCH_LOG("approach_birch_log",Type.BOOL,Effect.MOVE,actor(),new Parameter("source",Type.AREA,0,0)),
+        HARVEST_NEXT_BIRCH_LOG("harvest_next_birch_log",Type.INT,Effect.HARVEST,actor(),new Parameter("source",Type.AREA,0,0)),
+        PICKUP_TRACKED_BIRCH_LOGS("pickup_tracked_birch_logs",Type.INT,Effect.PICKUP,actor()),
+        TRANSFER_BIRCH_LOGS("transfer_birch_logs",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,8)),
+        OBSERVE_BIRCH_PLANK_INPUTS("observe_birch_plank_inputs",Type.BOOL,Effect.OBSERVE,actor(),new Parameter("source",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
+        WITHDRAW_BIRCH_LOG("withdraw_birch_log",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
+        CRAFT_BIRCH_PLANKS("craft_birch_planks",Type.INT,Effect.CRAFT,actor()),
+        TRANSFER_BIRCH_PLANKS("transfer_birch_planks",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64));
 
         private final PrimitiveSignature signature;
         Operation(String name, Type result, Effect effect, Parameter... parameters) {
@@ -90,6 +101,25 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
             signature = new PrimitiveSignature(id, VERSION, sha256(canonical), args, result, Set.of(effect));
         }
         public PrimitiveSignature signature() { return signature; }
+        public boolean birchPlank() {return this==OBSERVE_BIRCH_PLANK_INPUTS || this==WITHDRAW_BIRCH_LOG || this==CRAFT_BIRCH_PLANKS || this==TRANSFER_BIRCH_PLANKS;}
+        public boolean birchLog() {return name().contains("BIRCH") && !birchPlank();}
+        /** Shared control flow only, after item-specific request/signature validation. */
+        public Operation shared() {
+            return switch(this) {
+                case OBSERVE_BIRCH_SOURCE -> OBSERVE_OAK_SOURCE;
+                case OBSERVE_BIRCH_INVENTORY -> OBSERVE_OAK_INVENTORY;
+                case OBSERVE_BIRCH_CONTAINER -> OBSERVE_OAK_CONTAINER;
+                case APPROACH_BIRCH_LOG -> APPROACH_OAK_LOG;
+                case HARVEST_NEXT_BIRCH_LOG -> HARVEST_NEXT_OAK_LOG;
+                case PICKUP_TRACKED_BIRCH_LOGS -> PICKUP_TRACKED_OAK_LOGS;
+                case TRANSFER_BIRCH_LOGS -> TRANSFER_OAK_LOGS;
+                case OBSERVE_BIRCH_PLANK_INPUTS -> OBSERVE_PLANK_INPUTS;
+                case WITHDRAW_BIRCH_LOG -> WITHDRAW_OAK_LOG;
+                case CRAFT_BIRCH_PLANKS -> CRAFT_OAK_PLANKS;
+                case TRANSFER_BIRCH_PLANKS -> TRANSFER_OAK_PLANKS;
+                default -> this;
+            };
+        }
         public boolean plank() {return this==OBSERVE_PLANK_INPUTS || this==MOVE_TO_INPUT
                 || this==WITHDRAW_OAK_LOG || this==CRAFT_OAK_PLANKS || this==TRANSFER_OAK_PLANKS;}
         public boolean stick() {return this==OBSERVE_STICK_INPUTS || this==WITHDRAW_OAK_PLANKS || this==CRAFT_STICKS || this==TRANSFER_STICKS;}

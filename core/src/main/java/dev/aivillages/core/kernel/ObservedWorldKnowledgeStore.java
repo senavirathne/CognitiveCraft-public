@@ -293,8 +293,8 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
     private static void validateFacts(ObservationTarget target, ObservationSnapshot observation) {
         var counts = observation.counts(); Cuboid a = target.area();
         int volume = Math.toIntExact(((long)a.maxX() - a.minX() + 1) * ((long)a.maxY() - a.minY() + 1) * ((long)a.maxZ() - a.minZ() + 1));
-        if (target.kind() == ObservationKind.SOURCE_CROPS || target.kind()==ObservationKind.SOURCE_OAK_LOGS) {
-            String resource=target.kind()==ObservationKind.SOURCE_OAK_LOGS ? "oak_logs" : "mature_wheat";
+        if (target.kind() == ObservationKind.SOURCE_CROPS || target.kind()==ObservationKind.SOURCE_OAK_LOGS || target.kind()==ObservationKind.SOURCE_BIRCH_LOGS) {
+            String resource=target.kind()==ObservationKind.SOURCE_BIRCH_LOGS ? "birch_logs" : target.kind()==ObservationKind.SOURCE_OAK_LOGS ? "oak_logs" : "mature_wheat";
             if (!counts.keySet().equals(Set.of(resource, "unknown_cells")) || observation.scannedCells() != volume
                     || counts.get(resource) > volume || counts.get("unknown_cells") > volume
                     || counts.get(resource) + counts.get("unknown_cells") > volume
@@ -302,9 +302,9 @@ public final class ObservedWorldKnowledgeStore implements AutoCloseable {
                     || observation.status() == ObservationStatus.PRESENT && counts.get(resource) == 0
                     || observation.status() == ObservationStatus.ABSENT && counts.get(resource) != 0)
                 throw new IllegalArgumentException("Crop evidence semantics");
-        } else if (target.kind()==ObservationKind.ACTOR_OAK_STOCK || target.kind()==ObservationKind.CONTAINER_OAK_STOCK) {
-            if(!counts.keySet().equals(Set.of("oak_logs")) || observation.scannedCells()!=1
-                    || observation.status()==ObservationStatus.ABSENT && counts.get("oak_logs")!=0)
+        } else if (target.kind()==ObservationKind.ACTOR_OAK_STOCK || target.kind()==ObservationKind.CONTAINER_OAK_STOCK || target.kind()==ObservationKind.ACTOR_BIRCH_STOCK || target.kind()==ObservationKind.CONTAINER_BIRCH_STOCK) {
+            if(!counts.keySet().equals(Set.of(target.kind()==ObservationKind.ACTOR_BIRCH_STOCK || target.kind()==ObservationKind.CONTAINER_BIRCH_STOCK ? "birch_logs" : "oak_logs")) || observation.scannedCells()!=1
+                    || observation.status()==ObservationStatus.ABSENT && counts.values().stream().anyMatch(n->n!=0))
                 throw new IllegalArgumentException("Oak stock semantics");
         } else if (!counts.keySet().equals(Set.of("wheat", "seeds")) || observation.scannedCells() != 1
                 || observation.status() == ObservationStatus.ABSENT && counts.values().stream().anyMatch(n -> n != 0))

@@ -319,8 +319,8 @@ public final class ResearchAdmissionController {
         }
         attempt.generate(Generation.Role.INITIAL, "Current source observation="
                 + route.observation().status()
-                + (RecipeProduction.is(bound.request().capability()) ? ", "+RecipeProduction.of(bound.request().capability()).inputCount()+"=" : bound.request().capability().equals(OakLogDelivery.ID) ? ", oak_logs=" : ", mature_wheat=")
-                + route.observation().counts().getOrDefault(RecipeProduction.is(bound.request().capability()) ? RecipeProduction.of(bound.request().capability()).inputCount() : bound.request().capability().equals(OakLogDelivery.ID) ? "oak_logs" : "mature_wheat",0L));
+                + (RecipeProduction.is(bound.request().capability()) ? ", "+RecipeProduction.of(bound.request().capability()).inputCount()+"=" : LogAcquisition.is(bound.request().capability()) ? ", "+LogAcquisition.count(bound.request().capability())+"=" : ", mature_wheat=")
+                + route.observation().counts().getOrDefault(RecipeProduction.is(bound.request().capability()) ? RecipeProduction.of(bound.request().capability()).inputCount() : LogAcquisition.is(bound.request().capability()) ? LogAcquisition.count(bound.request().capability()) : "mature_wheat",0L));
         return attempt;
     }
     public Attempt startRepair(ValidatedRequest bound, ArtifactRef parent, EvidenceRef defect,
@@ -449,8 +449,9 @@ public final class ResearchAdmissionController {
                     + "No producers, provisioning or dependencies. Table and chest coordinates are invocation data. "
                     : bound.request().capability().equals(CraftingTableProduction.ID) ? "Propose independent schema-1 crafting-table item production. Use observe_table_inputs once, batchSize=1, five cycle IDs: move_to_input, withdraw_table_planks, craft_crafting_table, move_to_destination, transfer_crafting_tables. Four actual oak planks produce one table item in inventory 2x2; no facility or producer dependency. All bindings are runtime parameters and result is amount. "
                     : bound.request().capability().equals(StickProduction.ID) ? PLANK_BRIEF.replace("oak-plank", "stick").replace("supplied logs", "supplied oak planks").replace("one oak log", "two oak planks").replace("four planks", "four sticks").replace("one-log", "two-plank").replace("plank transfer", "stick transfer")
+                    : bound.request().capability().equals(BirchPlankProduction.ID) ? PLANK_BRIEF.replace("oak","birch")
                     : RecipeProduction.is(bound.request().capability()) ? PLANK_BRIEF
-                    : bound.request().capability().equals(OakLogDelivery.ID) ? OAK_BRIEF : CROP_BRIEF) + context;
+                    : LogAcquisition.is(bound.request().capability()) ? (bound.request().capability().equals(BirchLogDelivery.ID) ? OAK_BRIEF.replace("oak","birch") : OAK_BRIEF) : CROP_BRIEF) + context;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > settings.maxContextBytes()) {
                 finish(ResearchStatus.BLOCKED, Reason.BUDGET_EXHAUSTED); return;
             }
@@ -793,10 +794,7 @@ public final class ResearchAdmissionController {
         }
     }
     private static List<PrimitiveSignature> primitiveBrief(CapabilityId id) {
-        var ops=CraftingTablePlacement.is(id) ? CraftingTablePlacement.operations() : RecipeProduction.is(id) ? RecipeProduction.operations(id) : id.equals(OakLogDelivery.ID) ? List.of(GatewayPrimitives.Operation.APPROACH_OAK_LOG,
-                GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG,GatewayPrimitives.Operation.OBSERVE_OAK_INVENTORY,
-                GatewayPrimitives.Operation.PICKUP_TRACKED_OAK_LOGS,GatewayPrimitives.Operation.MOVE_TO_DESTINATION,
-                GatewayPrimitives.Operation.TRANSFER_OAK_LOGS) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,
+        var ops=CraftingTablePlacement.is(id) ? CraftingTablePlacement.operations() : RecipeProduction.is(id) ? RecipeProduction.operations(id) : LogAcquisition.is(id) ? LogAcquisition.operations(id) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,
                 GatewayPrimitives.Operation.MOVE_TO_DESTINATION,GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT,
                 GatewayPrimitives.Operation.OBSERVE_INVENTORY,GatewayPrimitives.Operation.PICKUP_TRACKED_WHEAT,
                 GatewayPrimitives.Operation.TRANSFER_WHEAT);

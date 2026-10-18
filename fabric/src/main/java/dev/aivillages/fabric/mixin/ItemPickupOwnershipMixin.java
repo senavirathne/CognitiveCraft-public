@@ -18,7 +18,7 @@ public abstract class ItemPickupOwnershipMixin {
     @Inject(method="tick",at=@At("HEAD"))
     private void cognitivecraft$releaseInterruptedCustody(CallbackInfo ci) {
         ItemEntity item=(ItemEntity)(Object)this;
-        if(target!=null && target.equals(item.getUUID()) && item.getItem().is(Items.OAK_LOG)
+        if(target!=null && target.equals(item.getUUID()) && (item.getItem().is(Items.OAK_LOG) || item.getItem().is(Items.BIRCH_LOG))
                 && (!(item.getOwner() instanceof Villager actor) || !actor.isAlive() || actor.isRemoved()
                         || !AiVillages.gatewayControls(actor)))
             target=null;
