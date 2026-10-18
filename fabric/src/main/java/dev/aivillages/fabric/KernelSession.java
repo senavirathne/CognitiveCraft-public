@@ -61,7 +61,8 @@ public final class KernelSession implements AutoCloseable {
     private final BlueprintValidator.Registry blueprintRegistry;
     private final java.util.concurrent.atomic.AtomicInteger blueprintQueries=new java.util.concurrent.atomic.AtomicInteger();
     private final java.util.concurrent.atomic.AtomicBoolean blueprintClosing=new java.util.concurrent.atomic.AtomicBoolean();
-    private final Map<UUID,BlueprintStore.Inspection> blueprintStages=new HashMap<>();
+    private record PreparedBlueprint(BlueprintStore.Inspection inspection,Blueprint.View view) { }
+    private final Map<UUID,PreparedBlueprint> blueprintStages=new HashMap<>();
     private FabricBlueprintMaterials blueprintMaterials;
     private volatile UUID observationSource;
     private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
@@ -418,8 +419,8 @@ public final class KernelSession implements AutoCloseable {
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock,this::observePrerequisite);
         prerequisites.facilities(this::observeFacilityPreparation);
         blueprintMaterials=new FabricBlueprintMaterials(server,leases);
-        prerequisites.blueprints(job->blueprintMaterials.capture(Objects.requireNonNull(blueprintStages.get(job.id()),"Inactive blueprint binding"),
-                job.request().request(),job.origin(),Math.max(0,BlueprintMaterials.held(job,leases,false))));
+        prerequisites.blueprints(job->{var prepared=Objects.requireNonNull(blueprintStages.get(job.id()),"Inactive blueprint binding");
+            return blueprintMaterials.capture(prepared.inspection(),prepared.view(),job.request().request(),job.origin(),Math.max(0,BlueprintMaterials.held(job,leases,false)));});
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
                 (expected,next)->CompletableFuture.supplyAsync(()->{try{return loaded.plans().replace(expected,next);}catch(Exception failure){throw new java.util.concurrent.CompletionException(failure);}},worker),
@@ -778,6 +779,18 @@ public final class KernelSession implements AutoCloseable {
     }
     public record MaterialResult(UUID job,boolean accepted,BlueprintMaterials.Report report,Reason reason) { }
     public record MaterialStatus(Jobs.Job job,BlueprintMaterials.Report report,long allocated,boolean currentlyAllocated) { }
+    private CompletableFuture<PreparedBlueprint> prepareBlueprint(ServerPlayer player,CapabilityRequest request) {
+        if(!server.isSameThread())throw new IllegalStateException("Blueprint intake game thread");
+        ready();var viewer=caller(player);var ref=BlueprintMaterials.ref(request);
+        var quota=new PreparedBlueprint(new BlueprintStore.Inspection(BlueprintStore.Status.QUOTA,ref,null,Map.of(),List.of(),List.of(),null),null);
+        return blueprintWork(()->{
+            var inspection=loaded.blueprints().inspect(ref,viewer,blueprintRegistry,blueprintClosing::get);
+            Blueprint.View view=null;
+            if(inspection.compatible())try{view=BlueprintValidator.bind(inspection.body(),BlueprintMaterials.binding(request));}
+            catch(IllegalArgumentException|ArithmeticException invalid){/* Immutable invalid binding; observation reports REQUEST_INVALID. */}
+            return new PreparedBlueprint(inspection,view);
+        },quota);
+    }
     /** Explicit artifact/site binding. Preflight has no publication or inference path. */
     public CompletableFuture<MaterialResult> blueprintMaterials(ServerPlayer player,UUID actorId,Blueprint.Ref ref,int rotation,
             FacilityRef origin,Cuboid site,ContainerRef source,ContainerRef destination,Cuboid acquisition,boolean stage) {
@@ -788,11 +801,11 @@ public final class KernelSession implements AutoCloseable {
         args.put("origin",new FacilityValue(origin));args.put("rotation",new IntValue(rotation));args.put("site",new AreaValue(site));
         args.put("source",new ContainerValue(source));args.put("destination",new ContainerValue(destination));args.put("acquisition",new AreaValue(acquisition));args.put("amount",new IntValue(0));
         var request=new CapabilityRequest(BlueprintMaterials.ID,args);var result=new CompletableFuture<MaterialResult>();
-        inspectBlueprint(player,ref).whenComplete((inspection,failure)->server.execute(()->{
+        prepareBlueprint(player,request).whenComplete((prepared,failure)->server.execute(()->{
             try {
                 ready();if(failure!=null)throw new IllegalStateException("Blueprint inspection unavailable",failure);
                 if(!controls(actor,owner) || villager(actor)==null || villager(actor).level()!=player.level())throw new SecurityException("Current blueprint authority");
-                var report=blueprintMaterials.capture(inspection,request,owner,0);
+                var report=blueprintMaterials.capture(prepared.inspection(),prepared.view(),request,owner,0);
                 if(!BlueprintMaterials.valid(request))report=report.blocked(source.equals(destination)?"bounded-request-or-dimension":"missing-transfer-capability",
                         source.equals(destination)?Reason.REQUEST_INVALID:Reason.UNSUPPORTED_PRIMITIVE);
                 if(report.canStage() && report.shortage()>0)report=blueprintSupport(request,report,owner,allowance);
@@ -803,7 +816,7 @@ public final class KernelSession implements AutoCloseable {
                 var concrete=new HashMap<>(request.arguments());concrete.put("amount",new IntValue(report.required()));
                 var checked=new CapabilityRequest(BlueprintMaterials.ID,concrete);jobs.tick();
                 var change=jobs.stageBlueprint(id,checked,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()),allowance,1024,1024);
-                if(change.accepted())blueprintStages.put(id,inspection);
+                if(change.accepted())blueprintStages.put(id,prepared);
                 result.complete(new MaterialResult(id,change.accepted(),report,change.reason()));
             }catch(Throwable error){result.completeExceptionally(error);}
         }));return result;
@@ -833,10 +846,10 @@ public final class KernelSession implements AutoCloseable {
         ready();var owner=caller(player);var original=jobs.query(id,owner);
         if(!BlueprintMaterials.valid(original.request().request()))throw new IllegalArgumentException("Blueprint staging Job required");
         var result=new CompletableFuture<MaterialStatus>();
-        inspectBlueprint(player,BlueprintMaterials.ref(original.request().request())).whenComplete((inspection,failure)->server.execute(()->{
+        prepareBlueprint(player,original.request().request()).whenComplete((prepared,failure)->server.execute(()->{
             try {if(failure!=null)throw new IllegalStateException("Blueprint inspection unavailable",failure);var current=jobs.query(id,owner);
                 long held=BlueprintMaterials.held(current,leases,true);
-                var report=blueprintMaterials.capture(inspection,current.request().request(),owner,Math.max(0,held));
+                var report=blueprintMaterials.capture(prepared.inspection(),prepared.view(),current.request().request(),owner,Math.max(0,held));
                 result.complete(new MaterialStatus(current,report,Math.max(0,held),current.state()==Jobs.State.SUCCEEDED&&report.canStage()
                         &&report.required()==BlueprintMaterials.amount(current.request().request())&&held==report.required()));
             }catch(Throwable error){result.completeExceptionally(error);}

@@ -69,6 +69,11 @@ public final class BlueprintMaterials {
     }
     public static Report project(BlueprintStore.Inspection inspection,Blueprint.SiteBinding binding,Site site,Stock stock,
                                  ContainerRef source,ContainerRef destination) {
+        return project(inspection,inspection.compatible()&&inspection.body()!=null?BlueprintValidator.bind(inspection.body(),binding):null,site,stock,source,destination);
+    }
+    /** Prepared on the blueprint worker; projection performs no canonical serialization or identity hashing. */
+    public static Report project(BlueprintStore.Inspection inspection,Blueprint.View view,Site site,Stock stock,
+                                 ContainerRef source,ContainerRef destination) {
         var gaps=new TreeSet<String>();var blockers=new ArrayList<String>();Reason reason=null;
         Map<String,Long> correct=Map.of(),outstanding=Map.of(),eligible=Map.of(),shortfalls=Map.of();int partial=0;
         boolean unknown=site.status()==ObservationStatus.UNKNOWN || stock.status()==ObservationStatus.UNKNOWN;
@@ -90,7 +95,8 @@ public final class BlueprintMaterials {
         if(stock.reason()!=null || stock.status()==ObservationStatus.UNKNOWN){blockers.add("stock:"+(stock.reason()==null?"unknown":stock.reason()));reason=stock.reason()==null?Reason.STALE_OBSERVATION:stock.reason();}
         if(!source.equals(destination)){blockers.add("missing-transfer-capability");reason=Reason.UNSUPPORTED_PRIMITIVE;}
         if(inspection.compatible() && site.status()==ObservationStatus.PRESENT && site.reason()==null) {
-            try {var projection=BlueprintValidator.outstanding(BlueprintValidator.bind(inspection.body(),binding),inspection.materials(),site.cells());
+            try {if(view==null || !view.source().equals(inspection.ref()))throw new IllegalArgumentException("Accepted prepared view required");
+                var projection=BlueprintValidator.outstanding(view,inspection.materials(),site.cells());
                 correct=projection.correct();outstanding=projection.outstanding();partial=projection.partialStructures();
             }catch(IllegalArgumentException|ArithmeticException invalid){blockers.add("site-envelope-or-evidence");reason=Reason.REQUEST_INVALID;unknown=true;}
         }

@@ -21,13 +21,13 @@ final class FabricBlueprintMaterials {
     FabricBlueprintMaterials(MinecraftServer server,ResourceLeaseService leases) {
         this.server=server;this.leases=leases;observer=new FabricResourceLeaseWorld(server);
     }
-    BlueprintMaterials.Report capture(BlueprintStore.Inspection inspection,CapabilityRequest request,TrustedContext owner,long held) {
+    BlueprintMaterials.Report capture(BlueprintStore.Inspection inspection,Blueprint.View view,CapabilityRequest request,TrustedContext owner,long held) {
         thread();var a=request.arguments();var actor=((ActorValue)a.get("actor")).value();
         var source=((ContainerValue)a.get("source")).value();var destination=((ContainerValue)a.get("destination")).value();
         var stock=stock(destination,actor,owner);if(held>0 && stock.reason()==null)stock=new BlueprintMaterials.Stock(stock.status(),
                 Math.addExact(stock.free(),held),stock.identity(),stock.tick(),stock.inspected(),null);
-        var site=site(inspection,request,actor);
-        return BlueprintMaterials.project(inspection,BlueprintMaterials.binding(request),site,stock,source,destination);
+        var site=site(inspection,view,request,actor);
+        return BlueprintMaterials.project(inspection,view,site,stock,source,destination);
     }
     BlueprintMaterials.Stock stock(ContainerRef destination,ActorRef actor,TrustedContext owner) {
         var resource=ResourceLeases.Resource.plankStock(owner.scope().worldId(),destination);
@@ -48,7 +48,7 @@ final class FabricBlueprintMaterials {
         return new Prerequisites.Supply(item,seen.status(),free.usable()?free.available():0,seen.identity(),need.bound().observation(),tick,seen.inspected(),
                 seen.reason()!=null?seen.reason():free.reason());
     }
-    private BlueprintMaterials.Site site(BlueprintStore.Inspection inspection,CapabilityRequest request,ActorRef actor) {
+    private BlueprintMaterials.Site site(BlueprintStore.Inspection inspection,Blueprint.View view,CapabilityRequest request,ActorRef actor) {
         long tick=server.overworld().getGameTime();int work=0;
         try {
             var area=((AreaValue)request.arguments().get("site")).value();
@@ -65,7 +65,8 @@ final class FabricBlueprintMaterials {
                 observed.put(pos,state(level.getBlockState(pos)));
             }
             if(!inspection.compatible())return unavailable(tick,work,Reason.ARTIFACT_INCOMPATIBLE);
-            var view=BlueprintValidator.bind(inspection.body(),BlueprintMaterials.binding(request));var states=new ArrayList<Blueprint.State>();
+            if(view==null)return unavailable(tick,work,Reason.REQUEST_INVALID);
+            var states=new ArrayList<Blueprint.State>();
             for(var cell:view.geometry().cells()) {
                 int x=Math.addExact(view.binding().x(),cell.x()),y=Math.addExact(view.binding().y(),cell.y()),z=Math.addExact(view.binding().z(),cell.z());
                 if(x<area.minX() || x>area.maxX() || y<area.minY() || y>area.maxY() || z<area.minZ() || z>area.maxZ())return unavailable(tick,work,Reason.REQUEST_INVALID);
