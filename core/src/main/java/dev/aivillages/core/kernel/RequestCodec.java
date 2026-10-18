@@ -36,6 +36,11 @@ public final class RequestCodec {
                 Map<String, Object> value = map(entry.getValue(), path);
                 String type = Outcomes.string(value, "type", path);
                 Value parsed = switch (type) {
+                    case "BLUEPRINT" -> {
+                        Outcomes.exact(value,"type","schema","sha256");
+                        yield new BlueprintValue(new Blueprint.Ref(Math.toIntExact(Outcomes.number(value,"schema",path)),
+                                Outcomes.string(value,"sha256",path)));
+                    }
                     case "INT" -> {
                         Outcomes.exact(value, "type", "value");
                         yield new IntValue(Outcomes.number(value, "value", path));
@@ -74,7 +79,7 @@ public final class RequestCodec {
             return new Valid(new CapabilityRequest(id, typed));
         } catch (StrictJson.Invalid invalid) {
             return new Invalid(Outcomes.Reason.REQUEST_INVALID, invalid.path());
-        } catch (IllegalArgumentException invalid) {
+        } catch (IllegalArgumentException | ArithmeticException invalid) {
             return new Invalid(Outcomes.Reason.REQUEST_INVALID, "$");
         }
     }
@@ -85,7 +90,9 @@ public final class RequestCodec {
             Value value = entry.getValue();
             Map<String, Object> fields = new LinkedHashMap<>();
             fields.put("type", value.type().name());
-            if (value instanceof IntValue number) fields.put("value", number.value());
+            if (value instanceof BlueprintValue blueprint) {
+                fields.put("schema",(long)blueprint.value().schema());fields.put("sha256",blueprint.value().sha256());
+            } else if (value instanceof IntValue number) fields.put("value", number.value());
             else if (value instanceof BoolValue flag) fields.put("value", flag.value());
             else if (value instanceof ActorValue actor) {
                 fields.put("citizen", actor.value().citizenId().toString());

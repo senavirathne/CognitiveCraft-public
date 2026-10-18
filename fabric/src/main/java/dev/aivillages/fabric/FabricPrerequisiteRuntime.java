@@ -17,9 +17,22 @@ public final class FabricPrerequisiteRuntime {
     private final Clock clock;
     private final Limits limits=Limits.defaults();
     private final LeasePrerequisiteSupplies supplies;
+    private final ResourceLeaseService leases;
     private final PrerequisiteAdmission admission;
     private final java.util.function.Function<CapabilityRequest,ObservationSnapshot> observations;
     private final Map<UUID,Cuboid> staged=new LinkedHashMap<>();
+    private java.util.function.Function<Jobs.Job,BlueprintMaterials.Report> blueprintObservations;
+    private record BlueprintCheck(BlueprintMaterials.Report report,long tick,boolean childComplete) { }
+    private final Map<UUID,BlueprintCheck> blueprintChecks=new HashMap<>();
+    private final Map<UUID,Long> validatedBlueprintChecks=new HashMap<>();
+    public void blueprints(java.util.function.Function<Jobs.Job,BlueprintMaterials.Report> capture){thread();blueprintObservations=Objects.requireNonNull(capture);}
+    /** Read-only support preview before a staging demand exists. No Jobs, claims, inference or effects. */
+    public Proposal preview(ValidatedRequest request,Cuboid acquisition,Supplies stock,Access access,Budgets.Limits allowance) {
+        thread();var need=new Need(UUID.randomUUID(),new Jobs.Guard(0,0),request,BlueprintMaterials.PLANKS,
+                ((IntValue)request.request().arguments().get("amount")).value(),AllocationPolicy.MATERIAL_ONLY,acquisition);
+        return new DeterministicPrerequisiteResolver(limits,()->server.overworld().getGameTime()).resolve(List.of(need),
+                FabricPrerequisiteCatalog.capture(server,ResourceComposition.RECIPE_KEYS),stock,this::method,access,new Budgets.Ledger(allowance,clock));
+    }
     public record FacilityObservation(boolean existing,ObservationSnapshot axe,ObservationSnapshot placement,Reason reason) { }
     private java.util.function.Function<CapabilityRequest,FacilityObservation> facilities;
     private static final class FacilityStage {final Cuboid oak;boolean charged;FacilityStage(Cuboid oak){this.oak=oak;}}
@@ -32,7 +45,7 @@ public final class FabricPrerequisiteRuntime {
     public FabricPrerequisiteRuntime(MinecraftServer server,JobLifecycleStore jobs,ResourceLeaseService leases,
                                       CapabilityResolver.Engine resolver,Clock clock,java.util.function.Function<CapabilityRequest,ObservationSnapshot> observations) {
         this.observations=observations;this.server=Objects.requireNonNull(server);this.jobs=Objects.requireNonNull(jobs);
-        this.resolver=Objects.requireNonNull(resolver);this.clock=Objects.requireNonNull(clock);
+        this.resolver=Objects.requireNonNull(resolver);this.clock=Objects.requireNonNull(clock);this.leases=Objects.requireNonNull(leases);
         supplies=new LeasePrerequisiteSupplies(leases,()->server.overworld().getGameTime());
         admission=new PrerequisiteAdmission(jobs,limits,()->server.overworld().getGameTime());
     }
@@ -111,6 +124,7 @@ public final class FabricPrerequisiteRuntime {
             if(result.done)staged.remove(entry.getKey());return;
         }
         if(advanceFacility())return;
+        if(advanceBlueprint())return;
         for(var demand:jobs.snapshot().jobs()) {
             if(demand.preparation()==null || demand.state()!=Jobs.State.READY || jobs.materialReady(demand))continue;
             for(var intent:demand.preparation().materials()) {
@@ -133,6 +147,67 @@ public final class FabricPrerequisiteRuntime {
         }
     }
     private record JobLink(boolean done) { }
+    /** One bounded preparation/linkage pass; the existing dispatcher executes every producer. */
+    private boolean advanceBlueprint() {
+        if(blueprintObservations==null)return false;
+        blueprintChecks.keySet().removeIf(id->jobs.snapshot().jobs().stream().noneMatch(j->j.id().equals(id)&&!j.state().terminal()&&j.state()!=Jobs.State.INTERRUPTED));
+        validatedBlueprintChecks.keySet().retainAll(blueprintChecks.keySet());
+        for(var root:jobs.snapshot().jobs()) {
+            if(!BlueprintMaterials.valid(root.request().request()) || root.state().terminal() || root.state()==Jobs.State.INTERRUPTED || root.state()==Jobs.State.CANCELLING)continue;
+            long tick=server.overworld().getGameTime();
+            if(!jobs.mayControl(root.id(),root.generation(),root.origin()))return blueprintFailure(root,Reason.AUTHORITY_DENIED);
+            if(clock.millis()>root.allowance().deadlineEpochMillis())return blueprintFailure(root,Reason.BUDGET_EXHAUSTED);
+            if(!leases.ready())return false;
+            boolean childComplete=!root.children().isEmpty() && root.children().stream().allMatch(id->jobs.query(id,root.origin()).state()==Jobs.State.SUCCEEDED);
+            var checked=blueprintChecks.get(root.id());
+            if(checked==null || tick-checked.tick()>=10 || childComplete&&!checked.childComplete()) {
+                final BlueprintMaterials.Report report;
+                try{report=blueprintObservations.apply(root);}catch(RuntimeException unavailable){return blueprintFailure(root,Reason.STALE_OBSERVATION);}
+                if(!report.canStage() || report.required()!=BlueprintMaterials.amount(root.request().request()))return blueprintFailure(root,
+                        report.reason()==null?Reason.STALE_OBSERVATION:report.reason());
+                var charge=jobs.charge(root.id(),root.guard(),Map.of(Budgets.Kind.INSTRUCTIONS,1L,
+                        Budgets.Kind.OBSERVATIONS,(long)report.inspected()+128,Budgets.Kind.ELAPSED_TICKS,checked==null?1L:tick-checked.tick()),root.origin());
+                if(charge.accepted())blueprintChecks.put(root.id(),new BlueprintCheck(report,tick,childComplete));
+                else if(charge.reason()!=Reason.STORAGE_UNAVAILABLE)return blueprintFailure(root,charge.reason()==null?Reason.BUDGET_EXHAUSTED:charge.reason());
+                return true;
+            }
+            for(var prior:leases.snapshot().leases())if(prior.owner().equals(new ResourceLeases.Owner(root.id(),root.generation()))
+                    && (prior.state()!=ResourceLeases.State.ACTIVE || prior.expires()<=tick))return blueprintFailure(root,Reason.RESOURCE_MISSING);
+            if(!root.children().isEmpty() && !childComplete && Objects.equals(validatedBlueprintChecks.get(root.id()),checked.tick()))return false;
+            long held=BlueprintMaterials.held(root,leases,true),required=BlueprintMaterials.amount(root.request().request());
+            validatedBlueprintChecks.put(root.id(),checked.tick());
+            if(held<0)return blueprintFailure(root,Reason.RESOURCE_MISSING);
+            // Renew only existing finite claims; never reset the original Job deadline or allowance.
+            for(var lease:leases.snapshot().leases())if(lease.owner().equals(new ResourceLeases.Owner(root.id(),root.generation()))
+                    && lease.state()==ResourceLeases.State.ACTIVE && lease.expires()-tick<200) {
+                var refs=leases.snapshot().leases().stream().filter(l->l.group().equals(lease.group())&&l.state()==ResourceLeases.State.ACTIVE).map(ResourceLeases.Lease::ref).toList();
+                var result=leases.renew(refs,1200,root.origin());
+                if(result.code()!=ResourceLeases.Code.PENDING && !result.usable())return blueprintFailure(root,result.reason()==null?Reason.BUDGET_EXHAUSTED:result.reason());
+                return true;
+            }
+            if(held==required && (root.children().isEmpty() || childComplete)) {
+                var change=jobs.completeBlueprint(root.id(),root.guard(),checked.report(),leases,root.origin());
+                if(!change.accepted() && change.reason()!=Reason.STORAGE_UNAVAILABLE)return blueprintFailure(root,change.reason()==null?Reason.STALE_OBSERVATION:change.reason());
+                return true;
+            }
+            if(!root.children().isEmpty() && !childComplete)return false;
+            long claim=Math.min(required-held,Math.max(0,checked.report().available()-held));
+            if(claim>0) {
+                var result=leases.acquire(new ResourceLeases.Owner(root.id(),root.generation()),List.of(new ResourceLeases.Demand(BlueprintMaterials.resource(root),claim)),1200,root.origin());
+                if(result.code()!=ResourceLeases.Code.PENDING && !result.usable())return blueprintFailure(root,result.reason()==null?Reason.RESOURCE_MISSING:result.reason());
+                return true;
+            }
+            if(childComplete)return blueprintFailure(root,Reason.RESOURCE_MISSING);
+            var change=jobs.admitBlueprintChild(root.id(),root.guard(),required-held,root.request().observation(),root.origin());
+            if(change.accepted())stage(change.job().id(),((AreaValue)root.request().request().arguments().get("acquisition")).value());
+            else if(change.reason()!=Reason.STORAGE_UNAVAILABLE)return blueprintFailure(root,change.reason()==null?Reason.STALE_OBSERVATION:change.reason());
+            return true;
+        }
+        return false;
+    }
+    private boolean blueprintFailure(Jobs.Job root,Reason reason) {
+        if(jobs.ready())jobs.failBlueprint(root.id(),root.guard(),reason,root.origin());return true;
+    }
     /** Advances owner acknowledgements only. Every effect runs through the ordinary dispatcher. */
     private boolean advanceFacility(){
         if(facilityStages.isEmpty())return false;

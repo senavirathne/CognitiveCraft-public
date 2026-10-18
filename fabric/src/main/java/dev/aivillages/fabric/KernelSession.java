@@ -24,6 +24,9 @@ import java.util.EnumMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Objects;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.LinkedHashMap;
@@ -58,6 +61,9 @@ public final class KernelSession implements AutoCloseable {
     private final BlueprintValidator.Registry blueprintRegistry;
     private final java.util.concurrent.atomic.AtomicInteger blueprintQueries=new java.util.concurrent.atomic.AtomicInteger();
     private final java.util.concurrent.atomic.AtomicBoolean blueprintClosing=new java.util.concurrent.atomic.AtomicBoolean();
+    private record PreparedBlueprint(BlueprintStore.Inspection inspection,Blueprint.View view) { }
+    private final Map<UUID,PreparedBlueprint> blueprintStages=new HashMap<>();
+    private FabricBlueprintMaterials blueprintMaterials;
     private volatile UUID observationSource;
     private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
     private final LocalGenerationAdapter model;
@@ -412,12 +418,17 @@ public final class KernelSession implements AutoCloseable {
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock,this::observePrerequisite);
         prerequisites.facilities(this::observeFacilityPreparation);
+        blueprintMaterials=new FabricBlueprintMaterials(server,leases);
+        prerequisites.blueprints(job->{var prepared=Objects.requireNonNull(blueprintStages.get(job.id()),"Inactive blueprint binding");
+            return blueprintMaterials.capture(prepared.inspection(),prepared.view(),job.request().request(),job.origin(),Math.max(0,BlueprintMaterials.held(job,leases,false)));});
         planner=new GoalPlanner(jobs,broker,new FabricGoalPlanning(server,this::observe,resolver,this::controls,
                 loaded.retrieval().authoritativeFallback(),loaded.observations(),worker),PlanningBudget.defaults(),clock,loaded.initialPlans(),
                 (expected,next)->CompletableFuture.supplyAsync(()->{try{return loaded.plans().replace(expected,next);}catch(Exception failure){throw new java.util.concurrent.CompletionException(failure);}},worker),
                 (template,caller)->template.owner().equals(caller));
         jobs.retentionGuard(next -> {
             var roots = new java.util.HashSet<WorldRetentionManager.Key>();
+            for(var job:next.jobs())if(BlueprintMaterials.valid(job.request().request()))roots.add(Blueprint.retentionKey(BlueprintMaterials.ref(job.request().request())));
+            for(var job:jobs.snapshot().jobs())if(BlueprintMaterials.valid(job.request().request()))roots.add(Blueprint.retentionKey(BlueprintMaterials.ref(job.request().request())));
             for(var job:next.jobs())if(job.preparation()!=null && job.preparation().method()!=null)roots.add(WorldRetentionManager.artifact(job.preparation().method()));
             for (var job : next.jobs()) for (var attempt : job.attempts()) for (var executionRef : attempt.executions())
                 for (var ref : executionRef.pinned()) roots.add(WorldRetentionManager.artifact(ref));
@@ -425,6 +436,9 @@ public final class KernelSession implements AutoCloseable {
             return publishRoots("jobs", roots);
         });
         publishRoots("jobs", jobs.protectedRoots().artifacts().stream().map(WorldRetentionManager::artifact).collect(java.util.stream.Collectors.toSet()));
+        var blueprintRoots=new java.util.HashSet<WorldRetentionManager.Key>(desiredRoots.getOrDefault("jobs",Set.of()));
+        for(var job:jobs.snapshot().jobs())if(BlueprintMaterials.valid(job.request().request()))blueprintRoots.add(Blueprint.retentionKey(BlueprintMaterials.ref(job.request().request())));
+        publishRoots("jobs",blueprintRoots);
         controller = new BootstrapController(loaded.initialState(),
                 (expected, enrollment, runs) -> CompletableFuture.supplyAsync(() -> {
                     try {
@@ -763,6 +777,84 @@ public final class KernelSession implements AutoCloseable {
         try{return CompletableFuture.supplyAsync(operation,worker).whenComplete((ignored,failure)->blueprintQueries.decrementAndGet());}
         catch(RuntimeException unavailable){blueprintQueries.decrementAndGet();return CompletableFuture.failedFuture(unavailable);}
     }
+    public record MaterialResult(UUID job,boolean accepted,BlueprintMaterials.Report report,Reason reason) { }
+    public record MaterialStatus(Jobs.Job job,BlueprintMaterials.Report report,long allocated,boolean currentlyAllocated) { }
+    private CompletableFuture<PreparedBlueprint> prepareBlueprint(ServerPlayer player,CapabilityRequest request) {
+        if(!server.isSameThread())throw new IllegalStateException("Blueprint intake game thread");
+        ready();var viewer=caller(player);var ref=BlueprintMaterials.ref(request);
+        var quota=new PreparedBlueprint(new BlueprintStore.Inspection(BlueprintStore.Status.QUOTA,ref,null,Map.of(),List.of(),List.of(),null),null);
+        return blueprintWork(()->{
+            var inspection=loaded.blueprints().inspect(ref,viewer,blueprintRegistry,blueprintClosing::get);
+            Blueprint.View view=null;
+            if(inspection.compatible())try{view=BlueprintValidator.bind(inspection.body(),BlueprintMaterials.binding(request));}
+            catch(IllegalArgumentException|ArithmeticException invalid){/* Immutable invalid binding; observation reports REQUEST_INVALID. */}
+            return new PreparedBlueprint(inspection,view);
+        },quota);
+    }
+    /** Explicit artifact/site binding. Preflight has no publication or inference path. */
+    public CompletableFuture<MaterialResult> blueprintMaterials(ServerPlayer player,UUID actorId,Blueprint.Ref ref,int rotation,
+            FacilityRef origin,Cuboid site,ContainerRef source,ContainerRef destination,Cuboid acquisition,boolean stage) {
+        if(!server.isSameThread())throw new IllegalStateException("Blueprint intake game thread");
+        ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);var actor=citizen.actor();
+        var allowance=ResourceComposition.allowance(clock.millis());
+        var args=new HashMap<String,Value>();args.put("actor",new ActorValue(actor));args.put("blueprint",new BlueprintValue(ref));
+        args.put("origin",new FacilityValue(origin));args.put("rotation",new IntValue(rotation));args.put("site",new AreaValue(site));
+        args.put("source",new ContainerValue(source));args.put("destination",new ContainerValue(destination));args.put("acquisition",new AreaValue(acquisition));args.put("amount",new IntValue(0));
+        var request=new CapabilityRequest(BlueprintMaterials.ID,args);var result=new CompletableFuture<MaterialResult>();
+        prepareBlueprint(player,request).whenComplete((prepared,failure)->server.execute(()->{
+            try {
+                ready();if(failure!=null)throw new IllegalStateException("Blueprint inspection unavailable",failure);
+                if(!controls(actor,owner) || villager(actor)==null || villager(actor).level()!=player.level())throw new SecurityException("Current blueprint authority");
+                var report=blueprintMaterials.capture(prepared.inspection(),prepared.view(),request,owner,0);
+                if(!BlueprintMaterials.valid(request))report=report.blocked(source.equals(destination)?"bounded-request-or-dimension":"missing-transfer-capability",
+                        source.equals(destination)?Reason.REQUEST_INVALID:Reason.UNSUPPORTED_PRIMITIVE);
+                if(report.canStage() && report.shortage()>0)report=blueprintSupport(request,report,owner,allowance);
+                UUID id=stage?UUID.randomUUID():null;
+                if(!stage || !report.canStage()){result.complete(new MaterialResult(id,!stage&&report.canStage(),report,report.reason()));return;}
+                blueprintStages.keySet().removeIf(old->jobs.snapshot().jobs().stream().anyMatch(j->j.id().equals(old)&&(j.state().terminal()||j.state()==Jobs.State.INTERRUPTED)));
+                if(blueprintStages.size()>=32){result.complete(new MaterialResult(id,false,report,Reason.BUDGET_EXHAUSTED));return;}
+                var concrete=new HashMap<>(request.arguments());concrete.put("amount",new IntValue(report.required()));
+                var checked=new CapabilityRequest(BlueprintMaterials.ID,concrete);jobs.tick();
+                var change=jobs.stageBlueprint(id,checked,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()),allowance,1024,1024);
+                if(change.accepted())blueprintStages.put(id,prepared);
+                result.complete(new MaterialResult(id,change.accepted(),report,change.reason()));
+            }catch(Throwable error){result.completeExceptionally(error);}
+        }));return result;
+    }
+    private BlueprintMaterials.Report blueprintSupport(CapabilityRequest request,BlueprintMaterials.Report report,TrustedContext owner,Budgets.Limits allowance) {
+        var production=BlueprintMaterials.production(request,report.shortage());var actor=((ActorValue)request.arguments().get("actor")).value();
+        var observed=observePrerequisite(production);var bound=new ValidatedRequest(production,owner,observed.reference());
+        var preflight=gatewayWorld().recipePreflight(bound);
+        if(preflight.reason()!=null)return report.blocked("recipe-or-container:"+preflight.reason(),preflight.reason());
+        if(preflight.outputCapacity()<report.shortage())return report.blocked("staging-capacity",Reason.TARGET_UNAVAILABLE);
+        var free=leases.availableStock(ResourceLeases.Resource.oakStock(owner.scope().worldId(),((ContainerValue)request.arguments().get("destination")).value()),preflight.availableInputs(),owner);
+        if(!free.usable())return report.blocked("input-stock:"+free.reason(),free.reason()==null?Reason.STALE_OBSERVATION:free.reason());
+        long missing=OakPlankProduction.missingInputs(report.shortage(),free.available());
+        if(missing>8)return report.blocked("bounded-acquisition:8-logs;missing:"+missing,Reason.BUDGET_EXHAUSTED);
+        var acquisition=((AreaValue)request.arguments().get("acquisition")).value();
+        var preview=prerequisites.preview(bound,acquisition,blueprintMaterials::supply,n->controls(actor,owner),allowance);
+        if(!preview.accepted())return report.blocked("prerequisite:"+preview.status()+":"+preview.reason(),preview.reason()==null?Reason.KNOWLEDGE_REQUIRED:preview.reason());
+        if(preview.nodes().size()>2)return report.blocked("bounded-graph:2-producers",Reason.BUDGET_EXHAUSTED);
+        if(preview.nodes().stream().anyMatch(n->n.production().capability().equals(OakLogDelivery.ID)))
+            for(long x=acquisition.minX();x<=acquisition.maxX();x++)for(long y=acquisition.minY();y<=acquisition.maxY();y++)for(long z=acquisition.minZ();z<=acquisition.maxZ();z++) {
+                var denied=gatewayWorld().permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(acquisition.dimension(),(int)x,(int)y,(int)z));
+                if(denied!=null)return report.blocked("acquisition-authority:"+denied,denied);
+            }
+        return report;
+    }
+    public CompletableFuture<MaterialStatus> blueprintMaterialStatus(ServerPlayer player,UUID id) {
+        ready();var owner=caller(player);var original=jobs.query(id,owner);
+        if(!BlueprintMaterials.valid(original.request().request()))throw new IllegalArgumentException("Blueprint staging Job required");
+        var result=new CompletableFuture<MaterialStatus>();
+        prepareBlueprint(player,original.request().request()).whenComplete((prepared,failure)->server.execute(()->{
+            try {if(failure!=null)throw new IllegalStateException("Blueprint inspection unavailable",failure);var current=jobs.query(id,owner);
+                long held=BlueprintMaterials.held(current,leases,true);
+                var report=blueprintMaterials.capture(prepared.inspection(),prepared.view(),current.request().request(),owner,Math.max(0,held));
+                result.complete(new MaterialStatus(current,report,Math.max(0,held),current.state()==Jobs.State.SUCCEEDED&&report.canStage()
+                        &&report.required()==BlueprintMaterials.amount(current.request().request())&&held==report.required()));
+            }catch(Throwable error){result.completeExceptionally(error);}
+        }));return result;
+    }
     List<RetentionEvidenceStore.Aggregate> retentionFailures(TrustedContext caller) { ready(); return loaded.evidence().failures(caller); }
     public String scope(UUID principal) {
         ready();
@@ -1027,7 +1119,7 @@ public final class KernelSession implements AutoCloseable {
     public List<UUID> queuedJobIds(ServerPlayer player,boolean cancellable){
         ready();var origin=caller(player);
         return jobs.snapshot().jobs().stream().filter(j->j.origin().equals(origin)&&!controller.ownsSubmission(j.submissionId()))
-                .filter(j->!cancellable||!j.state().terminal()).map(Jobs.Job::id).toList();
+                .filter(j->!cancellable||!j.state().terminal()||j.state()==Jobs.State.SUCCEEDED&&BlueprintMaterials.valid(j.request().request())).map(Jobs.Job::id).toList();
     }
     public Jobs.Change cancelQueuedJob(ServerPlayer player,UUID id){ready();var owner=caller(player);jobs.tick();var job=jobs.query(id,owner);return jobs.cancel(id,job.guard(),owner);}
     public List<WorkerDispatcher.Decision> dispatchDiagnostics(ServerPlayer player,UUID id){ready();return dispatcher.diagnostics(id,caller(player));}

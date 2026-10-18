@@ -22,7 +22,8 @@ public final class JobLeaseOwners implements ResourceLeaseService.Owners {
             case READY,WAITING,ACTIVE -> null;
             case CANCELLING,CANCELLED -> Reason.CANCELLED;
             case INTERRUPTED -> Reason.INTERRUPTED;
-            case SUCCEEDED,FAILED -> Reason.ACTION_FAILED;
+            case SUCCEEDED -> BlueprintMaterials.valid(job.request().request()) ? null : Reason.ACTION_FAILED;
+            case FAILED -> Reason.ACTION_FAILED;
         };
         if(clock.millis()>job.allowance().deadlineEpochMillis())reason=Reason.BUDGET_EXHAUSTED;
         return new OwnerFacts(job.origin(),actor,run,reason==null,reason);

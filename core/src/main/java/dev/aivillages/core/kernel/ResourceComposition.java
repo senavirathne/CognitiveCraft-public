@@ -8,7 +8,8 @@ public final class ResourceComposition {
     private ResourceComposition() { }
     public static final List<String> RECIPE_KEYS=List.of(BirchPlankProduction.RECIPE,OakPlankProduction.RECIPE,StickProduction.RECIPE,WoodenAxeProduction.RECIPE,CraftingTableProduction.RECIPE);
     public static boolean make(Prerequisites.Need need) {
-        return (need.bound().request().capability().equals(BirchPlankProduction.ID) && need.item().equals(ResourceDelivery.BIRCH_PLANKS.id())
+        return (need.bound().request().capability().equals(OakPlankProduction.ID) && need.item().equals(ResourceDelivery.OAK_PLANKS.id())
+                || need.bound().request().capability().equals(BirchPlankProduction.ID) && need.item().equals(ResourceDelivery.BIRCH_PLANKS.id())
                 || need.bound().request().capability().equals(WoodenAxeProduction.ID) && need.item().equals(ResourceDelivery.WOODEN_AXE.id())
                 || need.bound().request().capability().equals(CraftingTableProduction.ID) && need.item().equals(ResourceDelivery.CRAFTING_TABLE.id()))
                 && need.allocation()==Prerequisites.AllocationPolicy.MATERIAL_ONLY;

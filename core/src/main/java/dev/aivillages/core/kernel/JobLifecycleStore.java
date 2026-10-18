@@ -195,8 +195,56 @@ public final class JobLifecycleStore {
         return create(id,submission,request,caller,observation,allowance,dependencies,false);
     }
     public Change stageComposition(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
-        if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID) && !request.capability().equals(BirchPlankProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID) && !request.capability().equals(BirchPlankProduction.ID) && !request.capability().equals(OakPlankProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         return create(id,id,request,caller,observation,allowance,List.of(),true);
+    }
+    /** Owner-only supply demand. It never becomes an executable method. */
+    public Change stageBlueprint(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
+        return stageBlueprint(id,request,caller,observation,allowance,0,0);
+    }
+    public Change stageBlueprint(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance,int instructions,int observations) {
+        if(!BlueprintMaterials.valid(request))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        if(instructions<0 || instructions>1024 || observations<0 || observations>1024)return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        return create(id,id,request,caller,observation,allowance,List.of(),true,instructions,observations);
+    }
+    public Change admitBlueprintChild(UUID id,Guard expected,long shortage,ObservationRef observation,TrustedContext caller) {
+        thread();var work=new Work();if(!ready())return reject(unavailableReason(),work);
+        var root=controlled(id,caller);
+        if(root==null || !policy.controls(root.responsible(),root.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!root.guard().equals(expected) || !BlueprintMaterials.valid(root.request().request()) || !root.children().isEmpty()
+                || root.state()!=State.WAITING || root.preparation()==null || root.preparation().method()!=null
+                || shortage<1 || shortage>BlueprintMaterials.amount(root.request().request()))return reject(Reason.STALE_OBSERVATION,work);
+        try {
+            var request=BlueprintMaterials.production(root.request().request(),shortage);
+            var checked=RequestValidator.validate(request,caller,observation,capabilities,environment);
+            if(checked instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
+            var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+            for(var kind:Budgets.Kind.values())maxima.put(kind,Math.max(0,available(id,kind,rows())));
+            for(var kind:List.of(Budgets.Kind.REPAIRS,Budgets.Kind.INPUT_BYTES,Budgets.Kind.OUTPUT_BYTES,Budgets.Kind.CANDIDATES,Budgets.Kind.TRIALS))maxima.put(kind,0L);
+            UUID childId=UUID.nameUUIDFromBytes(("blueprint-materials:1:"+id).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            var child=fresh(childId,childId,((RequestValidator.Accepted)checked).value(),id,new Budgets.Limits(maxima,root.allowance().deadlineEpochMillis()),List.of());
+            var ce=new Edit(child);ce.preparation=new Preparation(null,List.of());ce.state=State.WAITING;ce.reason=Reason.RESOURCE_MISSING;
+            child=ce.finish(EventKind.DEPENDENCY,settings.events());var rows=rows();rows.put(childId,child);
+            var re=new Edit(root);re.children=List.of(childId);re.dependencies=List.of(childId);re.reason=null;
+            rows.put(id,re.finish(EventKind.DEPENDENCY,settings.events()));checkCapacity(rows);checkGraph(id,rows,work);
+            return publish(rows,state.allocations(),child,null,work.edges);
+        }catch(Limited limited){return reject(limited.reason,work);}
+        catch(IllegalArgumentException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
+    /** Current leases are the allocation owner. A past producer receipt is deliberately insufficient. */
+    public Change completeBlueprint(UUID id,Guard expected,BlueprintMaterials.Report report,ResourceLeaseService leases,TrustedContext caller) {
+        thread();var work=new Work();if(!ready())return reject(unavailableReason(),work);var root=controlled(id,caller);
+        if(root==null || !policy.controls(root.responsible(),root.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!root.guard().equals(expected) || !BlueprintMaterials.valid(root.request().request())
+                || root.state()!=State.READY && root.state()!=State.WAITING || !dependenciesSucceeded(root,rows(),work)
+                || !report.canStage() || !report.ref().equals(BlueprintMaterials.ref(root.request().request()))
+                || report.required()!=BlueprintMaterials.amount(root.request().request())
+                || report.tick()>leases.currentTick() || leases.currentTick()-report.tick()>10
+                || clock.millis()>root.allowance().deadlineEpochMillis())return reject(Reason.STALE_OBSERVATION,work);
+        long held=BlueprintMaterials.held(root,leases,true);
+        if(held!=report.required())return reject(Reason.RESOURCE_MISSING,work);
+        var edit=new Edit(root);edit.state=State.SUCCEEDED;edit.reason=null;var rows=rows();rows.put(id,edit.finish(EventKind.ALLOCATED,settings.events()));
+        return publish(rows,state.allocations(),rows.get(id),null,work.edges);
     }
     /** One table-only prerequisite publication; original Jobs owns every child and inherited budget. */
     public Change admitFacilityChild(UUID parent,Guard expected,boolean makeItem,ObservationRef observation,ArtifactRef method,TrustedContext caller) {
@@ -231,6 +279,10 @@ public final class JobLifecycleStore {
     }
     private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
                           Budgets.Limits allowance,List<UUID> dependencies,boolean staged) {
+        return create(id,submission,request,caller,observation,allowance,dependencies,staged,0,0);
+    }
+    private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
+                          Budgets.Limits allowance,List<UUID> dependencies,boolean staged,int initialInstructions,int initialObservations) {
         thread(); var work = new Work();
         if (!sameWorld(caller)) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
@@ -245,6 +297,11 @@ public final class JobLifecycleStore {
                 return reject(Reason.BUDGET_EXHAUSTED, work);
             Job job = fresh(id, submission, ((RequestValidator.Accepted) validation).value(),
                     null, allowance, dependencies);
+            if(initialInstructions>0 || initialObservations>0) {
+                if(initialInstructions>allowance.maximum(Budgets.Kind.INSTRUCTIONS) || initialObservations>allowance.maximum(Budgets.Kind.OBSERVATIONS))return reject(Reason.BUDGET_EXHAUSTED,work);
+                var billed=new Edit(job);billed.usage=Jobs.usage(Map.of(Budgets.Kind.INSTRUCTIONS,(long)initialInstructions,Budgets.Kind.OBSERVATIONS,(long)initialObservations));
+                job=billed.finish(EventKind.OBSERVED,settings.events());
+            }
             var rows = rows(); rows.put(id, job);
             checkCapacity(rows);
             checkGraph(job.id(), rows, work);
@@ -810,6 +867,12 @@ public final class JobLifecycleStore {
     public Change cancel(UUID id, Guard guard, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
+        if(job.state()==State.SUCCEEDED && BlueprintMaterials.valid(job.request().request())) {
+            Change denied=guard(job,guard,work);if(denied!=null)return denied;
+            var edit=new Edit(job);edit.state=State.CANCELLED;edit.reason=Reason.CANCELLED;
+            var rows=rows();rows.put(id,edit.finish(EventKind.CANCEL_REQUESTED,settings.events()));
+            return publish(rows,state.allocations(),rows.get(id),null,0);
+        }
         if (job.state().terminal() || job.state() == State.CANCELLING) return duplicate(job, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
         try {
@@ -818,6 +881,15 @@ public final class JobLifecycleStore {
             return publish(rows, state.allocations(), rows.get(id), null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
         catch (ArithmeticException overflow) { return reject(Reason.BUDGET_EXHAUSTED, work); }
+    }
+    /** Fail-closed preparation invalidation uses the same child cancellation fences as ordinary Jobs. */
+    public Change failBlueprint(UUID id,Guard guard,Reason reason,TrustedContext caller) {
+        thread();var work=new Work();var root=controlled(id,caller);
+        if(root==null)return reject(Reason.AUTHORITY_DENIED,work);
+        Change denied=guard(root,guard,work);if(denied!=null)return denied;
+        if(!BlueprintMaterials.valid(root.request().request()) || root.state().terminal())return reject(Reason.REQUEST_INVALID,work);
+        var rows=rows();cascade(rows,id,State.FAILED,work,new HashSet<>());var edit=new Edit(rows.get(id));edit.reason=reason;
+        rows.put(id,edit.finish(EventKind.TRANSITIONED,settings.events()));return publish(rows,state.allocations(),rows.get(id),null,work.edges);
     }
     /** Allocate real deposited output; neither physical stock nor a resource lease is created. */
     public Change allocate(Allocation allocation, Guard demandGuard, TrustedContext caller) {
@@ -1227,12 +1299,15 @@ public final class JobLifecycleStore {
                     || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
                 throw new IllegalArgumentException("Configured job bounds");
             boolean goal=job.request().request().capability().equals(PlanningGoals.ID);
-            if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal)
+            boolean staging=job.request().request().capability().equals(BlueprintMaterials.ID);
+            if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal && !staging)
                     || goal && (!PlanningGoals.valid(job.request().request()) || !job.attempts().isEmpty())
+                    || staging && (!BlueprintMaterials.valid(job.request().request()) || !job.attempts().isEmpty()
+                            || job.preparation()==null || job.preparation().method()!=null)
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
-                    || quantity.value() < 1 || quantity.value() > 64
+                    || quantity.value() < (staging?0:1) || quantity.value() > 64
                     || !(job.request().request().arguments().get("actor") instanceof ActorValue)
-                    || (RecipeProduction.is(job.request().request().capability()) || CraftingTablePlacement.is(job.request().request().capability())
+                    || (staging || RecipeProduction.is(job.request().request().capability()) || CraftingTablePlacement.is(job.request().request().capability())
                         ? !(job.request().request().arguments().get("source") instanceof ContainerValue)
                         : !(job.request().request().arguments().get("source") instanceof AreaValue))
                     || (CraftingTablePlacement.is(job.request().request().capability()) ? !CraftingTablePlacement.valid(job.request().request()) : !(job.request().request().arguments().get("destination") instanceof ContainerValue)))
@@ -1254,6 +1329,14 @@ public final class JobLifecycleStore {
             for (UUID child : job.children())
                 if (!job.dependencies().contains(child) || !job.id().equals(rows.get(child).parent())
                         || !job.origin().equals(rows.get(child).origin())) throw new IllegalArgumentException("Child linkage");
+            if(staging) {
+                if(job.children().size()>1 || !job.dependencies().equals(job.children()))throw new IllegalArgumentException("Bounded staging graph");
+                for(UUID childId:job.children()) {
+                    var child=rows.get(childId);long shortage=((IntValue)child.request().request().arguments().get("amount")).value();
+                    if(shortage<1 || shortage>quantity.value() || !child.request().request().equals(BlueprintMaterials.production(job.request().request(),shortage)))
+                        throw new IllegalArgumentException("Exact staging deficit child");
+                }
+            }
             if (job.parent() != null && (!rows.get(job.parent()).children().contains(job.id())
                     || !rows.get(job.parent()).origin().equals(job.origin()))) throw new IllegalArgumentException("Parent linkage");
             for (Attempt attempt : job.attempts()) {
@@ -1293,7 +1376,9 @@ public final class JobLifecycleStore {
                 throw new IllegalArgumentException("Job state evidence");
             long allocated = snapshot.allocations().stream().filter(a -> a.demand().equals(job.id()) && !a.material())
                     .mapToLong(Allocation::quantity).reduce(0,Math::addExact);
-            if (job.state() == State.SUCCEEDED && (goal
+            if (job.state() == State.SUCCEEDED && (staging
+                    ? !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
+                    : goal
                     ? !PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())
                             || !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
                     : Math.addExact(job.fulfilled(),ResourceDelivery.resource(job.request().request().capability())
