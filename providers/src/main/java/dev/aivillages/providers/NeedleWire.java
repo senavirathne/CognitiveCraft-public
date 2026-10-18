@@ -40,7 +40,7 @@ public final class NeedleWire {
         boolean axe=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES;
         boolean table=classification.intent()==LanguageReferenceClassifier.Intent.MAKE_CRAFTING_TABLES;
         boolean plank=birchPlank || classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick || axe || table;
-        String sourceAlias=plank ? "stock" : oak ? "area" : "farm";
+        String sourceAlias=sourceAlias(classification.intent());
         String resource=birch ? "birch logs" : birchPlank ? "birch planks" : table ? "crafting tables" : axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
         String prompt = input.text(), from = null, through = null, destination = null;
         if(axe || table) {
@@ -161,6 +161,14 @@ public final class NeedleWire {
 
     public static String tools(LanguageRequests.Input input) { return prepare(input).tools(); }
 
+    private static String sourceAlias(LanguageReferenceClassifier.Intent intent) {
+        return switch (intent) {
+            case MAKE_CRAFTING_TABLES, MAKE_OAK_PLANKS, MAKE_BIRCH_PLANKS, MAKE_STICKS, MAKE_WOODEN_AXES -> "stock";
+            case GATHER_OAK_LOGS, GATHER_BIRCH_LOGS -> "area";
+            default -> "farm";
+        };
+    }
+
     public static LanguageRequests.Result decode(byte[] bytes, Prepared prepared) {
         if (bytes.length > LanguageRequests.MAX_OUTPUT_BYTES) return LanguageRequests.Result.invalid();
         try {
@@ -232,8 +240,7 @@ public final class NeedleWire {
             if ("selected".equals(citizen) && prepared.explicitCitizenId() != null)
                 citizen = prepared.explicitCitizenId();
         }
-        if (required.contains("source") && !((prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_CRAFTING_TABLES || prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_STICKS || prepared.classification().intent()==LanguageReferenceClassifier.Intent.MAKE_WOODEN_AXES) ? "stock"
-                : prepared.classification().intent()==LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS ? "area" : "farm").equals(string(arguments, "source")))
+        if (required.contains("source") && !sourceAlias(prepared.classification().intent()).equals(string(arguments, "source")))
             return LanguageRequests.Result.invalid();
         if (required.contains("destination") && !"chest".equals(string(arguments, "destination")))
             return LanguageRequests.Result.invalid();
