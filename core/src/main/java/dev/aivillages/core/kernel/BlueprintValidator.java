@@ -228,6 +228,44 @@ public final class BlueprintValidator {
         }
         return Map.copyOf(bill);
     }
+    /** Dated observations only. Geometry and item-placement accounting remain owned here. */
+    public record MaterialProjection(Map<String,Long> correct,Map<String,Long> outstanding,int partialStructures) {
+        public MaterialProjection {correct=Map.copyOf(correct);outstanding=Map.copyOf(outstanding);}
+    }
+    public static MaterialProjection outstanding(View view,Map<String,Long> fullBill,List<State> actual) {
+        Body body=view.geometry();
+        if(actual==null || actual.size()!=body.cells().size())throw new IllegalArgumentException("Complete ordered site observations required");
+        var positions=new HashMap<String,Integer>();
+        for(int i=0;i<body.cells().size();i++){var c=body.cells().get(i);positions.put(c.x()+":"+c.y()+":"+c.z(),i);}
+        var correct=new TreeMap<String,Long>();int partial=0;
+        for(int i=0;i<body.cells().size();i++) {
+            var cell=body.cells().get(i);var expected=body.palette().get(cell.palette());var seen=actual.get(i);
+            if(expected.block().equals("minecraft:oak_door")) {
+                if(!"lower".equals(expected.properties().get("half")))continue;
+                Integer upper=positions.get(cell.x()+":"+(cell.y()+1)+":"+cell.z());
+                if(upper==null)throw new IllegalArgumentException("Accepted door pair required");
+                boolean lowerMatches=placementMatches(expected,seen);
+                boolean upperMatches=placementMatches(body.palette().get(body.cells().get(upper).palette()),actual.get(upper));
+                if(lowerMatches && upperMatches)correct.merge("minecraft:oak_door",1L,Math::addExact);
+                else if(lowerMatches || upperMatches)partial++;
+            }else if(placementMatches(expected,seen))correct.merge(expected.block(),
+                    expected.block().equals("minecraft:oak_slab") && "double".equals(expected.properties().get("type"))?2L:1L,Math::addExact);
+        }
+        var remaining=new TreeMap<String,Long>();
+        for(var e:fullBill.entrySet()) {
+            long reduced=correct.getOrDefault(e.getKey(),0L);
+            if(reduced>e.getValue())throw new IllegalArgumentException("Material projection exceeds accepted bill");
+            remaining.put(e.getKey(),Math.subtractExact(e.getValue(),reduced));
+        }
+        return new MaterialProjection(correct,remaining,partial);
+    }
+    private static boolean placementMatches(State expected,State actual) {
+        if(!expected.block().equals(actual.block()))return false;
+        if(!expected.block().equals("minecraft:oak_door"))return expected.equals(actual);
+        // Open/powered are transient world state, not a second material demand for a complete door.
+        var a=new TreeMap<>(expected.properties());var b=new TreeMap<>(actual.properties());
+        for(String key:List.of("open","powered")){a.remove(key);b.remove(key);}return a.equals(b);
+    }
     public static View bind(Body body,SiteBinding binding) {
         if(!body.ref().equals(binding.source()))throw new IllegalArgumentException("Binding source");
         return new View(body.ref(),rotate(body,binding.quarterTurns()),binding);

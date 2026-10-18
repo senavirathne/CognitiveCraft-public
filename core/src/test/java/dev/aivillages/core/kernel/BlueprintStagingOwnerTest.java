@@ -1,0 +1,44 @@
+package dev.aivillages.core.kernel;
+
+import java.util.*;
+import java.util.concurrent.*;
+import org.junit.jupiter.api.Test;
+import static dev.aivillages.core.kernel.Contracts.*;
+import static dev.aivillages.core.kernel.Outcomes.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+final class BlueprintStagingOwnerTest {
+    static final class Scene {
+        final UUID world=UUID.randomUUID();final TrustedContext owner=JobLifecycleStoreTest.owner(world),foreign=JobLifecycleStoreTest.owner(world);
+        final JobLifecycleStoreTest.TestClock clock=new JobLifecycleStoreTest.TestClock();
+        final JobLifecycleStoreTest.Memory disk=new JobLifecycleStoreTest.Memory(world);
+        final JobLifecycleStore jobs=new JobLifecycleStore(disk.state,disk,JobLifecycleStore.privateJobs((a,c)->c.equals(owner)),c->{},PlanningGoals.catalog(),JobLifecycleStoreTest.environment(),clock,Jobs.Settings.defaults(),false);
+        final BlueprintStore.Inspection blueprint=BlueprintMaterialsTest.inspection(BlueprintMaterialsTest.planks(5));
+        ResourceLeases.Snapshot leaseDisk=ResourceLeases.Snapshot.empty(world);
+        long stock=5,tick=100;String identity="actual-box";int observations;
+        final ResourceLeaseService leases=leaseStore(leaseDisk);
+        Scene(){jobs.tick();leases.tick();}
+        ResourceLeaseService leaseStore(ResourceLeases.Snapshot initial){return new ResourceLeaseService(initial,(old,next)->{leaseDisk=next;return CompletableFuture.completedFuture(next);},new JobLeaseOwners(jobs,clock),
+                (r,o)->{observations++;return new ResourceLeases.Observation(r,stock==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,stock,identity,tick,1,null);},ResourceLeases.Settings.production(),()->tick,clock,false);}
+        Jobs.Job root(){UUID id=UUID.randomUUID();var request=BlueprintMaterialsTest.request(blueprint.ref(),5);assertTrue(jobs.stageBlueprint(id,request,owner,new ObservationRef(UUID.randomUUID(),tick,BlueprintMaterialsTest.DIM),ResourceComposition.allowance(clock.millis())).accepted());jobs.tick();return jobs.query(id,owner);}
+        Jobs.Job current(Jobs.Job j){return jobs.query(j.id(),owner);}
+        ResourceLeases.Ref claim(Jobs.Job j,long q){var result=leases.acquire(new ResourceLeases.Owner(j.id(),j.generation()),List.of(new ResourceLeases.Demand(BlueprintMaterials.resource(j),q)),1200,owner);assertEquals(ResourceLeases.Code.PENDING,result.code(),result.toString());leases.tick();assertTrue(leases.validate(result.leases().getFirst(),owner).usable());return result.leases().getFirst();}
+        BlueprintMaterials.Report report(){return BlueprintMaterialsTest.report(blueprint,BlueprintMaterialsTest.air(blueprint),stock);}
+        Jobs.Change complete(Jobs.Job j){j=current(j);return jobs.completeBlueprint(j.id(),j.guard(),report(),leases,owner);}
+    }
+    @Test void preflightProjectionHasNoOwnerMutationOrObservationPort(){var s=new Scene();var before=s.jobs.snapshot();var leases=s.leases.snapshot();var r=s.report();assertTrue(r.canStage());assertEquals(before,s.jobs.snapshot());assertEquals(leases,s.leases.snapshot());assertEquals(0,s.observations);}
+    @Test void rootCannotDispatchAndAProducerPromiseIsNotCompletion(){var s=new Scene();var j=s.root();assertFalse(s.jobs.materialReady(j));assertFalse(s.complete(j).accepted());assertTrue(s.jobs.snapshot().allocations().isEmpty());assertTrue(j.attempts().isEmpty());}
+    @Test void currentClaimCompletesSupplyWithoutManufactureCredit(){var s=new Scene();var j=s.root();s.claim(j,5);assertTrue(s.complete(j).accepted());s.jobs.tick();j=s.current(j);assertEquals(Jobs.State.SUCCEEDED,j.state());assertEquals(0,j.fulfilled());assertEquals(5,BlueprintMaterials.held(j,s.leases,true));assertTrue(j.attempts().isEmpty());}
+    @Test void concurrentDemandsCannotDoubleReserveFiveUnits(){var s=new Scene();var a=s.root();var b=s.root();s.claim(a,3);var result=s.leases.acquire(new ResourceLeases.Owner(b.id(),b.generation()),List.of(new ResourceLeases.Demand(BlueprintMaterials.resource(b),3)),1200,s.owner);assertEquals(ResourceLeases.Code.CONFLICT,result.code());assertEquals(2,result.available());assertFalse(s.complete(b).accepted());}
+    @Test void itemRemovalInvalidatesCurrentClaimAndPreventsCompletion(){var s=new Scene();var j=s.root();s.claim(j,5);s.stock=4;assertFalse(s.complete(j).accepted());assertNotEquals(Jobs.State.SUCCEEDED,s.current(j).state());assertEquals(4,s.stock);}
+    @Test void replacedContainerInvalidatesClaimEvenWithSameCount(){var s=new Scene();var j=s.root();s.claim(j,5);s.identity="replacement-box";assertFalse(s.complete(j).accepted());assertEquals(5,s.stock);}
+    @Test void foreignStatusAndControlCannotInspectOrAllocate(){var s=new Scene();var j=s.root();assertThrows(SecurityException.class,()->s.jobs.query(j.id(),s.foreign));assertEquals(Reason.AUTHORITY_DENIED,s.jobs.completeBlueprint(j.id(),j.guard(),s.report(),s.leases,s.foreign).reason());assertEquals(Reason.AUTHORITY_DENIED,s.leases.acquire(new ResourceLeases.Owner(j.id(),j.generation()),List.of(new ResourceLeases.Demand(BlueprintMaterials.resource(j),1)),1200,s.foreign).reason());}
+    @Test void completedStageCanBeCancelledAndClaimsLoseAuthorityWithoutDeletingItems(){var s=new Scene();var j=s.root();var lease=s.claim(j,5);assertTrue(s.complete(j).accepted());s.jobs.tick();j=s.current(j);assertTrue(s.jobs.cancel(j.id(),j.guard(),s.owner).accepted());s.jobs.tick();assertEquals(Jobs.State.CANCELLED,s.current(j).state());assertFalse(s.leases.validate(lease,s.owner).usable());assertEquals(5,s.stock);}
+    @Test void expiryAndOriginalDeadlineAreFinite(){var s=new Scene();var j=s.root();var lease=s.claim(j,5);s.tick+=1201;assertFalse(s.leases.validate(lease,s.owner).usable());assertFalse(s.complete(j).accepted());assertEquals(5,s.stock);}
+    @Test void restartInterruptsIncompleteWorkAndEveryOldLeaseWithoutReplay(){var s=new Scene();var j=s.root();s.claim(j,5);var restart=new JobLifecycleStore(s.disk.state,s.disk,JobLifecycleStore.privateJobs((a,c)->c.equals(s.owner)),c->{},PlanningGoals.catalog(),JobLifecycleStoreTest.environment(),s.clock,Jobs.Settings.defaults(),false);restart.tick();assertEquals(Jobs.State.INTERRUPTED,restart.query(j.id(),s.owner).state());var claims=s.leaseStore(s.leaseDisk);claims.tick();assertTrue(claims.snapshot().leases().stream().allMatch(l->l.state()==ResourceLeases.State.INTERRUPTED));assertEquals(5,s.stock);}
+    @Test void typedBlueprintRefSurvivesPreparedJobCodec()throws Exception{var s=new Scene();var j=s.root();var roundtrip=JobCodec.job(StrictJson.object(JobCodec.job(j)));assertEquals(j,roundtrip);assertEquals(s.blueprint.ref(),BlueprintMaterials.ref(roundtrip.request().request()));assertNull(roundtrip.preparation().method());}
+    @Test void onlyOneExactDeficitChildCanBePublishedWithInheritedZeroInferenceAllowance(){var s=new Scene();var root=s.root();var result=s.jobs.admitBlueprintChild(root.id(),root.guard(),3,root.request().observation(),s.owner);assertTrue(result.accepted(),result.toString());s.jobs.tick();var child=s.jobs.query(result.job().id(),s.owner);assertEquals(3,((IntValue)child.request().request().arguments().get("amount")).value());assertEquals(OakPlankProduction.ID,child.request().request().capability());assertEquals(root.id(),child.parent());assertEquals(root.allowance().deadlineEpochMillis(),child.allowance().deadlineEpochMillis());assertEquals(0,child.allowance().maximum(Budgets.Kind.CALLS)==0?0:child.allowance().maximum(Budgets.Kind.INPUT_BYTES));assertFalse(s.jobs.materialReady(child));root=s.current(root);assertFalse(s.jobs.admitBlueprintChild(root.id(),root.guard(),1,root.request().observation(),s.owner).accepted());}
+    @Test void cancellationCascadesIntoPreparedChildWithoutEffects(){var s=new Scene();var j=s.root();var child=s.jobs.admitBlueprintChild(j.id(),j.guard(),5,j.request().observation(),s.owner);assertTrue(child.accepted());s.jobs.tick();j=s.current(j);assertTrue(s.jobs.cancel(j.id(),j.guard(),s.owner).accepted());s.jobs.tick();assertEquals(Jobs.State.CANCELLED,s.jobs.query(child.job().id(),s.owner).state());assertEquals(5,s.stock);}
+    @Test void invalidationFencesChildThroughExistingCascade(){var s=new Scene();var j=s.root();var child=s.jobs.admitBlueprintChild(j.id(),j.guard(),5,j.request().observation(),s.owner);assertTrue(child.accepted());s.jobs.tick();j=s.current(j);assertTrue(s.jobs.failBlueprint(j.id(),j.guard(),Reason.STALE_OBSERVATION,s.owner).accepted());s.jobs.tick();assertEquals(Jobs.State.FAILED,s.jobs.query(child.job().id(),s.owner).state());assertEquals(5,s.stock);}
+    @Test void changedBlueprintProjectionCannotCompleteAnotherDemand(){var s=new Scene();var j=s.root();s.claim(j,5);var other=BlueprintMaterialsTest.inspection(BlueprintMaterialsTest.planks(4));var report=BlueprintMaterialsTest.report(other,BlueprintMaterialsTest.air(other),4);assertFalse(s.jobs.completeBlueprint(j.id(),j.guard(),report,s.leases,s.owner).accepted());}
+}

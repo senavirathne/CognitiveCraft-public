@@ -195,8 +195,51 @@ public final class JobLifecycleStore {
         return create(id,submission,request,caller,observation,allowance,dependencies,false);
     }
     public Change stageComposition(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
-        if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID) && !request.capability().equals(BirchPlankProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        if(!request.capability().equals(WoodenAxeProduction.ID) && !request.capability().equals(CraftingTableProduction.ID) && !request.capability().equals(BirchPlankProduction.ID) && !request.capability().equals(OakPlankProduction.ID))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         return create(id,id,request,caller,observation,allowance,List.of(),true);
+    }
+    /** Owner-only supply demand. It never becomes an executable method. */
+    public Change stageBlueprint(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
+        if(!BlueprintMaterials.valid(request))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        return create(id,id,request,caller,observation,allowance,List.of(),true);
+    }
+    public Change admitBlueprintChild(UUID id,Guard expected,long shortage,ObservationRef observation,TrustedContext caller) {
+        thread();var work=new Work();if(!ready())return reject(unavailableReason(),work);
+        var root=controlled(id,caller);
+        if(root==null || !policy.controls(root.responsible(),root.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!root.guard().equals(expected) || !BlueprintMaterials.valid(root.request().request()) || !root.children().isEmpty()
+                || root.state()!=State.WAITING || root.preparation()==null || root.preparation().method()!=null
+                || shortage<1 || shortage>BlueprintMaterials.amount(root.request().request()))return reject(Reason.STALE_OBSERVATION,work);
+        try {
+            var request=BlueprintMaterials.production(root.request().request(),shortage);
+            var checked=RequestValidator.validate(request,caller,observation,capabilities,environment);
+            if(checked instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
+            var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+            for(var kind:Budgets.Kind.values())maxima.put(kind,Math.max(0,available(id,kind,rows())));
+            for(var kind:List.of(Budgets.Kind.REPAIRS,Budgets.Kind.INPUT_BYTES,Budgets.Kind.OUTPUT_BYTES,Budgets.Kind.CANDIDATES,Budgets.Kind.TRIALS))maxima.put(kind,0L);
+            UUID childId=UUID.nameUUIDFromBytes(("blueprint-materials:1:"+id).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            var child=fresh(childId,childId,((RequestValidator.Accepted)checked).value(),id,new Budgets.Limits(maxima,root.allowance().deadlineEpochMillis()),List.of());
+            var ce=new Edit(child);ce.preparation=new Preparation(null,List.of());ce.state=State.WAITING;ce.reason=Reason.RESOURCE_MISSING;
+            child=ce.finish(EventKind.DEPENDENCY,settings.events());var rows=rows();rows.put(childId,child);
+            var re=new Edit(root);re.children=List.of(childId);re.dependencies=List.of(childId);re.reason=null;
+            rows.put(id,re.finish(EventKind.DEPENDENCY,settings.events()));checkCapacity(rows);checkGraph(id,rows,work);
+            return publish(rows,state.allocations(),child,null,work.edges);
+        }catch(Limited limited){return reject(limited.reason,work);}
+        catch(IllegalArgumentException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
+    /** Current leases are the allocation owner. A past producer receipt is deliberately insufficient. */
+    public Change completeBlueprint(UUID id,Guard expected,BlueprintMaterials.Report report,ResourceLeaseService leases,TrustedContext caller) {
+        thread();var work=new Work();if(!ready())return reject(unavailableReason(),work);var root=controlled(id,caller);
+        if(root==null || !policy.controls(root.responsible(),root.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!root.guard().equals(expected) || !BlueprintMaterials.valid(root.request().request())
+                || root.state()!=State.READY && root.state()!=State.WAITING || !dependenciesSucceeded(root,rows(),work)
+                || !report.canStage() || !report.ref().equals(BlueprintMaterials.ref(root.request().request()))
+                || report.required()!=BlueprintMaterials.amount(root.request().request())
+                || clock.millis()>root.allowance().deadlineEpochMillis())return reject(Reason.STALE_OBSERVATION,work);
+        long held=BlueprintMaterials.held(root,leases,true);
+        if(held!=report.required())return reject(Reason.RESOURCE_MISSING,work);
+        var edit=new Edit(root);edit.state=State.SUCCEEDED;edit.reason=null;var rows=rows();rows.put(id,edit.finish(EventKind.ALLOCATED,settings.events()));
+        return publish(rows,state.allocations(),rows.get(id),null,work.edges);
     }
     /** One table-only prerequisite publication; original Jobs owns every child and inherited budget. */
     public Change admitFacilityChild(UUID parent,Guard expected,boolean makeItem,ObservationRef observation,ArtifactRef method,TrustedContext caller) {
@@ -810,6 +853,12 @@ public final class JobLifecycleStore {
     public Change cancel(UUID id, Guard guard, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
+        if(job.state()==State.SUCCEEDED && BlueprintMaterials.valid(job.request().request())) {
+            Change denied=guard(job,guard,work);if(denied!=null)return denied;
+            var edit=new Edit(job);edit.state=State.CANCELLED;edit.reason=Reason.CANCELLED;
+            var rows=rows();rows.put(id,edit.finish(EventKind.CANCEL_REQUESTED,settings.events()));
+            return publish(rows,state.allocations(),rows.get(id),null,0);
+        }
         if (job.state().terminal() || job.state() == State.CANCELLING) return duplicate(job, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
         try {
@@ -818,6 +867,15 @@ public final class JobLifecycleStore {
             return publish(rows, state.allocations(), rows.get(id), null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
         catch (ArithmeticException overflow) { return reject(Reason.BUDGET_EXHAUSTED, work); }
+    }
+    /** Fail-closed preparation invalidation uses the same child cancellation fences as ordinary Jobs. */
+    public Change failBlueprint(UUID id,Guard guard,Reason reason,TrustedContext caller) {
+        thread();var work=new Work();var root=controlled(id,caller);
+        if(root==null)return reject(Reason.AUTHORITY_DENIED,work);
+        Change denied=guard(root,guard,work);if(denied!=null)return denied;
+        if(!BlueprintMaterials.valid(root.request().request()) || root.state().terminal())return reject(Reason.REQUEST_INVALID,work);
+        var rows=rows();cascade(rows,id,State.FAILED,work,new HashSet<>());var edit=new Edit(rows.get(id));edit.reason=reason;
+        rows.put(id,edit.finish(EventKind.TRANSITIONED,settings.events()));return publish(rows,state.allocations(),rows.get(id),null,work.edges);
     }
     /** Allocate real deposited output; neither physical stock nor a resource lease is created. */
     public Change allocate(Allocation allocation, Guard demandGuard, TrustedContext caller) {

@@ -193,7 +193,11 @@ public final class DeterministicPrerequisiteResolver {
                             if (!supplied) throw Objects.requireNonNull(missing);
                         }
                         planned=plans.get(key);
-                        var selected=Objects.requireNonNull(methods.resolve(option,batches,produced,owner));
+                        // A staging deficit is an exact MAKE request. Its complete batch surplus remains
+                        // physical actor custody, rather than being promised as deposited graph stock.
+                        long delivered=owner.bound().request().capability().equals(OakPlankProduction.ID)
+                                && item.equals(owner.item()) ? total : produced;
+                        var selected=Objects.requireNonNull(methods.resolve(option,batches,delivered,owner));
                         CapabilityResolver.Decision decision=selected.decision();
                         step(Math.addExact(Math.addExact(decision.candidateWork(),decision.queriedPages()),1+selected.inspected()));
                         if (decision.routing().status()!=ResolutionStatus.RESOLVED) {
@@ -206,14 +210,14 @@ public final class DeterministicPrerequisiteResolver {
                                 || !decision.selectedBindings().context().equals(owner.origin())
                                 || !decision.selectedBindings().request().capability().equals(option.capability())
                                 || !(ResourceComposition.make(owner)
-                                    ? ResourceComposition.project(owner,option.capability(),produced).equals(decision.selectedBindings().request())
+                                    ? ResourceComposition.project(owner,option.capability(),delivered).equals(decision.selectedBindings().request())
                                     : compatibleBindings(owner.bound(), decision.selectedBindings(), produced))
                                 || !decision.selectedBindings().observation().equals(decision.observation().reference())
                                 || decision.observation().status()!=ObservationStatus.PRESENT
                                 || decision.observation().observedTick()>tick
                                 || tick-decision.observation().observedTick()>limits.observationAge())
                             throw stop(Reason.STALE_OBSERVATION, Qualification.UNKNOWN);
-                        planned.wanted=total;planned.batches=batches;planned.output=produced;
+                        planned.wanted=total;planned.batches=batches;planned.output=delivered;
                         planned.request=decision.selectedBindings();planned.method=decision.routing().artifact();
                         var returned=new TreeMap<String,Long>();
                         for(var entry:remainder.entrySet()) {

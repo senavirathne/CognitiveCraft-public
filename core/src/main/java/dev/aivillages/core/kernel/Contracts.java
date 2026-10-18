@@ -13,9 +13,9 @@ public final class Contracts {
     public static final int IR_VERSION = 1;
     private Contracts() { }
 
-    public enum Type { INT, BOOL, ACTOR, AREA, CONTAINER, UNIT, FACILITY }
+    public enum Type { INT, BOOL, ACTOR, AREA, CONTAINER, UNIT, FACILITY, BLUEPRINT }
     public enum Effect { OBSERVE, MOVE, HARVEST, PICKUP, TRANSFER, WITHDRAW, CRAFT, PLACE }
-    public enum Completion { ATTRIBUTABLE_CROP_DELIVERY, ALL_CHILDREN, ATTRIBUTABLE_RESOURCE_DELIVERY, ATTRIBUTABLE_TRANSFORMATION_DELIVERY, ATTRIBUTABLE_PLACEMENT }
+    public enum Completion { ATTRIBUTABLE_CROP_DELIVERY, ALL_CHILDREN, ATTRIBUTABLE_RESOURCE_DELIVERY, ATTRIBUTABLE_TRANSFORMATION_DELIVERY, ATTRIBUTABLE_PLACEMENT, CURRENT_STAGED_MATERIALS }
 
     public record CapabilityId(String name, int version) {
         public CapabilityId {
@@ -35,8 +35,13 @@ public final class Contracts {
         }
     }
 
-    public sealed interface Value permits IntValue, BoolValue, ActorValue, AreaValue, ContainerValue, FacilityValue {
+    public sealed interface Value permits IntValue, BoolValue, ActorValue, AreaValue, ContainerValue, FacilityValue, BlueprintValue {
         Type type();
+    }
+    /** Immutable structural reference only; never an executable or an authority grant. */
+    public record BlueprintValue(Blueprint.Ref value) implements Value {
+        public BlueprintValue { Objects.requireNonNull(value); }
+        public Type type() { return Type.BLUEPRINT; }
     }
     public record IntValue(long value) implements Value { public Type type() { return Type.INT; } }
     public record BoolValue(boolean value) implements Value { public Type type() { return Type.BOOL; } }

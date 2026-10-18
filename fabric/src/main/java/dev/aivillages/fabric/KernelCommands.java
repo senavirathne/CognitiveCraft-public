@@ -265,6 +265,39 @@ final class KernelCommands {
                     tell(ctx, view.describe());
                     return view.phase() == dev.aivillages.core.kernel.LanguageRequests.Phase.INTERPRETING ? 1 : 0;
                 }))));
+        kernel.then(literal("blueprint-store").then(argument("json",StringArgumentType.greedyString())
+                .executes(c->safe(c,(ctx,session)->{
+                    String json=StringArgumentType.getString(ctx,"json");
+                    session.storeBlueprint(ctx.getSource().getPlayerOrException(),json,"explicit-command")
+                            .whenComplete((v,f)->tell(ctx,f==null?"blueprint="+(v.ref()==null?"none":v.ref().sha256())+" status="+v.status():"Blueprint unavailable"));
+                    return 1;
+                }))));
+        String[] materialCoords={"origin-x","origin-y","origin-z","site-min-x","site-min-y","site-min-z",
+                "site-max-x","site-max-y","site-max-z","input-x","input-y","input-z","staging-x","staging-y","staging-z",
+                "oak-min-x","oak-min-y","oak-min-z","oak-max-x","oak-max-y","oak-max-z"};
+        for(boolean stage:new boolean[]{false,true}) {
+            ArgumentBuilder<CommandSourceStack,?> end=argument(materialCoords[20],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
+                var player=ctx.getSource().getPlayerOrException();var citizen=session.citizen(player,uuid(ctx,"actor-id"));
+                String dimension=citizen.actor().dimension();int[] at=new int[21];for(int i=0;i<21;i++)at[i]=IntegerArgumentType.getInteger(ctx,materialCoords[i]);
+                var ref=new dev.aivillages.core.kernel.Blueprint.Ref(1,StringArgumentType.getString(ctx,"blueprint-sha"));
+                session.blueprintMaterials(player,citizen.actor().citizenId(),ref,IntegerArgumentType.getInteger(ctx,"rotation"),
+                        new dev.aivillages.core.kernel.Contracts.FacilityRef(dimension,at[0],at[1],at[2]),
+                        new dev.aivillages.core.kernel.Contracts.Cuboid(dimension,at[3],at[4],at[5],at[6],at[7],at[8]),
+                        new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[9],at[10],at[11]),
+                        new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[12],at[13],at[14]),
+                        new dev.aivillages.core.kernel.Contracts.Cuboid(dimension,at[15],at[16],at[17],at[18],at[19],at[20]),stage)
+                        .whenComplete((v,f)->tell(ctx,f==null?"mode="+(stage?"STAGE_MATERIALS":"PREFLIGHT")+" job="+v.job()+" accepted="+v.accepted()+" reason="+v.reason()+" report="+v.report():"Denied or unavailable blueprint request"));
+                return 1;
+            }));
+            for(int i=19;i>=0;i--)end=argument(materialCoords[i],IntegerArgumentType.integer()).then(end);
+            kernel.then(literal("blueprint-materials").then(literal(stage?"stage":"preflight").then(argument("actor-id",StringArgumentType.word())
+                    .suggests(this::suggestCitizenIds).then(argument("blueprint-sha",StringArgumentType.word()).then(argument("rotation",IntegerArgumentType.integer(0,3)).then(end))))));
+        }
+        kernel.then(literal("blueprint-status").then(argument("job-id",StringArgumentType.word()).suggests((c,b)->suggestJobIds(c,b,false))
+                .executes(c->safe(c,(ctx,session)->{
+                    session.blueprintMaterialStatus(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"))
+                            .whenComplete((v,f)->tell(ctx,f==null?"blueprint-job="+v.job().id()+" state="+v.job().state()+" allocated="+v.allocated()+" currentlyAllocated="+v.currentlyAllocated()+" report="+v.report():"Denied or unavailable blueprint status"));return 1;
+                }))));
         root.then(kernel);
     }
     private CompletableFuture<Suggestions> suggestJobIds(CommandContext<CommandSourceStack> context,SuggestionsBuilder builder,boolean cancellable){

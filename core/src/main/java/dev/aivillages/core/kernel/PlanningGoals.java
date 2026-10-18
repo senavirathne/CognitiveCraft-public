@@ -13,7 +13,7 @@ public final class PlanningGoals {
             Type.INT, CropDelivery.SPEC.effects(), Completion.ALL_CHILDREN);
     private PlanningGoals() { }
     public static CapabilityCatalog catalog() {
-        return id -> id.equals(ID) ? Optional.of(SPEC) : ResourceDelivery.spec(id);
+        return id -> id.equals(ID) ? Optional.of(SPEC) : id.equals(BlueprintMaterials.ID) ? Optional.of(BlueprintMaterials.SPEC) : ResourceDelivery.spec(id);
     }
     public static CapabilityResolver.SupportPolicy support() {
         return spec -> spec.equals(SPEC) ? new CapabilityResolver.Envelope(CapabilityResolver.Domain.BROAD_GOAL, SPEC.effects())

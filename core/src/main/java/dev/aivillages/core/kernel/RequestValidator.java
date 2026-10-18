@@ -91,6 +91,14 @@ public final class RequestValidator {
                     || !environment.available(((ContainerValue)values.get("otherDestination")).value(),observation))
                 return invalid("$.arguments");
         }
+        if(spec.completion()==Completion.CURRENT_STAGED_MATERIALS) {
+            if(!spec.equals(BlueprintMaterials.SPEC) || !BlueprintMaterials.valid(input))return invalid("$.arguments");
+            var actor=((ActorValue)values.get("actor")).value();
+            if(!actor.dimension().equals(observation.dimension()) || !environment.enrolled(actor,context)
+                    || !environment.loaded(((AreaValue)values.get("site")).value(),observation)
+                    || !environment.loaded(((AreaValue)values.get("acquisition")).value(),observation)
+                    || !environment.available(((ContainerValue)values.get("destination")).value(),observation))return invalid("$.arguments");
+        }
         return new Accepted(new ValidatedRequest(input, context, observation));
     }
 
