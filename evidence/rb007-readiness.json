@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "unit": "RB-007",
+  "sourceBaseline": "d01dcf1c8fb9c6df8d9ae4a2dc805f4276e1bdd1",
+  "documentationBaseline": "73217271df32feb7813004f1e3acce4e891ad037",
+  "documentationFirstContract": "69ee4adfeefa387947db64b2b8fe6e4257c49d28",
+  "acceptedPrerequisites": {"RB-005": 31, "RB-006A": 32, "RB-006B": 34},
+  "capabilities": {"cognitivecraft:deliver_birch_logs": {"version": 1, "amount": [1,8]}, "cognitivecraft:produce_birch_planks": {"version": 1, "amount": [1,64]}},
+  "newPrimitiveSignatures": 11,
+  "owners": ["ResourceDelivery", "RecipeProduction", "SurvivalGateway", "FabricGatewayWorld", "FabricRecipeTransactions", "RequestValidator", "CapabilityResolver", "ResearchAdmissionController", "CropFixtureRunner", "WorldReferenceBinding", "WorldReferenceDiscovery", "LanguageRequests", "NeedleWire", "LocalGenerationAdapter", "JobLifecycleStore", "ResourceComposition", "LeasePrerequisiteSupplies", "ResourceLeaseService", "FabricPrerequisiteCatalog", "FabricPrerequisiteRuntime", "KernelSession"],
+  "unchangedOwners": ["VersionedSkillRepository", "RepositoryCodec", "BootstrapJournal", "JobJournal", "LeaseJournal", "WorkerDispatcher", "AIWorkBroker", "WorldRetentionManager"],
+  "schemaChanges": [],
+  "architecture": "0.5",
+  "testExecution": "GitHub Actions only",
+  "acceptance": "pending",
+  "requirements": ["RB7-T01","RB7-T02","RB7-T03","RB7-T04","RB7-T05","RB7-T06","RB7-T07","RB7-T08","RB7-T09","RB7-T10"],
+  "firstFailure": {"source": "2c0a98c840ed751d1f3741d06f3a86e432c7cda5", "run": 39085454615, "artifact": 12120801488, "artifactSha256": "cdd53cfd1f25b69dcd47e0e72f905506e5d81a72268c73f7a7c553ec0827617f", "coreCases": 1467, "failed": 7, "cause": "Three historical classifier expectations predate birch registration; four new composition fixtures counted old target-item stock instead of following production MAKE stock semantics."}
+}

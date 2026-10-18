@@ -131,7 +131,7 @@ final class KernelCommands {
             var result=session.composeBirchPlanks(player,uuid(ctx,"actor-id"),IntegerArgumentType.getInteger(ctx,"amount"),
                     new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[0],at[1],at[2]),new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,at[3],at[4],at[5]),
                     new dev.aivillages.core.kernel.Contracts.Cuboid(dimension,at[6],at[7],at[8],at[9],at[10],at[11]));
-            tell(ctx,"run="+result.id()+" accepted="+result.accepted()+(result.reason()==null ? "" : " reason="+result.reason()));return result.accepted()?1:0;
+            tell(ctx,"job="+result.id()+" accepted="+result.accepted()+(result.reason()==null ? "" : " reason="+result.reason()));return result.accepted()?1:0;
         }));
         for(int i=10;i>=0;i--)birchCoords=argument(birchNames[i],IntegerArgumentType.integer()).then(birchCoords);
         kernel.then(literal("compose-birch-planks").then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds).then(argument("amount",IntegerArgumentType.integer(1,64)).then(birchCoords))));

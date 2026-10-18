@@ -139,8 +139,8 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(world.resourceBlock(cell,log).breakTicks()==60,"Pinned oak survival timing differs");
                 h.assertTrue(world.resourceBreakEligibility(actor,cell,log)==Outcomes.Reason.TARGET_UNAVAILABLE,
                         "Distant worker cell was accepted as face-adjacent oak arrival");
-                var birch=h.absolutePos(new BlockPos(4,1,5));
-                h.assertTrue(!world.resourceBlock(new SurvivalGateway.Cell(dim,birch.getX(),birch.getY(),birch.getZ()),log).eligible(),"Another species entered the oak allowlist");
+                var foreignLog=h.absolutePos(new BlockPos(4,1,5));
+                h.assertTrue(!world.resourceBlock(new SurvivalGateway.Cell(dim,foreignLog.getX(),foreignLog.getY(),foreignLog.getZ()),log).eligible(),"Another species entered the oak allowlist");
                 v.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,new ItemStack(Items.IRON_AXE));
                 h.assertTrue(world.resourceBreakEligibility(actor,cell,log)==Outcomes.Reason.TARGET_INVALID,"Equipped tool escaped bare-hand restriction");
                 v.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,ItemStack.EMPTY);

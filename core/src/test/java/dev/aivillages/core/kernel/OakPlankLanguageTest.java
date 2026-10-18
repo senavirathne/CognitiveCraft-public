@@ -20,7 +20,7 @@ final class OakPlankLanguageTest {
         assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.source().state());
     }
     @Test void birchOrAxeIntentDoesNotWidenTheEnvelope() {
-        assertEquals(LanguageReferenceClassifier.Intent.UNKNOWN,LanguageReferenceClassifier.classify("Ada, make 8 birch planks and store them.",List.of("Ada")).intent());
+        assertEquals(LanguageReferenceClassifier.Intent.MAKE_BIRCH_PLANKS,LanguageReferenceClassifier.classify("Ada, make 8 birch planks and store them.",List.of("Ada")).intent());
         assertEquals(LanguageReferenceClassifier.Intent.UNKNOWN,LanguageReferenceClassifier.classify("Ada, make an axe from oak planks.",List.of("Ada")).intent());
     }
 }

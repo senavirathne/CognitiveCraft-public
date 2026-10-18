@@ -22,6 +22,6 @@ class BirchResourceWireTest {
     }
     @Test void explicitBirchStockAndCoordinatesRetainReferenceProvenance(){
         var p=NeedleWire.prepare(new LanguageRequests.Input("Ada, make 8 birch planks from the available birch logs and store them.",List.of("Ada")));
-        assertTrue(p.tools().contains("make_birch_planks"));assertTrue(p.prompt().contains("from stock"));
+        assertTrue(p.tools().contains("make_birch_planks"));assertTrue(p.text().contains("from stock"));
     }
 }

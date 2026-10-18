@@ -39,7 +39,7 @@ final class ResourceCompositionTest {
             }
             return new Catalog(1,recipes,productions,Set.of(),true);
         }
-        Supply inspect(Need n,String item) {inspections.merge(item,1,Integer::sum);long count=item.equals(AXE)?0:stock.getOrDefault(item,0L);
+        Supply inspect(Need n,String item) {inspections.merge(item,1,Integer::sum);long count=item.equals(n.item())?0:stock.getOrDefault(item,0L);
             return new Supply(item,stockStatus!=null?stockStatus:count==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,count,
                     "same-physical-source:"+item,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()),tick,inspectionWork,stockReason);}
         MethodSelection method(Production p,long batches,long output,Need n) {
