@@ -1,0 +1,107 @@
+name: RB-008 blueprint material staging acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/blueprint-material-staging.yml']
+  push:
+    branches: [main,rb-008-blueprint-material-staging]
+    paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/blueprint-material-staging.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rb008-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  owners-and-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Full modules and native compilation/package
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:gameTestClasses :fabric:build :fabric:gameTestJar
+          python3 scripts/verify-rb008.py junit
+          python3 scripts/verify-rb008.py identity
+      - name: Select actual staging owner fixture
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.BlueprintStagingGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+      - name: Controlled independent producers and native preflight/staging/claims
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb008.py native --phase cold
+          cp -r fabric/build/gametest-run build/rb008-evidence/cold-world
+      - name: New JVM same save interrupts prior work and executes known staging without inference
+        env:
+          COGNITIVECRAFT_RB008_PHASE: warm
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb008.py native --phase warm
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb008-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            build/rb008-evidence/
+            fabric/build/gametest-run/
+            fabric/build/libs/
+  connected-client:
+    name: GP-RB-08 actual preflight, staged inventory, privacy and abrupt restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Production binary and existing harness regressions
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/verify-rb008.py identity
+      - name: Real network commands, genuine existing methods, stopped backend and saved physical claims
+        run: |
+          python3 e2e/suite.py --profile rb008 --root build/e2e/rb008
+          python3 scripts/verify-rb008.py client
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb008-connected-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb008-evidence/
+            build/e2e/rb008/
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar

@@ -168,6 +168,8 @@ public final class FabricPrerequisiteRuntime {
                 return true;
             }
             if(!leases.ready())return false;
+            for(var prior:leases.snapshot().leases())if(prior.owner().equals(new ResourceLeases.Owner(root.id(),root.generation()))
+                    && (prior.state()!=ResourceLeases.State.ACTIVE || prior.expires()<=tick))return blueprintFailure(root,Reason.RESOURCE_MISSING);
             long held=BlueprintMaterials.held(root,leases,true),required=BlueprintMaterials.amount(root.request().request());
             if(held<0)return blueprintFailure(root,Reason.RESOURCE_MISSING);
             // Renew only existing finite claims; never reset the original Job deadline or allowance.

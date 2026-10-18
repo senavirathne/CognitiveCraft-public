@@ -235,6 +235,7 @@ public final class JobLifecycleStore {
                 || root.state()!=State.READY && root.state()!=State.WAITING || !dependenciesSucceeded(root,rows(),work)
                 || !report.canStage() || !report.ref().equals(BlueprintMaterials.ref(root.request().request()))
                 || report.required()!=BlueprintMaterials.amount(root.request().request())
+                || report.tick()>leases.currentTick() || leases.currentTick()-report.tick()>10
                 || clock.millis()>root.allowance().deadlineEpochMillis())return reject(Reason.STALE_OBSERVATION,work);
         long held=BlueprintMaterials.held(root,leases,true);
         if(held!=report.required())return reject(Reason.RESOURCE_MISSING,work);
@@ -1285,12 +1286,15 @@ public final class JobLifecycleStore {
                     || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
                 throw new IllegalArgumentException("Configured job bounds");
             boolean goal=job.request().request().capability().equals(PlanningGoals.ID);
-            if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal)
+            boolean staging=job.request().request().capability().equals(BlueprintMaterials.ID);
+            if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal && !staging)
                     || goal && (!PlanningGoals.valid(job.request().request()) || !job.attempts().isEmpty())
+                    || staging && (!BlueprintMaterials.valid(job.request().request()) || !job.attempts().isEmpty()
+                            || job.preparation()==null || job.preparation().method()!=null)
                     || !(job.request().request().arguments().get("amount") instanceof IntValue quantity)
-                    || quantity.value() < 1 || quantity.value() > 64
+                    || quantity.value() < (staging?0:1) || quantity.value() > 64
                     || !(job.request().request().arguments().get("actor") instanceof ActorValue)
-                    || (RecipeProduction.is(job.request().request().capability()) || CraftingTablePlacement.is(job.request().request().capability())
+                    || (staging || RecipeProduction.is(job.request().request().capability()) || CraftingTablePlacement.is(job.request().request().capability())
                         ? !(job.request().request().arguments().get("source") instanceof ContainerValue)
                         : !(job.request().request().arguments().get("source") instanceof AreaValue))
                     || (CraftingTablePlacement.is(job.request().request().capability()) ? !CraftingTablePlacement.valid(job.request().request()) : !(job.request().request().arguments().get("destination") instanceof ContainerValue)))

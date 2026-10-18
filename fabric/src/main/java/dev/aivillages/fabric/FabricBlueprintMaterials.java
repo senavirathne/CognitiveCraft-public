@@ -56,18 +56,20 @@ final class FabricBlueprintMaterials {
             var level=server.getLevel(ResourceKey.create(Registries.DIMENSION,Identifier.parse(actor.dimension())));
             if(level==null)return unavailable(tick,work,Reason.TARGET_UNAVAILABLE);
             var world=new FabricGatewayWorld(level);
+            var observed=new HashMap<BlockPos,Blueprint.State>();
             // Inspect every approved cell, including sparse geometry gaps. No getChunk/force-load path.
             for(long x=area.minX();x<=area.maxX();x++)for(long y=area.minY();y<=area.maxY();y++)for(long z=area.minZ();z<=area.maxZ();z++) {
                 var pos=new BlockPos((int)x,(int)y,(int)z);work++;
                 if(!world.loadedForDiscovery(pos))return unavailable(tick,work,Reason.TARGET_UNAVAILABLE);
                 if(!world.discoverable(actor,pos,Effect.OBSERVE))return unavailable(tick,work,Reason.AUTHORITY_DENIED);
+                observed.put(pos,state(level.getBlockState(pos)));
             }
             if(!inspection.compatible())return unavailable(tick,work,Reason.ARTIFACT_INCOMPATIBLE);
             var view=BlueprintValidator.bind(inspection.body(),BlueprintMaterials.binding(request));var states=new ArrayList<Blueprint.State>();
             for(var cell:view.geometry().cells()) {
                 int x=Math.addExact(view.binding().x(),cell.x()),y=Math.addExact(view.binding().y(),cell.y()),z=Math.addExact(view.binding().z(),cell.z());
                 if(x<area.minX() || x>area.maxX() || y<area.minY() || y>area.maxY() || z<area.minZ() || z>area.maxZ())return unavailable(tick,work,Reason.REQUEST_INVALID);
-                states.add(state(level.getBlockState(new BlockPos(x,y,z))));
+                states.add(observed.get(new BlockPos(x,y,z)));
             }
             return new BlueprintMaterials.Site(ObservationStatus.PRESENT,states,tick,work,null);
         }catch(IllegalArgumentException|ArithmeticException invalid){return unavailable(tick,work,Reason.REQUEST_INVALID);}

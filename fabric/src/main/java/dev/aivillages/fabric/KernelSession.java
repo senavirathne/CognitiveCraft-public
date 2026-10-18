@@ -1098,7 +1098,7 @@ public final class KernelSession implements AutoCloseable {
     public List<UUID> queuedJobIds(ServerPlayer player,boolean cancellable){
         ready();var origin=caller(player);
         return jobs.snapshot().jobs().stream().filter(j->j.origin().equals(origin)&&!controller.ownsSubmission(j.submissionId()))
-                .filter(j->!cancellable||!j.state().terminal()).map(Jobs.Job::id).toList();
+                .filter(j->!cancellable||!j.state().terminal()||j.state()==Jobs.State.SUCCEEDED&&BlueprintMaterials.valid(j.request().request())).map(Jobs.Job::id).toList();
     }
     public Jobs.Change cancelQueuedJob(ServerPlayer player,UUID id){ready();var owner=caller(player);jobs.tick();var job=jobs.query(id,owner);return jobs.cancel(id,job.guard(),owner);}
     public List<WorkerDispatcher.Decision> dispatchDiagnostics(ServerPlayer player,UUID id){ready();return dispatcher.diagnostics(id,caller(player));}
