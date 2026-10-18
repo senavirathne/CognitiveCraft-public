@@ -118,6 +118,8 @@ def scenario(h):
     require(offline['deposited']==4 and h.model_calls()==calls,'Known stopped-backend staging inferred or miscounted stock')
     actual=h.menu_count('PlayerB',SECOND,PLANK);require(actual==5,'Fresh principal connected menu mismatch');client_containers.append({'player':'PlayerB','expected':5,'actual':actual});h.screenshot('PlayerB','rb008-offline-fresh-citizen-staging',chat=True);cancel(offline_id,'PlayerB')
     large=store(body(64));large_origin=[4,201,6];large_end=[11,201,13]
+    seed(0,0);logs();bounded=request('preflight',blueprint=large,origin=large_origin,end=large_end)
+    require('accepted=false' in bounded and 'bounded-acquisition:8-logs;missing:16' in bounded,'Oversized acquisition was silently split or misclassified')
     seed(2,16);calls=h.model_calls();jid=submit(blueprint=large,origin=large_origin,end=large_end)
     def first_craft():
         j=h.job_view('PlayerA',jid)

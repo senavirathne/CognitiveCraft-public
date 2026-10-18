@@ -24,6 +24,7 @@ public final class FabricPrerequisiteRuntime {
     private java.util.function.Function<Jobs.Job,BlueprintMaterials.Report> blueprintObservations;
     private record BlueprintCheck(BlueprintMaterials.Report report,long tick,boolean childComplete) { }
     private final Map<UUID,BlueprintCheck> blueprintChecks=new HashMap<>();
+    private final Map<UUID,Long> validatedBlueprintChecks=new HashMap<>();
     public void blueprints(java.util.function.Function<Jobs.Job,BlueprintMaterials.Report> capture){thread();blueprintObservations=Objects.requireNonNull(capture);}
     /** Read-only support preview before a staging demand exists. No Jobs, claims, inference or effects. */
     public Proposal preview(ValidatedRequest request,Cuboid acquisition,Supplies stock,Access access,Budgets.Limits allowance) {
@@ -150,6 +151,7 @@ public final class FabricPrerequisiteRuntime {
     private boolean advanceBlueprint() {
         if(blueprintObservations==null)return false;
         blueprintChecks.keySet().removeIf(id->jobs.snapshot().jobs().stream().noneMatch(j->j.id().equals(id)&&!j.state().terminal()&&j.state()!=Jobs.State.INTERRUPTED));
+        validatedBlueprintChecks.keySet().retainAll(blueprintChecks.keySet());
         for(var root:jobs.snapshot().jobs()) {
             if(!BlueprintMaterials.valid(root.request().request()) || root.state().terminal() || root.state()==Jobs.State.INTERRUPTED || root.state()==Jobs.State.CANCELLING)continue;
             long tick=server.overworld().getGameTime();
@@ -158,7 +160,8 @@ public final class FabricPrerequisiteRuntime {
             boolean childComplete=!root.children().isEmpty() && root.children().stream().allMatch(id->jobs.query(id,root.origin()).state()==Jobs.State.SUCCEEDED);
             var checked=blueprintChecks.get(root.id());
             if(checked==null || tick-checked.tick()>=10 || childComplete&&!checked.childComplete()) {
-                var report=blueprintObservations.apply(root);
+                final BlueprintMaterials.Report report;
+                try{report=blueprintObservations.apply(root);}catch(RuntimeException unavailable){return blueprintFailure(root,Reason.STALE_OBSERVATION);}
                 if(!report.canStage() || report.required()!=BlueprintMaterials.amount(root.request().request()))return blueprintFailure(root,
                         report.reason()==null?Reason.STALE_OBSERVATION:report.reason());
                 var charge=jobs.charge(root.id(),root.guard(),Map.of(Budgets.Kind.INSTRUCTIONS,1L,
@@ -170,7 +173,9 @@ public final class FabricPrerequisiteRuntime {
             if(!leases.ready())return false;
             for(var prior:leases.snapshot().leases())if(prior.owner().equals(new ResourceLeases.Owner(root.id(),root.generation()))
                     && (prior.state()!=ResourceLeases.State.ACTIVE || prior.expires()<=tick))return blueprintFailure(root,Reason.RESOURCE_MISSING);
+            if(!root.children().isEmpty() && !childComplete && Objects.equals(validatedBlueprintChecks.get(root.id()),checked.tick()))return false;
             long held=BlueprintMaterials.held(root,leases,true),required=BlueprintMaterials.amount(root.request().request());
+            validatedBlueprintChecks.put(root.id(),checked.tick());
             if(held<0)return blueprintFailure(root,Reason.RESOURCE_MISSING);
             // Renew only existing finite claims; never reset the original Job deadline or allowance.
             for(var lease:leases.snapshot().leases())if(lease.owner().equals(new ResourceLeases.Owner(root.id(),root.generation()))

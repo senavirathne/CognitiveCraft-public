@@ -24,6 +24,9 @@ import java.util.EnumMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Objects;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.LinkedHashMap;
@@ -780,6 +783,7 @@ public final class KernelSession implements AutoCloseable {
             FacilityRef origin,Cuboid site,ContainerRef source,ContainerRef destination,Cuboid acquisition,boolean stage) {
         if(!server.isSameThread())throw new IllegalStateException("Blueprint intake game thread");
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);var actor=citizen.actor();
+        var allowance=ResourceComposition.allowance(clock.millis());
         var args=new HashMap<String,Value>();args.put("actor",new ActorValue(actor));args.put("blueprint",new BlueprintValue(ref));
         args.put("origin",new FacilityValue(origin));args.put("rotation",new IntValue(rotation));args.put("site",new AreaValue(site));
         args.put("source",new ContainerValue(source));args.put("destination",new ContainerValue(destination));args.put("acquisition",new AreaValue(acquisition));args.put("amount",new IntValue(0));
@@ -791,27 +795,31 @@ public final class KernelSession implements AutoCloseable {
                 var report=blueprintMaterials.capture(inspection,request,owner,0);
                 if(!BlueprintMaterials.valid(request))report=report.blocked(source.equals(destination)?"bounded-request-or-dimension":"missing-transfer-capability",
                         source.equals(destination)?Reason.REQUEST_INVALID:Reason.UNSUPPORTED_PRIMITIVE);
-                if(report.canStage() && report.shortage()>0)report=blueprintSupport(request,report,owner);
+                if(report.canStage() && report.shortage()>0)report=blueprintSupport(request,report,owner,allowance);
                 UUID id=stage?UUID.randomUUID():null;
                 if(!stage || !report.canStage()){result.complete(new MaterialResult(id,!stage&&report.canStage(),report,report.reason()));return;}
                 blueprintStages.keySet().removeIf(old->jobs.snapshot().jobs().stream().anyMatch(j->j.id().equals(old)&&(j.state().terminal()||j.state()==Jobs.State.INTERRUPTED)));
                 if(blueprintStages.size()>=32){result.complete(new MaterialResult(id,false,report,Reason.BUDGET_EXHAUSTED));return;}
                 var concrete=new HashMap<>(request.arguments());concrete.put("amount",new IntValue(report.required()));
                 var checked=new CapabilityRequest(BlueprintMaterials.ID,concrete);jobs.tick();
-                var change=jobs.stageBlueprint(id,checked,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()),ResourceComposition.allowance(clock.millis()));
+                var change=jobs.stageBlueprint(id,checked,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()),allowance,1024,1024);
                 if(change.accepted())blueprintStages.put(id,inspection);
                 result.complete(new MaterialResult(id,change.accepted(),report,change.reason()));
             }catch(Throwable error){result.completeExceptionally(error);}
         }));return result;
     }
-    private BlueprintMaterials.Report blueprintSupport(CapabilityRequest request,BlueprintMaterials.Report report,TrustedContext owner) {
+    private BlueprintMaterials.Report blueprintSupport(CapabilityRequest request,BlueprintMaterials.Report report,TrustedContext owner,Budgets.Limits allowance) {
         var production=BlueprintMaterials.production(request,report.shortage());var actor=((ActorValue)request.arguments().get("actor")).value();
         var observed=observePrerequisite(production);var bound=new ValidatedRequest(production,owner,observed.reference());
         var preflight=gatewayWorld().recipePreflight(bound);
         if(preflight.reason()!=null)return report.blocked("recipe-or-container:"+preflight.reason(),preflight.reason());
         if(preflight.outputCapacity()<report.shortage())return report.blocked("staging-capacity",Reason.TARGET_UNAVAILABLE);
+        var free=leases.availableStock(ResourceLeases.Resource.oakStock(owner.scope().worldId(),((ContainerValue)request.arguments().get("destination")).value()),preflight.availableInputs(),owner);
+        if(!free.usable())return report.blocked("input-stock:"+free.reason(),free.reason()==null?Reason.STALE_OBSERVATION:free.reason());
+        long missing=OakPlankProduction.missingInputs(report.shortage(),free.available());
+        if(missing>8)return report.blocked("bounded-acquisition:8-logs;missing:"+missing,Reason.BUDGET_EXHAUSTED);
         var acquisition=((AreaValue)request.arguments().get("acquisition")).value();
-        var preview=prerequisites.preview(bound,acquisition,blueprintMaterials::supply,n->controls(actor,owner),ResourceComposition.allowance(clock.millis()));
+        var preview=prerequisites.preview(bound,acquisition,blueprintMaterials::supply,n->controls(actor,owner),allowance);
         if(!preview.accepted())return report.blocked("prerequisite:"+preview.status()+":"+preview.reason(),preview.reason()==null?Reason.KNOWLEDGE_REQUIRED:preview.reason());
         if(preview.nodes().size()>2)return report.blocked("bounded-graph:2-producers",Reason.BUDGET_EXHAUSTED);
         if(preview.nodes().stream().anyMatch(n->n.production().capability().equals(OakLogDelivery.ID)))

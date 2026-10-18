@@ -200,8 +200,12 @@ public final class JobLifecycleStore {
     }
     /** Owner-only supply demand. It never becomes an executable method. */
     public Change stageBlueprint(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance) {
+        return stageBlueprint(id,request,caller,observation,allowance,0,0);
+    }
+    public Change stageBlueprint(UUID id,CapabilityRequest request,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance,int instructions,int observations) {
         if(!BlueprintMaterials.valid(request))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
-        return create(id,id,request,caller,observation,allowance,List.of(),true);
+        if(instructions<0 || instructions>1024 || observations<0 || observations>1024)return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        return create(id,id,request,caller,observation,allowance,List.of(),true,instructions,observations);
     }
     public Change admitBlueprintChild(UUID id,Guard expected,long shortage,ObservationRef observation,TrustedContext caller) {
         thread();var work=new Work();if(!ready())return reject(unavailableReason(),work);
@@ -275,6 +279,10 @@ public final class JobLifecycleStore {
     }
     private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
                           Budgets.Limits allowance,List<UUID> dependencies,boolean staged) {
+        return create(id,submission,request,caller,observation,allowance,dependencies,staged,0,0);
+    }
+    private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
+                          Budgets.Limits allowance,List<UUID> dependencies,boolean staged,int initialInstructions,int initialObservations) {
         thread(); var work = new Work();
         if (!sameWorld(caller)) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
@@ -289,6 +297,11 @@ public final class JobLifecycleStore {
                 return reject(Reason.BUDGET_EXHAUSTED, work);
             Job job = fresh(id, submission, ((RequestValidator.Accepted) validation).value(),
                     null, allowance, dependencies);
+            if(initialInstructions>0 || initialObservations>0) {
+                if(initialInstructions>allowance.maximum(Budgets.Kind.INSTRUCTIONS) || initialObservations>allowance.maximum(Budgets.Kind.OBSERVATIONS))return reject(Reason.BUDGET_EXHAUSTED,work);
+                var billed=new Edit(job);billed.usage=Jobs.usage(Map.of(Budgets.Kind.INSTRUCTIONS,(long)initialInstructions,Budgets.Kind.OBSERVATIONS,(long)initialObservations));
+                job=billed.finish(EventKind.OBSERVED,settings.events());
+            }
             var rows = rows(); rows.put(id, job);
             checkCapacity(rows);
             checkGraph(job.id(), rows, work);
