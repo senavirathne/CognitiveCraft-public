@@ -35,7 +35,7 @@ class BirchResourceWireTest {
         var result=NeedleWire.decode(response.getBytes(StandardCharsets.UTF_8),p);
         assertEquals(LanguageRequests.Kind.EXTRACTED,result.kind());assertEquals(action,result.extracted().action().name());
         assertEquals((long)amount,result.extracted().amount());assertEquals(gather?"6,201,14":"5,201,5",result.extracted().from());
-        assertEquals(gather?"13,201,14":null,result.extracted().through());assertEquals(gather?"5,201,5":"9,201,7",result.extracted().destination());
+        assertEquals(gather?"13,201,14":"5,201,5",result.extracted().through());assertEquals(gather?"5,201,5":"9,201,7",result.extracted().destination());
         for(String wrong:List.of("farm",gather?"stock":"area"))
             assertEquals(LanguageRequests.Kind.INVALID,NeedleWire.decode(response.replace("\"source\":\""+alias+"\"","\"source\":\""+wrong+"\"").getBytes(StandardCharsets.UTF_8),p).kind());
     }
