@@ -25,7 +25,11 @@ def scenario(h):
     h.console(["gamerule minecraft:block_drops true",*["setblock "+" ".join(map(str,p))+" minecraft:chest" for p in (SRC,SECOND)]])
     catalog=h.command("PlayerA","/aivillage kernel catalog","catalog=")
     require(all(k+"=[]" in catalog for k in ("birchCatalog","birchPlankCatalog","oakCatalog","plankCatalog")),"Birch or oak executable methods were supplied as known")
-    hashes={};admissions=[];known=[]
+    hashes={};admissions=[];known=[];client_containers=[]
+    def client_container(player,destination,item):
+        expected=h.container(destination,item);actual=h.menu_count(player,destination,item)
+        require(actual==expected,"Connected client did not receive exact birch contents")
+        client_containers.append({"player":player,"destination":destination,"item":item,"expected":expected,"actual":actual})
     def logs(q,lo=LO,hi=HI):
         h.console([f"setblock {x} {lo[1]} {lo[2]} "+("minecraft:birch_log" if x<lo[0]+q else "minecraft:air") for x in range(lo[0],hi[0]+1)])
         h.wait(lambda:all("minecraft:birch_log" in h.snapshot()["blocks"].get(f"{x},{lo[1]},{lo[2]}","") for x in range(lo[0],lo[0]+q)),"Loaded exact birch source",20)
@@ -69,9 +73,12 @@ def scenario(h):
     h.command("PlayerA","/aivillage kernel inference true","admission=true")
     before=h.container(SRC,LOG);rid=gather(4)
     admissions.append(verify(rid,4,before,LO+HI,SRC,acquired=True));h.command("PlayerA","/aivillage kernel status "+rid,"phase=TERMINAL");h.screenshot("PlayerA","rb007-genuine-birch-harvest",chat=True)
+    client_container("PlayerA",SRC,LOG)
     seed(2);before=h.container(DST,PLANK);inv=inventory(h,"PlayerA");rid=make(5)
     admissions.append(verify(rid,5,before,SRC,DST,acquired=True,craft=True,before_inventory=inv));h.screenshot("PlayerA","rb007-genuine-birch-crafting",chat=True)
+    client_container("PlayerA",DST,PLANK)
     foreign=h.command("PlayerB","/aivillage kernel status "+rid,DENIED_PATTERN)
+    foreign_cancel=h.command("PlayerB","/aivillage kernel cancel "+rid,DENIED_PATTERN)
     require(rid not in h.suggestions("PlayerB","/aivillage kernel status "),"Foreign birch run UUID leaked")
     h.command("PlayerA","/aivillage kernel inference false","admission=false")
     for q in (1,4,8,64):
@@ -114,6 +121,7 @@ def scenario(h):
         before=h.container(DST,PLANK);calls=h.model_calls();jid=compose(supplied);graphs.append(complete(jid,before,2-supplied));require(h.model_calls()==calls,"Known birch graph used a model")
     h.command("PlayerA","/aivillage kernel job-status "+jid,"state=SUCCEEDED");h.screenshot("PlayerA","rb007-exact-shortfall-job-graph",chat=True)
     foreign_job=h.command("PlayerB","/aivillage kernel job-status "+jid,DENIED_PATTERN)
+    foreign_job_cancel=h.command("PlayerB","/aivillage kernel job-cancel "+jid,DENIED_PATTERN)
     require(jid not in h.suggestions("PlayerB","/aivillage kernel job-status "),"Foreign birch Job UUID leaked")
     # Stop the actual generator and reopen the same save in an independent JVM.
     h.compose("stop","ollama");require(tags() is None,"Actual external backend still running")
@@ -122,8 +130,10 @@ def scenario(h):
     require(warm["start"]>cold["start"] and warm["releaseSha256"]==cold["releaseSha256"],"Offline reuse did not use a separate JVM and the same production release")
     offline=[];calls=h.model_calls();before=h.container(SECOND,LOG)
     offline.append(verify(gather(7,OTHER_LO,OTHER_HI,SECOND,"PlayerB"),7,before,OTHER_LO+OTHER_HI,SECOND,"PlayerB"))
+    client_container("PlayerB",SECOND,LOG)
     seed(1,SECOND);before=h.container(SECOND_DEST,PLANK);inv=inventory(h,"PlayerB")
     offline.append(verify(make(4,SECOND,SECOND_DEST,"PlayerB"),4,before,SECOND,SECOND_DEST,"PlayerB",craft=True,before_inventory=inv))
+    client_container("PlayerB",SECOND_DEST,PLANK)
     before=h.container(SECOND_DEST,PLANK);offline_graph=complete(compose(0,"PlayerB",SECOND,SECOND_DEST,OTHER_LO,OTHER_HI),before,2,"PlayerB",SECOND,SECOND_DEST)
     require(h.model_calls()==calls,"Backend-stopped reuse invoked inference");h.screenshot("PlayerB","rb007-offline-fresh-citizen-and-bindings",chat=True)
     # Cancellation keeps the real first harvest and fences subsequent effects.
@@ -152,6 +162,6 @@ def scenario(h):
     require(inventory(h,"PlayerA")==saved_inventory and h.snapshot()["containers"]==saved_containers,"Acknowledged birch save changed physical custody")
     h.quiet(80);require(inventory(h,"PlayerA")==saved_inventory and h.snapshot()["containers"]==saved_containers,"Restart replayed birch manufacture or deposit")
     h.screenshot("PlayerA","rb007-saved-birch-custody-no-replay",chat=True)
-    return {"independentAdmissions":admissions,"artifacts":hashes,"knownBindings":known,"actualLanguage":language,"composition":graphs,"foreignDenied":foreign,"foreignJobDenied":foreign_job,"models":models,
+    return {"independentAdmissions":admissions,"artifacts":hashes,"knownBindings":known,"actualLanguage":language,"composition":graphs,"foreignDenied":foreign,"foreignCancelDenied":foreign_cancel,"foreignJobDenied":foreign_job,"foreignJobCancelDenied":foreign_job_cancel,"clientContainers":client_containers,"models":models,
             "offlineWarmReuse":offline,"offlineGraph":offline_graph,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},"cancelBoundary":boundary,"cancelled":cancelled,
             "crashApproach":approach,"killBoundary":kill,"clockSteps":steps,"checkpoint":checkpoint,"killedWorldHashes":killed,"recovered":recovered,"savedInventory":saved_inventory}

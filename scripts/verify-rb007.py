@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Strict Actions-only table-item evidence selection, counts and source identity."""
+"""Strict Actions-only birch-family evidence selection, counts and source identity."""
 from pathlib import Path
 import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET,zipfile
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'build/rb007-evidence'
@@ -47,11 +47,13 @@ def identity():
     OUT.mkdir(parents=True,exist_ok=True);(OUT/'identity.json').write_text(json.dumps(value,indent=2)+'\n');print('RB007_IDENTITY '+json.dumps(value))
 def client():
     folder=ROOT/'build/e2e/rb007';data=json.loads((folder/'results.json').read_text());rows=[r for r in data['results'] if r['id']=='GP-RB-07'];assert len(rows)==1 and rows[0]['status']=='PASS'
-    e=rows[0]['evidence'];assert all(e.get(k) for k in ('independentAdmissions','artifacts','knownBindings','actualLanguage','composition','foreignDenied','foreignJobDenied','offlineWarmReuse','offlineGraph','offlineProcessProof','cancelled','killBoundary','recovered','checkpoint'))
+    e=rows[0]['evidence'];assert all(e.get(k) for k in ('independentAdmissions','artifacts','knownBindings','actualLanguage','composition','foreignDenied','foreignCancelDenied','foreignJobDenied','foreignJobCancelDenied','clientContainers','offlineWarmReuse','offlineGraph','offlineProcessProof','cancelled','killBoundary','recovered','checkpoint'))
     assert len(e['independentAdmissions'])==2 and len(e['artifacts'])==2 and len(e['actualLanguage'])==2 and len(e['offlineWarmReuse'])==2
     assert sorted(r['amount'] for r in e['knownBindings'])==[1,4,8,64]
     assert [r['harvested'] for r in e['composition']]==[0,1,2] and e['offlineGraph']['harvested']==2
     assert len({r['actor'] for r in e['independentAdmissions']+e['offlineWarmReuse']})==2
+    assert len(e['clientContainers'])==4 and {r['player'] for r in e['clientContainers']}=={'PlayerA','PlayerB'}
+    assert {r['item'] for r in e['clientContainers']}=={'minecraft:birch_log','minecraft:birch_planks'} and all(r['actual']==r['expected'] and r['actual']>0 for r in e['clientContainers'])
     assert e['killBoundary']['phase']=='EXECUTING' and any(r['stage']=='CRAFT' for r in e['killBoundary']['resourceReceipts'])
     assert 1<=e['clockSteps']<=512 and 'INTERRUPTED' in e['recovered']['description'] and 'CANCELLED' in e['cancelled']['description']
     proof=e['offlineProcessProof'];assert proof['sameRelease'] and proof['backendUnavailable'] and proof['warm']['start']>proof['cold']['start']
