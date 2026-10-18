@@ -157,6 +157,7 @@ public final class FabricPrerequisiteRuntime {
             long tick=server.overworld().getGameTime();
             if(!jobs.mayControl(root.id(),root.generation(),root.origin()))return blueprintFailure(root,Reason.AUTHORITY_DENIED);
             if(clock.millis()>root.allowance().deadlineEpochMillis())return blueprintFailure(root,Reason.BUDGET_EXHAUSTED);
+            if(!leases.ready())return false;
             boolean childComplete=!root.children().isEmpty() && root.children().stream().allMatch(id->jobs.query(id,root.origin()).state()==Jobs.State.SUCCEEDED);
             var checked=blueprintChecks.get(root.id());
             if(checked==null || tick-checked.tick()>=10 || childComplete&&!checked.childComplete()) {
@@ -170,7 +171,6 @@ public final class FabricPrerequisiteRuntime {
                 else if(charge.reason()!=Reason.STORAGE_UNAVAILABLE)return blueprintFailure(root,charge.reason()==null?Reason.BUDGET_EXHAUSTED:charge.reason());
                 return true;
             }
-            if(!leases.ready())return false;
             for(var prior:leases.snapshot().leases())if(prior.owner().equals(new ResourceLeases.Owner(root.id(),root.generation()))
                     && (prior.state()!=ResourceLeases.State.ACTIVE || prior.expires()<=tick))return blueprintFailure(root,Reason.RESOURCE_MISSING);
             if(!root.children().isEmpty() && !childComplete && Objects.equals(validatedBlueprintChecks.get(root.id()),checked.tick()))return false;

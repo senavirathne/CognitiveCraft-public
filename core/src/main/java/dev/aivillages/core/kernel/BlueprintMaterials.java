@@ -57,22 +57,33 @@ public final class BlueprintMaterials {
         public Stock {if(free<0 || free>8192 || identity==null || identity.length()>128 || tick<0 || inspected<0 || inspected>256)throw new IllegalArgumentException("Bounded stock observation");}
     }
     public record Report(Blueprint.Ref ref,Map<String,Long> full,Map<String,Long> correct,Map<String,Long> outstanding,
-                         Map<String,Long> eligible,Map<String,Long> shortfalls,Set<String> unsupported,
+                         Map<String,Long> eligible,Map<String,Long> shortfalls,Set<String> unsupported,Set<String> unknownStock,
                          boolean unknown,int partialStructures,List<String> blockers,Reason reason,long tick,int inspected,String stockIdentity) {
         public Report {full=Map.copyOf(full);correct=Map.copyOf(correct);outstanding=Map.copyOf(outstanding);
-            eligible=Map.copyOf(eligible);shortfalls=Map.copyOf(shortfalls);unsupported=Set.copyOf(unsupported);blockers=List.copyOf(blockers);}
+            eligible=Map.copyOf(eligible);shortfalls=Map.copyOf(shortfalls);unsupported=Set.copyOf(unsupported);unknownStock=Set.copyOf(unknownStock);blockers=List.copyOf(blockers);}
         public boolean canStage(){return !unknown && blockers.isEmpty();}
         public long required(){return outstanding.getOrDefault(PLANKS,0L);}
         public long available(){return eligible.getOrDefault(PLANKS,0L);}
         public long shortage(){return shortfalls.getOrDefault(PLANKS,0L);}
-        public Report blocked(String detail,Reason why){var b=new ArrayList<>(blockers);b.add(detail);return new Report(ref,full,correct,outstanding,eligible,shortfalls,unsupported,unknown,partialStructures,b,why,tick,inspected,stockIdentity);}
+        public Report blocked(String detail,Reason why){var b=new ArrayList<>(blockers);b.add(detail);return new Report(ref,full,correct,outstanding,eligible,shortfalls,unsupported,unknownStock,unknown,partialStructures,b,why,tick,inspected,stockIdentity);}
     }
     public static Report project(BlueprintStore.Inspection inspection,Blueprint.SiteBinding binding,Site site,Stock stock,
                                  ContainerRef source,ContainerRef destination) {
         var gaps=new TreeSet<String>();var blockers=new ArrayList<String>();Reason reason=null;
         Map<String,Long> correct=Map.of(),outstanding=Map.of(),eligible=Map.of(),shortfalls=Map.of();int partial=0;
         boolean unknown=site.status()==ObservationStatus.UNKNOWN || stock.status()==ObservationStatus.UNKNOWN;
-        if(!inspection.compatible() || inspection.body()==null){blockers.add("blueprint:"+inspection.status());reason=Reason.ARTIFACT_INCOMPATIBLE;}
+        if(!inspection.compatible() || inspection.body()==null) {
+            Reason why=switch(inspection.status()) {
+                case DENIED -> Reason.AUTHORITY_DENIED;
+                case QUOTA -> Reason.BUDGET_EXHAUSTED;
+                case UNAVAILABLE -> Reason.STORAGE_UNAVAILABLE;
+                case CANCELLED -> Reason.CANCELLED;
+                case INCOMPATIBLE -> Reason.ARTIFACT_INCOMPATIBLE;
+                default -> Reason.ARTIFACT_INVALID;
+            };
+            return new Report(inspection.ref(),Map.of(),Map.of(),Map.of(),Map.of(),Map.of(),Set.of(),Set.of(),true,0,
+                    List.of("blueprint:"+inspection.status()),why,Math.min(site.tick(),stock.tick()),site.inspected()+stock.inspected(),"");
+        }
         for(var item:inspection.materials().keySet())if(!item.equals(PLANKS)){gaps.add(item);blockers.add("missing-producer-and-staging-support:"+item);reason=Reason.UNSUPPORTED_PRIMITIVE;}
         if(inspection.materials().getOrDefault(PLANKS,0L)>MAX_AMOUNT){blockers.add("bounded-bill:64");reason=Reason.BUDGET_EXHAUSTED;}
         if(site.reason()!=null || site.status()!=ObservationStatus.PRESENT){blockers.add("site:"+(site.reason()==null?"unknown":site.reason()));reason=site.reason()==null?Reason.STALE_OBSERVATION:site.reason();}
@@ -83,11 +94,11 @@ public final class BlueprintMaterials {
                 correct=projection.correct();outstanding=projection.outstanding();partial=projection.partialStructures();
             }catch(IllegalArgumentException|ArithmeticException invalid){blockers.add("site-envelope-or-evidence");reason=Reason.REQUEST_INVALID;unknown=true;}
         }
-        if(!unknown && stock.reason()==null && !outstanding.isEmpty()) {
+        if(!unknown && stock.reason()==null && outstanding.containsKey(PLANKS)) {
             long q=outstanding.getOrDefault(PLANKS,0L),present=Math.min(q,stock.free());
-            eligible=Map.of(PLANKS,present);var deficits=new TreeMap<String,Long>(outstanding);deficits.put(PLANKS,Math.subtractExact(q,present));shortfalls=deficits;
+            eligible=Map.of(PLANKS,present);shortfalls=Map.of(PLANKS,Math.subtractExact(q,present));
         }
-        return new Report(inspection.ref(),inspection.materials(),correct,outstanding,eligible,shortfalls,gaps,unknown,partial,blockers,reason,
+        return new Report(inspection.ref(),inspection.materials(),correct,outstanding,eligible,shortfalls,gaps,gaps,unknown,partial,blockers,reason,
                 Math.min(site.tick(),stock.tick()),Math.addExact(site.inspected(),stock.inspected()),stock.identity());
     }
 }

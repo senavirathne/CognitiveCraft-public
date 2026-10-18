@@ -59,6 +59,7 @@ public final class BlueprintStagingGameTests {
         void step(){
             if(System.currentTimeMillis()-started>900000){failure="Bounded RB008 watchdog phase="+phase+" row="+row;return;}
             if(phase==12){if(closing.isDone()){closing.join();done=true;}return;}
+            if(phase==15){if(writing.isDone()&&closing.isDone()){writing.join();closing.join();done=true;}return;}
             session.tick();if(!session.identityReady())return;
             if(phase==0){
                 if(warm){if(!reopening.isDone())return;var m=reopening.join();h.assertTrue(m.process()!=ProcessHandle.current().pid(),"Reopen reused original JVM");origin=new BlockPos(m.x(),m.y(),m.z());owner.setUUID(m.principal());blueprint=m.blueprint();BootstrapGameTests.forceFixtureChunks(h,origin);

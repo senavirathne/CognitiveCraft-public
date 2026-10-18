@@ -74,7 +74,12 @@ def scenario(h):
             if j and j['state'] in ('FAILED','CANCELLED','INTERRUPTED'):raise AssertionError('Staging stopped '+json.dumps(j))
             return j if j and j['state']=='SUCCEEDED' else None
         root=h.wait(finished,'Current physical material staging '+jid,220)
-        answer=h.command(player,'/aivillage kernel blueprint-status '+jid,'currentlyAllocated=true')
+        answer=''
+        def allocated():
+            nonlocal answer
+            answer=h.command(player,'/aivillage kernel blueprint-status '+jid,'blueprint-job='+jid)
+            return answer if 'currentlyAllocated=true' in answer else None
+        h.wait(allocated,'Fresh acknowledged physical staging allocation',20)
         require(f'allocated={expected}' in answer and h.container(source,PLANK)==expected,'Staging claim differs from current items')
         nodes=graph(jid,player);deposited=sum(r['quantity'] for n in nodes for a in n['attempts'] for r in a.get('resourceReceipts',[]) if r['stage']=='DEPOSIT' and r['item']['id']==PLANK)
         require(not root['attempts'] and root['fulfilled']==0,'SUPPLY fabricated manufacture or executed its root')
@@ -82,7 +87,7 @@ def scenario(h):
         h.actions_active=False
         return {'job':jid,'root':root,'graph':nodes,'deposited':deposited,'status':answer,'source':source}
     def cancel(jid,player='PlayerA'):
-        h.cancel_job(player,jid);v=h.wait(lambda:(j if (j:=h.job_view(player,jid)) and j['state']=='CANCELLED' else None),'Staging cancellation fence',40);h.actions_active=False;return v
+        h.cancel_job(player,jid);v=h.wait(lambda:(j if (j:=h.job_view(player,jid)) and j['state']=='CANCELLED' else None),'Staging cancellation fence',40);h.actions_active=False;h.quiet(10);return v
     seed(2,1);logs();calls=h.model_calls();before_jobs=set(h.snapshot()['knownPlayers']['PlayerA']['jobs']);before_stock=h.snapshot()['containers']
     preflight=request('preflight');require('job=null accepted=true' in preflight and 'minecraft:oak_planks=3' in preflight,'Wrong read-only shortage '+preflight)
     require(set(h.snapshot()['knownPlayers']['PlayerA']['jobs'])==before_jobs and h.snapshot()['containers']==before_stock and h.model_calls()==calls,'Preflight created work, effects or inference')
