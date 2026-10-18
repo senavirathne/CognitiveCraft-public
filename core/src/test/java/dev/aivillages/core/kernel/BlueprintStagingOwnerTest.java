@@ -2,12 +2,15 @@ package dev.aivillages.core.kernel;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class BlueprintStagingOwnerTest {
+    @TempDir Path directory;
     static final class Scene {
         final UUID world=UUID.randomUUID();final TrustedContext owner=JobLifecycleStoreTest.owner(world),foreign=JobLifecycleStoreTest.owner(world);
         final JobLifecycleStoreTest.TestClock clock=new JobLifecycleStoreTest.TestClock();
@@ -43,4 +46,9 @@ final class BlueprintStagingOwnerTest {
     @Test void changedBlueprintProjectionCannotCompleteAnotherDemand(){var s=new Scene();var j=s.root();s.claim(j,5);var other=BlueprintMaterialsTest.inspection(BlueprintMaterialsTest.planks(4));var report=BlueprintMaterialsTest.report(other,BlueprintMaterialsTest.air(other),4);assertFalse(s.jobs.completeBlueprint(j.id(),j.guard(),report,s.leases,s.owner).accepted());}
     @Test void preflightWorkIsBilledInsideOriginalAllowanceBeforeChildren(){var s=new Scene();var request=BlueprintMaterialsTest.request(s.blueprint.ref(),5);var change=s.jobs.stageBlueprint(UUID.randomUUID(),request,s.owner,new ObservationRef(UUID.randomUUID(),100,BlueprintMaterialsTest.DIM),ResourceComposition.allowance(s.clock.millis()),1024,1024);assertTrue(change.accepted());s.jobs.tick();var root=s.jobs.query(change.job().id(),s.owner);assertEquals(1024,root.usage().get(Budgets.Kind.INSTRUCTIONS));assertEquals(1024,root.usage().get(Budgets.Kind.OBSERVATIONS));assertEquals(31744,s.jobs.remainingAllowance(root.id(),s.owner).maximum(Budgets.Kind.INSTRUCTIONS));}
     @Test void alreadyCorrectSiteCompletesZeroDemandWithoutClaimsOrEffects(){var s=new Scene();var request=BlueprintMaterialsTest.request(s.blueprint.ref(),0);var result=s.jobs.stageBlueprint(UUID.randomUUID(),request,s.owner,new ObservationRef(UUID.randomUUID(),100,BlueprintMaterialsTest.DIM),ResourceComposition.allowance(s.clock.millis()));assertTrue(result.accepted());s.jobs.tick();var root=s.jobs.query(result.job().id(),s.owner);var actual=s.blueprint.body().cells().stream().map(c->s.blueprint.body().palette().get(c.palette())).toList();var report=BlueprintMaterialsTest.report(s.blueprint,actual,0);assertEquals(0,report.required());assertTrue(s.jobs.completeBlueprint(root.id(),root.guard(),report,s.leases,s.owner).accepted());s.jobs.tick();assertEquals(Jobs.State.SUCCEEDED,s.current(root).state());assertTrue(s.leases.snapshot().leases().isEmpty());assertTrue(s.current(root).children().isEmpty());}
+    @Test void completedSupplyWritesAndReopensRealJournalWithoutManufactureCredit()throws Exception{var s=new Scene();var root=s.root();s.claim(root,5);assertTrue(s.complete(root).accepted());s.jobs.tick();root=s.current(root);
+        try(var journal=JobJournal.open(directory,s.world)){journal.replace(journal.snapshot(),new Jobs.Snapshot(s.world,1,List.of(root),List.of()));}
+        try(var journal=JobJournal.open(directory,s.world)){assertFalse(journal.readOnly());var saved=journal.snapshot().jobs().getFirst();assertEquals(Jobs.State.SUCCEEDED,saved.state());assertEquals(0,saved.fulfilled());assertTrue(saved.attempts().isEmpty());assertEquals(s.blueprint.ref(),BlueprintMaterials.ref(saved.request().request()));}
+        var claims=s.leaseStore(s.leaseDisk);claims.tick();assertEquals(0,BlueprintMaterials.held(root,claims,true));assertEquals(5,s.stock);
+    }
 }

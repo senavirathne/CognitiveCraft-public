@@ -1329,6 +1329,14 @@ public final class JobLifecycleStore {
             for (UUID child : job.children())
                 if (!job.dependencies().contains(child) || !job.id().equals(rows.get(child).parent())
                         || !job.origin().equals(rows.get(child).origin())) throw new IllegalArgumentException("Child linkage");
+            if(staging) {
+                if(job.children().size()>1 || !job.dependencies().equals(job.children()))throw new IllegalArgumentException("Bounded staging graph");
+                for(UUID childId:job.children()) {
+                    var child=rows.get(childId);long shortage=((IntValue)child.request().request().arguments().get("amount")).value();
+                    if(shortage<1 || shortage>quantity.value() || !child.request().request().equals(BlueprintMaterials.production(job.request().request(),shortage)))
+                        throw new IllegalArgumentException("Exact staging deficit child");
+                }
+            }
             if (job.parent() != null && (!rows.get(job.parent()).children().contains(job.id())
                     || !rows.get(job.parent()).origin().equals(job.origin()))) throw new IllegalArgumentException("Parent linkage");
             for (Attempt attempt : job.attempts()) {
@@ -1368,7 +1376,9 @@ public final class JobLifecycleStore {
                 throw new IllegalArgumentException("Job state evidence");
             long allocated = snapshot.allocations().stream().filter(a -> a.demand().equals(job.id()) && !a.material())
                     .mapToLong(Allocation::quantity).reduce(0,Math::addExact);
-            if (job.state() == State.SUCCEEDED && (goal
+            if (job.state() == State.SUCCEEDED && (staging
+                    ? !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
+                    : goal
                     ? !PlanningGoals.covers(job.request().request(),job.children().stream().map(childId->rows.get(childId).request().request()).toList())
                             || !job.children().stream().allMatch(childId->rows.get(childId).state()==State.SUCCEEDED)
                     : Math.addExact(job.fulfilled(),ResourceDelivery.resource(job.request().request().capability())
