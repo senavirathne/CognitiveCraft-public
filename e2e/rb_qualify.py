@@ -21,6 +21,7 @@ from suite import FAMILIES
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = Path(__file__).with_name("rb-coverage.json")
+MAX_IMPORTED_BYTES = 2_000_000_000
 
 
 def require(condition, message):
@@ -89,22 +90,40 @@ def latest_jobs(history):
     return list(selected.values())
 
 
-def unpack(archive, destination):
+def evidence_member(path, profile, layer):
+    """Import verifier inputs; complete raw worlds/traces remain in the hashed owner archive."""
+    if path == PurePosixPath("fabric/build/libs/ai-villages-0.1.0.jar"):
+        return True
+    if layer == "native":
+        return path.is_relative_to(f"build/{profile}-evidence") or any(
+            path.is_relative_to(f"{module}/build/test-results/test")
+            for module in ("core", "providers", "fabric"))
+    folder = PurePosixPath(f"build/e2e/{profile}")
+    if not path.is_relative_to(folder):
+        return False
+    relative = path.relative_to(folder)
+    return str(relative) in ("metadata.json", "results.json", "junit.xml") or (
+        len(relative.parts) == 4 and relative.parts[0] == "clients" and
+        relative.parts[2] == "screenshots" and relative.suffix == ".png")
+
+
+def unpack(archive, destination, include=None):
     """Treat downloaded ZIP paths as untrusted; bound both count and expanded size."""
     require(not destination.exists() or not any(destination.iterdir()),
             "Artifact extraction requires an empty directory; stale files cannot supply missing evidence")
     with zipfile.ZipFile(archive) as source:
         entries = source.infolist()
-        require(len(entries) <= 50000 and sum(e.file_size for e in entries) <= 2_000_000_000,
-                "Artifact exceeds extraction bounds")
+        require(len(entries) <= 50000, "Artifact exceeds extraction bounds")
         for entry in entries:
             path = PurePosixPath(entry.filename)
             require(not path.is_absolute() and ".." not in path.parts and "\\" not in entry.filename
                     and not stat.S_ISLNK(entry.external_attr >> 16), "Unsafe artifact path")
-        source.extractall(destination)
+        selected = [entry for entry in entries if include is None or include(PurePosixPath(entry.filename))]
+        require(sum(e.file_size for e in selected) <= MAX_IMPORTED_BYTES, "Artifact exceeds extraction bounds")
+        source.extractall(destination, members=selected)
 
 
-def download(artifact, destination):
+def download(artifact, destination, include=None):
     require(not artifact.get("expired"), "Required artifact has expired")
     destination.mkdir(parents=True, exist_ok=True)
     archive = destination.with_suffix(".zip")
@@ -116,7 +135,7 @@ def download(artifact, destination):
     expected = artifact.get("digest")
     require(not expected or expected == "sha256:" + actual, "Artifact archive digest mismatch")
     require(archive.stat().st_size == artifact["size_in_bytes"], "Artifact archive size mismatch")
-    unpack(archive, destination)
+    unpack(archive, destination, include)
     archive.unlink()
     return {"id": artifact["id"], "name": artifact["name"], "bytes": artifact["size_in_bytes"],
             "sha256": actual, "githubDigest": expected, "directory": str(destination)}
@@ -167,7 +186,8 @@ def collect(root, manifest, head, event, seconds=5400):
                     latest = max(int(a["name"][len(prefix):]) for a in choices)
                     choices = [a for a in choices if int(a["name"][len(prefix):]) == latest]
                     require(len(choices) == 1, "Duplicate " + layer + " artifact")
-                    retained = download(choices[0], root / "imports" / unit["profile"] / layer)
+                    retained = download(choices[0], root / "imports" / unit["profile"] / layer,
+                                        lambda path: evidence_member(path, unit["profile"], layer))
                     retained["artifactAttempt"] = latest
                     row["artifacts"].append({"layer": layer, **retained})
             except Exception as error:

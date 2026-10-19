@@ -4,7 +4,7 @@ import copy
 import hashlib
 import io
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import struct
 import tempfile
 import unittest
@@ -12,7 +12,7 @@ from unittest.mock import patch
 import zipfile
 import zlib
 
-from rb_qualify import (MANIFEST, check_baseline, check_screenshots, passing_cases,
+from rb_qualify import (MANIFEST, check_baseline, check_screenshots, evidence_member, passing_cases,
                         latest_jobs, qualify, select_runs, unpack)
 from suite import FAMILIES, PROFILES
 
@@ -99,6 +99,40 @@ class ResourceQualificationTests(unittest.TestCase):
         (destination / "old-results.json").write_text('{"status":"PASS"}')
         with self.assertRaises(ValueError):
             unpack(archive, destination)
+
+    def test_large_raw_observation_trace_does_not_displace_required_client_evidence(self):
+        archive = self.root / "client.zip"
+        prefix = "build/e2e/rb005/"
+        required = [prefix + name for name in ("metadata.json", "results.json", "junit.xml",
+                    "clients/PlayerA/screenshots/original.png", "clients/PlayerB/screenshots/original.png")]
+        required.append("fabric/build/libs/ai-villages-0.1.0.jar")
+        trace = prefix + "server/observations.jsonl"
+        with zipfile.ZipFile(archive, "w") as output:
+            for name in required:
+                output.writestr(name, b"retained")
+            output.writestr(trace, b"x" * 2000)
+        destination = self.root / "import"
+        with patch("rb_qualify.MAX_IMPORTED_BYTES", 1000):
+            unpack(archive, destination, lambda path: evidence_member(path, "rb005", "client"))
+        self.assertTrue(all((destination / name).read_bytes() == b"retained" for name in required))
+        self.assertFalse((destination / trace).exists())
+        with zipfile.ZipFile(archive) as source:
+            self.assertEqual(2000, len(source.read(trace)))
+
+    def test_selected_evidence_still_obeys_expansion_bound(self):
+        archive = self.root / "oversized.zip"
+        with zipfile.ZipFile(archive, "w") as output:
+            output.writestr("build/e2e/rb005/results.json", b"x" * 1001)
+        with patch("rb_qualify.MAX_IMPORTED_BYTES", 1000), self.assertRaises(ValueError):
+            unpack(archive, self.root / "import", lambda path: evidence_member(path, "rb005", "client"))
+
+    def test_native_import_retains_reports_and_original_phase_evidence(self):
+        for path in ("build/rb005-evidence/genuine-cold.log", "build/rb005-evidence/identity.json",
+                     "core/build/test-results/test/TEST-owner.xml", "providers/build/test-results/test/TEST-owner.xml",
+                     "fabric/build/test-results/test/TEST-owner.xml", "fabric/build/libs/ai-villages-0.1.0.jar"):
+            self.assertTrue(evidence_member(PurePosixPath(path), "rb005", "native"))
+        for path in ("fabric/build/gametest-run/world/region/r.0.0.mca", "build/rb004-evidence/identity.json"):
+            self.assertFalse(evidence_member(PurePosixPath(path), "rb005", "native"))
 
     def test_resource_capture_requires_actual_bytes_and_current_source(self):
         def chunk(kind, data):

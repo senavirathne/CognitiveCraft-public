@@ -59,7 +59,7 @@ public final class OakLogEffectGameTests {
         var unrelated=new ItemEntity(h.getLevel(),p.getX()+.5,p.getY()+.25,p.getZ()+.5,new ItemStack(nativeLog,17));
         h.getLevel().addFreshEntity(unrelated);
         int[] phase={0};long[] first={-1},harvested={-1};ActionHandle[] handle={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
-        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false},nativeDropReach={false},ownedDropDetour={false};
+        boolean[] airborneDeferred={false},partialSurfaceDrop={false},endpointRefined={false},nativeDropReach={false},ownedDropDetour={false},destinationSettled={false};
         var operations=List.of(Operation.APPROACH_OAK_LOG,Operation.HARVEST_NEXT_OAK_LOG,Operation.APPROACH_OAK_LOG,Operation.PICKUP_TRACKED_OAK_LOGS,
                 Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_OAK_LOGS).stream().map(op->BirchFixtures.operation(op,birch)).toList();
         h.succeedWhen(() -> {
@@ -164,12 +164,13 @@ public final class OakLogEffectGameTests {
                 h.assertTrue(endpointRefined[0],"Real native path endpoint refinement did not execute");
                 h.assertTrue(ownedDropDetour[0],"Occluded adjacent owned-drop regression did not execute");
                 h.assertTrue(nativeDropReach[0],"Native low-ceiling item preparation regression did not execute");
+                h.assertTrue(destinationSettled[0],"Native destination settling regression did not execute");
                 h.assertTrue(ResourceDelivery.completed(request,run,List.of(),receipts),"Trusted native receipt chain incomplete");
                 h.assertTrue(v.getInventory().countItem(nativeLog)==3,"Preloaded actor stock spent as output");
                 h.assertTrue(container.getItem(1).getCount()==64 && ItemStack.isSameItemSameComponents(container.getItem(0),custom),"Real slots/components changed incorrectly");
                 h.assertTrue(unrelated.isAlive() && unrelated.getItem().getCount()==17,"Foreign drops merged or were consumed");
                 gateway.releaseRun(run);
-                System.out.println((birch?"RB007_LOG_EFFECTS":"RB001_EFFECTS")+" breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" ownedDropDetour="+ownedDropDetour[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
+                System.out.println((birch?"RB007_LOG_EFFECTS":"RB001_EFFECTS")+" breakTicks="+(harvested[0]-first[0])+" airborneDeferred="+airborneDeferred[0]+" partialSurfaceDrop="+partialSurfaceDrop[0]+" endpointRefined="+endpointRefined[0]+" nativeDropReach="+nativeDropReach[0]+" ownedDropDetour="+ownedDropDetour[0]+" destinationSettled="+destinationSettled[0]+" overhangVisible=true receiptChain="+receipts+" foreignDrop="+unrelated.getUUID());
                 return;
             }
             Operation op=operations.get(phase[0]);
@@ -190,6 +191,12 @@ public final class OakLogEffectGameTests {
                     h.assertTrue(v.onGround() && motion.x*motion.x+motion.z*motion.z<=0.01*0.01
                                     && Math.abs(v.getY()-p.getY())<=0.125,
                             "Standing oak arrival was reported before actual horizontal movement settled");
+                }
+                if(op.shared()==Operation.MOVE_TO_DESTINATION) {
+                    var motion=v.getDeltaMovement();
+                    h.assertTrue(v.onGround() && motion.x*motion.x+motion.z*motion.z<=0.01*0.01 && motion.y<=0.0001,
+                            "Log delivery arrival was reported before actual destination movement settled");
+                    destinationSettled[0]=true;
                 }
                 receipts.addAll(result.resourceReceipts());if(op.shared()==Operation.HARVEST_NEXT_OAK_LOG) {
                     harvested[0]=h.getLevel().getGameTime();
