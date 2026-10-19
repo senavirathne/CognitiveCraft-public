@@ -80,6 +80,8 @@ def select_runs(runs, workflows, head, event):
 
 def unpack(archive, destination):
     """Treat downloaded ZIP paths as untrusted; bound both count and expanded size."""
+    require(not destination.exists() or not any(destination.iterdir()),
+            "Artifact extraction requires an empty directory; stale files cannot supply missing evidence")
     with zipfile.ZipFile(archive) as source:
         entries = source.infolist()
         require(len(entries) <= 50000 and sum(e.file_size for e in entries) <= 2_000_000_000,
@@ -277,7 +279,8 @@ def qualify(root, manifest, owners, head, tree):
             require(jar is not None, "No qualified shared production binary")
             units.append(check_unit(root, unit, rows[0], head, tree, jar))
         except (Exception, SystemExit) as error:
-            units.append({"unit": unit["unit"], "family": unit["family"], "status": "FAIL", "reason": str(error)})
+            units.append({"unit": unit["unit"], "family": unit["family"], "status": "FAIL",
+                          "reason": type(error).__name__ + ": " + str(error)})
     passed = not errors and len(units) == 9 and all(u["status"] == "PASS" for u in units)
     output = {"schema": 1, "status": "PASS" if passed else "FAIL", "sourceCommit": head, "sourceTree": tree,
               "releaseSha256": jar, "baselineFamiliesRequired": 13, "resourceUnitsRequired": 9,

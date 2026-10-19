@@ -80,6 +80,16 @@ class ResourceQualificationTests(unittest.TestCase):
             unpack(archive, self.root / "import")
         self.assertFalse((self.root / "escaped.json").exists())
 
+    def test_old_extracted_files_cannot_supply_missing_new_evidence(self):
+        archive = self.root / "new.zip"
+        with zipfile.ZipFile(archive, "w") as output:
+            output.writestr("identity.json", "{}")
+        destination = self.root / "import"
+        destination.mkdir()
+        (destination / "old-results.json").write_text('{"status":"PASS"}')
+        with self.assertRaises(ValueError):
+            unpack(archive, destination)
+
     def test_resource_capture_requires_actual_bytes_and_current_source(self):
         def chunk(kind, data):
             return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
