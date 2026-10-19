@@ -176,3 +176,34 @@ jobs:
             build/qualification/qualification.json
             build/qualification/owner-evidence.json
             build/qualification/production-fix-validation.json
+  rb-qualification:
+    name: Require all nine RB units with the shared real-client procedure
+    needs: qualification
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: real-gameplay-qualification-${{ github.run_id }}
+          path: build/rb-series/baseline
+      - name: Collect exact-head resource owners, retain original artifact identities and qualify each layer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          REVIEWED_EVENT: ${{ github.event_name }}
+        run: python3 e2e/rb_qualify.py build/rb-series --head "$REVIEWED_HEAD" --event "$REVIEWED_EVENT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb-series-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            build/rb-series/rb-series-qualification.json
+            build/rb-series/rb-owner-evidence.json
+            build/rb-series/captures/

@@ -660,5 +660,6 @@
     "resource-leases.yml",
     "research-live-trial.yml",
     "client-e2e-smoke.yml"
-  ]
+  ],
+  "resourceCoverage": "rb-coverage.json"
 }

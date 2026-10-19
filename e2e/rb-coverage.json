@@ -1,0 +1,287 @@
+{
+  "schema": 1,
+  "scope": "Accepted RB-001\u2013008, with RB-006A and RB-006B qualified independently",
+  "baselineWorkflow": "client-e2e-acceptance.yml",
+  "baselineFamilies": 13,
+  "conditionalLifecycle": {
+    "unit": "IMP-029",
+    "requiredForResourceCampaign": false,
+    "reason": "Only a merged lifecycle owner can add its own conditional network scenarios"
+  },
+  "units": [
+    {
+      "unit": "RB-001",
+      "profile": "rb001",
+      "family": "GP-RB-01",
+      "ownerWorkflow": "oak-log-acquisition.yml",
+      "verifier": "scripts/verify-rb001.py",
+      "nativeArtifactPrefix": "rb001-owner-native",
+      "clientArtifactPrefix": "rb001-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "oak_log_effect_game_tests",
+          "marker": "RB001_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "oak_log_kernel_game_tests",
+          "marker": "RB001_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "oak_log_kernel_game_tests",
+          "marker": "RB001_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "oak_log_kernel_game_tests",
+          "marker": "RB001_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-002",
+      "profile": "rb002",
+      "family": "GP-RB-02",
+      "ownerWorkflow": "oak-plank-production.yml",
+      "verifier": "scripts/verify-rb002.py",
+      "nativeArtifactPrefix": "rb002-owner-native",
+      "clientArtifactPrefix": "rb002-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "oak_plank_effect_game_tests",
+          "marker": "RB002_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "oak_plank_kernel_game_tests",
+          "marker": "RB002_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "oak_plank_kernel_game_tests",
+          "marker": "RB002_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "oak_plank_kernel_game_tests",
+          "marker": "RB002_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-003",
+      "profile": "rb003",
+      "family": "GP-RB-03",
+      "ownerWorkflow": "stick-production.yml",
+      "verifier": "scripts/verify-rb003.py",
+      "nativeArtifactPrefix": "rb003-owner-native",
+      "clientArtifactPrefix": "rb003-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "stick_effect_game_tests",
+          "marker": "RB003_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "stick_kernel_game_tests",
+          "marker": "RB003_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "stick_kernel_game_tests",
+          "marker": "RB003_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "stick_kernel_game_tests",
+          "marker": "RB003_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-004",
+      "profile": "rb004",
+      "family": "GP-RB-04",
+      "ownerWorkflow": "wooden-axe-production.yml",
+      "verifier": "scripts/verify-rb004.py",
+      "nativeArtifactPrefix": "rb004-owner-native",
+      "clientArtifactPrefix": "rb004-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "axe_effect_game_tests",
+          "marker": "RB004_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "axe_kernel_game_tests",
+          "marker": "RB004_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "axe_kernel_game_tests",
+          "marker": "RB004_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "axe_kernel_game_tests",
+          "marker": "RB004_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-005",
+      "profile": "rb005",
+      "family": "GP-RB-COMPOSE-01",
+      "ownerWorkflow": "resource-composition.yml",
+      "verifier": "scripts/verify-rb005.py",
+      "nativeArtifactPrefix": "rb005-owner-native",
+      "clientArtifactPrefix": "rb005-connected",
+      "nativePhases": [
+        {
+          "phase": "controlled",
+          "className": null,
+          "marker": null
+        },
+        {
+          "phase": "genuine-cold",
+          "className": null,
+          "marker": null
+        },
+        {
+          "phase": "genuine-warm",
+          "className": null,
+          "marker": null
+        }
+      ]
+    },
+    {
+      "unit": "RB-006A",
+      "profile": "rb006a",
+      "family": "GP-RB-06A",
+      "ownerWorkflow": "crafting-table-production.yml",
+      "verifier": "scripts/verify-rb006a.py",
+      "nativeArtifactPrefix": "rb006a-owner-native",
+      "clientArtifactPrefix": "rb006a-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "table_effect_game_tests",
+          "marker": "RB006A_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "table_kernel_game_tests",
+          "marker": "RB006A_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "composition",
+          "className": "table_composition_game_tests",
+          "marker": "RB006A_COMPOSITION"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "table_kernel_game_tests",
+          "marker": "RB006A_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "table_kernel_game_tests",
+          "marker": "RB006A_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-006B",
+      "profile": "rb006b",
+      "family": "GP-RB-06B",
+      "ownerWorkflow": "table-placement.yml",
+      "verifier": "scripts/verify-rb006b.py",
+      "nativeArtifactPrefix": "rb006b-native",
+      "clientArtifactPrefix": "rb006b-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "placement_effect_game_tests",
+          "marker": "RB006B_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "placement_kernel_game_tests",
+          "marker": "RB006B_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "placement_kernel_game_tests",
+          "marker": "RB006B_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "placement_kernel_game_tests",
+          "marker": "RB006B_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-007",
+      "profile": "rb007",
+      "family": "GP-RB-07",
+      "ownerWorkflow": "birch-resource-family.yml",
+      "verifier": "scripts/verify-rb007.py",
+      "nativeArtifactPrefix": "rb007-native",
+      "clientArtifactPrefix": "rb007-connected",
+      "nativePhases": [
+        {
+          "phase": "effects",
+          "className": "birch_log_effect_game_tests",
+          "marker": "RB007_LOG_EFFECTS"
+        },
+        {
+          "phase": "plank-effects",
+          "className": "birch_plank_effect_game_tests",
+          "marker": "RB007_PLANK_EFFECTS"
+        },
+        {
+          "phase": "controlled",
+          "className": "birch_kernel_game_tests",
+          "marker": "RB007_NATIVE phase=cold genuine=false"
+        },
+        {
+          "phase": "genuine-cold",
+          "className": "birch_kernel_game_tests",
+          "marker": "RB007_NATIVE phase=cold genuine=true"
+        },
+        {
+          "phase": "genuine-warm",
+          "className": "birch_kernel_game_tests",
+          "marker": "RB007_NATIVE phase=warm genuine=true"
+        }
+      ]
+    },
+    {
+      "unit": "RB-008",
+      "profile": "rb008",
+      "family": "GP-RB-08",
+      "ownerWorkflow": "blueprint-material-staging.yml",
+      "verifier": "scripts/verify-rb008.py",
+      "nativeArtifactPrefix": "rb008-native",
+      "clientArtifactPrefix": "rb008-connected",
+      "nativePhases": [
+        {
+          "phase": "cold",
+          "className": null,
+          "marker": null
+        },
+        {
+          "phase": "warm",
+          "className": null,
+          "marker": null
+        }
+      ]
+    }
+  ]
+}
