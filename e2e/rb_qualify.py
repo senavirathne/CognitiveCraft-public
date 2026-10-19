@@ -78,6 +78,17 @@ def select_runs(runs, workflows, head, event):
     return selected
 
 
+def latest_jobs(history):
+    """A failed-job retry may inherit the other successful job from an earlier attempt."""
+    selected = {}
+    for job in history:
+        previous = selected.get(job["name"])
+        key = lambda value: (value.get("run_attempt", 1), value["id"])
+        if previous is None or key(job) > key(previous):
+            selected[job["name"]] = job
+    return list(selected.values())
+
+
 def unpack(archive, destination):
     """Treat downloaded ZIP paths as untrusted; bound both count and expanded size."""
     require(not destination.exists() or not any(destination.iterdir()),
@@ -139,7 +150,9 @@ def collect(root, manifest, head, event, seconds=5400):
                     "otherExactHeadRuns": [{"id": r["id"], "conclusion": r["conclusion"],
                         "attempt": r["run_attempt"]} for r in runs if r["id"] != run["id"] and
                         r.get("path", "").split("/")[-1] == workflow]})
-        row["jobs"] = pages(f"/actions/runs/{run['id']}/jobs", "jobs")
+        history = pages(f"/actions/runs/{run['id']}/jobs?filter=all", "jobs")
+        row["jobs"] = latest_jobs(history)
+        row["jobHistory"] = history
         artifacts = pages(f"/actions/runs/{run['id']}/artifacts", "artifacts")
         if row["status"] == "PASS":
             try:
@@ -284,7 +297,7 @@ def qualify(root, manifest, owners, head, tree):
     passed = not errors and len(units) == 9 and all(u["status"] == "PASS" for u in units)
     output = {"schema": 1, "status": "PASS" if passed else "FAIL", "sourceCommit": head, "sourceTree": tree,
               "releaseSha256": jar, "baselineFamiliesRequired": 13, "resourceUnitsRequired": 9,
-              "productionCodeFixesMade": False, "conditionalLifecycle": manifest["conditionalLifecycle"],
+              "conditionalLifecycle": manifest["conditionalLifecycle"],
               "baselineErrors": errors, "units": units}
     (root / "rb-series-qualification.json").write_text(json.dumps(output, indent=2) + "\n")
     print("RB series qualification", output["status"], flush=True)

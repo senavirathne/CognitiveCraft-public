@@ -13,7 +13,7 @@ import zipfile
 import zlib
 
 from rb_qualify import (MANIFEST, check_baseline, check_screenshots, passing_cases,
-                        qualify, select_runs, unpack)
+                        latest_jobs, qualify, select_runs, unpack)
 from suite import FAMILIES, PROFILES
 
 
@@ -39,6 +39,16 @@ class ResourceQualificationTests(unittest.TestCase):
         choices = [run, {**run, "id": 2, "head_sha": "old"}, {**run, "id": 3, "event": "push"}]
         selected = select_runs(choices, ["oak-log-acquisition.yml"], "head", "pull_request")
         self.assertEqual(1, selected["oak-log-acquisition.yml"]["id"])
+
+    def test_partial_retry_preserves_other_success_and_retains_no_stale_failure_as_current(self):
+        history = [{"id": 1, "name": "native", "run_attempt": 1, "conclusion": "failure"},
+                   {"id": 2, "name": "client", "run_attempt": 1, "conclusion": "success"},
+                   {"id": 3, "name": "native", "run_attempt": 2, "conclusion": "success"}]
+        selected = {j["name"]: j for j in latest_jobs(history)}
+        self.assertEqual(2, len(selected))
+        self.assertEqual(3, selected["native"]["id"])
+        self.assertEqual(2, selected["client"]["id"])
+        self.assertTrue(all(j["conclusion"] == "success" for j in selected.values()))
 
     def test_shared_baseline_rejects_stale_source_dirty_checkout_and_mixed_jars(self):
         for key, value in (("sourceCommit", "old"), ("sourceTree", "old"), ("reviewedHeadCommit", "old"), ("dirty", True)):
