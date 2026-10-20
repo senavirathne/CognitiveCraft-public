@@ -28,6 +28,7 @@ public final class E2EObserver implements ModInitializer {
     private final int[] observationArea = observationArea();
     private final boolean assessment = Files.exists(root.resolve("observation-area.json"));
     private JsonObject vanillaRecipeEvidence;
+    private JsonObject assessmentLanguageEvidence;
     private final AtomicReference<String> pending = new AtomicReference<>();
     private final ScheduledExecutorService writer = Executors.newSingleThreadScheduledExecutor(r -> {
         var thread = new Thread(r, "e2e-observation-writer"); thread.setDaemon(true); return thread;
@@ -58,6 +59,8 @@ public final class E2EObserver implements ModInitializer {
         if (assessment) {
             if (vanillaRecipeEvidence == null) vanillaRecipeEvidence = vanillaRecipes(server);
             out.add("assessmentVanillaRecipes",vanillaRecipeEvidence);
+            if (assessmentLanguageEvidence == null) assessmentLanguageEvidence = languageEvidence();
+            out.add("assessmentLanguage",assessmentLanguageEvidence);
         }
         out.addProperty("arenaLoaded",level.hasChunkAt(new BlockPos(observationArea[0]+3,observationArea[1],observationArea[2]+6)));
         out.addProperty("arenaTicking",level.getChunkSource().isPositionTicking(0L));
@@ -212,6 +215,26 @@ public final class E2EObserver implements ModInitializer {
                 throw new IllegalArgumentException("Bounded observation area required");
             return area;
         } catch(Exception failure) {throw new IllegalStateException("Assessment observation bounds",failure);}
+    }
+
+    /** Observe the unchanged raw-text classifier; no model call, binding or execution. */
+    private JsonObject languageEvidence() {
+        try {
+            Path path=root.resolve("assessment-language.json");
+            if(Files.size(path)>4096)throw new IllegalArgumentException("Bounded language observations");
+            var phrases=JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            if(phrases.size()!=5)throw new IllegalArgumentException("Five frozen language observations required");
+            var result=new JsonObject();
+            for(var entry:phrases.entrySet()) {
+                String text=entry.getValue().getAsString();
+                var value=dev.aivillages.core.kernel.LanguageReferenceClassifier.classify(text,List.of("Ada"));
+                var row=new JsonObject();row.addProperty("text",text);row.addProperty("intent",value.intent().name());
+                row.addProperty("actorReference",value.actor().state().name());
+                row.addProperty("sourceReference",value.source().state().name());
+                row.addProperty("destinationReference",value.destination().state().name());result.add(entry.getKey(),row);
+            }
+            return result;
+        } catch(Exception failure) {throw new IllegalStateException("Read-only assessment language observation",failure);}
     }
 
     /** Pure installed-game recipe matching; never withdraws, crafts or grants items. */

@@ -25,11 +25,13 @@ class GeneralizationEvidenceTests(unittest.TestCase):
 
     def test_safe_refusal_is_boundary_success_and_never_gameplay_success(self):
         rows = [{"id": "A01", "category": "parameter", "composition": False, "status": "BLOCKED"},
-                {"id": "B01", "category": "boundary", "composition": False, "status": "UNSUPPORTED", "evidence": {"boundaryCheck": "PASS"}}]
+                {"id": "B01", "category": "boundary", "composition": False, "status": "UNSUPPORTED", "evidence": {"boundaryCheck": "PASS"}},
+                {"id": "D01", "category": "language", "composition": False, "status": "PASS", "evidence": {"safeClarification": True, "interpretationCorrect": False}}]
         metrics = verifier.metric_report(rows)
         self.assertEqual(0, metrics["supportedGameplay"]["correct"])
         self.assertEqual(1, metrics["supportedGameplay"]["requestedDenominator"])
         self.assertEqual(1, metrics["capabilityBoundaryCorrectness"]["correct"])
+        self.assertEqual(0, metrics["naturalLanguageInterpretation"]["correct"])
 
     def test_blocked_and_unexecuted_cases_remain_in_requested_denominator(self):
         rows = [{"id": "A01", "category": "parameter", "composition": False, "status": "PASS"},

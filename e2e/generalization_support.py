@@ -60,6 +60,8 @@ class AssessmentHarness(Harness):
         self.family = "GENERALIZATION-STARTUP"
         corpus = read(ROOT / "e2e/generalization/cases.json")
         atomic(self.root / "observation-area.json", corpus["assessmentArea"])
+        atomic(self.root / "assessment-language.json", {r["id"]: r["requirement"]
+               for r in corpus["scenarios"] if r["category"] == "language"})
         navigation.LEVEL = corpus["assessmentArea"]["footY"]
         self.env["COGNITIVECRAFT_E2E_SNAPSHOT_TICKS"] = "1"
         metadata = read(self.root / "metadata.json")

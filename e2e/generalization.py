@@ -378,6 +378,16 @@ def language(h, text, expected_quantity=None, clarify=False, boundary=False, bou
         require(h.snapshot()["containers"] == before["containers"] and
                 h.snapshot()["blocks"] == before["blocks"], "Refused wording produced physical effects")
         data["interpretationCorrect"] = True
+        if clarify and not boundary:
+            classifier = next((v for v in before.get("assessmentLanguage", {}).values() if v["text"] == text), None)
+            if not classifier:
+                raise AssessmentBlocked("Original raw-text classifier observation is unavailable")
+            data["rawClassifier"] = classifier
+            data["safeClarification"] = True
+            if classifier["intent"] == "UNKNOWN":
+                data.update(interpretationCorrect=False, assessmentClassification="FAIL",
+                            classification="Interpretation failure",
+                            reason="Supported paraphrase was not recognized as its registered intent; safe refusal and zero effects are preserved separately.")
         if boundary:
             vanilla = h.snapshot().get("assessmentVanillaRecipes", {}).get(boundary_id)
             if boundary_id in ("B02", "B05", "B08"):
@@ -512,7 +522,9 @@ def main():
             try:
                 data = cases(h, ident, row)
                 record.update(status=data.pop("assessmentClassification", "PASS"), evidence=data)
-                if record["status"] == "INCONCLUSIVE": record["reason"] = data.get("reason")
+                if record["status"] != "PASS" and data.get("reason"):
+                    record["reason"] = data["reason"]
+                    record["classification"] = data.get("classification", "Unclassified pending independent artifact review")
                 h.screenshot("PlayerA", "observed-result", chat=True)
             except Exception as error:
                 status = "BLOCKED" if isinstance(error, (AssessmentBlocked, InfrastructureBlocked, TypeError, AttributeError)) else "INCONCLUSIVE" if isinstance(error, Inconclusive) else "FAIL"
