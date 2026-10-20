@@ -36,6 +36,8 @@ public final class Plan {
         }
         public String prompt() {
             return StrictJson.canonical(Map.of("contract","goal-plan:1","goal",requestData(goal.request()),
+                    "requiredTotals",java.util.stream.IntStream.range(0,slots.size()).mapToObj(i->Map.of("slot",i,
+                            "amount",((IntValue)slots.get(i).bound().request().arguments().get("amount")).value())).toList(),
                     "slots",slots.stream().map(s->Map.of("request",requestData(s.bound().request()),
                             "method",s.method().ref().toString(),"evidence",s.observation().reference().snapshotId().toString(),
                             "counts",s.observation().counts())).toList(),"history",history,
@@ -101,5 +103,27 @@ public final class Plan {
                         "amount",Map.of("type","integer","minimum",1,"maximum",64),"dependencies",Map.of("type","array","maxItems",8,"items",integer)));
         return Map.of("type","object","additionalProperties",false,"required",List.of("schema","nodes"),"properties",Map.of(
                 "schema",Map.of("type","integer","enum",List.of(1)),"nodes",Map.of("type","array","minItems",2,"maxItems",8,"items",row)));
+    }
+
+    /** Canonical transport choices come from the bound request, never a model-supplied quantity. */
+    public static Map<String,Object> outputShape(CapabilityRequest goal) {
+        if(!PlanningGoals.valid(goal))throw new IllegalArgumentException("Bound planning goal required");
+        var slots=PlanningGoals.slots(goal);var choices=new ArrayList<Map<String,Object>>();
+        for(int i=0;i<slots.size();i++) {
+            long amount=((IntValue)slots.get(i).arguments().get("amount")).value();
+            choices.add(Map.of("type","object","additionalProperties",false,
+                    "required",List.of("id","capability","version","slot","amount","dependencies"),
+                    "properties",Map.of("id",Map.of("type","integer","enum",List.of(i)),
+                            "slot",Map.of("type","integer","enum",List.of(i)),
+                            "amount",Map.of("type","integer","enum",List.of(amount)),
+                            "capability",Map.of("type","string","enum",List.of(CropDelivery.ID.name())),
+                            "version",Map.of("type","integer","enum",List.of(1)),
+                            "dependencies",Map.of("type","array","maxItems",1,"items",
+                                    Map.of("type","integer","enum",List.of(1-i))))));
+        }
+        return Map.of("type","object","additionalProperties",false,"required",List.of("schema","nodes"),
+                "properties",Map.of("schema",Map.of("type","integer","enum",List.of(1)),
+                        "nodes",Map.of("type","array","minItems",slots.size(),"maxItems",slots.size(),
+                                "uniqueItems",true,"items",Map.of("anyOf",choices))));
     }
 }

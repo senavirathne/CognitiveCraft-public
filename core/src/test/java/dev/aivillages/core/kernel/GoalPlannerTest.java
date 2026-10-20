@@ -23,7 +23,7 @@ final class GoalPlannerTest {
                         descriptor(),new Generation.Usage(128,bytes.length,-1,-1,Generation.Precision.UNKNOWN),Generation.Compute.COMPLETED));}
         }
         public Generation.Handle generate(Generation.Request request,Budgets.InferenceLimits limits,Budgets.Ledger allowance) {
-            var call=new Call(request,limits.chargeCall(allowance,128,false));calls.add(call);return call;
+            var call=new Call(request,limits.chargeCall(allowance,128,request.role().repair()));calls.add(call);return call;
         }
         public Generation.Descriptor descriptor(){return new Generation.Descriptor("ollama-chat-v1","deterministic-planning",null);}
         public Generation.Status status(){return new Generation.Status(available?Generation.State.READY:Generation.State.UNAVAILABLE,0,null,Generation.Compute.NOT_STARTED,false,false);}

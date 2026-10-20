@@ -20,7 +20,7 @@ final class PlanningAdapterTest {
         try(var f=new GenerationChecks.Fixture()) {
             var limits=limits(f.clock);var ledger=new Budgets.Ledger(limits.total(),f.clock);var request=request("private planner context");
             var handle=f.adapter.generate(request,limits,ledger);var wire=StrictJson.transportObject(f.backend.bodies.getFirst());
-            assertEquals(StrictJson.canonical(Plan.outputShape()),StrictJson.canonical(wire.get("format")));assertEquals(0L,((Map<?,?>)wire.get("options")).get("temperature"));
+            assertEquals(StrictJson.canonical(Plan.outputShape(request.bound().request())),StrictJson.canonical(wire.get("format")));assertEquals(0L,((Map<?,?>)wire.get("options")).get("temperature"));
             assertFalse(f.backend.bodies.getFirst().contains(request.bound().context().principal().id().toString()));
             f.backend.respond(0,proposal(),1L,2L);var result=handle.result().toCompletableFuture().join();
             assertEquals(Generation.Role.PLANNING,result.role());assertEquals(Generation.Outcome.CANDIDATE,result.outcome());assertEquals(proposal(),result.candidateIr());

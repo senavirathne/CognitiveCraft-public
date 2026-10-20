@@ -357,10 +357,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (travel > 1) return terminal(v, routes.get(v.getUUID()), "invalid-travel", 0, travel);
         v.getLookControl().setLookAt(point.x,point.y,point.z);
         boolean adjacent=oakApproachGeometry(v,targetPos);
-        // A destination can be reached during descent from a chest jump. The
-        // ground navigator cannot submit source paths until the worker lands.
+        // A worker can still be falling or jumping when a request starts. Wait
+        // for ordinary landing before spending finite ground-path approaches.
         Route route = routes.get(v.getUUID());
-        if (oakApproach && !v.onGround()) {
+        if (!v.onGround()) {
             if(route!=null)route.settledSince=-1;
             return new Movement(false,false,0,travel);
         }

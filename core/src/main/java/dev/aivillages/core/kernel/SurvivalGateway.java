@@ -787,6 +787,7 @@ public final class SurvivalGateway implements GatewayPort {
                 : action.operation == Operation.MOVE_TO_SOURCE
                 ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
                 : RecipeProduction.is(action.run.request.request().capability()) || CraftingTablePlacement.is(action.run.request.request().capability())
+                        || LogAcquisition.is(action.run.request.request().capability())
                 ? world.moveRecipe(action.run.actor,target,limits.navigationCallsPerPoll())
                 : world.move(action.run.actor, target, limits.navigationCallsPerPoll());
         if (movement.chargedWork() > limits.navigationCallsPerPoll()

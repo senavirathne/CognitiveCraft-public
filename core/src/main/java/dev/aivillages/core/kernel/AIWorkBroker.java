@@ -114,7 +114,9 @@ public final class AIWorkBroker implements GenerationPort, AutoCloseable {
                                     Budgets.Ledger allowance, Contract contract, Priority priority) {
         thread(); Objects.requireNonNull(request); Objects.requireNonNull(limits);
         Objects.requireNonNull(allowance); Objects.requireNonNull(contract); Objects.requireNonNull(priority);
-        if ((request.role() == Generation.Role.PLANNING) != contract.equals(Plan.OUTPUT))
+        boolean planningContract = contract.equals(Plan.OUTPUT) || contract.equals(MaterialPlan.OUTPUT);
+        if (request.role().planning() != planningContract || planningContract && !contract.equals(
+                request.capability().id().equals(MaterialPlan.ID) ? MaterialPlan.OUTPUT : Plan.OUTPUT))
             throw new IllegalArgumentException("Distinct planning output contract required");
         Subscriber previous = subscribers.get(request.id());
         if (previous != null) {
@@ -143,7 +145,7 @@ public final class AIWorkBroker implements GenerationPort, AutoCloseable {
             return refuse(subscriber, State.REJECTED, Reason.BUDGET_EXHAUSTED);
         }
         if (!subscriber.allowance.canDebit(Kind.CALLS, 1) || subscriber.allowance.remaining(Kind.OUTPUT_BYTES) == 0
-                || subscriber.allowance.remaining(Kind.INPUT_BYTES) == 0 || request.role() == Generation.Role.REPAIR
+                || subscriber.allowance.remaining(Kind.INPUT_BYTES) == 0 || request.role().repair()
                 && !subscriber.allowance.canDebit(Kind.REPAIRS, 1))
             return refuse(subscriber, State.REJECTED, Reason.BUDGET_EXHAUSTED);
         for (Work work : queue) if (compatible(work, subscriber)

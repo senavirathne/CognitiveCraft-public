@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "candidateSha256": "058b7acae7933f9f22ffadf345b693a6f592875bc24889843ee01bece48bbdef",
+      "case": 0,
+      "diagnostic": "QUANTITY",
+      "inputBytes": 3781,
+      "latencyMillis": 31482,
+      "model": "qwen2.5:1.5b-instruct",
+      "modelDigest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+      "outcome": "CANDIDATE",
+      "outputBytes": 357,
+      "outputTokens": 121,
+      "promptTokens": 912,
+      "quantities": [
+        1,
+        4
+      ],
+      "valid": false,
+      "candidate": "{\n  \"nodes\": [\n    {\n      \"amount\": 5,\n      \"capability\": \"cognitivecraft:deliver_wheat\",\n      \"dependencies\": [],\n      \"id\": 0,\n      \"slot\": 0,\n      \"version\": 1\n    },\n    {\n      \"amount\": 4,\n      \"capability\": \"cognitivecraft:deliver_wheat\",\n      \"dependencies\": [],\n      \"id\": 1,\n      \"slot\": 1,\n      \"version\": 1\n    }\n  ]\n  , \"schema\": 1\n}",
+      "plannedSlotTotals": {
+        "0": 5,
+        "1": 4
+      }
+    },
+    {
+      "candidateSha256": "6fbbaeaec5b3a9cfcc61f34cb4c12dd4366112795e18e88bd86a1bb1022778f4",
+      "case": 1,
+      "diagnostic": "NONE",
+      "inputBytes": 3781,
+      "latencyMillis": 28824,
+      "model": "qwen2.5:1.5b-instruct",
+      "modelDigest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+      "outcome": "CANDIDATE",
+      "outputBytes": 357,
+      "outputTokens": 121,
+      "promptTokens": 891,
+      "quantities": [
+        3,
+        2
+      ],
+      "valid": true,
+      "candidate": "{\n  \"nodes\": [\n    {\n      \"amount\": 3,\n      \"capability\": \"cognitivecraft:deliver_wheat\",\n      \"dependencies\": [],\n      \"id\": 0,\n      \"slot\": 0,\n      \"version\": 1\n    },\n    {\n      \"amount\": 2,\n      \"capability\": \"cognitivecraft:deliver_wheat\",\n      \"dependencies\": [],\n      \"id\": 1,\n      \"slot\": 1,\n      \"version\": 1\n    }\n  ]\n  , \"schema\": 1\n}",
+      "plannedSlotTotals": {
+        "0": 3,
+        "1": 2
+      }
+    },
+    {
+      "candidateSha256": "b366e6da629c1f835941782cfbf4514cb8f57490b9f35eccf52e032222673221",
+      "case": 2,
+      "diagnostic": "QUANTITY",
+      "inputBytes": 3781,
+      "latencyMillis": 28332,
+      "model": "qwen2.5:1.5b-instruct",
+      "modelDigest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+      "outcome": "CANDIDATE",
+      "outputBytes": 358,
+      "outputTokens": 125,
+      "promptTokens": 895,
+      "quantities": [
+        2,
+        6
+      ],
+      "valid": false,
+      "candidate": "{\n  \"nodes\": [\n    {\n      \"amount\": 8,\n      \"capability\": \"cognitivecraft:deliver_wheat\",\n      \"dependencies\": [],\n      \"id\": 0,\n      \"slot\": 0,\n      \"version\": 1\n    },\n    {\n      \"amount\": 2,\n      \"capability\": \"cognitivecraft:deliver_wheat\",\n      \"dependencies\": [0],\n      \"id\": 1,\n      \"slot\": 0,\n      \"version\": 1\n    }\n  ]\n  , \"schema\": 1\n}",
+      "plannedSlotTotals": {
+        "0": 10,
+        "1": 0
+      }
+    }
+  ],
+  "valid": 1,
+  "total": 3,
+  "dedicatedModels": 0,
+  "nativeEffects": 0,
+  "scope": "held-out quantity decomposition; separate from native admission/execution",
+  "sourceCommit": "b9a1d086ac6d5d0322f07219ffcf5b207aae3fa2",
+  "runId": 39317884948,
+  "archiveSha256": "84e6c51bd99851d51a5932404e62aa3e289eea2b4094fd38eba7e2b127f68083",
+  "recovery": "Original candidate bytes recovered by exact SHA-256 and byte-length match; prompts were not retained by the original harness."
+}

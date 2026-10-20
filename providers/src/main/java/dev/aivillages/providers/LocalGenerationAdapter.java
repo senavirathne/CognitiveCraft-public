@@ -135,7 +135,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             finish(call, Generation.Outcome.MODEL_UNAVAILABLE, Outcomes.Reason.MODEL_UNAVAILABLE,
                     null, new Generation.Usage(0, 0, -1, -1, Generation.Precision.UNKNOWN));
         } else if (clock.millis() >= limits.total().deadlineEpochMillis()
-                || !allowance.canDebit(Kind.CALLS, 1) || request.role() == Generation.Role.REPAIR
+                || !allowance.canDebit(Kind.CALLS, 1) || request.role().repair()
                 && !allowance.canDebit(Kind.REPAIRS, 1)) {
             finish(call, Generation.Outcome.LIMIT, Outcomes.Reason.BUDGET_EXHAUSTED,
                     null, emptyUsage());
@@ -203,7 +203,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
             try {
                 if (clock.millis() >= call.limits.total().deadlineEpochMillis()) throw new Budgets.Exhausted();
                 call.allowance = call.limits.chargeCall(call.ledger, body.length,
-                        call.request.role() == Generation.Role.REPAIR);
+                        call.request.role().repair());
                 call.inputBytes = body.length;
             } catch (Budgets.Exhausted exhausted) {
                 done(call, Generation.Outcome.LIMIT, Outcomes.Reason.BUDGET_EXHAUSTED,
@@ -276,8 +276,10 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                     || !config.model().equals(envelope.get("model"))) throw new IllegalArgumentException();
             Map<String, Object> ir = StrictJson.object(content);
             String candidateIr = content;
-            if (call.request.role() == Generation.Role.PLANNING) {
-                dev.aivillages.core.kernel.Plan.decode(content,8192);
+            if (call.request.role().planning()) {
+                if (call.request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID))
+                    dev.aivillages.core.kernel.MaterialPlan.decode(content);
+                else dev.aivillages.core.kernel.Plan.decode(content,8192);
             } else {
             if (ResourceDelivery.isDelivery(call.request.capability().id())
                     && ir.get("body") instanceof Map<?, ?>) {
@@ -462,12 +464,15 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
     }
 
     private byte[] wireRequest(Generation.Request request) {
-        if(request.role()==Generation.Role.PLANNING) {
+        if(request.role().planning()) {
             String wire=StrictJson.canonical(Map.of("model",config.model(),"stream",false,
-                    "format",dev.aivillages.core.kernel.Plan.outputShape(),
+                    "format",request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID)
+                            ? materialShape(request) : dev.aivillages.core.kernel.Plan.outputShape(request.bound().request()),
                     "options",Map.of("temperature",0,"num_predict",config.maxOutputTokens()),
                     "messages",List.of(Map.of("role","system","content",
-                            "Return a bounded goal-plan schema 1 JSON proposal, never Skill IR. Each node selects a trusted slot and quantity; dependencies name node IDs. Use every requested slot with exactly its requested total. No commands, workers, authority or new resources."),
+                            request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID)
+                            ? "Return a bounded material-plan-preview schema 1 JSON proposal, never executable Skill IR. Follow the trusted recipe catalog and ordered stock balance. Use exact requested deliveries and minimum whole batches. Refuse insufficient resources or unsupported requests with empty steps/deliveries. No new recipes, harvested resources, commands, workers or authority."
+                            : "Return a bounded goal-plan schema 1 JSON proposal, never Skill IR. Each node selects a trusted slot and quantity; dependencies name node IDs. Use every requested slot with exactly its requested total. No commands, workers, authority or new resources."),
                             Map.of("role","user","content",request.context()))));
             byte[] body=wire.getBytes(StandardCharsets.UTF_8);
             if(body.length>MAX_REQUEST_BYTES)throw new IllegalArgumentException("Request size");return body;
@@ -550,6 +555,16 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         byte[] body = wire.getBytes(StandardCharsets.UTF_8);
         if (body.length > MAX_REQUEST_BYTES) throw new IllegalArgumentException("Request size");
         return body;
+    }
+
+    private static Map<String,Object> materialShape(Generation.Request request) {
+        try {
+            var facts=dev.aivillages.core.kernel.MaterialPlan.contextFromPrompt(request.context());
+            long total=facts.goals().values().stream().mapToLong(Long::longValue).sum();
+            if(!new Contracts.IntValue(total).equals(request.bound().request().arguments().get("amount")))
+                throw new IllegalArgumentException("Material quantity binding mismatch");
+            return dev.aivillages.core.kernel.MaterialPlan.outputShape(facts);
+        } catch(StrictJson.Invalid invalid) { throw new IllegalArgumentException("Canonical material facts required",invalid); }
     }
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */

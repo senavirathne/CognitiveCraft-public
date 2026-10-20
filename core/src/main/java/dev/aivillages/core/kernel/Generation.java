@@ -13,7 +13,10 @@ public final class Generation {
     public static final int SCHEMA = 1;
     private Generation() { }
 
-    public enum Role { INITIAL, REPAIR, PLANNING }
+    public enum Role { INITIAL, REPAIR, PLANNING, PLANNING_REPAIR;
+        public boolean planning() { return this == PLANNING || this == PLANNING_REPAIR; }
+        public boolean repair() { return this == REPAIR || this == PLANNING_REPAIR; }
+    }
     public enum State { DISABLED, UNAVAILABLE, READY, STARTING, IN_FLIGHT, CANCELLING, CLOSED }
     public enum Outcome { CANDIDATE, MALFORMED, LIMIT, MODEL_UNAVAILABLE, TRANSPORT_FAILED,
                           ABANDONED, CANCELLED }

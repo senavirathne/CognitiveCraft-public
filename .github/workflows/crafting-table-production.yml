@@ -121,7 +121,7 @@ jobs:
             fabric/build/gametest-run/
             fabric/build/libs/
   connected-client:
-    name: GP-RB-02 genuine language, two principals and abrupt same-save restart
+    name: GP-RB-06A genuine language, two principals and abrupt same-save restart
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -149,7 +149,7 @@ jobs:
           python3 scripts/verify-rb006a.py identity
       - name: Acquire existing pinned Needle test backend
         run: python3 tools/needle/install.py build/needle
-      - name: Actual connected client GP-RB-02
+      - name: Actual connected client GP-RB-06A
         run: |
           python3 e2e/suite.py --profile rb006a --root build/e2e/rb006a
           python3 scripts/verify-rb006a.py client

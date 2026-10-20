@@ -1,0 +1,704 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "accept-quantity-01",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 2 wheat to the first chest and 1 to the second chest. Preserve both destination quantities.",
+      "first": 2,
+      "second": 1,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-02",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 3 wheat to the first chest and 5 to the second chest. Preserve both destination quantities.",
+      "first": 3,
+      "second": 5,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-03",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 5 wheat to the first chest and 2 to the second chest. Preserve both destination quantities.",
+      "first": 5,
+      "second": 2,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-04",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 2 wheat to the first chest and 9 to the second chest. Preserve both destination quantities.",
+      "first": 2,
+      "second": 9,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-05",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 9 wheat to the first chest and 3 to the second chest. Preserve both destination quantities.",
+      "first": 9,
+      "second": 3,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-06",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 6 wheat to the first chest and 7 to the second chest. Preserve both destination quantities.",
+      "first": 6,
+      "second": 7,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-07",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 7 wheat to the first chest and 6 to the second chest. Preserve both destination quantities.",
+      "first": 7,
+      "second": 6,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-08",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 11 wheat to the first chest and 1 to the second chest. Preserve both destination quantities.",
+      "first": 11,
+      "second": 1,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-09",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 1 wheat to the first chest and 11 to the second chest. Preserve both destination quantities.",
+      "first": 1,
+      "second": 11,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-10",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 5 wheat to the first chest and 8 to the second chest. Preserve both destination quantities.",
+      "first": 5,
+      "second": 8,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-11",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 8 wheat to the first chest and 5 to the second chest. Preserve both destination quantities.",
+      "first": 8,
+      "second": 5,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-quantity-12",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver exactly 7 wheat to the first chest and 7 to the second chest. Preserve both destination quantities.",
+      "first": 7,
+      "second": 7,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-01",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 7 oak planks from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:oak_planks": 7
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-02",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 13 oak planks from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:oak_planks": 13
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-03",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 25 oak planks from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:oak_planks": 25
+      },
+      "inventory": {
+        "minecraft:oak_log": 7,
+        "minecraft:oak_planks": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-04",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 5 birch planks from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:birch_planks": 5
+      },
+      "inventory": {
+        "minecraft:birch_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-05",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 17 birch planks from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:birch_planks": 17
+      },
+      "inventory": {
+        "minecraft:birch_log": 5
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-06",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 31 birch planks from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:birch_planks": 31
+      },
+      "inventory": {
+        "minecraft:birch_log": 8,
+        "minecraft:birch_planks": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-07",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 9 stick from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:stick": 9
+      },
+      "inventory": {
+        "minecraft:oak_planks": 6
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-08",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 15 stick from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:stick": 15
+      },
+      "inventory": {
+        "minecraft:oak_planks": 8,
+        "minecraft:stick": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-09",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 2 crafting table from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:crafting_table": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 8
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-10",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 4 crafting table from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:crafting_table": 4
+      },
+      "inventory": {
+        "minecraft:oak_planks": 16
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-11",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 3 wooden axe from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 9,
+        "minecraft:stick": 6
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-single_step-12",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply exactly 4 wooden axe from the supplied stock. Use existing items first and keep unavoidable recipe remainders.",
+      "goals": {
+        "minecraft:wooden_axe": 4
+      },
+      "inventory": {
+        "minecraft:oak_planks": 12,
+        "minecraft:stick": 8
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-01",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 5 stick. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:stick": 5
+      },
+      "inventory": {
+        "minecraft:oak_log": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-02",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 17 stick. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:stick": 17
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-03",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 25 stick. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:stick": 25
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-04",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 2 crafting table. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:crafting_table": 2
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-05",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 3 crafting table. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:crafting_table": 3
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-06",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 1 wooden axe. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 1,
+        "minecraft:oak_planks": 1
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-07",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 3 wooden axe. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_log": 4,
+        "minecraft:oak_planks": 1
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_step-08",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply exactly 4 wooden axe. Produce the missing intermediate materials from supplied logs, conserving existing stock.",
+      "goals": {
+        "minecraft:wooden_axe": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 4,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-facility_provision-01",
+      "category": "facility_provision",
+      "kind": "material",
+      "request": "Supply 1 wooden axes. No table is placed. One table placement is authorized; use a supplied table item before crafting another.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 9
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-facility_provision-02",
+      "category": "facility_provision",
+      "kind": "material",
+      "request": "Supply 2 wooden axes. No table is placed. One table placement is authorized; use a supplied table item before crafting another.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 10,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-facility_provision-03",
+      "category": "facility_provision",
+      "kind": "material",
+      "request": "Supply 3 wooden axes. No table is placed. One table placement is authorized; use a supplied table item before crafting another.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_log": 4,
+        "minecraft:stick": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-facility_provision-04",
+      "category": "facility_provision",
+      "kind": "material",
+      "request": "Supply 4 wooden axes. No table is placed. One table placement is authorized; use a supplied table item before crafting another.",
+      "goals": {
+        "minecraft:wooden_axe": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 4,
+        "minecraft:stick": 8,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_target-01",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Supply every requested delivery exactly. Shared intermediate stock cannot also count as a delivered item.",
+      "goals": {
+        "minecraft:oak_planks": 6,
+        "minecraft:stick": 5
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_target-02",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Supply every requested delivery exactly. Shared intermediate stock cannot also count as a delivered item.",
+      "goals": {
+        "minecraft:birch_planks": 7,
+        "minecraft:oak_planks": 9
+      },
+      "inventory": {
+        "minecraft:birch_log": 2,
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_target-03",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Supply every requested delivery exactly. Shared intermediate stock cannot also count as a delivered item.",
+      "goals": {
+        "minecraft:wooden_axe": 2,
+        "minecraft:stick": 3
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-multi_target-04",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Supply every requested delivery exactly. Shared intermediate stock cannot also count as a delivered item.",
+      "goals": {
+        "minecraft:wooden_axe": 1,
+        "minecraft:crafting_table": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "accept-insufficient_resources-01",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:oak_planks": 17
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-02",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:birch_planks": 13
+      },
+      "inventory": {
+        "minecraft:birch_log": 3,
+        "minecraft:oak_planks": 8
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-03",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:stick": 13
+      },
+      "inventory": {
+        "minecraft:oak_planks": 5
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-04",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 8,
+        "minecraft:stick": 6
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-05",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:wooden_axe": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-06",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:crafting_table": 4
+      },
+      "inventory": {
+        "minecraft:oak_planks": 15
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-07",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_log": 2,
+        "minecraft:stick": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-insufficient_resources-08",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply the exact requested items using only supplied stock and the stated table/placement permissions. Report a shortage when these premises cannot support a legal plan.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 3,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "accept-unsupported-01",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Supply 6 oak slab using only the registered preview recipe catalog.",
+      "goals": {
+        "minecraft:oak_slab": 6
+      },
+      "inventory": {
+        "minecraft:oak_planks": 16
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    },
+    {
+      "id": "accept-unsupported-02",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Supply 1 oak door using only the registered preview recipe catalog.",
+      "goals": {
+        "minecraft:oak_door": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 16
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    }
+  ]
+}
