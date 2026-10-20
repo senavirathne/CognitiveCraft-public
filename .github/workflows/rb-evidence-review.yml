@@ -1,8 +1,8 @@
-name: Retain original RB assessment attempt history
+name: Review exact-head RB qualification failures
 on:
   push:
     branches: [work/rb-evidence-reconciliation]
-    paths: ['.github/scripts/review-rb-history.py', '.github/workflows/rb-evidence-review.yml']
+    paths: ['.github/scripts/review-rb-failures.py', '.github/workflows/rb-evidence-review.yml']
 permissions:
   contents: read
   actions: read
@@ -10,17 +10,17 @@ concurrency:
   group: rb-original-evidence-review
   cancel-in-progress: false
 jobs:
-  historical-artifact-review:
+  qualification-failure-review:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Retain all original failed assessment records without executing gameplay or inference
+      - name: Inspect original failed facility artifacts and exact-head baseline without gameplay or inference
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/review-rb-history.py
+        run: python3 .github/scripts/review-rb-failures.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
