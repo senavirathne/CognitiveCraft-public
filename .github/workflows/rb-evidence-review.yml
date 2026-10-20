@@ -1,8 +1,8 @@
-name: Review original RB assessment artifacts
+name: Retain original RB assessment attempt history
 on:
   push:
     branches: [work/rb-evidence-reconciliation]
-    paths: ['.github/scripts/review-rb-assessment.py', '.github/workflows/rb-evidence-review.yml']
+    paths: ['.github/scripts/review-rb-history.py', '.github/workflows/rb-evidence-review.yml']
 permissions:
   contents: read
   actions: read
@@ -10,17 +10,17 @@ concurrency:
   group: rb-original-evidence-review
   cancel-in-progress: false
 jobs:
-  original-artifact-review:
+  historical-artifact-review:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Independently reconcile the frozen completed run without executing gameplay or inference
+      - name: Retain all original failed assessment records without executing gameplay or inference
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/review-rb-assessment.py
+        run: python3 .github/scripts/review-rb-history.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
