@@ -284,7 +284,7 @@ def compete(h):
     require(any(r["accepted"] for r in requests), "Neither valid owner could begin competing known work")
     for request in requests:
         if not request["accepted"]:
-            require(re.search(r"reason=(RESOURCE_MISSING|RESOURCE_BUSY|TARGET_UNAVAILABLE|BUDGET_EXHAUSTED)", request["feedback"]),
+            require(re.search(r"reason=(RESOURCE_MISSING|RESOURCE_BUSY|TARGET_UNAVAILABLE)", request["feedback"]),
                     "Unclassified contention intake refusal: "+request["feedback"])
     h.actions_active = True
     views = [h.finish_run(r["run"], p, success=False) for p, r in zip(("PlayerA", "PlayerB"), requests) if r["accepted"]]
@@ -365,6 +365,11 @@ def language(h, text, expected_quantity=None, clarify=False, boundary=False, bou
         h.console([command for x in (6, 7, 8) for command in
                    ("setblock "+coord(at(x, 3, -1))+" minecraft:farmland[moisture=7]",
                     "setblock "+coord(at(x, 3))+" minecraft:carrots[age=7]")])
+        h.wait(lambda: all("minecraft:carrots" in h.block(at(x, 3)) and
+                           "age=7" in h.block(at(x, 3)) and
+                           "minecraft:farmland" in h.block(at(x, 3, -1))
+                           for x in (6, 7, 8)),
+               "Original server observation acknowledges mature carrot fixture before refusal comparison", 20)
     wall_ref = None
     if boundary_id == "B11":
         wall_ref = store_blueprint(h, {"schema": 1, "dimensions": {"x": 3, "y": 3, "z": 1},
@@ -532,7 +537,12 @@ def main():
              "facility": [TABLE, "place", AXE], "birch": [BIRCH, BIRCH_PLANK], "blueprint": [LOG, PLANK]}
     try:
         h = AssessmentHarness(args.root, args.group); h.bootstrap(items[args.group])
-        for index, row in enumerate(selected):
+        # A crash deliberately leaves its uncertain worker fenced. Isolate that
+        # destructive recovery case after the unrelated relocation/language cases;
+        # retain the frozen corpus and its original result order unchanged.
+        execution_order = sorted(range(len(selected)), key=lambda i: selected[i]["id"] == "C09")
+        for index in execution_order:
+            row = selected[index]
             ident = row["id"]; h.family = ident; started = time.time(); captures = len(h.screenshots)
             record = {**row, "started": started, "status": "NOT_EXECUTED"}
             h.event("assessment-scenario-start", record)

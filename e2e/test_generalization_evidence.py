@@ -6,7 +6,7 @@ from pathlib import Path
 import textwrap
 import unittest
 
-from generalization_support import AssessmentHarness
+from generalization_support import AssessmentHarness, PLANK
 from suite import Harness
 
 spec = importlib.util.spec_from_file_location("generalization_verifier", Path(__file__).resolve().parents[1] / "scripts/verify-generalization.py")
@@ -15,6 +15,37 @@ spec.loader.exec_module(verifier)
 
 
 class GeneralizationEvidenceTests(unittest.TestCase):
+    def test_intake_retry_never_repeats_accepted_work_or_material_refusal(self):
+        for feedback in ("accepted=true", "accepted=false reason=RESOURCE_MISSING"):
+            with self.subTest(feedback=feedback):
+                h = AssessmentHarness.__new__(AssessmentHarness)
+                h.hashes = {"cognitivecraft:produce_oak_planks": "known"}
+                h.citizens = {"PlayerA": "citizen"}
+                calls = []
+                h.command = lambda *args: calls.append(args) or "run=00000000-0000-0000-0000-000000000001 "+feedback
+                h.wait = lambda *args: self.fail("Accepted work or a material refusal must never be retried")
+                response = h.request_run(PLANK, 7)
+                self.assertEqual(1, len(calls))
+                self.assertEqual([], response["publicationRefusals"])
+
+    def test_only_zero_work_publication_refusal_has_a_bounded_intake_retry(self):
+        h = AssessmentHarness.__new__(AssessmentHarness)
+        h.hashes = {"cognitivecraft:produce_oak_planks": "known"}
+        h.citizens = {"PlayerA": "citizen"}
+        prefix = "run=00000000-0000-0000-0000-000000000001 "
+        answers = iter([prefix+"accepted=false reason=BUDGET_EXHAUSTED", prefix+"accepted=true"])
+        h.command = lambda *args: next(answers)
+        events = []
+        h.event = lambda *args: events.append(args)
+        def bounded(predicate, description, timeout):
+            self.assertEqual(30, timeout)
+            return predicate()
+        h.wait = bounded
+        response = h.request_run(PLANK, 7)
+        self.assertTrue(response["accepted"])
+        self.assertEqual([prefix+"accepted=false reason=BUDGET_EXHAUSTED"], response["publicationRefusals"])
+        self.assertEqual(1, len(events))
+
     def test_assessment_methods_do_not_collide_with_base_harness_instance_state(self):
         tree = ast.parse(textwrap.dedent(inspect.getsource(Harness.__init__)))
         assigned = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)

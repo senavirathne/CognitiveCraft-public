@@ -174,8 +174,21 @@ class AssessmentHarness(Harness):
         tail = minimum+maximum+destination if item in (LOG, BIRCH) else source+target if item == "place" else source+destination+(table if item == AXE else [])
         text = "/aivillage kernel "+COMMANDS[item]+" "+self.citizens[player]+" "+("" if item == "place" else str(quantity)+" ")+coord(tail)
         answer = self.command(player, text, "run="+UUID_PATTERN)
+        publication_refusals = []
+        if "accepted=false reason=BUDGET_EXHAUSTED" in answer:
+            # The existing durable owner admits one asynchronous journal publication
+            # at a time. Retry only zero-work intake refusals, as in suite/planks;
+            # never repeat accepted work, a model answer, or an execution failure.
+            def published():
+                nonlocal answer
+                publication_refusals.append(answer)
+                self.event("assessment-intake-publication-retry", {"player": player, "feedback": answer})
+                answer = self.command(player, text, "run="+UUID_PATTERN)
+                return answer if "accepted=false reason=BUDGET_EXHAUSTED" not in answer else None
+            self.wait(published, "Durable assessment intake publication became available", 30)
         return {"run": re.search("run=("+UUID_PATTERN+")", answer).group(1),
-                "accepted": "accepted=true" in answer, "feedback": answer, "command": text}
+                "accepted": "accepted=true" in answer, "feedback": answer, "command": text,
+                "publicationRefusals": publication_refusals}
 
     def submit(self, item, quantity=1, **kwargs):
         response = self.request_run(item, quantity, **kwargs)
