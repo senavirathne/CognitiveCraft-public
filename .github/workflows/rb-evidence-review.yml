@@ -1,8 +1,8 @@
-name: Review exact-head RB qualification failures
+name: Retain final RB source qualification
 on:
   push:
     branches: [work/rb-evidence-reconciliation]
-    paths: ['.github/scripts/review-rb-failures.py', '.github/workflows/rb-evidence-review.yml']
+    paths: ['.github/scripts/review-rb-final.py', '.github/workflows/rb-evidence-review.yml']
 permissions:
   contents: read
   actions: read
@@ -10,17 +10,17 @@ concurrency:
   group: rb-original-evidence-review
   cancel-in-progress: false
 jobs:
-  qualification-failure-review:
+  final-qualification-review:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Inspect original failed facility artifacts and exact-head baseline without gameplay or inference
+      - name: Verify original final qualification and actual full JAR without gameplay or inference
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/review-rb-failures.py
+        run: python3 .github/scripts/review-rb-final.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
