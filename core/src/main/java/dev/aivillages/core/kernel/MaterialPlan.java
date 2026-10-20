@@ -176,7 +176,7 @@ public final class MaterialPlan {
     /** Read only canonical material facts; repair cannot replace them with its previous proposal. */
     public static Context contextFromPrompt(String text) throws StrictJson.Invalid {
         if(text==null || text.getBytes(StandardCharsets.UTF_8).length>8192)throw new IllegalArgumentException("Bounded material facts required");
-        var root=StrictJson.object(text);
+        var root=StrictJson.transportObject(text);
         if(root.containsKey("trustedContext"))root=StrictJson.object(Outcomes.string(root,"trustedContext","$"));
         if(!"material-plan-preview:1".equals(Outcomes.string(root,"contract","$")))throw new IllegalArgumentException("Material context contract");
         if(!(root.get("requiredDeliveries") instanceof Map<?,?> goals) || !(root.get("availableInventory") instanceof Map<?,?> inventory)
