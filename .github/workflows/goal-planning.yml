@@ -165,7 +165,12 @@ jobs:
             curl --fail --silent http://127.0.0.1:11434/api/version && break
             sleep 2
           done
-          docker exec cognitivecraft-legacy-ollama ollama pull qwen2.5:1.5b-instruct
+          pulled=false
+          for pull_attempt in 1 2 3; do
+            if docker exec cognitivecraft-legacy-ollama ollama pull qwen2.5:1.5b-instruct; then pulled=true; break; fi
+            if [ "$pull_attempt" -lt 3 ]; then sleep 5; fi
+          done
+          test "$pulled" = true
           docker inspect cognitivecraft-legacy-ollama > providers/build/planning-legacy/backend-container.json
           curl --fail --silent http://127.0.0.1:11434/api/tags > providers/build/planning-legacy/model-tags.json
       - name: Replay the unchanged original quantities, prompt, schema and one-call protocol
@@ -242,7 +247,12 @@ jobs:
             curl --fail --silent http://127.0.0.1:11434/api/version && break
             sleep 2
           done
-          docker exec cognitivecraft-planning-ollama ollama pull "$MODEL"
+          pulled=false
+          for pull_attempt in 1 2 3; do
+            if docker exec cognitivecraft-planning-ollama ollama pull "$MODEL"; then pulled=true; break; fi
+            if [ "$pull_attempt" -lt 3 ]; then sleep 5; fi
+          done
+          test "$pulled" = true
           docker inspect cognitivecraft-planning-ollama > providers/build/planning-quality/backend-container.json
           curl --fail --silent http://127.0.0.1:11434/api/tags > providers/build/planning-quality/model-tags.json
           docker exec cognitivecraft-planning-ollama ollama show "$MODEL" > providers/build/planning-quality/model-details.txt
