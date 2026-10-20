@@ -288,12 +288,21 @@ def compete(h):
                     "Unclassified contention intake refusal: "+request["feedback"])
     h.actions_active = True
     views = [h.finish_run(r["run"], p, success=False) for p, r in zip(("PlayerA", "PlayerB"), requests) if r["accepted"]]
+    for player, view in zip((p for p, r in zip(("PlayerA", "PlayerB"), requests) if r["accepted"]), views):
+        for receipt in view.get("resourceReceipts", []):
+            require(receipt["origin"]["principal"]["id"] == before["knownPlayers"][player]["uuid"] and
+                    receipt["actor"]["citizenId"] == h.citizens[player],
+                    "Contending work credited another owner's actor or resources")
+        if view.get("resourceReceipts"):
+            require(view["marker"]["artifactSha256"] == h.hashes["cognitivecraft:"+CAPS[PLANK]],
+                    "Contention changed the known admitted production method")
     produced = sum(receipts(v, "CRAFT", PLANK) for v in views)
     withdrawn = sum(receipts(v, "WITHDRAW", LOG) for v in views)
     completed = sum(v.get("marker", {}).get("outcome") == "SUCCEEDED" for v in views)
     initial_custody = sum(a["inventory"].get(PLANK, 0) for a in before["actors"])
     final_custody = sum(a["inventory"].get(PLANK, 0) for a in h.snapshot()["actors"])
-    require(completed <= 1 and withdrawn <= 3 and produced == 4*withdrawn,
+    require(withdrawn > 0 and produced > 0, "No actual contending resource transformation was witnessed")
+    require(withdrawn <= 3 and completed <= 1 and produced == 4*withdrawn,
             "Insufficient competing stock was double allocated or fabricated")
     require(h.container(SRC, LOG) == 3-withdrawn and h.container(DST, PLANK)+final_custody-initial_custody == produced,
             "Competing owners lost or duplicated physical resources")
