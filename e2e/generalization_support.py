@@ -71,6 +71,15 @@ class AssessmentHarness(Harness):
 
     def setup(self, two=True, legacy=False):
         require(two and not legacy, "Assessment requires two genuine clients")
+        # Load the relocated chunks before bounded fixture writes. Spectator mode
+        # exists only during empty-world setup so players cannot fall before the
+        # assessment platform is installed; survival is restored before enrollment.
+        self.console(["op PlayerA", "op PlayerB", "gamemode spectator PlayerA",
+                      "gamemode spectator PlayerB", "tp PlayerA 66.5 208 69.5",
+                      "tp PlayerB 79.5 208 69.5"])
+        self.wait(lambda: self.snapshot() and all(",".join(map(str, p)) in self.snapshot()["blocks"]
+                  for p in (at(-1, -1), at(20, -1), at(-1, 14), at(20, 14))),
+                  "Relocated chunks loaded by actual connected players before fixture construction", 30)
         self.console([
             "gamerule minecraft:mob_griefing true", "gamerule minecraft:do_mob_spawning false",
             "gamerule minecraft:random_tick_speed 0", "gamerule minecraft:do_daylight_cycle false",
@@ -84,7 +93,7 @@ class AssessmentHarness(Harness):
             "summon minecraft:villager 79.5 208 66.5 {PersistenceRequired:1b}",
             "op PlayerA", "op PlayerB", "tp PlayerA 66.5 208 69.5 180 0",
             "tp PlayerB 79.5 208 69.5 180 0", "spawnpoint PlayerA 66 208 69",
-            "spawnpoint PlayerB 79 208 69"])
+            "spawnpoint PlayerB 79 208 69", "gamemode survival PlayerA", "gamemode survival PlayerB"])
         self.wait(lambda: self.snapshot() and len(self.snapshot()["actors"]) == 2,
                   "Relocated assessment world and two normal-AI villagers", 40)
         require(all(a["alive"] and not a["baby"] and not a["noAI"]
