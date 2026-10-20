@@ -80,6 +80,12 @@ def case_check(row, expected):
         require(row["category"] != "boundary", "Boundary refusal cannot be gameplay PASS")
         require(bool(row.get("evidence")) and bool(row.get("screenshots")), "PASS needs original gameplay/interpretation evidence and a native frame")
         require(bool(row.get("physicalFinalState")), "PASS needs the actual final server observation for independent physical reconciliation")
+        clients = row.get("connectedClientObservations", {})
+        require(set(clients) == {"PlayerA", "PlayerB"} and all(v and v.get("play") and not v.get("singleplayer") for v in clients.values()),
+                "PASS needs actual connected client observations for both multiplayer principals")
+        known = row["physicalFinalState"].get("knownPlayers", {})
+        require(all(clients[p].get("uuid") == known.get(p, {}).get("uuid") and clients[p].get("uuid") for p in clients),
+                "Client observations must match the two server-recognized principal identities")
 
 
 def metric_report(rows):

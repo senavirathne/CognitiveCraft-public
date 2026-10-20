@@ -89,7 +89,12 @@ def place_table(h):
             h.inventory().get(TABLE, 0) == inv.get(TABLE, 0), "Actual item-to-block conservation mismatch")
     require(view["marker"]["artifactSha256"] == h.hashes["cognitivecraft:"+CAPS["place"]] and
             h.model_calls() == calls, "Fresh placement changed its method or invoked inference")
+    client = h.wait(lambda: (s if TABLE in (s := h.client_snapshot("PlayerA"))["blocks"].get(",".join(map(str, site)), "") else None),
+                    "Connected client receives the actually placed crafting table", 20)
+    h.action("PlayerA", "look", pos=site)
+    h.screenshot("PlayerA", "placed-table-world-view")
     return {"run": rid, "before": before, "view": view, "source": source, "site": site,
+            "clientPlacedTableObservation": client,
             "inventoryBefore": inv, "inventoryAfter": h.inventory(), "modelCallsAfter": h.model_calls()}
 
 
@@ -557,6 +562,10 @@ def main():
             h.event("assessment-scenario-start", record)
             try:
                 data = cases(h, ident, row)
+                clients = {player: h.client_snapshot(player) for player in ("PlayerA", "PlayerB")}
+                require(all(s and s.get("play") and not s.get("singleplayer") for s in clients.values()),
+                        "Final observations require both actual connected multiplayer clients")
+                record["connectedClientObservations"] = clients
                 record.update(status=data.pop("assessmentClassification", "PASS"), evidence=data)
                 if record["status"] != "PASS" and data.get("reason"):
                     record["reason"] = data["reason"]
@@ -568,7 +577,10 @@ def main():
                 classification = "Test infrastructure failure" if isinstance(error, (InfrastructureBlocked, TypeError, AttributeError)) else "Environmental limitation" if status == "BLOCKED" else "Dynamic boundary not witnessed" if status == "INCONCLUSIVE" else "Unclassified pending independent artifact review"
                 record.update(status=status, reason=reason, classification=classification, trace=traceback.format_exc())
                 try:
-                    record["physicalFailureState"] = h.snapshot(); h.screenshot("PlayerA", "observed-failure", chat=True)
+                    record["physicalFailureState"] = h.snapshot()
+                    record["connectedClientObservations"] = {player: h.client_snapshot(player)
+                                                               for player in ("PlayerA", "PlayerB")}
+                    h.screenshot("PlayerA", "observed-failure", chat=True)
                 except Exception as capture_error:
                     record["captureError"] = str(capture_error)
             record["physicalFinalState"] = h.snapshot()

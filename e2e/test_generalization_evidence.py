@@ -89,5 +89,13 @@ class GeneralizationEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "actual final server observation"):
             verifier.case_check(row, expected)
 
+    def test_gameplay_pass_without_both_actual_client_observations_is_rejected(self):
+        expected = {"id": "A13", "group": "facility", "category": "parameter", "requirement": "frozen", "expected": "effects", "composition": False}
+        row = {**expected, "status": "PASS", "evidence": {"run": "present"},
+               "physicalFinalState": {"time": 1}, "screenshots": [{"nativeClientFrame": True}],
+               "connectedClientObservations": {"PlayerA": {"play": True, "singleplayer": False}}}
+        with self.assertRaisesRegex(ValueError, "actual connected client observations"):
+            verifier.case_check(row, expected)
+
 
 if __name__ == "__main__": unittest.main()
