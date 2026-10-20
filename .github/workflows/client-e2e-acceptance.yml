@@ -193,7 +193,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           artifact-ids: ${{ needs.qualification.outputs.qualification-artifact-id }}
+          merge-multiple: true
           path: build/rb-series/baseline
+      - name: Require the selected baseline envelope before waiting for RB owners
+        run: test -f build/rb-series/baseline/qualification.json
       - name: Collect exact-head resource owners, retain original artifact identities and qualify each layer
         env:
           GITHUB_TOKEN: ${{ github.token }}
