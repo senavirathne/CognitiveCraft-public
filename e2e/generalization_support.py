@@ -166,7 +166,7 @@ class AssessmentHarness(Harness):
         self.console(["setblock "+coord(p)+" "+item for p in positions])
         self.wait(lambda: all(item in self.block(p) for p in positions), "Real selected log arrangement", 20)
 
-    def submit(self, item, quantity=1, *, source=SRC, destination=DST, table=FACILITY,
+    def request_run(self, item, quantity=1, *, source=SRC, destination=DST, table=FACILITY,
                player="PlayerA", minimum=LO, maximum=HI, target=SITE, acquire=False):
         cap = "cognitivecraft:"+CAPS[item]
         if not acquire and cap not in self.hashes:
@@ -174,10 +174,14 @@ class AssessmentHarness(Harness):
         tail = minimum+maximum+destination if item in (LOG, BIRCH) else source+target if item == "place" else source+destination+(table if item == AXE else [])
         text = "/aivillage kernel "+COMMANDS[item]+" "+self.citizens[player]+" "+("" if item == "place" else str(quantity)+" ")+coord(tail)
         answer = self.command(player, text, "run="+UUID_PATTERN)
-        if "accepted=true" not in answer:
-            raise AssertionError("Request refused before execution: "+answer)
+        return {"run": re.search("run=("+UUID_PATTERN+")", answer).group(1),
+                "accepted": "accepted=true" in answer, "feedback": answer, "command": text}
+
+    def submit(self, item, quantity=1, **kwargs):
+        response = self.request_run(item, quantity, **kwargs)
+        require(response["accepted"], "Request refused before execution: "+response["feedback"])
         self.actions_active = True
-        return re.search("run=("+UUID_PATTERN+")", answer).group(1)
+        return response["run"]
 
     def finish_run(self, run, player="PlayerA", *, admitted=False, success=True):
         view = self.terminal(player, run, 650 if admitted else 200)

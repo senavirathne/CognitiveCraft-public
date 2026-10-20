@@ -280,8 +280,14 @@ def irrigation(h):
 
 def compete(h):
     h.reset({LOG: 3}, table=False); before = h.snapshot(); calls = h.model_calls()
-    runs = [h.submit(PLANK, 7, player=p) for p in ("PlayerA", "PlayerB")]
-    views = [h.finish_run(rid, p, success=False) for p, rid in zip(("PlayerA", "PlayerB"), runs)]
+    requests = [h.request_run(PLANK, 7, player=p) for p in ("PlayerA", "PlayerB")]
+    require(any(r["accepted"] for r in requests), "Neither valid owner could begin competing known work")
+    for request in requests:
+        if not request["accepted"]:
+            require(re.search(r"reason=(RESOURCE_MISSING|RESOURCE_BUSY|TARGET_UNAVAILABLE|BUDGET_EXHAUSTED)", request["feedback"]),
+                    "Unclassified contention intake refusal: "+request["feedback"])
+    h.actions_active = True
+    views = [h.finish_run(r["run"], p, success=False) for p, r in zip(("PlayerA", "PlayerB"), requests) if r["accepted"]]
     produced = sum(receipts(v, "CRAFT", PLANK) for v in views)
     withdrawn = sum(receipts(v, "WITHDRAW", LOG) for v in views)
     completed = sum(v.get("marker", {}).get("outcome") == "SUCCEEDED" for v in views)
@@ -292,7 +298,7 @@ def compete(h):
     require(h.container(SRC, LOG) == 3-withdrawn and h.container(DST, PLANK)+final_custody-initial_custody == produced,
             "Competing owners lost or duplicated physical resources")
     require(h.model_calls() == calls, "Known competing execution invoked a model")
-    return {"before": before, "runs": runs, "views": views, "physicalAfter": h.snapshot(),
+    return {"before": before, "requests": requests, "views": views, "physicalAfter": h.snapshot(),
             "produced": produced, "withdrawn": withdrawn, "fullyCompletedRequests": completed}
 
 
@@ -421,10 +427,16 @@ def language(h, text, expected_quantity=None, clarify=False, boundary=False, bou
 
 def recipe_boundary(h, item, stock, scenario):
     h.reset(stock, table=item == AXE); before = h.snapshot(); calls = h.model_calls()
-    rid = h.submit(item, 1 if item in (TABLE, AXE) else 4)
-    view = h.finish_run(rid, success=False)
-    require(view.get("marker", {}).get("outcome") != "SUCCEEDED" and not view.get("resourceReceipts"),
-            "Unsupported recipe variant consumed or credited resources")
+    response = h.request_run(item, 1 if item in (TABLE, AXE) else 4)
+    view = None
+    if response["accepted"]:
+        h.actions_active = True
+        view = h.finish_run(response["run"], success=False)
+        require(view.get("marker", {}).get("outcome") != "SUCCEEDED" and not view.get("resourceReceipts"),
+                "Unsupported recipe variant consumed or credited resources")
+    else:
+        require(re.search(r"reason=(RESOURCE_MISSING|UNSUPPORTED_PRIMITIVE)", response["feedback"]),
+                "Boundary refused for an unrelated intake/environment reason: "+response["feedback"])
     require(h.snapshot()["containers"] == before["containers"] and
             {a["uuid"]: a["inventory"] for a in h.snapshot()["actors"]} == {a["uuid"]: a["inventory"] for a in before["actors"]},
             "Unsupported resource restriction produced physical mutations")
@@ -432,7 +444,7 @@ def recipe_boundary(h, item, stock, scenario):
     require(vanilla and vanilla["installedVanillaMatch"], "Installed vanilla recipe support was not established")
     require(h.model_calls() == calls, "Unsupported stock triggered hidden inference")
     return {"assessmentClassification": "UNSUPPORTED", "boundaryCheck": "PASS", "gameplayExecution": "NOT_EXECUTED",
-            "classification": "Recipe or resource restriction", "before": before, "run": rid, "view": view,
+            "classification": "Recipe or resource restriction", "before": before, "request": response, "view": view,
             "vanillaRecipe": vanilla, "physicalAfter": h.snapshot()}
 
 
