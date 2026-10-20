@@ -23,7 +23,7 @@ import xml.etree.ElementTree as ET
 
 from runtime import ROOT, SDK, digest, semantic_jar
 from fixtures import ARENA, commands as arena_commands, write as write_fixture, legacy_identity_fixture
-from navigation import in_observed_area, walk_route, walkable_block
+from navigation import in_observed_area, walk_route, walkable_cell
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
             "E2E-LEGACY-001", "E2E-CANCEL-001", "E2E-MUTATION-001", "E2E-CLIENT-LOSS-001",
@@ -577,9 +577,10 @@ class Harness:
             while waypoints and math.hypot(waypoints[0][0] - x, waypoints[0][1] - z) <= min(.18, reach / 3):
                 self.action(player, "stop-move")
                 waypoints.pop(0)
-            if not waypoints or not walkable_block(state["blocks"].get(
-                    f"{math.floor(waypoints[0][0])},201,{math.floor(waypoints[0][1])}")):
-                waypoints = walk_route(state["blocks"], state["pos"], target, reach) or []
+            if not waypoints or not walkable_cell(state["blocks"], state["standable"],
+                    math.floor(waypoints[0][0]), math.floor(waypoints[0][1])):
+                waypoints = walk_route(state["blocks"], state["pos"], target, reach,
+                                       standable=state["standable"]) or []
             if not waypoints:
                 return None
             dx, dz = waypoints[0][0] - x, waypoints[0][1] - z

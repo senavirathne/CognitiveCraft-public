@@ -238,11 +238,18 @@ public final class ClientDriver implements ClientModInitializer {
         }
         out.add("entities", entities);
         var blocks = new JsonObject();
+        var standable = new JsonObject();
         for (int x = -1; x <= 20; x++) for (int z = -1; z <= 14; z++) {
             BlockPos pos = new BlockPos(x, 201, z);
-            blocks.addProperty(x + ",201," + z, mc.level.getBlockState(pos).toString());
+            String key = x + ",201," + z;
+            blocks.addProperty(key, mc.level.getBlockState(pos).toString());
+            standable.addProperty(key,
+                    mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty()
+                    && mc.level.getBlockState(pos.above()).getCollisionShape(mc.level, pos.above()).isEmpty()
+                    && !mc.level.getBlockState(pos.below()).getCollisionShape(mc.level, pos.below()).isEmpty());
         }
         out.add("blocks", blocks);
+        out.add("standable", standable);
         out.addProperty("menu", mc.player.containerMenu.containerId);
         var slots = new JsonArray();
         for (var slot : mc.player.containerMenu.slots) {

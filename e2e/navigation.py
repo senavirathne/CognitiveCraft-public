@@ -43,15 +43,23 @@ def in_observed_area(blocks, point):
         min(p[1] for p in cells) <= z <= max(p[1] for p in cells)
 
 
-def walk_route(blocks, position, target, reach=2.7):
-    """Choose cardinal cell centers; unknown cells and closed obstacles remain blocked.
+def walkable_cell(blocks, standable, x, z):
+    key = f"{x},{LEVEL},{z}"
+    return standable.get(key) is True and walkable_block(blocks.get(key))
+
+
+def walk_route(blocks, position, target, reach=2.7, *, standable):
+    """Choose supported cardinal cell centers with observed clear headroom.
 
     A player touching the narrow side of a fence can occupy its grid cell without
     intersecting its collision box. Such a start may exit only toward the nearest
-    cell sides, never cross the fence through its center.
+    cell sides, never cross the fence through its center. Air at foot level alone
+    cannot establish a route over an irrigation hole or below a low ceiling.
     """
     if not math.isfinite(reach) or reach <= 0:
         raise ValueError("Bounded observed fixture grid and positive reach required")
+    if len(standable) > MAX_CELLS:
+        raise ValueError("Bounded observed support/headroom grid required")
     cells = _grid(blocks)
     x, _, z = position
     start = math.floor(x), math.floor(z)
@@ -64,7 +72,7 @@ def walk_route(blocks, position, target, reach=2.7):
     directions = ((1, 0), (-1, 0), (0, 1), (0, -1))
     while queue:
         cell = queue.popleft()
-        if walkable_block(cells.get(cell)) and math.hypot(
+        if walkable_cell(blocks, standable, *cell) and math.hypot(
                 goal[0] - cell[0] - .5, goal[1] - cell[1] - .5) <= radius:
             path = [cell]
             while parents[path[-1]] is not None:
@@ -77,7 +85,7 @@ def walk_route(blocks, position, target, reach=2.7):
                        (0, -1 if z - start[1] < .5 else 1))
         for dx, dz in choices:
             neighbor = cell[0] + dx, cell[1] + dz
-            if neighbor not in parents and walkable_block(cells.get(neighbor)):
+            if neighbor not in parents and walkable_cell(blocks, standable, *neighbor):
                 parents[neighbor] = cell
                 queue.append(neighbor)
     return None
