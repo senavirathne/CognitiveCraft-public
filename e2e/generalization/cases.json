@@ -1,0 +1,439 @@
+{
+  "schema": 1,
+  "productionBaseline": "895304eb4b7e2379c6b82f7cda49b7ab6c9e1ebf",
+  "requirementsSha256": "236394040bf0a33a81a744c1a49a1ec04d7f68454d031f11411c618d8cae1648",
+  "productionChangesAllowed": false,
+  "modelPromptChangesAllowed": false,
+  "assessmentArea": {
+    "minX": 63,
+    "footY": 208,
+    "minZ": 63,
+    "maxX": 84,
+    "maxZ": 78
+  },
+  "originalArena": {
+    "minX": -1,
+    "footY": 201,
+    "minZ": -1,
+    "maxX": 20,
+    "maxZ": 14
+  },
+  "semantics": "PASS requires actual effects for executable gameplay. Correct boundary refusal is UNSUPPORTED with boundaryCheck=PASS, never gameplay PASS. Missing race evidence is INCONCLUSIVE. Infrastructure may block individual cases without stopping unrelated cases. D01/D02/D05 contain unbound demonstratives under existing concrete-reference rules. D03/D04 retain semantically feasible target quantities despite unfamiliar phrasing.",
+  "metricDefinitions": {
+    "parameter": "A01-A18 except five composition cases; gameplay PASS /13",
+    "composition": "A09,A10,A14,A17,A18; gameplay PASS /5",
+    "supportedGameplay": "A01-A18; gameplay PASS /18",
+    "dynamic": "C01-C10; witnessed correct dynamic result /10",
+    "language": "D01-D05; correct interpretation or required clarification /5; physical outcomes separate",
+    "boundary": "B01-B12; source-and-runtime-supported safe refusal /12, never successful gameplay",
+    "conservation": "All physically executed A/C/D scenarios; only witnessed physical accounting; report requested, executed and evaluable denominators separately",
+    "recovery": "C09; actual witnessed craft-to-delivery crash recovery /1"
+  },
+  "scenarios": [
+    {
+      "id": "A01",
+      "group": "oak",
+      "category": "parameter",
+      "requirement": "Acquire 3 oak logs arranged vertically rather than horizontally",
+      "expected": "Correct acquisition and delivery",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A02",
+      "group": "oak",
+      "category": "parameter",
+      "requirement": "Acquire 7 oak logs from multiple reachable positions and deliver them into a barrel",
+      "expected": "Correct delivery to a different supported container",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A03",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 7 oak planks from 2 available logs",
+      "expected": "Correct batch calculation and surplus preservation",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A04",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 12 oak planks from logs stored in different chest slots, with unrelated birch resources present",
+      "expected": "Only eligible resources consumed",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A05",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 5 sticks from 4 oak planks",
+      "expected": "Correct output quantity and surplus",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A06",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 12 sticks using oak planks stored in a barrel",
+      "expected": "Correct crafting and delivery",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A07",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 2 wooden axes using a relocated crafting table",
+      "expected": "Correct facility resolution and crafting",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A08",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 4 wooden axes with separated source and destination inventories",
+      "expected": "Correct production and delivery",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A09",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 2 wooden axes from 4 planks, 2 sticks and 1 available oak log",
+      "expected": "Automatically resolve missing resources",
+      "composition": true,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A10",
+      "group": "craft",
+      "category": "parameter",
+      "requirement": "Produce 3 wooden axes from 7 planks, no sticks and 2 oak logs",
+      "expected": "Generate a different valid dependency graph",
+      "composition": true,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A11",
+      "group": "facility",
+      "category": "parameter",
+      "requirement": "Produce 3 crafting-table items from 12 oak planks",
+      "expected": "Correct item production without placing blocks",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A12",
+      "group": "facility",
+      "category": "parameter",
+      "requirement": "Produce a crafting-table item from barrel stock without an existing crafting-table block",
+      "expected": "No unnecessary facility dependency",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A13",
+      "group": "facility",
+      "category": "parameter",
+      "requirement": "Place an existing crafting-table item at a newly selected valid location",
+      "expected": "Exactly one item consumed and one block placed",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A14",
+      "group": "facility",
+      "category": "parameter",
+      "requirement": "Produce an axe when its crafting-table facility is missing, but the item and other crafting ingredients are available",
+      "expected": "Correct facility provisioning without unnecessary production",
+      "composition": true,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A15",
+      "group": "birch",
+      "category": "parameter",
+      "requirement": "Acquire 5 birch logs in an area also containing oak logs",
+      "expected": "Correct material selection",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A16",
+      "group": "birch",
+      "category": "parameter",
+      "requirement": "Produce 11 birch planks from 3 birch logs",
+      "expected": "Correct output and surplus accounting",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A17",
+      "group": "blueprint",
+      "category": "parameter",
+      "requirement": "Stage 7 planks for a rotated supported blueprint with 2 planks already available and 2 logs accessible",
+      "expected": "Correct requirement and shortage calculation",
+      "composition": true,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "A18",
+      "group": "blueprint",
+      "category": "parameter",
+      "requirement": "Stage materials for a blueprint requiring 5 planks when 2 matching blocks are already present, 1 plank is stocked and 1 log is available",
+      "expected": "Stage only the 3 outstanding materials",
+      "composition": true,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B01",
+      "group": "oak",
+      "category": "boundary",
+      "requirement": "Acquire spruce logs instead of oak logs",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B02",
+      "group": "craft",
+      "category": "boundary",
+      "requirement": "Produce spruce planks from spruce logs",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B03",
+      "group": "craft",
+      "category": "boundary",
+      "requirement": "Produce sticks using birch planks instead of oak planks",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B04",
+      "group": "craft",
+      "category": "boundary",
+      "requirement": "Produce a wooden axe using birch planks and sticks",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B05",
+      "group": "craft",
+      "category": "boundary",
+      "requirement": "Produce a wooden pickaxe",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B06",
+      "group": "facility",
+      "category": "boundary",
+      "requirement": "Produce a crafting table from mixed oak and birch planks",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B07",
+      "group": "facility",
+      "category": "boundary",
+      "requirement": "Place a chest or barrel item into the Minecraft world",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B08",
+      "group": "craft",
+      "category": "boundary",
+      "requirement": "Produce oak fences from sticks and planks",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B09",
+      "group": "oak",
+      "category": "boundary",
+      "requirement": "Harvest carrots or potatoes instead of wheat",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B10",
+      "group": "blueprint",
+      "category": "boundary",
+      "requirement": "Stage blueprint materials containing oak slabs, doors and planks",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B11",
+      "group": "blueprint",
+      "category": "boundary",
+      "requirement": "Construct a 3×3 wall based on a blueprint",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "B12",
+      "group": "craft",
+      "category": "boundary",
+      "requirement": "Produce oak planks using stripped oak logs",
+      "expected": "UNSUPPORTED_WITH_ZERO_EFFECTS",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C01",
+      "group": "oak",
+      "category": "dynamic",
+      "requirement": "Another player breaks a target oak log during acquisition",
+      "expected": "No nonexistent resource credited",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C02",
+      "group": "craft",
+      "category": "dynamic",
+      "requirement": "Required crafting materials are removed after inspection",
+      "expected": "Correct handling of stale resources",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C03",
+      "group": "craft",
+      "category": "dynamic",
+      "requirement": "Destination container becomes full during delivery",
+      "expected": "No resource loss or false completion",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C04",
+      "group": "craft",
+      "category": "dynamic",
+      "requirement": "Required crafting table is destroyed before crafting",
+      "expected": "No invalid crafting operation",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C05",
+      "group": "oak",
+      "category": "dynamic",
+      "requirement": "A fence gate closes along an active route",
+      "expected": "Safe navigation or explicit failure",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C06",
+      "group": "oak",
+      "category": "dynamic",
+      "requirement": "Villager encounters an irrigation channel with an alternative reachable path",
+      "expected": "Correct navigation within supported limits",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C07",
+      "group": "craft",
+      "category": "dynamic",
+      "requirement": "Two owners compete for insufficient resources",
+      "expected": "Correct ownership, reservation and conservation",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C08",
+      "group": "oak",
+      "category": "dynamic",
+      "requirement": "LLM becomes unavailable after skill admission, and another player requests the same capability",
+      "expected": "Existing authorized skill remains reusable",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C09",
+      "group": "craft",
+      "category": "dynamic",
+      "requirement": "Server crashes between crafting and delivery",
+      "expected": "Correct recovery without duplicated effects",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "C10",
+      "group": "craft",
+      "category": "dynamic",
+      "requirement": "Valid source and destination containers change locations between requests",
+      "expected": "Correct use of current world references",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "D01",
+      "group": "oak",
+      "category": "language",
+      "requirement": "Ada, bring seven oak logs over to that barrel.",
+      "expected": "CORRECT_CLARIFICATION_OR_REFUSAL",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "D02",
+      "group": "craft",
+      "category": "language",
+      "requirement": "Could you turn these two oak logs into seven planks for me?",
+      "expected": "CORRECT_CLARIFICATION_OR_REFUSAL",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "D03",
+      "group": "craft",
+      "category": "language",
+      "requirement": "We need three wooden axes. Use what we've already got.",
+      "expected": "CORRECT_INTERPRETATION_AND_PHYSICAL_EXECUTION",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "D04",
+      "group": "birch",
+      "category": "language",
+      "requirement": "Make eleven birch planks and put them in the chest closest to you.",
+      "expected": "CORRECT_INTERPRETATION_AND_PHYSICAL_EXECUTION",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "D05",
+      "group": "facility",
+      "category": "language",
+      "requirement": "I need another crafting table. Use the planks from that barrel.",
+      "expected": "CORRECT_CLARIFICATION_OR_REFUSAL",
+      "composition": false,
+      "status": "NOT_EXECUTED"
+    }
+  ]
+}
