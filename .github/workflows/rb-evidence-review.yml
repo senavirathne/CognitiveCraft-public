@@ -1,0 +1,32 @@
+name: Review original RB assessment artifacts
+on:
+  push:
+    branches: [work/rb-evidence-reconciliation]
+    paths: ['.github/scripts/review-rb-assessment.py', '.github/workflows/rb-evidence-review.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rb-original-evidence-review
+  cancel-in-progress: false
+jobs:
+  original-artifact-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Independently reconcile the frozen completed run without executing gameplay or inference
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/review-rb-assessment.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb-original-evidence-review-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            build/rb-independent-review/evidence/
+            build/rb-independent-review/docs/
