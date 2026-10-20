@@ -223,6 +223,7 @@ class AssessmentHarness(Harness):
         actual = self.menu_count(player, destination, item)
         require(actual == old+quantity, "Connected vanilla menu differs from actual stock")
         return {"run": rid, "before": before, "view": view, "receipts": sums,
+                "physicalAfter": self.snapshot(),
                 "source": source, "destination": destination, "inventoryBefore": inv,
                 "inventoryAfter": self.inventory(player), "clientMenuCount": actual,
                 "modelCallsBefore": calls, "modelCallsAfter": self.model_calls()}
@@ -269,6 +270,7 @@ class AssessmentHarness(Harness):
                 "Composition credited old or missing axes")
         require(self.model_calls() == calls, "Known prerequisite graph invoked inference")
         return {"job": jid, "before": before, "graph": graph, "source": source,
+                "physicalAfter": self.snapshot(),
                 "destination": destination, "modelCallsBefore": calls,
                 "modelCallsAfter": self.model_calls(), "inventoryAfter": self.inventory(player)}
 

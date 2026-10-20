@@ -79,6 +79,7 @@ def case_check(row, expected):
     if row["status"] == "PASS":
         require(row["category"] != "boundary", "Boundary refusal cannot be gameplay PASS")
         require(bool(row.get("evidence")) and bool(row.get("screenshots")), "PASS needs original gameplay/interpretation evidence and a native frame")
+        require(bool(row.get("physicalFinalState")), "PASS needs the actual final server observation for independent physical reconciliation")
 
 
 def metric_report(rows):

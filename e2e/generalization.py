@@ -59,6 +59,7 @@ def acquisition(h, q, positions, *, item=LOG, destination=DST, container="chest"
     actual = h.menu_count(player, destination, item)
     require(actual == q, "Connected destination menu mismatch")
     return {"run": rid, "before": before, "view": view, "positions": positions,
+            "physicalAfter": h.snapshot(),
             "minimum": minimum, "maximum": maximum, "destination": destination,
             "clientMenuCount": actual, "inventoryBefore": inv, "inventoryAfter": h.inventory(player),
             "modelCallsBefore": calls, "modelCallsAfter": h.model_calls()}
@@ -200,6 +201,7 @@ def external_break(h, *, table=False, gate=False):
                        "item replace entity PlayerB weapon.mainhand with minecraft:iron_axe"])
         rid = h.submit(LOG, 1, minimum=target, maximum=target)
         boundary = current_effect_boundary(h, rid)
+    before_mutation = h.snapshot()
     if gate:
         h.action("PlayerB", "use", pos=target_gate)
         h.wait(lambda: "open=false" in h.block(target_gate), "Ordinary player closes the actual route gate", 20)
@@ -218,6 +220,7 @@ def external_break(h, *, table=False, gate=False):
         require((receipts(final, "DEPOSIT", LOG) == 1 and h.container(DST, LOG) == 1) if succeeded
                 else receipts(final, "DEPOSIT", LOG) < 1, "Closed gate produced fictitious completion")
     return {"run": rid, "boundaryBeforePlayerAction": boundary, "mutationObserved": mutation,
+            "physicalBeforeMutation": before_mutation,
             "view": final, "playerMutation": "gate-close" if gate else "ordinary-block-break",
             "target": target, "actualOutcome": final.get("marker", {}).get("outcome")}
 
@@ -309,6 +312,7 @@ def offline_reuse(h):
 
 def crash(h):
     h.reset({LOG: 2}, destination=at(18, 12), table=False, actor=at(9, 5))
+    before = h.snapshot()
     rid = h.submit(PLANK, 7, destination=at(18, 12))
     boundary = current_effect_boundary(h, rid, "CRAFT")
     if receipts(boundary, "DEPOSIT", PLANK):
@@ -328,6 +332,7 @@ def crash(h):
             {a["uuid"]: a["inventory"] for a in h.snapshot()["actors"]} == {a["uuid"]: a["inventory"] for a in saved["actors"]},
             "Restart duplicated crafting or delivery")
     return {"run": rid, "killBoundary": boundary, "savedPhysicalState": saved,
+            "physicalBeforeRequest": before,
             "checkpoint": checkpoint, "killedWorldHashes": killed, "recovered": recovered,
             "afterQuiet": h.snapshot()}
 
@@ -535,6 +540,7 @@ def main():
                     record["physicalFailureState"] = h.snapshot(); h.screenshot("PlayerA", "observed-failure", chat=True)
                 except Exception as capture_error:
                     record["captureError"] = str(capture_error)
+            record["physicalFinalState"] = h.snapshot()
             record.update(durationSeconds=time.time()-started, screenshots=h.screenshots[captures:])
             result["scenarios"][index] = record
             atomic(args.root / "generalization-results.json", result)
@@ -542,6 +548,8 @@ def main():
             print(ident, record["status"], record.get("reason", ""), flush=True)
             try:
                 h.cleanup()
+                record["physicalAfterCleanup"] = h.snapshot()
+                atomic(args.root / "generalization-results.json", result)
             except Exception as error:
                 result.setdefault("cleanupFailures", []).append({"after": ident, "reason": str(error)})
                 raise

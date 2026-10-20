@@ -143,6 +143,15 @@ public final class E2EObserver implements ModInitializer {
             data.addProperty("online",online);
             data.addProperty("uuid", player.getUUID().toString());
             data.add("pos", JSON.toJsonTree(List.of(player.getX(), player.getY(), player.getZ())));
+            if (assessment) {
+                var inventory=new JsonObject();
+                for(int i=0;i<player.getInventory().getContainerSize();i++) {
+                    var item=player.getInventory().getItem(i);
+                    if(!item.isEmpty()) {String key=BuiltInRegistries.ITEM.getKey(item.getItem()).toString();
+                        inventory.addProperty(key,(inventory.has(key)?inventory.get(key).getAsInt():0)+item.getCount());}
+                }
+                data.add("assessmentInventory",inventory);
+            }
             if (kernel != null) try {
                 data.addProperty("scope",kernel.scope(player.getUUID()));
                 data.add("citizens", JSON.toJsonTree(kernel.citizens(player)));

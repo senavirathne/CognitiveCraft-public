@@ -52,5 +52,11 @@ class GeneralizationEvidenceTests(unittest.TestCase):
         row = {**expected, "status": "PASS", "evidence": {"boundaryCheck": "PASS"}, "screenshots": [{"nativeClientFrame": True}]}
         with self.assertRaises(ValueError): verifier.case_check(row, expected)
 
+    def test_gameplay_pass_without_original_final_server_observation_is_rejected(self):
+        expected = {"id": "A01", "group": "oak", "category": "parameter", "requirement": "frozen", "expected": "effects", "composition": False}
+        row = {**expected, "status": "PASS", "evidence": {"run": "present"}, "screenshots": [{"nativeClientFrame": True}]}
+        with self.assertRaisesRegex(ValueError, "actual final server observation"):
+            verifier.case_check(row, expected)
+
 
 if __name__ == "__main__": unittest.main()
