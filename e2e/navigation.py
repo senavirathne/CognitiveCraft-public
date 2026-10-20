@@ -20,15 +20,9 @@ def walkable_block(state):
     return block in PASSABLE or block.endswith("_fence_gate") and "open=true" in state
 
 
-def walk_route(blocks, position, target, reach=2.7):
-    """Choose cardinal cell centers; unknown cells and closed obstacles remain blocked.
-
-    A player touching the narrow side of a fence can occupy its grid cell without
-    intersecting its collision box. Such a start may exit only toward the nearest
-    cell sides, never cross the fence through its center.
-    """
-    if len(blocks) > MAX_CELLS or not math.isfinite(reach) or reach <= 0:
-        raise ValueError("Bounded observed fixture grid and positive reach required")
+def _grid(blocks):
+    if len(blocks) > MAX_CELLS:
+        raise ValueError("Bounded observed fixture grid required")
     cells = {}
     for key, state in blocks.items():
         try:
@@ -37,11 +31,33 @@ def walk_route(blocks, position, target, reach=2.7):
             continue
         if y == LEVEL:
             cells[x, z] = state
+    return cells
+
+
+def in_observed_area(blocks, point):
+    cells = _grid(blocks)
+    if not cells:
+        return False
+    x, z = math.floor(point[0]), math.floor(point[2])
+    return min(p[0] for p in cells) <= x <= max(p[0] for p in cells) and \
+        min(p[1] for p in cells) <= z <= max(p[1] for p in cells)
+
+
+def walk_route(blocks, position, target, reach=2.7):
+    """Choose cardinal cell centers; unknown cells and closed obstacles remain blocked.
+
+    A player touching the narrow side of a fence can occupy its grid cell without
+    intersecting its collision box. Such a start may exit only toward the nearest
+    cell sides, never cross the fence through its center.
+    """
+    if not math.isfinite(reach) or reach <= 0:
+        raise ValueError("Bounded observed fixture grid and positive reach required")
+    cells = _grid(blocks)
     x, _, z = position
     start = math.floor(x), math.floor(z)
     if start not in cells:
         return None
-    radius = reach - min(.45, reach / 2)
+    radius = reach - min(.2, reach / 2)
     goal = target[0] + .5, target[2] + .5
     queue = deque([start])
     parents = {start: None}

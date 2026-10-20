@@ -2,7 +2,7 @@
 import math
 import unittest
 
-from navigation import MAX_CELLS, walk_route, walkable_block
+from navigation import MAX_CELLS, in_observed_area, walk_route, walkable_block
 
 
 def arena(width=12, depth=10):
@@ -21,7 +21,25 @@ class ClientNavigationTests(unittest.TestCase):
         self.assertEqual((2.5, 4.5), path[0])
         self.assertTrue(all(walkable_block(blocks[f"{math.floor(x)},201,{math.floor(z)}"])
                             for x, z in path))
-        self.assertLessEqual(math.hypot(9.5 - path[-1][0], 7.5 - path[-1][1]), 2.25)
+        self.assertLessEqual(math.hypot(9.5 - path[-1][0], 7.5 - path[-1][1]), 2.7)
+
+    def test_reachable_short_interaction_range_does_not_require_entering_a_closed_pen(self):
+        blocks = arena()
+        for x in range(3, 6):
+            for z in range(3, 6):
+                if x in (3, 5) or z in (3, 5):
+                    blocks[f"{x},201,{z}"] = "Block{minecraft:oak_fence}"
+        path = walk_route(blocks, (1.5, 201, 4.5), (4, 201, 4), 2.4)
+        self.assertIsNotNone(path)
+        self.assertLessEqual(math.hypot(4.5 - path[-1][0], 4.5 - path[-1][1]), 2.4)
+
+    def test_existing_long_distance_unload_walk_is_outside_fixed_fixture_routing(self):
+        blocks = arena()
+        self.assertTrue(in_observed_area(blocks, (3.075, 201, 4.075)))
+        self.assertFalse(in_observed_area(blocks, (60, 201, 6)))
+        del blocks["3,201,4"]
+        self.assertTrue(in_observed_area(blocks, (3, 201, 4)))
+        self.assertFalse(walkable_block(blocks.get("3,201,4")))
 
     def test_closed_gate_blocks_route_but_observed_open_gate_is_traversable(self):
         blocks = arena(10, 9)
@@ -43,7 +61,7 @@ class ClientNavigationTests(unittest.TestCase):
         blocks["9,201,7"] = "Block{minecraft:chest}[facing=west]"
         path = walk_route(blocks, (1.5, 201, 1.5), (9, 201, 7))
         self.assertNotIn((9.5, 7.5), path)
-        self.assertLessEqual(math.hypot(9.5 - path[-1][0], 7.5 - path[-1][1]), 2.25)
+        self.assertLessEqual(math.hypot(9.5 - path[-1][0], 7.5 - path[-1][1]), 2.7)
         previous = (1.5, 1.5)
         for point in path:
             self.assertEqual(1, abs(point[0] - previous[0]) + abs(point[1] - previous[1]))

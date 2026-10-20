@@ -23,7 +23,7 @@ import xml.etree.ElementTree as ET
 
 from runtime import ROOT, SDK, digest, semantic_jar
 from fixtures import ARENA, commands as arena_commands, write as write_fixture, legacy_identity_fixture
-from navigation import walk_route, walkable_block
+from navigation import in_observed_area, walk_route, walkable_block
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
             "E2E-LEGACY-001", "E2E-CANCEL-001", "E2E-MUTATION-001", "E2E-CLIENT-LOSS-001",
@@ -569,6 +569,11 @@ class Harness:
             x, _, z = state["pos"]; dx = target[0] + .5 - x; dz = target[2] + .5 - z
             if math.hypot(dx, dz) <= reach:
                 self.action(player, "stop-move"); return state
+            # The unload/retention scenario deliberately walks beyond the fixed
+            # arena snapshot. Preserve its established ordinary direct controls.
+            if not in_observed_area(state["blocks"], state["pos"]) or not in_observed_area(state["blocks"], target):
+                self.action(player, "move", yaw=math.degrees(math.atan2(-dx, dz)), ticks=6)
+                return None
             while waypoints and math.hypot(waypoints[0][0] - x, waypoints[0][1] - z) <= min(.18, reach / 3):
                 self.action(player, "stop-move")
                 waypoints.pop(0)
