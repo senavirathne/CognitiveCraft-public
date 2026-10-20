@@ -148,6 +148,8 @@ jobs:
     name: Require all 13 families and exact-layer IMP-001–019 evidence
     needs: [genuine-acquisition, gameplay]
     if: always()
+    outputs:
+      qualification-artifact-id: ${{ steps.qualification-artifact.outputs.artifact-id }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -167,9 +169,10 @@ jobs:
         if: always()
         run: python3 e2e/qualify.py build/qualification
       - uses: actions/upload-artifact@v4
+        id: qualification-artifact
         if: always()
         with:
-          name: real-gameplay-qualification-${{ github.run_id }}
+          name: real-gameplay-qualification-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
           path: |
@@ -189,7 +192,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          name: real-gameplay-qualification-${{ github.run_id }}
+          artifact-ids: ${{ needs.qualification.outputs.qualification-artifact-id }}
           path: build/rb-series/baseline
       - name: Collect exact-head resource owners, retain original artifact identities and qualify each layer
         env:
