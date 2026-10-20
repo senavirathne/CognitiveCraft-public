@@ -8,7 +8,7 @@ import static dev.aivillages.core.kernel.Outcomes.*;
 
 /** Game-thread proposal owner. Inference goes through the existing broker; only Jobs publishes work. */
 public final class GoalPlanner implements AutoCloseable {
-    public enum State {CONTEXT,RESERVING,QUEUED,PUBLISHING,LINKING,ADMITTED,DETERMINISTIC,REJECTED,CANCELLED;
+    public enum State {CONTEXT,RESERVING,QUEUED,CORRECTING,PUBLISHING,LINKING,ADMITTED,DETERMINISTIC,REJECTED,CANCELLED;
         public boolean terminal(){return ordinal()>=ADMITTED.ordinal();}}
     public record View(UUID id,UUID parent,State state,Reason reason,Plan.Diagnostic diagnostic,String path,
                        List<UUID> jobs,Map<Budgets.Kind,Long> reserved,Map<Budgets.Kind,Long> actual,Generation.Compute compute) {
@@ -27,6 +27,7 @@ public final class GoalPlanner implements AutoCloseable {
     private PlanJournal.Snapshot retained;private CompletableFuture<PlanJournal.Snapshot> writing;private Pending writingOwner;private boolean closed;
     private final class Pending {
         final UUID id,parent;final TrustedContext caller;final Jobs.Job original;final long deadline;
+        boolean corrected;String correctionPrompt;Generation.Request modelRequest;
         State state=State.CONTEXT;Reason reason;Plan.Diagnostic diagnostic;String path="";
         CompletableFuture<Plan.Context> capture;Plan.Context captured;Generation.Handle model;Budgets.Ledger ledger;
         Map<Budgets.Kind,Long> reserved=Map.of();Plan.Validated plan;List<UUID> children=List.of();String template;PlanJournal.Template templateGrant;
@@ -168,15 +169,25 @@ public final class GoalPlanner implements AutoCloseable {
             }
             var limits=new Budgets.InferenceLimits(new Budgets.Limits(Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.REPAIRS,0L,
                     Budgets.Kind.INPUT_BYTES,32768L,Budgets.Kind.OUTPUT_BYTES,(long)budget.outputBytes()),p.deadline),32768,budget.outputBytes());
-            p.ledger=new Budgets.Ledger(limits.total(),clock);
+            p.ledger=new Budgets.Ledger(new Budgets.Limits(Map.of(Budgets.Kind.CALLS,2L,Budgets.Kind.REPAIRS,1L,
+                    Budgets.Kind.INPUT_BYTES,65536L,Budgets.Kind.OUTPUT_BYTES,2L*budget.outputBytes()),p.deadline),clock);
             var request=new Generation.Request(p.id,p.captured.goal(),PlanningGoals.SPEC,List.of(),
                     p.captured.slots().stream().map(Plan.Slot::method).distinct().toList(),Generation.Role.PLANNING,p.captured.prompt());
-            p.model=broker.submit(request,limits,p.ledger,Plan.OUTPUT,AIWorkBroker.Priority.NORMAL);p.state=State.QUEUED;return;
+            p.modelRequest=request;p.model=broker.submit(request,limits,p.ledger,Plan.OUTPUT,AIWorkBroker.Priority.NORMAL);p.state=State.QUEUED;return;
+        }
+        if(p.state==State.CORRECTING) {
+            if(!jobs.ready())return;
+            if(!root.guard().equals(p.captured.guard())){refuse(p,Reason.STALE_OBSERVATION,Plan.Diagnostic.STALE,"$.parent");return;}
+            var limits=new Budgets.InferenceLimits(new Budgets.Limits(Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.REPAIRS,1L,
+                    Budgets.Kind.INPUT_BYTES,32768L,Budgets.Kind.OUTPUT_BYTES,(long)budget.outputBytes()),p.deadline),32768,budget.outputBytes());
+            p.modelRequest=new Generation.Request(Plan.stable(p.id+":correction:1"),p.captured.goal(),PlanningGoals.SPEC,List.of(),
+                    p.captured.slots().stream().map(Plan.Slot::method).distinct().toList(),Generation.Role.PLANNING_REPAIR,p.correctionPrompt);
+            p.model=broker.submit(p.modelRequest,limits,p.ledger,Plan.OUTPUT,AIWorkBroker.Priority.NORMAL);p.state=State.QUEUED;return;
         }
         if(p.state==State.QUEUED) {
             if(!p.model.result().toCompletableFuture().isDone())return;
             var result=p.model.result().toCompletableFuture().join();
-            if(!result.id().equals(p.id) || !result.owner().equals(p.captured.goal().context()) || result.role()!=Generation.Role.PLANNING) {
+            if(!result.id().equals(p.modelRequest.id()) || !result.owner().equals(p.captured.goal().context()) || result.role()!=p.modelRequest.role()) {
                 refuse(p,Reason.AUTHORITY_DENIED,Plan.Diagnostic.AUTHORITY,"$.response");return;
             }
             if(result.outcome()!=Generation.Outcome.CANDIDATE) {refuse(p,result.reason(),Plan.Diagnostic.MALFORMED,"$.response");return;}
@@ -203,7 +214,24 @@ public final class GoalPlanner implements AutoCloseable {
         var root=root(p.parent,p.caller);
         if(!root.guard().equals(p.captured.guard())){refuse(p,Reason.STALE_OBSERVATION,Plan.Diagnostic.STALE,"$.parent");return;}
         var result=validator.validate(bytes,p.captured,jobs.remainingAllowance(p.parent,p.caller),context,context.tick());
-        if(!result.accepted()){refuse(p,result.reason(),result.diagnostic(),result.path());return;}
+        if(!result.accepted()){
+            // Only a semantic quantity mistake is repairable. Authority, stock, method and freshness refusals stay final.
+            if(p.template==null && !p.corrected && result.diagnostic()==Plan.Diagnostic.QUANTITY) {
+                String prompt=PlanningFeedback.correction(p.captured.prompt(),bytes,result.diagnostic().name(),result.path());
+                var extra=Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.REPAIRS,1L,Budgets.Kind.INPUT_BYTES,32768L,
+                        Budgets.Kind.OUTPUT_BYTES,(long)budget.outputBytes(),Budgets.Kind.INSTRUCTIONS,(long)budget.work());
+                var charge=jobs.charge(p.parent,root.guard(),extra,p.caller);
+                if(charge.accepted()) {
+                    var reserved=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);reserved.putAll(p.reserved);
+                    extra.forEach((kind,n)->reserved.merge(kind,n,Math::addExact));p.reserved=Map.copyOf(reserved);
+                    p.corrected=true;p.correctionPrompt=prompt;
+                    p.captured=new Plan.Context(p.captured.parent(),charge.job().guard(),p.captured.goal(),p.captured.direct(),
+                            p.captured.prerequisites(),p.captured.slots(),p.captured.history());
+                    p.state=State.CORRECTING;return;
+                }
+            }
+            refuse(p,result.reason(),result.diagnostic(),result.path());return;
+        }
         var change=jobs.admitPlan(result.value(),p.caller);
         if(!change.accepted()){refuse(p,change.reason(),Plan.Diagnostic.PUBLICATION,"$.publication");return;}
         p.plan=result.value();p.children=p.plan.children().stream().map(Jobs.Child::id).toList();p.state=State.PUBLISHING;

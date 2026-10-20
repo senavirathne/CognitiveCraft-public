@@ -32,18 +32,18 @@ jobs:
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
       - name: Execute every IMP-019 matrix case
-        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.GoalPlannerTest --tests dev.aivillages.core.kernel.PlanJournalTest :providers:test --tests dev.aivillages.providers.PlanningAdapterTest
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.GoalPlannerTest --tests dev.aivillages.core.kernel.PlanJournalTest --tests dev.aivillages.core.kernel.GoalPlannerCorrectionTest --tests dev.aivillages.core.kernel.MaterialPlanTest :providers:test --tests dev.aivillages.providers.PlanningAdapterTest --tests dev.aivillages.providers.MaterialPlanningAdapterTest --tests dev.aivillages.providers.PlanningBenchmarkCasesTest
       - name: Require all matrix cases to execute and pass
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import xml.etree.ElementTree as ET
-          for module,suite,expected in [('core','GoalPlannerTest',46),('core','PlanJournalTest',12),('providers','PlanningAdapterTest',4)]:
+          for module,suite,expected in [('core','GoalPlannerTest',46),('core','PlanJournalTest',12),('providers','PlanningAdapterTest',4),('core','GoalPlannerCorrectionTest',5),('core','MaterialPlanTest',10),('providers','MaterialPlanningAdapterTest',4),('providers','PlanningBenchmarkCasesTest',1)]:
               package='dev.aivillages.core.kernel.' if module=='core' else 'dev.aivillages.providers.'
               cases=list(ET.parse(Path(module)/'build/test-results/test'/('TEST-'+package+suite+'.xml')).getroot().iter('testcase'))
               if len(cases)!=expected or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
                   raise SystemExit('Every matrix case must execute and pass: '+suite)
-          print('IMP-019 matrix: 62 executed passing cases')
+          print('IMP-019 matrix: 82 executed passing cases')
           PY
       - name: Execute complete affected module regressions and build packaging
         run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
@@ -106,7 +106,7 @@ jobs:
               if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Test code or model weights leaked into release')
               for name in ('Plan','PlanningBudget','PlanValidator','PlanJournal','GoalPlanner','PlanningGoals'):
                   if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Planning runtime missing: '+name)
-          evidence={'schema':1,'matrix':62,'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
+          evidence={'schema':1,'matrix':82,'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
           (out/'acceptance.json').write_text(json.dumps(evidence,indent=2)+'\n');print(evidence)
           PY
       - name: Restore full GameTest registration
@@ -123,10 +123,22 @@ jobs:
             fabric/build/planning-evidence/**
             fabric/build/gametest-run/logs/**
             fabric/build/gametest-run/crash-reports/**
-  held-out-quality:
-    name: IMP-019 genuine held-out shared-backend quality and latency
+  quality-measurements:
+    name: IMP-019 proposal measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 0}
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 1}
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 2}
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 3}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 0}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 1}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 2}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 3}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -137,45 +149,71 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
-      - name: Start the pinned shared backend and explicitly acquire its existing smoke model
-        timeout-minutes: 12
+      - name: Execute production validator, correction and wire-contract regressions first
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test
+      - name: Record host and start the same pinned CPU backend for each comparison arm
+        timeout-minutes: 15
+        env:
+          MODEL: ${{ matrix.model }}
         run: |
-          docker run --detach --name cognitivecraft-planning-ollama --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          mkdir -p providers/build/planning-quality
+          lscpu > providers/build/planning-quality/host-cpu.txt
+          free -m > providers/build/planning-quality/host-memory.txt
+          docker run --detach --name cognitivecraft-planning-ollama --publish 127.0.0.1:11434:11434 --env OLLAMA_NUM_PARALLEL=1 ollama/ollama:0.12.10
           for attempt in $(seq 1 30); do
             curl --fail --silent http://127.0.0.1:11434/api/version && break
             sleep 2
           done
-          docker exec cognitivecraft-planning-ollama ollama pull qwen2.5:1.5b-instruct
-      - name: Measure three held-out live proposals independently of controlled gameplay fixtures
-        timeout-minutes: 8
+          docker exec cognitivecraft-planning-ollama ollama pull "$MODEL"
+          docker inspect cognitivecraft-planning-ollama > providers/build/planning-quality/backend-container.json
+          curl --fail --silent http://127.0.0.1:11434/api/tags > providers/build/planning-quality/model-tags.json
+          docker exec cognitivecraft-planning-ollama ollama show "$MODEL" > providers/build/planning-quality/model-details.txt
+      - name: Measure the assigned requests with at most one correction per proposal
+        timeout-minutes: 32
         env:
-          COGNITIVECRAFT_OLLAMA_MODEL: qwen2.5:1.5b-instruct
+          COGNITIVECRAFT_OLLAMA_MODEL: ${{ matrix.model }}
+          PLANNING_BENCHMARK_SHARD: ${{ matrix.shard }}
+          PLANNING_BENCHMARK_SHARDS: '4'
         run: |
           set -o pipefail
-          mkdir -p providers/build/planning-quality
           bash ./gradlew --no-daemon --stacktrace :providers:runPlanningLiveBenchmark | tee providers/build/planning-quality/held-out.log
-      - name: Require genuine bounded results and retain quality without substituting fake-model evidence
-        run: |
-          python3 - <<'PY'
-          import json,re
-          from pathlib import Path
-          root=Path('providers/build/planning-quality');lines=(root/'held-out.log').read_text().splitlines()
-          cases=[json.loads(line.removeprefix('IMP-019 planning quality ')) for line in lines if line.startswith('IMP-019 planning quality ')]
-          if len(cases)!=3 or {c['case'] for c in cases}!={0,1,2}:raise SystemExit('Three genuine held-out results required')
-          for case in cases:
-              if case['model']!='qwen2.5:1.5b-instruct' or not re.fullmatch('[0-9a-f]{64}',case['modelDigest']):raise SystemExit('Live model identity missing')
-              if not 0<case['inputBytes']<=32768 or not 0<case['outputBytes']<=8192 or case['latencyMillis']<=0:raise SystemExit('Bounded live inference evidence missing')
-          if len({c['modelDigest'] for c in cases})!=1:raise SystemExit('Shared model identity changed')
-          valid=sum(c['valid'] for c in cases)
-          if f'IMP-019 held-out completed cases=3 valid={valid} calls=3 dedicatedModels=0 nativeEffects=0' not in lines:raise SystemExit('Real call accounting missing')
-          proof={'schema':1,'cases':cases,'valid':valid,'total':3,'dedicatedModels':0,'nativeEffects':0,'scope':'held-out quantity decomposition; separate from native admission/execution'}
-          (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
-          PY
-      - name: Report explicit shared model identity
+      - name: Retain backend resource use and diagnostics
         if: always()
-        run: docker exec cognitivecraft-planning-ollama ollama list || true
+        run: |
+          mkdir -p providers/build/planning-quality
+          docker stats --no-stream cognitivecraft-planning-ollama > providers/build/planning-quality/backend-resources.txt || true
+          docker logs cognitivecraft-planning-ollama > providers/build/planning-quality/backend.log 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: imp-019-held-out-planning-quality
+          name: planning-measurements-${{ matrix.id }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
           path: providers/build/planning-quality/**
+  held-out-quality:
+    name: IMP-019 genuine held-out shared-backend quality and latency
+    needs: quality-measurements
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Test measurement integrity independently of model success rate
+        run: python3 -m unittest discover -s scripts -p test_planning_quality.py
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: planning-measurements-*
+          path: providers/build/planning-quality/imports
+      - name: Require 40 genuine measurements per model and report first-pass and corrected quality
+        env:
+          REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/planning-quality.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-019-held-out-planning-quality-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
+          path: providers/build/planning-quality/acceptance.json

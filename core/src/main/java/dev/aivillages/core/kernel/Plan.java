@@ -36,6 +36,8 @@ public final class Plan {
         }
         public String prompt() {
             return StrictJson.canonical(Map.of("contract","goal-plan:1","goal",requestData(goal.request()),
+                    "requiredTotals",java.util.stream.IntStream.range(0,slots.size()).mapToObj(i->Map.of("slot",i,
+                            "amount",((IntValue)slots.get(i).bound().request().arguments().get("amount")).value())).toList(),
                     "slots",slots.stream().map(s->Map.of("request",requestData(s.bound().request()),
                             "method",s.method().ref().toString(),"evidence",s.observation().reference().snapshotId().toString(),
                             "counts",s.observation().counts())).toList(),"history",history,

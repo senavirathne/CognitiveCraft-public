@@ -1,0 +1,540 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "wheat-01",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 1 wheat to the first chest and 4 to the second from the shared loaded source.",
+      "first": 1,
+      "second": 4,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-02",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 3 wheat to the first chest and 2 to the second from the shared loaded source.",
+      "first": 3,
+      "second": 2,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-03",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 2 wheat to the first chest and 6 to the second from the shared loaded source.",
+      "first": 2,
+      "second": 6,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-04",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 4 wheat to the first chest and 1 to the second from the shared loaded source.",
+      "first": 4,
+      "second": 1,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-05",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 1 wheat to the first chest and 7 to the second from the shared loaded source.",
+      "first": 1,
+      "second": 7,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-06",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 5 wheat to the first chest and 3 to the second from the shared loaded source.",
+      "first": 5,
+      "second": 3,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-07",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 6 wheat to the first chest and 2 to the second from the shared loaded source.",
+      "first": 6,
+      "second": 2,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-08",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 2 wheat to the first chest and 5 to the second from the shared loaded source.",
+      "first": 2,
+      "second": 5,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-09",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 7 wheat to the first chest and 4 to the second from the shared loaded source.",
+      "first": 7,
+      "second": 4,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-10",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 4 wheat to the first chest and 6 to the second from the shared loaded source.",
+      "first": 4,
+      "second": 6,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-11",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 3 wheat to the first chest and 7 to the second from the shared loaded source.",
+      "first": 3,
+      "second": 7,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "wheat-12",
+      "category": "quantity_split",
+      "kind": "wheat",
+      "request": "Deliver 8 wheat to the first chest and 1 to the second from the shared loaded source.",
+      "first": 8,
+      "second": 1,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-01",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply 4 oak planks using one available oak log.",
+      "goals": {
+        "minecraft:oak_planks": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-02",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply 5 oak planks and retain the unavoidable batch remainder.",
+      "goals": {
+        "minecraft:oak_planks": 5
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-03",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply 12 birch planks from 3 birch logs.",
+      "goals": {
+        "minecraft:birch_planks": 12
+      },
+      "inventory": {
+        "minecraft:birch_log": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-04",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply 4 sticks from 2 oak planks.",
+      "goals": {
+        "minecraft:stick": 4
+      },
+      "inventory": {
+        "minecraft:oak_planks": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-05",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply 7 sticks and keep whole-batch remainders.",
+      "goals": {
+        "minecraft:stick": 7
+      },
+      "inventory": {
+        "minecraft:oak_planks": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-06",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Craft one crafting-table item without placing it.",
+      "goals": {
+        "minecraft:crafting_table": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-07",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Craft 3 crafting-table items.",
+      "goals": {
+        "minecraft:crafting_table": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 12
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-08",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply one wooden axe at the existing table.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 2
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-09",
+      "category": "single_step",
+      "kind": "material",
+      "request": "Supply 2 wooden axes at the existing table.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 6,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-10",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Turn available oak logs into planks and then supply 4 sticks.",
+      "goals": {
+        "minecraft:stick": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-11",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply 12 sticks starting with 2 oak logs.",
+      "goals": {
+        "minecraft:stick": 12
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-12",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Make one wooden axe from oak logs, making its planks and sticks first.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-13",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Make 2 wooden axes from exactly 2 oak logs at the existing table.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-14",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Make 3 wooden axes from 4 oak logs at the existing table.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-15",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Make 4 wooden axes from 4 oak logs, sharing intermediate materials.",
+      "goals": {
+        "minecraft:wooden_axe": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-16",
+      "category": "facility_provision",
+      "kind": "material",
+      "request": "Make one wooden axe from logs. No table exists, but placing a newly crafted table is authorized.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-17",
+      "category": "facility_provision",
+      "kind": "material",
+      "request": "Make 2 wooden axes from 3 oak logs. Craft and place a table first under the supplied permission.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "craft-18",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Supply one wooden axe and separately retain 4 deliverable oak planks.",
+      "goals": {
+        "minecraft:wooden_axe": 1,
+        "minecraft:oak_planks": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "shortage-01",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply 9 oak planks, but only 2 oak logs are available.",
+      "goals": {
+        "minecraft:oak_planks": 9
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-02",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply 8 sticks from only 3 oak planks.",
+      "goals": {
+        "minecraft:stick": 8
+      },
+      "inventory": {
+        "minecraft:oak_planks": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-03",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply 2 wooden axes with only 5 planks and 4 sticks.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 5,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-04",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Make one wooden axe using only one oak log at the existing table.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 1
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-05",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Make an axe and provision its missing table using only 2 oak logs.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-06",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply 2 crafting-table items from 7 oak planks.",
+      "goals": {
+        "minecraft:crafting_table": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 7
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-07",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply 8 birch planks with one birch log and 20 oak logs; preserve wood identity.",
+      "goals": {
+        "minecraft:birch_planks": 8
+      },
+      "inventory": {
+        "minecraft:birch_log": 1,
+        "minecraft:oak_log": 20
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "shortage-08",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Make one axe. A table item exists, but there is no placed table and placement is not authorized.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 8,
+        "minecraft:stick": 8,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "unsupported-01",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Supply 4 torches using only the registered recipe catalog.",
+      "goals": {
+        "minecraft:torch": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 8
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    },
+    {
+      "id": "unsupported-02",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Craft a chest, although no chest recipe is registered in this planning envelope.",
+      "goals": {
+        "minecraft:chest": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 20
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    }
+  ]
+}

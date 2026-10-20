@@ -362,7 +362,7 @@ public final class KernelSession implements AutoCloseable {
                 AIWorkBroker.sessionLimits(clock.millis()), request -> {
                     var actor = ((ActorValue)request.bound().request().arguments().get("actor")).value();
                     return control.controls(actor, request.bound().context())
-                            && (request.role()==Generation.Role.PLANNING
+                            && (request.role().planning()
                                 ? CropDelivery.SPEC.effects()
                                 : ResourceDelivery.spec(request.bound().request().capability()).orElseThrow().effects()).stream()
                             .allMatch(effect -> authority.currentlyAllows(actor, effect, request.bound().context()));
