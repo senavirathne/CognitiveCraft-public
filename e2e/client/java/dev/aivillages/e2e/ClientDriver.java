@@ -32,6 +32,7 @@ public final class ClientDriver implements ClientModInitializer {
     private static final Path ROOT = Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"));
     private static final String NAME = System.getenv("COGNITIVECRAFT_E2E_PLAYER");
     private static final Path BOX = ROOT.resolve("clients/" + NAME);
+    private static final int[] OBSERVATION_AREA = observationArea();
     private String last = "";
     private long ticks;
     private boolean wasPlaying;
@@ -239,9 +240,10 @@ public final class ClientDriver implements ClientModInitializer {
         out.add("entities", entities);
         var blocks = new JsonObject();
         var standable = new JsonObject();
-        for (int x = -1; x <= 20; x++) for (int z = -1; z <= 14; z++) {
-            BlockPos pos = new BlockPos(x, 201, z);
-            String key = x + ",201," + z;
+        for (int x = OBSERVATION_AREA[0]; x <= OBSERVATION_AREA[3]; x++)
+            for (int z = OBSERVATION_AREA[2]; z <= OBSERVATION_AREA[4]; z++) {
+            BlockPos pos = new BlockPos(x, OBSERVATION_AREA[1], z);
+            String key = x + "," + OBSERVATION_AREA[1] + "," + z;
             blocks.addProperty(key, mc.level.getBlockState(pos).toString());
             standable.addProperty(key,
                     mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty()
@@ -259,6 +261,22 @@ public final class ClientDriver implements ClientModInitializer {
         }
         out.add("slots", slots);
         return out;
+    }
+
+    /** Assessment-only read bounds; defaults preserve the established RB observer. */
+    private static int[] observationArea() {
+        Path path = ROOT.resolve("observation-area.json");
+        if (!Files.exists(path)) return new int[]{-1,201,-1,20,14};
+        try {
+            if (Files.size(path) > 2048) throw new IllegalArgumentException("Observation bounds file");
+            var value = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            int[] area = java.util.stream.Stream.of("minX","footY","minZ","maxX","maxZ")
+                    .mapToInt(key -> value.get(key).getAsInt()).toArray();
+            long width = (long)area[3]-area[0]+1, depth = (long)area[4]-area[2]+1;
+            if (width < 1 || depth < 1 || width*depth > 512 || area[1] < -60 || area[1] > 300)
+                throw new IllegalArgumentException("Bounded observation area required");
+            return area;
+        } catch (Exception failure) { throw new IllegalStateException("Assessment observation bounds",failure); }
     }
 
     private static JsonElement tree(CommandNode<?> node) {
