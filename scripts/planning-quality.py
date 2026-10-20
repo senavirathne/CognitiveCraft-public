@@ -93,6 +93,7 @@ def analyze(root, dataset, head, tree, shards=4):
         digests = {a['modelDigest'] for r in rows for a in r['attempts']}
         require(len(digests) == 1, 'Model identity changed within a comparison arm')
         results[model] = {'modelDigest': digests.pop(), **describe(rows)}
+    require(len({results[m]['modelDigest'] for m in MODELS}) == 2, 'Comparison arms must use different actual model weights')
     a, b = (results[m]['cases'] for m in MODELS)
     require(all(x['attempts'][0]['promptSha256'] == y['attempts'][0]['promptSha256'] for x, y in zip(a, b, strict=True)), 'Models did not receive identical initial prompts')
     better = sum(not x['valid'] and y['valid'] for x, y in zip(a, b, strict=True))

@@ -1,6 +1,7 @@
 dependencies { api project(':core') }
 
 tasks.register('runPlanningLiveBenchmark', JavaExec) {
+    workingDir rootProject.projectDir
     group = 'verification'
     description = 'Separately invoked held-out planning quality/latency on the existing shared local backend.'
     classpath = sourceSets.test.runtimeClasspath

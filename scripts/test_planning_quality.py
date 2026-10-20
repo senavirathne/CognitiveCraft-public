@@ -19,7 +19,7 @@ class MeasurementIntegrityTest(unittest.TestCase):
                 rows = []
                 for i in range(shard, 40, 4):
                     case = cases[i]
-                    attempt = {'attempt': 1, 'role': 'PLANNING', 'valid': False, 'modelDigest': 'a' * 64,
+                    attempt = {'attempt': 1, 'role': 'PLANNING', 'valid': False, 'modelDigest': ('a' if model == QUALITY.MODELS[0] else 'd') * 64,
                                'inputBytes': 100, 'outputBytes': 50, 'latencyMillis': 30,
                                'prompt': 'same bounded request', 'promptSha256': hashlib.sha256(b'same bounded request').hexdigest()}
                     rows.append({'case': i, 'caseId': case['id'], 'category': case['category'], 'expectedStatus': case['expectedStatus'],
@@ -65,6 +65,16 @@ class MeasurementIntegrityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); self.fixture(root)
             self.mutate(root, lambda r: r[0]['attempts'][0].update(prompt='changed', promptSha256=hashlib.sha256(b'changed').hexdigest()))
+            with self.assertRaises(ValueError): self.analyze(root)
+
+    def test_aliases_of_the_same_model_cannot_count_as_two_comparison_arms(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            for path in root.glob('*.jsonl'):
+                rows = [json.loads(line) for line in path.read_text().splitlines()]
+                for row in rows:
+                    for attempt in row['attempts']: attempt['modelDigest'] = 'a' * 64
+                path.write_text(''.join(json.dumps(r) + '\n' for r in rows))
             with self.assertRaises(ValueError): self.analyze(root)
 
     def test_partial_latest_retry_cannot_borrow_old_missing_cases(self):
