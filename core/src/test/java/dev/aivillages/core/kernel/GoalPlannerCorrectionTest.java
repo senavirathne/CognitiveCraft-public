@@ -48,4 +48,32 @@ final class GoalPlannerCorrectionTest {
         assertEquals(GoalPlanner.State.REJECTED, v.state()); assertEquals(Reason.BUDGET_EXHAUSTED, v.reason());
         assertTrue(f.jobs.query(root.id(), f.owner).children().isEmpty());
     }
+    @Test void missingParentRepairAllowancePreventsTheSecondCall() {
+        var f = new GoalPlannerTest.Fixture() {
+            @Override Budgets.Limits limits() {
+                var original = super.limits(); var maxima = new java.util.HashMap<>(original.maxima());
+                maxima.put(Budgets.Kind.REPAIRS, 0L); return new Budgets.Limits(maxima, original.deadlineEpochMillis());
+            }
+        };
+        var root=f.create(); var v=f.queued(root); f.model.calls.getFirst().respond(wrong(f)); v=f.advance(v,8);
+        assertEquals(GoalPlanner.State.REJECTED,v.state()); assertEquals(1,f.model.calls.size());
+        assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());
+    }
+    @Test void stockShortageIsFinalAndCannotBeRepairedByInventingResources() {
+        var f=new GoalPlannerTest.Fixture(); f.crops=1; var root=f.create(); var v=f.queued(root);
+        f.model.calls.getFirst().respond(f.valid()); v=f.advance(v,8);
+        assertEquals(GoalPlanner.State.REJECTED,v.state()); assertEquals(Plan.Diagnostic.FABRICATED_RESOURCE,v.diagnostic());
+        assertEquals(1,f.model.calls.size()); assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());
+    }
+    @Test void authorityRevocationBeforeCorrectionDispatchPreventsItsCall() {
+        var f=new GoalPlannerTest.Fixture(); var root=f.create(); var v=f.queued(root);
+        f.model.calls.getFirst().respond(wrong(f)); f.broker.step(); f.planner.tick();
+        assertEquals(GoalPlanner.State.CORRECTING,f.planner.view(v.id(),f.owner).state());
+        f.allowed=false; f.step(); f.allowed=true; v=f.planner.view(v.id(),f.owner);
+        assertEquals(GoalPlanner.State.REJECTED,v.state()); assertEquals(Reason.AUTHORITY_DENIED,v.reason());
+        assertEquals(1,f.model.calls.size()); assertTrue(f.jobs.query(root.id(),f.owner).children().isEmpty());
+    }
+    @Test void feedbackCannotExceedTheOriginalContextEnvelope() {
+        assertThrows(IllegalArgumentException.class,()->PlanningFeedback.correction("x".repeat(8192),"{}","QUANTITY","$.amount"));
+    }
 }
