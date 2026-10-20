@@ -22,7 +22,8 @@ def main():
         result["lastEvents"]=review.details(events[-12:])
         name=review.member(archive,"/server/snapshot.json");raw=archive.read(name);state=json.loads(raw)
         result["snapshotMember"]=name;result["snapshotSha256"]=review.sha(raw)
-        result["physical"]=review.physical(state)
+        result["physical"]={k:state.get(k) for k in ("time","gameTick","tick","actors","containers","drops")}
+        result["inventoryScope"]="Legacy facility observer has no assessmentInventory field; preserve its original actors/containers/knownPlayers without inventing a conservation proof"
         result["blocks"]=state.get("blocks",{})
         result["knownPlayers"]={p:{k:v for k,v in row.items() if k not in ("commandTree","standable")}
             for p,row in state.get("knownPlayers",{}).items()}
