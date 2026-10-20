@@ -1,8 +1,8 @@
-name: Retain final RB source qualification
+name: Inspect original post-merge RB facility timeout
 on:
   push:
     branches: [work/rb-evidence-reconciliation]
-    paths: ['.github/scripts/review-rb-final.py', '.github/workflows/rb-evidence-review.yml']
+    paths: ['.github/scripts/review-rb-postmerge.py', '.github/workflows/rb-evidence-review.yml']
 permissions:
   contents: read
   actions: read
@@ -10,23 +10,21 @@ concurrency:
   group: rb-original-evidence-review
   cancel-in-progress: false
 jobs:
-  final-qualification-review:
+  postmerge-original-review:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Verify original final qualification and actual full JAR without gameplay or inference
+      - name: Inspect pinned original failure without gameplay, inference or documentation audits
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/review-rb-final.py
+        run: python3 .github/scripts/review-rb-postmerge.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: rb-original-evidence-review-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
-          path: |
-            build/rb-independent-review/evidence/
-            build/rb-independent-review/docs/
+          path: build/rb-independent-review/evidence/
