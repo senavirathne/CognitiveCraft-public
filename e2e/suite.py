@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ET
 
 from runtime import ROOT, SDK, digest, semantic_jar
 from fixtures import ARENA, commands as arena_commands, write as write_fixture, legacy_identity_fixture
+from navigation import walk_route, walkable_block
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
             "E2E-LEGACY-001", "E2E-CANCEL-001", "E2E-MUTATION-001", "E2E-CLIENT-LOSS-001",
@@ -561,12 +562,24 @@ class Harness:
         return self.snapshot()["containers"].get(",".join(map(str, destination)), {}).get(item, 0)
 
     def walk(self, player, target, reach=2.7):
+        waypoints = []
         def arrived():
+            nonlocal waypoints
             state = self.client_snapshot(player)
             x, _, z = state["pos"]; dx = target[0] + .5 - x; dz = target[2] + .5 - z
             if math.hypot(dx, dz) <= reach:
                 self.action(player, "stop-move"); return state
-            self.action(player, "move", yaw=math.degrees(math.atan2(-dx, dz)), ticks=6)
+            while waypoints and math.hypot(waypoints[0][0] - x, waypoints[0][1] - z) <= min(.18, reach / 3):
+                self.action(player, "stop-move")
+                waypoints.pop(0)
+            if not waypoints or not walkable_block(state["blocks"].get(
+                    f"{math.floor(waypoints[0][0])},201,{math.floor(waypoints[0][1])}")):
+                waypoints = walk_route(state["blocks"], state["pos"], target, reach) or []
+            if not waypoints:
+                return None
+            dx, dz = waypoints[0][0] - x, waypoints[0][1] - z
+            ticks = max(1, min(6, int(math.hypot(dx, dz) / .22)))
+            self.action(player, "move", yaw=math.degrees(math.atan2(-dx, dz)), ticks=ticks)
             return None
         return self.wait(arrived, "Ordinary player walking " + player, 40)
 
