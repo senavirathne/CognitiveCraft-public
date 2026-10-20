@@ -21,7 +21,7 @@ class MeasurementIntegrityTest(unittest.TestCase):
                     case = cases[i]
                     attempt = {'attempt': 1, 'role': 'PLANNING', 'valid': False, 'modelDigest': ('a' if model == QUALITY.MODELS[0] else 'd') * 64,
                                'inputBytes': 100, 'outputBytes': 50, 'latencyMillis': 30,
-                               'prompt': 'same bounded request', 'promptSha256': hashlib.sha256(b'same bounded request').hexdigest()}
+                               'prompt': 'same bounded request', 'promptSha256': hashlib.sha256(b'same bounded request').hexdigest(), 'constraintSha256': 'e' * 64}
                     rows.append({'case': i, 'caseId': case['id'], 'category': case['category'], 'expectedStatus': case['expectedStatus'],
                                  'model': model, 'shard': shard, 'ciAttempt': 1, 'sourceCommit': 'b' * 40, 'sourceTree': 'c' * 40,
                                  'datasetSha256': hashlib.sha256(DATASET.read_bytes()).hexdigest(), 'firstPassValid': False,
@@ -43,6 +43,7 @@ class MeasurementIntegrityTest(unittest.TestCase):
             root = Path(directory); self.fixture(root); proof = self.analyze(root)
             self.assertEqual('PASS', proof['measurementStatus'])
             self.assertFalse(proof['qualityThresholdEnforced'])
+            self.assertFalse(proof['qualityAcceptance']['allModelsMetTarget'])
             self.assertTrue(all(r['finalValid'] == 0 and r['total'] == 40 for r in proof['models'].values()))
 
     def test_missing_request_is_not_filled_by_another_model(self):
@@ -76,6 +77,28 @@ class MeasurementIntegrityTest(unittest.TestCase):
                     for attempt in row['attempts']: attempt['modelDigest'] = 'a' * 64
                 path.write_text(''.join(json.dumps(r) + '\n' for r in rows))
             with self.assertRaises(ValueError): self.analyze(root)
+
+    def test_comparison_rejects_different_request_constraints(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            self.mutate(root, lambda r: r[0]['attempts'][0].update(constraintSha256='f' * 64))
+            with self.assertRaises(ValueError): self.analyze(root)
+
+    def test_correct_refusals_never_count_as_valid_feasible_plans(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            for path in root.glob('*.jsonl'):
+                rows = [json.loads(line) for line in path.read_text().splitlines()]
+                for row in rows:
+                    if row['expectedStatus'] != 'plan':
+                        row.update(valid=True, firstPassValid=True)
+                        row['attempts'][0]['valid'] = True
+                path.write_text(''.join(json.dumps(r) + '\n' for r in rows))
+            proof = self.analyze(root)
+            for result in proof['models'].values():
+                self.assertEqual(0, result['feasiblePlans']['finalValid'])
+                self.assertEqual(10, result['correctRefusals']['finalValid'])
+            self.assertFalse(proof['qualityAcceptance']['allModelsMetTarget'])
 
     def test_partial_latest_retry_cannot_borrow_old_missing_cases(self):
         with tempfile.TemporaryDirectory() as directory:

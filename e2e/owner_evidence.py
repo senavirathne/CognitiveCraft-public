@@ -55,7 +55,7 @@ def collect(root, head, deadline_seconds=2400):
                              "layer":"ACTUAL_SHARED_PROVIDER_QUALITY", "network_E2E_result":"NOT_CLIENT_EXPOSED",
                              "job":live[0]["id"] if live else None,"url":run["html_url"],
                              "measurementOnly":True,"qualityThresholdEnforced":False,
-                             "claim":"40 identical typed requests per model with at most one correction; complete genuine measurements, not a minimum planning success rate. Observed first/final validity and latency remain in artifacts"}
+                             "claim":"50 frozen typed requests per model with at most one correction; complete genuine measurements, not a minimum planning success rate. Feasible-plan validity, correct refusals and the separate 90% quality acceptance target remain in artifacts"}
         evidence.append(row)
     root.mkdir(parents=True,exist_ok=True)
     (root / "owner-evidence.json").write_text(json.dumps({"schema":1,"headCommit":head,"runs":evidence},indent=2)+"\n")

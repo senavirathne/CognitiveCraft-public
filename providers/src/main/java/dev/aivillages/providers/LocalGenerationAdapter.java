@@ -467,7 +467,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         if(request.role().planning()) {
             String wire=StrictJson.canonical(Map.of("model",config.model(),"stream",false,
                     "format",request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID)
-                            ? dev.aivillages.core.kernel.MaterialPlan.outputShape() : dev.aivillages.core.kernel.Plan.outputShape(),
+                            ? materialShape(request) : dev.aivillages.core.kernel.Plan.outputShape(request.bound().request()),
                     "options",Map.of("temperature",0,"num_predict",config.maxOutputTokens()),
                     "messages",List.of(Map.of("role","system","content",
                             request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID)
@@ -555,6 +555,16 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         byte[] body = wire.getBytes(StandardCharsets.UTF_8);
         if (body.length > MAX_REQUEST_BYTES) throw new IllegalArgumentException("Request size");
         return body;
+    }
+
+    private static Map<String,Object> materialShape(Generation.Request request) {
+        try {
+            var facts=dev.aivillages.core.kernel.MaterialPlan.contextFromPrompt(request.context());
+            long total=facts.goals().values().stream().mapToLong(Long::longValue).sum();
+            if(!new Contracts.IntValue(total).equals(request.bound().request().arguments().get("amount")))
+                throw new IllegalArgumentException("Material quantity binding mismatch");
+            return dev.aivillages.core.kernel.MaterialPlan.outputShape(facts);
+        } catch(StrictJson.Invalid invalid) { throw new IllegalArgumentException("Canonical material facts required",invalid); }
     }
 
     /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */

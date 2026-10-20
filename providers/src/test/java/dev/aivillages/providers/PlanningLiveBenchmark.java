@@ -65,8 +65,9 @@ public final class PlanningLiveBenchmark {
         int shard=Integer.parseInt(System.getenv().getOrDefault("PLANNING_BENCHMARK_SHARD","0"));
         int shards=Integer.parseInt(System.getenv().getOrDefault("PLANNING_BENCHMARK_SHARDS","1"));
         if(shards<1||shards>4||shard<0||shard>=shards)throw new IllegalArgumentException("Bounded benchmark shard");
-        var cases=PlanningBenchmarkCases.load();if(cases.size()!=40)throw new IllegalStateException("40 committed cases required");
-        byte[] dataset;try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/requests.json")){dataset=Objects.requireNonNull(in).readAllBytes();}
+        String datasetName=System.getenv().getOrDefault("PLANNING_BENCHMARK_DATASET","acceptance-requests.json");
+        var cases=PlanningBenchmarkCases.load(datasetName);if(cases.size()<30||cases.size()>50)throw new IllegalStateException("30–50 committed cases required");
+        byte[] dataset;try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/"+datasetName)){dataset=Objects.requireNonNull(in).readAllBytes();}
         String source=new String(new ProcessBuilder("git","rev-parse","HEAD").start().getInputStream().readAllBytes(),StandardCharsets.UTF_8).trim();
         String tree=new String(new ProcessBuilder("git","rev-parse","HEAD^{tree}").start().getInputStream().readAllBytes(),StandardCharsets.UTF_8).trim();
         Path output=Path.of("providers/build/planning-quality");Files.createDirectories(output);
@@ -94,6 +95,9 @@ public final class PlanningLiveBenchmark {
                     row.put("diagnostic",checked.diagnostic());row.put("path",checked.path());row.put("outcome",result.outcome().name());row.put("modelDigest",result.descriptor().digest());
                     row.put("latencyMillis",Math.max(1,(System.nanoTime()-begin)/1000000));row.put("inputBytes",result.usage().inputBytes());row.put("outputBytes",result.usage().outputBytes());
                     row.put("promptTokens",result.usage().promptTokens());row.put("outputTokens",result.usage().outputTokens());row.put("promptSha256",sha(prompt.getBytes(StandardCharsets.UTF_8)));
+                    var shape=input.wheat()==null?MaterialPlan.outputShape(c.material()):Plan.outputShape(input.bound().request());
+                    row.put("constraintSha256",sha(StrictJson.canonical(shape).getBytes(StandardCharsets.UTF_8)));
+                    row.put("constraintScope","request quantities and deterministic material precheck; model orders required steps");
                     row.put("prompt",prompt);row.put("candidate",result.candidateIr()==null?"unavailable":result.candidateIr());row.put("compute",result.compute().name());attempts.add(row);
                     if(checked.valid()||attempt==1||clock.millis()>=deadline)break;
                     prompt=PlanningFeedback.correction(input.prompt(),result.candidateIr(),checked.diagnostic(),checked.path());
