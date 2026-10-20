@@ -128,7 +128,7 @@ class AssessmentHarness(Harness):
     def block(self, pos):
         return self.snapshot()["blocks"].get(",".join(map(str, pos)), "UNKNOWN")
 
-    def seed(self, values, source=SRC, kind="chest", slots=None):
+    def stock_fixture(self, values, source=SRC, kind="chest", slots=None):
         require(not self.actions_active, "Stock fixtures may not run during a task")
         rows = slots if slots is not None else [(i, item, q) for i, (item, q)
                                                in enumerate(values.items()) if q]
@@ -151,9 +151,9 @@ class AssessmentHarness(Harness):
                       "tp "+self.entities["PlayerB"]+" 80.5 208 68.5",
                       "tp PlayerA 66.5 208 69.5 180 0", "tp PlayerB 80.5 208 69.5 180 0",
                       "clear PlayerB", "clear PlayerA"])
-        self.seed(values or {}, source, source_kind, slots)
+        self.stock_fixture(values or {}, source, source_kind, slots)
         if destination != source:
-            self.seed({}, destination, destination_kind)
+            self.stock_fixture({}, destination, destination_kind)
         if table:
             self.console(["setblock "+coord(FACILITY)+" minecraft:crafting_table"])
         self.quiet(5)

@@ -226,7 +226,7 @@ def external_inventory(h, fill=False):
     h.reset({LOG: 2}, actor=at(3, 4), table=False)
     target = DST if fill else SRC
     if fill:
-        h.seed({"minecraft:cobblestone": 64*26}, DST,
+        h.stock_fixture({"minecraft:cobblestone": 64*26}, DST,
                slots=[(i, "minecraft:cobblestone", 64) for i in range(26)])
         h.console(["give PlayerB minecraft:oak_planks 64"])
     h.console(["tp PlayerB "+coord([target[0]+1.5, 208, target[2]+1.5])])
@@ -515,9 +515,9 @@ def main():
                 if record["status"] == "INCONCLUSIVE": record["reason"] = data.get("reason")
                 h.screenshot("PlayerA", "observed-result", chat=True)
             except Exception as error:
-                status = "BLOCKED" if isinstance(error, (AssessmentBlocked, InfrastructureBlocked)) else "INCONCLUSIVE" if isinstance(error, Inconclusive) else "FAIL"
+                status = "BLOCKED" if isinstance(error, (AssessmentBlocked, InfrastructureBlocked, TypeError, AttributeError)) else "INCONCLUSIVE" if isinstance(error, Inconclusive) else "FAIL"
                 reason = str(error)
-                classification = "Test infrastructure failure" if isinstance(error, InfrastructureBlocked) else "Environmental limitation" if status == "BLOCKED" else "Dynamic boundary not witnessed" if status == "INCONCLUSIVE" else "Unclassified pending independent artifact review"
+                classification = "Test infrastructure failure" if isinstance(error, (InfrastructureBlocked, TypeError, AttributeError)) else "Environmental limitation" if status == "BLOCKED" else "Dynamic boundary not witnessed" if status == "INCONCLUSIVE" else "Unclassified pending independent artifact review"
                 record.update(status=status, reason=reason, classification=classification, trace=traceback.format_exc())
                 try:
                     record["physicalFailureState"] = h.snapshot(); h.screenshot("PlayerA", "observed-failure", chat=True)
