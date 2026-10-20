@@ -217,7 +217,9 @@ public final class GoalPlanner implements AutoCloseable {
         if(!result.accepted()){
             // Only a semantic quantity mistake is repairable. Authority, stock, method and freshness refusals stay final.
             if(p.template==null && !p.corrected && result.diagnostic()==Plan.Diagnostic.QUANTITY) {
-                String prompt=PlanningFeedback.correction(p.captured.prompt(),bytes,result.diagnostic().name(),result.path());
+                String prompt;
+                try{prompt=PlanningFeedback.correction(p.captured.prompt(),bytes,result.diagnostic().name(),result.path());}
+                catch(IllegalArgumentException tooLarge){refuse(p,Reason.BUDGET_EXHAUSTED,Plan.Diagnostic.SIZE,"$.correction");return;}
                 var extra=Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.REPAIRS,1L,Budgets.Kind.INPUT_BYTES,32768L,
                         Budgets.Kind.OUTPUT_BYTES,(long)budget.outputBytes(),Budgets.Kind.INSTRUCTIONS,(long)budget.work());
                 var charge=jobs.charge(p.parent,root.guard(),extra,p.caller);

@@ -124,6 +124,7 @@ jobs:
             fabric/build/gametest-run/logs/**
             fabric/build/gametest-run/crash-reports/**
   quality-measurements:
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     name: IMP-019 proposal measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -193,7 +194,7 @@ jobs:
   held-out-quality:
     name: IMP-019 genuine held-out shared-backend quality and latency
     needs: quality-measurements
-    if: always()
+    if: always() && (github.event_name != 'push' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
