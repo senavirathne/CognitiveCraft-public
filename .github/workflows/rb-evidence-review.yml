@@ -1,8 +1,8 @@
-name: Inspect original post-merge RB facility timeout
+name: Inspect retained RB facility reproduction
 on:
   push:
     branches: [work/rb-evidence-reconciliation]
-    paths: ['.github/scripts/review-rb-postmerge.py', '.github/workflows/rb-evidence-review.yml']
+    paths: ['.github/scripts/review-rb-postmerge-reproduction.py', '.github/workflows/rb-evidence-review.yml']
 permissions:
   contents: read
   actions: read
@@ -10,7 +10,7 @@ concurrency:
   group: rb-original-evidence-review
   cancel-in-progress: false
 jobs:
-  postmerge-original-review:
+  postmerge-reproduction-review:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -20,7 +20,7 @@ jobs:
       - name: Inspect pinned original failure without gameplay, inference or documentation audits
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/review-rb-postmerge.py
+        run: python3 .github/scripts/review-rb-postmerge-reproduction.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
