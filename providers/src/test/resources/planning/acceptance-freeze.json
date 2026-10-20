@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "purpose": "Frozen disjoint acceptance inputs before planning changes; expected statuses are test oracles and never sent to the model.",
+  "parentSource": "4f831265689e566e864d01ad979f4408301b0c81",
+  "datasetSha256": "629798799640026f8ae7f096027bece765d3dda74386fbbceead0237be76a9a9",
+  "requestsPerModel": 50,
+  "feasible": 40,
+  "impossible": 10,
+  "categories": {
+    "quantity_split": 12,
+    "single_step": 12,
+    "multi_step": 8,
+    "facility_provision": 4,
+    "multi_target": 4,
+    "insufficient_resources": 8,
+    "unsupported": 2
+  },
+  "priorDatasetSha256": "35f4d19081e2bed3392e06ea0e5e82380bacccfc620b8897fecd07e4a5b17138",
+  "qualityTarget": {
+    "minimumFeasibleFinalRate": 0.9,
+    "measurementGateEnforcesSuccessRate": false
+  }
+}
