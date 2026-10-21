@@ -207,7 +207,8 @@
         {
           "phase": "effects",
           "className": "placement_effect_game_tests",
-          "marker": "RB006B_EFFECTS"
+          "marker": "RB006B_EFFECTS",
+          "cases": 5
         },
         {
           "phase": "controlled",

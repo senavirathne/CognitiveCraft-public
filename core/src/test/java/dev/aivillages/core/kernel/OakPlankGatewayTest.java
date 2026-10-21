@@ -6,6 +6,25 @@ import static dev.aivillages.core.kernel.GatewayPrimitives.Operation.*;
 import static dev.aivillages.core.kernel.Outcomes.Reason;
 
 final class OakPlankGatewayTest {
+    @Test void fallingAfterWithdrawalKeepsTheBatchUntilLanding(){
+        var d=withdrawn();d.world.craftWaits=5;var handle=d.start(CRAFT_OAK_PLANKS);
+        for(int i=0;i<5;i++){d.world.tick++;var r=d.gateway.poll(handle);assertFalse(r.terminal());assertEquals(0,r.committedEffects());assertTrue(r.resourceReceipts().isEmpty());assertEquals(1,d.world.actorLogs);assertEquals(1,d.world.withdrawals);assertEquals(0,d.world.crafts);}
+        d.world.tick++;var crafted=d.gateway.poll(handle);assertTrue(crafted.terminal());assertNull(crafted.reason());assertEquals(1,crafted.committedEffects());
+        assertEquals(d.receipts.getFirst().batchId(),crafted.resourceReceipts().getFirst().batchId());
+        d.world.tick++;assertEquals(crafted,d.gateway.poll(handle));assertEquals(1,d.world.crafts);assertEquals(0,d.world.actorLogs);assertEquals(4,d.world.actorPlanks);
+    }
+    @Test void persistentFallCannotExtendTheExistingWorkBudget(){
+        var d=withdrawn();d.world.craftWaits=Integer.MAX_VALUE;assertEquals(Reason.BUDGET_EXHAUSTED,d.action(CRAFT_OAK_PLANKS).reason());
+        assertEquals(1,d.world.actorLogs);assertEquals(15,d.world.logs);assertEquals(0,d.world.crafts);assertEquals(0,d.world.chestPlanks);
+    }
+    @Test void recipeReloadDuringLandingWaitRemainsTerminal(){
+        var d=withdrawn();d.world.craftWaits=8;var handle=d.start(CRAFT_OAK_PLANKS);d.world.tick++;assertFalse(d.gateway.poll(handle).terminal());
+        d.world.recipeChanged=true;d.world.tick++;assertEquals(Reason.ARTIFACT_INCOMPATIBLE,d.gateway.poll(handle).reason());assertEquals(1,d.world.actorLogs);assertEquals(0,d.world.crafts);
+    }
+    @Test void custodyChangeDuringLandingWaitRemainsTerminal(){
+        var d=withdrawn();d.world.craftWaits=8;var handle=d.start(CRAFT_OAK_PLANKS);d.world.tick++;assertFalse(d.gateway.poll(handle).terminal());
+        d.world.other++;d.world.tick++;assertEquals(Reason.STALE_OBSERVATION,d.gateway.poll(handle).reason());assertEquals(1,d.world.actorLogs);assertEquals(0,d.world.crafts);
+    }
     @Test void stockedEightProducesOnlyNewPlanksAndConsumesTwoLogs() {
         var d=new OakPlankTestSupport.Driver(8);d.produce();assertEquals(2,d.world.crafts);assertEquals(2,d.world.withdrawals);
         assertEquals(8,d.world.chestPlanks);assertEquals(0,d.world.actorPlanks);assertEquals(6,d.effects);

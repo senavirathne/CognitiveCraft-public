@@ -561,7 +561,11 @@ public final class KernelSession implements AutoCloseable {
             boolean known=current.status()==ObservationStatus.PRESENT && current.reason()==null && stock.usable();
             return new ObservationSnapshot(bound.observation(),known?ObservationStatus.PRESENT:ObservationStatus.UNKNOWN,
                     "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
-                    Map.of("table_items",stock.usable()?stock.available():0L,"site_usable",known?1L:0L,"unknown_cells",known?0L:1L));
+                    // Structural planning feasibility is distinct from a moving entity.
+                    // Observation permits explicit MOVE to leave an occupied site;
+                    // every mutation still requires actual clearance.
+                    Map.of("table_items",stock.usable()?stock.available():0L,"site_usable",known?1L:0L,
+                            "site_clear",known && !current.pending()?1L:0L,"unknown_cells",known?0L:1L));
         }
         if(RecipeProduction.is(request.capability())) {
             var area=ResourceDelivery.sourceArea(request);

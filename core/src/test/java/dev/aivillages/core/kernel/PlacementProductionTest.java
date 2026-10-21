@@ -9,6 +9,38 @@ import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
 
 final class PlacementProductionTest {
+    @Test void movingColliderAfterWithdrawalWaitsOnTheSameActionAndConsumesOnce(){
+        var d=new PlacementTestSupport.Driver();d.prepare();d.world.placementWaits=5;var handle=d.start(PLACE_CRAFTING_TABLE);
+        for(int i=0;i<5;i++){d.world.tick++;var r=d.gateway.poll(handle);assertFalse(r.terminal());assertEquals(0,r.committedEffects());assertTrue(r.resourceReceipts().isEmpty());assertEquals(2,d.world.source);assertEquals(8,d.world.held);assertFalse(d.world.occupied);}
+        d.world.tick++;var done=d.gateway.poll(handle);assertNull(done.reason());assertTrue(done.terminal());assertEquals(1,done.committedEffects());
+        d.receipts.addAll(done.resourceReceipts());assertEquals(1,ResourceDelivery.quantity(d.bound,d.run,d.receipts));
+        d.world.tick++;assertEquals(done,d.gateway.poll(handle));assertEquals(7,d.world.held);assertEquals(2,d.world.source);
+    }
+    @Test void structuralObservationLetsExplicitMoveLeaveAnOccupiedSite(){
+        var d=new PlacementTestSupport.Driver();d.world.observationWaits=4;d.require(d.action(OBSERVE_TABLE_SITE));
+        assertEquals(3,d.world.observationWaits);assertEquals(0,d.effects);assertEquals(0,d.world.placementMoves);assertEquals(3,d.world.source);
+        d.require(d.action(MOVE_TO_INPUT));d.require(d.action(WITHDRAW_TABLE_ITEM));d.require(d.action(MOVE_TO_PLACEMENT));d.require(d.action(PLACE_CRAFTING_TABLE));
+        assertEquals(PlacementTestSupport.TARGET,d.world.reservedSite);assertEquals(2,d.world.placementMoves);assertEquals(2,d.effects);assertEquals(2,d.world.source);assertEquals(7,d.world.held);
+    }
+    @Test void persistentColliderExhaustsTheExistingBudgetWithoutRefundOrPlacement(){
+        var d=new PlacementTestSupport.Driver();d.prepare();d.world.placementWaits=Integer.MAX_VALUE;
+        assertEquals(Reason.BUDGET_EXHAUSTED,d.action(PLACE_CRAFTING_TABLE).reason());assertFalse(d.world.occupied);assertEquals(2,d.world.source);assertEquals(8,d.world.held);assertEquals(1,d.effects);assertEquals(0,ResourceDelivery.quantity(d.bound,d.run,d.receipts));
+    }
+    @Test void revocationDuringPhysicalWaitStopsTheSameHandle(){
+        var d=new PlacementTestSupport.Driver();d.prepare();d.world.placementWaits=8;var handle=d.start(PLACE_CRAFTING_TABLE);
+        d.world.tick++;assertFalse(d.gateway.poll(handle).terminal());d.world.authorized=false;d.world.tick++;
+        assertEquals(Reason.AUTHORITY_DENIED,d.gateway.poll(handle).reason());assertEquals(8,d.world.held);assertFalse(d.world.occupied);
+    }
+    @Test void siteReplacementDuringPhysicalWaitIsStillFenced(){
+        var d=new PlacementTestSupport.Driver();d.prepare();d.world.placementWaits=8;var handle=d.start(PLACE_CRAFTING_TABLE);
+        d.world.tick++;assertFalse(d.gateway.poll(handle).terminal());d.world.changed=true;d.world.tick++;
+        assertEquals(Reason.STALE_OBSERVATION,d.gateway.poll(handle).reason());assertEquals(8,d.world.held);assertFalse(d.world.occupied);
+    }
+    @Test void cancellationDuringPhysicalWaitNeverReplaysAfterClearance(){
+        var d=new PlacementTestSupport.Driver();d.prepare();d.world.placementWaits=8;var handle=d.start(PLACE_CRAFTING_TABLE);
+        d.world.tick++;assertFalse(d.gateway.poll(handle).terminal());assertEquals(Reason.CANCELLED,d.gateway.cancel(handle).reason());
+        d.world.placementWaits=0;d.world.tick++;assertEquals(Reason.CANCELLED,d.gateway.poll(handle).reason());assertEquals(8,d.world.held);assertEquals(2,d.world.source);assertFalse(d.world.occupied);
+    }
     @Test void actualPairedLineageCompletesOnePlacement(){var d=new PlacementTestSupport.Driver();d.place();assertEquals(2,d.world.source);assertEquals(7,d.world.held);assertTrue(d.world.occupied);assertEquals(2,d.effects);assertEquals(1,ResourceDelivery.quantity(d.bound,d.run,d.receipts));}
     @Test void withdrawalAloneEarnsZero(){var d=new PlacementTestSupport.Driver();d.prepare();assertEquals(0,ResourceDelivery.quantity(d.bound,d.run,d.receipts));assertFalse(ResourceDelivery.completed(d.bound,d.run,List.of(),d.receipts));}
     @Test void oldActorStockIsPreserved(){var d=new PlacementTestSupport.Driver();d.world.held=42;d.place();assertEquals(42,d.world.held);}

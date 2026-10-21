@@ -21,9 +21,12 @@ final class PlacementTestSupport {
         final Budgets.Ledger usage=new Budgets.Ledger(OakPlankProduction.executionLimits(1000).total(),CLOCK);
         final SurvivalGateway gateway=new SurvivalGateway(world,(a,e,c)->world.authorized,new Limits(8,512,64,16,256,1,200,32),CLOCK);
         final List<ResourceDelivery.Receipt> receipts=new ArrayList<>();long effects;
-        ActionReceipt action(GatewayPrimitives.Operation op){
+        ActionHandle start(GatewayPrimitives.Operation op){
             var args=new LinkedHashMap<String,Value>();op.signature().parameters().forEach(p->args.put(p.name(),bound.request().arguments().get(p.name())));
-            var h=gateway.start(bound,new RunCorrelation(run,new ArtifactRef(CraftingTablePlacement.ID,"b".repeat(64)),null),op.requirement(),args,usage);
+            return gateway.start(bound,new RunCorrelation(run,new ArtifactRef(CraftingTablePlacement.ID,"b".repeat(64)),null),op.requirement(),args,usage);
+        }
+        ActionReceipt action(GatewayPrimitives.Operation op){
+            var h=start(op);
             ActionReceipt r=null;for(int i=0;i<240;i++){world.tick++;r=gateway.poll(h);if(r.terminal())break;}
             if(r==null || !r.terminal())throw new AssertionError("Unterminated fake operation");receipts.addAll(r.resourceReceipts());effects+=r.committedEffects();return r;
         }
@@ -32,7 +35,7 @@ final class PlacementTestSupport {
         void require(ActionReceipt r){if(r.reason()!=null)throw new AssertionError(r.reason());}
     }
     static final class World implements WorldAccess {
-        long tick;int source=3,held=7;boolean authorized=true,known=true,changed,occupied,unsupported,unreachable,inconsistent;UUID owner;
+        long tick;int source=3,held=7,placementWaits,observationWaits,placementMoves;boolean authorized=true,known=true,changed,occupied,unsupported,unreachable,inconsistent;UUID owner;FacilityRef reservedSite;
         String custody(){return RecipeTransaction.fingerprint("held:"+held);}String stock(){return RecipeTransaction.fingerprint("stock:"+source);}
         public boolean onGameThread(){return true;}public long tick(){return tick;}
         public ActorState actor(ActorRef a){return new ActorState(true,true,a.dimension(),1,0,1,0);}
@@ -43,11 +46,13 @@ final class PlacementTestSupport {
         public StockState inventory(ActorRef a){return new StockState(ObservationStatus.PRESENT,"actor",0,0);}public StockState container(ContainerRef c){return new StockState(ObservationStatus.PRESENT,"box",0,0);}
         public ItemStock resourceInventory(ActorRef a,ResourceDelivery.ItemIdentity i){return new ItemStock(ObservationStatus.PRESENT,"actor",held,64,custody(),null);}
         public Movement move(ActorRef a,Cell c,int max){return new Movement(!unreachable,unreachable,0,0);}
+        public Movement movePlacement(ActorRef a,Cell c,FacilityRef reserved,int max){placementMoves++;reservedSite=reserved;return move(a,c,max);}
         public Harvest harvest(ActorRef a,Cell c){throw new AssertionError("No harvest");}public Pickup pickup(ActorRef a,UUID id,int q){throw new AssertionError("No pickup");}public Transfer transferOne(ActorRef a,ContainerRef c){throw new AssertionError("No transfer");}
         public PlacementTransaction.Preflight placementPreflight(ValidatedRequest b){
             if(!known)return PlacementTransaction.Preflight.blocked(Reason.STALE_OBSERVATION);
             if(occupied || unsupported)return PlacementTransaction.Preflight.blocked(Reason.TARGET_INVALID);
-            return new PlacementTransaction.Preflight(ObservationStatus.PRESENT,source,27,"source",stock(),custody(),RecipeTransaction.fingerprint("site"),TARGET,SOURCE,null);
+            boolean pending=observationWaits>0;if(pending)observationWaits--;
+            return new PlacementTransaction.Preflight(ObservationStatus.PRESENT,source,27,"source",stock(),custody(),RecipeTransaction.fingerprint("site"),TARGET,SOURCE,null,pending);
         }
         public PlacementTransaction.Mutation withdrawTableItem(ActorRef a,PlacementTransaction.Preflight p,String custody,String stock){
             if(changed || !custody().equals(custody) || !stock().equals(stock))return PlacementTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
@@ -56,6 +61,7 @@ final class PlacementTestSupport {
         }
         public PlacementTransaction.Mutation placeTable(ActorRef a,PlacementTransaction.Preflight p,String custody,String stock){
             if(changed || occupied || unsupported || !custody().equals(custody) || !stock().equals(stock))return PlacementTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
+            if(placementWaits>0){placementWaits--;return PlacementTransaction.Mutation.waiting();}
             var before=custody();held--;occupied=true;return new PlacementTransaction.Mutation(0,1,true,before,custody(),"","real-facility",inconsistent?Reason.ACTION_FAILED:null);
         }
     }

@@ -38,10 +38,13 @@ final class OakPlankTestSupport {
             this.world=world;bound=bound(amount,world.capability);usage=new Budgets.Ledger(OakPlankProduction.executionLimits(1000).total(),CLOCK);
             gateway=new SurvivalGateway(world,(a,e,c)->world.authorized,new Limits(8,512,64,16,256,1,200,32),CLOCK);
         }
-        ActionReceipt action(GatewayPrimitives.Operation op) {
+        ActionHandle start(GatewayPrimitives.Operation op) {
             var args=new LinkedHashMap<String,Value>();op.signature().parameters().forEach(p->args.put(p.name(),bound.request().arguments().get(p.name())));
             var ref=new ArtifactRef(world.capability,"a".repeat(64));
-            var h=gateway.start(bound,new RunCorrelation(run,ref,null),op.requirement(),args,usage);
+            return gateway.start(bound,new RunCorrelation(run,ref,null),op.requirement(),args,usage);
+        }
+        ActionReceipt action(GatewayPrimitives.Operation op) {
+            var h=start(op);
             ActionReceipt result=null;
             for(int i=0;i<240;i++) {world.tick++;result=gateway.poll(h);if(result.terminal())break;}
             if(result==null || !result.terminal())throw new AssertionError("Fake action did not terminate");
@@ -56,7 +59,7 @@ final class OakPlankTestSupport {
         void require(ActionReceipt receipt) {if(receipt.reason()!=null)throw new AssertionError(receipt.reason());}
     }
     static final class World implements WorldAccess {
-        long tick;int logs=16,actorLogs,actorPlanks,chestPlanks,withdrawals,crafts,deposits,other;
+        long tick;int logs=16,actorLogs,actorPlanks,chestPlanks,withdrawals,crafts,deposits,other,craftWaits;
         int outputCapacity=4096;boolean authorized=true,known=true,recipeChanged,fullCustody,targetChanged,unreachable;
         UUID held;
         final CapabilityId capability;final RecipeTransaction.Snapshot recipe;
@@ -94,6 +97,7 @@ final class OakPlankTestSupport {
             if(recipeChanged)return RecipeTransaction.Mutation.blocked(Reason.ARTIFACT_INCOMPATIBLE);
             if(actorLogs<1)return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
             if(fullCustody)return RecipeTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
+            if(craftWaits>0){craftWaits--;return RecipeTransaction.Mutation.waiting();}
             String before=custody();actorLogs--;actorPlanks+=4;crafts++;return new RecipeTransaction.Mutation(1,4,0,0,before,custody(),"",null);
         }
         public RecipeTransaction.Mutation depositRecipeOutput(ActorRef actor,ContainerRef target,RecipeTransaction.Preflight capture,String expected,int amount) {
