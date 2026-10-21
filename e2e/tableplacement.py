@@ -97,7 +97,40 @@ def scenario(h):
             for j in rows:
                 if j["state"] in ("FAILED","CANCELLED","INTERRUPTED"):raise AssertionError("Actual facility prerequisite stopped: "+json.dumps(j))
             return rows if rows[0]["state"]=="SUCCEEDED" else None
-        rows=h.wait(result,"Actual owned table/placement/axe Jobs",240);root=rows[0]
+        try:
+            rows=h.wait(result,"Actual owned table/placement/axe Jobs",240)
+        except TimeoutError:
+            # Read-only snapshot: retain the original failure, but expose the
+            # exact unfinished dependency and item custody at the timeout.
+            try:
+                current=graph(jid,player) or []
+                state=h.snapshot()
+                compact=[]
+                for job in current:
+                    compact.append({
+                        "id":job["id"],"state":job["state"],
+                        "reason":job.get("reason"),"fulfilled":job.get("fulfilled"),
+                        "capability":job["request"]["request"]["capability"]["name"],
+                        "dependencies":job.get("dependencies",[]),
+                        "attempts":[{
+                            "terminal":a.get("terminal"),
+                            "usage":a.get("usage"),
+                            "stages":[(r["stage"],r["item"]["id"],r["quantity"])
+                                      for r in a.get("resourceReceipts",[])]
+                        } for a in job.get("attempts",[])]
+                    })
+                traces=[line for line in h.server_log().splitlines()
+                        if "CognitiveCraft MOVE" in line or "_EFFECT" in line]
+                diagnostic={"job":jid,"player":player,"site":target,
+                            "gameTick":state.get("gameTick"),
+                            "actors":state.get("actors"),"containers":state.get("containers"),
+                            "jobs":compact,"movementTrace":traces[-24:]}
+                print("RB006B_TIMEOUT_DIAGNOSTIC "+json.dumps(diagnostic,sort_keys=True,default=str),flush=True)
+            except Exception as observation_error:
+                print("RB006B_TIMEOUT_DIAGNOSTIC_UNAVAILABLE "+
+                      repr(observation_error),flush=True)
+            raise
+        root=rows[0]
         require(root["fulfilled"]==1 and h.container(SECOND_DEST,AXE)>=before+1 and "minecraft:crafting_table" in block(target),"ENSURE did not leave a real facility and new axe")
         count=lambda cap:sum(j["request"]["request"]["capability"]["name"]==cap for j in rows)
         require(count("cognitivecraft:produce_crafting_tables")==expect_tables and count("cognitivecraft:place_crafting_table")==expect_placements,"Unnecessary table production or duplicate placement")
