@@ -42,6 +42,7 @@ PROFILES["rb004"] = ["GP-RB-04"]
 PROFILES["rb005"] = ["GP-RB-COMPOSE-01"]
 PROFILES["rb006a"] = ["GP-RB-06A"]
 PROFILES["rb006b"] = ["GP-RB-06B"]
+PROFILES["rb006b-placement"] = ["GP-RB-06B-PLACEMENT"]
 PROFILES["rb007"] = ["GP-RB-07"]
 PROFILES["rb008"] = ["GP-RB-08"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -1545,6 +1546,7 @@ def main():
     registry["GP-RB-06A"] = table_item_scenario
     from tableplacement import scenario as table_placement_scenario
     registry["GP-RB-06B"] = table_placement_scenario
+    registry["GP-RB-06B-PLACEMENT"] = lambda h: table_placement_scenario(h, placement_only=True)
     from birch import scenario as birch_scenario
     registry["GP-RB-07"] = birch_scenario
     from blueprints import scenario as blueprint_scenario

@@ -6,7 +6,7 @@ SECOND=[15,201,9];SECOND_DEST=[17,201,7];SITE=[15,201,11];NEXT=[16,201,11];RACE=
 OAK_MIN=[14,201,3];OAK_MAX=[17,201,3]
 LOG="minecraft:oak_log";PLANK="minecraft:oak_planks";STICK="minecraft:stick";TABLE="minecraft:crafting_table";AXE="minecraft:wooden_axe"
 
-def scenario(h):
+def scenario(h, *, placement_only=False):
     from suite import UUID_PATTERN,DENIED_PATTERN,require,read,reconnect_players
     require(h.topology=="compose","Facility acceptance requires configured backend and real network clients")
     h.env.update(COGNITIVECRAFT_OLLAMA_MODEL="qwen3:4b-instruct-2507-q4_K_M",COGNITIVECRAFT_NEEDLE_DIR="",COGNITIVECRAFT_E2E_SNAPSHOT_TICKS="1")
@@ -115,6 +115,13 @@ def scenario(h):
     h.command("PlayerA","/aivillage kernel job-status "+empty["job"],"state=SUCCEEDED");h.screenshot("PlayerA","rb006b-three-logs-table-and-axe",chat=True)
     foreign=h.command("PlayerB","/aivillage kernel job-status "+empty["job"],DENIED_PATTERN);h.command("PlayerB","/aivillage kernel job-cancel "+empty["job"],DENIED_PATTERN)
     require(empty["job"] not in h.suggestions("PlayerB","/aivillage kernel job-status "),"Foreign facility root appeared in suggestions");h.screenshot("PlayerB","rb006b-private-denial",chat=True)
+    if placement_only:
+        # Task 1.1 ends here. The original assertions, stock and 240-second root wait above are unchanged.
+        # Offline reuse, contention and crash qualification remain in the original complete profile.
+        return {"task":"1.1","independentAcquisitions":acquisitions,"artifacts":hashes,
+                "placement":placed,"existingFacility":existing,"existingItem":supplied,
+                "emptyProvision":empty,"foreignDenied":foreign,"models":models,
+                "offlineReuse":"NOT_STARTED","laterTasks":"NOT_STARTED"}
     # Two original scopes request one missing approved facility. Only one placement may occur.
     seed(p=6,s=4,t=2,source=SECOND);before=h.container(SECOND_DEST,AXE);calls=h.model_calls();first=submit_goal(RACE);second=submit_goal(RACE,"PlayerB")
     def stopped_before_axe(rows):
