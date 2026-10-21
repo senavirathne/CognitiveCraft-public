@@ -44,7 +44,7 @@ class SpatialReferenceBindingTest {
     @Test void nearerFullWrongTypeAndOtherDimensionCandidatesCannotOverrideActorRelativePolicy() {
         var f=new WorldReferenceTypeBindingTest.Fixture();f.put(5,ObjectType.CHEST,0,3);
         f.put(1,ObjectType.BARREL,64,0);f.put(2,ObjectType.CHEST,0,0);f.put(4,ObjectType.CHEST,64,0);
-        f.boxes.put(new ContainerRef("minecraft:the_nether",0,64,0),new WorldReferenceTypeBindingTest.Box(ObjectType.CHEST,64,0,WorldReferenceDiscovery.ObservationStatus.PRESENT));
+        f.boxes.put(new ContainerRef("minecraft:the_nether",0,64,0),new WorldReferenceTypeBindingTest.Box(ObjectType.CHEST,64,0,SurvivalGateway.ObservationStatus.PRESENT));
         var v=f.interpret("Ada, make eleven birch planks and put them in the closest chest to you.",
                 new LanguageRequests.Extracted(LanguageRequests.Action.MAKE_BIRCH_PLANKS,"Ada",11L,null,null,null,null));
         assertEquals(LanguageRequests.Phase.SUBMITTED,v.phase(),v.toString());
