@@ -77,8 +77,15 @@ public final class PlacementEffectGameTests {
                 h.assertTrue(pending.pending() && !pending.committed(),"Live entity collision must wait");waits[0]++;
                 world.release(actor,run);h.assertTrue(world.placeTable(actor,captured[0],withdrawn[0].custodyAfter(),withdrawn[0].sourceAfter()).reason()==Reason.ACTOR_UNAVAILABLE,"Pending collision bypassed revoked control");
                 h.assertTrue(world.acquire(actor,run),"Explicit test control reacquisition");
-                var destination=h.absolutePos(new BlockPos(4,1,6));h.assertTrue(blocker[0].getNavigation().moveTo(destination.getX()+.5,destination.getY(),destination.getZ()+.5,.65),"Native crossing path");
-                phase[0]=1;h.assertTrue(false,"Waiting for native collision clearance");return;
+                phase[0]=1;h.assertTrue(false,"Waiting for crossing fixture landing");return;
+            }
+            if(phase[0]==1){
+                // A freshly spawned native mob has not yet had its first physics tick.
+                // Finish setup once, then start the path only from a grounded actor.
+                if(!blocker[0].onGround()){h.assertTrue(false,"Waiting for crossing fixture landing");return;}
+                var destination=h.absolutePos(new BlockPos(4,1,6));
+                h.assertTrue(blocker[0].getNavigation().moveTo(destination.getX()+.5,destination.getY(),destination.getZ()+.5,.65),"Native crossing path");
+                phase[0]=2;
             }
             var result=world.placeTable(actor,captured[0],withdrawn[0].custodyAfter(),withdrawn[0].sourceAfter());
             if(result.pending()){
