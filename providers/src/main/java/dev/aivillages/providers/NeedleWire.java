@@ -42,7 +42,8 @@ public final class NeedleWire {
         boolean plank=birchPlank || classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick || axe || table;
         String sourceAlias=sourceAlias(classification.intent());
         String resource=birch ? "birch logs" : birchPlank ? "birch planks" : table ? "crafting tables" : axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
-        String prompt = input.text(), from = null, through = null, destination = null;
+        String prompt = classification.production()==null ? input.text() : classification.production().modelText();
+        String from = null, through = null, destination = null;
         if(axe || table) {
             // Disposable textual normalization only. Core independently grounds the original text.
             prompt=Pattern.compile("(?i)(\\b(?:make|craft|produce)\\s+)(?:(?:me|us)\\s+)?a(\\s+(?:wooden\\s+axe|crafting\\s+table)\\b)").matcher(prompt).replaceAll(m->java.util.regex.Matcher.quoteReplacement(m.group(1)+"1"+m.group(2)));
@@ -193,7 +194,9 @@ public final class NeedleWire {
 
             if (prepared.classification().actor().state() == ReferenceState.EXPLICIT_UNSUPPORTED
                     || prepared.classification().source().state() == ReferenceState.EXPLICIT_UNSUPPORTED
-                    || prepared.classification().destination().state() == ReferenceState.EXPLICIT_UNSUPPORTED)
+                    || prepared.classification().destination().state() == ReferenceState.EXPLICIT_UNSUPPORTED
+                    || prepared.classification().production()!=null && prepared.classification().production().issue()
+                            !=dev.aivillages.core.kernel.ProductionLanguage.Issue.NONE)
                 return LanguageRequests.Result.clarification();
             return switch (tool) {
                 case "harvest_wheat" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.HARVEST_WHEAT

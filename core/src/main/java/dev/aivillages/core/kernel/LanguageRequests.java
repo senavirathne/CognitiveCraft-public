@@ -353,12 +353,20 @@ public final class LanguageRequests {
                 || e.action()!=(birch ? Action.GATHER_BIRCH_LOGS : birchPlank ? Action.MAKE_BIRCH_PLANKS : table ? Action.MAKE_CRAFTING_TABLES : axe ? Action.MAKE_WOODEN_AXES : stick ? Action.MAKE_STICKS : plank ? Action.MAKE_OAK_PLANKS : oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
             clarify(t, "Only registered wheat, oak/birch resources, recipe production and citizen-naming intents are supported", List.of()); return;
         }
+        var production=classified.production();
+        if(production!=null && production.issue()!=ProductionLanguage.Issue.NONE) {
+            if(production.issue()==ProductionLanguage.Issue.INVALID_QUANTITY)invalid(t);
+            else clarify(t,"Stated production inputs must match the registered recipe batches",List.of());
+            return;
+        }
         if (invalidNumericQuantity(t.input.text(),axe || table ? 4 : 64,table)) { invalid(t); return; }
         if (e.amount() == null) {
             clarify(t, "Specify the resource quantity", List.of()); return;
         }
         if (e.amount() < 1 || e.amount() > (axe || table ? 4 : oak ? OakLogDelivery.MAX_AMOUNT : 64)) { invalid(t); return; }
-        if ((!oak && !plank && !stick && !axe && !table && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount(),axe,table)) {
+        boolean grounded=production!=null ? Objects.equals(production.outputAmount(),e.amount())
+                : groundedAmount(t.input.text(),e.amount(),axe,table);
+        if ((!oak && !plank && !stick && !axe && !table && !containsReference(t.input.text(), "wheat")) || !grounded) {
             clarify(t, "Resource quantity must be stated explicitly", List.of()); return;
         }
 
