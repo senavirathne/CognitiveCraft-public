@@ -20,8 +20,13 @@ final class NavigationRoute {
             return Math.sqrt(dx * dx + dy * dy + dz * dz);
         }
     }
-    record Approach(int x, int y, int z) {
-        Position feet() { return new Position(x + 0.5, y, z + 0.5); }
+    record Approach(int x, int y, int z,double offsetX,double offsetZ) {
+        Approach(int x,int y,int z){this(x,y,z,0,0);}
+        Approach {
+            if(!Double.isFinite(offsetX) || !Double.isFinite(offsetZ) || Math.abs(offsetX)>.25 || Math.abs(offsetZ)>.25
+                    || offsetX!=0 && offsetZ!=0)throw new IllegalArgumentException("Bounded standing point in selected cell");
+        }
+        Position feet() { return new Position(x + 0.5 + offsetX, y, z + 0.5 + offsetZ); }
     }
     record PathSample(Object identity, long geometry, int node, int count,
                       Position waypoint, Position actor) {

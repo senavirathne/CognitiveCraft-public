@@ -79,8 +79,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                     target.getX(), target.getY(), target.getZ()));
             for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
                 if (dropApproach ? Math.abs(dx) + Math.abs(dz) == 1
-                        : !sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) samples.add(new NavigationRoute.Approach(
-                        target.getX() + dx, target.getY(), target.getZ() + dz));
+                        : !sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) {
+                    double ox=reserved!=null && solidApproach ? .25*dx : 0;
+                    double oz=reserved!=null && solidApproach ? .25*dz : 0;
+                    samples.add(new NavigationRoute.Approach(target.getX()+dx,target.getY(),target.getZ()+dz,ox,oz));
+                }
             }
             if(reserved!=null)samples.removeIf(p->p.x()==reserved.getX() && p.y()==reserved.getY() && p.z()==reserved.getZ());
             this.policy = new NavigationRoute(samples);
@@ -493,11 +496,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !v.onGround() || Math.abs(v.getY()-goal.getY())>0.125 || !walkable(v,goal))return null;
         var end=path.getEndNode();
         if(end.x!=goal.getX() || end.y!=goal.getY() || end.z!=goal.getZ())return null;
-        // The outer quarter of an adjacent placement cell keeps the actor clear
-        // and lets the exact center ray pass under an overhead target block.
-        double dx=route.reserved!=null && route.solidApproach ? .25*(goal.getX()-route.target.getX()) : 0;
-        double dz=route.reserved!=null && route.solidApproach ? .25*(goal.getZ()-route.target.getZ()) : 0;
-        var point=new Vec3(goal.getX()+.5+dx,goal.getY(),goal.getZ()+.5+dz);
+        // Refine only toward the exact point declared by this finite approach.
+        // NavigationRoute still rejects any undeclared or distant endpoint.
+        var approach=route.policy.approach();if(approach==null)return null;
+        var feet=approach.feet();var point=new Vec3(feet.x(),feet.y(),feet.z());
         if(v.distanceToSqr(point)>1.0 || !canReach(v,point,goal))return null;
         return new NavigationRoute.Position(point.x,point.y,point.z);
     }
