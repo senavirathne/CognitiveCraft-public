@@ -115,8 +115,9 @@ public final class ProductionLanguage {
         String prefix=goal.group("prefix")+"make "+normalized+" "+plural(recipe.output());
         String referenceText=prefix+tail;
         boolean source=Pattern.compile("\\bfrom\\b",Pattern.CASE_INSENSITIVE).matcher(tail).find();
+        String modelText=issue==Issue.NONE ? prefix+(stockEvidence!=null && !source ? " from stock" : "")+tail : text;
         return new Description(recipe.spec().id(),recipe.input(),recipe.output(),inputs,output,inputEvidence!=null ? inputEvidence : stockEvidence,
-                referenceText,prefix+(stockEvidence!=null && !source ? " from stock" : "")+tail,issue);
+                referenceText,modelText,issue);
     }
 
     /** Unknown instructions and inventory qualifiers cannot disappear as omission. */
