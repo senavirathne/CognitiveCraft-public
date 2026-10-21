@@ -356,7 +356,9 @@ public final class LanguageRequests {
         var production=classified.production();
         if(production!=null && production.issue()!=ProductionLanguage.Issue.NONE) {
             if(production.issue()==ProductionLanguage.Issue.INVALID_QUANTITY)invalid(t);
-            else clarify(t,"Stated production inputs must match the registered recipe batches",List.of());
+            else clarify(t,production.issue()==ProductionLanguage.Issue.INPUT_QUANTITY_MISMATCH
+                    ? "Stated production inputs must match the registered recipe batches"
+                    : "Use supported production materials and instructions",List.of());
             return;
         }
         if (invalidNumericQuantity(t.input.text(),axe || table ? 4 : 64,table)) { invalid(t); return; }

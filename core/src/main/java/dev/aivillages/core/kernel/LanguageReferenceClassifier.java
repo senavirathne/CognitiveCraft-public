@@ -67,7 +67,7 @@ public final class LanguageReferenceClassifier {
     private static final String ACQUISITION_VERBS = "harvest|gather|collect";
     /** Delivery wording selects the existing log-acquisition capability, never an inventory transfer. */
     private static final String LOG_DELIVERY_VERBS = "bring|fetch";
-    private static final String REQUEST_VERBS = ACQUISITION_VERBS + "|" + LOG_DELIVERY_VERBS + "|make|craft|produce|"+ProductionLanguage.TRANSFORMATION_VERBS;
+    private static final String REQUEST_VERBS = ACQUISITION_VERBS + "|" + LOG_DELIVERY_VERBS + "|make|craft|produce|"+ProductionLanguage.TRANSFORMATION_VERBS+"|"+ProductionLanguage.GOAL_VERBS;
     private static final Pattern SOURCE_ANY = Pattern.compile(
             "\\bfrom\\s+(.{1,160}?)(?=\\s+(?:and\\s+)?(?:deliver|deposit|put|to|into|in)\\b|[.!?]|$)",
             Pattern.CASE_INSENSITIVE);
@@ -97,14 +97,17 @@ public final class LanguageReferenceClassifier {
         Slot actor = actor(text, references);
         var production=ProductionLanguage.describe(text);
         if(production!=null) {
+            actor=actor(production.referenceText(),references);
             Intent intent=production.capability()==null ? Intent.UNKNOWN
                     : production.capability().equals(OakPlankProduction.ID) ? Intent.MAKE_OAK_PLANKS
                     : production.capability().equals(BirchPlankProduction.ID) ? Intent.MAKE_BIRCH_PLANKS
-                    : production.capability().equals(StickProduction.ID) ? Intent.MAKE_STICKS : Intent.MAKE_CRAFTING_TABLES;
+                    : production.capability().equals(StickProduction.ID) ? Intent.MAKE_STICKS
+                    : production.capability().equals(WoodenAxeProduction.ID) ? Intent.MAKE_WOODEN_AXES : Intent.MAKE_CRAFTING_TABLES;
             if(intent==Intent.UNKNOWN)return new Classification(intent,actor,Slot.unsupported(production.inputEvidence()),Slot.omitted(),null,Slot.omitted(),production);
             Slot input=recipeSource(production.referenceText(),!LogAcquisition.log(production.input()));
-            if(input.state()==ReferenceState.OMITTED)input=Slot.nearest(production.inputEvidence());
-            return new Classification(intent,actor,input,plankDestination(production.referenceText()),null,Slot.omitted(),production);
+            if(input.state()==ReferenceState.OMITTED && production.inputEvidence()!=null)input=Slot.nearest(production.inputEvidence());
+            return new Classification(intent,actor,input,plankDestination(production.referenceText()),null,
+                    intent==Intent.MAKE_WOODEN_AXES ? table(production.referenceText()) : Slot.omitted(),production);
         }
         if(containsWord(text,"birch")) {
             if(Pattern.compile("\\b(?:oak|wheat|spruce|stripped|wood|leaves|jungle|acacia|dark|mangrove|cherry|pale|crimson|warped|bamboo|stone|ores?|sticks?|axes?|tables?|slabs?|doors?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())

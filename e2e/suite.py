@@ -38,6 +38,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
 PROFILES["rb001"] = ["GP-RB-01"]
 PROFILES["d01"] = ["D01-EVIDENCE"]
 PROFILES["d02"] = ["D02-EVIDENCE"]
+PROFILES["d03"] = ["D03-EVIDENCE"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
@@ -1543,6 +1544,7 @@ def main():
     registry["GP-RB-03"] = stick_scenario
     from axes import scenario as axe_scenario
     registry["GP-RB-04"] = axe_scenario
+    registry["D03-EVIDENCE"] = lambda h: axe_scenario(h,d03_evidence=True)
     from composition import scenario as composition_scenario
     registry["GP-RB-COMPOSE-01"] = composition_scenario
     from tableitems import scenario as table_item_scenario

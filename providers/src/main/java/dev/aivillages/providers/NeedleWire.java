@@ -195,6 +195,7 @@ public final class NeedleWire {
             if (prepared.classification().actor().state() == ReferenceState.EXPLICIT_UNSUPPORTED
                     || prepared.classification().source().state() == ReferenceState.EXPLICIT_UNSUPPORTED
                     || prepared.classification().destination().state() == ReferenceState.EXPLICIT_UNSUPPORTED
+                    || prepared.classification().table().state() == ReferenceState.EXPLICIT_UNSUPPORTED
                     || prepared.classification().production()!=null && prepared.classification().production().issue()
                             !=dev.aivillages.core.kernel.ProductionLanguage.Issue.NONE)
                 return LanguageRequests.Result.clarification();
