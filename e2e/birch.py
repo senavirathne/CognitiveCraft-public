@@ -32,8 +32,10 @@ def scenario(h, *, d04_evidence=False):
         h.console([command for x,z in cells for command in
                    (f"setblock {x} 201 {z} minecraft:air",f"setblock {x} 200 {z} minecraft:stone")]
                   +["setblock 8 200 7 minecraft:stone","setblock 8 200 11 minecraft:stone"])
-        h.wait(lambda:all('minecraft:stone' in h.snapshot()['blocks'].get(f'{x},200,{z}','')
-                         and 'minecraft:air' in h.snapshot()['blocks'].get(f'{x},201,{z}','') for x,z in cells),
+        # The default observer includes support cells for the x=6/7 strips;
+        # it observes the former isolated crop at x=4 only at foot height.
+        h.wait(lambda:all('minecraft:air' in h.snapshot()['blocks'].get(f'{x},201,{z}','') for x,z in cells)
+                      and all('minecraft:stone' in h.snapshot()['blocks'].get(f'{x},200,{z}','') for x,z in cells if x in (6,7)),
                "D04 neutral stocked-production terrain")
     catalog=h.command("PlayerA","/aivillage kernel catalog","catalog=")
     require(all(k+"=[]" in catalog for k in ("birchCatalog","birchPlankCatalog","oakCatalog","plankCatalog")),"Birch or oak executable methods were supplied as known")
