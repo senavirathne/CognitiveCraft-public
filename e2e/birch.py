@@ -23,6 +23,18 @@ def scenario(h, *, d04_evidence=False):
     with urllib.request.urlopen(req,timeout=120) as response:require(json.load(response)["done"],"Genuine model prewarm failed")
     h.fresh(two=True);h.enroll();h.enroll("PlayerB","Mira");h.release_gate();h.release_gate("PlayerB")
     h.console(["gamerule minecraft:block_drops true",*["setblock "+" ".join(map(str,p))+" minecraft:chest" for p in (SRC,SECOND)]])
+    if d04_evidence:
+        # Stocked spatial-reference evidence needs no wheat. Remove the shared
+        # arena's unrelated trampleable crop fixture before any production or
+        # refusal is measured, retaining normal villager AI and strict resource
+        # comparisons throughout the requests themselves.
+        cells=[(x,z) for x in (6,7) for z in (6,7,8,10,11,12)]+[(4,10)]
+        h.console([command for x,z in cells for command in
+                   (f"setblock {x} 201 {z} minecraft:air",f"setblock {x} 200 {z} minecraft:stone")]
+                  +["setblock 8 200 7 minecraft:stone","setblock 8 200 11 minecraft:stone"])
+        h.wait(lambda:all('minecraft:stone' in h.snapshot()['blocks'].get(f'{x},200,{z}','')
+                         and 'minecraft:air' in h.snapshot()['blocks'].get(f'{x},201,{z}','') for x,z in cells),
+               "D04 neutral stocked-production terrain")
     catalog=h.command("PlayerA","/aivillage kernel catalog","catalog=")
     require(all(k+"=[]" in catalog for k in ("birchCatalog","birchPlankCatalog","oakCatalog","plankCatalog")),"Birch or oak executable methods were supplied as known")
     hashes={};admissions=[];known=[];client_containers=[]
