@@ -176,6 +176,7 @@ final class FabricRecipeTransactions {
         if(denied!=null)return RecipeTransaction.Mutation.blocked(denied);
         if(!fingerprint(from).equals(sourceFingerprint))return RecipeTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
         if(!current(captured))return RecipeTransaction.Mutation.blocked(Reason.ARTIFACT_INCOMPATIBLE);
+        if(!v.onGround())return RecipeTransaction.Mutation.waiting();
         var sourceSlots=copy(from);ItemStack actual=sourceSlots.stream().filter(s->plain(s,inputItem(d))).findFirst().orElse(ItemStack.EMPTY);
         if(actual.isEmpty() || !remove(sourceSlots,inputItem(d),d.inputPerBatch()))return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
         if(d.axe() && !remove(sourceSlots,Items.STICK,2))return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
@@ -188,12 +189,15 @@ final class FabricRecipeTransactions {
     RecipeTransaction.Mutation craft(ActorRef actor,RecipeTransaction.Preflight captured,String custody) {
         var d=RecipeProduction.recipe(captured.recipe().key());Villager v=world.recipeActor(actor);
         if(v==null)return denied(actor,captured,"actor-unavailable",Reason.ACTOR_UNAVAILABLE);
-        if(!v.onGround())return denied(actor,captured,"actor-not-standing",Reason.ACTOR_UNAVAILABLE);
         if(!GatewayControl.controls(v))return denied(actor,captured,"actor-control",Reason.ACTOR_UNAVAILABLE);
         if(!fingerprint(v.getInventory()).equals(custody))return denied(actor,captured,"actor-custody",Reason.STALE_OBSERVATION);
-        if(d.axe()) {var denied=tableGuard(captured.facility(),captured.facilityIdentity(),v,true);if(denied!=null)return denied(actor,captured,"facility",denied);}
         var recipe=capture(d.recipe());
         if(recipe==null || !recipe.snapshot().equals(captured.recipe()))return denied(actor,captured,"recipe-identity",Reason.ARTIFACT_INCOMPATIBLE);
+        if(!v.onGround()) {
+            denied(actor,captured,"actor-not-standing",Reason.ACTOR_UNAVAILABLE);
+            return RecipeTransaction.Mutation.waiting();
+        }
+        if(d.axe()) {var denied=tableGuard(captured.facility(),captured.facilityIdentity(),v,true);if(denied!=null)return denied(actor,captured,"facility",denied);}
         var next=copy(v.getInventory());var actual=next.stream().filter(s->plain(s,inputItem(d))).findFirst().orElse(ItemStack.EMPTY);
         if(actual.isEmpty() || !remove(next,inputItem(d),d.inputPerBatch()))return denied(actor,captured,"held-input",Reason.RESOURCE_MISSING);
         if(d.axe() && !remove(next,Items.STICK,2))return denied(actor,captured,"held-secondary",Reason.RESOURCE_MISSING);
@@ -215,6 +219,7 @@ final class FabricRecipeTransactions {
         Reason denied=guard(v,to,target,captured.destinationIdentity(),custody);
         if(denied!=null)return RecipeTransaction.Mutation.blocked(denied);
         if(quantity<1 || quantity>d.outputPerBatch())return RecipeTransaction.Mutation.blocked(Reason.REQUEST_INVALID);
+        if(!v.onGround())return RecipeTransaction.Mutation.waiting();
         var inventory=copy(v.getInventory());ItemStack actual;
         if(d.axe()) {
             var witness=axeCustody.get(actor);
@@ -232,10 +237,10 @@ final class FabricRecipeTransactions {
                 captured.sourceIdentity().equals(captured.destinationIdentity()) ? fingerprint(to) : "",null);
     }
     private Reason guard(Villager v,Container box,ContainerRef ref,String identity,String custody) {
-        if(v==null || box==null || !v.onGround())return Reason.TARGET_UNAVAILABLE;
+        if(v==null || box==null)return Reason.TARGET_UNAVAILABLE;
         if(!GatewayControl.controls(v))return Reason.ACTOR_UNAVAILABLE;
         if(!identity(ref,box).equals(identity) || !fingerprint(v.getInventory()).equals(custody))return Reason.STALE_OBSERVATION;
-        if(!world.recipeReach(v,new BlockPos(ref.x(),ref.y(),ref.z())))return Reason.TARGET_UNAVAILABLE;return null;
+        if(v.onGround() && !world.recipeReach(v,new BlockPos(ref.x(),ref.y(),ref.z())))return Reason.TARGET_UNAVAILABLE;return null;
     }
     private boolean current(RecipeTransaction.Preflight snapshot) {var actual=capture(snapshot.recipe().key());return actual!=null && actual.snapshot().equals(snapshot.recipe());}
     static boolean plain(ItemStack s,Item item) {return !s.isEmpty() && s.is(item) && ItemStack.isSameItemSameComponents(s,new ItemStack(item));}

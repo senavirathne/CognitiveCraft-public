@@ -5,7 +5,7 @@ import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET,zipfi
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'build/rb006b-evidence'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'PlacementProductionTest':23,'PlacementJobLifecycleTest':9},'providers':{'PlacementGenerationTest':2}}
+    expected={'core':{'PlacementProductionTest':29,'OakPlankGatewayTest':20,'PlacementJobLifecycleTest':9},'providers':{'PlacementGenerationTest':2}}
     result={};scoped={}
     for module in ('core','providers','fabric'):
         paths=list((ROOT/module/'build/test-results/test').glob('TEST-*.xml'));cases=[c for p in paths for c in ET.parse(p).getroot().iter('testcase')]
@@ -20,15 +20,19 @@ def junit():
 def native(phase,classname,marker):
     folder=ROOT/'fabric/build/gametest-run';report=folder/'gametest-results.xml';log=folder/'logs/latest.log'
     cases=[c for c in ET.parse(report).getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
-    assert len(cases)==1 and classname in cases[0].get('name','') and not any(cases[0].find(t) is not None for t in ('failure','error','skipped'))
+    expected_cases=3 if phase=='effects' else 1
+    assert len(cases)==expected_cases and all(classname in c.get('name','') and not any(c.find(t) is not None for t in ('failure','error','skipped')) for c in cases)
     count=sum(marker in line for line in log.read_text().splitlines());expected=3 if classname=='placement_kernel_game_tests' and phase!='genuine-warm' else 1
     assert count==expected,(phase,count,expected)
+    if phase=='effects':
+        for regression in ('RB006B_FALLING nativeGravity=true','RB006B_COLLISION nativeEntity=true'):
+            assert sum(regression in line for line in log.read_text().splitlines())==1,regression
     if classname=='placement_kernel_game_tests' and phase!='genuine-warm':
         genuine='true' if phase=='genuine-cold' else 'false'
         assert sum(('RB006B_ADMISSION genuine='+genuine) in line for line in log.read_text().splitlines())==6
     OUT.mkdir(parents=True,exist_ok=True)
     for p,suffix in ((report,'.xml'),(log,'.log')):shutil.copy2(p,OUT/(phase+suffix))
-    (OUT/(phase+'.json')).write_text(json.dumps({'phase':phase,'cases':1,'rows':count,'xmlSha256':sha(report),'logSha256':sha(log)},indent=2)+'\n')
+    (OUT/(phase+'.json')).write_text(json.dumps({'phase':phase,'cases':len(cases),'rows':count,'xmlSha256':sha(report),'logSha256':sha(log)},indent=2)+'\n')
 def identity():
     jar=ROOT/'fabric/build/libs/ai-villages-0.1.0.jar'
     with zipfile.ZipFile(jar) as z:

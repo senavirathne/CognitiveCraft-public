@@ -561,6 +561,7 @@ public final class SurvivalGateway implements GatewayPort {
             if(captured.status()!=ObservationStatus.PRESENT || captured.reason()!=null){finish(action,captured.reason()==null?Reason.STALE_OBSERVATION:captured.reason(),null,null);return;}
             if(!site.equals(captured.target()) || !sourceBox.equals(captured.source())){finish(action,Reason.STALE_OBSERVATION,null,null);return;}
             if(captured.availableItems()<1){finish(action,Reason.RESOURCE_MISSING,null,null);return;}
+            if(captured.pending())return;
             run.placement=captured;run.placementCustody=captured.custodyFingerprint();run.placementSource=captured.sourceFingerprint();
             finish(action,null,new BoolValue(true),null);return;
         }
@@ -578,6 +579,7 @@ public final class SurvivalGateway implements GatewayPort {
             action.usage.debit(Kind.ATTEMPTED_EFFECTS,1);
             result=world.placeTable(run.actor,run.placement,run.placementCustody,run.placementSource);stage=ResourceDelivery.Stage.PLACE;
         }else{finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
+        if(result.pending())return;
         if(!result.committed()){finish(action,result.reason()==null?Reason.ACTION_FAILED:result.reason(),null,null);return;}
         committed(action);
         // An inconsistent native effect stays in the world and counts against the attempt; it cannot fulfill PLACE.
@@ -662,6 +664,7 @@ public final class SurvivalGateway implements GatewayPort {
             stage=ResourceDelivery.Stage.DEPOSIT;quantity=result.moved();retained=run.batchOutputs-quantity;
             if(result.committed()) {run.batchOutputs-=quantity;run.deposited+=quantity;}
         } else {finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
+        if(result.pending())return;
         if(result.committed()) {
             committed(action);
             if(result.reason()!=null || !run.recipeCustody.equals(result.custodyBefore())
