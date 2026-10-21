@@ -298,10 +298,13 @@ public final class WorkerDispatcher {
             return;
         }
         boolean cancelled=job.state()==Jobs.State.CANCELLING || job.state()==Jobs.State.CANCELLED;
-        boolean lost=!workerCurrent(l,false) || !jobs.mayControl(job.id(),l.generation,l.origin);
+        boolean workerLost=!workerCurrent(l,false);
+        boolean controlLost=!workerLost && !jobs.mayControl(job.id(),l.generation,l.origin);
+        boolean lost=workerLost || controlLost;
         boolean storageLost=jobs.unavailableReason()==Reason.STORAGE_UNAVAILABLE;
         if(closing || storageLost || cancelled || lost || tick>=l.expires || clock.millis()>attempt.allowance().deadlineEpochMillis())
-            stop(l,cancelled?Reason.CANCELLED:storageLost?Reason.STORAGE_UNAVAILABLE:lost?Reason.ACTOR_UNAVAILABLE:Reason.ACTION_TIMEOUT,cancelled);
+            stop(l,cancelled?Reason.CANCELLED:storageLost?Reason.STORAGE_UNAVAILABLE:lost?Reason.ACTOR_UNAVAILABLE:Reason.ACTION_TIMEOUT,cancelled,
+                    closing?"shutdown":storageLost?"job-storage":cancelled?"job-cancelled":workerLost?"worker-current":controlLost?"job-control":tick>=l.expires?"assignment-ticks":"assignment-deadline");
         if(l.phase!=Phase.STOPPING) {
             if(!jobs.ready())return;
             if(l.bound==null) {
@@ -325,7 +328,7 @@ public final class WorkerDispatcher {
                 catch(RuntimeException unavailable){resource=new ResourceLeases.Result(ResourceLeases.Code.REJECTED,Reason.AUTHORITY_DENIED,null,List.of(),0,0);}
                 if(!resource.usable()) {
                     if(resource.code()==ResourceLeases.Code.PENDING && resource.reason()==null)return;
-                    stop(l,resource.reason()==null?Reason.TARGET_UNAVAILABLE:resource.reason(),false);
+                    stop(l,resource.reason()==null?Reason.TARGET_UNAVAILABLE:resource.reason(),false,"claims-"+resource.code());
                     remember(decision(job,l.worker,Code.BLOCKED,l.resolution,l.failure),work);
                 }else if(l.handle==null && work.starts<settings.starts()) {
                     // Current worker/control and lease state have just been rechecked after both acknowledgements.
@@ -384,7 +387,13 @@ public final class WorkerDispatcher {
             jobs.recordExecutionResult(job.id(),job.guard(),new Jobs.Report(l.run,l.generation,summary.committedEffects(),
                     summary.usage(),summary.receipts(),null,summary.resourceReceipts()),l.origin);
     }
-    private void stop(Live l,Reason reason,boolean cancel){l.failure=reason;l.cancel|=cancel;l.phase=Phase.STOPPING;}
+    private void stop(Live l,Reason reason,boolean cancel){stop(l,reason,cancel,"execution");}
+    private void stop(Live l,Reason reason,boolean cancel,String guard){
+        if(l.phase!=Phase.STOPPING && Boolean.getBoolean("cognitivecraft.gametest.trace"))
+            System.out.println("DISPATCH_STOP job="+l.job+" run="+l.run+" actor="+l.worker.entityId()
+                    +" phase="+l.phase+" guard="+guard+" reason="+reason+" tick="+ticks.getAsLong()+" expires="+l.expires);
+        l.failure=reason;l.cancel|=cancel;l.phase=Phase.STOPPING;
+    }
     private Decision decision(Jobs.Job j,ActorRef a,Code code,CapabilityResolver.Decision d,Reason reason) {
         return new Decision(j.id(),a,code,d.routing(),reason,d.candidates(),"UUID circular order; artifact="+(d.routing().artifact()==null?"none":d.routing().artifact().sha256()));
     }

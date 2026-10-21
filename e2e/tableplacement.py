@@ -7,7 +7,7 @@ OAK_MIN=[14,201,3];OAK_MAX=[17,201,3]
 LOG="minecraft:oak_log";PLANK="minecraft:oak_planks";STICK="minecraft:stick";TABLE="minecraft:crafting_table";AXE="minecraft:wooden_axe"
 
 def scenario(h):
-    from suite import UUID_PATTERN,DENIED_PATTERN,require,read,reconnect_players
+    from suite import UUID_PATTERN,DENIED_PATTERN,require,read,atomic,reconnect_players
     require(h.topology=="compose","Facility acceptance requires configured backend and real network clients")
     h.env.update(COGNITIVECRAFT_OLLAMA_MODEL="qwen3:4b-instruct-2507-q4_K_M",COGNITIVECRAFT_NEEDLE_DIR="",COGNITIVECRAFT_E2E_SNAPSHOT_TICKS="1")
     h.compose("up","-d","ollama");h.compose("exec","-T","ollama","ollama","pull",h.env["COGNITIVECRAFT_OLLAMA_MODEL"])
@@ -120,11 +120,13 @@ def scenario(h):
                         } for a in job.get("attempts",[])]
                     })
                 traces=[line for line in h.server_log().splitlines()
-                        if "CognitiveCraft MOVE" in line or "_EFFECT" in line]
+                        if "CognitiveCraft MOVE" in line or "_EFFECT" in line
+                        or "RB006B_GUARD" in line or "RB_RECIPE_GUARD" in line or "DISPATCH_STOP" in line]
                 diagnostic={"job":jid,"player":player,"site":target,
                             "gameTick":state.get("gameTick"),
                             "actors":state.get("actors"),"containers":state.get("containers"),
-                            "jobs":compact,"movementTrace":traces[-24:]}
+                            "jobs":compact,"movementTrace":traces[-48:]}
+                atomic(h.root/"rb006b-timeout-diagnostic.json",diagnostic)
                 print("RB006B_TIMEOUT_DIAGNOSTIC "+json.dumps(diagnostic,sort_keys=True,default=str),flush=True)
             except Exception as observation_error:
                 print("RB006B_TIMEOUT_DIAGNOSTIC_UNAVAILABLE "+

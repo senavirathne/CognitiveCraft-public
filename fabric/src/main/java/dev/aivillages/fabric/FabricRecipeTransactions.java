@@ -27,6 +27,16 @@ final class FabricRecipeTransactions {
     private final Map<ActorRef,AxeCustody> axeCustody=new HashMap<>();
     void release(ActorRef actor) {axeCustody.remove(actor);}
     FabricRecipeTransactions(ServerLevel level,FabricGatewayWorld world) {this.level=level;this.world=world;}
+    private RecipeTransaction.Mutation denied(ActorRef actor,RecipeTransaction.Preflight captured,String guard,Reason reason){
+        if(Boolean.getBoolean("cognitivecraft.gametest.trace")){
+            var v=world.recipeActor(actor);
+            System.out.println("RB_RECIPE_GUARD stage=craft guard="+guard+" reason="+reason+" recipe="+captured.recipe().key()
+                    +" actor="+actor.entityId()+" position="+(v==null?"unavailable":v.position())
+                    +" onGround="+(v!=null && v.onGround())+" controlled="+(v!=null && GatewayControl.controls(v))
+                    +" motion="+(v==null?"unavailable":v.getDeltaMovement()));
+        }
+        return RecipeTransaction.Mutation.blocked(reason);
+    }
     private record RecipeView(CraftingRecipe recipe,RecipeTransaction.Snapshot snapshot) { }
     private static Item inputItem(RecipeProduction.Definition d) {return FabricResourceItems.item(d.input());}
     private static Item outputItem(RecipeProduction.Definition d) {return FabricResourceItems.item(d.output());}
@@ -177,23 +187,25 @@ final class FabricRecipeTransactions {
     }
     RecipeTransaction.Mutation craft(ActorRef actor,RecipeTransaction.Preflight captured,String custody) {
         var d=RecipeProduction.recipe(captured.recipe().key());Villager v=world.recipeActor(actor);
-        if(v==null || !v.onGround() || !GatewayControl.controls(v))return RecipeTransaction.Mutation.blocked(Reason.ACTOR_UNAVAILABLE);
-        if(!fingerprint(v.getInventory()).equals(custody))return RecipeTransaction.Mutation.blocked(Reason.STALE_OBSERVATION);
-        if(d.axe()) {var denied=tableGuard(captured.facility(),captured.facilityIdentity(),v,true);if(denied!=null)return RecipeTransaction.Mutation.blocked(denied);}
+        if(v==null)return denied(actor,captured,"actor-unavailable",Reason.ACTOR_UNAVAILABLE);
+        if(!v.onGround())return denied(actor,captured,"actor-not-standing",Reason.ACTOR_UNAVAILABLE);
+        if(!GatewayControl.controls(v))return denied(actor,captured,"actor-control",Reason.ACTOR_UNAVAILABLE);
+        if(!fingerprint(v.getInventory()).equals(custody))return denied(actor,captured,"actor-custody",Reason.STALE_OBSERVATION);
+        if(d.axe()) {var denied=tableGuard(captured.facility(),captured.facilityIdentity(),v,true);if(denied!=null)return denied(actor,captured,"facility",denied);}
         var recipe=capture(d.recipe());
-        if(recipe==null || !recipe.snapshot().equals(captured.recipe()))return RecipeTransaction.Mutation.blocked(Reason.ARTIFACT_INCOMPATIBLE);
+        if(recipe==null || !recipe.snapshot().equals(captured.recipe()))return denied(actor,captured,"recipe-identity",Reason.ARTIFACT_INCOMPATIBLE);
         var next=copy(v.getInventory());var actual=next.stream().filter(s->plain(s,inputItem(d))).findFirst().orElse(ItemStack.EMPTY);
-        if(actual.isEmpty() || !remove(next,inputItem(d),d.inputPerBatch()))return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
-        if(d.axe() && !remove(next,Items.STICK,2))return RecipeTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
-        var input=input(actual,d);if(!validResult(recipe.recipe(),input,d))return RecipeTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);
+        if(actual.isEmpty() || !remove(next,inputItem(d),d.inputPerBatch()))return denied(actor,captured,"held-input",Reason.RESOURCE_MISSING);
+        if(d.axe() && !remove(next,Items.STICK,2))return denied(actor,captured,"held-secondary",Reason.RESOURCE_MISSING);
+        var input=input(actual,d);if(!validResult(recipe.recipe(),input,d))return denied(actor,captured,"recipe-result",Reason.UNSUPPORTED_PRIMITIVE);
         var output=recipe.recipe().assemble(input);int outputSlot=-1;
         if(d.axe()) {
-            if(!axeCustody.containsKey(actor) && axeCustody.size()>=64)return RecipeTransaction.Mutation.blocked(Reason.BUDGET_EXHAUSTED);
+            if(!axeCustody.containsKey(actor) && axeCustody.size()>=64)return denied(actor,captured,"custody-limit",Reason.BUDGET_EXHAUSTED);
             for(int i=0;i<next.size();i++)if(next.get(i).isEmpty() && v.getInventory().canPlaceItem(i,output)) {outputSlot=i;break;}
-            if(outputSlot<0)return RecipeTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
+            if(outputSlot<0)return denied(actor,captured,"axe-output-slot",Reason.TARGET_UNAVAILABLE);
         }
         next=insert(next,v.getInventory(),output.copy());
-        if(next==null)return RecipeTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
+        if(next==null)return denied(actor,captured,"output-space",Reason.TARGET_UNAVAILABLE);
         apply(v.getInventory(),next);output.onCraftedBySystem(level);
         if(d.axe())axeCustody.put(actor,new AxeCustody(outputSlot,v.getInventory().getItem(outputSlot),fingerprint(v.getInventory())));
         return new RecipeTransaction.Mutation(d.totalInputs(),output.getCount(),0,0,custody,fingerprint(v.getInventory()),"",null);

@@ -20,7 +20,20 @@ import net.minecraft.world.phys.*;
 final class FabricTablePlacement {
     private final ServerLevel level;private final FabricGatewayWorld world;
     FabricTablePlacement(ServerLevel level,FabricGatewayWorld world){this.level=level;this.world=world;}
-    private record Site(String fingerprint,Reason reason) { }
+    private record Site(String fingerprint,Reason reason,String guard) { }
+    private Site blockedSite(String guard,Reason reason){return new Site("",reason,guard);}
+    private Reason denied(ActorRef actor,PlacementTransaction.Preflight captured,String stage,String guard,Reason reason){
+        if(Boolean.getBoolean("cognitivecraft.gametest.trace")){
+            var v=world.recipeActor(actor);var target=captured.target();
+            System.out.println("RB006B_GUARD stage="+stage+" guard="+guard+" reason="+reason
+                    +" actor="+actor.entityId()+" position="+(v==null?"unavailable":v.position())
+                    +" onGround="+(v!=null && v.onGround())+" controlled="+(v!=null && GatewayControl.controls(v))
+                    +" motion="+(v==null?"unavailable":v.getDeltaMovement())
+                    +" target="+target+" source="+captured.source()
+                    +" distanceSquared="+(v==null?"unavailable":v.distanceToSqr(target.x()+.5,target.y()+.5,target.z()+.5)));
+        }
+        return reason;
+    }
     private List<BlockPos> cells(BlockPos target){
         var result=new LinkedHashSet<BlockPos>();result.add(target);result.add(target.below());
         for(Direction direction:List.of(Direction.NORTH,Direction.SOUTH,Direction.WEST,Direction.EAST)){
@@ -33,26 +46,29 @@ final class FabricTablePlacement {
                 && !state.is(Blocks.MAGMA_BLOCK) && !state.is(Blocks.CACTUS) && !state.is(Blocks.CAMPFIRE) && !state.is(Blocks.SOUL_CAMPFIRE);
     }
     private Site site(ActorRef actor,FacilityRef target){
-        var v=world.recipeActor(actor);if(v==null)return new Site("",Reason.ACTOR_UNAVAILABLE);
-        if(!target.dimension().equals(actor.dimension()))return new Site("",Reason.TARGET_INVALID);
+        var v=world.recipeActor(actor);if(v==null)return blockedSite("site-actor",Reason.ACTOR_UNAVAILABLE);
+        if(!target.dimension().equals(actor.dimension()))return blockedSite("site-dimension",Reason.TARGET_INVALID);
         var p=new BlockPos(target.x(),target.y(),target.z());var cells=cells(p);
-        if(cells.size()!=14 || level.isOutsideBuildHeight(p))return new Site("",Reason.TARGET_INVALID);
+        if(cells.size()!=14 || level.isOutsideBuildHeight(p))return blockedSite("site-bounds",Reason.TARGET_INVALID);
         var tokens=new StringBuilder();
         for(var cell:cells){
-            if(!world.loadedForDiscovery(cell))return new Site("",Reason.TARGET_UNAVAILABLE);
-            if(!world.discoverable(actor,cell,Effect.PLACE))return new Site("",Reason.AUTHORITY_DENIED);
-            String token=FabricFacilityIdentity.capture(level,cell);if(token==null)return new Site("",Reason.BUDGET_EXHAUSTED);
+            if(!world.loadedForDiscovery(cell))return blockedSite("site-unloaded:"+cell,Reason.TARGET_UNAVAILABLE);
+            if(!world.discoverable(actor,cell,Effect.PLACE))return blockedSite("site-authority:"+cell,Reason.AUTHORITY_DENIED);
+            String token=FabricFacilityIdentity.capture(level,cell);if(token==null)return blockedSite("site-identity:"+cell,Reason.BUDGET_EXHAUSTED);
             tokens.append(cell.asLong()).append(':').append(level.getBlockState(cell)).append(':').append(token).append(';');
         }
-        if(!level.getBlockState(p).isAir() || !level.getFluidState(p).isEmpty() || !support(p.below()))return new Site("",Reason.TARGET_INVALID);
-        if(!level.getEntities((Entity)null,new AABB(p),e->e.isAlive() && !e.isSpectator()).isEmpty())return new Site("",Reason.TARGET_UNAVAILABLE);
+        if(!level.getBlockState(p).isAir())return blockedSite("site-block",Reason.TARGET_INVALID);
+        if(!level.getFluidState(p).isEmpty())return blockedSite("site-fluid",Reason.TARGET_INVALID);
+        if(!support(p.below()))return blockedSite("site-support",Reason.TARGET_INVALID);
+        var collisions=level.getEntities((Entity)null,new AABB(p),e->e.isAlive() && !e.isSpectator());
+        if(!collisions.isEmpty())return blockedSite("site-collision:"+collisions.stream().limit(8).map(e->e.getUUID()+"@"+e.position()).toList(),Reason.TARGET_UNAVAILABLE);
         boolean working=false;
         for(Direction direction:List.of(Direction.NORTH,Direction.SOUTH,Direction.WEST,Direction.EAST)){
             var foot=p.relative(direction);
             if(level.getBlockState(foot).isAir() && level.getBlockState(foot.above()).isAir()
                     && level.getFluidState(foot).isEmpty() && level.getFluidState(foot.above()).isEmpty() && support(foot.below()))working=true;
         }
-        return working ? new Site(RecipeTransaction.fingerprint(tokens.toString()),null) : new Site("",Reason.TARGET_UNAVAILABLE);
+        return working ? new Site(RecipeTransaction.fingerprint(tokens.toString()),null,"ready") : blockedSite("site-standing-space",Reason.TARGET_UNAVAILABLE);
     }
     PlacementTransaction.Preflight preflight(ValidatedRequest bound){
         if(!CraftingTablePlacement.valid(bound.request()))return PlacementTransaction.Preflight.blocked(Reason.REQUEST_INVALID);
@@ -73,21 +89,24 @@ final class FabricTablePlacement {
         return new PlacementTransaction.Preflight(ObservationStatus.PRESENT,items,from.getContainerSize(),FabricRecipeTransactions.identity(source,from),
                 FabricRecipeTransactions.fingerprint(from),FabricRecipeTransactions.fingerprint(v.getInventory()),checked.fingerprint(),target,source,null);
     }
-    private Reason guard(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String sourceFingerprint,boolean sourceReach){
-        Villager v=world.recipeActor(actor);if(v==null || !v.onGround() || !GatewayControl.controls(v))return Reason.ACTOR_UNAVAILABLE;
+    private Reason guard(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String sourceFingerprint,boolean sourceReach,String stage){
+        Villager v=world.recipeActor(actor);
+        if(v==null)return denied(actor,captured,stage,"actor-unavailable",Reason.ACTOR_UNAVAILABLE);
+        if(!v.onGround())return denied(actor,captured,stage,"actor-not-standing",Reason.ACTOR_UNAVAILABLE);
+        if(!GatewayControl.controls(v))return denied(actor,captured,stage,"actor-control",Reason.ACTOR_UNAVAILABLE);
         var source=captured.source();var p=new BlockPos(source.x(),source.y(),source.z());
-        if(!world.loadedForDiscovery(p))return Reason.TARGET_UNAVAILABLE;
-        if(!world.discoverable(actor,p,Effect.WITHDRAW))return Reason.AUTHORITY_DENIED;
-        Container from=world.recipeContainer(source);if(from==null)return Reason.TARGET_UNAVAILABLE;
-        if(!FabricRecipeTransactions.identity(source,from).equals(captured.sourceIdentity())
-                || !FabricRecipeTransactions.fingerprint(from).equals(sourceFingerprint)
-                || !FabricRecipeTransactions.fingerprint(v.getInventory()).equals(custody))return Reason.STALE_OBSERVATION;
-        if(sourceReach && !world.recipeReach(v,p))return Reason.TARGET_UNAVAILABLE;
-        var checked=site(actor,captured.target());if(checked.reason()!=null)return checked.reason();
-        return checked.fingerprint().equals(captured.siteFingerprint()) ? null : Reason.STALE_OBSERVATION;
+        if(!world.loadedForDiscovery(p))return denied(actor,captured,stage,"source-unloaded",Reason.TARGET_UNAVAILABLE);
+        if(!world.discoverable(actor,p,Effect.WITHDRAW))return denied(actor,captured,stage,"source-authority",Reason.AUTHORITY_DENIED);
+        Container from=world.recipeContainer(source);if(from==null)return denied(actor,captured,stage,"source-container",Reason.TARGET_UNAVAILABLE);
+        if(!FabricRecipeTransactions.identity(source,from).equals(captured.sourceIdentity()))return denied(actor,captured,stage,"source-identity",Reason.STALE_OBSERVATION);
+        if(!FabricRecipeTransactions.fingerprint(from).equals(sourceFingerprint))return denied(actor,captured,stage,"source-stock",Reason.STALE_OBSERVATION);
+        if(!FabricRecipeTransactions.fingerprint(v.getInventory()).equals(custody))return denied(actor,captured,stage,"actor-custody",Reason.STALE_OBSERVATION);
+        if(sourceReach && !world.recipeReach(v,p))return denied(actor,captured,stage,"source-reach",Reason.TARGET_UNAVAILABLE);
+        var checked=site(actor,captured.target());if(checked.reason()!=null)return denied(actor,captured,stage,checked.guard(),checked.reason());
+        return checked.fingerprint().equals(captured.siteFingerprint()) ? null : denied(actor,captured,stage,"site-identity",Reason.STALE_OBSERVATION);
     }
     PlacementTransaction.Mutation withdraw(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String sourceFingerprint){
-        var denied=guard(actor,captured,custody,sourceFingerprint,true);if(denied!=null)return PlacementTransaction.Mutation.blocked(denied);
+        var denied=guard(actor,captured,custody,sourceFingerprint,true,"withdraw");if(denied!=null)return PlacementTransaction.Mutation.blocked(denied);
         var v=world.recipeActor(actor);var from=world.recipeContainer(captured.source());var next=FabricRecipeTransactions.copy(from);
         var actual=next.stream().filter(i->FabricRecipeTransactions.plain(i,Items.CRAFTING_TABLE)).findFirst().orElse(ItemStack.EMPTY);
         if(actual.isEmpty() || !FabricRecipeTransactions.remove(next,Items.CRAFTING_TABLE,1))return PlacementTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);
@@ -97,9 +116,9 @@ final class FabricTablePlacement {
         return new PlacementTransaction.Mutation(1,0,false,custody,FabricRecipeTransactions.fingerprint(v.getInventory()),FabricRecipeTransactions.fingerprint(from),"",null);
     }
     PlacementTransaction.Mutation place(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String sourceFingerprint){
-        var denied=guard(actor,captured,custody,sourceFingerprint,false);if(denied!=null)return PlacementTransaction.Mutation.blocked(denied);
+        var denied=guard(actor,captured,custody,sourceFingerprint,false,"place");if(denied!=null)return PlacementTransaction.Mutation.blocked(denied);
         var v=world.recipeActor(actor);var target=captured.target();var p=new BlockPos(target.x(),target.y(),target.z());
-        if(!world.recipeReach(v,p))return PlacementTransaction.Mutation.blocked(Reason.TARGET_UNAVAILABLE);
+        if(!world.recipeReach(v,p))return PlacementTransaction.Mutation.blocked(denied(actor,captured,"place","target-reach",Reason.TARGET_UNAVAILABLE));
         ItemStack actual=ItemStack.EMPTY;
         for(int i=0;i<v.getInventory().getContainerSize();i++){var stack=v.getInventory().getItem(i);if(FabricRecipeTransactions.plain(stack,Items.CRAFTING_TABLE)){actual=stack;break;}}
         if(actual.isEmpty() || !(actual.getItem() instanceof BlockItem item) || item.getBlock()!=Blocks.CRAFTING_TABLE)return PlacementTransaction.Mutation.blocked(Reason.RESOURCE_MISSING);

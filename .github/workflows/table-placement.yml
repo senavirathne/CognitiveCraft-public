@@ -4,13 +4,13 @@ on:
   pull_request:
     paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/table-placement.yml','.github/implementation/RB-006B*']
   push:
-    branches: [main,rb-006b-facility-provisioning]
+    branches: [main,rb-006b-facility-provisioning,'fix/rb006b-*']
     paths: ['core/**','providers/**','fabric/**','e2e/**','scripts/**','.github/workflows/table-placement.yml','.github/implementation/RB-006B*']
 permissions:
   contents: read
 concurrency:
   group: rb006b-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   owners-and-native:
     runs-on: ubuntu-latest
