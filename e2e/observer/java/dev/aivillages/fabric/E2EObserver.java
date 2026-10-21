@@ -65,11 +65,17 @@ public final class E2EObserver implements ModInitializer {
         out.addProperty("arenaLoaded",level.hasChunkAt(new BlockPos(observationArea[0]+3,observationArea[1],observationArea[2]+6)));
         out.addProperty("arenaTicking",level.getChunkSource().isPositionTicking(0L));
         var blocks = new JsonObject(); var containers = new JsonObject();
+        var placementColumnsClear = new JsonObject();
         for (int x = observationArea[0]; x <= observationArea[3]; x++)
             for (int z = observationArea[2]; z <= observationArea[4]; z++) {
             var pos = new BlockPos(x, observationArea[1], z); String key = x + ","+observationArea[1]+"," + z;
             if (!level.hasChunkAt(pos)) continue;
             blocks.addProperty(key, level.getBlockState(pos).toString());
+            // Fixture precondition only: observe current native entity bounds,
+            // including entities above the target that could fall into it.
+            var column = new AABB(x, observationArea[1], z, x + 1, observationArea[1] + 3, z + 1);
+            placementColumnsClear.addProperty(key, level.getEntities((net.minecraft.world.entity.Entity)null,
+                    column, e -> e.isAlive() && !e.isSpectator()).isEmpty());
             if (assessment) for (int dy = -1; dy <= 2; dy++)
                 blocks.addProperty(x+","+(observationArea[1]+dy)+","+z,level.getBlockState(pos.offset(0,dy,0)).toString());
             if ((x == 6 || x == 7) && (z == 6 || z == 7 || z == 8 || z == 10 || z == 11 || z == 12))
@@ -86,6 +92,7 @@ public final class E2EObserver implements ModInitializer {
             }
         }
         out.add("blocks", blocks); out.add("containers", containers);
+        out.add("placementColumnsClear", placementColumnsClear);
         var actors = new JsonArray();
         var observedActors = new LinkedHashMap<UUID,Villager>();
         for (var villager : level.getEntitiesOfClass(Villager.class, new AABB(observationArea[0]-2,observationArea[1]-2,observationArea[2]-2,

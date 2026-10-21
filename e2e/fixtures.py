@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import hashlib
 import shutil
+import time
 from pathlib import Path
 
 ARENA = {"floorY": 200, "bounds": [-2, 199, -2, 22, 205, 16],
@@ -14,6 +15,34 @@ ARENA = {"floorY": 200, "bounds": [-2, 199, -2, 22, 205, 16],
          "reuseSource": [6, 201, 10, 7, 201, 12], "reuseDestination": [7, 201, 9],
          "destinationB": [17, 201, 7], "partialDestination": [18, 201, 10],
          "unreachableDestination": [20, 201, 13], "matureUnits": 6, "reuseUnits": 6}
+
+
+def wait_for_placement_clearance(h, target, deadline):
+    """Observe initial fixture clearance; never control or move an entity."""
+    if h.actions_active:
+        raise AssertionError("Placement fixture clearance is setup before gameplay")
+    if not isinstance(target, (list, tuple)) or len(target) != 3 or any(type(v) is not int for v in target):
+        raise ValueError("Exact observed fixture coordinate required")
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("Existing placement preparation deadline exhausted")
+    key = ",".join(map(str, target))
+
+    def clear():
+        state = h.snapshot()
+        columns = state.get("placementColumnsClear", {})
+        if not isinstance(columns, dict) or len(columns) > 512:
+            raise ValueError("Bounded native fixture clearance grid required")
+        if columns.get(key) is not True:
+            return None
+        tick = state.get("gameTick")
+        if type(tick) is not int or tick < 0:
+            raise ValueError("Native fixture observation tick required")
+        return {"target": list(target), "clear": True, "columnHeight": 3,
+                "gameTick": tick, "observedAt": state.get("time"),
+                "actors": state.get("actors", [])}
+
+    return h.wait(clear, "Native initial placement-column clearance " + key, remaining)
 
 
 def commands(two: bool = True, legacy: bool = False) -> list[str]:
