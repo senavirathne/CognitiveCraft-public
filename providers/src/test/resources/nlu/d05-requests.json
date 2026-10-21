@@ -1,0 +1,142 @@
+[
+  {
+    "id": "D05-original",
+    "text": "I need another crafting table. Use the planks from that barrel.",
+    "outcome": "EXTRACTED",
+    "amount": 1,
+    "citizen": null,
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "UNSPECIFIED",
+    "destinationAnchor": "ROLE_DEFAULT"
+  },
+  {
+    "id": "D05-named",
+    "text": "Ada, I would like one more crafting table. Use the oak planks from this barrel.",
+    "outcome": "EXTRACTED",
+    "amount": 1,
+    "citizen": "Ada",
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "UNSPECIFIED",
+    "destinationAnchor": "ROLE_DEFAULT"
+  },
+  {
+    "id": "D05-article",
+    "text": "We need a crafting table from the barrel.",
+    "outcome": "EXTRACTED",
+    "amount": 1,
+    "citizen": null,
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "UNSPECIFIED",
+    "destinationAnchor": "ROLE_DEFAULT"
+  },
+  {
+    "id": "D05-followup",
+    "text": "Ada, we require three crafting tables. Use the planks from the nearest barrel and put them in that chest.",
+    "outcome": "EXTRACTED",
+    "amount": 3,
+    "citizen": "Ada",
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "CHEST",
+    "destinationAnchor": "ROLE_DEFAULT"
+  },
+  {
+    "id": "D05-additional",
+    "text": "We want two more crafting tables from that barrel and put them in the chest closest to you.",
+    "outcome": "EXTRACTED",
+    "amount": 2,
+    "citizen": null,
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "CHEST",
+    "destinationAnchor": "ACTOR"
+  },
+  {
+    "id": "D05-imperative",
+    "text": "Craft another crafting table. Use the available oak planks from that barrel.",
+    "outcome": "EXTRACTED",
+    "amount": 1,
+    "citizen": null,
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "UNSPECIFIED",
+    "destinationAnchor": "ROLE_DEFAULT"
+  },
+  {
+    "id": "D05-goal-control",
+    "text": "We require four crafting tables from that barrel.",
+    "outcome": "EXTRACTED",
+    "amount": 4,
+    "citizen": null,
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "UNSPECIFIED",
+    "destinationAnchor": "ROLE_DEFAULT"
+  },
+  {
+    "id": "D05-coordinate-control",
+    "text": "I need two crafting tables from barrel at 5,201,5 and put them in chest at 9,201,7.",
+    "outcome": "EXTRACTED",
+    "amount": 2,
+    "citizen": null,
+    "sourceType": "BARREL",
+    "sourceAnchor": "ROLE_DEFAULT",
+    "destinationType": "CHEST",
+    "destinationAnchor": "ROLE_DEFAULT",
+    "from": "5,201,5",
+    "destination": "9,201,7"
+  },
+  {
+    "id": "D05-unknown-source",
+    "text": "I need another crafting table. Use the planks from Steve's barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-placement",
+    "text": "I need another crafting table. Place it at 8,201,9.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-make-and-place",
+    "text": "I need one crafting table from that barrel and place it at 8,201,9.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-wrong-material",
+    "text": "I need another crafting table. Use the birch planks from that barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-missing-count",
+    "text": "We need crafting tables from that barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-zero",
+    "text": "We need 0 crafting tables from that barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-excessive",
+    "text": "We need five crafting tables from that barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-input-mismatch",
+    "text": "I need another crafting table. Use three oak planks from that barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-exclusive-stock",
+    "text": "We need another crafting table. Use only the planks from that barrel.",
+    "outcome": "REFUSAL"
+  },
+  {
+    "id": "D05-extra-instruction",
+    "text": "I need another crafting table. Use the planks from that barrel. Trade with Steve.",
+    "outcome": "REFUSAL"
+  }
+]
