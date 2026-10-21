@@ -162,7 +162,7 @@ public final class LanguageReferenceClassifier {
     }
     private static Slot plankSource(String text) {return recipeSource(text,false);}
     private static Slot recipeSource(String text,boolean sticks) {
-        Matcher role=Pattern.compile("\\bfrom\\s+(.{1,180}?)(?=\\s+(?:and\\s+)?(?:store|deposit|put|deliver|to|into|in)\\b|[.!?]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
+        Matcher role=Pattern.compile("\\bfrom\\s+(.{1,180}?)(?=\\s+(?:and\\s+)?(?:store|deposit|put|deliver)\\b|[.!?]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find())return containsWord(text,"from") ? Slot.unsupported("unsupported input source") : Slot.omitted();
         String phrase=stripTerminal(role.group(1).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:nearest\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
         if(role.find())return Slot.unsupported("multiple input sources");

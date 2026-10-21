@@ -70,11 +70,14 @@ class ProductionLanguageRequestTest {
         var v=f.interpret(ORIGINAL,7,null);assertEquals(Phase.REJECTED,v.phase());assertEquals(Outcomes.Reason.RESOURCE_MISSING,v.reason());
         assertEquals(before,f.world.inputs);assertEquals(0,f.submissions);
     }
-    @Test void explicitUnknownAndDuplicateActorsRemainAmbiguousDespiteTransformationWording() {
+    @Test void explicitUnknownActorsAndQualifiedSourcesRemainAmbiguousDespiteTransformationWording() {
         var unknown=new Fixture();assertEquals(Phase.CLARIFICATION,unknown.interpret("Unknown, convert two oak logs into seven planks.",7,"Unknown").phase());
         assertEquals(0,unknown.discoveries);assertEquals(0,unknown.submissions);
         var duplicate=new Fixture();duplicate.world.identity.add(2,9,0,"Ada",true,true);duplicate.world.identity.open();
         assertEquals(Phase.CLARIFICATION,duplicate.interpret("Ada, turn two oak logs into seven planks.",7,"Ada").phase());
         assertEquals(0,duplicate.discoveries);assertEquals(0,duplicate.submissions);
+        var qualified=new Fixture();
+        assertEquals(Phase.CLARIFICATION,qualified.interpret("Ada, turn two oak logs from this chest in my house into seven planks and put them in that barrel.",7,"Ada").phase());
+        assertEquals(0,qualified.discoveries);assertEquals(0,qualified.submissions);
     }
 }

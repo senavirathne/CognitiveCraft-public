@@ -65,6 +65,9 @@ class ProductionLanguageTest {
         assertEquals(ReferenceState.EXPLICIT_NEAREST,c.destination().state());assertEquals(ObjectType.BARREL,c.destination().objectType());
         c=classify("Ada, transform two oak logs into seven planks into my barrel.",List.of("Ada"));
         assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.destination().state());
+        c=classify("Ada, turn two oak logs from this chest in my house into seven planks and put them in that barrel.",List.of("Ada"));
+        assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.source().state());
+        assertEquals(ReferenceState.EXPLICIT_NEAREST,c.destination().state());
     }
     @Test void negationWrongSpeciesUnsupportedRecipesAndCompoundsStayRefused() {
         for(String text:List.of("Ada, do not turn two oak logs into seven planks.",
