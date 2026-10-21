@@ -78,14 +78,24 @@ def language_evidence(h, seed, verify, acquisition, models, needle):
         positions=[actor(s)['pos'] for s in trace]
         require(len(set(map(tuple,positions)))>1,'No normal worker travel established')
         if row['anchor']=='ACTOR':
-            # Binding precedes execution. All observed actor positions while the
-            # ticket resolves must rank this eligible destination before SRC.
+            # These are observations of a moving actor, not a replacement for
+            # the host's once-captured anchor. The first resolving frame supplies
+            # the native contrast witness; later movement must not shift it.
             anchors=[list(map(math.floor,actor(s)['pos'])) for s in trace
                      if s.get('knownPlayers',{}).get('PlayerA',{}).get('runs',{}).get(ticket,{}).get('phase') in ('INTERPRETING','RESOLVING')]
             require(anchors,'No actual binding-window actor observations')
-            require(all(sum((p[i]-destination[i])**2 for i in range(3))<sum((p[i]-SRC[i])**2 for i in range(3)) for p in anchors),
-                    'Fixture did not distinguish selected-actor and source anchors')
-        else:anchors=[]
+            resolving=[s for s in trace if s.get('knownPlayers',{}).get('PlayerA',{}).get('runs',{}).get(ticket,{}).get('phase')=='RESOLVING']
+            require(resolving,'No native resolving frame for actor-relative selection')
+            first=resolving[0];point=list(map(math.floor,actor(first)['pos']))
+            witness={'gameTick':first['gameTick'],'observedActorPoint':point,
+                     'message':first['knownPlayers']['PlayerA']['runs'][ticket].get('message'),
+                     'scope':'First resolving snapshot; captured-anchor stability is independently verified by core tests'}
+            if row['type'] in ('CHEST','CONTAINER'):
+                require(sum((point[i]-destination[i])**2 for i in range(3))<sum((point[i]-SRC[i])**2 for i in range(3)),
+                        'Fixture did not distinguish selected-actor and source anchors')
+                witness['sourceCentreAndActorSelectDifferentEligibleContainers']=True
+            else:witness['sourceIsEligibleDestinationType']=False
+        else:anchors=[];witness=None
         h.command('PlayerB','/aivillage kernel status '+bound['runId'],DENIED_PATTERN)
         h.command('PlayerB','/aivillage kernel cancel '+bound['runId'],DENIED_PATTERN)
         require(bound['runId'] not in h.suggestions('PlayerB','/aivillage kernel status '),'D04 private run leaked')
@@ -95,6 +105,7 @@ def language_evidence(h, seed, verify, acquisition, models, needle):
         count=h.menu_count('PlayerA',destination,PLANK);require(count==before+q,'Actual client menu disagrees with D04 receipts')
         result.update(id=row['id'],text=row['text'],ticket=ticket,binding=bound,anchor=row['anchor'],objectType=row['type'],
                       actorPositionBefore=actor(physical)['pos'],bindingWindowActorAnchors=anchors,workerPositions=positions,
+                      selectionWitness=witness,
                       physicalBefore=physical,physicalAfter=after,actorInventoryBefore=inv,actorInventoryAfter=inventory(h,'PlayerA'),
                       destinationBefore=before,destinationAfter=count,surplus=4*((q+3)//4)-q,
                       modelCallsBefore=calls,modelCallsAfter=calls_once(calls))
