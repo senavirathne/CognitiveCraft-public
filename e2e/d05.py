@@ -24,15 +24,16 @@ def language_evidence(h,verify,acquisition,models,needle):
         supplied=4*q if input_stock is None else input_stock
         inputs=[(BIRCH,64),(OAK,64),(TABLE,11)]
         if not wrong_species:inputs.insert(0,(PLANK,supplied))
+        other_inputs=[(TABLE,2)] if wrong_species else [(PLANK,3),(TABLE,2)]
         h.console(['setblock '+coord(SOURCE)+' minecraft:barrel','setblock '+coord(full)+' minecraft:chest',
                    'setblock '+coord(full_barrel)+' minecraft:barrel','setblock '+coord(short_barrel)+' minecraft:barrel',
                    'setblock '+coord(close_chest)+' minecraft:chest',stock(SOURCE,inputs),
-                   stock(short_barrel,[(PLANK,3),(TABLE,2)]),stock(close_chest,[(PLANK,64),(TABLE,2)]),
+                   stock(short_barrel,other_inputs),stock(close_chest,[(PLANK,64),(TABLE,2)]),
                    filled(full),filled(full_barrel),'tp '+h.entities['PlayerA']+' 10.5 201 6.5',
                    'tp PlayerA 2.5 201 5.5 180 0'])
         h.wait(lambda:h.container(SOURCE,PLANK)==(0 if wrong_species else supplied)
                       and h.container(SOURCE,TABLE)==11 and h.container(SOURCE,BIRCH)==64 and h.container(SOURCE,OAK)==64
-                      and h.container(short_barrel,PLANK)==3 and h.container(close_chest,PLANK)==64
+                      and h.container(short_barrel,PLANK)==(0 if wrong_species else 3) and h.container(close_chest,PLANK)==64
                       and h.container(full,STONE)==h.container(full_barrel,STONE)==1728,
                'Actual D05 barrel inputs, old output and nearer ineligible stock')
     def unchanged(b,a):
@@ -51,12 +52,22 @@ def language_evidence(h,verify,acquisition,models,needle):
         require(after['needleCalls']==before['needleCalls']+1 and after['generationCalls']==before['generationCalls'],
                 'D05 skipped actual interpretation or regenerated an admitted method')
         return after
-    def refused(row):
+    def refused(row,*,resource_deficit=False):
         before=h.snapshot();calls=h.model_calls();h.actions_active=True;ticket,view=ask(row)
-        require(view['phase'] in ('CLARIFICATION','REJECTED'),'Unsupported D05 dispatched: '+str(view))
+        job=None
+        if resource_deficit and view['phase']=='SUBMITTED':
+            job=h.wait(lambda:(j if (j:=h.job_view('PlayerA',view['runId'])) and j['state'] in ('FAILED','SUCCEEDED') else None),
+                       'Existing table responsibility retains actual input deficit',40)
+            require(job['state']=='FAILED' and job['reason'] in ('RESOURCE_MISSING','KNOWLEDGE_REQUIRED')
+                    and not job['children'] and not job['dependencies'] and not job['attempts'] and job['fulfilled']==0
+                    and job['generation']==0 and job['usage'].get('ATTEMPTED_EFFECTS',0)==0
+                    and job['usage'].get('COMMITTED_EFFECTS',0)==0,
+                    'D05 resource deficit gained synthetic work, effects or fulfillment: '+str(job))
+        else:
+            require(view['phase'] in ('CLARIFICATION','REJECTED'),'Unsupported D05 dispatched: '+str(view))
         h.quiet(20);after=h.snapshot();unchanged(before,after)
         result={'id':row['id'],'text':row['text'],'ticket':ticket,'view':view,'physicalBefore':before,'physicalAfter':after,
-                'modelCallsBefore':calls,'modelCallsAfter':once(calls)}
+                'job':job,'modelCallsBefore':calls,'modelCallsAfter':once(calls)}
         refusals.append(result);h.event('d05-safe-refusal',result);h.actions_active=False
     def selection(row,ticket,physical):
         # This is an independent fixture observation, not the bound destination
@@ -119,8 +130,9 @@ def language_evidence(h,verify,acquisition,models,needle):
         productions.append(result);h.event('d05-physical-production',result)
         h.command('PlayerA','/aivillage kernel status '+bound['runId'],'SUCCEEDED');h.screenshot('PlayerA','d05-'+row['id'],chat=True)
     for name,kwargs in [('insufficient-stock',{'input_stock':3}),('wrong-species-stock',{'wrong_species':True})]:
-        prepare(1,**kwargs);refused({'id':'D05-'+name,'text':corpus[0]['text']})
-        require(refusals[-1]['view']['phase']=='REJECTED' and refusals[-1]['view'].get('reason')=='RESOURCE_MISSING',
+        prepare(1,**kwargs);refused({'id':'D05-'+name,'text':corpus[0]['text']},resource_deficit=True)
+        last=refusals[-1]
+        require(last['job'] is not None or last['view']['phase']=='REJECTED' and last['view'].get('reason') in ('RESOURCE_MISSING','KNOWLEDGE_REQUIRED'),
                 'D05 fabricated, borrowed or harvested missing authorized recipe inputs')
     prepare(1)
     h.console([filled(list(map(int,k.split(','))),4 if k==key(SOURCE) else None) for k in h.snapshot()['containers']])
