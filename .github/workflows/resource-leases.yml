@@ -4,7 +4,7 @@ on:
     branches: [main, feature/imp012-resource-leases]
     paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
   pull_request:
-    branches: [main]
+    branches: [main, work/rb-gameplay-generalization-qualified]
     paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/resource-leases.yml']
   workflow_dispatch:
 permissions:

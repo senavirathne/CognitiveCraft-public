@@ -4,7 +4,7 @@ on:
     branches: [main, feature/imp013-worker-dispatcher]
     paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
   pull_request:
-    branches: [main]
+    branches: [main, work/rb-gameplay-generalization-qualified]
     paths: ['e2e/**', 'core/**', 'fabric/**', '.github/workflows/worker-dispatcher.yml']
   workflow_dispatch:
 permissions:
