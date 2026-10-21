@@ -5,7 +5,7 @@ import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET,zipfi
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'build/rb006b-evidence'
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def junit():
-    expected={'core':{'PlacementProductionTest':23,'PlacementJobLifecycleTest':9},'providers':{'PlacementGenerationTest':2}}
+    expected={'core':{'PlacementProductionTest':29,'OakPlankGatewayTest':20,'PlacementJobLifecycleTest':9},'providers':{'PlacementGenerationTest':2}}
     result={};scoped={}
     for module in ('core','providers','fabric'):
         paths=list((ROOT/module/'build/test-results/test').glob('TEST-*.xml'));cases=[c for p in paths for c in ET.parse(p).getroot().iter('testcase')]
@@ -20,20 +20,28 @@ def junit():
 def native(phase,classname,marker):
     folder=ROOT/'fabric/build/gametest-run';report=folder/'gametest-results.xml';log=folder/'logs/latest.log'
     cases=[c for c in ET.parse(report).getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
-    assert len(cases)==1 and classname in cases[0].get('name','') and not any(cases[0].find(t) is not None for t in ('failure','error','skipped'))
+    expected_cases=5 if phase=='effects' else 1
+    assert len(cases)==expected_cases and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+    if phase=='effects':
+        assert {c.get('name') for c in cases}==set(['ai_villages_tests:placement_effect_game_tests_exact_approved_site_consumes_one_actual_table_and_preserves_native_custody', 'ai_villages_tests:world_placement_game_tests_actor_on_approved_site_uses_explicit_movement_before_withdrawal_and_placement', 'ai_villages_tests:world_placement_game_tests_placement_move_requires_the_same_center_ray_as_the_mutation', 'ai_villages_tests:world_placement_game_tests_live_entity_crossing_after_withdrawal_waits_without_consuming_or_losing_authority', 'ai_villages_tests:recipe_landing_game_tests_falling_after_withdrawal_waits_for_native_landing_and_crafts_one_batch'])
+    else:
+        assert all(classname in c.get('name','') for c in cases)
     count=sum(marker in line for line in log.read_text().splitlines());expected=3 if classname=='placement_kernel_game_tests' and phase!='genuine-warm' else 1
     assert count==expected,(phase,count,expected)
+    if phase=='effects':
+        for regression in ('RB006B_FALLING nativeGravity=true','RB006B_COLLISION nativeEntity=true','RB006B_SELF_OCCUPANCY nativeNavigation=true','RB006B_CENTER_RAY nativeNavigation=true'):
+            assert sum(regression in line for line in log.read_text().splitlines())==1,regression
     if classname=='placement_kernel_game_tests' and phase!='genuine-warm':
         genuine='true' if phase=='genuine-cold' else 'false'
         assert sum(('RB006B_ADMISSION genuine='+genuine) in line for line in log.read_text().splitlines())==6
     OUT.mkdir(parents=True,exist_ok=True)
     for p,suffix in ((report,'.xml'),(log,'.log')):shutil.copy2(p,OUT/(phase+suffix))
-    (OUT/(phase+'.json')).write_text(json.dumps({'phase':phase,'cases':1,'rows':count,'xmlSha256':sha(report),'logSha256':sha(log)},indent=2)+'\n')
+    (OUT/(phase+'.json')).write_text(json.dumps({'phase':phase,'cases':len(cases),'rows':count,'xmlSha256':sha(report),'logSha256':sha(log)},indent=2)+'\n')
 def identity():
     jar=ROOT/'fabric/build/libs/ai-villages-0.1.0.jar'
     with zipfile.ZipFile(jar) as z:
         names=z.namelist();assert 'dev/aivillages/core/kernel/CraftingTablePlacement.class' in names
-        assert not any('TableFixtures' in n or 'TableTestSupport' in n or 'TableKernelGameTests' in n or 'TableCompositionGameTests' in n or 'PlacementFixtures' in n or 'PlacementKernelGameTests' in n or 'PlacementEffectGameTests' in n for n in names)
+        assert not any('TableFixtures' in n or 'TableTestSupport' in n or 'TableKernelGameTests' in n or 'TableCompositionGameTests' in n or 'PlacementFixtures' in n or 'PlacementKernelGameTests' in n or 'PlacementEffectGameTests' in n or 'WorldPlacementGameTests' in n or 'RecipeLandingGameTests' in n for n in names)
     git=lambda arg:subprocess.check_output(['git','rev-parse',arg],cwd=ROOT,text=True).strip()
     value={'source':git('HEAD'),'tree':git('HEAD^{tree}'),'jarSha256':sha(jar),'java':25,'gradle':'9.7.0','minecraft':'26.3','loader':'0.19.5','fabricApi':'0.161.0+26.3','loom':'1.18.1'}
     OUT.mkdir(parents=True,exist_ok=True);(OUT/'identity.json').write_text(json.dumps(value,indent=2)+'\n');print('RB006B_IDENTITY '+json.dumps(value))
@@ -50,6 +58,9 @@ def client():
         j=cancelled['view'];assert j['state']=='CANCELLED' and j['fulfilled']==0
         assert all(not a['effects'] and not a.get('resourceReceipts') for a in j['attempts'])
     assert e['clockMode']=='vanilla-1-tps' and e['crashPlacementApproach']
+    clearance=[e['crashPlacementClearance'],e['crashCaptureClearance']]
+    assert all(p['clear'] is True and p['columnHeight']==3 and p['target']==e['crashPlacementApproach']['target'] and type(p['gameTick']) is int for p in clearance)
+    assert 0<=clearance[0]['gameTick']<=clearance[1]['gameTick']
     assert e['killBoundary']['phase']=='EXECUTING' and any(r['stage']=='PLACE' for r in e['killBoundary']['resourceReceipts'])
     assert 1<=e['clockSteps']<=512 and 'INTERRUPTED' in e['recovered']['description'] and 'minecraft:crafting_table' in e['savedBlock']
     proof=e['offlineProcessProof'];assert proof['sameRelease'] and proof['backendUnavailable'] and proof['warm']['start']>proof['cold']['start']

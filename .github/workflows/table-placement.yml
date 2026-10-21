@@ -37,7 +37,7 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
-          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementEffectGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementEffectGameTests','dev.aivillages.fabric.WorldPlacementGameTests','dev.aivillages.fabric.RecipeLandingGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
           PY
       - name: Actual BlockItem consumption, safe site, races and current facility
         run: |

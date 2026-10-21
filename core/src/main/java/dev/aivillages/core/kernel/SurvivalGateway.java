@@ -667,6 +667,7 @@ public final class SurvivalGateway implements GatewayPort {
             stage=ResourceDelivery.Stage.DEPOSIT;quantity=result.moved();retained=run.batchOutputs-quantity;
             if(result.committed()) {run.batchOutputs-=quantity;run.deposited+=quantity;}
         } else {finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
+        if(result.pending())return;
         if(result.committed()) {
             committed(action);
             if(result.reason()!=null || !run.recipeCustody.equals(result.custodyBefore())

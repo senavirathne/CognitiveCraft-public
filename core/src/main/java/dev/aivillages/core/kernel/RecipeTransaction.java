@@ -43,6 +43,9 @@ public final class RecipeTransaction {
                     || !text(sourceAfter))throw new IllegalArgumentException("Bounded transaction result");
         }
         public boolean committed() {return consumed>0 || produced>0 || moved>0;}
+        /** Only unchanged physical custody may wait within the current action's budgets. */
+        public boolean pending() {return !committed() && remainders==0 && reason==null && custodyBefore.isEmpty() && custodyAfter.isEmpty() && sourceAfter.isEmpty();}
+        public static Mutation waiting() {return new Mutation(0,0,0,0,"","","",null);}
         public static Mutation blocked(Reason reason) {return new Mutation(0,0,0,0,"","","",Objects.requireNonNull(reason));}
     }
     /** Typed transformation payload. Acquisition receipts keep their original schema and drop lineage. */

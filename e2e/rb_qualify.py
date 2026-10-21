@@ -233,6 +233,23 @@ def passing_cases(path):
     return cases
 
 
+def selected_native_cases(path, phase):
+    cases = [c for c in passing_cases(path) if c.get("name", "").startswith("ai_villages_tests:")]
+    expected = phase.get("cases", 1)
+    require(type(expected) is int and 1 <= expected <= 16 and len(cases) == expected,
+            "Missing/unexpected selected native project case")
+    require(len({c.get("name") for c in cases}) == len(cases) and
+            all(not phase["className"] or phase["className"] in c.get("name", "") for c in cases),
+            "Duplicate/wrong selected native project case")
+    declared = phase.get("caseNames")
+    if declared is not None:
+        require(isinstance(declared, list) and len(declared) == expected and
+                all(isinstance(name, str) and name.startswith("ai_villages_tests:") for name in declared) and
+                len(set(declared)) == expected and {c.get("name") for c in cases} == set(declared),
+                "Missing/foreign declared native project case")
+    return cases
+
+
 def check_unit(root, unit, owner, head, tree, jar):
     require(owner.get("status") == "PASS" and owner.get("headCommit") == head, "Owner is not a passing exact-head run")
     artifacts = {a["layer"]: Path(a["directory"]) for a in owner["artifacts"]}
@@ -278,9 +295,7 @@ def check_unit(root, unit, owner, head, tree, jar):
         proof = read(evidence / (name + ".json"))
         xml, log = evidence / (name + ".xml"), evidence / (name + ".log")
         require(digest(xml) == proof["xmlSha256"] and digest(log) == proof["logSha256"], "Native phase hashes differ")
-        cases = [c for c in passing_cases(xml) if c.get("name", "").startswith("ai_villages_tests:")]
-        require(len(cases) == 1 and (not phase["className"] or phase["className"] in cases[0].get("name", "")),
-                "Missing selected native project case")
+        selected_native_cases(xml, phase)
         require(not phase["marker"] or phase["marker"] in log.read_text(), "Missing native phase marker")
         phases.append(proof)
     retained = []

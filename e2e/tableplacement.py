@@ -7,7 +7,8 @@ OAK_MIN=[14,201,3];OAK_MAX=[17,201,3]
 LOG="minecraft:oak_log";PLANK="minecraft:oak_planks";STICK="minecraft:stick";TABLE="minecraft:crafting_table";AXE="minecraft:wooden_axe"
 
 def scenario(h, *, placement_only=False):
-    from suite import UUID_PATTERN,DENIED_PATTERN,require,read,reconnect_players
+    from suite import UUID_PATTERN,DENIED_PATTERN,require,read,atomic,reconnect_players
+    from fixtures import wait_for_placement_clearance
     require(h.topology=="compose","Facility acceptance requires configured backend and real network clients")
     h.env.update(COGNITIVECRAFT_OLLAMA_MODEL="qwen3:4b-instruct-2507-q4_K_M",COGNITIVECRAFT_NEEDLE_DIR="",COGNITIVECRAFT_E2E_SNAPSHOT_TICKS="1")
     h.compose("up","-d","ollama");h.compose("exec","-T","ollama","ollama","pull",h.env["COGNITIVECRAFT_OLLAMA_MODEL"])
@@ -32,8 +33,8 @@ def scenario(h, *, placement_only=False):
         answer=h.command(player,command,"run="+UUID_PATTERN);require("accepted=true" in answer,"Independent method request refused: "+answer)
         h.actions_active=True;return re.search("run=("+UUID_PATTERN+")",answer).group(1)
     def place(source,target,player="PlayerA"):return run("/aivillage kernel place-table "+h.citizens[player]+" "+coord(source+target),player)
-    def complete_placement(rid,source,target,before,before_inv,player="PlayerA",admitted=False):
-        view=h.terminal(player,rid,650 if admitted else 180);require(view.get("marker",{}).get("outcome")==("ADMITTED" if admitted else "SUCCEEDED"),"Actual placement failed: "+view["description"])
+    def complete_placement(rid,source,target,before,before_inv,player="PlayerA",admitted=False,timeout=None):
+        view=h.terminal(player,rid,(650 if admitted else 180) if timeout is None else timeout);require(view.get("marker",{}).get("outcome")==("ADMITTED" if admitted else "SUCCEEDED"),"Actual placement failed: "+view["description"])
         rows=view.get("resourceReceipts",[]);require([r["stage"] for r in rows]==["WITHDRAW","PLACE"] and all(r["quantity"]==1 and r["item"]["id"]==TABLE and r.get("placement") for r in rows),"Missing attributable consumed-item placement lineage")
         require(h.container(source,TABLE)==before-1 and inv(player).get(TABLE,0)==before_inv.get(TABLE,0) and "minecraft:crafting_table" in block(target),"Actual item/block conservation failed")
         require(rows[0]["batchId"]==rows[1]["batchId"] and rows[0]["placement"]["custodyAfter"]==rows[1]["placement"]["custodyBefore"],"Placement custody chain changed")
@@ -97,7 +98,42 @@ def scenario(h, *, placement_only=False):
             for j in rows:
                 if j["state"] in ("FAILED","CANCELLED","INTERRUPTED"):raise AssertionError("Actual facility prerequisite stopped: "+json.dumps(j))
             return rows if rows[0]["state"]=="SUCCEEDED" else None
-        rows=h.wait(result,"Actual owned table/placement/axe Jobs",240);root=rows[0]
+        try:
+            rows=h.wait(result,"Actual owned table/placement/axe Jobs",240)
+        except TimeoutError:
+            # Read-only snapshot: retain the original failure, but expose the
+            # exact unfinished dependency and item custody at the timeout.
+            try:
+                current=graph(jid,player) or []
+                state=h.snapshot()
+                compact=[]
+                for job in current:
+                    compact.append({
+                        "id":job["id"],"state":job["state"],
+                        "reason":job.get("reason"),"fulfilled":job.get("fulfilled"),
+                        "capability":job["request"]["request"]["capability"]["name"],
+                        "dependencies":job.get("dependencies",[]),
+                        "attempts":[{
+                            "terminal":a.get("terminal"),
+                            "usage":a.get("usage"),
+                            "stages":[(r["stage"],r["item"]["id"],r["quantity"])
+                                      for r in a.get("resourceReceipts",[])]
+                        } for a in job.get("attempts",[])]
+                    })
+                traces=[line for line in h.server_log().splitlines()
+                        if "CognitiveCraft MOVE" in line or "_EFFECT" in line
+                        or "RB006B_GUARD" in line or "RB_RECIPE_GUARD" in line or "DISPATCH_STOP" in line]
+                diagnostic={"job":jid,"player":player,"site":target,
+                            "gameTick":state.get("gameTick"),
+                            "actors":state.get("actors"),"containers":state.get("containers"),
+                            "jobs":compact,"movementTrace":traces[-48:]}
+                atomic(h.root/"rb006b-timeout-diagnostic.json",diagnostic)
+                print("RB006B_TIMEOUT_DIAGNOSTIC "+json.dumps(diagnostic,sort_keys=True,default=str),flush=True)
+            except Exception as observation_error:
+                print("RB006B_TIMEOUT_DIAGNOSTIC_UNAVAILABLE "+
+                      repr(observation_error),flush=True)
+            raise
+        root=rows[0]
         require(root["fulfilled"]==1 and h.container(SECOND_DEST,AXE)>=before+1 and "minecraft:crafting_table" in block(target),"ENSURE did not leave a real facility and new axe")
         count=lambda cap:sum(j["request"]["request"]["capability"]["name"]==cap for j in rows)
         require(count("cognitivecraft:produce_crafting_tables")==expect_tables and count("cognitivecraft:place_crafting_table")==expect_placements,"Unnecessary table production or duplicate placement")
@@ -170,10 +206,16 @@ def scenario(h, *, placement_only=False):
     h.console(["setblock "+coord(NEXT)+" minecraft:air"]);seed(p=8,source=SECOND)
     approach_id=run("/aivillage kernel make-tables "+h.citizens["PlayerB"]+" 2 "+coord(SECOND+SECOND),"PlayerB");approach=h.terminal("PlayerB",approach_id,180)
     require(approach["marker"]["outcome"]=="SUCCEEDED" and h.container(SECOND,TABLE)==2,"Normal approach did not produce the actual crash-fixture items");h.actions_active=False
+    # B05 correctly blocks an occupied site. Wait for ordinary AI to clear the
+    # fixture before invoking the normal placement; keep its existing envelope.
+    preparation_deadline=time.monotonic()+180
+    placement_clearance=wait_for_placement_clearance(h,NEXT,preparation_deadline)
     approach_inv=inv("PlayerB");approach_run=place(SECOND,NEXT,"PlayerB")
-    placement_approach=complete_placement(approach_run,SECOND,NEXT,2,approach_inv,"PlayerB")
-    h.console(["setblock "+coord(NEXT)+" minecraft:air","tick rate 1"])
-    h.wait(lambda:"minecraft:air" in block(NEXT),"Reset completed approved-site fixture before slow-clock capture",20)
+    placement_approach=complete_placement(approach_run,SECOND,NEXT,2,approach_inv,"PlayerB",timeout=max(0,preparation_deadline-time.monotonic()))
+    h.console(["setblock "+coord(NEXT)+" minecraft:air"])
+    h.wait(lambda:"minecraft:air" in block(NEXT),"Reset completed approved-site fixture before slow-clock capture",max(0,min(20,preparation_deadline-time.monotonic())))
+    capture_clearance=wait_for_placement_clearance(h,NEXT,preparation_deadline)
+    h.console(["tick rate 1"])
     # A frozen world still allows pure controller slices at normal server speed.
     # Slow the vanilla server clock instead, preserving the actual learned method,
     # all production limits and the bounded unfinished-after-PLACE requirement.
@@ -193,4 +235,4 @@ def scenario(h, *, placement_only=False):
     h.quiet(80);require(inv("PlayerB")==saved_inv and h.snapshot()["containers"]==saved_containers and block(NEXT)==saved_block,"Placement replayed after process restart")
     h.screenshot("PlayerB","rb006b-saved-placement-no-replay",chat=True)
     return {"independentAcquisitions":acquisitions,"artifacts":hashes,"placement":placed,"existingFacility":existing,"existingItem":supplied,"emptyProvision":empty,"foreignDenied":foreign,"competingRoots":race,"raceCompletedAxes":completed_axes,"raceCancellations":race_cancellations,"raceRetainedStock":race_stock,"cancelled":cancelled,
-            "offlineWarmReuse":offline,"models":models,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},"crashApproach":approach,"crashPlacementApproach":placement_approach,"killBoundary":boundary,"clockMode":"vanilla-1-tps","clockSteps":steps,"checkpoint":checkpoint,"killedWorldHashes":killed,"recovered":recovered,"savedInventory":saved_inv,"savedBlock":saved_block}
+            "offlineWarmReuse":offline,"models":models,"offlineProcessProof":{"cold":cold,"warm":warm,"sameRelease":True,"backendUnavailable":True},"crashApproach":approach,"crashPlacementApproach":placement_approach,"crashPlacementClearance":placement_clearance,"crashCaptureClearance":capture_clearance,"killBoundary":boundary,"clockMode":"vanilla-1-tps","clockSteps":steps,"checkpoint":checkpoint,"killedWorldHashes":killed,"recovered":recovered,"savedInventory":saved_inv,"savedBlock":saved_block}

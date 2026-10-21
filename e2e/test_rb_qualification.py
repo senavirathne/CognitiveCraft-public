@@ -13,7 +13,7 @@ import zipfile
 import zlib
 
 from rb_qualify import (MANIFEST, check_baseline, check_screenshots, evidence_member, passing_cases,
-                        latest_jobs, qualify, select_runs, unpack)
+                        latest_jobs, qualify, select_runs, selected_native_cases, unpack)
 from suite import FAMILIES, PROFILES
 
 
@@ -81,6 +81,44 @@ class ResourceQualificationTests(unittest.TestCase):
         xml.write_text('<testsuite><testcase name="physical"><skipped/></testcase></testsuite>')
         with self.assertRaises(ValueError):
             passing_cases(xml)
+
+    def test_expanded_native_matrix_requires_every_unique_selected_case(self):
+        xml = self.root / "placement.xml"
+        phase = {"className": "placement_effect_game_tests", "cases": 5}
+        names = ["ai_villages_tests:placement_effect_game_tests_" + str(i) for i in range(5)]
+        def write(names, skipped=False):
+            xml.write_text('<testsuite>' + ''.join('<testcase name="' + n + '">' +
+                ('<skipped/>' if skipped and i == 0 else '') + '</testcase>' for i,n in enumerate(names)) + '</testsuite>')
+        write(names)
+        self.assertEqual(5, len(selected_native_cases(xml, phase)))
+        for invalid in (names[:-1], names + [names[0] + 'extra'], names[:-1] + [names[0]], names[:-1] + ['ai_villages_tests:other_class']):
+            write(invalid)
+            with self.assertRaises(ValueError):
+                selected_native_cases(xml, phase)
+        write(names, skipped=True)
+        with self.assertRaises(ValueError):
+            selected_native_cases(xml, phase)
+
+    def test_declared_native_owners_cannot_be_replaced_by_equal_count_foreign_cases(self):
+        xml = self.root / "declared.xml"
+        names = ["ai_villages_tests:placement_owner", "ai_villages_tests:recipe_owner"]
+        phase = {"className": "", "cases": 2, "caseNames": names}
+        def write(values):
+            xml.write_text('<testsuite>' + ''.join('<testcase name="' + n + '"/>' for n in values) + '</testsuite>')
+        write(names)
+        self.assertEqual(2, len(selected_native_cases(xml, phase)))
+        write([names[0], "ai_villages_tests:foreign_owner"])
+        with self.assertRaises(ValueError):
+            selected_native_cases(xml, phase)
+        write(names)
+        with self.assertRaises(ValueError):
+            selected_native_cases(xml, {**phase, "caseNames": [names[0], names[0]]})
+
+    def test_other_native_phases_still_require_one_case(self):
+        xml = self.root / "native.xml"
+        xml.write_text('<testsuite><testcase name="ai_villages_tests:owner_a"/><testcase name="ai_villages_tests:owner_b"/></testsuite>')
+        with self.assertRaises(ValueError):
+            selected_native_cases(xml, {"className": "owner"})
 
     def test_archive_cannot_escape_import_directory(self):
         archive = self.root / "unsafe.zip"
