@@ -84,14 +84,14 @@ class ResourceQualificationTests(unittest.TestCase):
 
     def test_expanded_native_matrix_requires_every_unique_selected_case(self):
         xml = self.root / "placement.xml"
-        phase = {"className": "placement_effect_game_tests", "cases": 4}
-        names = ["ai_villages_tests:placement_effect_game_tests_" + str(i) for i in range(4)]
+        phase = {"className": "placement_effect_game_tests", "cases": 5}
+        names = ["ai_villages_tests:placement_effect_game_tests_" + str(i) for i in range(5)]
         def write(names, skipped=False):
             xml.write_text('<testsuite>' + ''.join('<testcase name="' + n + '">' +
                 ('<skipped/>' if skipped and i == 0 else '') + '</testcase>' for i,n in enumerate(names)) + '</testsuite>')
         write(names)
-        self.assertEqual(4, len(selected_native_cases(xml, phase)))
-        for invalid in (names[:3], names + [names[0] + 'extra'], names[:3] + [names[0]], names[:3] + ['ai_villages_tests:other_class']):
+        self.assertEqual(5, len(selected_native_cases(xml, phase)))
+        for invalid in (names[:-1], names + [names[0] + 'extra'], names[:-1] + [names[0]], names[:-1] + ['ai_villages_tests:other_class']):
             write(invalid)
             with self.assertRaises(ValueError):
                 selected_native_cases(xml, phase)

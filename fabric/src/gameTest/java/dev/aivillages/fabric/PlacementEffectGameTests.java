@@ -16,9 +16,17 @@ import net.minecraft.world.level.gamerules.GameRules;
 public final class PlacementEffectGameTests {
     @GameTest(maxTicks=1000,padding=16)
     public void actorOnApprovedSiteUsesExplicitMovementBeforeWithdrawalAndPlacement(GameTestHelper h){
+        gatewayPlacement(h,false);
+    }
+    @GameTest(maxTicks=1000,padding=16)
+    public void placementMoveRequiresTheSameCenterRayAsTheMutation(GameTestHelper h){
+        gatewayPlacement(h,true);
+    }
+    private void gatewayPlacement(GameTestHelper h,boolean overhead){
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         // Adjacent source is the harder case: its closest approach is the reserved site.
-        h.setBlock(2,1,2,Blocks.CHEST);var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,3);v.setNoAi(false);
+        h.setBlock(2,1,2,Blocks.CHEST);if(overhead)h.setBlock(2,2,3,Blocks.STONE);
+        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,overhead?1:2,1,3);v.setNoAi(false);
         var sourcePos=h.absolutePos(new BlockPos(2,1,2));var targetPos=h.absolutePos(new BlockPos(2,1,3));BootstrapGameTests.forceFixtureChunks(h,sourcePos);
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
         UUID principal=UUID.randomUUID(),run=UUID.randomUUID();var owner=new TrustedContext(new PrincipalRef(principal),new ScopeRef(UUID.randomUUID(),principal));
@@ -33,7 +41,8 @@ public final class PlacementEffectGameTests {
             if(phase[0]<0){
                 if(!v.onGround()){h.assertTrue(false,"Waiting for native actor landing");return;}
                 from.setItem(0,new ItemStack(Items.CRAFTING_TABLE));
-                h.assertTrue(v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"Actor must initially occupy approved cell");phase[0]=0;
+                h.assertTrue(v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos))==!overhead,"Expected initial approved-cell occupancy");
+                if(overhead)h.assertTrue(!world.recipeReach(v,targetPos),"Fixture must block the actual placement center ray");phase[0]=0;
             }
             var op=operations.get(phase[0]);
             if(active[0]==null){
@@ -45,13 +54,14 @@ public final class PlacementEffectGameTests {
             h.assertTrue(result.reason()==null,"Native self-occupied placement stopped at "+op+": "+result.reason());
             receipts.addAll(result.resourceReceipts());
             if(phase[0]==0)h.assertTrue(result.committedEffects()==0 && result.resourceReceipts().isEmpty() && from.countItem(Items.CRAFTING_TABLE)==1 && v.getInventory().isEmpty()
-                    && v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"Structural observation moved the actor or mutated custody");
+                    && v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos))==!overhead,"Structural observation moved the actor or mutated custody");
             if(op==GatewayPrimitives.Operation.MOVE_TO_INPUT || op==GatewayPrimitives.Operation.MOVE_TO_PLACEMENT)
                 h.assertTrue(!v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"MOVE ended inside approved block");
+            if(op==GatewayPrimitives.Operation.MOVE_TO_PLACEMENT)h.assertTrue(world.recipeReach(v,targetPos),"MOVE accepted a ray the placement guard rejects");
             if(phase[0]+1<operations.size()){phase[0]++;active[0]=null;h.assertTrue(false,"Next explicit placement operation");return;}
             h.assertTrue(ResourceDelivery.quantity(bound,run,receipts)==1 && from.isEmpty() && v.getInventory().isEmpty() && h.getLevel().getBlockState(targetPos).is(Blocks.CRAFTING_TABLE),"Self-occupied placement failed native conservation");
             gateway.releaseRun(run);
-            System.out.println("RB006B_SELF_OCCUPANCY nativeNavigation=true structuralObservation=true noImplicitMove=true safeInput=true safeFace=true consumed=1 placed=1 depletedSource=true");
+            System.out.println((overhead?"RB006B_CENTER_RAY":"RB006B_SELF_OCCUPANCY")+" nativeNavigation=true structuralObservation=true noImplicitMove=true safeInput=true safeFace=true consumed=1 placed=1 depletedSource=true");
         });
     }
     @GameTest(maxTicks=1000,padding=16)

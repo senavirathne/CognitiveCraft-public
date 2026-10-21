@@ -366,7 +366,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos targetPos = position(target), now = v.blockPosition();
         boolean ownedDrop=interactionPoint!=null,oakApproach=solidApproach || ownedDrop;
         Vec3 point=ownedDrop ? interactionPoint : Vec3.atCenterOf(targetPos);
-        if(solidApproach) {
+        if(solidApproach && reserved==null) {
             var visible=oakInteractionPoint(v,targetPos);
             if(visible!=null)point=visible;
         }
@@ -374,7 +374,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         long travel=sampleTravel(v);
         if (travel > 1) return terminal(v, routes.get(v.getUUID()), "invalid-travel", 0, travel);
         v.getLookControl().setLookAt(point.x,point.y,point.z);
-        boolean adjacent=oakApproachGeometry(v,targetPos);
+        // Placement must use the exact center ray required by placeTable. Oak's
+        // alternate harvest points and tighter radius are not placement reach.
+        boolean adjacent=reserved!=null && solidApproach
+                ? Math.abs((long)now.getX()-targetPos.getX())+Math.abs((long)now.getZ()-targetPos.getZ())==1
+                : oakApproachGeometry(v,targetPos);
         // A worker can still be falling or jumping when a request starts. Wait
         // for ordinary landing before spending finite ground-path approaches.
         Route route = routes.get(v.getUUID());
@@ -489,7 +493,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !v.onGround() || Math.abs(v.getY()-goal.getY())>0.125 || !walkable(v,goal))return null;
         var end=path.getEndNode();
         if(end.x!=goal.getX() || end.y!=goal.getY() || end.z!=goal.getZ())return null;
-        var point=new Vec3(goal.getX()+.5,goal.getY(),goal.getZ()+.5);
+        // The outer quarter of an adjacent placement cell keeps the actor clear
+        // and lets the exact center ray pass under an overhead target block.
+        double dx=route.reserved!=null && route.solidApproach ? .25*(goal.getX()-route.target.getX()) : 0;
+        double dz=route.reserved!=null && route.solidApproach ? .25*(goal.getZ()-route.target.getZ()) : 0;
+        var point=new Vec3(goal.getX()+.5+dx,goal.getY(),goal.getZ()+.5+dz);
         if(v.distanceToSqr(point)>1.0 || !canReach(v,point,goal))return null;
         return new NavigationRoute.Position(point.x,point.y,point.z);
     }
