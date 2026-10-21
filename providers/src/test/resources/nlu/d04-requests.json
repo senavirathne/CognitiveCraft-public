@@ -1,0 +1,116 @@
+[
+  {
+    "id": "D04-original",
+    "text": "Make eleven birch planks and put them in the chest closest to you.",
+    "amount": 11,
+    "citizen": null,
+    "outcome": "EXTRACTED",
+    "anchor": "ACTOR",
+    "type": "CHEST"
+  },
+  {
+    "id": "D04-named",
+    "text": "Ada, craft seven birch planks and deliver them to the chest nearest to you.",
+    "amount": 7,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED",
+    "anchor": "ACTOR",
+    "type": "CHEST"
+  },
+  {
+    "id": "D04-closest",
+    "text": "Produce five birch planks and put them in the closest chest.",
+    "amount": 5,
+    "citizen": null,
+    "outcome": "EXTRACTED",
+    "anchor": "ROLE_DEFAULT",
+    "type": "CHEST"
+  },
+  {
+    "id": "D04-barrel",
+    "text": "Ada, make nine birch planks and put them into the barrel closest to you.",
+    "amount": 9,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED",
+    "anchor": "ACTOR",
+    "type": "BARREL"
+  },
+  {
+    "id": "D04-source-and-destination",
+    "text": "Ada, make three birch planks from the chest nearest to you and put them in the container nearest to you.",
+    "amount": 3,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED",
+    "anchor": "ACTOR",
+    "type": "CONTAINER"
+  },
+  {
+    "id": "D04-demonstrative",
+    "text": "Make six birch planks and put them in that chest closest to you.",
+    "amount": 6,
+    "citizen": null,
+    "outcome": "EXTRACTED",
+    "anchor": "ACTOR",
+    "type": "CHEST"
+  },
+  {
+    "id": "D04-nearest-control",
+    "text": "Ada, make four birch planks and put them in the nearest chest.",
+    "amount": 4,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED",
+    "anchor": "ROLE_DEFAULT",
+    "type": "CHEST"
+  },
+  {
+    "id": "D04-coordinates-control",
+    "text": "Make two birch planks from chest at 5,201,5 and put them in chest at 9,201,7.",
+    "amount": 2,
+    "citizen": null,
+    "outcome": "EXTRACTED",
+    "anchor": "ROLE_DEFAULT",
+    "type": "CHEST",
+    "from": "5,201,5",
+    "destination": "9,201,7"
+  },
+  {
+    "id": "D04-unknown-anchor",
+    "text": "Make eleven birch planks and put them in the chest closest to Steve.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-caller-anchor",
+    "text": "Make eleven birch planks and put them in the chest closest to me.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-unknown-place",
+    "text": "Make eleven birch planks and put them in the chest closest to your house.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-mixed-coordinates",
+    "text": "Make eleven birch planks and put them in the chest closest to you at 9,201,7.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-unsupported-container",
+    "text": "Make eleven birch planks and put them in the furnace closest to you.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-multiple-destinations",
+    "text": "Make eleven birch planks and put them in the chest closest to you and the barrel.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-negated",
+    "text": "Do not make eleven birch planks and put them in the chest closest to you.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D04-unsupported-material",
+    "text": "Make eleven spruce planks and put them in the chest closest to you.",
+    "outcome": "CLARIFICATION"
+  }
+]

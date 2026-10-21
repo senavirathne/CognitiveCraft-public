@@ -45,3 +45,10 @@ tasks.register('runD03LanguageLiveProbe', JavaExec) {
     mainClass = 'dev.aivillages.providers.D03LanguageLiveProbe'
     workingDir rootProject.projectDir
 }
+
+tasks.register('runD04LanguageLiveProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D04LanguageLiveProbe'
+    workingDir rootProject.projectDir
+}
