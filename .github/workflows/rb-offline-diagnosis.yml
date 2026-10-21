@@ -1,0 +1,93 @@
+name: Agent 1 Task 1.2 original offline diagnosis
+on:
+  push:
+    branches: [fix/rb-world-execution]
+    paths: ['.github/workflows/rb-offline-diagnosis.yml','fabric/src/gameTest/java/dev/aivillages/fabric/RecipeLandingGameTests.java']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: offline-diagnosis-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  native-gravity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Unchanged production and complete module evidence
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestClasses :fabric:gameTestJar
+          python3 scripts/verify-rb006b.py junit
+          python3 scripts/verify-rb006b.py identity
+      - name: Select native post-withdrawal gravity reproduction
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json')
+          v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.RecipeLandingGameTests']
+          p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-diagnosis-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb006b-evidence/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/gametest-run/
+            fabric/build/libs/
+  original-connected-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Exact production binary and official client instrumentation
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/verify-rb006b.py identity
+      - name: Original full RB006B with actual backend stop and same-save new JVM
+        run: |
+          python3 e2e/suite.py --profile rb006b --root build/e2e/rb006b
+          python3 scripts/verify-rb006b.py client
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-diagnosis-connected-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb006b-evidence/
+            build/e2e/rb006b/
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar

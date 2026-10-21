@@ -1,7 +1,5 @@
 name: Agent 1 Task 1.1 physical table placement
 on:
-  push:
-    branches: [fix/rb-world-execution]
   workflow_dispatch:
 permissions:
   contents: read
