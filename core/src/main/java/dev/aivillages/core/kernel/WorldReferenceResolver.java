@@ -21,14 +21,22 @@ public final class WorldReferenceResolver {
 
     public enum Kind { CITIZEN, AREA, CONTAINER, FACILITY }
     public enum Relation { NEAREST }
+    /** Trusted raw-text constraints, never predicates or world facts supplied by a model. */
+    public enum ObjectType {
+        UNSPECIFIED, CONTAINER, CHEST, BARREL, CRAFTING_TABLE, FIELD, OAK_LOG_AREA, BIRCH_LOG_AREA, LOG_AREA;
+        public boolean specificContainer() { return this == CHEST || this == BARREL; }
+    }
     public enum ReferenceState {
         OMITTED, EXPLICIT_NEAREST, EXPLICIT_CONCRETE, EXPLICIT_UNSUPPORTED, AMBIGUOUS, INVALID
     }
 
     /** Input provenance is retained until a concrete reference has been selected and validated. */
-    public record Reference<T>(ReferenceState state, T concrete, String evidence) {
+    public record Reference<T>(ReferenceState state, T concrete, String evidence, ObjectType objectType) {
+        public Reference(ReferenceState state, T concrete, String evidence) {
+            this(state, concrete, evidence, ObjectType.UNSPECIFIED);
+        }
         public Reference {
-            Objects.requireNonNull(state);
+            Objects.requireNonNull(state); Objects.requireNonNull(objectType);
             if (state == ReferenceState.EXPLICIT_CONCRETE && concrete == null)
                 throw new IllegalArgumentException("Concrete reference required");
             if (state != ReferenceState.EXPLICIT_CONCRETE && concrete != null)
@@ -42,8 +50,14 @@ public final class WorldReferenceResolver {
         public static <T> Reference<T> nearest(String evidence) {
             return new Reference<>(ReferenceState.EXPLICIT_NEAREST, null, evidence);
         }
+        public static <T> Reference<T> nearest(String evidence, ObjectType objectType) {
+            return new Reference<>(ReferenceState.EXPLICIT_NEAREST, null, evidence, objectType);
+        }
         public static <T> Reference<T> concrete(T value, String evidence) {
             return new Reference<>(ReferenceState.EXPLICIT_CONCRETE, value, evidence);
+        }
+        public static <T> Reference<T> concrete(T value, String evidence, ObjectType objectType) {
+            return new Reference<>(ReferenceState.EXPLICIT_CONCRETE, value, evidence, objectType);
         }
         public static <T> Reference<T> unsupported(String evidence) {
             return new Reference<>(ReferenceState.EXPLICIT_UNSUPPORTED, null, evidence);

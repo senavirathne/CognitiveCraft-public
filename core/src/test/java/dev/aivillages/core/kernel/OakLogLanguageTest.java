@@ -8,12 +8,13 @@ import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OakLogLanguageTest {
-    @Test void originalDeliveryWordingRecognizesOakIntentWithoutInventingADemonstrativeBinding() {
+    @Test void originalDeliveryUsesTheAuthorizedNearestTypedReferencePolicy() {
         var c=LanguageReferenceClassifier.classify("Ada, bring seven oak logs over to that barrel.",List.of("Ada"));
         assertEquals(LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS,c.intent());
         assertEquals("Ada",c.actor().first());
         assertEquals(ReferenceState.OMITTED,c.source().state());
-        assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.destination().state());
+        assertEquals(ReferenceState.EXPLICIT_NEAREST,c.destination().state());
+        assertEquals(WorldReferenceResolver.ObjectType.BARREL,c.destination().objectType());
         assertEquals("that barrel",c.destination().evidence());
     }
     @ParameterizedTest

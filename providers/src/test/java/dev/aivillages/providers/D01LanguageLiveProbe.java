@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 /** Explicit actual-model measurement. Unit-test extraction fixtures are never counted here. */
 public final class D01LanguageLiveProbe {
     public static void main(String[] args) throws Exception {
-        Path corpus = Path.of("providers/src/test/resources/nlu/d01-requests.json");
+        Path corpus = Path.of("providers/src/test/resources/nlu/d01-reference-policy-v2.json");
         byte[] original = Files.readAllBytes(corpus);
         Path assets = Path.of(Objects.requireNonNull(System.getenv("COGNITIVECRAFT_NEEDLE_DIR")));
         Path evidence = Path.of("build/d01-evidence");
@@ -57,11 +57,13 @@ public final class D01LanguageLiveProbe {
         Map<String,Object> report = new LinkedHashMap<>();
         report.put("source",System.getenv("GITHUB_SHA")); report.put("branch",System.getenv("GITHUB_REF_NAME"));
         report.put("runId",System.getenv("GITHUB_RUN_ID")); report.put("attempt",System.getenv("GITHUB_RUN_ATTEMPT"));
+        report.put("corpusPath",corpus.toString());
+        report.put("referencePolicy","typed-nearest-v2; user-authorized demonstrative and unqualified object references");
         report.put("corpusSha256",HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(original)));
         report.put("modelRevision",LocalNeedleAdapter.REVISION); report.put("modelSha256",LocalNeedleAdapter.MODEL_SHA256);
         report.put("runnerSha256",LocalNeedleAdapter.RUNNER_SHA256); report.put("actualCalls",actualCalls);
         report.put("correct",correct); report.put("total",rows.size()); report.put("cases",rows);
-        report.put("originalPhysicalDelivery","NOT_EXECUTED_UNBOUND_DEMONSTRATIVE");
+        report.put("originalPhysicalDelivery","MEASURED_SEPARATELY_BY_CONNECTED_CLIENT_PROFILE");
         report.put("fullTaskPass",false);
         Files.writeString(evidence.resolve("actual-needle.json"),new GsonBuilder().setPrettyPrinting().create().toJson(report)+"\n");
         if(correct!=rows.size() || actualCalls!=rows.size())

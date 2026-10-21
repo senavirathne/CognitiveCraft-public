@@ -15,11 +15,11 @@ class OakLogNeedleWireTest {
             assertFalse(p.text().contains("13,64,0"));assertEquals("13,64,0",p.destination());
         }
     }
-    @Test void originalUnboundBarrelStaysExplicitlyUnsupportedWithNoInventedCoordinates() {
+    @Test void originalBarrelUsesTypedNearestPolicyWithoutInventedCoordinates() {
         var p=NeedleWire.prepare(new LanguageRequests.Input("Ada, bring seven oak logs over to that barrel.",List.of("Ada")));
         assertTrue(p.tools().contains("gather_oak_logs"));
-        assertEquals(dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState.EXPLICIT_UNSUPPORTED,p.classification().destination().state());
-        assertNull(p.destination());assertTrue(p.text().contains("that barrel"));
+        assertEquals(dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState.EXPLICIT_NEAREST,p.classification().destination().state());
+        assertNull(p.destination());assertTrue(p.text().contains("to chest"));
     }
     @Test void typedOakToolIsSelectedAndWheatToolCannotSubstituteForIt() {
         var p=NeedleWire.prepare(new LanguageRequests.Input("Ada, collect 4 oak logs and deliver them to the nearest suitable chest.",List.of("Ada")));

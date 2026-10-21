@@ -60,33 +60,24 @@ public final class NeedleWire {
         if (classification.source().state() == ReferenceState.EXPLICIT_CONCRETE) {
             from = classification.source().first();
             through = classification.source().second();
-            var source = Pattern.compile(plank ? "\\bfrom\\s+(?:the\\s+)?(?:chest|container|barrel)\\s+(?:at\\s+)?("+COORD+")"
-                    : "\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
-                    Pattern.CASE_INSENSITIVE).matcher(prompt);
-            if (source.find()) prompt = prompt.substring(0, source.start()) + "from "+sourceAlias + prompt.substring(source.end());
-        }
-        if (classification.destination().state() == ReferenceState.EXPLICIT_CONCRETE) {
-            destination = classification.destination().first();
-            var target = Pattern.compile("\\b(deliver|deposit|put|store)\\b.{0,200}?\\b(?:at|to|into|in)\\s+"
-                    + "(?:the\\s+)?(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?(" + COORD + ")",
-                    Pattern.CASE_INSENSITIVE).matcher(prompt);
-            if (target.find()) {
-                String verb = target.group(1);
-                prompt = prompt.substring(0, target.start()) + verb + " to chest" + prompt.substring(target.end());
-            } else if (classification.intent() == LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS) {
-                // Direct delivery wording keeps its action, resource and amount. Only the
-                // independently classified destination span becomes a disposable alias.
-                var direct = Pattern.compile("\\b(?:to|into|in)\\s+(?:the\\s+)?"
-                        + "(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?("+COORD+")",
+            if (plank) {
+                prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.source(), sourceAlias, "from");
+            } else {
+                var source = Pattern.compile("\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
                         Pattern.CASE_INSENSITIVE).matcher(prompt);
-                if (direct.find()) prompt = prompt.substring(0,direct.start()) + "to chest" + prompt.substring(direct.end());
+                if (source.find()) prompt = prompt.substring(0, source.start()) + "from "+sourceAlias + prompt.substring(source.end());
             }
         }
 
+        if (classification.destination().state() == ReferenceState.EXPLICIT_CONCRETE) {
+            destination = classification.destination().first();
+            prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.destination(), "chest", "at|to|into|in");
+        }
+
         if (classification.source().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:field|farm|(?:oak|birch)\\s+logs?|log\\s+area|chest|container|barrel)\\b", "from "+sourceAlias);
+            prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.source(), sourceAlias, "from");
         if (classification.destination().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\b(?:to|into|in)\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)\\b", "to chest");
+            prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.destination(), "chest", "at|to|into|in");
 
         String explicitId = null;
         String explicitCitizen = classification.actor().state() == ReferenceState.EXPLICIT_CONCRETE

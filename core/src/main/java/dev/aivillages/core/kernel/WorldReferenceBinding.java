@@ -207,7 +207,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         Registry registry = new Registry();
         if(RecipeProduction.is(harvest.capability())) {
             var criterion=new Criteria(harvest.capability().equals(BirchPlankProduction.ID) ? "cognitivecraft:available_birch_input_container" : !RecipeProduction.of(harvest.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "cognitivecraft:available_oak_plank_input_container" : "cognitivecraft:available_oak_input_container");
-            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID) || harvest.capability().equals(BirchPlankProduction.ID))));
+            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID) || harvest.capability().equals(BirchPlankProduction.ID)),harvest.source().objectType()));
             inputAttempt=registry.start(search(Kind.CONTAINER,actorAnchor,criterion),clock.millis(),allowance);
             stage=Stage.SOURCE;return;
         }
@@ -260,7 +260,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         Criteria targetCriteria=RecipeProduction.is(harvest.capability()) ? new Criteria(harvest.capability().equals(BirchPlankProduction.ID) ? "cognitivecraft:birch_plank_container" : harvest.capability().equals(CraftingTableProduction.ID) ? "cognitivecraft:crafting_table_item_container" : harvest.capability().equals(StickProduction.ID) ? "cognitivecraft:stick_container" : "cognitivecraft:oak_plank_container")
                 : LogAcquisition.is(harvest.capability()) ? new Criteria(harvest.capability().equals(BirchLogDelivery.ID) ? "cognitivecraft:birch_log_container" : "cognitivecraft:oak_log_container") : WHEAT_CONTAINER;
         registry.register(Kind.CONTAINER, targetCriteria,
-                search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),sourceAnchor,world));
+                search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),sourceAnchor,world,harvest.destination().objectType()));
         destinationAttempt = registry.start(search(
                 Kind.CONTAINER, sourceAnchor, targetCriteria), clock.millis(), allowance);
         stage = Stage.DESTINATION;
@@ -306,12 +306,12 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         if (!citizens.controls(actor,caller)) return fail(Reason.AUTHORITY_DENIED, "Citizen control changed");
         if (!currentActorEligible(actor, false))
             return fail(Reason.STALE_OBSERVATION, "Citizen availability changed");
-        if (automaticSource && !sourceValidated) {
+        if ((automaticSource || harvest.source().objectType().specificContainer()) && !sourceValidated) {
             if(RecipeProduction.is(harvest.capability())) {
                 if(allowance.remaining()<MAX_CONTAINER_SLOTS+1)return fail(Reason.BUDGET_EXHAUSTED,"Input validation budget exhausted");
-                var current=world.inputContainer(actor,new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()),RecipeProduction.of(harvest.capability()).input());
+                var current=world.inputContainer(actor,new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()),RecipeProduction.of(harvest.capability()).input(),harvest.source().objectType());
                 allowance.debit(current.slotsInspected()+1);
-                if(current.status()!=ObservationStatus.PRESENT || current.available()<(composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID) || harvest.capability().equals(BirchPlankProduction.ID))?0:RecipeProduction.of(harvest.capability()).inputs(harvest.amount())) || !current.equals(inputEvidence))
+                if(current.status()!=ObservationStatus.PRESENT || current.available()<(composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID) || harvest.capability().equals(BirchPlankProduction.ID))?0:RecipeProduction.of(harvest.capability()).inputs(harvest.amount())) || automaticSource && !current.equals(inputEvidence))
                     return fail(Reason.STALE_OBSERVATION,"Selected input stock changed");
                 sourceValidated=true;return LanguageRequests.Resolution.pending("Input stock validated; checking output storage");
             }
@@ -325,15 +325,16 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             sourceValidated = true;
             return LanguageRequests.Resolution.pending("Field evidence validated; checking destination");
         }
-        int required = automaticDestination ? MAX_CONTAINER_SLOTS + 2 : 1;
+        boolean inspectDestination = automaticDestination || harvest.destination().objectType().specificContainer();
+        int required = inspectDestination ? MAX_CONTAINER_SLOTS + 2 : 1;
         if (allowance.remaining() < required)
             return fail(Reason.BUDGET_EXHAUSTED,"Final destination validation work exhausted");
         allowance.debit(1);
-        if (automaticDestination) {
+        if (inspectDestination) {
             var current = world.itemContainer(actor,destination,RecipeProduction.is(harvest.capability()) ? RecipeProduction.of(harvest.capability()).output()
-                    : LogAcquisition.is(harvest.capability()) ? LogAcquisition.item(harvest.capability()) : ResourceDelivery.WHEAT); allowance.debit(current.slotsInspected()+1);
+                    : LogAcquisition.is(harvest.capability()) ? LogAcquisition.item(harvest.capability()) : ResourceDelivery.WHEAT,harvest.destination().objectType()); allowance.debit(current.slotsInspected()+1);
             if (current.status() != ObservationStatus.PRESENT || current.capacity() < harvest.amount()
-                    || !current.equals(destinationEvidence))
+                    || automaticDestination && !current.equals(destinationEvidence))
                 return fail(Reason.STALE_OBSERVATION,"Selected automatic container changed");
         }
         CapabilityRequest request = new CapabilityRequest(harvest.capability(), Map.of(

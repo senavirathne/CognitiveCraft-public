@@ -43,7 +43,7 @@ jobs:
             core/build/test-results/test/
             providers/build/test-results/test/
   connected-client:
-    name: Genuine delivery variants and safe unbound-original clarification
+    name: Genuine original delivery and shared typed nearest reference policy
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

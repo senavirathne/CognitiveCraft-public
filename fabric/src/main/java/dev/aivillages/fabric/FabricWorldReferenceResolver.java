@@ -6,6 +6,7 @@ import dev.aivillages.core.kernel.SurvivalGateway;
 import dev.aivillages.core.kernel.WorldReferenceBinding;
 import dev.aivillages.core.kernel.WorldReferenceDiscovery;
 import dev.aivillages.core.kernel.WorldReferenceResolver.Point;
+import dev.aivillages.core.kernel.WorldReferenceResolver.ObjectType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import java.time.Clock;
@@ -37,6 +38,32 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
         Point anchor = new Point(player.level().dimension().identifier().toString(),
                 at.getX(),at.getY(),at.getZ());
         WorldReferenceDiscovery.Observation observations = new WorldReferenceDiscovery.Observation() {
+            private ObservationStatus containerType(ActorRef actor,ContainerRef target,ObjectType type,Effect effect) {
+                var pos=new BlockPos(target.x(),target.y(),target.z());
+                if(!target.dimension().equals(anchor.dimension()) || !world.loadedForDiscovery(pos)
+                        || !world.discoverable(actor,pos,effect))return ObservationStatus.UNKNOWN;
+                var state=player.level().getBlockState(pos);
+                boolean matches=switch(type) {
+                    case BARREL -> state.is(net.minecraft.world.level.block.Blocks.BARREL);
+                    case CHEST -> state.is(net.minecraft.world.level.block.Blocks.CHEST)
+                            || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST);
+                    case UNSPECIFIED, CONTAINER -> true;
+                    default -> false;
+                };
+                return matches ? ObservationStatus.PRESENT : ObservationStatus.ABSENT;
+            }
+            @Override public WorldReferenceDiscovery.ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,
+                    dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item,ObjectType type) {
+                var status=containerType(actor,target,type,Effect.TRANSFER);
+                return status==ObservationStatus.PRESENT ? itemContainer(actor,target,item)
+                        : new WorldReferenceDiscovery.ItemContainerSample(item,status,0,0,"container-type-unavailable");
+            }
+            @Override public WorldReferenceDiscovery.InputContainerSample inputContainer(ActorRef actor,ContainerRef target,
+                    dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity item,ObjectType type) {
+                var status=containerType(actor,target,type,Effect.WITHDRAW);
+                return status==ObservationStatus.PRESENT ? inputContainer(actor,target,item)
+                        : new WorldReferenceDiscovery.InputContainerSample(status,0,0,"container-type-unavailable");
+            }
             @Override public SurvivalGateway.ActorState actor(ActorRef actor) { return world.actor(actor); }
             @Override public WorldReferenceDiscovery.FacilitySample facility(ActorRef actor,FacilityRef table) {
                 var pos=new BlockPos(table.x(),table.y(),table.z());

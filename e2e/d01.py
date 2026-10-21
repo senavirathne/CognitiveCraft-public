@@ -8,7 +8,7 @@ import re
 def language_evidence(h, prepare, verify, acquisition, typed_interface, models, needle):
     from suite import ROOT, UUID_PATTERN, require
     from oak import ITEM, DESTINATION
-    corpus = json.loads((ROOT / "providers/src/test/resources/nlu/d01-requests.json").read_text())
+    corpus = json.loads((ROOT / "providers/src/test/resources/nlu/d01-reference-policy-v2.json").read_text())
     cases = {row["id"]: row for row in corpus}
     records = []
 
@@ -24,11 +24,16 @@ def language_evidence(h, prepare, verify, acquisition, typed_interface, models, 
     # A separate flat, supported fixture. No source/quantity/expectation in the frozen
     # historical assessment or the original RB-001 acceptance is modified.
     h.actions_active = False
-    h.console(["fill 5 201 10 14 203 15 minecraft:air", "setblock 7 201 9 minecraft:barrel"])
+    h.console(["fill 5 201 10 14 203 15 minecraft:air", "setblock 7 201 9 minecraft:barrel",
+               "setblock 10 201 12 minecraft:chest", "setblock 7 201 12 minecraft:barrel",
+               "setblock 13 201 9 minecraft:barrel"]+
+              [f"item replace block 7 201 12 container.{slot} with minecraft:cobblestone 64" for slot in range(27)])
     h.wait(lambda: "minecraft:barrel" in h.snapshot()["blocks"].get(",".join(map(str,DESTINATION)), ""),
            "D01 actual barrel fixture")
+    distractors = h.wait(lambda: (s if (s:=h.snapshot())["containers"].get("7,201,12",{}).get("minecraft:cobblestone")==1728
+                        and "minecraft:chest" in s["blocks"].get("10,201,12", "") else None), "Typed nearest distractors")
     prepare(7)
-    for ident in ("D01-original", "D01-unbound-source", "D01-unbound-destination", "D01-negated",
+    for ident in ("D01-unbound-source", "D01-unbound-destination", "D01-negated",
                   "D01-unsupported-species", "D01-compound"):
         row = cases[ident]
         before = h.snapshot(); calls = h.model_calls(); h.actions_active = True
@@ -50,13 +55,19 @@ def language_evidence(h, prepare, verify, acquisition, typed_interface, models, 
         h.actions_active = False
 
     deliveries = []
-    for ident in ("D01-bring-nearest", "D01-fetch-coordinates", "D01-fetch-implicit-actor"):
+    for ident in ("D01-original", "D01-this-barrel", "D01-unqualified-barrel", "D01-bare-barrel",
+                  "D01-bring-nearest", "D01-fetch-coordinates", "D01-fetch-implicit-actor"):
         row = cases[ident]; quantity = row["amount"]
         source = prepare(quantity)
         before = h.container(DESTINATION, ITEM); calls = h.model_calls(); h.actions_active = True
         ticket, view = ask(row)
         require(view["phase"] == "SUBMITTED", "Supported D01 wording did not dispatch: "+str(view))
         result = verify(view["runId"], quantity, before, source)
+        after = h.snapshot()
+        require(after["containers"].get("10,201,12",{}).get(ITEM,0)==0, "Barrel reference selected the nearer chest")
+        require(after["containers"].get("7,201,12",{}).get("minecraft:cobblestone")==1728,
+                "Nearest full barrel changed")
+        require(after["containers"].get("13,201,9",{}).get(ITEM,0)==0, "Barrel reference selected the farther barrel")
         after_calls = h.model_calls()
         require(after_calls["generationCalls"] == calls["generationCalls"], "Known D01 delivery invoked generation")
         require(after_calls["needleCalls"] == calls["needleCalls"]+1, "D01 language extraction was not genuine")
@@ -69,5 +80,6 @@ def language_evidence(h, prepare, verify, acquisition, typed_interface, models, 
 
     return {"canonicalAcquisition": acquisition, "typedInterface": typed_interface,
             "refusals": records, "supportedDeliveries": deliveries, "models": models, "needle": needle,
-            "originalPhysicalDelivery": "NOT_EXECUTED_UNBOUND_DEMONSTRATIVE", "fullTaskPass": False,
-            "scope": "Supplementary language/physical evidence; full original D01 exit gate remains unresolved"}
+            "originalPhysicalDelivery": "SUCCEEDED", "fullTaskPass": True,
+            "referencePolicy": "typed-nearest-v2", "distractorFixture": distractors,
+            "scope": "Original D01 and six independent positive requests; five safe refusals; frozen history unchanged"}

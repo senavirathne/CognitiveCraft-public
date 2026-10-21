@@ -25,8 +25,8 @@ class OakLogLanguageRequestTest {
         assertEquals(new AreaValue(new Cuboid(f.actor.dimension(),4,64,0,10,64,0)),f.request.arguments().get("source"));
         assertEquals(new ContainerValue(new ContainerRef(f.actor.dimension(),13,64,0)),f.request.arguments().get("destination"));
     }
-    @Test void originalUnboundDemonstrativeCannotBecomeAnOmittedOrInventedDestination() {
-        for(String target:List.of("that barrel","this chest","my barrel")) {
+    @Test void unsupportedModifiersCannotBecomeAnOmittedOrInventedDestination() {
+        for(String target:List.of("that barrel behind my house","this chest beside my farm","my barrel")) {
             var f=new Fixture();
             var ticket=f.ask("Bea, bring seven oak logs over to "+target+".");
             var result=f.complete(ticket,new Extracted(Action.GATHER_OAK_LOGS,"Bea",7L,null,null,null,null));

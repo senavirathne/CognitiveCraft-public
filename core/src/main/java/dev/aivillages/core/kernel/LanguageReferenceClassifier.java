@@ -8,6 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
+import static dev.aivillages.core.kernel.WorldReferenceResolver.ObjectType;
 
 /** Deterministic raw-text provenance. It never supplies world facts or executable authority. */
 public final class LanguageReferenceClassifier {
@@ -15,9 +16,12 @@ public final class LanguageReferenceClassifier {
 
     public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS, MAKE_WOODEN_AXES, MAKE_CRAFTING_TABLES, GATHER_BIRCH_LOGS, MAKE_BIRCH_PLANKS }
 
-    public record Slot(ReferenceState state, String first, String second, String evidence) {
+    public record Slot(ReferenceState state, String first, String second, String evidence, ObjectType objectType) {
+        public Slot(ReferenceState state, String first, String second, String evidence) {
+            this(state, first, second, evidence, ObjectType.UNSPECIFIED);
+        }
         public Slot {
-            Objects.requireNonNull(state);
+            Objects.requireNonNull(state); Objects.requireNonNull(objectType);
             if (evidence != null && evidence.length() > 256)
                 throw new IllegalArgumentException("Reference evidence limit");
             if (state == ReferenceState.EXPLICIT_CONCRETE && first == null)
@@ -29,8 +33,14 @@ public final class LanguageReferenceClassifier {
         public static Slot nearest(String evidence) {
             return new Slot(ReferenceState.EXPLICIT_NEAREST, null, null, evidence);
         }
+        public static Slot nearest(String evidence, ObjectType objectType) {
+            return new Slot(ReferenceState.EXPLICIT_NEAREST, null, null, evidence, objectType);
+        }
         public static Slot concrete(String first, String second, String evidence) {
             return new Slot(ReferenceState.EXPLICIT_CONCRETE, first, second, evidence);
+        }
+        public static Slot concrete(String first, String second, String evidence, ObjectType objectType) {
+            return new Slot(ReferenceState.EXPLICIT_CONCRETE, first, second, evidence, objectType);
         }
         public static Slot unsupported(String evidence) {
             return new Slot(ReferenceState.EXPLICIT_UNSUPPORTED, null, null, evidence);
@@ -55,22 +65,9 @@ public final class LanguageReferenceClassifier {
     /** Delivery wording selects the existing log-acquisition capability, never an inventory transfer. */
     private static final String LOG_DELIVERY_VERBS = "bring|fetch";
     private static final String REQUEST_VERBS = ACQUISITION_VERBS + "|" + LOG_DELIVERY_VERBS + "|make|craft|produce";
-    private static final Pattern SOURCE_COORD = Pattern.compile(
-            "\\bfrom\\s+" + COORD + "\\s+through\\s+" + COORD, Pattern.CASE_INSENSITIVE);
-    private static final Pattern SOURCE_NEAREST = Pattern.compile(
-            "\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:field|farm|(?:oak|birch)\\s+logs?|log\\s+area)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern SOURCE_ANY = Pattern.compile(
-            "\\bfrom\\s+(.{1,160}?)(?=\\s+(?:and\\s+)?(?:deliver|deposit|put)\\b|[.!?]|$)",
+            "\\bfrom\\s+(.{1,160}?)(?=\\s+(?:and\\s+)?(?:deliver|deposit|put|to|into|in)\\b|[.!?]|$)",
             Pattern.CASE_INSENSITIVE);
-    private static final Pattern DEST_COORD = Pattern.compile(
-            "\\b(?:deliver|deposit|put)\\b.{0,200}?\\b(?:at|to|into)\\s+"
-                    + "(?:the\\s+)?(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?" + COORD,
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern DEST_NEAREST = Pattern.compile(
-            "\\b(?:deliver|deposit|put)\\b.{0,200}?\\b(?:to|into)\\s+(?:the\\s+)?nearest\\s+"
-                    + "(?:suitable\\s+)?(?:chest|container|barrel)\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern DEST_ANY = Pattern.compile(
-            "\\b(?:deliver|deposit|put)\\b(.{0,220})", Pattern.CASE_INSENSITIVE);
     private static final Pattern DEST_STANDALONE = Pattern.compile(
             "\\b(?:to|into|in)\\s+(.{1,160}?)(?=[.!?]|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern EXPLICIT_NAMING = Pattern.compile(
@@ -106,7 +103,7 @@ public final class LanguageReferenceClassifier {
                     && !containsWord(text,"planks")) {
                 Slot selected=source(text);
                 if(selected.state()==ReferenceState.EXPLICIT_NEAREST && Pattern.compile("\\b(?:field|farm)\\b",Pattern.CASE_INSENSITIVE).matcher(selected.evidence()).find())selected=Slot.unsupported(selected.evidence());
-                return new Classification(Intent.GATHER_BIRCH_LOGS,actor,selected,destination(text,true),null);
+                return new Classification(Intent.GATHER_BIRCH_LOGS,actor,selected,destination(text),null);
             }
             return new Classification(Intent.UNKNOWN,actor,Slot.omitted(),Slot.omitted(),null);
         }
@@ -115,11 +112,11 @@ public final class LanguageReferenceClassifier {
                 && Pattern.compile("\\bcrafting\\s+tables?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && !Pattern.compile("\\b(?:place|build|furnaces?|axes?|houses?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
             return new Classification(Intent.MAKE_CRAFTING_TABLES,actor,recipeSource(text,true),
-                    text.matches("(?is).*\\b(?:store|put|deposit)\\b.*\\bin\\s+the\\s+chest[.!?]*\\s*$") ? Slot.nearest("unqualified chest") : plankDestination(text),null);
+                    plankDestination(text),null);
         if(Pattern.compile("\\b(?:make|produce|craft)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && Pattern.compile("\\bwooden\\s+axes?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && !Pattern.compile("\\b(?:birch|spruce|stripped|swords?|stone|iron|diamond)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
-            return new Classification(Intent.MAKE_WOODEN_AXES,actor,recipeSource(text,true),text.matches("(?is).*\\b(?:store|put|deposit)\\b.*\\bin\\s+the\\s+chest[.!?]*\\s*$") ? Slot.nearest("unqualified chest") : plankDestination(text),null,table(text));
+            return new Classification(Intent.MAKE_WOODEN_AXES,actor,recipeSource(text,true),plankDestination(text),null,table(text));
         if(Pattern.compile("\\b(?:make|produce|craft)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && Pattern.compile("\\bsticks?\\b",Pattern.CASE_INSENSITIVE).matcher(text).find()
                 && !Pattern.compile("\\b(?:birch|spruce|stripped|axes?|tables?|slabs?|doors?)\\b",Pattern.CASE_INSENSITIVE).matcher(text).find())
@@ -139,38 +136,36 @@ public final class LanguageReferenceClassifier {
         if(intent==Intent.GATHER_OAK_LOGS && source.state()==ReferenceState.EXPLICIT_NEAREST
                 && Pattern.compile("\\b(?:field|farm)\\b",Pattern.CASE_INSENSITIVE).matcher(source.evidence()).find())
             source=Slot.unsupported(source.evidence());
-        return new Classification(intent,actor,source,destination(text, intent == Intent.GATHER_OAK_LOGS),null);
+        return new Classification(intent,actor,source,destination(text),null);
     }
 
     public static Slot table(String text) {
-        var role=Pattern.compile("\\b(?:at|using)\\s+(?:the\\s+)?(?:(?:nearest|suitable)\\s+)*(?:crafting\\s+)?table(?:\\s+at)?(?:\\s+"+COORD+")?",Pattern.CASE_INSENSITIVE).matcher(text);
+        var role=Pattern.compile("\\b(?:at|using)\\s+((?:(?:the|a|an|this|that)\\s+)?(?:(?:nearest|available|suitable)\\s+)*(?:crafting\\s+)?table\\b.{0,100}?)(?=\\s+(?:and\\s+)?(?:from|store|deposit|put|deliver)\\b|[.!?;]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find())return containsWord(text,"table") ? Slot.unsupported("unsupported table reference") : Slot.omitted();
-        String coordinates=role.group(1);String evidence=role.group();
+        String evidence=stripTerminal(role.group(1));
         if(role.find())return Slot.unsupported("multiple tables");
-        return coordinates==null ? Slot.nearest(evidence) : Slot.concrete(compact(coordinates),null,evidence);
+        return WorldReferenceLanguage.parse(evidence,ObjectType.CRAFTING_TABLE);
     }
     private static Slot plankSource(String text) {return recipeSource(text,false);}
     private static Slot recipeSource(String text,boolean sticks) {
         Matcher role=Pattern.compile("\\bfrom\\s+(.{1,180}?)(?=\\s+(?:and\\s+)?(?:store|deposit|put|deliver)\\b|[.!?]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find())return containsWord(text,"from") ? Slot.unsupported("unsupported input source") : Slot.omitted();
-        String phrase=stripTerminal(role.group(1).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:the\\s+)?(?:nearest\\s+)?(?:crafting\\s+)?table.*$",""));
+        String phrase=stripTerminal(role.group(1).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:nearest\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
         if(role.find())return Slot.unsupported("multiple input sources");
         if(phrase.matches("(?i)(?:the\\s+)?available\\s+(?:oak|birch)\\s+"+(sticks ? "planks?" : "logs?")))return Slot.nearest(sticks ? "available oak planks" : "available oak logs");
-        if(phrase.matches("(?i)(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)"))return Slot.nearest(phrase);
-        Matcher c=Pattern.compile("^(?:(?:the\\s+)?(?:chest|container|barrel)\\s+(?:at\\s+)?)?"+COORD+"$",Pattern.CASE_INSENSITIVE).matcher(phrase);
-        if(c.matches())return Slot.concrete(compact(c.group(1)),compact(c.group(1)),phrase);
-        return Slot.unsupported(phrase);
+        Slot selected=WorldReferenceLanguage.container(phrase);
+        return selected.state()==ReferenceState.EXPLICIT_CONCRETE
+                ? Slot.concrete(selected.first(),selected.first(),selected.evidence(),selected.objectType()) : selected;
     }
     private static Slot plankDestination(String text) {
         Matcher role=Pattern.compile("\\b(?:store|deposit|put|deliver)\\b",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find())return Slot.omitted();
         int start=role.end();if(role.find())return Slot.unsupported("multiple output destinations");
-        String phrase=stripTerminal(text.substring(start).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:the\\s+)?(?:nearest\\s+)?(?:crafting\\s+)?table.*$",""));
+        String phrase=stripTerminal(text.substring(start).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:nearest\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
         if(phrase.isBlank() || phrase.matches("(?i)(?:them|it|(?:(?:(?:oak|birch)\\s+)?planks?|sticks?))"))return Slot.omitted();
-        String prefix="(?:(?:them|it|(?:(?:(?:oak|birch)\\s+)?planks?|sticks?))\\s+)?(?:to|into|in|at)\\s+(?:the\\s+)?";
-        if(phrase.matches("(?i)"+prefix+"nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)"))return Slot.nearest(phrase);
-        Matcher c=Pattern.compile("^"+prefix+"(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?"+COORD+"$",Pattern.CASE_INSENSITIVE).matcher(phrase);
-        return c.matches() ? Slot.concrete(compact(c.group(1)),null,phrase) : Slot.unsupported(phrase);
+        String prefix="(?:(?:them|it|(?:(?:(?:oak|birch)\\s+)?planks?|sticks?))\\s+)?(?:to|into|in|at)\\s+";
+        if(!phrase.matches("(?is)^"+prefix+".+"))return Slot.unsupported(phrase);
+        return WorldReferenceLanguage.container(phrase.replaceFirst("(?i)^"+prefix,""));
     }
     private static Slot actor(String text, List<String> references) {
         Matcher nearest = Pattern.compile("^\\s*(?:the\\s+)?nearest\\s+(?:citizen|villager)\\s*,?\\s*(?:please\\s+)?(?:"+REQUEST_VERBS+")\\b",
@@ -222,12 +217,13 @@ public final class LanguageReferenceClassifier {
         Matcher coords = Pattern.compile("^" + COORD + "\\s+through\\s+" + COORD + "$",
                 Pattern.CASE_INSENSITIVE).matcher(phrase);
         if (coords.matches()) return Slot.concrete(compact(coords.group(1)), compact(coords.group(2)), bounded(full.group()));
-        if (phrase.matches("(?i)(?:the\\s+)?nearest\\s+(?:field|farm|(?:oak|birch)\\s+logs?|log\\s+area)"))
-            return Slot.nearest(bounded(full.group()));
-        return Slot.unsupported(bounded(phrase));
+        Slot selected=WorldReferenceLanguage.parse(bounded(phrase),ObjectType.FIELD,ObjectType.OAK_LOG_AREA,
+                ObjectType.BIRCH_LOG_AREA,ObjectType.LOG_AREA);
+        // Concrete acquisition areas require both original corners, handled above.
+        return selected.state()==ReferenceState.EXPLICIT_NEAREST ? selected : Slot.unsupported(bounded(phrase));
     }
 
-    private static Slot destination(String text, boolean oak) {
+    private static Slot destination(String text) {
         Matcher role = Pattern.compile("\\b(?:deliver|deposit|put)\\b", Pattern.CASE_INSENSITIVE).matcher(text);
         String tail;
         if (role.find()) {
@@ -249,13 +245,7 @@ public final class LanguageReferenceClassifier {
             }
             tail = stripTerminal(standalone.group(1));
         }
-        if (tail.matches("(?i)(?:the\\s+)?nearest\\s+" + (oak ? "(?:suitable\\s+)?" : "")
-                + "(?:chest|container|barrel)"))
-            return Slot.nearest(bounded(tail));
-        Matcher coords = Pattern.compile("^(?:the\\s+)?(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?" + COORD + "$",
-                Pattern.CASE_INSENSITIVE).matcher(tail);
-        if (coords.matches()) return Slot.concrete(compact(coords.group(1)), null, bounded(tail));
-        return Slot.unsupported(bounded(tail));
+        return WorldReferenceLanguage.container(bounded(tail));
     }
 
     private static String stripTerminal(String text) { return text.strip().replaceFirst("[.!?;]+$", "").strip(); }
