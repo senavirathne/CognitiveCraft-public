@@ -73,6 +73,13 @@ public final class NeedleWire {
             if (target.find()) {
                 String verb = target.group(1);
                 prompt = prompt.substring(0, target.start()) + verb + " to chest" + prompt.substring(target.end());
+            } else if (classification.intent() == LanguageReferenceClassifier.Intent.GATHER_OAK_LOGS) {
+                // Direct delivery wording keeps its action, resource and amount. Only the
+                // independently classified destination span becomes a disposable alias.
+                var direct = Pattern.compile("\\b(?:to|into|in)\\s+(?:the\\s+)?"
+                        + "(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?("+COORD+")",
+                        Pattern.CASE_INSENSITIVE).matcher(prompt);
+                if (direct.find()) prompt = prompt.substring(0,direct.start()) + "to chest" + prompt.substring(direct.end());
             }
         }
 

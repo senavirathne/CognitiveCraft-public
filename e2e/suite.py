@@ -36,6 +36,7 @@ PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x no
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
 PROFILES["rb001"] = ["GP-RB-01"]
+PROFILES["d01"] = ["D01-EVIDENCE"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
@@ -1533,6 +1534,7 @@ def main():
                 "E2E-AI-001": acquire_real_skill, "E2E-LEASE-001": queued_competition}
     from oak import scenario as oak_scenario
     registry["GP-RB-01"] = oak_scenario
+    registry["D01-EVIDENCE"] = lambda h: oak_scenario(h,d01_evidence=True)
     from planks import scenario as plank_scenario
     registry["GP-RB-02"] = plank_scenario
     from sticks import scenario as stick_scenario
