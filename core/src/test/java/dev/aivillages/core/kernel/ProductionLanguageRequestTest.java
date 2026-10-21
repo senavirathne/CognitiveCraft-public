@@ -73,6 +73,8 @@ class ProductionLanguageRequestTest {
     @Test void explicitUnknownActorsAndQualifiedSourcesRemainAmbiguousDespiteTransformationWording() {
         var unknown=new Fixture();assertEquals(Phase.CLARIFICATION,unknown.interpret("Unknown, convert two oak logs into seven planks.",7,"Unknown").phase());
         assertEquals(0,unknown.discoveries);assertEquals(0,unknown.submissions);
+        var polite=new Fixture();assertEquals(Phase.CLARIFICATION,polite.interpret("Unknown, could you turn two oak logs into seven planks?",7,"Unknown").phase());
+        assertEquals(0,polite.discoveries);assertEquals(0,polite.submissions);
         var duplicate=new Fixture();duplicate.world.identity.add(2,9,0,"Ada",true,true);duplicate.world.identity.open();
         assertEquals(Phase.CLARIFICATION,duplicate.interpret("Ada, turn two oak logs into seven planks.",7,"Ada").phase());
         assertEquals(0,duplicate.discoveries);assertEquals(0,duplicate.submissions);

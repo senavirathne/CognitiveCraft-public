@@ -194,7 +194,7 @@ public final class LanguageReferenceClassifier {
         if (nearest.find()) return Slot.nearest("nearest citizen");
         Matcher leading = Pattern.compile("^\\s*(?:(?:please\\s+have|could|can|would|will|ask)\\s+)?"
                 + "([\\p{L}\\p{M}\\p{N}][\\p{L}\\p{M}\\p{N}_ -]{0,127}?)"
-                + "\\s*,?\\s+(?:to\\s+)?(?:please\\s+)?(?:"+REQUEST_VERBS+")\\b",
+                + "\\s*,?\\s+(?:to\\s+)?(?:please\\s+)?(?:(?:can|could|would|will)\\s+you\\s+)?(?:please\\s+)?(?:"+REQUEST_VERBS+")\\b",
                 Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(text);
         if (leading.find()) {
             String reference = leading.group(1).strip();

@@ -14,6 +14,9 @@ class ProductionLanguageTest {
         assertEquals(ResourceDelivery.OAK_LOG,c.production().input());assertEquals(ResourceDelivery.OAK_PLANKS,c.production().output());
         assertEquals(ReferenceState.EXPLICIT_NEAREST,c.source().state());assertEquals(ReferenceState.OMITTED,c.destination().state());
         assertEquals(ProductionLanguage.Issue.NONE,c.production().issue());
+        var polite=classify("Unknown, could you turn two oak logs into seven planks?",List.of("Ada"));
+        assertEquals(ReferenceState.EXPLICIT_CONCRETE,polite.actor().state());
+        assertEquals("Unknown",polite.actor().first());
     }
     @Test void transformationVerbsShareRegisteredRecipeAndScalarRolesAcrossQuantities() {
         for(String verb:List.of("turn","convert","transform"))
