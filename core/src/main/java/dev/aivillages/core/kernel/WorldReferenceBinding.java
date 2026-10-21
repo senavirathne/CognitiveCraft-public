@@ -256,13 +256,14 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             return;
         }
         automaticDestination = true;
+        Point destinationAnchor = harvest.destination().anchor() == ReferenceAnchor.ACTOR ? actorAnchor : sourceAnchor;
         Registry registry = new Registry();
         Criteria targetCriteria=RecipeProduction.is(harvest.capability()) ? new Criteria(harvest.capability().equals(BirchPlankProduction.ID) ? "cognitivecraft:birch_plank_container" : harvest.capability().equals(CraftingTableProduction.ID) ? "cognitivecraft:crafting_table_item_container" : harvest.capability().equals(StickProduction.ID) ? "cognitivecraft:stick_container" : "cognitivecraft:oak_plank_container")
                 : LogAcquisition.is(harvest.capability()) ? new Criteria(harvest.capability().equals(BirchLogDelivery.ID) ? "cognitivecraft:birch_log_container" : "cognitivecraft:oak_log_container") : WHEAT_CONTAINER;
         registry.register(Kind.CONTAINER, targetCriteria,
-                search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),sourceAnchor,world,harvest.destination().objectType()));
+                search -> WorldReferenceDiscovery.itemContainers(harvest.capability(),actor,Math.toIntExact(harvest.amount()),destinationAnchor,world,harvest.destination().objectType()));
         destinationAttempt = registry.start(search(
-                Kind.CONTAINER, sourceAnchor, targetCriteria), clock.millis(), allowance);
+                Kind.CONTAINER, destinationAnchor, targetCriteria), clock.millis(), allowance);
         stage = Stage.DESTINATION;
     }
 

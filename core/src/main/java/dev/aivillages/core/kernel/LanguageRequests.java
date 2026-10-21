@@ -383,7 +383,7 @@ public final class LanguageRequests {
             t.handle = null; t.result = null;
             t.resolution = Objects.requireNonNull(binding.resolve(
                     new HarvestIntent(actor, e.amount(), source, destination,birch ? BirchLogDelivery.ID : birchPlank ? BirchPlankProduction.ID : table ? CraftingTableProduction.ID : axe ? WoodenAxeProduction.ID : stick ? StickProduction.ID : plank ? OakPlankProduction.ID : oak ? OakLogDelivery.ID : CropDelivery.ID,
-                            new WorldReferenceResolver.Reference<>(classified.table().state(),classified.table().state()==ReferenceState.EXPLICIT_CONCRETE ? coordinate(classified.table().first()) : null,classified.table().evidence(),classified.table().objectType())), t.owner));
+                            new WorldReferenceResolver.Reference<>(classified.table().state(),classified.table().state()==ReferenceState.EXPLICIT_CONCRETE ? coordinate(classified.table().first()) : null,classified.table().evidence(),classified.table().objectType(),classified.table().anchor())), t.owner));
             t.view = new View(t.id, Phase.RESOLVING, null, "Resolving world references", List.of(), null);
             pollResolution(t);
         } catch (SecurityException denied) {
@@ -436,7 +436,7 @@ public final class LanguageRequests {
                 if (e.citizen() != null) {
                     clarify(t, "Nearest citizen selection belongs to deterministic world resolution", List.of()); yield null;
                 }
-                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType());
+                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType(),slot.anchor());
             }
             case EXPLICIT_CONCRETE -> {
                 if (e.citizen() == null || !e.citizen().equalsIgnoreCase(slot.first())) {
@@ -479,7 +479,7 @@ public final class LanguageRequests {
                     clarify(t, "Nearest source selection belongs to deterministic world resolution", List.of());
                     yield null;
                 }
-                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType());
+                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType(),slot.anchor());
             }
             case EXPLICIT_CONCRETE -> {
                 if (e.from() == null || e.through() == null) {
@@ -524,7 +524,7 @@ public final class LanguageRequests {
                     clarify(t, "Nearest destination selection belongs to deterministic world resolution", List.of());
                     yield null;
                 }
-                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType());
+                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType(),slot.anchor());
             }
             case EXPLICIT_CONCRETE -> {
                 if (e.destination() == null) {

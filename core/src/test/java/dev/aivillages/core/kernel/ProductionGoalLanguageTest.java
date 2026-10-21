@@ -41,12 +41,11 @@ class ProductionGoalLanguageTest {
         c=classify("We need two wooden axes from this chest in my house and put them in that barrel.",List.of("Ada"));
         assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,c.source().state());
     }
-    @Test void registeredOutputSelectionIsCommonAndDoesNotImplementLaterOriginalRequests() {
+    @Test void registeredOutputSelectionIsCommonAndKeepsImpliedQuantitiesUnsupported() {
         assertEquals(Intent.MAKE_OAK_PLANKS,classify("We need seven oak planks. Use available materials.",List.of()).intent());
         assertEquals(Intent.MAKE_STICKS,classify("I want six sticks using existing stock.",List.of()).intent());
         assertEquals(Intent.MAKE_CRAFTING_TABLES,classify("We require two crafting tables.",List.of()).intent());
         assertEquals(Intent.UNKNOWN,classify("I need another crafting table. Use the planks from that barrel.",List.of()).intent());
-        assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,classify("Make eleven birch planks and put them in the chest closest to you.",List.of()).destination().state());
     }
     @Test void invalidAmountsUnknownInventoryConstraintsAndExtraInstructionsStayUnexecutable() {
         for(String amount:List.of("0","5","-1","1.5","999999999999999999999"))

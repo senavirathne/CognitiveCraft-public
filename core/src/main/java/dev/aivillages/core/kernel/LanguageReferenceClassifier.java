@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 import static dev.aivillages.core.kernel.WorldReferenceResolver.ObjectType;
+import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceAnchor;
 
 /** Deterministic raw-text provenance. It never supplies world facts or executable authority. */
 public final class LanguageReferenceClassifier {
@@ -16,12 +17,18 @@ public final class LanguageReferenceClassifier {
 
     public enum Intent { HARVEST_WHEAT, NAME_CITIZEN, UNKNOWN, GATHER_OAK_LOGS, MAKE_OAK_PLANKS, MAKE_STICKS, MAKE_WOODEN_AXES, MAKE_CRAFTING_TABLES, GATHER_BIRCH_LOGS, MAKE_BIRCH_PLANKS }
 
-    public record Slot(ReferenceState state, String first, String second, String evidence, ObjectType objectType) {
+    public record Slot(ReferenceState state, String first, String second, String evidence, ObjectType objectType,
+                       ReferenceAnchor anchor) {
+        public Slot(ReferenceState state, String first, String second, String evidence, ObjectType objectType) {
+            this(state, first, second, evidence, objectType, ReferenceAnchor.ROLE_DEFAULT);
+        }
         public Slot(ReferenceState state, String first, String second, String evidence) {
             this(state, first, second, evidence, ObjectType.UNSPECIFIED);
         }
         public Slot {
-            Objects.requireNonNull(state); Objects.requireNonNull(objectType);
+            Objects.requireNonNull(state); Objects.requireNonNull(objectType); Objects.requireNonNull(anchor);
+            if (anchor != ReferenceAnchor.ROLE_DEFAULT && state != ReferenceState.EXPLICIT_NEAREST)
+                throw new IllegalArgumentException("Only explicit nearest references select an anchor");
             if (evidence != null && evidence.length() > 256)
                 throw new IllegalArgumentException("Reference evidence limit");
             if (state == ReferenceState.EXPLICIT_CONCRETE && first == null)
@@ -35,6 +42,9 @@ public final class LanguageReferenceClassifier {
         }
         public static Slot nearest(String evidence, ObjectType objectType) {
             return new Slot(ReferenceState.EXPLICIT_NEAREST, null, null, evidence, objectType);
+        }
+        public static Slot nearest(String evidence, ObjectType objectType, ReferenceAnchor anchor) {
+            return new Slot(ReferenceState.EXPLICIT_NEAREST, null, null, evidence, objectType, anchor);
         }
         public static Slot concrete(String first, String second, String evidence) {
             return new Slot(ReferenceState.EXPLICIT_CONCRETE, first, second, evidence);
@@ -69,7 +79,7 @@ public final class LanguageReferenceClassifier {
     private static final String LOG_DELIVERY_VERBS = "bring|fetch";
     private static final String REQUEST_VERBS = ACQUISITION_VERBS + "|" + LOG_DELIVERY_VERBS + "|make|craft|produce|"+ProductionLanguage.TRANSFORMATION_VERBS+"|"+ProductionLanguage.GOAL_VERBS;
     private static final Pattern SOURCE_ANY = Pattern.compile(
-            "\\bfrom\\s+(.{1,160}?)(?=\\s+(?:and\\s+)?(?:deliver|deposit|put|to|into|in)\\b|[.!?]|$)",
+            "\\bfrom\\s+(.{1,160}?)(?=\\s+(?:and\\s+)?(?:deliver|deposit|put|to(?!\\s+you\\b)|into|in)\\b|[.!?]|$)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern DEST_STANDALONE = Pattern.compile(
             "\\b(?:to|into|in)\\s+(.{1,160}?)(?=[.!?]|$)", Pattern.CASE_INSENSITIVE);
@@ -157,7 +167,7 @@ public final class LanguageReferenceClassifier {
     }
 
     public static Slot table(String text) {
-        var role=Pattern.compile("\\b(?:at|using)\\s+((?:(?:the|a|an|this|that)\\s+)?(?:(?:nearest|available|suitable)\\s+)*(?:crafting\\s+)?table\\b.{0,100}?)(?=\\s+(?:and\\s+)?(?:from|store|deposit|put|deliver)\\b|[.!?;]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
+        var role=Pattern.compile("\\b(?:at|using)\\s+((?:(?:the|a|an|this|that)\\s+)?(?:(?:nearest|closest|available|suitable)\\s+)*(?:crafting\\s+)?table\\b.{0,100}?)(?=\\s+(?:and\\s+)?(?:from|store|deposit|put|deliver)\\b|[.!?;]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find())return containsWord(text,"table") ? Slot.unsupported("unsupported table reference") : Slot.omitted();
         String evidence=stripTerminal(role.group(1));
         if(role.find())return Slot.unsupported("multiple tables");
@@ -167,7 +177,7 @@ public final class LanguageReferenceClassifier {
     private static Slot recipeSource(String text,boolean sticks) {
         Matcher role=Pattern.compile("\\bfrom\\s+(.{1,180}?)(?=\\s+(?:and\\s+)?(?:store|deposit|put|deliver)\\b|[.!?]|$)",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find())return containsWord(text,"from") ? Slot.unsupported("unsupported input source") : Slot.omitted();
-        String phrase=stripTerminal(role.group(1).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:nearest\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
+        String phrase=stripTerminal(role.group(1).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:(?:nearest|closest)\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
         if(role.find())return Slot.unsupported("multiple input sources");
         if(phrase.matches("(?i)(?:the\\s+)?available\\s+(?:oak|birch)\\s+"+(sticks ? "planks?" : "logs?")))return Slot.nearest(sticks ? "available oak planks" : "available oak logs");
         Slot selected=WorldReferenceLanguage.container(phrase);
@@ -178,6 +188,12 @@ public final class LanguageReferenceClassifier {
         Matcher role=Pattern.compile("\\b(?:store|deposit|put|deliver)\\b",Pattern.CASE_INSENSITIVE).matcher(text);
         if(!role.find()) {
             String tail=harvestTail(text);
+            var input=recipeSource(text,false);
+            if(input.state()==ReferenceState.EXPLICIT_NEAREST)
+                tail=WorldReferenceLanguage.alias(tail,input,"stock","from");
+            var facility=table(text);
+            if(facility.state()==ReferenceState.EXPLICIT_NEAREST || facility.state()==ReferenceState.EXPLICIT_CONCRETE)
+                tail=WorldReferenceLanguage.alias(tail,facility,"facility","at|using");
             Matcher direct=DEST_STANDALONE.matcher(tail);
             if(direct.find())return WorldReferenceLanguage.container(stripTerminal(direct.group(1)));
             if(!containsWord(tail,"from") && Pattern.compile("\\b(?:chests?|barrels?|containers?)\\b",Pattern.CASE_INSENSITIVE).matcher(tail).find())
@@ -185,7 +201,7 @@ public final class LanguageReferenceClassifier {
             return Slot.omitted();
         }
         int start=role.end();if(role.find())return Slot.unsupported("multiple output destinations");
-        String phrase=stripTerminal(text.substring(start).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:nearest\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
+        String phrase=stripTerminal(text.substring(start).replaceFirst("(?i)\\s+(?:at|using)\\s+(?:(?:the|a|an|this|that)\\s+)?(?:(?:nearest|closest)\\s+)?(?:(?:available|suitable)\\s+)?(?:crafting\\s+)?table.*$",""));
         if(phrase.isBlank() || phrase.matches("(?i)(?:them|it|(?:(?:(?:oak|birch)\\s+)?planks?|sticks?))"))return Slot.omitted();
         String prefix="(?:(?:them|it|(?:(?:(?:oak|birch)\\s+)?planks?|sticks?))\\s+)?(?:to|into|in|at)\\s+";
         if(!phrase.matches("(?is)^"+prefix+".+"))return Slot.unsupported(phrase);
@@ -261,6 +277,9 @@ public final class LanguageReferenceClassifier {
         } else {
             Matcher action = Pattern.compile("\\b(?:"+REQUEST_VERBS+")\\b", Pattern.CASE_INSENSITIVE).matcher(text);
             String afterAction = action.find() ? text.substring(action.end()) : text;
+            var input=source(text);
+            if(input.state()==ReferenceState.EXPLICIT_NEAREST)
+                afterAction=WorldReferenceLanguage.alias(afterAction,input,"area","from");
             Matcher standalone = DEST_STANDALONE.matcher(afterAction);
             if (!standalone.find()) {
                 if (Pattern.compile("\\b(?:chests?|containers?|barrels?)\\b",Pattern.CASE_INSENSITIVE)

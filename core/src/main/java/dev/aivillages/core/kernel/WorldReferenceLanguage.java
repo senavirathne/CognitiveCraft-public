@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 import static dev.aivillages.core.kernel.LanguageReferenceClassifier.Slot;
 import static dev.aivillages.core.kernel.WorldReferenceResolver.ObjectType;
+import static dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceAnchor;
 
 /** Shared nominal-reference policy. Role owners supply the supported types; no world facts here. */
 public final class WorldReferenceLanguage {
@@ -12,13 +13,26 @@ public final class WorldReferenceLanguage {
     private static final String COORD = "(-?[0-9]+\\s*,\\s*-?[0-9]+\\s*,\\s*-?[0-9]+)";
     private static final String ARTICLE = "(?:(?:the|a|an|this|that)\\s+)?";
     private static final String NOUN = "(chest|container|barrel|(?:crafting\\s+)?table|field|farm|(?:oak|birch)\\s+logs?|log\\s+area)";
+    private static final String QUALIFIER = "(?:(?:available|suitable)\\s+)?";
     private static final Pattern AUTOMATIC = Pattern.compile("^" + ARTICLE
-            + "(?:nearest\\s+)?(?:(?:available|suitable)\\s+)?" + NOUN + "$", Pattern.CASE_INSENSITIVE);
+            + "(?:(?:nearest|closest)\\s+)?" + QUALIFIER + NOUN + "$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACTOR_AFTER = Pattern.compile("^" + ARTICLE + QUALIFIER + NOUN
+            + "\\s+(?:nearest|closest)\\s+to\\s+you$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACTOR_BEFORE = Pattern.compile("^" + ARTICLE
+            + "(?:nearest|closest)\\s+" + QUALIFIER + NOUN + "\\s+to\\s+you$", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONCRETE = Pattern.compile("^" + ARTICLE + "(?:" + NOUN
             + "\\s+(?:at\\s+)?)?" + COORD + "$", Pattern.CASE_INSENSITIVE);
 
     public static Slot parse(String phrase, ObjectType... supported) {
         String evidence = phrase.strip();
+        for (Pattern pattern : java.util.List.of(ACTOR_AFTER, ACTOR_BEFORE)) {
+            var relative = pattern.matcher(evidence);
+            if (relative.matches()) {
+                ObjectType type = type(relative.group(1));
+                if (Arrays.asList(supported).contains(type))
+                    return Slot.nearest(evidence, type, ReferenceAnchor.ACTOR);
+            }
+        }
         var concrete = CONCRETE.matcher(evidence);
         if (concrete.matches()) {
             ObjectType type = concrete.group(1) == null ? ObjectType.UNSPECIFIED : type(concrete.group(1));

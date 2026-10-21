@@ -21,6 +21,8 @@ public final class WorldReferenceResolver {
 
     public enum Kind { CITIZEN, AREA, CONTAINER, FACILITY }
     public enum Relation { NEAREST }
+    /** Ephemeral raw-language anchor; ROLE_DEFAULT retains each existing role's policy. */
+    public enum ReferenceAnchor { ROLE_DEFAULT, ACTOR }
     /** Trusted raw-text constraints, never predicates or world facts supplied by a model. */
     public enum ObjectType {
         UNSPECIFIED, CONTAINER, CHEST, BARREL, CRAFTING_TABLE, FIELD, OAK_LOG_AREA, BIRCH_LOG_AREA, LOG_AREA;
@@ -31,12 +33,18 @@ public final class WorldReferenceResolver {
     }
 
     /** Input provenance is retained until a concrete reference has been selected and validated. */
-    public record Reference<T>(ReferenceState state, T concrete, String evidence, ObjectType objectType) {
+    public record Reference<T>(ReferenceState state, T concrete, String evidence, ObjectType objectType,
+                               ReferenceAnchor anchor) {
+        public Reference(ReferenceState state, T concrete, String evidence, ObjectType objectType) {
+            this(state, concrete, evidence, objectType, ReferenceAnchor.ROLE_DEFAULT);
+        }
         public Reference(ReferenceState state, T concrete, String evidence) {
             this(state, concrete, evidence, ObjectType.UNSPECIFIED);
         }
         public Reference {
-            Objects.requireNonNull(state); Objects.requireNonNull(objectType);
+            Objects.requireNonNull(state); Objects.requireNonNull(objectType); Objects.requireNonNull(anchor);
+            if (anchor != ReferenceAnchor.ROLE_DEFAULT && state != ReferenceState.EXPLICIT_NEAREST)
+                throw new IllegalArgumentException("Only explicit nearest references select an anchor");
             if (state == ReferenceState.EXPLICIT_CONCRETE && concrete == null)
                 throw new IllegalArgumentException("Concrete reference required");
             if (state != ReferenceState.EXPLICIT_CONCRETE && concrete != null)
@@ -52,6 +60,9 @@ public final class WorldReferenceResolver {
         }
         public static <T> Reference<T> nearest(String evidence, ObjectType objectType) {
             return new Reference<>(ReferenceState.EXPLICIT_NEAREST, null, evidence, objectType);
+        }
+        public static <T> Reference<T> nearest(String evidence, ObjectType objectType, ReferenceAnchor anchor) {
+            return new Reference<>(ReferenceState.EXPLICIT_NEAREST, null, evidence, objectType, anchor);
         }
         public static <T> Reference<T> concrete(T value, String evidence) {
             return new Reference<>(ReferenceState.EXPLICIT_CONCRETE, value, evidence);

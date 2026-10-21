@@ -39,6 +39,7 @@ PROFILES["rb001"] = ["GP-RB-01"]
 PROFILES["d01"] = ["D01-EVIDENCE"]
 PROFILES["d02"] = ["D02-EVIDENCE"]
 PROFILES["d03"] = ["D03-EVIDENCE"]
+PROFILES["d04"] = ["D04-EVIDENCE"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
@@ -1553,6 +1554,7 @@ def main():
     registry["GP-RB-06B"] = table_placement_scenario
     from birch import scenario as birch_scenario
     registry["GP-RB-07"] = birch_scenario
+    registry["D04-EVIDENCE"] = lambda h: birch_scenario(h,d04_evidence=True)
     from blueprints import scenario as blueprint_scenario
     registry["GP-RB-08"] = blueprint_scenario
     try:

@@ -9,7 +9,7 @@ LO=[6,201,14];HI=[13,201,14];OTHER_LO=[14,201,11];OTHER_HI=[21,201,11]
 def inventory(h,player):
     return next(a["inventory"] for a in h.snapshot()["actors"] if a["uuid"]==h.entities[player]).copy()
 
-def scenario(h):
+def scenario(h, *, d04_evidence=False):
     from suite import ROOT,UUID_PATTERN,DENIED_PATTERN,require,read,reconnect_players
     require(h.topology=="compose","Birch acceptance requires real network clients and configured model backends")
     shutil.copytree(ROOT/"build/needle",h.root/"needle",dirs_exist_ok=True)
@@ -71,15 +71,22 @@ def scenario(h):
         h.actions_active=False
         return {"run":rid,"artifact":artifact,"amount":q,"source":source,"destination":destination,"actor":h.entities[player],"quantities":sums,"view":view}
     h.command("PlayerA","/aivillage kernel inference true","admission=true")
-    before=h.container(SRC,LOG);rid=gather(4)
-    admissions.append(verify(rid,4,before,LO+HI,SRC,acquired=True));h.command("PlayerA","/aivillage kernel status "+rid,"phase=TERMINAL");h.screenshot("PlayerA","rb007-genuine-birch-harvest",chat=True)
-    client_container("PlayerA",SRC,LOG)
+    if not d04_evidence:
+        before=h.container(SRC,LOG);rid=gather(4)
+        admissions.append(verify(rid,4,before,LO+HI,SRC,acquired=True));h.command("PlayerA","/aivillage kernel status "+rid,"phase=TERMINAL");h.screenshot("PlayerA","rb007-genuine-birch-harvest",chat=True)
+        client_container("PlayerA",SRC,LOG)
+    else:
+        h.console([f'data merge entity {h.entities["PlayerA"]} {{Inventory:[{{id:"minecraft:oak_log",count:3}},{{id:"minecraft:birch_planks",count:7}}]}}'])
+        h.wait(lambda:inventory(h,"PlayerA").get(PLANK)==7 and inventory(h,"PlayerA").get(OAK)==3,"D04 old NPC stock")
     seed(2);before=h.container(DST,PLANK);inv=inventory(h,"PlayerA");rid=make(5)
     admissions.append(verify(rid,5,before,SRC,DST,acquired=True,craft=True,before_inventory=inv));h.screenshot("PlayerA","rb007-genuine-birch-crafting",chat=True)
     client_container("PlayerA",DST,PLANK)
     foreign=h.command("PlayerB","/aivillage kernel status "+rid,DENIED_PATTERN)
     foreign_cancel=h.command("PlayerB","/aivillage kernel cancel "+rid,DENIED_PATTERN)
     require(rid not in h.suggestions("PlayerB","/aivillage kernel status "),"Foreign birch run UUID leaked")
+    if d04_evidence:
+        from d04 import language_evidence
+        return language_evidence(h,seed,verify,admissions[-1],models,read(h.root/"needle/manifest.json"))
     h.command("PlayerA","/aivillage kernel inference false","admission=false")
     for q in (1,4,8,64):
         seed((q+3)//4);before=h.container(DST,PLANK);inv=inventory(h,"PlayerA");calls=h.model_calls()

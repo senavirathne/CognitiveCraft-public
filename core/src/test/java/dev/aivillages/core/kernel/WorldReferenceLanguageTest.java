@@ -46,7 +46,7 @@ class WorldReferenceLanguageTest {
     }
     @Test void namedConstraintsAndUnsupportedOrMultipleObjectsCannotDisappear() {
         for(String phrase:List.of("my barrel","that barrel behind my house","this chest and that barrel",
-                "barrel closest to you","that furnace","that","this","nearest chest at 1,2,3"))
+                "barrel closest to me","that furnace","that","this","nearest chest at 1,2,3"))
             assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,WorldReferenceLanguage.container(phrase).state(),phrase);
         assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED,WorldReferenceLanguage.parse("that barrel",ObjectType.CRAFTING_TABLE).state());
     }
