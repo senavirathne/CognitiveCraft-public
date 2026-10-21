@@ -40,6 +40,7 @@ PROFILES["d01"] = ["D01-EVIDENCE"]
 PROFILES["d02"] = ["D02-EVIDENCE"]
 PROFILES["d03"] = ["D03-EVIDENCE"]
 PROFILES["d04"] = ["D04-EVIDENCE"]
+PROFILES["d05"] = ["D05-EVIDENCE"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
@@ -1550,6 +1551,7 @@ def main():
     registry["GP-RB-COMPOSE-01"] = composition_scenario
     from tableitems import scenario as table_item_scenario
     registry["GP-RB-06A"] = table_item_scenario
+    registry["D05-EVIDENCE"] = lambda h: table_item_scenario(h,d05_evidence=True)
     from tableplacement import scenario as table_placement_scenario
     registry["GP-RB-06B"] = table_placement_scenario
     from birch import scenario as birch_scenario

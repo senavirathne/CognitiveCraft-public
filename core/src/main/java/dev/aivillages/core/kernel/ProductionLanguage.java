@@ -20,6 +20,8 @@ public final class ProductionLanguage {
     private static final String NUMBER="(?:(?:twenty|thirty|forty|fifty|sixty)(?:[ -](?:"+ONES+"))?"
             +"|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|"+ONES
             +"|[+-]?[0-9]+(?:[.,/][0-9]+)?)";
+    private static final String SINGLE="another|a|an";
+    private static final String COUNT="(?:"+NUMBER+"(?:\\s+more)?|"+SINGLE+")";
     private static final String MATERIAL="(?:(?:stripped\\s+oak|oak|birch|spruce)\\s+logs?"
             +"|(?:(?:oak|birch)\\s+)?planks?|sticks?|crafting\\s+tables?|wooden\\s+axes?|iron\\s+ingots?)";
     private static final String INPUT="(?<units>(?:(?:these|those|this|that|the)\\s+)?(?:available\\s+)?"
@@ -30,13 +32,19 @@ public final class ProductionLanguage {
             +"\\s+(?<relation>from|using|with)\\s+"+INPUT+"\\b",Pattern.CASE_INSENSITIVE);
     private static final Pattern ITEMS=Pattern.compile("\\b"+MATERIAL+"\\b",Pattern.CASE_INSENSITIVE);
     private static final Pattern GOAL=Pattern.compile("^\\s*(?<prefix>(?:[\\p{L}\\p{M}\\p{N}][\\p{L}\\p{M}\\p{N}_ -]{0,127}?\\s*,\\s*)?)"
-            +"(?:i|we)\\s+(?:"+GOAL_VERBS+")\\s+(?<oq>"+NUMBER+")\\s+(?<output>"+MATERIAL+")\\b(?<tail>.*)$",
+            +"(?:i|we)\\s+(?:"+GOAL_VERBS+")\\s+(?<oq>"+COUNT+")\\s+(?<output>"+MATERIAL+")\\b(?<tail>.*)$",
+            Pattern.CASE_INSENSITIVE|Pattern.UNICODE_CASE);
+    private static final Pattern ADDITIONAL_COMMAND=Pattern.compile("^\\s*(?<prefix>(?:[\\p{L}\\p{M}\\p{N}][\\p{L}\\p{M}\\p{N}_ -]{0,127}?\\s*,\\s*)?)"
+            +"(?:make|craft|produce)\\s+(?<oq>(?:"+SINGLE+"|"+NUMBER+"\\s+more))\\s+(?<output>"+MATERIAL+")\\b(?<tail>.*)$",
             Pattern.CASE_INSENSITIVE|Pattern.UNICODE_CASE);
     private static final String STOCK="(?:(?:the\\s+)?(?:available|existing)\\s+(?:materials|stock|supplies)"
             +"|(?:the\\s+)?(?:materials|stock|supplies)\\s+(?:we|i)\\s+(?:already\\s+)?(?:have|own)"
             +"|what\\s+(?:we|i)(?:['’]ve|\\s+have)?\\s+(?:already\\s+)?(?:got|have))";
     private static final Pattern STOCK_CLAUSE=Pattern.compile("(?:\\s*[.;]\\s*(?:please\\s+)?use\\s+|\\s+(?:using|with|from)\\s+)"
             +"(?<stock>"+STOCK+")(?=\\s*(?:[.;!?]|$|(?:and\\s+)?(?:put|store|deposit|deliver)\\b))",Pattern.CASE_INSENSITIVE);
+    private static final Pattern INPUT_CLAUSE=Pattern.compile("(?:\\s*[.;]\\s*(?:please\\s+)?use\\s+|\\s+(?:using|with)\\s+)"
+            +INPUT+"\\s+from\\s+(?<container>.{1,180}?)(?=\\s*(?:[.;!?]|$|(?:and\\s+)?(?:put|store|deposit|deliver)\\b))",
+            Pattern.CASE_INSENSITIVE);
     // Existing registered single-input producers. Multi-ingredient methods require their own semantics.
     private static final List<CapabilityId> PRODUCERS=List.of(OakPlankProduction.ID,BirchPlankProduction.ID,
             StickProduction.ID,CraftingTableProduction.ID);
@@ -72,24 +80,42 @@ public final class ProductionLanguage {
     }
 
     private static Description goal(String text) {
-        var goal=GOAL.matcher(text);if(!goal.matches())return null;
+        var goal=GOAL.matcher(text);
+        if(!goal.matches()) {goal=ADDITIONAL_COMMAND.matcher(text);if(!goal.matches())return null;}
+        String outputMaterial=goal.group("output"),count=goal.group("oq");
         var recipes=GOAL_PRODUCERS.stream().map(RecipeProduction::of)
-                .filter(r->matches(goal.group("output"),r.output())).toList();
+                .filter(r->matches(outputMaterial,r.output())).toList();
         if(recipes.size()!=1)return new Description(null,null,null,null,null,null,text,text,Issue.UNSUPPORTED_RECIPE);
-        var recipe=recipes.getFirst();Long output=quantity(goal.group("oq"));
+        var recipe=recipes.getFirst();Long output=quantity(count),inputs=null;
         Issue issue=output==null || output<1 || output>recipe.maximumAmount() ? Issue.INVALID_QUANTITY : Issue.NONE;
-        String tail=goal.group("tail"),stockEvidence=null;
+        if(count.matches("(?i)(?:"+SINGLE+"|one\\s+more)") && outputMaterial.toLowerCase(Locale.ROOT).endsWith("s"))
+            issue=Issue.INVALID_QUANTITY;
+        String tail=goal.group("tail"),stockEvidence=null,inputEvidence=null;
+        var ingredient=INPUT_CLAUSE.matcher(tail);
+        if(ingredient.find()) {
+            inputEvidence=ingredient.group("units");inputs=quantity(ingredient.group("iq"));
+            if(!matches(ingredient.group("input"),recipe.input()))issue=Issue.UNSUPPORTED_RECIPE;
+            else if(ingredient.group("iq")!=null && (inputs==null || inputs<1 || inputs>recipe.inputs(recipe.maximumAmount())))
+                issue=Issue.INVALID_QUANTITY;
+            else if(issue==Issue.NONE && inputs!=null && inputs!=recipe.inputs(output))issue=Issue.INPUT_QUANTITY_MISMATCH;
+            int start=ingredient.start(),end=ingredient.end();String container=ingredient.group("container");
+            if(ingredient.find())issue=Issue.UNSUPPORTED_RECIPE;
+            tail=tail.substring(0,start)+" from "+container+tail.substring(end);
+        }
         var stock=STOCK_CLAUSE.matcher(tail);
         if(stock.find()) {
             stockEvidence=stock.group("stock");int start=stock.start(),end=stock.end();
-            if(stock.find())issue=Issue.UNSUPPORTED_RECIPE;
+            if(stock.find() || inputEvidence!=null)issue=Issue.UNSUPPORTED_RECIPE;
             tail=tail.substring(0,start)+tail.substring(end);
         }
         if(!supportedGoalTail(tail))issue=Issue.UNSUPPORTED_RECIPE;
-        String prefix=goal.group("prefix")+"make "+goal.group("oq")+" "+plural(recipe.output());
+        if(!recipe.axe() && Pattern.compile("\\b(?:at|using)\\s+[^.;!?]*\\btable\\b",Pattern.CASE_INSENSITIVE).matcher(tail).find())
+            issue=Issue.UNSUPPORTED_RECIPE;
+        String normalized=count.matches("(?i)(?:"+SINGLE+"|.+\\s+more)") ? String.valueOf(output) : count;
+        String prefix=goal.group("prefix")+"make "+normalized+" "+plural(recipe.output());
         String referenceText=prefix+tail;
         boolean source=Pattern.compile("\\bfrom\\b",Pattern.CASE_INSENSITIVE).matcher(tail).find();
-        return new Description(recipe.spec().id(),recipe.input(),recipe.output(),null,output,stockEvidence,
+        return new Description(recipe.spec().id(),recipe.input(),recipe.output(),inputs,output,inputEvidence!=null ? inputEvidence : stockEvidence,
                 referenceText,prefix+(stockEvidence!=null && !source ? " from stock" : "")+tail,issue);
     }
 
@@ -97,6 +123,7 @@ public final class ProductionLanguage {
     private static boolean supportedGoalTail(String raw) {
         String tail=raw.strip().replaceFirst("[.!?;]+$","").strip();
         if(tail.isEmpty() || tail.matches("(?i)for\\s+(?:me|us)"))return true;
+        if(Pattern.compile("\\b(?:place|build|install|position)\\b",Pattern.CASE_INSENSITIVE).matcher(tail).find())return false;
         if(Pattern.compile("[.!?;]\\s*\\p{L}").matcher(tail).find())return false;
         if(tail.matches("(?is)^(?:from|to|into|in)\\s+.+"))return true;
         if(tail.matches("(?is)^(?:at|using)\\s+.+") && Pattern.compile("\\btable\\b",Pattern.CASE_INSENSITIVE).matcher(tail).find())return true;
@@ -123,6 +150,9 @@ public final class ProductionLanguage {
     }
     private static Long quantity(String raw) {
         if(raw==null)return null;
+        raw=raw.toLowerCase(Locale.ROOT).replaceAll("\\s+"," ").strip();
+        if(raw.matches("(?:"+SINGLE+")"))return 1L;
+        raw=raw.replaceFirst("\\s+more$","");
         if(raw.matches("[0-9]+")) {try{return Long.parseLong(raw);}catch(NumberFormatException overflow){return null;}}
         String word=raw.toLowerCase(Locale.ROOT).replace('-',' ');
         List<String> small=List.of("","one","two","three","four","five","six","seven","eight","nine","ten",
