@@ -1,0 +1,93 @@
+[
+  {
+    "id": "D02-original",
+    "text": "Could you turn these two oak logs into seven planks for me?",
+    "amount": 7,
+    "inputs": 2,
+    "citizen": null,
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D02-convert",
+    "text": "Ada, convert three oak logs into ten planks and put them in that barrel.",
+    "amount": 10,
+    "inputs": 3,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D02-transform",
+    "text": "Ada, transform one oak log into three oak planks and store them in this chest.",
+    "amount": 3,
+    "inputs": 1,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D02-make-from",
+    "text": "Ada, make five oak planks from two oak logs and store them in the barrel at 9,201,7.",
+    "amount": 5,
+    "inputs": 2,
+    "citizen": "Ada",
+    "destination": "9,201,7",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D02-convert-coordinates",
+    "text": "Ada, convert two oak logs from chest at 5,201,5 into eight oak planks and put them in barrel at 9,201,7.",
+    "amount": 8,
+    "inputs": 2,
+    "citizen": "Ada",
+    "from": "5,201,5",
+    "destination": "9,201,7",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D02-insufficient-stated-input",
+    "text": "Ada, turn one oak log into seven planks.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D02-excess-stated-input",
+    "text": "Ada, convert three oak logs into seven planks.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D02-wrong-material",
+    "text": "Ada, turn two birch logs into seven oak planks.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D02-unsupported-recipe",
+    "text": "Ada, turn two oak logs into three iron ingots.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D02-negated",
+    "text": "Ada, do not turn two oak logs into seven planks.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D02-compound",
+    "text": "Ada, turn two oak logs into seven planks and craft a stone pickaxe.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D02-unbound-source",
+    "text": "Ada, convert two oak logs from my northern grove into seven planks.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D02-missing-output",
+    "text": "Ada, turn two oak logs into planks.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D02-existing-control",
+    "text": "Ada, make seven oak planks from available oak logs and store them.",
+    "amount": 7,
+    "inputs": 2,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED"
+  }
+]
