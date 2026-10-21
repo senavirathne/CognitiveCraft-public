@@ -54,6 +54,9 @@ def client():
         j=cancelled['view'];assert j['state']=='CANCELLED' and j['fulfilled']==0
         assert all(not a['effects'] and not a.get('resourceReceipts') for a in j['attempts'])
     assert e['clockMode']=='vanilla-1-tps' and e['crashPlacementApproach']
+    clearance=[e['crashPlacementClearance'],e['crashCaptureClearance']]
+    assert all(p['clear'] is True and p['columnHeight']==3 and p['target']==e['crashPlacementApproach']['target'] and type(p['gameTick']) is int for p in clearance)
+    assert 0<=clearance[0]['gameTick']<=clearance[1]['gameTick']
     assert e['killBoundary']['phase']=='EXECUTING' and any(r['stage']=='PLACE' for r in e['killBoundary']['resourceReceipts'])
     assert 1<=e['clockSteps']<=512 and 'INTERRUPTED' in e['recovered']['description'] and 'minecraft:crafting_table' in e['savedBlock']
     proof=e['offlineProcessProof'];assert proof['sameRelease'] and proof['backendUnavailable'] and proof['warm']['start']>proof['cold']['start']
