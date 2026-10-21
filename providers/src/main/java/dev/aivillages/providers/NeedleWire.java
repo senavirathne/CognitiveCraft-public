@@ -80,6 +80,12 @@ public final class NeedleWire {
         if (classification.destination().state() == ReferenceState.EXPLICIT_NEAREST)
             prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.destination(), "chest", "at|to|into|in");
 
+        // Facility binding is host-only and has no field in this model tool schema.
+        // Keep its independently grounded raw descriptor, omitting that transport span.
+        if (axe && statedReference(classification.table().state()))
+            prompt=Pattern.compile("\\s+(?:and\\s+)?(?:at|using)\\s+"+Pattern.quote(classification.table().evidence())
+                    +"(?=\\s|[.!?;]|$)",Pattern.CASE_INSENSITIVE).matcher(prompt).replaceFirst("");
+
         String explicitId = null;
         String explicitCitizen = classification.actor().state() == ReferenceState.EXPLICIT_CONCRETE
                 ? classification.actor().first() : null;

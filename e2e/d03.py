@@ -58,6 +58,7 @@ def language_evidence(h, prepare, verify, acquisition, typed_interface, models, 
         require(units=={LOG:q*3,STICK:q*2},'D03 lost one of the two exact ingredient roles')
         require(h.snapshot()['blocks']==physical['blocks'],'Stocked D03 unnecessarily harvested or placed blocks')
         result.update(id=row['id'],text=row['text'],ticket=ticket,ingredientUnits=units,modelCallsBefore=calls,modelCallsAfter=calls_once(calls),
+                      actorPositionBefore=next(a['pos'] for a in physical['actors'] if a['uuid']==h.entities['PlayerA']),
                       actorInventoryBefore=inventory,actorInventoryAfter=actor_inventory('PlayerA',h),destinationBefore=before,destinationAfter=h.container(destination,PLANK))
         if row['id']=='D03-original':
             require(h.container(DESTINATION,LOG)==9 and h.container(DESTINATION,STICK)==5,'Incomplete closer stock was consumed')

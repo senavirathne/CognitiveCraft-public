@@ -18,6 +18,7 @@ class ProductionGoalNeedleWireTest {
         var p=NeedleWire.prepare(new LanguageRequests.Input("We require three wooden axes from chest at 5,201,5 using crafting table at 7,201,9 and put them in barrel at 9,201,7.",List.of("Ada")));
         assertEquals("5,201,5",p.from());assertEquals(p.from(),p.through());assertEquals("9,201,7",p.destination());
         assertEquals("7,201,9",p.classification().table().first());assertFalse(p.tools().contains("\"table\""));
+        assertFalse(p.text().contains("7,201,9"));assertFalse(p.text().contains("crafting table"));
     }
     @Test void unknownTableAndInventoryConstraintsCannotBeBypassedByModelConfidence() {
         for(String tail:List.of("using my private table.","using my stock.",". Use available materials. Buy more.")) {
