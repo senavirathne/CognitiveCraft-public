@@ -121,6 +121,7 @@ def scenario(h, *, placement_only=False):
         return {"task":"1.1","independentAcquisitions":acquisitions,"artifacts":hashes,
                 "placement":placed,"existingFacility":existing,"existingItem":supplied,
                 "emptyProvision":empty,"foreignDenied":foreign,"models":models,
+                "finalSnapshot":h.snapshot(),"principals":h.players,"citizens":h.citizens,
                 "offlineReuse":"NOT_STARTED","laterTasks":"NOT_STARTED"}
     # Two original scopes request one missing approved facility. Only one placement may occur.
     seed(p=6,s=4,t=2,source=SECOND);before=h.container(SECOND_DEST,AXE);calls=h.model_calls();first=submit_goal(RACE);second=submit_goal(RACE,"PlayerB")

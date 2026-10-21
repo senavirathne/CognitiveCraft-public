@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: world-placement-${{ github.ref }}
+  group: world-placement-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   native-placement:
@@ -37,7 +37,9 @@ jobs:
           p.write_text(json.dumps(value,indent=2)+'\n')
           PY
       - name: Actual native placement, crossing collision, self occupancy and center ray
-        run: bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-world-placement.py variants
       - name: Select original actual consumption and safety regression in a separate JVM
         run: |
           mv fabric/build/gametest-run fabric/build/world-placement-variants-run
@@ -50,6 +52,7 @@ jobs:
           p.write_text(json.dumps(value,indent=2)+'\n')
           PY
           bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-world-placement.py original
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -90,7 +93,9 @@ jobs:
           python3 e2e/runtime.py compile
           python3 scripts/verify-rb006b.py identity
       - name: Original connected-client sequence through empty-stock placement and owned root completion
-        run: python3 e2e/suite.py --profile rb006b-placement --root build/e2e/rb006b-placement
+        run: |
+          python3 e2e/suite.py --profile rb006b-placement --root build/e2e/rb006b-placement
+          python3 scripts/verify-world-placement.py client
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -8,6 +8,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Fake-clock path snapshots exercise the policy without replacing Minecraft integration. */
 final class NavigationRouteTest {
+    @Test void declaredStandingPointRefinesWithoutAcceptingAnUnplannedEndpoint(){
+        var approach=new NavigationRoute.Approach(2,0,3,.25,0);
+        var route=new NavigationRoute(List.of(approach));assertEquals(approach,route.select(new NavigationRoute.Position(3,0,3)));
+        route.chargedPathfinding();Object path=new Object();var feet=approach.feet();
+        var initial=new NavigationRoute.PathSample(path,1,0,1,feet,new NavigationRoute.Position(3,0,3.5));route.accepted(initial,0);
+        var finished=new NavigationRoute.PathSample(path,1,1,1,feet,new NavigationRoute.Position(2.6,0,3.5));
+        assertEquals(NavigationRoute.Follow.CONTINUE,route.follow(finished,1,feet));
+        assertEquals(NavigationRoute.Follow.ABANDON,route.follow(finished,2,new NavigationRoute.Position(2.5,0,3.5)));
+        assertEquals("invalid-endpoint",route.lastReason());assertEquals(1,route.navigationCalls());assertEquals(1,route.attempts());
+    }
+    @Test void standingOffsetsCannotEscapeTheirBoundedDeclaredFace(){
+        assertThrows(IllegalArgumentException.class,()->new NavigationRoute.Approach(0,0,0,.251,0));
+        assertThrows(IllegalArgumentException.class,()->new NavigationRoute.Approach(0,0,0,Double.NaN,0));
+        assertThrows(IllegalArgumentException.class,()->new NavigationRoute.Approach(0,0,0,0,Double.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class,()->new NavigationRoute.Approach(0,0,0,.1,.1));
+        assertEquals(new NavigationRoute.Position(.5,0,.5),new NavigationRoute.Approach(0,0,0).feet());
+    }
     private static final NavigationRoute.Position WAYPOINT = new NavigationRoute.Position(0, 0, 0);
     private static final NavigationRoute.Position START = new NavigationRoute.Position(6, 0, 6);
 
