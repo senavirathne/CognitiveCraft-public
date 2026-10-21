@@ -80,7 +80,7 @@ public final class WorldPlacementGameTests {
             if(phase[0]==0){
                 if(!v.onGround()){h.assertTrue(false,"Waiting for initial actor landing");return;}
                 h.assertTrue(world.acquire(actor,run),"Native placement control");from.setItem(0,new ItemStack(Items.CRAFTING_TABLE,2));
-                captured[0]=world.placementPreflight(bound);withdrawn[0]=world.withdrawTableItem(actor,captured[0],captured[0].custodyFingerprint(),captured[0].sourceFingerprint());
+                captured[0]=world.placementPreflight(bound);h.assertTrue(captured[0].reason()==null,"Initial independent collision fixture preflight: "+captured[0]);withdrawn[0]=world.withdrawTableItem(actor,captured[0],captured[0].custodyFingerprint(),captured[0].sourceFingerprint());
                 h.assertTrue(withdrawn[0].withdrawn()==1,"Exactly one real table withdrawn");
                 blocker[0]=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,4,1,3);blocker[0].setNoAi(false);
                 blockerActor[0]=new ActorRef(UUID.randomUUID(),blocker[0].getUUID(),dim);h.assertTrue(world.acquire(blockerActor[0],blockerRun),"Native crossing fixture control");

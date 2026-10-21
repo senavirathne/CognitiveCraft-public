@@ -33,11 +33,24 @@ jobs:
           from pathlib import Path
           p=Path('fabric/src/gameTest/resources/fabric.mod.json')
           value=json.loads(p.read_text())
-          value['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementEffectGameTests','dev.aivillages.fabric.WorldPlacementGameTests']
+          value['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.WorldPlacementGameTests']
           p.write_text(json.dumps(value,indent=2)+'\n')
           PY
       - name: Actual native placement, crossing collision, self occupancy and center ray
         run: bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Select original actual consumption and safety regression in a separate JVM
+        run: |
+          mv fabric/build/gametest-run fabric/build/world-placement-variants-run
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json')
+          value=json.loads(p.read_text())
+          value['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.PlacementEffectGameTests']
+          p.write_text(json.dumps(value,indent=2)+'\n')
+          PY
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -51,6 +64,7 @@ jobs:
             providers/build/test-results/test/
             fabric/build/test-results/test/
             fabric/build/gametest-run/
+            fabric/build/world-placement-variants-run/
             fabric/build/libs/
   connected-placement:
     runs-on: ubuntu-latest
