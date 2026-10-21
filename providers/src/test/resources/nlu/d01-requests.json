@@ -1,0 +1,11 @@
+[
+  {"id":"D01-original","text":"Ada, bring seven oak logs over to that barrel.","amount":7,"outcome":"CLARIFICATION"},
+  {"id":"D01-bring-nearest","text":"Ada, please bring seven oak logs over to the nearest suitable barrel.","amount":7,"outcome":"EXTRACTED"},
+  {"id":"D01-fetch-coordinates","text":"Ada, fetch three oak logs from 6,201,14 through 13,201,14 and put them into the barrel at 7,201,9.","amount":3,"outcome":"EXTRACTED"},
+  {"id":"D01-fetch-implicit-actor","text":"Fetch two oak logs and deliver them to the nearest suitable barrel.","amount":2,"outcome":"EXTRACTED"},
+  {"id":"D01-unbound-source","text":"Ada, bring seven oak logs from my grove to the nearest suitable chest.","amount":7,"outcome":"CLARIFICATION"},
+  {"id":"D01-unbound-destination","text":"Ada, fetch three oak logs and put them into my barrel.","amount":3,"outcome":"CLARIFICATION"},
+  {"id":"D01-negated","text":"Ada, do not bring seven oak logs to the nearest suitable barrel.","outcome":"UNSUPPORTED"},
+  {"id":"D01-unsupported-species","text":"Ada, fetch three spruce logs and put them into the nearest barrel.","outcome":"UNSUPPORTED"},
+  {"id":"D01-compound","text":"Ada, bring two oak logs and craft planks.","outcome":"UNSUPPORTED"}
+]

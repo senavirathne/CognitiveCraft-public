@@ -21,3 +21,12 @@ tasks.register('runNeedleLiveSmoke', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.aivillages.providers.NeedleLiveSmoke'
 }
+
+tasks.register('runD01LanguageLiveProbe', JavaExec) {
+    workingDir rootProject.projectDir
+    group = 'verification'
+    description = 'Actual pinned Needle evidence for the frozen D01 and independent oak-delivery paraphrases.'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D01LanguageLiveProbe'
+}
