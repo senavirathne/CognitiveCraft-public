@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import dev.aivillages.fabric.mixin.PathNavigationAccessor;
 import dev.aivillages.core.kernel.Contracts.*;
@@ -33,6 +34,7 @@ import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /** Minecraft 26.3 server-thread adapter. It never requests an unloaded chunk. */
@@ -57,16 +59,18 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         final boolean sourceApproach;
         final boolean solidApproach;
         final boolean dropApproach;
+        final BlockPos reserved;
         BlockPos approachTarget;
         BlockPos settledCell;
         long settledSince = -1;
         boolean endpointRefined;
-        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach, boolean dropApproach) {
+        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach, boolean dropApproach,BlockPos reserved) {
             this.target = target;
             this.runId = runId;
             this.sourceApproach = sourceApproach;
             this.solidApproach = solidApproach;
             this.dropApproach = dropApproach;
+            this.reserved = reserved;
             List<NavigationRoute.Approach> samples = new ArrayList<>(8);
             // Wheat source goals remain inside the selected crop cell. Owned oak
             // loot also permits four adjacent standing cells when its own cell
@@ -78,6 +82,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                         : !sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) samples.add(new NavigationRoute.Approach(
                         target.getX() + dx, target.getY(), target.getZ() + dz));
             }
+            if(reserved!=null)samples.removeIf(p->p.x()==reserved.getX() && p.y()==reserved.getY() && p.z()==reserved.getZ());
             this.policy = new NavigationRoute(samples);
         }
     }
@@ -118,13 +123,22 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return recipeTransactions.deposit(actor,destination,captured,custody,amount);
     }
     @Override public Movement moveRecipe(ActorRef actor,Cell target,int maximum) {
+        return moveSettled(actor,target,maximum,null);
+    }
+    @Override public Movement movePlacement(ActorRef actor,Cell target,FacilityRef approved,int maximum) {
+        if(!approved.dimension().equals(dimension()))return new Movement(false,true,0,0);
+        var reserved=new BlockPos(approved.x(),approved.y(),approved.z());
+        return position(target).equals(reserved) ? navigate(actor,target,maximum,false,true,null,null,reserved)
+                : moveSettled(actor,target,maximum,reserved);
+    }
+    private Movement moveSettled(ActorRef actor,Cell target,int maximum,BlockPos reserved) {
         Villager v=recipeActor(actor);
         if(v==null)return new Movement(false,true,0,0);
         if(!v.onGround()) {
             recipeSettled.remove(v.getUUID());long travel=sampleTravel(v);
             return travel>1 ? terminal(v,routes.get(v.getUUID()),"invalid-travel",0,travel) : new Movement(false,false,0,travel);
         }
-        var result=move(actor,target,maximum);
+        var result=navigate(actor,target,maximum,false,false,null,null,reserved);
         if(!result.reached()) {recipeSettled.remove(v.getUUID());return result;}
         var motion=v.getDeltaMovement();
         if(motion.x*motion.x+motion.z*motion.z>0.0001 || motion.y>0.0001) {
@@ -340,6 +354,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     }
     private Movement navigate(ActorRef actor,Cell target,int maxNavigationCalls,boolean sourceApproach,boolean solidApproach,
                               Vec3 interactionPoint,BlockPos interactionBlock) {
+        return navigate(actor,target,maxNavigationCalls,sourceApproach,solidApproach,interactionPoint,interactionBlock,null);
+    }
+    private Movement navigate(ActorRef actor,Cell target,int maxNavigationCalls,boolean sourceApproach,boolean solidApproach,
+                              Vec3 interactionPoint,BlockPos interactionBlock,BlockPos reserved) {
         Villager v = villager(actor);
         if (v == null) {
             routes.remove(actor.entityId());
@@ -367,12 +385,13 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(oakApproach && route==null) {
             UUID owner=GatewayControl.owner(v);
             if(owner==null)return new Movement(false,true,0,travel);
-            route=new Route(targetPos,owner,sourceApproach,solidApproach,ownedDrop);routes.put(v.getUUID(),route);
+            route=new Route(targetPos,owner,sourceApproach,solidApproach,ownedDrop,reserved);routes.put(v.getUUID(),route);
         }
         boolean selectedFace = route == null || route.approachTarget == null
                 || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ()
                 && Math.abs(v.getY()-route.approachTarget.getY())<=0.125;
-        if ((!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v,point,rayTarget) && (!sourceApproach
+        boolean clearStanding=reserved==null || !v.getBoundingBox().intersects(new AABB(reserved));
+        if (clearStanding && (!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v,point,rayTarget) && (!sourceApproach
                 || v.distanceToSqr(point) <= (ownedDrop ? OAK_DROP_APPROACH_DISTANCE_SQUARED : SOURCE_APPROACH_DISTANCE_SQUARED))) {
             if (oakApproach) {
                 stopOwnedNavigation(v, route);
@@ -392,7 +411,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (!loaded(targetPos) || !level.mayInteract(v, targetPos))
             return terminal(v, routes.get(v.getUUID()), "target-unavailable", 0, travel);
         if (route != null && (!route.target.equals(targetPos) || route.sourceApproach != sourceApproach
-                || route.solidApproach != solidApproach || route.dropApproach != ownedDrop)) {
+                || route.solidApproach != solidApproach || route.dropApproach != ownedDrop || !Objects.equals(route.reserved,reserved))) {
             stopOwnedNavigation(v, route);
             routes.remove(v.getUUID());
             route = null;
@@ -400,7 +419,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (route == null) {
             UUID runId = GatewayControl.owner(v);
             if (runId == null) return new Movement(false, true, 0, travel);
-            route = new Route(targetPos, runId, sourceApproach, solidApproach,ownedDrop);
+            route = new Route(targetPos, runId, sourceApproach, solidApproach,ownedDrop,reserved);
             routes.put(v.getUUID(),route);
         }
         if (route.policy.stage() == NavigationRoute.Stage.FOLLOW_PATH) {
@@ -465,7 +484,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     }
     private NavigationRoute.Position oakEndpoint(Villager v,Route route,Path path) {
         BlockPos goal=route.approachTarget;
-        if(!(route.solidApproach || route.dropApproach) || goal==null || path==null || !path.isDone()
+        if(!(route.solidApproach || route.dropApproach || route.reserved!=null) || goal==null || path==null || !path.isDone()
                 || path.getEndNode()==null || !GatewayControl.holds(v,route.runId)
                 || !v.onGround() || Math.abs(v.getY()-goal.getY())>0.125 || !walkable(v,goal))return null;
         var end=path.getEndNode();

@@ -162,6 +162,8 @@ public final class SurvivalGateway implements GatewayPort {
         default PlacementTransaction.Mutation withdrawTableItem(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String source) {return PlacementTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
         default PlacementTransaction.Mutation placeTable(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String source) {return PlacementTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
         default Movement moveRecipe(ActorRef actor,Cell target,int maximum) {return move(actor,target,maximum);}
+        /** Explicit placement MOVE keeps the approved block out of the worker's standing footprint. */
+        default Movement movePlacement(ActorRef actor,Cell target,FacilityRef approved,int maximum) {return moveRecipe(actor,target,maximum);}
         default RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {return RecipeTransaction.Preflight.unsupported();}
         default RecipeTransaction.Mutation withdrawRecipeInput(ActorRef actor,ContainerRef source,
                 RecipeTransaction.Preflight captured,String expectedCustody,String expectedSource) {
@@ -561,7 +563,8 @@ public final class SurvivalGateway implements GatewayPort {
             if(captured.status()!=ObservationStatus.PRESENT || captured.reason()!=null){finish(action,captured.reason()==null?Reason.STALE_OBSERVATION:captured.reason(),null,null);return;}
             if(!site.equals(captured.target()) || !sourceBox.equals(captured.source())){finish(action,Reason.STALE_OBSERVATION,null,null);return;}
             if(captured.availableItems()<1){finish(action,Reason.RESOURCE_MISSING,null,null);return;}
-            if(captured.pending())return;
+            // This is structural observation, not placement permission. MOVE must
+            // be able to leave an actor-occupied site; every mutation rechecks clearance.
             run.placement=captured;run.placementCustody=captured.custodyFingerprint();run.placementSource=captured.sourceFingerprint();
             finish(action,null,new BoolValue(true),null);return;
         }
@@ -789,7 +792,9 @@ public final class SurvivalGateway implements GatewayPort {
                 ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation == Operation.MOVE_TO_SOURCE
                 ? world.moveToSource(action.run.actor,target,limits.navigationCallsPerPoll())
-                : RecipeProduction.is(action.run.request.request().capability()) || CraftingTablePlacement.is(action.run.request.request().capability())
+                : CraftingTablePlacement.is(action.run.request.request().capability())
+                ? world.movePlacement(action.run.actor,target,action.run.placement.target(),limits.navigationCallsPerPoll())
+                : RecipeProduction.is(action.run.request.request().capability())
                         || LogAcquisition.is(action.run.request.request().capability())
                 ? world.moveRecipe(action.run.actor,target,limits.navigationCallsPerPoll())
                 : world.move(action.run.actor, target, limits.navigationCallsPerPoll());

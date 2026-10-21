@@ -16,7 +16,12 @@ final class PlacementProductionTest {
         d.receipts.addAll(done.resourceReceipts());assertEquals(1,ResourceDelivery.quantity(d.bound,d.run,d.receipts));
         d.world.tick++;assertEquals(done,d.gateway.poll(handle));assertEquals(7,d.world.held);assertEquals(2,d.world.source);
     }
-    @Test void initialMovingColliderWaitsBeforeAnyWithdrawal(){var d=new PlacementTestSupport.Driver();d.world.observationWaits=4;d.place();assertEquals(2,d.effects);assertEquals(2,d.world.source);assertEquals(7,d.world.held);}
+    @Test void structuralObservationLetsExplicitMoveLeaveAnOccupiedSite(){
+        var d=new PlacementTestSupport.Driver();d.world.observationWaits=4;d.require(d.action(OBSERVE_TABLE_SITE));
+        assertEquals(3,d.world.observationWaits);assertEquals(0,d.effects);assertEquals(0,d.world.placementMoves);assertEquals(3,d.world.source);
+        d.require(d.action(MOVE_TO_INPUT));d.require(d.action(WITHDRAW_TABLE_ITEM));d.require(d.action(MOVE_TO_PLACEMENT));d.require(d.action(PLACE_CRAFTING_TABLE));
+        assertEquals(PlacementTestSupport.TARGET,d.world.reservedSite);assertEquals(2,d.world.placementMoves);assertEquals(2,d.effects);assertEquals(2,d.world.source);assertEquals(7,d.world.held);
+    }
     @Test void persistentColliderExhaustsTheExistingBudgetWithoutRefundOrPlacement(){
         var d=new PlacementTestSupport.Driver();d.prepare();d.world.placementWaits=Integer.MAX_VALUE;
         assertEquals(Reason.BUDGET_EXHAUSTED,d.action(PLACE_CRAFTING_TABLE).reason());assertFalse(d.world.occupied);assertEquals(2,d.world.source);assertEquals(8,d.world.held);assertEquals(1,d.effects);assertEquals(0,ResourceDelivery.quantity(d.bound,d.run,d.receipts));

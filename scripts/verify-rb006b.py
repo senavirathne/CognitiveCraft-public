@@ -20,12 +20,12 @@ def junit():
 def native(phase,classname,marker):
     folder=ROOT/'fabric/build/gametest-run';report=folder/'gametest-results.xml';log=folder/'logs/latest.log'
     cases=[c for c in ET.parse(report).getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
-    expected_cases=3 if phase=='effects' else 1
+    expected_cases=4 if phase=='effects' else 1
     assert len(cases)==expected_cases and all(classname in c.get('name','') and not any(c.find(t) is not None for t in ('failure','error','skipped')) for c in cases)
     count=sum(marker in line for line in log.read_text().splitlines());expected=3 if classname=='placement_kernel_game_tests' and phase!='genuine-warm' else 1
     assert count==expected,(phase,count,expected)
     if phase=='effects':
-        for regression in ('RB006B_FALLING nativeGravity=true','RB006B_COLLISION nativeEntity=true'):
+        for regression in ('RB006B_FALLING nativeGravity=true','RB006B_COLLISION nativeEntity=true','RB006B_SELF_OCCUPANCY nativeNavigation=true'):
             assert sum(regression in line for line in log.read_text().splitlines())==1,regression
     if classname=='placement_kernel_game_tests' and phase!='genuine-warm':
         genuine='true' if phase=='genuine-cold' else 'false'

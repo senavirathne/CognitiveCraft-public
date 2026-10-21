@@ -35,7 +35,7 @@ final class PlacementTestSupport {
         void require(ActionReceipt r){if(r.reason()!=null)throw new AssertionError(r.reason());}
     }
     static final class World implements WorldAccess {
-        long tick;int source=3,held=7,placementWaits,observationWaits;boolean authorized=true,known=true,changed,occupied,unsupported,unreachable,inconsistent;UUID owner;
+        long tick;int source=3,held=7,placementWaits,observationWaits,placementMoves;boolean authorized=true,known=true,changed,occupied,unsupported,unreachable,inconsistent;UUID owner;FacilityRef reservedSite;
         String custody(){return RecipeTransaction.fingerprint("held:"+held);}String stock(){return RecipeTransaction.fingerprint("stock:"+source);}
         public boolean onGameThread(){return true;}public long tick(){return tick;}
         public ActorState actor(ActorRef a){return new ActorState(true,true,a.dimension(),1,0,1,0);}
@@ -46,6 +46,7 @@ final class PlacementTestSupport {
         public StockState inventory(ActorRef a){return new StockState(ObservationStatus.PRESENT,"actor",0,0);}public StockState container(ContainerRef c){return new StockState(ObservationStatus.PRESENT,"box",0,0);}
         public ItemStock resourceInventory(ActorRef a,ResourceDelivery.ItemIdentity i){return new ItemStock(ObservationStatus.PRESENT,"actor",held,64,custody(),null);}
         public Movement move(ActorRef a,Cell c,int max){return new Movement(!unreachable,unreachable,0,0);}
+        public Movement movePlacement(ActorRef a,Cell c,FacilityRef reserved,int max){placementMoves++;reservedSite=reserved;return move(a,c,max);}
         public Harvest harvest(ActorRef a,Cell c){throw new AssertionError("No harvest");}public Pickup pickup(ActorRef a,UUID id,int q){throw new AssertionError("No pickup");}public Transfer transferOne(ActorRef a,ContainerRef c){throw new AssertionError("No transfer");}
         public PlacementTransaction.Preflight placementPreflight(ValidatedRequest b){
             if(!known)return PlacementTransaction.Preflight.blocked(Reason.STALE_OBSERVATION);

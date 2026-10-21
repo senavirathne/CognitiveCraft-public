@@ -15,6 +15,46 @@ import net.minecraft.world.level.gamerules.GameRules;
 /** Real BlockItem use, actual held stack, mutation guards and current facility observation. */
 public final class PlacementEffectGameTests {
     @GameTest(maxTicks=1000,padding=16)
+    public void actorOnApprovedSiteUsesExplicitMovementBeforeWithdrawalAndPlacement(GameTestHelper h){
+        for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
+        // Adjacent source is the harder case: its closest approach is the reserved site.
+        h.setBlock(2,1,2,Blocks.CHEST);var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,3);v.setNoAi(false);
+        var sourcePos=h.absolutePos(new BlockPos(2,1,2));var targetPos=h.absolutePos(new BlockPos(2,1,3));BootstrapGameTests.forceFixtureChunks(h,sourcePos);
+        String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
+        UUID principal=UUID.randomUUID(),run=UUID.randomUUID();var owner=new TrustedContext(new PrincipalRef(principal),new ScopeRef(UUID.randomUUID(),principal));
+        var source=new ContainerRef(dim,sourcePos.getX(),sourcePos.getY(),sourcePos.getZ());var target=new FacilityRef(dim,targetPos.getX(),targetPos.getY(),targetPos.getZ());
+        var bound=new ValidatedRequest(new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(actor),"source",new ContainerValue(source),"target",new FacilityValue(target),"amount",new IntValue(1))),owner,new ObservationRef(UUID.randomUUID(),0,dim));
+        var world=new FabricGatewayWorld(h.getLevel());var clock=java.time.Clock.systemUTC();
+        var gateway=new SurvivalGateway(world,(a,e,c)->true,new SurvivalGateway.Limits(8,512,64,16,256,1,200,32),clock);
+        var usage=new Budgets.Ledger(OakPlankProduction.executionLimits(clock.millis()).total(),clock);
+        Container from=(Container)h.getLevel().getBlockEntity(sourcePos);var operations=CraftingTablePlacement.operations();
+        int[] phase={-1};ActionHandle[] active={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
+        h.succeedWhen(()->{
+            if(phase[0]<0){
+                if(!v.onGround()){h.assertTrue(false,"Waiting for native actor landing");return;}
+                from.setItem(0,new ItemStack(Items.CRAFTING_TABLE));
+                h.assertTrue(v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"Actor must initially occupy approved cell");phase[0]=0;
+            }
+            var op=operations.get(phase[0]);
+            if(active[0]==null){
+                var args=new LinkedHashMap<String,Value>();op.signature().parameters().forEach(p->args.put(p.name(),bound.request().arguments().get(p.name())));
+                active[0]=gateway.start(bound,new RunCorrelation(run,new ArtifactRef(CraftingTablePlacement.ID,"b".repeat(64)),null),op.requirement(),args,usage);
+            }
+            var result=gateway.poll(active[0]);
+            if(!result.terminal()){h.assertTrue(false,"Waiting for explicit native "+op);return;}
+            h.assertTrue(result.reason()==null,"Native self-occupied placement stopped at "+op+": "+result.reason());
+            receipts.addAll(result.resourceReceipts());
+            if(phase[0]==0)h.assertTrue(result.committedEffects()==0 && result.resourceReceipts().isEmpty() && from.countItem(Items.CRAFTING_TABLE)==1 && v.getInventory().isEmpty()
+                    && v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"Structural observation moved the actor or mutated custody");
+            if(op==GatewayPrimitives.Operation.MOVE_TO_INPUT || op==GatewayPrimitives.Operation.MOVE_TO_PLACEMENT)
+                h.assertTrue(!v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"MOVE ended inside approved block");
+            if(phase[0]+1<operations.size()){phase[0]++;active[0]=null;h.assertTrue(false,"Next explicit placement operation");return;}
+            h.assertTrue(ResourceDelivery.quantity(bound,run,receipts)==1 && from.isEmpty() && v.getInventory().isEmpty() && h.getLevel().getBlockState(targetPos).is(Blocks.CRAFTING_TABLE),"Self-occupied placement failed native conservation");
+            gateway.releaseRun(run);
+            System.out.println("RB006B_SELF_OCCUPANCY nativeNavigation=true structuralObservation=true noImplicitMove=true safeInput=true safeFace=true consumed=1 placed=1 depletedSource=true");
+        });
+    }
+    @GameTest(maxTicks=1000,padding=16)
     public void fallingAfterWithdrawalWaitsForNativeLandingAndCraftsOneBatch(GameTestHelper h){
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         h.setBlock(2,1,2,Blocks.CHEST);h.setBlock(3,1,3,Blocks.STONE);
