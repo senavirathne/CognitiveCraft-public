@@ -26,7 +26,7 @@ public final class ProductionLanguage {
     private static final Pattern TRANSFORM=Pattern.compile("\\b(?<verb>"+TRANSFORMATION_VERBS+")\\s+"+INPUT
             +"(?<source>\\s+from\\s+.{1,160}?)?\\s+(?:into|to)\\s+(?<oq>"+NUMBER+")\\s+(?<output>"+MATERIAL+")\\b",Pattern.CASE_INSENSITIVE);
     private static final Pattern PRODUCE=Pattern.compile("\\b(?<verb>make|craft|produce)\\s+(?<oq>"+NUMBER+")\\s+(?<output>"+MATERIAL+")"
-            +"\\s+(?:from|using|with)\\s+"+INPUT+"\\b",Pattern.CASE_INSENSITIVE);
+            +"\\s+(?<relation>from|using|with)\\s+"+INPUT+"\\b",Pattern.CASE_INSENSITIVE);
     private static final Pattern ITEMS=Pattern.compile("\\b"+MATERIAL+"\\b",Pattern.CASE_INSENSITIVE);
     // Existing registered single-input producers. Multi-ingredient methods require their own semantics.
     private static final List<CapabilityId> PRODUCERS=List.of(OakPlankProduction.ID,BirchPlankProduction.ID,
@@ -36,6 +36,10 @@ public final class ProductionLanguage {
         Matcher match=TRANSFORM.matcher(text);boolean transformation=match.find();
         if(!transformation) {match=PRODUCE.matcher(text);if(!match.find())return null;}
         String inputMaterial=match.group("input"),outputMaterial=match.group("output");
+        // An uncounted table introduced by 'using' is the existing facility role,
+        // not a recipe ingredient. Leave it to the capability's facility parser.
+        if(!transformation && match.group("relation").equalsIgnoreCase("using")
+                && match.group("iq")==null && inputMaterial.matches("(?i)crafting\\s+tables?"))return null;
         List<RecipeProduction.Definition> recipes=PRODUCERS.stream().map(RecipeProduction::of)
                 .filter(r->matches(inputMaterial,r.input()) && matches(outputMaterial,r.output())).toList();
         long mentions=ITEMS.matcher(text.substring(match.start())).results().count();
