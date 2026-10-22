@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [fix/nlu-planning-reliability]
-    paths: ['.github/workflows/planning-structure.yml', 'providers/src/main/**', 'providers/src/test/java/dev/aivillages/providers/Planning*', 'core/src/main/java/dev/aivillages/core/kernel/MaterialPlan.java']
+    paths: ['.github/workflows/planning-structure.yml', 'providers/src/main/**', 'providers/src/test/java/dev/aivillages/providers/Planning*', 'providers/src/test/resources/planning/**', 'core/src/main/java/dev/aivillages/core/kernel/MaterialPlan.java', 'core/src/main/java/dev/aivillages/core/kernel/PlanningFeedback.java', 'core/src/test/java/dev/aivillages/core/kernel/Planning*', 'scripts/planning-*.py']
 
 permissions:
   contents: read
