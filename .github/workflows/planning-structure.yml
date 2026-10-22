@@ -1,4 +1,4 @@
-name: Facility-state planning evidence
+name: Contract-ordered planning evidence
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   measurements:
-    name: Task 5.3 facility measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
+    name: Task 5.4 original and contract-order measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -74,6 +74,7 @@ jobs:
           PLANNING_STRUCTURE_SUPPLEMENT: 'true'
           PLANNING_RESOURCE_SUPPLEMENT: 'true'
           PLANNING_FACILITY_SUPPLEMENT: 'true'
+          PLANNING_ORDER_SUPPLEMENT: 'true'
         run: |
           set -o pipefail
           bash ./gradlew --no-daemon --stacktrace :providers:runPlanningLiveBenchmark | tee providers/build/planning-quality/held-out.log
@@ -86,12 +87,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: planning-resource-measurements-${{ matrix.id }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          name: planning-order-measurements-${{ matrix.id }}-${{ matrix.shard }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
           path: providers/build/planning-quality/**
   integrity:
-    name: Task 5.3 frozen regression and facility-state integrity
+    name: Task 5.4 complete frozen regression and contract-order integrity
     needs: measurements
     if: always()
     runs-on: ubuntu-latest
@@ -104,7 +105,7 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_planning_*.py'
       - uses: actions/download-artifact@v4
         with:
-          pattern: planning-resource-measurements-*
+          pattern: planning-order-measurements-*
           path: providers/build/planning-quality/imports
       - name: Require 50 frozen genuine measurements per model and report quality separately
         env:
@@ -122,10 +123,14 @@ jobs:
         env:
           REVIEWED_HEAD: ${{ github.sha }}
         run: python3 scripts/planning-facilities.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+      - name: Reconcile equivalent schema values, actual field order and new Task 5.4 cases
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-order.py providers/build/planning-quality --head "$REVIEWED_HEAD"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: planning-resource-quality-${{ github.run_attempt }}
+          name: planning-order-quality-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
           path: |
@@ -133,3 +138,4 @@ jobs:
             providers/build/planning-quality/structure-integrity.json
             providers/build/planning-quality/resource-integrity.json
             providers/build/planning-quality/facility-integrity.json
+            providers/build/planning-quality/order-integrity.json

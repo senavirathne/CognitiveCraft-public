@@ -465,15 +465,17 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
 
     private byte[] wireRequest(Generation.Request request) {
         if(request.role().planning()) {
-            String wire=StrictJson.canonical(Map.of("model",config.model(),"stream",false,
-                    "format",request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID)
+            boolean material=request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID);
+            var payload=Map.of("model",config.model(),"stream",false,
+                    "format",material
                             ? materialShape(request) : dev.aivillages.core.kernel.Plan.outputShape(request.bound().request()),
                     "options",Map.of("temperature",0,"num_predict",config.maxOutputTokens()),
                     "messages",List.of(Map.of("role","system","content",
-                            request.capability().id().equals(dev.aivillages.core.kernel.MaterialPlan.ID)
+                            material
                             ? "Return a bounded material-plan-preview schema 1 JSON proposal, never executable Skill IR. Follow the trusted recipe catalog and ordered stock balance. Use exact requested deliveries and minimum whole batches. Refuse insufficient resources or unsupported requests with empty steps/deliveries. No new recipes, harvested resources, commands, workers or authority."
                             : "Return a bounded goal-plan schema 1 JSON proposal, never Skill IR. Each node selects a trusted slot and quantity; dependencies name node IDs. Use every requested slot with exactly its requested total. No commands, workers, authority or new resources."),
-                            Map.of("role","user","content",request.context()))));
+                            Map.of("role","user","content",request.context())));
+            String wire=material?PlanningSchemaWire.request(payload):StrictJson.canonical(payload);
             byte[] body=wire.getBytes(StandardCharsets.UTF_8);
             if(body.length>MAX_REQUEST_BYTES)throw new IllegalArgumentException("Request size");return body;
         }
