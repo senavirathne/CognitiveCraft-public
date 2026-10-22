@@ -43,7 +43,17 @@ public final class VerticalLogGameTests {
     }
 
     private void acquisition(GameTestHelper h,boolean birch,List<BlockPos> relative,boolean step,boolean blocked) {
-        for(int x=0;x<12;x++)for(int z=0;z<10;z++)h.setBlock(x,0,z,Blocks.STONE);
+        var clearedFixtureObstacles=new ArrayList<String>();
+        for(int x=0;x<12;x++)for(int z=0;z<10;z++) {
+            h.setBlock(x,0,z,Blocks.STONE);
+            for(int y=1;y<=6;y++) {
+                var p=new BlockPos(x,y,z);
+                if(!h.getLevel().getBlockState(h.absolutePos(p)).isAir())
+                    clearedFixtureObstacles.add(p+"="+h.getLevel().getBlockState(h.absolutePos(p)));
+                h.setBlock(p,Blocks.AIR);
+            }
+        }
+        System.out.println("A01_NATIVE_FIXTURE_CLEARANCE obstacles="+clearedFixtureObstacles);
         var item=birch?ResourceDelivery.BIRCH_LOG:ResourceDelivery.OAK_LOG;
         var nativeItem=FabricResourceItems.item(item);var block=FabricResourceItems.log(item);
         for(var p:relative)h.setBlock(p,block);

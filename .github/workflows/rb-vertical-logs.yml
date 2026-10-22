@@ -90,10 +90,10 @@ jobs:
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
           python3 tools/needle/install.py build/needle
-      - name: Frozen A01 without fixture, quantity, method or budget changes
+      - name: Frozen A01 plus independent vertical, flat and birch regressions
         run: |
-          python3 e2e/vertical_logs.py --root build/e2e/vertical --original-only
-          python3 scripts/verify-vertical-logs.py client --original-only
+          python3 e2e/vertical_logs.py --root build/e2e/vertical
+          python3 scripts/verify-vertical-logs.py client
       - uses: actions/upload-artifact@v4
         if: always()
         with:
