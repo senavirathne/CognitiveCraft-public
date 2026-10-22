@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify unchanged material-schema values and actual contract field order, without a quality gate."""
+"""Verify frozen material-schema values and the measured wire order, without a quality gate."""
 import argparse
 import hashlib
 import importlib.util
@@ -37,33 +37,34 @@ def expected_shape(context):
                            'steps': steps, 'deliveries': deliveries}}
 
 
-def check_schema_order(schema):
+def check_schema_order(schema, wire_order='canonical'):
     if isinstance(schema, dict):
         if 'properties' in schema:
             properties = schema['properties']
             required = list(dict.fromkeys(k for k in schema.get('required', []) if k in properties))
-            expected = required + sorted(set(properties) - set(required))
-            require(list(properties) == expected, 'Schema properties lost declared contract order')
+            expected = sorted(properties) if wire_order == 'canonical' else required + sorted(set(properties) - set(required))
+            require(list(properties) == expected, 'Schema properties differ from the measured wire order')
             for child in properties.values():
-                check_schema_order(child)
+                check_schema_order(child, wire_order)
         for key in ('items', 'prefixItems', 'anyOf', 'oneOf', 'allOf'):
             if key in schema:
-                check_schema_order(schema[key])
+                check_schema_order(schema[key], wire_order)
     elif isinstance(schema, list):
         for child in schema:
-            check_schema_order(child)
+            check_schema_order(child, wire_order)
 
 
-def check_candidate_order(candidate):
+def check_candidate_order(candidate, wire_order='canonical'):
     proposal = json.loads(candidate)
-    require(list(proposal) == ['schema', 'status', 'steps', 'deliveries'], 'Candidate root order differs from the actual contract')
-    require(all(list(step) == ['recipe', 'batches'] for step in proposal['steps']),
-            'A candidate emits quantity before action identity')
-    require(all(list(delivery) == ['item', 'amount'] for delivery in proposal['deliveries']),
-            'A candidate emits quantity before delivery identity')
+    root = ['deliveries', 'schema', 'status', 'steps'] if wire_order == 'canonical' else ['schema', 'status', 'steps', 'deliveries']
+    step_fields = ['batches', 'recipe'] if wire_order == 'canonical' else ['recipe', 'batches']
+    delivery_fields = ['amount', 'item'] if wire_order == 'canonical' else ['item', 'amount']
+    require(list(proposal) == root, 'Candidate root differs from the measured wire order')
+    require(all(list(step) == step_fields for step in proposal['steps']), 'Candidate step differs from the measured wire order')
+    require(all(list(delivery) == delivery_fields for delivery in proposal['deliveries']), 'Candidate delivery differs from the measured wire order')
 
 
-def check_row(row):
+def check_row(row, wire_order='canonical'):
     FACILITIES.check_facility_row(row)
     context = json.loads(row['attempts'][0]['prompt'])
     if context.get('contract') != 'material-plan-preview:1':
@@ -73,14 +74,14 @@ def check_row(row):
     for attempt in row['attempts']:
         request = json.loads(attempt['transport']['request'])
         require(request['format'] == expected, 'Material schema values or permitted work changed')
-        check_schema_order(request['format'])
+        check_schema_order(request['format'], wire_order)
         if attempt['outcome'] == 'CANDIDATE':
-            check_candidate_order(attempt['candidate'])
+            check_candidate_order(attempt['candidate'], wire_order)
         count += 1
     return count
 
 
-def review(root, head):
+def review(root, head, wire_order='canonical'):
     FACILITIES.review(root, head)  # All original safety, raw transport and earlier supplemental checks stay intact.
     groups = {ext: [json.loads(line) for p in root.rglob('*.' + ext) for line in p.read_text().splitlines() if line]
               for ext in ('jsonl', 'ndjson', 'rjsonl', 'fjsonl', 'ojsonl')}
@@ -107,11 +108,11 @@ def review(root, head):
                     context['placementAllowed'] == case['placementAllowed'] and
                     context['requiredWork']['status'] == case['expectedStatus'], 'Frozen contract-order premises changed')
             require(all(a['modelDigest'] == digest for a in row['attempts']), 'Model weights changed')
-    schemas = sum(check_row(row) for row in rows)
+    schemas = sum(check_row(row, wire_order) for row in rows)
     result = {'measurementStatus': 'PASS', 'qualityThresholdEnforced': False, 'sourceCommit': head,
               'originalRequests': 100, 'structureRequests': 12, 'resourceRequests': 20,
               'facilityRequests': 20, 'contractOrderRequests': 16,
-              'actualMaterialSchemasReconciledWithoutSemanticChanges': schemas, 'models': {}}
+              'actualMaterialSchemasReconciledWithoutSemanticChanges': schemas, 'wireOrder': wire_order, 'models': {}}
     for model in STRUCTURE.MODEL_DIGESTS:
         primary = [r for r in groups['jsonl'] if r['model'] == model]
         additional = [r for r in extra if r['model'] == model]
@@ -128,7 +129,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
     parser.add_argument('--head', required=True)
+    parser.add_argument('--wire-order', choices=('canonical', 'contract'), default='canonical')
     args = parser.parse_args()
-    result = review(args.root, args.head)
+    result = review(args.root, args.head, args.wire_order)
     (args.root / 'order-integrity.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))

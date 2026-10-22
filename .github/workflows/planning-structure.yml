@@ -1,4 +1,4 @@
-name: Contract-ordered planning evidence
+name: Planning verification evidence
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   measurements:
-    name: Task 5.4 original and contract-order measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
+    name: Task 5.4 original and restored-wire measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -40,7 +40,7 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
-      - name: Execute production validator, correction and wire-contract regressions first
+      - name: Execute unchanged production validator and correction regressions first
         run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test
       - name: Record host and start the same pinned CPU backend for each comparison arm
         timeout-minutes: 15
@@ -87,12 +87,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: planning-order-measurements-${{ matrix.id }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          name: planning-verification-measurements-${{ matrix.id }}-${{ matrix.shard }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
           path: providers/build/planning-quality/**
   integrity:
-    name: Task 5.4 complete frozen regression and contract-order integrity
+    name: Task 5.4 complete frozen regression and wire integrity
     needs: measurements
     if: always()
     runs-on: ubuntu-latest
@@ -105,7 +105,7 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_planning_*.py'
       - uses: actions/download-artifact@v4
         with:
-          pattern: planning-order-measurements-*
+          pattern: planning-verification-measurements-*
           path: providers/build/planning-quality/imports
       - name: Require 50 frozen genuine measurements per model and report quality separately
         env:
@@ -123,14 +123,14 @@ jobs:
         env:
           REVIEWED_HEAD: ${{ github.sha }}
         run: python3 scripts/planning-facilities.py providers/build/planning-quality --head "$REVIEWED_HEAD"
-      - name: Reconcile equivalent schema values, actual field order and new Task 5.4 cases
+      - name: Reconcile frozen schema values, canonical wire order and Task 5.4 cases
         env:
           REVIEWED_HEAD: ${{ github.sha }}
-        run: python3 scripts/planning-order.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+        run: python3 scripts/planning-order.py providers/build/planning-quality --head "$REVIEWED_HEAD" --wire-order canonical
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: planning-order-quality-${{ github.run_attempt }}
+          name: planning-verification-quality-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
           path: |
