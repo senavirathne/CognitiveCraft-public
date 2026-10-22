@@ -22,13 +22,13 @@ def native(phase):
     log = folder / 'logs/latest.log'
     cases = [c for c in ET.parse(report).getroot().iter('testcase')
              if c.get('name', '').startswith('ai_villages_tests:')]
-    expected = 3 if phase == 'variants' else 1
+    expected = 3 if phase == 'variants' else 5
     owner = 'world_placement_game_tests' if phase == 'variants' else 'placement_effect_game_tests'
     assert len(cases) == expected, [c.attrib for c in cases]
     assert len({c.get('name') for c in cases}) == expected
     assert all(owner in c.get('name', '') for c in cases)
     assert not any(c.find(t) is not None for c in cases for t in ('failure', 'error', 'skipped'))
-    markers = ['RB006B_SELF_OCCUPANCY', 'RB006B_CENTER_RAY', 'RB006B_COLLISION'] if phase == 'variants' else ['RB006B_EFFECTS']
+    markers = ['RB006B_SELF_OCCUPANCY', 'RB006B_CENTER_RAY', 'RB006B_COLLISION'] if phase == 'variants' else ['RB006B_EFFECTS', 'RB006B_SELF_OCCUPANCY', 'RB006B_CENTER_RAY', 'RB006B_COLLISION', 'RB006B_FALLING']
     lines = log.read_text().splitlines()
     for marker in markers:
         assert sum(marker in line for line in lines) == 1, marker
