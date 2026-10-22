@@ -16,7 +16,7 @@ final class PlanningResourceGroundingTest {
                 c.goals().entrySet().stream().map(e->Map.of("item",e.getKey(),"amount",e.getValue())).toList()));
     }
     private static Map<?,?> details(String feedback) throws Exception {
-        return (Map<?,?>)((Map<?,?>)StrictJson.object(feedback).get("validationError")).get("details");
+        return (Map<?,?>)((Map<?,?>)StrictJson.transportObject(feedback).get("validationError")).get("details");
     }
 
     @Test void initialFactsDistinguishObservedStockFromFutureOutputs() throws Exception {
