@@ -99,6 +99,12 @@ def main():
     h = None
     try:
         h = AssessmentHarness(args.root, "vertical-task2")
+        area = read(args.root / "observation-area.json")
+        area["maxObservationDy"] = 4
+        atomic(args.root / "observation-area.json", area)
+        metadata = read(args.root / "metadata.json")
+        metadata["assessment"]["observerMaxDy"] = 4
+        atomic(args.root / "metadata.json", metadata)
         h.bootstrap([LOG] if args.original_only else [LOG, BIRCH])
         for i, ident in enumerate(selected):
             h.family = ident; started = time.time(); first_frame = len(h.screenshots)

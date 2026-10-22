@@ -2,7 +2,7 @@ name: Agent 1 Task 2 vertical log acquisition
 on:
   push:
     branches: [fix/rb-world-execution]
-    paths: ['.github/workflows/rb-vertical-logs.yml','e2e/vertical_logs.py','scripts/verify-vertical-logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/VerticalLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java']
+    paths: ['.github/workflows/rb-vertical-logs.yml','e2e/vertical_logs.py','e2e/observer/**','scripts/verify-vertical-logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/VerticalLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java']
   workflow_dispatch:
 permissions:
   contents: read
