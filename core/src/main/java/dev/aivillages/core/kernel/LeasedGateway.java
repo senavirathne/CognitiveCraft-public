@@ -196,7 +196,7 @@ public final class LeasedGateway implements GatewayPort {
             if(run.acquisition.code()!=Code.PENDING)return fail(action,run.acquisition.reason());
             return waitForPublication(action);
         }
-        Result granted=leases.group(run.acquisition.group(),run.binding.owner(),run.request.context());
+        Result granted=currentClaims(run);
         if(!granted.usable())return granted.code()==Code.PENDING?waitForPublication(action):fail(action,granted.reason());
         for(Ref ref:granted.leases()) {
             Result valid=leases.validate(ref,run.request.context());
@@ -262,6 +262,24 @@ public final class LeasedGateway implements GatewayPort {
                 }
         }
         return action.current;
+    }
+    /** Only a polled execution maintains its existing claim; idle/released runs still expire. */
+    private Result currentClaims(Run run) {
+        Result group=leases.group(run.acquisition.group(),run.binding.owner(),run.request.context());
+        if(!group.usable())return group;
+        long now=ticks.getAsLong();
+        boolean due=false;
+        for(Ref ref:group.leases()) {
+            Lease row=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
+            long age=now-row.renewed();
+            if(age<leases.settings().renewalInterval() || row.renewals()>=leases.settings().renewals())
+                return group;
+            due|=age>=Math.max(1,duration/2);
+        }
+        // The existing owner validates current authority, physical identity/stock,
+        // interval and renewal cap, then publishes through its sole durable writer.
+        // A pending acknowledgement uses the same action/ledger and original deadline.
+        return due?leases.renew(group.leases(),duration,run.request.context()):group;
     }
     @Override public ActionReceipt cancel(ActionHandle handle) {
         checkThread();Action a=get(handle);if(a.current.terminal())return a.current;

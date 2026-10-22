@@ -45,19 +45,68 @@ def native(regressions=False):
 
 
 def client(original_only=False):
-    data = json.loads((ROOT / "build/e2e/dropped-logs/dropped-log-results.json").read_text())
+    root = ROOT / "build/e2e/dropped-logs"
+    data = json.loads((root / "dropped-log-results.json").read_text())
+    import sys, struct
+    sys.path.insert(0, str(ROOT / "e2e"))
+    from dropped_logs import CASES
+    expected = list(CASES[:1] if original_only else CASES)
     assert data["task"] == "3/A02" and data["status"] == "PASS"
-    assert [r["id"] for r in data["cases"]] == ["original-A02"]
+    assert [r["id"] for r in data["cases"]] == expected
     assert all(r["status"] == "PASS" for r in data["cases"])
     assert data["originalCorpusSha256"] == "ee2e323d2c329a4f6040c3b96ffe880a12a3d33a3b8954a7174dc32766eb8bc5"
+    assert data["frozenDriverSha256"] == sha(ROOT / "e2e/generalization.py")
     metadata = data["metadata"]
     identity = json.loads((ROOT / "build/rb001-evidence/identity.json").read_text())
     assert metadata["sourceCommit"] == identity["source"] and metadata["sourceTree"] == identity["tree"]
     assert metadata["releaseSha256"] == identity["jarSha256"] == sha(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar")
     assert not metadata["dirty"]
-    assert len(data["independentAdmissions"]) == 1 and all(r["status"] == "PASS" for r in data["independentAdmissions"])
+    assert len(data["independentAdmissions"]) == (1 if original_only else 2)
+    assert all(r["status"] == "PASS" for r in data["independentAdmissions"])
+    jars = []
+    for path in sorted(root.rglob("ai-villages-0.1.0.jar")):
+        digest = sha(path)
+        assert digest == identity["jarSha256"]
+        jars.append({"path": str(path.relative_to(root)), "bytes": path.stat().st_size, "sha256": digest})
+    assert len(jars) == 3
+    summary = {"status": "PASS", "source": identity["source"], "tree": identity["tree"],
+               "jarSha256": identity["jarSha256"], "actualRuntimeCopies": jars, "cases": [], "frames": []}
+    for case in data["cases"]:
+        e = case["evidence"]; rows = e["view"]["resourceReceipts"]; q = len(e["positions"])
+        assert {s: sum(r["quantity"] for r in rows if r["stage"] == s) for s in ("HARVEST", "PICKUP", "DEPOSIT")} == {s: q for s in ("HARVEST", "PICKUP", "DEPOSIT")}
+        assert len(rows) == 3*q and len({r["receiptId"] for r in rows}) == len(rows)
+        assert e["clientMenuCount"] == q and e["inventoryAfter"] == e["inventoryBefore"]
+        assert e["modelCallsBefore"] == e["modelCallsAfter"]
+        assert e["verifiedLineage"]["batches"] == q and not e["verifiedLineage"]["remainingAttributableDrops"]
+        before, after = e["before"], e["physicalAfter"]
+        item = rows[0]["item"]["id"]
+        def total(snapshot):
+            result = sum(values.get(item, 0) for values in snapshot["containers"].values())
+            result += sum(a["inventory"].get(item, 0) for a in snapshot["actors"])
+            result += sum(p.get("assessmentInventory", {}).get(item, 0) for p in snapshot["players"].values())
+            result += sum(d["count"] for d in snapshot["drops"] if d["item"] == item)
+            result += sum("Block{"+item+"}" in block for block in snapshot["blocks"].values())
+            return result
+        assert total(before) == total(after), (case["id"], total(before), total(after))
+        destination = ",".join(str(x) for x in e["destination"])
+        assert after["containers"][destination].get(item, 0) == before["containers"].get(destination, {}).get(item, 0)+q
+        assert all("minecraft:air" in after["blocks"][",".join(str(x) for x in pos)] for pos in e["positions"])
+        assert {p: v.get("assessmentInventory", {}) for p, v in before["players"].items()} == {p: v.get("assessmentInventory", {}) for p, v in after["players"].items()}
+        assert all(client.get("play") and not client.get("singleplayer") for client in case["connectedClientObservations"].values())
+        summary["cases"].append({"id": case["id"], "run": e["run"], "quantity": q, "item": item,
+                                 "physicalTotalBefore": total(before), "physicalTotalAfter": total(after),
+                                 "beforeTick": before["gameTick"], "afterTick": after["gameTick"],
+                                 "knownArtifact": e["view"]["marker"]["artifactSha256"], "remainingOwnedDrops": []})
+        for frame in case["screenshots"]:
+            path = root / frame["path"]; raw = path.read_bytes()
+            assert hashlib.sha256(raw).hexdigest() == frame["sha256"] and len(raw) == frame["bytes"]
+            assert raw[:8] == b"\x89PNG\r\n\x1a\n" and struct.unpack(">II", raw[16:24]) == (800, 600)
+            assert frame["sourceCommit"] == identity["source"] and frame["releaseSha256"] == identity["jarSha256"]
+            summary["frames"].append({k: frame[k] for k in ("path", "sha256", "bytes", "checkpoint", "family")})
+    assert len(summary["frames"]) >= len(expected)*2
     OUT.mkdir(parents=True, exist_ok=True)
-    print("TASK3_CLIENT_PASS", metadata["sourceCommit"], metadata["releaseSha256"], 1)
+    (OUT / "client-independent-review.json").write_text(json.dumps(summary, indent=2)+"\n")
+    print("TASK3_CLIENT_PASS "+json.dumps(summary, separators=(",", ":")), flush=True)
 
 
 if __name__ == "__main__":

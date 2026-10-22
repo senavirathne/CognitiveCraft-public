@@ -1,8 +1,8 @@
-name: Agent 1 Task 3 dropped-log diagnosis
+name: Agent 1 Task 3 dropped-log pickup
 on:
   push:
     branches: [fix/rb-world-execution]
-    paths: ['.github/workflows/rb-dropped-logs.yml','scripts/review-original-a02.py','scripts/review-a02-setup.py','scripts/verify-dropped-logs.py','e2e/dropped_logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/DroppedLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java','core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java','core/src/main/java/dev/aivillages/core/kernel/LeasedGateway.java','core/src/test/java/dev/aivillages/core/kernel/LeasedDropContinuityTest.java']
+    paths: ['.github/workflows/rb-dropped-logs.yml','scripts/review-original-a02.py','scripts/review-a02-setup.py','scripts/review-dropped-logs-archive.py','scripts/verify-dropped-logs.py','e2e/dropped_logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/DroppedLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java','core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java','core/src/main/java/dev/aivillages/core/kernel/LeasedGateway.java','core/src/test/java/dev/aivillages/core/kernel/LeasedDropContinuityTest.java']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,7 @@ jobs:
         run: |
           python3 scripts/review-original-a02.py --root build/a02-original-review
           python3 scripts/review-a02-setup.py --root build/a02-original-review
+          python3 scripts/review-dropped-logs-archive.py --historical --root build/a02-original-review
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -103,14 +104,14 @@ jobs:
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
       - name: Diagnostic production binary and existing genuine client instruments
         run: |
-          python3 -m py_compile scripts/review-original-a02.py scripts/review-a02-setup.py scripts/verify-dropped-logs.py e2e/dropped_logs.py
+          python3 -m py_compile scripts/review-original-a02.py scripts/review-a02-setup.py scripts/verify-dropped-logs.py scripts/review-dropped-logs-archive.py e2e/dropped_logs.py
           bash gradlew --no-daemon --stacktrace :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
           python3 scripts/verify-rb001.py identity
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
           python3 tools/needle/install.py build/needle
-      - name: Original A02 with its unchanged seven positions, quantity and barrel
+      - name: Frozen A02 and independent oak arrangements plus exact birch regression
         run: |
           python3 e2e/dropped_logs.py --root build/e2e/dropped-logs
           python3 scripts/verify-dropped-logs.py client
@@ -124,5 +125,26 @@ jobs:
           path: |
             build/rb001-evidence/
             build/e2e/dropped-logs/
+            build/dropped-log-evidence/
             build/e2e-sdk/integrity.json
             fabric/build/libs/ai-villages-0.1.0.jar
+  independent-review:
+    needs: [native-pickup, connected-a02]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify original failures and all current archive bytes, production copies, frames and receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/review-dropped-logs-archive.py --historical --root build/a02-independent-review
+          python3 scripts/review-dropped-logs-archive.py --root build/a02-independent-review
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dropped-logs-independent-review-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: build/a02-independent-review/*-review.json

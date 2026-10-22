@@ -19,7 +19,9 @@ class LeasedDropContinuityTest {
         final Owner owner=new Owner(UUID.randomUUID(),0);
         final RunCorrelation correlation;
         final boolean birch;
-        Snapshot disk;
+        Snapshot disk,heldNext;
+        CompletableFuture<Snapshot> held;
+        boolean holdRenewal;
         final List<ResourceDelivery.Receipt> receipts=new ArrayList<>();
         Scene(boolean birch) {
             this.birch=birch;
@@ -27,7 +29,11 @@ class LeasedDropContinuityTest {
             disk=Snapshot.empty(OWNER.scope().worldId());
             correlation=new RunCorrelation(physical.run,new ArtifactRef(physical.request.request().capability(),"a".repeat(64)),null);
             leases=new ResourceLeaseService(disk,(expected,next)->{
-                assertEquals(disk,expected);disk=next;return CompletableFuture.completedFuture(next);
+                assertEquals(disk,expected);
+                if(holdRenewal && next.leases().stream().anyMatch(l->l.renewals()>0)) {
+                    heldNext=next;held=new CompletableFuture<>();return held;
+                }
+                disk=next;return CompletableFuture.completedFuture(next);
             },(o,c)->o.equals(owner)&&c.equals(OWNER)
                     ?new OwnerFacts(OWNER,ACTOR,physical.run,physical.world.authorized,
                         physical.world.authorized?null:Outcomes.Reason.AUTHORITY_DENIED):null,
@@ -41,18 +47,23 @@ class LeasedDropContinuityTest {
             var demands=List.of(new Demand(source,1),new Demand(Resource.space(OWNER.scope().worldId(),SOURCE),1),
                     new Demand(Resource.facility(OWNER.scope().worldId(),BOX),1));
             gateway=new LeasedGateway(physical.gateway,leases,(request,run)->new LeasedGateway.Binding(owner,demands),
-                    ()->physical.world.tick,100,20,4,64);
+                    ()->physical.world.tick,100,200,4,64);
         }
         void tick() {physical.world.tick++;physical.gateway.tick();leases.tick();gateway.tick();}
-        ActionReceipt action(Operation operation) {
+        ActionHandle begin(Operation operation) {
             if(birch)operation=BirchResourceFamilyTest.birch(operation);
             var arguments=new HashMap<String,Value>();
             for(var parameter:operation.signature().parameters())
                 arguments.put(parameter.name(),parameter.name().equals("amount")?new IntValue(1):physical.request.request().arguments().get(parameter.name()));
             tick();
-            var handle=gateway.start(physical.request,correlation,operation.requirement(),arguments,physical.budget);
+            return gateway.start(physical.request,correlation,operation.requirement(),arguments,physical.budget);
+        }
+        ActionReceipt poll(ActionHandle handle) {tick();return gateway.poll(handle);}
+        void acknowledgeRenewal() {disk=heldNext;held.complete(disk);holdRenewal=false;}
+        ActionReceipt action(Operation operation) {
+            var handle=begin(operation);
             for(int i=0;i<210;i++) {
-                tick();var result=gateway.poll(handle);
+                var result=poll(handle);
                 if(result.terminal()) {
                     receipts.addAll(result.resourceReceipts());
                     if(result.reason()!=null)System.out.println("A02_LEASE_BASELINE operation="+operation+" tick="+physical.world.tick
@@ -84,4 +95,33 @@ class LeasedDropContinuityTest {
         assertTrue(s.leases.snapshot().leases().stream().allMatch(l->l.renewals()>0 && l.renewals()<=Settings.fixture().renewals()));
         s.gateway.releaseRun(s.physical.run);
     }
+    @org.junit.jupiter.api.Test
+    void pendingRenewalPreservesTheNativeHandleAndItsOriginalElapsedBudget() {
+        var s=new Scene(false);
+        assertNull(s.action(Operation.APPROACH_OAK_LOG).reason());s.holdRenewal=true;
+        var handle=s.begin(Operation.HARVEST_NEXT_OAK_LOG);
+        for(int i=0;i<100 && s.held==null;i++)assertFalse(s.poll(handle).terminal());
+        assertNotNull(s.held,"No actual durable renewal request was made");
+        assertFalse(s.leases.ready());assertEquals(0,s.physical.world.harvests);
+        long before=s.physical.budget.snapshot().getOrDefault(Budgets.Kind.ELAPSED_TICKS,0L);
+        for(int i=0;i<5;i++)assertFalse(s.poll(handle).terminal());
+        assertEquals(0,s.physical.world.harvests);assertEquals(0,s.physical.world.pickups);
+        s.acknowledgeRenewal();ActionReceipt result=null;
+        for(int i=0;i<100;i++){result=s.poll(handle);if(result.terminal())break;}
+        assertNotNull(result);assertTrue(result.terminal());assertNull(result.reason());
+        assertEquals(1,result.committedEffects());assertEquals(1,s.physical.world.harvests);
+        assertEquals(0,s.physical.world.pickups);assertEquals(2,s.physical.world.actorLogs);
+        assertTrue(s.physical.budget.snapshot().getOrDefault(Budgets.Kind.ELAPSED_TICKS,0L)>=before+5);
+        assertEquals(result,s.gateway.poll(handle),"A terminal renewal-backed action replayed an effect");
+        s.gateway.releaseRun(s.physical.run);
+    }
+    @org.junit.jupiter.api.Test
+    void unpolledRunsStillExpireWithoutBackgroundRenewalOrEffects() {
+        var s=new Scene(false);assertNull(s.action(Operation.APPROACH_OAK_LOG).reason());
+        for(int i=0;i<110;i++)s.tick();
+        assertTrue(s.leases.snapshot().leases().stream().allMatch(l->l.state()==State.EXPIRED && l.renewals()==0));
+        assertEquals(Outcomes.Reason.TARGET_UNAVAILABLE,s.action(Operation.OBSERVE_OAK_INVENTORY).reason());
+        assertEquals(0,s.physical.world.harvests);assertEquals(0,s.physical.world.pickups);assertEquals(0,s.physical.world.transfers);
+    }
+
 }
