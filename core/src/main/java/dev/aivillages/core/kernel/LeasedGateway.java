@@ -305,6 +305,12 @@ public final class LeasedGateway implements GatewayPort {
         return a.current;
     }
     private ActionReceipt fail(Action a,Reason reason) {
+        if(Boolean.getBoolean("cognitivecraft.gametest.trace") || Boolean.getBoolean("cognitivecraft.navigation.trace"))
+            System.out.println("CognitiveCraft LEASE_GATE rejected run="+a.handle.runId()+" primitive="+a.primitive
+                    +" reason="+reason+" nativeStarted="+(a.nativeHandle!=null)+" tick="+ticks.getAsLong()
+                    +" claims="+leases.snapshot().leases().stream().filter(l->l.owner().equals(a.run.binding.owner()))
+                    .map(l->l.resource().kind()+":"+l.resource().item()+" remaining="+l.remaining()+" expires="+l.expires()
+                            +" renewed="+l.renewed()+" renewals="+l.renewals()+" state="+l.state()+" reason="+l.reason()).toList());
         ActionReceipt evidence=a.current;
         if(a.nativeHandle!=null) {
             ActionReceipt stopped=delegate.cancel(a.nativeHandle);

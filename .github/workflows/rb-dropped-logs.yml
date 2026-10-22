@@ -2,7 +2,7 @@ name: Agent 1 Task 3 dropped-log diagnosis
 on:
   push:
     branches: [fix/rb-world-execution]
-    paths: ['.github/workflows/rb-dropped-logs.yml','scripts/review-original-a02.py','scripts/review-a02-setup.py','scripts/verify-dropped-logs.py','e2e/dropped_logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/DroppedLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java','core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java']
+    paths: ['.github/workflows/rb-dropped-logs.yml','scripts/review-original-a02.py','scripts/review-a02-setup.py','scripts/verify-dropped-logs.py','e2e/dropped_logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/DroppedLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java','core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java','core/src/main/java/dev/aivillages/core/kernel/LeasedGateway.java','core/src/test/java/dev/aivillages/core/kernel/LeasedDropContinuityTest.java']
   workflow_dispatch:
 permissions:
   contents: read

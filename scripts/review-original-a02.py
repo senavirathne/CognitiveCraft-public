@@ -97,6 +97,17 @@ def main():
                     continue
                 artifact_files.append({"path": path, "sha256": hashlib.sha256(data).hexdigest(), "body": body})
         result["originalAdmittedMethodFiles"] = artifact_files[:6]
+        lease_files = []
+        for path in paths:
+            if "/data/cognitivecraft/leases/v1/" in path and path.endswith(("/state.jsonl", "/state.prev.jsonl")):
+                raw_lease = z.read(path); lease_lines = raw_lease.splitlines(keepends=True)
+                header = json.loads(lease_lines[0]); payload = b"".join(lease_lines[1:])
+                assert hashlib.sha256(payload).hexdigest() == header["sha256"]
+                leases = [json.loads(line) for line in lease_lines[1:]]
+                own = [row for row in leases if row["job"] == view["responsibility"]["id"]]
+                lease_files.append({"path": path, "sha256": hashlib.sha256(raw_lease).hexdigest(),
+                                    "header": header, "originalA02Leases": own})
+        result["originalLeaseFiles"] = lease_files
         stdout_path = next(p for p in paths if p.endswith("server/stdout.log"))
         stdout = z.read(stdout_path).decode("utf-8", errors="replace")
         start = "14:14:04"; end = "14:15:07"
