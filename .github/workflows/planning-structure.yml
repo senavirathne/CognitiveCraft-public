@@ -71,6 +71,7 @@ jobs:
           PLANNING_BENCHMARK_SHARD: ${{ matrix.shard }}
           PLANNING_BENCHMARK_SHARDS: '4'
           PLANNING_BENCHMARK_DATASET: acceptance-requests.json
+          PLANNING_STRUCTURE_SUPPLEMENT: 'true'
         run: |
           set -o pipefail
           bash ./gradlew --no-daemon --stacktrace :providers:runPlanningLiveBenchmark | tee providers/build/planning-quality/held-out.log
@@ -88,7 +89,7 @@ jobs:
           retention-days: 90
           path: providers/build/planning-quality/**
   integrity:
-    name: IMP-019 genuine held-out shared-backend quality and latency
+    name: Task 5.1 frozen regression and actual transport integrity
     needs: measurements
     if: always()
     runs-on: ubuntu-latest
@@ -98,7 +99,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Test measurement integrity independently of model success rate
-        run: python3 -m unittest discover -s scripts -p test_planning_quality.py
+        run: python3 -m unittest discover -s scripts -p 'test_planning_*.py'
       - uses: actions/download-artifact@v4
         with:
           pattern: planning-structure-measurements-*
@@ -107,10 +108,16 @@ jobs:
         env:
           REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 scripts/planning-quality.py providers/build/planning-quality --head "$REVIEWED_HEAD" --expected-dataset-sha 629798799640026f8ae7f096027bece765d3dda74386fbbceead0237be76a9a9
+      - name: Reconcile every actual request, raw response, rejection and separate unseen case
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-structure.py providers/build/planning-quality --head "$REVIEWED_HEAD"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: planning-structure-quality-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
-          path: providers/build/planning-quality/acceptance.json
+          path: |
+            providers/build/planning-quality/acceptance.json
+            providers/build/planning-quality/structure-integrity.json

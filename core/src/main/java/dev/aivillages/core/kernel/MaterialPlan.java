@@ -205,9 +205,11 @@ public final class MaterialPlan {
                 "type","object","additionalProperties",false,"required",List.of("item","amount"),
                 "properties",Map.of("item",Map.of("type","string","enum",List.of(e.getKey())),
                         "amount",Map.of("type","integer","enum",List.of(e.getValue()))))).toList();
-        Map<String,Object> stepArray=steps.isEmpty()?Map.of("type","array","maxItems",0):Map.of(
+        // Ollama's schema converter applies cardinality only when an item schema is present.
+        var emptyArray=Map.of("type","array","maxItems",0,"items",Map.of("type","object"));
+        Map<String,Object> stepArray=steps.isEmpty()?emptyArray:Map.of(
                 "type","array","minItems",steps.size(),"maxItems",steps.size(),"uniqueItems",true,"items",Map.of("anyOf",steps));
-        Map<String,Object> deliveryArray=!feasible?Map.of("type","array","maxItems",0):Map.of(
+        Map<String,Object> deliveryArray=!feasible?emptyArray:Map.of(
                 "type","array","minItems",deliveries.size(),"maxItems",deliveries.size(),"uniqueItems",true,"items",Map.of("anyOf",deliveries));
         return Map.of("type","object","additionalProperties",false,"required",List.of("schema","status","steps","deliveries"),
                 "properties",Map.of("schema",Map.of("type","integer","enum",List.of(1)),
