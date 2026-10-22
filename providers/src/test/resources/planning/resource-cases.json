@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "scope": "Task 5.2 independent resource-grounding cases; separate from unchanged original fifty and Task 5.1 structure cases. Frozen before production edits.",
+  "cases": [
+    {
+      "id": "resource-unseen-01",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply four crafting tables from four oak logs. Preserve all leftovers.",
+      "goals": {
+        "minecraft:crafting_table": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "resource-unseen-02",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Supply thirteen sticks from two oak logs without harvesting anything.",
+      "goals": {
+        "minecraft:stick": 13
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "resource-unseen-03",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Deliver two crafting tables and nine sticks from four oak logs, counting each consumed plank once.",
+      "goals": {
+        "minecraft:crafting_table": 2,
+        "minecraft:stick": 9
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "resource-unseen-04",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Supply seven oak planks and nine sticks using four oak logs and one existing stick.",
+      "goals": {
+        "minecraft:oak_planks": 7,
+        "minecraft:stick": 9
+      },
+      "inventory": {
+        "minecraft:oak_log": 4,
+        "minecraft:stick": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "resource-unseen-05",
+      "category": "multi_target",
+      "kind": "material",
+      "request": "Deliver five birch planks and nine sticks from two birch logs and two oak logs.",
+      "goals": {
+        "minecraft:birch_planks": 5,
+        "minecraft:stick": 9
+      },
+      "inventory": {
+        "minecraft:birch_log": 2,
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "resource-unseen-06",
+      "category": "multi_step",
+      "kind": "material",
+      "request": "Deliver eleven sticks. Available stock is five oak planks and one oak log; retain unused stock.",
+      "goals": {
+        "minecraft:stick": 11
+      },
+      "inventory": {
+        "minecraft:oak_planks": 5,
+        "minecraft:oak_log": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "resource-unseen-07",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply four crafting tables from only three oak logs; no extra stock exists.",
+      "goals": {
+        "minecraft:crafting_table": 4
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "resource-unseen-08",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply nine birch planks from two birch logs. Eight oak planks cannot substitute.",
+      "goals": {
+        "minecraft:birch_planks": 9
+      },
+      "inventory": {
+        "minecraft:birch_log": 2,
+        "minecraft:oak_planks": 8
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "resource-unseen-09",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Deliver six oak planks and seven sticks from two oak logs with no other stock.",
+      "goals": {
+        "minecraft:oak_planks": 6,
+        "minecraft:stick": 7
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "resource-unseen-10",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Supply three stone axes using only the registered recipe catalog.",
+      "goals": {
+        "minecraft:stone_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 12,
+        "minecraft:stick": 6
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    }
+  ]
+}

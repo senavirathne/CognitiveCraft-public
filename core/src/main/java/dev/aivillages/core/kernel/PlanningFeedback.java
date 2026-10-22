@@ -31,8 +31,14 @@ public final class PlanningFeedback {
             }
             if("material-plan-preview:1".equals(context.get("contract"))) {
                 var facts=MaterialPlan.contextFromPrompt(original);var required=MaterialPlan.requirements(facts);
-                return Map.of("expectedStatus",required.status(),"requiredBatches",required.batches(),"requiredDeliveries",facts.goals(),
-                        "availableInventory",facts.inventory(),"orderingRule","Produce inputs before consumption; place the authorized table before axes.");
+                var result=new java.util.HashMap<String,Object>(Map.of("expectedStatus",required.status(),"requiredBatches",required.batches(),"requiredDeliveries",facts.goals(),
+                        "availableInventory",facts.inventory(),"orderingRule","Produce inputs before consumption; place the authorized table before axes."));
+                var failure=MaterialPlan.resourceFailure(candidate,facts);
+                if(!failure.isEmpty()) {
+                    result.put("resourceFailure",failure);
+                    result.put("orderingRule","Use stock before the failing step, not future outputs or spent inputs. Include each required recipe once. Produce inputs before consumption; place the authorized table before axes.");
+                }
+                return result;
             }
         } catch(StrictJson.Invalid | RuntimeException ignored) { }
         return Map.of();

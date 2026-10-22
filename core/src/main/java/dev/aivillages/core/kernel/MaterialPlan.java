@@ -32,6 +32,7 @@ public final class MaterialPlan {
                 throw new IllegalArgumentException("Trusted finite material context required");
         }
         public String prompt() {
+            var required = requirements(this);
             return StrictJson.canonical(Map.of("contract", "material-plan-preview:1", "request", request,
                     "requiredDeliveries", goals, "availableInventory", inventory,
                     "tableAvailable", tableAvailable, "placementAllowed", placementAllowed,
@@ -39,7 +40,8 @@ public final class MaterialPlan {
                             "output", r.output().id(), "outputPerBatch", r.outputPerBatch(),
                             "maximumBatches", r.maximumBatches(), "requiresTable", r.axe())).toList(),
                     "placement", Map.of("recipe", PLACE, "consumes", TABLE, "quantity", 1),
-                    "requiredWork", Map.of("status", requirements(this).status(), "batches", requirements(this).batches(), "dependencies", dependencies(this)),
+                    "requiredWork", Map.of("status", required.status(), "batches", required.batches(), "dependencies", dependencies(this),
+                            "resourceGrounding", resourceGrounding(this, required)),
                     "instruction", "Return schema 1 JSON with status, steps and deliveries. The deterministic material precheck supplies requiredWork, not permission to execute. For a plan, include each requiredWork recipe exactly once with its listed batches. Every dependency lists a recipe that must appear BEFORE its consumer. Choose an order respecting all dependencies and stock consumption. Existing stock may already satisfy an intermediate. Axes require a placed table before crafting. Deliveries must match requiredDeliveries exactly; keep unavoidable batch remainders. For an impossible request return the precheck status with empty steps/deliveries. No harvesting, invented resources, recipes, authority or quantity changes."));
         }
     }
@@ -81,6 +83,55 @@ public final class MaterialPlan {
     private static Map<String, Long> inputs(RecipeProduction.Definition recipe) {
         return recipe.axe() ? Map.of(recipe.input().id(), (long) recipe.inputPerBatch(), ResourceDelivery.STICK.id(), 2L)
                 : Map.of(recipe.input().id(), (long) recipe.inputPerBatch());
+    }
+
+    /** Unordered resource facts, not an ordered plan or additional available inventory. */
+    private static Map<String, Object> resourceGrounding(Context context, Requirement required) {
+        var initial = new TreeMap<String, Long>();
+        for (String item : ITEMS) initial.put(item, context.inventory().getOrDefault(item, 0L));
+        var transactions = new TreeMap<String, Object>();
+        for (var work : required.batches().entrySet()) {
+            var consumes = new TreeMap<String, Long>();
+            Map<String, Long> produces;
+            if (work.getKey().equals(PLACE)) {
+                consumes.put(TABLE, work.getValue()); produces = Map.of();
+            } else {
+                var recipe = RecipeProduction.recipe(work.getKey());
+                inputs(recipe).forEach((item, amount) -> consumes.put(item, Math.multiplyExact(amount, work.getValue())));
+                produces = Map.of(recipe.output().id(), Math.multiplyExact(work.getValue(), recipe.outputPerBatch()));
+            }
+            transactions.put(work.getKey(), Map.of("consumes", consumes, "produces", produces));
+        }
+        return Map.of("initialStock", initial, "transactions", transactions,
+                "rule", "Only initialStock exists before step zero; missing stock is zero. Transactions are unordered future work, not inventory. Outputs become available only after their producer step. Subtract every consumed unit once; never repeat a recipe to fill another step slot. Preserve stock needed for the exact deliveries.");
+    }
+
+    /** Explain an independently rejected resource proposal using trusted sequential stock only. */
+    static Map<String, Object> resourceFailure(String candidate, Context context) {
+        if (!validate(candidate, context).diagnostic().equals("FABRICATED_RESOURCE")) return Map.of();
+        try {
+            var proposal = decode(candidate); var stock = new HashMap<>(context.inventory());
+            var occurrences = new TreeMap<String, Long>();
+            for (var step : proposal.steps()) occurrences.merge(step.recipe(), 1L, Math::addExact);
+            var missing = requirements(context).batches().keySet().stream().filter(r -> !occurrences.containsKey(r)).sorted().toList();
+            for (int i = 0; i < proposal.steps().size(); i++) {
+                var step = proposal.steps().get(i);
+                if (step.recipe().equals(PLACE)) { stock.merge(TABLE, -step.batches(), Math::addExact); continue; }
+                var recipe = RecipeProduction.recipe(step.recipe()); var deficits = new TreeMap<String, Object>();
+                for (var ingredient : inputs(recipe).entrySet()) {
+                    long needed = Math.multiplyExact(ingredient.getValue(), step.batches());
+                    long available = stock.getOrDefault(ingredient.getKey(), 0L);
+                    if (available < needed) deficits.put(ingredient.getKey(), Map.of("availableBeforeStep", available,
+                            "required", needed, "missing", needed - available));
+                }
+                if (!deficits.isEmpty()) return Map.of("step", i, "recipe", step.recipe(), "stockBeforeStep", Map.copyOf(stock),
+                        "unavailableInputs", deficits, "recipeOccurrences", occurrences, "omittedRequiredRecipes", missing);
+                for (var ingredient : inputs(recipe).entrySet())
+                    stock.merge(ingredient.getKey(), -Math.multiplyExact(ingredient.getValue(), step.batches()), Math::addExact);
+                stock.merge(recipe.output().id(), Math.multiplyExact(step.batches(), recipe.outputPerBatch()), Math::addExact);
+            }
+        } catch (StrictJson.Invalid | RuntimeException ignored) { }
+        return Map.of();
     }
 
     /** Conservative recipe dependency edges, not an ordered plan or executable work. */
