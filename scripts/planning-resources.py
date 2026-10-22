@@ -135,6 +135,14 @@ def review(root, head):
                 require(feedback['trustedContext'] == first['prompt'] and feedback['attemptLimit'] == 2,
                         'Repair replaced trusted inventory or correction allowance')
                 require(attempt['constraintSha256'] == first['constraintSha256'], 'Repair changed the trusted grammar')
+                previous = feedback['previousProposal']
+                if first['diagnostic'] == 'FABRICATED_RESOURCE':
+                    require(previous == 'Omitted after resource rejection; use trusted context and deficit witness.' and
+                            bool(feedback['validationError']['details'].get('resourceFailure')),
+                            'Resource repair must retain the deficit witness without echoing the rejected sequence')
+                else:
+                    require(first['candidate'].startswith(previous) if first['outcome'] == 'CANDIDATE' else previous == 'unavailable',
+                            'Non-resource previous-proposal evidence changed')
     result = {'measurementStatus': 'PASS', 'qualityThresholdEnforced': False, 'sourceCommit': head,
               'independentlyReplayedMaterialAttempts': material_attempts, 'originalRequests': 100,
               'structureRequests': 12, 'resourceRequests': 20, 'models': {}}
