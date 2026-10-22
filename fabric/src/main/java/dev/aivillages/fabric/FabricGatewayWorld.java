@@ -785,7 +785,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private ItemPickup pickupRejected(ActorRef actor,Entity entity,int expected,Reason reason,String guard) {
         if(Boolean.getBoolean("cognitivecraft.gametest.trace") || Boolean.getBoolean("cognitivecraft.navigation.trace")) {
             var v=villager(actor);
-            var hit=v==null || entity==null ? null : level.clip(new ClipContext(v.getEyePosition(),entity.position(),
+            boolean inspectRay=v!=null && entity!=null && loaded(v.blockPosition()) && loaded(entity.blockPosition())
+                    && level.mayInteract(v,entity.blockPosition())
+                    && v.distanceToSqr(entity.position())<=INTERACTION_REACH*INTERACTION_REACH;
+            var hit=!inspectRay ? null : level.clip(new ClipContext(v.getEyePosition(),entity.position(),
                     ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,v));
             System.out.println("CognitiveCraft LOG_PICKUP rejected guard="+guard+" reason="+reason
                     +" run="+(v==null ? null : GatewayControl.owner(v))+" actor="+actor.entityId()

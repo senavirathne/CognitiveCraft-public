@@ -3,6 +3,7 @@
 import argparse
 import base64
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -38,7 +39,7 @@ def read_json(z,suffix):
     matches=[p for p in z.namelist() if p.endswith(suffix)]
     assert len(matches)==1,(suffix,matches)
     return json.loads(z.read(matches[0]))
-def review(meta,root):
+def review(meta,root,emit_frame=False):
     path=download(meta,root)
     out={"artifactId":meta["id"],"bytes":meta["size_in_bytes"],"digest":meta["digest"],
          "head":meta.get("workflow_run",{}).get("head_sha"),"name":meta["name"]}
@@ -85,7 +86,7 @@ def review(meta,root):
                     raw=z.read(candidates[0]);assert hashlib.sha256(raw).hexdigest()==frame["sha256"]
                     assert len(raw)==frame["bytes"] and struct.unpack(">II",raw[16:24])==(800,600)
                     row["frames"].append({k:frame[k] for k in ("path","sha256","bytes","checkpoint","family")})
-                    if case["id"]=="original-A02" and frame["checkpoint"]=="synchronized-container-7":
+                    if emit_frame and case["id"]=="original-A02" and frame["checkpoint"]=="synchronized-container-7":
                         print("TASK3_NATIVE_FRAME "+json.dumps({"frame":row["frames"][-1],"base64":base64.b64encode(raw).decode()}),flush=True)
                 out["cases"].append(row)
         out["leaseFiles"]=[]
@@ -119,7 +120,18 @@ def review(meta,root):
         for suffix in ("dropped-logs.json","existing-oak-birch.json"):
             matching=[p for p in paths if p.endswith("/"+suffix)]
             if matching:
-                phase=json.loads(z.read(matching[0]));phases.append(phase)
+                phase=json.loads(z.read(matching[0]))
+                prefix=matching[0].rsplit("/",1)[0]+"/"
+                label=suffix[:-5]
+                xml_path=prefix+label+"-gametest-results.xml";log_path=prefix+label+"-latest.log"
+                assert hashlib.sha256(z.read(xml_path)).hexdigest()==phase["xmlSha256"]
+                assert hashlib.sha256(z.read(log_path)).hexdigest()==phase["logSha256"]
+                actual=[c for c in ET.fromstring(z.read(xml_path)).iter("testcase")
+                        if c.get("name","").startswith("ai_villages_tests:")]
+                assert [c.get("name") for c in actual]==phase["caseNames"]
+                assert all(c.find(t) is None for c in actual for t in ("failure","error","skipped"))
+                phase["actualXmlAndLogReverified"]=True
+                phases.append(phase)
         out["nativePhases"]=phases
     (root/(str(meta["id"])+"-review.json")).write_text(json.dumps(out,indent=2)+"\n")
     print("TASK3_ARCHIVE_REVIEW "+json.dumps(out,separators=(",",":")),flush=True)
@@ -132,7 +144,9 @@ def main():
     args=parser.parse_args();args.root.mkdir(parents=True,exist_ok=True)
     if args.historical:
         for ident,size,digest in ((12410460341,89972218,"a5fc4f065708cdc700c8618791d11ca84a71c7d9b34efd47962cd286fdf45cff"),
-                                  (12409634116,198746,"f2325a5cd533a7665c4c00762fc89fbea24cbb54f7e3eaf9c0f84c6a28a48a8c")):
+                                  (12409634116,198746,"f2325a5cd533a7665c4c00762fc89fbea24cbb54f7e3eaf9c0f84c6a28a48a8c"),
+                                  (12411384329,149549405,"e66996a65fb3ed827b882720b77fe71a1a8eb96f554691f10b2836a81e258b4e"),
+                                  (12410997027,3819622,"f70bf5a02a59c5257ffa0e451ca068ba818d3b40e4066fe487cd318822bda8ff")):
             m=metadata(ident);assert m["size_in_bytes"]==size and m["digest"]=="sha256:"+digest
             review(m,args.root)
         with urllib.request.urlopen(request(API+"/actions/runs/39742726356/artifacts"),timeout=60) as stream:
@@ -147,7 +161,7 @@ def main():
     suffix="-"+os.environ["GITHUB_RUN_ID"]+"-"+os.environ["GITHUB_RUN_ATTEMPT"]
     selected=[a for a in artifacts if a["name"] in ("dropped-logs-native"+suffix,"dropped-logs-connected"+suffix)]
     assert len(selected)==2
-    results=[review(m,args.root) for m in selected]
+    results=[review(m,args.root,True) for m in selected]
     assert all(r["head"]==os.environ["GITHUB_SHA"] for r in results)
     client=next(r for r in results if r.get("cases"))
     native=next(r for r in results if r.get("moduleCases"))
@@ -156,6 +170,25 @@ def main():
     assert sum(len(p["caseNames"]) for p in native["nativePhases"])==9
     assert len(client["actualProductionCopies"])==4 and len(native["actualProductionCopies"])==1
     assert {j["sha256"] for r in results for j in r["actualProductionCopies"]}=={client["metadata"]["releaseSha256"]}
+    def jar_bytes(artifact_id):
+        with zipfile.ZipFile(args.root/(str(artifact_id)+".zip")) as z:
+            p=next(p for p in z.namelist() if p.endswith("/ai-villages-0.1.0.jar"))
+            return z.read(p)
+    def members(raw):
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            return {p:hashlib.sha256(z.read(p)).hexdigest() for p in z.namelist()}
+    current_jar=jar_bytes(native["artifactId"]);current_members=members(current_jar)
+    diffs=[]
+    for previous_id,expected in ((12410997027,{"dev/aivillages/fabric/FabricGatewayWorld.class"}),
+            (12410672066,{"dev/aivillages/fabric/FabricGatewayWorld.class","dev/aivillages/core/kernel/LeasedGateway.class"})):
+        previous=members(jar_bytes(previous_id))
+        assert previous.keys()==current_members.keys()
+        changed=sorted(p for p in previous if previous[p]!=current_members[p])
+        assert set(changed)==expected,changed
+        diffs.append({"previousArtifactId":previous_id,"currentNativeArtifactId":native["artifactId"],
+                      "changedMembers":changed,"unchangedMembers":len(previous)-len(changed),"added":0,"removed":0})
+    (args.root/"production-member-comparison.json").write_text(json.dumps(diffs,indent=2)+"\n")
+    print("TASK3_BINARY_MEMBER_REVIEW "+json.dumps(diffs,separators=(",",":")),flush=True)
     print("TASK3_COMPLETE_ARCHIVE_REVIEW_PASS",os.environ["GITHUB_SHA"],flush=True)
 
 if __name__=="__main__":main()
