@@ -73,8 +73,8 @@ public final class PlanningLiveBenchmark {
         Path output=Path.of("providers/build/planning-quality");Files.createDirectories(output);
         String name=model.replace(':','-').replace('.','_');Path raw=output.resolve(name+"-"+shard+".jsonl");Files.deleteIfExists(raw);
         Clock clock=Clock.systemUTC();int valid=0,completed=0;long calls=0,repairs=0;
-        try(var adapter=new LocalGenerationAdapter(new LocalGenerationAdapter.Config(URI.create("http://127.0.0.1:11434/api/chat"),model,true,768));
-            var broker=new AIWorkBroker(adapter,clock,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(clock.millis()),r->true,AIWorkBroker.Sharing.privateScopes())) {
+        try(var capture=new PlanningWireCapture(model,clock);
+            var broker=new AIWorkBroker(capture.adapter(),clock,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(clock.millis()),r->true,AIWorkBroker.Sharing.privateScopes())) {
             for(int index=shard;index<cases.size();index+=shards) {
                 var c=cases.get(index);var input=input(c);long deadline=clock.millis()+180000;
                 var totals=new Budgets.Limits(Map.of(Budgets.Kind.CALLS,2L,Budgets.Kind.REPAIRS,1L,
@@ -98,7 +98,8 @@ public final class PlanningLiveBenchmark {
                     var shape=input.wheat()==null?MaterialPlan.outputShape(c.material()):Plan.outputShape(input.bound().request());
                     row.put("constraintSha256",sha(StrictJson.canonical(shape).getBytes(StandardCharsets.UTF_8)));
                     row.put("constraintScope","request quantities and deterministic material precheck; model orders required steps");
-                    row.put("prompt",prompt);row.put("candidate",result.candidateIr()==null?"unavailable":result.candidateIr());row.put("compute",result.compute().name());attempts.add(row);
+                    row.put("prompt",prompt);row.put("candidate",result.candidateIr()==null?"unavailable":result.candidateIr());row.put("compute",result.compute().name());
+                    row.put("transport",capture.evidence(c.material()!=null));attempts.add(row);
                     if(checked.valid()||attempt==1||clock.millis()>=deadline)break;
                     prompt=PlanningFeedback.correction(input.prompt(),result.candidateIr(),checked.diagnostic(),checked.path());
                 }
