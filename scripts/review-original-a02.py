@@ -85,6 +85,18 @@ def main():
                 jars.append({"path": path, "bytes": len(data), "sha256": digest})
         assert len(jars) >= 3
         result["actualProductionCopies"] = jars
+        result["admittedArtifacts"] = assessment.get("admittedArtifacts")
+        artifact_hash = view["marker"]["artifactSha256"]
+        artifact_files = []
+        for path in paths:
+            if artifact_hash in path and z.getinfo(path).file_size < 100000:
+                data = z.read(path)
+                try:
+                    body = data.decode("utf-8")
+                except UnicodeDecodeError:
+                    continue
+                artifact_files.append({"path": path, "sha256": hashlib.sha256(data).hexdigest(), "body": body})
+        result["originalAdmittedMethodFiles"] = artifact_files[:6]
         stdout_path = next(p for p in paths if p.endswith("server/stdout.log"))
         stdout = z.read(stdout_path).decode("utf-8", errors="replace")
         start = "14:14:04"; end = "14:15:07"

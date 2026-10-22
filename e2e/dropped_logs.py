@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     args = parser.parse_args(); args.root.mkdir(parents=True, exist_ok=True)
     corpus = read(ROOT / "e2e/generalization/cases.json")
-    result = {"task": "3/A02", "status": "NOT_EXECUTED", "phase": "BASELINE_REPRODUCTION",
+    result = {"task": "3/A02", "status": "NOT_EXECUTED", "phase": "DIAGNOSTIC_REPRODUCTION",
               "originalCorpusSha256": hashlib.sha256((ROOT / "e2e/generalization/cases.json").read_bytes()).hexdigest(),
               "frozenDriverSha256": hashlib.sha256((ROOT / "e2e/generalization.py").read_bytes()).hexdigest(),
               "cases": [{"id": "original-A02", "status": "NOT_EXECUTED"}]}

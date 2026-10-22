@@ -767,17 +767,36 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourcePickup(actor,id,expected,item);
         Villager v=villager(actor); Entity entity=level.getEntity(id);
         if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive() || !loaded(drop.blockPosition()))
-            return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
+            return pickupRejected(actor,entity,expected,Reason.STALE_OBSERVATION,"actor-or-entity-unavailable");
         if(!level.mayInteract(v,drop.blockPosition()) || !level.getGameRules().get(GameRules.MOB_GRIEFING))
-            return new ItemPickup(0,expected,Reason.AUTHORITY_DENIED);
+            return pickupRejected(actor,drop,expected,Reason.AUTHORITY_DENIED,"current-authority");
         ItemStack stack=drop.getItem();
-        if(!defaultLog(stack,item) || stack.getCount()!=expected) return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
-        if(drop.hasPickUpDelay() || !canReach(v,drop.position(),drop.blockPosition()))
-            return new ItemPickup(0,expected,Reason.TARGET_UNAVAILABLE);
+        if(!defaultLog(stack,item) || stack.getCount()!=expected)
+            return pickupRejected(actor,drop,expected,Reason.STALE_OBSERVATION,"identity-or-quantity");
+        if(drop.hasPickUpDelay())
+            return pickupRejected(actor,drop,expected,Reason.TARGET_UNAVAILABLE,"native-pickup-delay");
+        if(!canReach(v,drop.position(),drop.blockPosition()))
+            return pickupRejected(actor,drop,expected,Reason.TARGET_UNAVAILABLE,"native-distance-or-ray");
         ItemStack remaining=v.getInventory().addItem(stack.copy()); int moved=stack.getCount()-remaining.getCount();
-        if(moved<=0) return new ItemPickup(0,expected,Reason.TARGET_UNAVAILABLE);
+        if(moved<=0) return pickupRejected(actor,drop,expected,Reason.TARGET_UNAVAILABLE,"native-inventory-capacity");
         if(remaining.isEmpty()) drop.discard(); else drop.setItem(remaining);
         v.getInventory().setChanged(); return new ItemPickup(moved,remaining.getCount(),null);
+    }
+    private ItemPickup pickupRejected(ActorRef actor,Entity entity,int expected,Reason reason,String guard) {
+        if(Boolean.getBoolean("cognitivecraft.gametest.trace") || Boolean.getBoolean("cognitivecraft.navigation.trace")) {
+            var v=villager(actor);
+            var hit=v==null || entity==null ? null : level.clip(new ClipContext(v.getEyePosition(),entity.position(),
+                    ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,v));
+            System.out.println("CognitiveCraft LOG_PICKUP rejected guard="+guard+" reason="+reason
+                    +" run="+(v==null ? null : GatewayControl.owner(v))+" actor="+actor.entityId()
+                    +" actorPosition="+(v==null ? null : v.position())+" expected="+expected
+                    +" drop="+(entity==null ? null : entity.getUUID())+" alive="+(entity!=null && entity.isAlive())
+                    +" position="+(entity==null ? null : entity.position())+" cell="+(entity==null ? null : entity.blockPosition())
+                    +" distanceSquared="+(v==null || entity==null ? null : v.distanceToSqr(entity.position()))
+                    +" hitType="+(hit==null ? null : hit.getType())+" hitBlock="+(hit==null ? null : hit.getBlockPos())
+                    +" stack="+(entity instanceof ItemEntity d ? d.getItem() : null)+" tick="+tick());
+        }
+        return new ItemPickup(0,expected,reason);
     }
     @Override public ItemTransfer resourceTransferOne(ActorRef actor,ContainerRef target,ResourceDelivery.ItemIdentity item) {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceTransferOne(actor,target,item);

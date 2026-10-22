@@ -2,7 +2,7 @@ name: Agent 1 Task 3 dropped-log diagnosis
 on:
   push:
     branches: [fix/rb-world-execution]
-    paths: ['.github/workflows/rb-dropped-logs.yml','scripts/review-original-a02.py','e2e/dropped_logs.py']
+    paths: ['.github/workflows/rb-dropped-logs.yml','scripts/review-original-a02.py','scripts/review-a02-setup.py','scripts/verify-dropped-logs.py','e2e/dropped_logs.py','fabric/src/gameTest/java/dev/aivillages/fabric/DroppedLogGameTests.java','fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java','core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java']
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,14 +19,72 @@ jobs:
       - name: Read-only review of exact original archive, native paths and owned entity
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/review-original-a02.py --root build/a02-original-review
+        run: |
+          python3 scripts/review-original-a02.py --root build/a02-original-review
+          python3 scripts/review-a02-setup.py --root build/a02-original-review
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: a02-original-review-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 30
-          path: build/a02-original-review/original-a02-review.json
+          path: build/a02-original-review/*.json
+  native-pickup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Module regressions and actual diagnostic production binary
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestClasses :fabric:gameTestJar
+          python3 scripts/verify-rb001.py junit
+          python3 scripts/verify-rb001.py identity
+      - name: Native item position, movement, collision, capacity and removal guards
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.DroppedLogGameTests']
+          p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-dropped-logs.py native
+          mv fabric/build/gametest-run fabric/build/dropped-log-probes-run
+      - name: Original real oak and birch effect regressions
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.OakLogEffectGameTests','dev.aivillages.fabric.BirchLogEffectGameTests']
+          p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-dropped-logs.py existing
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dropped-logs-native-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/rb001-evidence/
+            build/dropped-log-evidence/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/dropped-log-probes-run/
+            fabric/build/gametest-run/
+            fabric/build/libs/
   connected-a02:
     runs-on: ubuntu-latest
     timeout-minutes: 65
@@ -43,9 +101,9 @@ jobs:
             build/e2e-sdk
             build/server-sdk
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
-      - name: Unchanged production binary and existing genuine client instruments
+      - name: Diagnostic production binary and existing genuine client instruments
         run: |
-          python3 -m py_compile scripts/review-original-a02.py e2e/dropped_logs.py
+          python3 -m py_compile scripts/review-original-a02.py scripts/review-a02-setup.py scripts/verify-dropped-logs.py e2e/dropped_logs.py
           bash gradlew --no-daemon --stacktrace :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
           python3 scripts/verify-rb001.py identity
@@ -53,7 +111,9 @@ jobs:
           python3 e2e/runtime.py compile
           python3 tools/needle/install.py build/needle
       - name: Original A02 with its unchanged seven positions, quantity and barrel
-        run: python3 e2e/dropped_logs.py --root build/e2e/dropped-logs
+        run: |
+          python3 e2e/dropped_logs.py --root build/e2e/dropped-logs
+          python3 scripts/verify-dropped-logs.py client
       - uses: actions/upload-artifact@v4
         if: always()
         with:
