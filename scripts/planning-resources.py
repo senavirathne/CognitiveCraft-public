@@ -140,6 +140,10 @@ def review(root, head):
                     require(previous == 'Omitted after resource rejection; use trusted context and deficit witness.' and
                             bool(feedback['validationError']['details'].get('resourceFailure')),
                             'Resource repair must retain the deficit witness without echoing the rejected sequence')
+                elif first['diagnostic'] == 'FACILITY':
+                    require(previous == 'Omitted after facility rejection; use trusted context and facility-state witness.' and
+                            bool(feedback['validationError']['details'].get('facilityFailure')),
+                            'Facility repair must retain a state witness without echoing the rejected sequence')
                 else:
                     require(first['candidate'].startswith(previous) if first['outcome'] == 'CANDIDATE' else previous == 'unavailable',
                             'Non-resource previous-proposal evidence changed')

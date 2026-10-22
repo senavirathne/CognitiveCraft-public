@@ -134,6 +134,37 @@ public final class MaterialPlan {
         return Map.of();
     }
 
+    /** Explain only a validator-confirmed facility failure; no facility or stock is granted. */
+    static Map<String, Object> facilityFailure(String candidate, Context context) {
+        if (!validate(candidate, context).diagnostic().equals("FACILITY")) return Map.of();
+        try {
+            var proposal = decode(candidate); var stock = new HashMap<>(context.inventory());
+            boolean table = context.tableAvailable();
+            for (int i = 0; i < proposal.steps().size(); i++) {
+                var step = proposal.steps().get(i); String reason = null;
+                if (step.recipe().equals(PLACE)) {
+                    if (!context.placementAllowed()) reason = "PLACEMENT_NOT_AUTHORIZED";
+                    else if (table) reason = "TABLE_ALREADY_AVAILABLE";
+                    else if (step.batches() != 1) reason = "INVALID_PLACEMENT_BATCHES";
+                    else if (stock.getOrDefault(TABLE, 0L) < 1) reason = "MISSING_TABLE_ITEM";
+                } else if (RecipeProduction.recipe(step.recipe()).axe() && !table) reason = "TABLE_NOT_PLACED";
+                if (reason != null) return Map.of("step", i, "recipe", step.recipe(), "reason", reason,
+                        "tableAvailableBeforeStep", table, "tableItemsBeforeStep", stock.getOrDefault(TABLE, 0L),
+                        "placementAllowed", context.placementAllowed(), "missingTableItemsForPlacement", Math.max(0, 1 - stock.getOrDefault(TABLE, 0L)),
+                        "stockBeforeStep", Map.copyOf(stock));
+                if (step.recipe().equals(PLACE)) {
+                    stock.merge(TABLE, -1L, Math::addExact); table = true;
+                } else {
+                    var recipe = RecipeProduction.recipe(step.recipe());
+                    for (var ingredient : inputs(recipe).entrySet())
+                        stock.merge(ingredient.getKey(), -Math.multiplyExact(ingredient.getValue(), step.batches()), Math::addExact);
+                    stock.merge(recipe.output().id(), Math.multiplyExact(step.batches(), recipe.outputPerBatch()), Math::addExact);
+                }
+            }
+        } catch (StrictJson.Invalid | RuntimeException ignored) { }
+        return Map.of();
+    }
+
     /** Conservative recipe dependency edges, not an ordered plan or executable work. */
     private static List<Map<String,String>> dependencies(Context context) {
         var required=requirements(context).batches();var edges=new ArrayList<Map<String,String>>();

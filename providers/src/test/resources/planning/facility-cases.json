@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "purpose": "Task 5.3 independent facility-state cases frozen before production edits; not part of the original score",
+  "cases": [
+    {
+      "id": "facility-unseen-01",
+      "category": "facility_supported",
+      "kind": "material",
+      "request": "Supply two wooden axes using the existing placed table; no new placement is needed.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 6,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "facility-unseen-02",
+      "category": "facility_supported",
+      "kind": "material",
+      "request": "Supply one wooden axe. A table item is in stock and one placement is authorized; no table is placed.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 2,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "facility-unseen-03",
+      "category": "facility_supported",
+      "kind": "material",
+      "request": "Supply one wooden axe from these planks and sticks. There is no table item or placed table; one placement is authorized.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 7,
+        "minecraft:stick": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "facility-unseen-04",
+      "category": "facility_supported",
+      "kind": "material",
+      "request": "Deliver two wooden axes and one table item. No table is placed; placement may consume one additional table item.",
+      "goals": {
+        "minecraft:wooden_axe": 2,
+        "minecraft:crafting_table": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 14,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "facility-unseen-05",
+      "category": "facility_supported",
+      "kind": "material",
+      "request": "Supply three table items from stock. Item production has no table-facility prerequisite and placement is forbidden.",
+      "goals": {
+        "minecraft:crafting_table": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 12
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "facility-unseen-06",
+      "category": "facility_supported",
+      "kind": "material",
+      "request": "Deliver the two already stocked wooden axes. There is no placed table and placement is forbidden.",
+      "goals": {
+        "minecraft:wooden_axe": 2
+      },
+      "inventory": {
+        "minecraft:wooden_axe": 2,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "facility-unseen-07",
+      "category": "facility_negative",
+      "kind": "material",
+      "request": "Supply one wooden axe. A table item is supplied, but no table is placed and no placement is authorized.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 2,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "facility-unseen-08",
+      "category": "facility_negative",
+      "kind": "material",
+      "request": "Supply one wooden axe. No table or table item exists; placement is permitted but all inputs must come from supplied stock.",
+      "goals": {
+        "minecraft:wooden_axe": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 6,
+        "minecraft:stick": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "facility-unseen-09",
+      "category": "facility_negative",
+      "kind": "material",
+      "request": "Supply five wooden axes using the placed table and supplied inputs, staying within the registered bounded recipe catalog.",
+      "goals": {
+        "minecraft:wooden_axe": 5
+      },
+      "inventory": {
+        "minecraft:oak_planks": 15,
+        "minecraft:stick": 10
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    },
+    {
+      "id": "facility-unseen-10",
+      "category": "facility_negative",
+      "kind": "material",
+      "request": "Supply one furnace using only registered preview recipes. A placement permission does not register a furnace producer or placement operation.",
+      "goals": {
+        "minecraft:furnace": 1
+      },
+      "inventory": {
+        "minecraft:oak_planks": 64
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "unsupported"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-name: Resource-grounded planning evidence
+name: Facility-state planning evidence
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   measurements:
-    name: Task 5.2 resource measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
+    name: Task 5.3 facility measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -73,6 +73,7 @@ jobs:
           PLANNING_BENCHMARK_DATASET: acceptance-requests.json
           PLANNING_STRUCTURE_SUPPLEMENT: 'true'
           PLANNING_RESOURCE_SUPPLEMENT: 'true'
+          PLANNING_FACILITY_SUPPLEMENT: 'true'
         run: |
           set -o pipefail
           bash ./gradlew --no-daemon --stacktrace :providers:runPlanningLiveBenchmark | tee providers/build/planning-quality/held-out.log
@@ -90,7 +91,7 @@ jobs:
           retention-days: 90
           path: providers/build/planning-quality/**
   integrity:
-    name: Task 5.2 frozen regression and actual resource integrity
+    name: Task 5.3 frozen regression and facility-state integrity
     needs: measurements
     if: always()
     runs-on: ubuntu-latest
@@ -117,6 +118,10 @@ jobs:
         env:
           REVIEWED_HEAD: ${{ github.sha }}
         run: python3 scripts/planning-resources.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+      - name: Reconcile facility states, placement permissions and separate Task 5.3 cases
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-facilities.py providers/build/planning-quality --head "$REVIEWED_HEAD"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -127,3 +132,4 @@ jobs:
             providers/build/planning-quality/acceptance.json
             providers/build/planning-quality/structure-integrity.json
             providers/build/planning-quality/resource-integrity.json
+            providers/build/planning-quality/facility-integrity.json
