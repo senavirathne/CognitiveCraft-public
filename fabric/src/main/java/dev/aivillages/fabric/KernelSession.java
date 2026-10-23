@@ -610,6 +610,17 @@ public final class KernelSession implements AutoCloseable {
                                 : LogAcquisition.is(capability) ? OakLogDelivery.executionLimits(now) : executionLimits(now);
                     }
                 },clock,citizens,jobs);
+        controller.completionPublisher((jobId,method,owner)->{
+            var job=jobs.query(jobId,owner);
+            if(job.state()!=Jobs.State.SUCCEEDED||!ResourceDelivery.resource(job.request().request().capability()))
+                return CompletableFuture.completedFuture(true);
+            var actor=job.current().worker();
+            return CompletableFuture.supplyAsync(()->{
+                var publication=access.recordAcquisition(jobId,()->closed);
+                return (publication.code()==KnowledgeAccess.Code.APPLIED||publication.code()==KnowledgeAccess.Code.DUPLICATE)
+                        &&access.mayUse(actor,method,owner);
+            },worker);
+        });
         controller.evidenceSink(loaded.retentionService()::offer);
         publishRoots("bootstrap", controller.retentionRoots());
         publishRoots("research", java.util.Set.of());

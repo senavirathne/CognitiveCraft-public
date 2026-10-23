@@ -26,6 +26,10 @@ public final class BootstrapController {
         BootstrapJournal.Enrollment primary();
         boolean ready();
     }
+    /** Acknowledges dependent owner metadata after Jobs commits, before public completion. No effects. */
+    @FunctionalInterface public interface CompletionPublisher {
+        CompletionStage<Boolean> publish(UUID jobId,ArtifactRef method,TrustedContext owner);
+    }
     @FunctionalInterface public interface Observer {
         ObservationSnapshot capture(CapabilityRequest request, ActorRef actor);
     }
@@ -79,6 +83,15 @@ public final class BootstrapController {
     }
     private record Written(BootstrapJournal.State state, Throwable error, Runnable after,
                            long completedMillis, BootstrapJournal.State expectedNext) { }
+    private record CompletionAck(Boolean acknowledged,Throwable error,Runnable after,long completedMillis) { }
+    private CompletionPublisher completionPublisher=(job,method,owner)->java.util.concurrent.CompletableFuture.completedFuture(true);
+    private final ConcurrentLinkedQueue<CompletionAck> completionAcks=new ConcurrentLinkedQueue<>();
+    private boolean publishingCompletion;
+    private long completionDeadlineMillis;
+    public void completionPublisher(CompletionPublisher publisher) {
+        thread();if(active!=null)throw new IllegalStateException("Completion publisher is a composition port");
+        completionPublisher=Objects.requireNonNull(publisher);
+    }
     private final Storage storage;
     private final JobLifecycleStore jobs;
     private Runnable afterJob;
@@ -356,6 +369,19 @@ public final class BootstrapController {
         }
         if (storageFailed) {
             writes.clear(); // A late acknowledgement cannot revive a fenced controller.
+            completionAcks.clear();
+            return;
+        }
+        CompletionAck completion=completionAcks.poll();
+        if(completion!=null) {
+            publishingCompletion=false;
+            if(completion.error()!=null||!Boolean.TRUE.equals(completion.acknowledged())
+                    ||completion.completedMillis()>completionDeadlineMillis)failStorage();
+            else completion.after().run();
+            return;
+        }
+        if(publishingCompletion) {
+            if(clock.millis()>=completionDeadlineMillis)failStorage();
             return;
         }
         Written written = writes.poll();
@@ -384,7 +410,7 @@ public final class BootstrapController {
     }
 
     private void failStorage() {
-        storageFailed = true; ready = false; writing = false;
+        storageFailed = true; ready = false; writing = false; publishingCompletion=false;
         if (active == null) {
             List<View> snapshots = recent.stream().map(view -> view.phase() != Phase.PERSISTING
                     ? view : new View(view.id(), Phase.TERMINAL, view.marker(), view.routing(),
@@ -473,6 +499,22 @@ public final class BootstrapController {
                 afterJob = () -> { run.jobFinished = true; terminate(run, result, reason); };
                 return;
             }
+        }
+        if(reason==null&&run.artifact!=null&&!run.completionStarted) {
+            run.completionStarted=true;
+            try {
+                var publication=Objects.requireNonNull(completionPublisher.publish(run.jobId,run.artifact,run.owner));
+                var future=publication.toCompletableFuture();
+                if(future.isDone()) {
+                    if(!Boolean.TRUE.equals(future.join())) {failStorage();return;}
+                } else {
+                    completionDeadlineMillis=Math.addExact(clock.millis(),MAX_STORAGE_WAIT_MILLIS);
+                    publishingCompletion=true;run.phase=Phase.PERSISTING;
+                    publication.whenComplete((ack,error)->completionAcks.add(new CompletionAck(ack,error,
+                            ()->complete(run,result,reason),clock.millis())));
+                    return;
+                }
+            } catch(RuntimeException failed) {failStorage();return;}
         }
         run.phase = Phase.PERSISTING;
         BootstrapJournal.RunMarker marker = new BootstrapJournal.RunMarker(run.id,
@@ -641,7 +683,7 @@ public final class BootstrapController {
         List<CropDelivery.CropReceipt> receipts = List.of();
         List<ResourceDelivery.Receipt> resourceReceipts=List.of();
         Reason storageError;
-        boolean cancelPending, finishing, cancelRequested, jobFinished;
+        boolean cancelPending, finishing, cancelRequested, jobFinished, completionStarted;
         Run(UUID id, TrustedContext owner, CapabilityRequest request, ValidatedRequest bound) {
             this.id = id; this.owner = owner; this.request = request; this.bound = bound;
             this.marker = new BootstrapJournal.RunMarker(id,
