@@ -44,6 +44,18 @@ jobs:
           bash gradlew --no-daemon --stacktrace :fabric:runGameTest
           python3 scripts/verify-rb006b.py native --phase effects --class-name placement_effect_game_tests --marker RB006B_EFFECTS
           mv fabric/build/gametest-run fabric/build/rb006b-effects-run
+      - name: Select Agent 1 physical regressions in a fresh JVM
+        run: |
+          python3 - <<'PYSEL'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text());v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.WorldPlacementGameTests','dev.aivillages.fabric.RecipeLandingGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PYSEL
+      - name: Preserve all Agent 1 effects within the unchanged native tracking bound
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+          python3 scripts/verify-rb006b.py native --phase effects-agent --class-name world_placement_game_tests --marker RB006B_FALLING
+          mv fabric/build/gametest-run fabric/build/rb006b-effects-agent-run
       - name: Select independent admission and facility graph fixture
         run: |
           python3 - <<'PYSEL'
@@ -98,6 +110,7 @@ jobs:
             fabric/build/test-results/test/
             build/rb006b-evidence/
             fabric/build/rb006b-effects-run/
+            fabric/build/rb006b-effects-agent-run/
             fabric/build/rb006b-controlled-run/
             fabric/build/gametest-run/
             fabric/build/libs/

@@ -1,0 +1,134 @@
+name: Delegation mandate acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'work/imp-024']
+    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/delegation-mandates.yml']
+  pull_request:
+    paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/delegation-mandates.yml']
+permissions:
+  contents: read
+concurrency:
+  group: delegation-mandates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  acceptance:
+    name: IMP-024 authority, owner regressions and production packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Execute mandate policy and required affected module gates
+        run: bash gradlew --no-daemon --stacktrace :fabric:gameTestClasses :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Require nonempty passing mandate cases and exact source identity
+        env:
+          EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os,subprocess,xml.etree.ElementTree as ET,zipfile
+          source=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          if source!=os.environ['EXPECTED_SOURCE']:raise SystemExit('Exact source required')
+          matrix={}
+          for suite,expected in [('MandateRegistryTest',26),('MandateJournalTest',34),('MandateOwnerIntegrationTest',5)]:
+              scoped=list(ET.parse(Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+suite+'.xml')).getroot().iter('testcase'))
+              if len(scoped)!=expected or any(c.find(t) is not None for c in scoped for t in ('failure','error','skipped')):raise SystemExit('Complete matrix required: '+suite)
+              matrix[suite]=len(scoped)
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(module+'/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Every case must execute/pass: '+module)
+              counts[module]=len(cases)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('One production binary required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              for name in ('Mandates','MandateRegistry','MandateJournal','MandateAuthority','MandateWorkers','MandateJobExecutions'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Missing mandate owner '+name)
+              if any('GameTest' in name or 'MandateRegistryTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Test/model leakage')
+          proof={'schema':1,'source':source,'tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),
+                 'architecture':'0.5','mandateSchema':1,'policyVersion':1,'matrix':matrix,'tests':counts,
+                 'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest(),'clientBoundary':'NOT_CLIENT_EXPOSED',
+                 'nativeAcceptance':'pending separate GP-24 fixture'}
+          root=Path('core/build/mandate-evidence');root.mkdir(parents=True,exist_ok=True)
+          (root/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - name: Select isolated GP-24 native fixture
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');data=json.loads(p.read_text())
+          data['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.MandateGameTests']
+          p.write_text(json.dumps(data,indent=2)+'\n')
+          PY
+      - name: Real partial delivery, queued parent revocation and original owner cleanup
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_MANDATE_PHASE: cold
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Preserve cold physical evidence before fresh JVM
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,shutil,xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run');evidence=Path('core/build/mandate-evidence')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('One executed passing cold GP-24 case required')
+          proofs=list(root.rglob('mandate-cold-proof.json'))
+          if len(proofs)!=1:raise SystemExit('One native proof required')
+          proof=json.loads(proofs[0].read_text())
+          if proof['status']!='PASS' or proof['delivered']!=1 or proof['effects']!=3 or proof['receipts']!=3 or proof['nextEffectDenied'] is not True or proof['secondMature'] is not True or proof['modelCalls']!=0:raise SystemExit('Cold conservation/authority proof missing')
+          for p,name in [(root/'gametest-results.xml','mandates-cold.xml'),(root/'logs/latest.log','mandates-cold.log'),(proofs[0],'physical-cold.json'),
+                         (proofs[0].parent/'mandate-restart.json','mandate-restart.json'),(proofs[0].parent/'data/cognitivecraft/mandates/v1/state.jsonl','mandates-cold.jsonl')]:shutil.copy2(p,evidence/name)
+          PY
+      - name: Separate Minecraft JVM rejects cached grants and preserves real delivery
+        timeout-minutes: 5
+        env:
+          COGNITIVECRAFT_MANDATE_PHASE: warm
+          JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+        run: bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Verify native warm evidence and clean production source
+        env:
+          EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib,shutil,subprocess,xml.etree.ElementTree as ET
+          root=Path('fabric/build/gametest-run');evidence=Path('core/build/mandate-evidence')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=1 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('One executed passing warm GP-24 case required')
+          proofs=list(root.rglob('mandate-warm-proof.json'))
+          if len(proofs)!=1:raise SystemExit('One warm physical proof required')
+          proof=json.loads(proofs[0].read_text())
+          if proof['status']!='PASS' or proof['warm'] is not True or proof['delivered']!=1 or proof['effects']!=3 or proof['receipts']!=3 or proof['nextEffectDenied'] is not True or proof['secondMature'] is not True or proof['modelCalls']!=0:raise SystemExit('Warm conservation/authority proof missing')
+          cold=json.loads((evidence/'physical-cold.json').read_text())
+          if (cold['processId'],cold['processStarted'])==(proof['processId'],proof['processStarted']):raise SystemExit('Distinct Minecraft JVMs required')
+          for p,name in [(root/'gametest-results.xml','mandates-warm.xml'),(root/'logs/latest.log','mandates-warm.log'),(proofs[0],'physical-warm.json'),
+                         (proofs[0].parent/'data/cognitivecraft/mandates/v1/state.jsonl','mandates-warm.jsonl')]:shutil.copy2(p,evidence/name)
+          subprocess.run(['git','restore','fabric/src/gameTest/resources/fabric.mod.json'],check=True)
+          if subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],text=True).strip():raise SystemExit('Clean tracked source required')
+          if subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()!=__import__('os').environ['EXPECTED_SOURCE']:raise SystemExit('Exact source required')
+          p=evidence/'acceptance.json';acceptance=json.loads(p.read_text());acceptance['nativeAcceptance']={'cold':1,'warm':1,'status':'PASS','modelCalls':0,'delivered':1,'effects':3}
+          acceptance['nativeProofSha256']={n:hashlib.sha256((evidence/n).read_bytes()).hexdigest() for n in ('physical-cold.json','physical-warm.json','mandates-cold.jsonl','mandates-warm.jsonl')}
+          p.write_text(json.dumps(acceptance,indent=2)+'\n');print(acceptance)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-024-mandate-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            core/build/mandate-evidence/**
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/latest.log

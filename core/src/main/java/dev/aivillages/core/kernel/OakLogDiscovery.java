@@ -80,33 +80,5 @@ final class OakLogDiscovery {
         }
         public void cancel() { cancelled=true; logs=Map.of(); points=List.of(); selected=List.of(); candidates=List.of(); seen=Set.of(); }
     }
-    static final class Containers implements Discovery<ItemContainerTarget> {
-        final ActorRef actor; final int amount; final Point anchor; final Observation world;
-        final ResourceDelivery.ItemIdentity item;
-        List<Candidate<ItemContainerTarget>> candidates=new ArrayList<>(); int cursor; boolean unknown;
-        Containers(ActorRef actor,int amount,Point anchor,Observation world) {
-            this(actor,amount,anchor,world,ResourceDelivery.OAK_LOG);
-        }
-        Containers(ActorRef actor,int amount,Point anchor,Observation world,ResourceDelivery.ItemIdentity item) {
-            this.actor=actor;this.amount=amount;this.anchor=anchor;this.world=world;this.item=item;
-        }
-        public Scan<ItemContainerTarget> poll(int maxWork) {
-            int work=0;
-            while(cursor<SEARCH_CELLS && maxWork-work>=MAX_CONTAINER_SLOTS+1) {
-                Point p=searchPoint(anchor,cursor++); work++;
-                var target=new ContainerRef(p.dimension(),p.x(),p.y(),p.z());
-                var sample=world.itemContainer(actor,target,item); work+=sample.slotsInspected();
-                if(sample.status()==ObservationStatus.UNKNOWN) unknown=true;
-                else if(sample.status()==ObservationStatus.PRESENT && sample.capacity()>=amount) {
-                    if(candidates.size()==MAX_CANDIDATES) return Scan.complete(List.of(),work,Reason.BUDGET_EXHAUSTED,List.of("oak-container-candidate-limit"));
-                    candidates.add(new Candidate<>(new ItemContainerTarget(target,sample),p,sample.identity()));
-                }
-            }
-            if(cursor<SEARCH_CELLS) return Scan.progress(List.of(),work,List.of());
-            return unknown ? Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-oak-container-envelope"))
-                    : Scan.complete(candidates,work,Reason.FACILITY_MISSING,List.of());
-        }
-        public void cancel() { cursor=SEARCH_CELLS; candidates=List.of(); }
-    }
     private OakLogDiscovery() { }
 }

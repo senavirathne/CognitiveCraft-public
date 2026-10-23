@@ -74,8 +74,8 @@ class LanguageReferenceClassifierTest {
     @Test void unsupportedExplicitPhrasesNeverBecomeOmission() {
         for (String text : List.of(
                 "Ada harvest 4 wheat from my farm",
-                "Ada harvest 4 wheat from that field",
-                "Ada harvest 4 wheat and put it into this chest",
+                "Ada harvest 4 wheat from that field behind my house",
+                "Ada harvest 4 wheat and put it into this chest behind my house",
                 "Ada harvest 4 wheat and put it in the chest behind my house")) {
             var c = classify(text, List.of("Ada"));
             assertTrue(c.source().state() == ReferenceState.EXPLICIT_UNSUPPORTED
@@ -91,8 +91,8 @@ class LanguageReferenceClassifierTest {
 
     @Test void standaloneUnsupportedDestinationCannotBecomeOmitted() {
         for (String text : List.of(
-                "Ada harvest 4 wheat into this chest",
-                "Ada harvest 4 wheat into that container",
+                "Ada harvest 4 wheat into my chest",
+                "Ada harvest 4 wheat into that container behind my house",
                 "Ada harvest 4 wheat in the chest behind my house")) {
             var c = classify(text, List.of("Ada"));
             assertEquals(ReferenceState.EXPLICIT_UNSUPPORTED, c.destination().state(), text);

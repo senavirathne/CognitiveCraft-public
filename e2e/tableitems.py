@@ -8,7 +8,7 @@ SOURCE=[5,201,5];DEST=[9,201,7];SECOND=[15,201,9];SECOND_DEST=[17,201,7]
 def inventory(h,player):
     return next(a["inventory"] for a in h.snapshot()["actors"] if a["uuid"]==h.entities[player]).copy()
 
-def scenario(h):
+def scenario(h, *, d05_evidence=False):
     from suite import ROOT,UUID_PATTERN,DENIED_PATTERN,require,read,reconnect_players
     require(h.topology=="compose","Table production requires actual configured backends and network clients")
     private=h.root/"needle";shutil.copytree(ROOT/"build/needle",private,dirs_exist_ok=True)
@@ -25,6 +25,19 @@ def scenario(h):
     existing=[at for at,block in h.snapshot()["blocks"].items() if "minecraft:crafting_table" in block]
     if existing:h.console(["setblock "+at.replace(","," ")+" minecraft:air" for at in existing])
     h.wait(lambda:not any("minecraft:crafting_table" in b for b in h.snapshot()["blocks"].values()),"Bootstrap fixture without any table facility",20)
+    if d05_evidence:
+        # Stocked item production needs no crop terrain. Keep normal adult AI
+        # and strict physical comparisons during every measured request.
+        cells=[(x,z) for x in (6,7) for z in (6,7,8,10,11,12)]+[(4,10)]
+        h.console([command for x,z in cells for command in
+                   (f"setblock {x} 201 {z} minecraft:air",f"setblock {x} 200 {z} minecraft:stone")]
+                  +["setblock 8 200 7 minecraft:stone","setblock 8 200 11 minecraft:stone",
+                    "setblock 5 201 5 minecraft:barrel",
+                    f'data merge entity {h.entities["PlayerA"]} {{Inventory:[{{id:"minecraft:oak_planks",count:7}},{{id:"minecraft:crafting_table",count:5}},{{id:"minecraft:oak_log",count:3}}]}}'])
+        h.wait(lambda:all('minecraft:air' in h.snapshot()['blocks'].get(f'{x},201,{z}','') for x,z in cells)
+                      and all('minecraft:stone' in h.snapshot()['blocks'].get(f'{x},200,{z}','') for x,z in cells if x in (6,7))
+                      and inventory(h,'PlayerA').get(TABLE)==5 and inventory(h,'PlayerA').get(PLANK)==7,
+               "D05 neutral item-production fixture with old actor stock")
     catalog=h.command("PlayerA","/aivillage kernel catalog","catalog=")
     require(all(k+"=[]" in catalog for k in ("tableItemCatalog","oakCatalog","plankCatalog","axeCatalog")),"Table method or its producer/consumer was supplied as known")
     h.command("PlayerA","/aivillage kernel inference true","admission=true")
@@ -50,7 +63,9 @@ def scenario(h):
         require(responsibility["state"]=="SUCCEEDED" and not responsibility["children"] and not responsibility["dependencies"],"Stocked method required producer Jobs")
         require(not any("minecraft:crafting_table" in b for b in h.snapshot()["blocks"].values()),"Item manufacture placed a world facility")
         h.actions_active=False
-        return {"run":rid,"artifact":view["marker"]["artifactSha256"],"quantity":q,"source":source,"destination":destination,"sums":sums,"receipts":rows,"responsibility":responsibility}
+        result={"run":rid,"artifact":view["marker"]["artifactSha256"],"quantity":q,"source":source,"destination":destination,"sums":sums,"receipts":rows,"responsibility":responsibility}
+        if d05_evidence:result.update(view=view,actor=h.entities[player])
+        return result
     seed(1);before=h.container(DEST,TABLE);before_inv=inventory(h,"PlayerA");calls=h.model_calls()
     acquired=verify(submit(1),1,before,before_inv,SOURCE,DEST,admitted=True)
     require(h.model_calls()["generationCalls"]>calls["generationCalls"],"Genuine table acquisition was not measured")
@@ -59,6 +74,9 @@ def scenario(h):
     h.command("PlayerB","/aivillage kernel cancel "+acquired["run"],DENIED_PATTERN)
     require(acquired["run"] not in h.suggestions("PlayerB","/aivillage kernel status "),"Foreign table Run suggestion leaked")
     h.screenshot("PlayerB","rb006a-private-denial",chat=True)
+    if d05_evidence:
+        from d05 import language_evidence
+        return language_evidence(h,verify,acquired,models,read(h.root/"needle/manifest.json"))
     # The original narrow phrase has omitted inputs: every bounded staging candidate
     # receives four genuine supplied planks, while prior table stock stays intact.
     boxes=[SOURCE,DEST,SECOND,SECOND_DEST,[18,201,10]]

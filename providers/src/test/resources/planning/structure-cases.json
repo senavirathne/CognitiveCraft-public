@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "scope": "Task 5.1 independent empty-array structure cases; additional to the unchanged frozen 50, never pooled into its score.",
+  "cases": [
+    {
+      "id": "structure-unseen-01",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Return seven oak planks using only one supplied oak log.",
+      "goals": {
+        "minecraft:oak_planks": 7
+      },
+      "inventory": {
+        "minecraft:oak_log": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "structure-unseen-02",
+      "category": "insufficient_resources",
+      "kind": "material",
+      "request": "Supply nine sticks from exactly three oak planks; no other resources are available.",
+      "goals": {
+        "minecraft:stick": 9
+      },
+      "inventory": {
+        "minecraft:oak_planks": 3
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "structure-unseen-03",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Supply seven torches using only the registered catalog.",
+      "goals": {
+        "minecraft:torch": 7
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    },
+    {
+      "id": "structure-unseen-04",
+      "category": "unsupported",
+      "kind": "material",
+      "request": "Supply two ladders using only the registered catalog.",
+      "goals": {
+        "minecraft:ladder": 2
+      },
+      "inventory": {
+        "minecraft:stick": 12
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    },
+    {
+      "id": "structure-unseen-05",
+      "category": "existing_stock",
+      "kind": "material",
+      "request": "Deliver the five birch planks already in supplied stock. No crafting is required.",
+      "goals": {
+        "minecraft:birch_planks": 5
+      },
+      "inventory": {
+        "minecraft:birch_planks": 5
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "structure-unseen-06",
+      "category": "existing_stock",
+      "kind": "material",
+      "request": "Deliver three oak planks and seven sticks already in stock without crafting anything.",
+      "goals": {
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 7
+      },
+      "inventory": {
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 7
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    }
+  ]
+}

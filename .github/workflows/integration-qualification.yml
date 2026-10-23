@@ -1,0 +1,126 @@
+name: Combined branch frozen gameplay qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/all-branches-20261023]
+    paths: ['e2e/**', 'scripts/verify-generalization.py', '.github/workflows/integration-qualification.yml', 'scripts/verify-integration.py', '.github/implementation/all-branches-source.json']
+permissions:
+  contents: read
+concurrency:
+  group: rb-integration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  integrated-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Preserve module regressions and exact production binary
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          python3 scripts/verify-integration.py freeze
+          python3 scripts/verify-generalization.py junit
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+      - name: Compile isolated observation instruments against the actual game
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb-integration-binary-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            fabric/build/libs/ai-villages-0.1.0.jar
+            build/e2e-driver/
+            build/generalization/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+  gameplay:
+    name: Record ${{ matrix.group }} gameplay and boundary measurements
+    needs: integrated-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        group: [oak, craft, facility, birch, blueprint]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: rb-integration-binary-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Prepare the same official game and existing interpreter
+        run: |
+          python3 scripts/verify-integration.py baseline
+          python3 e2e/runtime.py prepare
+          python3 tools/needle/install.py build/needle
+      - name: Record actual outcomes on the pinned integrated production without a gameplay score gate
+        run: python3 e2e/generalization.py --group ${{ matrix.group }} --root build/e2e/generalization/${{ matrix.group }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb-integration-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/e2e/generalization/${{ matrix.group }}/
+            build/generalization/
+  assessment-records:
+    name: Verify all 45 original classifications and native evidence, without a gameplay score gate
+    needs: [integrated-production, gameplay]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rb-integration-*
+          path: build/generalization-records
+      - name: Reconcile requested denominators, outcomes and original frame provenance
+        run: python3 scripts/verify-integration.py collect --directory build/generalization-records
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb-integration-assessment-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: build/generalization-records/generalization-assessment.json

@@ -3,7 +3,7 @@ on:
   push:
     branches: [main, imp-009-needle-intent]
   pull_request:
-    branches: [main, feature/default-nearest-world-references]
+    branches: [main, work/rb-gameplay-generalization-qualified, work/imp-021]
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', 'tools/needle/**', '.github/workflows/needle-language.yml']
   workflow_dispatch:
 permissions:

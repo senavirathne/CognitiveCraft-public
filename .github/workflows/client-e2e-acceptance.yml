@@ -12,7 +12,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: real-client-acceptance-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
+  group: real-client-acceptance-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   genuine-acquisition:
@@ -101,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [deterministic, nlu, resilience]
+        profile: [deterministic, nlu, resilience, lifecycle]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -119,9 +119,16 @@ jobs:
             build/e2e-sdk
             build/server-sdk
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Select the latest certified seed from this exact run and source
+        id: certified-artifact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 e2e/artifact_selection.py --kind certified --run ${{ github.run_id }} --head "$REVIEWED_HEAD" --proof build/certified-artifact-selection.json
       - uses: actions/download-artifact@v4
         with:
-          name: certified-known-skill-${{ github.run_id }}
+          artifact-ids: ${{ steps.certified-artifact.outputs.artifact_ids }}
+          merge-multiple: true
           path: .
       - name: Verify dependencies and build isolated drivers against the certified binary
         run: |
@@ -145,7 +152,7 @@ jobs:
         if: failure()
         run: python3 e2e/diagnostics.py build/e2e/${{ matrix.profile }}
   qualification:
-    name: Require all 13 families and exact-layer IMP-001–019 evidence
+    name: Require 14 families and exact-layer owner evidence
     needs: [genuine-acquisition, gameplay]
     if: always()
     outputs:
@@ -156,9 +163,17 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Require rerun artifact selection regressions
+        run: python3 -m unittest discover -s e2e -p 'test_artifact_selection.py'
+      - name: Select the latest required profile artifacts without old-attempt collisions
+        id: profile-artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 e2e/artifact_selection.py --kind profiles --run ${{ github.run_id }} --head "$REVIEWED_HEAD" --proof build/qualification/artifact-selection.json
       - uses: actions/download-artifact@v4
         with:
-          pattern: real-gameplay-*
+          artifact-ids: ${{ steps.profile-artifacts.outputs.artifact_ids }}
           path: build/qualification
       - name: Require independently executed exact-head owner and live planning gates
         env:
@@ -179,6 +194,7 @@ jobs:
             build/qualification/qualification.json
             build/qualification/owner-evidence.json
             build/qualification/production-fix-validation.json
+            build/qualification/artifact-selection.json
   rb-qualification:
     name: Require all nine RB units with the shared real-client procedure
     needs: qualification

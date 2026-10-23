@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "unit": "IMP-024",
+  "phase": "implementation-and-verification-in-progress",
+  "sourceBase": "0325282ab7aa177a1b752727e339191db8c2f6ea",
+  "sourceMain": "d6dbcf62920919572cfbb021bc7d960b52d8cb8f",
+  "documentationBase": "72e41a81356c9aa8c545399fe24d2cbb9460c058",
+  "documentationMain": "1e42393a3cebcc4e1594eb7f6bd2114f78785d47",
+  "assignmentSha256": "3bccc41fd73d317cf2aa48d685b3e5e73ac465ee3b54344b1c4a8544ca6d6f20",
+  "architecture": "0.5",
+  "mandateSchema": 1,
+  "policyVersion": 1,
+  "kernelContracts": 1,
+  "skillIr": 1,
+  "citizenSchema": 1,
+  "jobSchemas": [
+    1,
+    2
+  ],
+  "executionPolicy": "GitHub Actions only for Java builds and runtime tests",
+  "clientBoundary": "NOT_CLIENT_EXPOSED",
+  "requiredDependencies": [
+    "IMP-002",
+    "IMP-008",
+    "IMP-011",
+    "IMP-012",
+    "IMP-013",
+    "IMP-015",
+    "IMP-016"
+  ],
+  "dependencyEvidence": {
+    "source": "0325282ab7aa177a1b752727e339191db8c2f6ea",
+    "pullRequestRunsPassed": 22,
+    "pushRunsPassed": 8,
+    "finalGameplayRun": 38402218832
+  },
+  "optionalOrganization": "IMP-023; stable metadata reference, no title/membership authority",
+  "mandatoryMatrixDefinitions": {
+    "registry": 26,
+    "journal": 34,
+    "ownerIntegration": 5,
+    "nativeCold": 1,
+    "nativeWarm": 1
+  },
+  "limits": {
+    "mandates": 32,
+    "depth": 4,
+    "bindings": 64,
+    "workersPerGrant": 8,
+    "resourcesPerGrant": 4,
+    "containersPerGrant": 4,
+    "historyPerGrant": 8,
+    "query": 8,
+    "maintenanceRecordsPerTick": 4,
+    "publicationMillis": 30000,
+    "ttlMillis": 604800000,
+    "budgetPerKind": 1000000,
+    "snapshotBytes": 524288,
+    "threeEnvelopeReserveBytes": 1572864,
+    "retentionRecordReserve": 2048,
+    "actionsPerGrant": 7
+  },
+  "mergeAuthorized": false,
+  "nextUnitStarted": false
+}

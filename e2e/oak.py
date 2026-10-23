@@ -13,7 +13,7 @@ DESTINATION = [7, 201, 9]
 SECOND_DESTINATION = [10, 201, 9]
 
 
-def scenario(h):
+def scenario(h, *, d01_evidence=False):
     # Imported lazily so suite keeps its established owner and all old profile inventories.
     from suite import ROOT, UUID_PATTERN, DENIED_PATTERN, require, read, reconnect_players, completed_jsonl
     if h.topology != "compose":
@@ -132,6 +132,9 @@ def scenario(h):
             artifact_body["spec"]["completion"]=="ATTRIBUTABLE_RESOURCE_DELIVERY", "Wrong standalone outcome contract")
     typed_interface={"spec":artifact_body["spec"],"descriptor":descriptor,
                      "bodySha256":hashlib.sha256(body_path.read_bytes()).hexdigest()}
+    if d01_evidence:
+        from d01 import language_evidence
+        return language_evidence(h,prepare,verify,acquisition,typed_interface,model,read(private/"manifest.json"))
     source = prepare(4)
     before = h.container(DESTINATION, ITEM); calls = h.model_calls(); h.actions_active = True
     answer = h.command("PlayerA", "/aivillage kernel ask Ada, collect 4 oak logs and deliver them to the nearest suitable chest.", "interpretation="+UUID_PATTERN)

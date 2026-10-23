@@ -25,7 +25,7 @@ import static dev.aivillages.core.kernel.CitizenRegistry.*;
 
 /** Sole identity publication store. Open/read/write/close run on the storage worker, never a tick. */
 public final class CitizenIdentityStore implements AutoCloseable {
-    public static final int SCHEMA = 1;
+    public static final int SCHEMA = 2;
     public static final int MAX_BYTES = 65_536;
     public static final String WORLD_RELATIVE_PATH = "data/cognitivecraft/citizens/v1";
     public enum Point { AFTER_STAGE, AFTER_BACKUP, AFTER_REPLACE }
@@ -57,6 +57,7 @@ public final class CitizenIdentityStore implements AutoCloseable {
         Files.createDirectories(directory);
         for (Path path : List.of(directory, directory.resolve("state.json"),
                 directory.resolve("state.prev.json"), directory.resolve("state.next.json"),
+                directory.resolve("state.legacy-v1.json"),
                 directory.resolve("writer.lock")))
             if (Files.isSymbolicLink(path)) throw new IOException("Symbolic citizen path");
         var channel = FileChannel.open(directory.resolve("writer.lock"),
@@ -80,7 +81,21 @@ public final class CitizenIdentityStore implements AutoCloseable {
                 }
             }
             if (!loaded.worldId().equals(worldId)) throw new IOException("Citizen world identity mismatch");
-            return new CitizenIdentityStore(directory, channel, lock, loaded, recovered, faults);
+            var store = new CitizenIdentityStore(directory, channel, lock, loaded, recovered, faults);
+            if (!recovered && SaveCompatibility.readVersion(current, MAX_BYTES, SCHEMA) == 1) {
+                // Explicit supported migration. Preserve exact input before publishing schema 2.
+                Path original = directory.resolve("state.legacy-v1.json");
+                if (Files.exists(original, LinkOption.NOFOLLOW_LINKS)) {
+                    if (Files.mismatch(current, original) != -1) throw new IOException("Citizen migration original differs");
+                } else {
+                    Files.copy(current, original);
+                    try (var archive = FileChannel.open(original, StandardOpenOption.WRITE)) { archive.force(true); }
+                    try (var dir = FileChannel.open(directory, StandardOpenOption.READ)) { dir.force(true); }
+                }
+                store.replace(loaded, new Snapshot(worldId, Math.addExact(loaded.revision(), 1),
+                        loaded.citizens(), loaded.migration()));
+            }
+            return store;
         } catch (IOException | RuntimeException failure) {
             if (lock != null) lock.release(); channel.close(); throw failure;
         }
@@ -193,6 +208,8 @@ public final class CitizenIdentityStore implements AutoCloseable {
             if (nextCitizen.isEmpty() || !old.actor().equals(nextCitizen.get().actor())
                     || !old.owner().equals(nextCitizen.get().owner()))
                 throw new IOException("Identity binding/control is immutable");
+            if (!CitizenRegistry.validLifecycleExtension(old.lifecycle(), nextCitizen.get().lifecycle()))
+                throw new IOException("Stale or revived citizen lifecycle");
         }
     }
 
@@ -207,6 +224,9 @@ public final class CitizenIdentityStore implements AutoCloseable {
             row.put("scopeWorld", citizen.owner().scope().worldId().toString());
             row.put("scopeDomain", citizen.owner().scope().domainId().toString());
             row.put("availability", citizen.availability().name());
+            var life = citizen.lifecycle();
+            row.put("lifecycle", Map.of("generation", life.generation(), "event", life.event().name(),
+                    "source", life.source().name(), "tick", life.tick(), "acknowledged", (long)life.acknowledged()));
             if (citizen.displayName() != null) row.put("name", citizen.displayName());
             rows.add(row);
         }
@@ -231,7 +251,8 @@ public final class CitizenIdentityStore implements AutoCloseable {
         try { json = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString(); }
         catch (CharacterCodingException malformed) { throw new IOException("Invalid citizen UTF-8", malformed); }
         var root = StrictJson.object(json);
-        if (!Long.valueOf(SCHEMA).equals(root.get("schema"))) throw new IOException("Unknown citizen schema");
+        boolean legacy = Long.valueOf(1).equals(root.get("schema"));
+        if (!legacy && !Long.valueOf(SCHEMA).equals(root.get("schema"))) throw new IOException("Unknown citizen schema");
         if (!root.keySet().equals(root.containsKey("bootstrapMigration")
                 ? Set.of("schema", "worldId", "revision", "citizens", "bootstrapMigration")
                 : Set.of("schema", "worldId", "revision", "citizens"))) throw new IOException("Citizen fields");
@@ -240,16 +261,28 @@ public final class CitizenIdentityStore implements AutoCloseable {
                 throw new IllegalArgumentException();
             var citizens = new ArrayList<Citizen>();
             for (Object value : rows) {
-                if (!(value instanceof Map<?, ?> row) || !row.keySet().equals(row.containsKey("name")
-                        ? Set.of("citizenId", "entityId", "dimension", "principal", "scopeWorld", "scopeDomain", "availability", "name")
-                        : Set.of("citizenId", "entityId", "dimension", "principal", "scopeWorld", "scopeDomain", "availability")))
-                    throw new IllegalArgumentException();
+                if (!(value instanceof Map<?, ?> row)) throw new IllegalArgumentException();
+                var fields = new java.util.HashSet<>(Set.of("citizenId", "entityId", "dimension", "principal",
+                        "scopeWorld", "scopeDomain", "availability"));
+                if (row.containsKey("name")) fields.add("name");
+                if (!legacy) fields.add("lifecycle");
+                if (!row.keySet().equals(fields)) throw new IllegalArgumentException();
+                var marker = CitizenLifecycle.Marker.initial();
+                if (!legacy) {
+                    if (!(row.get("lifecycle") instanceof Map<?, ?> life)
+                            || !life.keySet().equals(Set.of("generation", "event", "source", "tick", "acknowledged")))
+                        throw new IllegalArgumentException();
+                    marker = new CitizenLifecycle.Marker((Long)life.get("generation"),
+                            CitizenLifecycle.Event.valueOf((String)life.get("event")),
+                            CitizenLifecycle.Source.valueOf((String)life.get("source")),
+                            (Long)life.get("tick"), Math.toIntExact((Long)life.get("acknowledged")));
+                }
                 citizens.add(new Citizen(new ActorRef(UUID.fromString((String) row.get("citizenId")),
                         UUID.fromString((String) row.get("entityId")), (String) row.get("dimension")),
                         new TrustedContext(new PrincipalRef(UUID.fromString((String) row.get("principal"))),
                                 new ScopeRef(UUID.fromString((String) row.get("scopeWorld")),
                                         UUID.fromString((String) row.get("scopeDomain")))),
-                        (String) row.get("name"), Availability.valueOf((String) row.get("availability"))));
+                        (String) row.get("name"), Availability.valueOf((String) row.get("availability")), marker));
             }
             Migration migration = null;
             if (root.containsKey("bootstrapMigration")) {
@@ -262,7 +295,7 @@ public final class CitizenIdentityStore implements AutoCloseable {
             }
             return new Snapshot(UUID.fromString((String) root.get("worldId")),
                     (Long) root.get("revision"), citizens, migration);
-        } catch (IllegalArgumentException | NullPointerException | ClassCastException malformed) {
+        } catch (IllegalArgumentException | NullPointerException | ClassCastException | ArithmeticException malformed) {
             throw new IOException("Invalid citizen state", malformed);
         }
     }

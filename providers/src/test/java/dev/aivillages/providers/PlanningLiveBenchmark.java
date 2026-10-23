@@ -66,17 +66,42 @@ public final class PlanningLiveBenchmark {
         int shards=Integer.parseInt(System.getenv().getOrDefault("PLANNING_BENCHMARK_SHARDS","1"));
         if(shards<1||shards>4||shard<0||shard>=shards)throw new IllegalArgumentException("Bounded benchmark shard");
         String datasetName=System.getenv().getOrDefault("PLANNING_BENCHMARK_DATASET","acceptance-requests.json");
-        var cases=PlanningBenchmarkCases.load(datasetName);if(cases.size()<30||cases.size()>50)throw new IllegalStateException("30–50 committed cases required");
+        var cases=new ArrayList<>(PlanningBenchmarkCases.load(datasetName));if(cases.size()<30||cases.size()>50)throw new IllegalStateException("30–50 committed cases required");
+        int primaryCount=cases.size();
         byte[] dataset;try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/"+datasetName)){dataset=Objects.requireNonNull(in).readAllBytes();}
+        byte[] supplement=new byte[0];
+        if("true".equals(System.getenv("PLANNING_STRUCTURE_SUPPLEMENT"))) {
+            try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/structure-cases.json")){supplement=Objects.requireNonNull(in).readAllBytes();}
+            cases.addAll(PlanningBenchmarkCases.load("structure-cases.json"));
+        }
+        int resourceStart=cases.size(); byte[] resourceSupplement=new byte[0];
+        if("true".equals(System.getenv("PLANNING_RESOURCE_SUPPLEMENT"))) {
+            try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/resource-cases.json")){resourceSupplement=Objects.requireNonNull(in).readAllBytes();}
+            cases.addAll(PlanningBenchmarkCases.load("resource-cases.json"));
+        }
+        int facilityStart=cases.size(); byte[] facilitySupplement=new byte[0];
+        if("true".equals(System.getenv("PLANNING_FACILITY_SUPPLEMENT"))) {
+            try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/facility-cases.json")){facilitySupplement=Objects.requireNonNull(in).readAllBytes();}
+            cases.addAll(PlanningBenchmarkCases.load("facility-cases.json"));
+        }
+        int orderStart=cases.size(); byte[] orderSupplement=new byte[0];
+        if("true".equals(System.getenv("PLANNING_ORDER_SUPPLEMENT"))) {
+            try(var in=PlanningLiveBenchmark.class.getResourceAsStream("/planning/order-cases.json")){orderSupplement=Objects.requireNonNull(in).readAllBytes();}
+            cases.addAll(PlanningBenchmarkCases.load("order-cases.json"));
+        }
         String source=new String(new ProcessBuilder("git","rev-parse","HEAD").start().getInputStream().readAllBytes(),StandardCharsets.UTF_8).trim();
         String tree=new String(new ProcessBuilder("git","rev-parse","HEAD^{tree}").start().getInputStream().readAllBytes(),StandardCharsets.UTF_8).trim();
         Path output=Path.of("providers/build/planning-quality");Files.createDirectories(output);
         String name=model.replace(':','-').replace('.','_');Path raw=output.resolve(name+"-"+shard+".jsonl");Files.deleteIfExists(raw);
-        Clock clock=Clock.systemUTC();int valid=0,completed=0;long calls=0,repairs=0;
-        try(var adapter=new LocalGenerationAdapter(new LocalGenerationAdapter.Config(URI.create("http://127.0.0.1:11434/api/chat"),model,true,768));
-            var broker=new AIWorkBroker(adapter,clock,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(clock.millis()),r->true,AIWorkBroker.Sharing.privateScopes())) {
+        Path extra=output.resolve(name+"-structure-unseen-"+shard+".ndjson");Files.deleteIfExists(extra);
+        Path resources=output.resolve(name+"-resource-unseen-"+shard+".rjsonl");Files.deleteIfExists(resources);
+        Path facilities=output.resolve(name+"-facility-unseen-"+shard+".fjsonl");Files.deleteIfExists(facilities);
+        Path ordered=output.resolve(name+"-order-unseen-"+shard+".ojsonl");Files.deleteIfExists(ordered);
+        Clock clock=Clock.systemUTC();int valid=0,completed=0,extraValid=0,extraCompleted=0,resourceValid=0,resourceCompleted=0,facilityValid=0,facilityCompleted=0,orderValid=0,orderCompleted=0;long calls=0,repairs=0;
+        try(var capture=new PlanningWireCapture(model,clock);
+            var broker=new AIWorkBroker(capture.adapter(),clock,AIWorkBroker.Settings.defaults(),AIWorkBroker.sessionLimits(clock.millis()),r->true,AIWorkBroker.Sharing.privateScopes())) {
             for(int index=shard;index<cases.size();index+=shards) {
-                var c=cases.get(index);var input=input(c);long deadline=clock.millis()+180000;
+                var c=cases.get(index);boolean additional=index>=primaryCount,resourceAdditional=index>=resourceStart,facilityAdditional=index>=facilityStart,orderAdditional=index>=orderStart;var input=input(c);long deadline=clock.millis()+180000;
                 var totals=new Budgets.Limits(Map.of(Budgets.Kind.CALLS,2L,Budgets.Kind.REPAIRS,1L,
                         Budgets.Kind.INPUT_BYTES,65536L,Budgets.Kind.OUTPUT_BYTES,16384L),deadline);
                 var ledger=new Budgets.Ledger(totals,clock);var attempts=new ArrayList<Map<String,Object>>();
@@ -98,21 +123,31 @@ public final class PlanningLiveBenchmark {
                     var shape=input.wheat()==null?MaterialPlan.outputShape(c.material()):Plan.outputShape(input.bound().request());
                     row.put("constraintSha256",sha(StrictJson.canonical(shape).getBytes(StandardCharsets.UTF_8)));
                     row.put("constraintScope","request quantities and deterministic material precheck; model orders required steps");
-                    row.put("prompt",prompt);row.put("candidate",result.candidateIr()==null?"unavailable":result.candidateIr());row.put("compute",result.compute().name());attempts.add(row);
+                    row.put("prompt",prompt);row.put("candidate",result.candidateIr()==null?"unavailable":result.candidateIr());row.put("compute",result.compute().name());
+                    row.put("transport",capture.evidence(c.material()!=null));attempts.add(row);
                     if(checked.valid()||attempt==1||clock.millis()>=deadline)break;
                     prompt=PlanningFeedback.correction(input.prompt(),result.candidateIr(),checked.diagnostic(),checked.path());
                 }
-                boolean accepted=Objects.requireNonNull(checked).valid();if(accepted)valid++;completed++;
-                long count=ledger.snapshot().getOrDefault(Budgets.Kind.CALLS,0L),fixed=ledger.snapshot().getOrDefault(Budgets.Kind.REPAIRS,0L);calls+=count;repairs+=fixed;
-                var row=new LinkedHashMap<String,Object>();row.put("schema",2);row.put("case",index);row.put("caseId",c.id());row.put("category",c.category());row.put("request",c.request());
+                boolean accepted=Objects.requireNonNull(checked).valid();
+                if(orderAdditional){if(accepted)orderValid++;orderCompleted++;}
+                else if(facilityAdditional){if(accepted)facilityValid++;facilityCompleted++;}
+                else if(resourceAdditional){if(accepted)resourceValid++;resourceCompleted++;}
+                else if(additional){if(accepted)extraValid++;extraCompleted++;}else{if(accepted)valid++;completed++;}
+                long count=ledger.snapshot().getOrDefault(Budgets.Kind.CALLS,0L),fixed=ledger.snapshot().getOrDefault(Budgets.Kind.REPAIRS,0L);
+                if(!additional){calls+=count;repairs+=fixed;}
+                var row=new LinkedHashMap<String,Object>();row.put("schema",2);row.put("case",orderAdditional?index-orderStart:facilityAdditional?index-facilityStart:resourceAdditional?index-resourceStart:additional?index-primaryCount:index);row.put("caseId",c.id());row.put("category",c.category());row.put("request",c.request());
                 row.put("expectedStatus",c.expectedStatus());row.put("model",model);row.put("shard",shard);row.put("shards",shards);row.put("sourceCommit",source);row.put("sourceTree",tree);
-                row.put("ciAttempt",Integer.parseInt(System.getenv().getOrDefault("GITHUB_RUN_ATTEMPT","1")));row.put("ciRunId",System.getenv().getOrDefault("GITHUB_RUN_ID","local"));row.put("datasetSha256",sha(dataset));row.put("firstPassValid",attempts.getFirst().get("valid"));row.put("valid",accepted);row.put("attempts",attempts);
+                row.put("ciAttempt",Integer.parseInt(System.getenv().getOrDefault("GITHUB_RUN_ATTEMPT","1")));row.put("ciRunId",System.getenv().getOrDefault("GITHUB_RUN_ID","local"));row.put("datasetSha256",sha(orderAdditional?orderSupplement:facilityAdditional?facilitySupplement:resourceAdditional?resourceSupplement:additional?supplement:dataset));row.put("corpusRole",orderAdditional?"supplemental-contract-schema-order":facilityAdditional?"supplemental-facility-state":resourceAdditional?"supplemental-resource-grounding":additional?"supplemental-empty-array-structure":"original-frozen-benchmark");row.put("firstPassValid",attempts.getFirst().get("valid"));row.put("valid",accepted);row.put("attempts",attempts);
                 row.put("calls",count);row.put("repairs",fixed);row.put("usage",ledger.snapshot().entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));
                 row.put("latencyMillis",Math.max(1,(System.nanoTime()-started)/1000000));row.put("nativeEffects",0);row.put("dedicatedModels",0);
-                String line=StrictJson.canonical(row);Files.writeString(raw,line+"\n",StandardCharsets.UTF_8,StandardOpenOption.CREATE,StandardOpenOption.APPEND);
-                System.out.println("IMP-019 planning quality "+line);
+                String line=StrictJson.canonical(row);Files.writeString(orderAdditional?ordered:facilityAdditional?facilities:resourceAdditional?resources:additional?extra:raw,line+"\n",StandardCharsets.UTF_8,StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                System.out.println((orderAdditional?"Task 5.4 independent schema order ":facilityAdditional?"Task 5.3 independent facilities ":resourceAdditional?"Task 5.2 independent resources ":additional?"Task 5.1 independent structure ":"IMP-019 planning quality ")+line);
             }
         }
         System.out.println("IMP-019 held-out completed cases="+completed+" valid="+valid+" calls="+calls+" repairs="+repairs+" dedicatedModels=0 nativeEffects=0");
+        if(extraCompleted>0)System.out.println("Task 5.1 separate unseen cases="+extraCompleted+" valid="+extraValid+" dedicatedModels=0 nativeEffects=0");
+        if(orderCompleted>0)System.out.println("Task 5.4 separate unseen cases="+orderCompleted+" valid="+orderValid+" dedicatedModels=0 nativeEffects=0");
+        if(facilityCompleted>0)System.out.println("Task 5.3 separate unseen cases="+facilityCompleted+" valid="+facilityValid+" dedicatedModels=0 nativeEffects=0");
+        if(resourceCompleted>0)System.out.println("Task 5.2 separate unseen cases="+resourceCompleted+" valid="+resourceValid+" dedicatedModels=0 nativeEffects=0");
     }
 }

@@ -33,7 +33,9 @@
       "dev.aivillages.fabric.PrerequisiteGameTests",
       "dev.aivillages.fabric.PrerequisiteRestartGameTests",
       "dev.aivillages.fabric.StickEffectGameTests",
-      "dev.aivillages.fabric.StickKernelGameTests"
+      "dev.aivillages.fabric.StickKernelGameTests",
+      "dev.aivillages.fabric.CitizenLifecycleGameTests",
+      "dev.aivillages.fabric.CitizenLifecycleRestartGameTests"
     ]
   },
   "depends": {

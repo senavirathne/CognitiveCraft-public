@@ -27,6 +27,22 @@ public final class RetentionGameTests {
         var driver = new Driver(h,warm);
         h.succeedWhen(() -> { driver.step(); h.assertTrue(driver.phase==5,"Waiting for retention phase="+driver.phase+" completed="+driver.completed); });
     }
+    /** Lifecycle verification changes observations/revisions; immutable identity/control must survive cache deletion. */
+    private static String stableIdentityHash(Path path) throws Exception {
+        var state = new LinkedHashMap<String,Object>(StrictJson.object(Files.readString(path)));
+        if (!Long.valueOf(CitizenIdentityStore.SCHEMA).equals(state.get("schema")))
+            throw new IllegalStateException("Unexpected identity schema");
+        state.remove("revision");
+        var rows = new ArrayList<Object>();
+        for (Object value : (List<?>)state.get("citizens")) {
+            var row = new LinkedHashMap<String,Object>();
+            ((Map<?,?>)value).forEach((k,v) -> row.put((String)k,v));
+            row.remove("availability"); row.remove("lifecycle"); rows.add(row);
+        }
+        state.put("citizens", rows);
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(StrictJson.canonical(state).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    }
     static String hash(Path path) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path)));
     }
@@ -147,7 +163,7 @@ public final class RetentionGameTests {
                         try {
                             Path skills=root.resolve(VersionedSkillRepository.WORLD_RELATIVE_PATH);
                             if(Files.exists(skills.resolve("bodies/"+proof.get("orphan")+".json")))throw new IllegalStateException("Eligible scratch was not collected");
-                            var observed=Map.of("manifestSha",hash(skills.resolve("manifest.json")),"identitySha",hash(root.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH).resolve("state.json")),
+                            var observed=Map.of("manifestSha",hash(skills.resolve("manifest.json")),"identitySha",stableIdentityHash(root.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH).resolve("state.json")),
                                     "jobsSha",hash(root.resolve(JobJournal.WORLD_RELATIVE_PATH).resolve("state.jsonl")),"evidenceSha",hash(root.resolve(RetentionEvidenceStore.WORLD_RELATIVE_PATH).resolve("state.json")));
                             if(warm) {
                                 for(var entry:observed.entrySet())if(!entry.getValue().equals(proof.get(entry.getKey())))throw new IllegalStateException("Cache deletion/restart changed owner: "+entry.getKey());

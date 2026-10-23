@@ -14,6 +14,14 @@ class StickBindingTest {
         final ActorRef actor=identity.add(1,10,0,"Ada",true,true);
         final Map<ContainerRef,InputContainerSample> inputs=new HashMap<>();
         final Observation world=new Observation() {
+            public ItemContainerSample itemContainer(ActorRef a,ContainerRef c,ResourceDelivery.ItemIdentity item,ObjectType type) {
+                if(type==ObjectType.BARREL)return new ItemContainerSample(item,ObservationStatus.ABSENT,0,0,"not-barrel");
+                return itemContainer(a,c,item);
+            }
+            public InputContainerSample inputContainer(ActorRef a,ContainerRef c,ResourceDelivery.ItemIdentity item,ObjectType type) {
+                if(type==ObjectType.BARREL)return new InputContainerSample(ObservationStatus.ABSENT,0,0,"not-barrel");
+                return inputContainer(a,c,item);
+            }
             public ActorState actor(ActorRef a){return identity.world.actor(a);}
             public CropState crop(ActorRef a,Point p){throw new AssertionError("No crop discovery");}
             public ContainerSample container(ActorRef a,ContainerRef c){throw new AssertionError("No wheat discovery");}

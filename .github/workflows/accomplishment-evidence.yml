@@ -1,0 +1,128 @@
+name: Accomplishment evidence acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/accomplishment-evidence.yml', '.github/implementation/IMP-021*']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/accomplishment-evidence.yml', '.github/implementation/IMP-021*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accomplishment-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: IMP-021 matrix, regressions and two-JVM GP-21
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute every attribution, storage and scheduling matrix case
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.AccomplishmentLedgerTest --tests dev.aivillages.core.kernel.AccomplishmentServiceTest
+      - name: Require all 85 matrix cases to execute and pass
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for suite,count in [('AccomplishmentLedgerTest',79),('AccomplishmentServiceTest',6)]:
+              cases=list(ET.parse(Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+suite+'.xml')).getroot().iter('testcase'))
+              if len(cases)!=count or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):
+                  raise SystemExit('Every matrix case must execute and pass: '+suite)
+          print('IMP-021 matrix: 85 executed passing cases')
+          PY
+      - name: Execute complete regressions and package runtime and native fixtures
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Select cold known-work evidence and a saved Minecraft witness
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.AccomplishmentGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Execute actual Jobs and P0 receipts for two citizens without models
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_ACCOMPLISHMENT_PHASE: cold
+          COGNITIVECRAFT_RESTART_PROBE: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require active cold evidence and select the second JVM
+        run: |
+          python3 - <<'PY'
+          import json,shutil,xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run');out=Path('fabric/build/accomplishment-evidence');out.mkdir(parents=True,exist_ok=True)
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Two passing active cold project cases required')
+          if 'IMP-021 GP-21 accepted phase=cold stock=5 quantity=5 completed=2 titles=2 modelCalls=0 noReplay=true' not in (root/'logs/latest.log').read_text():raise SystemExit('Active cold GP-21 proof missing')
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.AccomplishmentRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Reopen the same physical world, registry, Jobs and evidence without replay
+        timeout-minutes: 7
+        env:
+          COGNITIVECRAFT_ACCOMPLISHMENT_PHASE: warm
+          COGNITIVECRAFT_RESTART_PROBE: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require warm proof, all tests, finite storage and clean release contents
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,shutil,zipfile,xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run');out=Path('fabric/build/accomplishment-evidence')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Two passing active warm project cases required')
+          if 'IMP-021 GP-21 accepted phase=warm stock=5 quantity=5 completed=2 titles=2 modelCalls=0 noReplay=true' not in (root/'logs/latest.log').read_text():raise SystemExit('Active warm GP-21 proof missing')
+          shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          saved=root/'world/cognitivecraft-accomplishment-fixture'
+          cold=json.loads((saved/'cold.json').read_text());warm=json.loads((saved/'warm.json').read_text())
+          for phase,proof in [('cold',cold),('warm',warm)]:
+              if proof['phase']!=phase or proof['schema']!=1 or proof['architecture']!='0.5':raise SystemExit('Wrong native proof identity')
+              if (proof['stock'],proof['quantity'],proof['completed'],proof['titles'],proof['modelCalls'],proof['progress'],proof['aggregates'])!=(5,5,2,2,0,4,3):raise SystemExit('Attribution, context or recognition mismatch')
+              if not 0<proof['ledgerBytes']<=1048576 or not proof['ledgerBytes']<=proof['ownerBytes']<=3145728 or not 0<proof['sampleMaximum']<=4:raise SystemExit('Unbounded evidence storage')
+          if cold['outcomes']!=warm['outcomes'] or cold['ledgerSha256']!=warm['ledgerSha256'] or cold['revision']!=warm['revision']:raise SystemExit('Reload/replay changed acknowledged evidence')
+          if (cold['process'],cold['processStarted'])==(warm['process'],warm['processStarted']):raise SystemExit('Warm proof requires a separate JVM, including in reused PID namespaces')
+          for name in ('cold.json','warm.json','restart.json'):shutil.copy2(saved/name,out/name)
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(module+'/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Complete executed module coverage required: '+module)
+              counts[module]=len(cases)
+          if sum(counts.values())<1239:raise SystemExit('Full current regression inventory required')
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production artifact required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Fixtures or weights leaked into release')
+              for name in ('Accomplishments','JobOutcomeSource','AccomplishmentLedger','AccomplishmentJournal','AccomplishmentCodec','AccomplishmentService'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Ledger runtime missing: '+name)
+          proof={'schema':1,'matrix':85,'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest()}
+          (out/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - name: Restore full native fixture registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-021-accomplishment-evidence-acceptance
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            fabric/build/accomplishment-evidence/**

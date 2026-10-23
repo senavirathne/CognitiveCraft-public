@@ -28,8 +28,8 @@ def corpus():
     return load(path)
 
 
-def baseline():
-    frozen = load(ROOT / "e2e/generalization/baseline.json")
+def baseline(baseline_path=None):
+    frozen = load(baseline_path or ROOT / "e2e/generalization/baseline.json")
     require(frozen["corpusSha256"] == CORPUS_SHA256, "Frozen input identity changed")
     for entry in frozen["productionFiles"]:
         path = ROOT / entry["path"]
@@ -111,10 +111,10 @@ def metric_report(rows):
                                  "reason": "Per-scenario receipts, real stocks/custody and original mutations remain available; aggregate CI does not infer conservation from assertion status."}}
 
 
-def collect(directory):
+def collect(directory, baseline_path=None):
     specs = {r["id"]: r for r in corpus()["scenarios"]}; rows = {}; groups = {}; frames = 0
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    frozen = load(ROOT / "e2e/generalization/baseline.json")
+    frozen = load(baseline_path or ROOT / "e2e/generalization/baseline.json")
     for path in directory.rglob("generalization-results.json"):
         data = load(path); group = data["group"]
         require(group not in groups, "Duplicate group artifacts")

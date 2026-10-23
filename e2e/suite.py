@@ -27,21 +27,28 @@ from navigation import in_observed_area, walk_route, walkable_cell
 
 FAMILIES = ["E2E-CONN-001", "E2E-CMD-001", "E2E-SUGGEST-001", "E2E-PHYSICAL-001",
             "E2E-LEGACY-001", "E2E-CANCEL-001", "E2E-MUTATION-001", "E2E-CLIENT-LOSS-001",
-            "E2E-RECOVERY-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001", "E2E-LEASE-001"]
+            "E2E-RECOVERY-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001", "E2E-LEASE-001", "GP-E2E-029"]
 PROFILES = {"smoke": FAMILIES[:1], "deterministic": [x for x in FAMILIES if x not in
-            ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001")],
+            ("E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002", "E2E-NLU-001", "E2E-AI-001", "GP-E2E-029")],
             "ai": ["E2E-AI-001", "E2E-NLU-001"],
             "acquire": ["E2E-AI-001"], "nlu": ["E2E-NLU-001"],
             "environment": ["E2E-PHYSICAL-001"],
             "resilience": ["E2E-CLIENT-LOSS-001", "E2E-RECOVERY-002"],
             "all": ["E2E-AI-001"] + [x for x in FAMILIES if x != "E2E-AI-001"]}
+PROFILES["lifecycle"] = ["GP-E2E-029"]
 PROFILES["rb001"] = ["GP-RB-01"]
+PROFILES["d01"] = ["D01-EVIDENCE"]
+PROFILES["d02"] = ["D02-EVIDENCE"]
+PROFILES["d03"] = ["D03-EVIDENCE"]
+PROFILES["d04"] = ["D04-EVIDENCE"]
+PROFILES["d05"] = ["D05-EVIDENCE"]
 PROFILES["rb002"] = ["GP-RB-02"]
 PROFILES["rb003"] = ["GP-RB-03"]
 PROFILES["rb004"] = ["GP-RB-04"]
 PROFILES["rb005"] = ["GP-RB-COMPOSE-01"]
 PROFILES["rb006a"] = ["GP-RB-06A"]
 PROFILES["rb006b"] = ["GP-RB-06B"]
+PROFILES["rb006b-placement"] = ["GP-RB-06B-PLACEMENT"]
 PROFILES["rb007"] = ["GP-RB-07"]
 PROFILES["rb008"] = ["GP-RB-08"]
 UUID_PATTERN = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
@@ -1531,22 +1538,30 @@ def main():
                 "E2E-CLIENT-LOSS-001": client_loss, "E2E-RECOVERY-001": graceful_recovery,
                 "E2E-RECOVERY-002": hard_recovery, "E2E-NLU-001": natural_language,
                 "E2E-AI-001": acquire_real_skill, "E2E-LEASE-001": queued_competition}
+    from lifecycle import scenario as lifecycle_scenario
+    registry["GP-E2E-029"] = lifecycle_scenario
     from oak import scenario as oak_scenario
     registry["GP-RB-01"] = oak_scenario
+    registry["D01-EVIDENCE"] = lambda h: oak_scenario(h,d01_evidence=True)
     from planks import scenario as plank_scenario
     registry["GP-RB-02"] = plank_scenario
+    registry["D02-EVIDENCE"] = lambda h: plank_scenario(h,d02_evidence=True)
     from sticks import scenario as stick_scenario
     registry["GP-RB-03"] = stick_scenario
     from axes import scenario as axe_scenario
     registry["GP-RB-04"] = axe_scenario
+    registry["D03-EVIDENCE"] = lambda h: axe_scenario(h,d03_evidence=True)
     from composition import scenario as composition_scenario
     registry["GP-RB-COMPOSE-01"] = composition_scenario
     from tableitems import scenario as table_item_scenario
     registry["GP-RB-06A"] = table_item_scenario
+    registry["D05-EVIDENCE"] = lambda h: table_item_scenario(h,d05_evidence=True)
     from tableplacement import scenario as table_placement_scenario
     registry["GP-RB-06B"] = table_placement_scenario
+    registry["GP-RB-06B-PLACEMENT"] = lambda h: table_placement_scenario(h, placement_only=True)
     from birch import scenario as birch_scenario
     registry["GP-RB-07"] = birch_scenario
+    registry["D04-EVIDENCE"] = lambda h: birch_scenario(h,d04_evidence=True)
     from blueprints import scenario as blueprint_scenario
     registry["GP-RB-08"] = blueprint_scenario
     try:

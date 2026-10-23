@@ -9,7 +9,7 @@ LO=[6,201,14];HI=[13,201,14];OTHER_LO=[14,201,11];OTHER_HI=[21,201,11]
 def inventory(h,player):
     return next(a["inventory"] for a in h.snapshot()["actors"] if a["uuid"]==h.entities[player]).copy()
 
-def scenario(h):
+def scenario(h, *, d04_evidence=False):
     from suite import ROOT,UUID_PATTERN,DENIED_PATTERN,require,read,reconnect_players
     require(h.topology=="compose","Birch acceptance requires real network clients and configured model backends")
     shutil.copytree(ROOT/"build/needle",h.root/"needle",dirs_exist_ok=True)
@@ -23,6 +23,20 @@ def scenario(h):
     with urllib.request.urlopen(req,timeout=120) as response:require(json.load(response)["done"],"Genuine model prewarm failed")
     h.fresh(two=True);h.enroll();h.enroll("PlayerB","Mira");h.release_gate();h.release_gate("PlayerB")
     h.console(["gamerule minecraft:block_drops true",*["setblock "+" ".join(map(str,p))+" minecraft:chest" for p in (SRC,SECOND)]])
+    if d04_evidence:
+        # Stocked spatial-reference evidence needs no wheat. Remove the shared
+        # arena's unrelated trampleable crop fixture before any production or
+        # refusal is measured, retaining normal villager AI and strict resource
+        # comparisons throughout the requests themselves.
+        cells=[(x,z) for x in (6,7) for z in (6,7,8,10,11,12)]+[(4,10)]
+        h.console([command for x,z in cells for command in
+                   (f"setblock {x} 201 {z} minecraft:air",f"setblock {x} 200 {z} minecraft:stone")]
+                  +["setblock 8 200 7 minecraft:stone","setblock 8 200 11 minecraft:stone"])
+        # The default observer includes support cells for the x=6/7 strips;
+        # it observes the former isolated crop at x=4 only at foot height.
+        h.wait(lambda:all('minecraft:air' in h.snapshot()['blocks'].get(f'{x},201,{z}','') for x,z in cells)
+                      and all('minecraft:stone' in h.snapshot()['blocks'].get(f'{x},200,{z}','') for x,z in cells if x in (6,7)),
+               "D04 neutral stocked-production terrain")
     catalog=h.command("PlayerA","/aivillage kernel catalog","catalog=")
     require(all(k+"=[]" in catalog for k in ("birchCatalog","birchPlankCatalog","oakCatalog","plankCatalog")),"Birch or oak executable methods were supplied as known")
     hashes={};admissions=[];known=[];client_containers=[]
@@ -71,15 +85,22 @@ def scenario(h):
         h.actions_active=False
         return {"run":rid,"artifact":artifact,"amount":q,"source":source,"destination":destination,"actor":h.entities[player],"quantities":sums,"view":view}
     h.command("PlayerA","/aivillage kernel inference true","admission=true")
-    before=h.container(SRC,LOG);rid=gather(4)
-    admissions.append(verify(rid,4,before,LO+HI,SRC,acquired=True));h.command("PlayerA","/aivillage kernel status "+rid,"phase=TERMINAL");h.screenshot("PlayerA","rb007-genuine-birch-harvest",chat=True)
-    client_container("PlayerA",SRC,LOG)
+    if not d04_evidence:
+        before=h.container(SRC,LOG);rid=gather(4)
+        admissions.append(verify(rid,4,before,LO+HI,SRC,acquired=True));h.command("PlayerA","/aivillage kernel status "+rid,"phase=TERMINAL");h.screenshot("PlayerA","rb007-genuine-birch-harvest",chat=True)
+        client_container("PlayerA",SRC,LOG)
+    else:
+        h.console([f'data merge entity {h.entities["PlayerA"]} {{Inventory:[{{id:"minecraft:oak_log",count:3}},{{id:"minecraft:birch_planks",count:7}}]}}'])
+        h.wait(lambda:inventory(h,"PlayerA").get(PLANK)==7 and inventory(h,"PlayerA").get(OAK)==3,"D04 old NPC stock")
     seed(2);before=h.container(DST,PLANK);inv=inventory(h,"PlayerA");rid=make(5)
     admissions.append(verify(rid,5,before,SRC,DST,acquired=True,craft=True,before_inventory=inv));h.screenshot("PlayerA","rb007-genuine-birch-crafting",chat=True)
     client_container("PlayerA",DST,PLANK)
     foreign=h.command("PlayerB","/aivillage kernel status "+rid,DENIED_PATTERN)
     foreign_cancel=h.command("PlayerB","/aivillage kernel cancel "+rid,DENIED_PATTERN)
     require(rid not in h.suggestions("PlayerB","/aivillage kernel status "),"Foreign birch run UUID leaked")
+    if d04_evidence:
+        from d04 import language_evidence
+        return language_evidence(h,seed,verify,admissions[-1],models,read(h.root/"needle/manifest.json"))
     h.command("PlayerA","/aivillage kernel inference false","admission=false")
     for q in (1,4,8,64):
         seed((q+3)//4);before=h.container(DST,PLANK);inv=inventory(h,"PlayerA");calls=h.model_calls()

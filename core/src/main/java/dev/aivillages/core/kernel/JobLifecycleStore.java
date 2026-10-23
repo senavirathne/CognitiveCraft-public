@@ -160,12 +160,40 @@ public final class JobLifecycleStore {
             throw new SecurityException("Job unavailable in your scope");
         return job;
     }
+    /** Trusted IMP-023 disclosure only. This grant is never accepted by control, assignment or cancellation. */
+    public record NamedReadGrant(UUID jobId, TrustedContext origin, Set<TrustedContext> readers) {
+        public NamedReadGrant {
+            Objects.requireNonNull(jobId); Objects.requireNonNull(origin);
+            if (readers.size() > 8) throw new IllegalArgumentException("Named reader cap");
+            readers = Set.copyOf(readers);
+            if (readers.size() > 8 || readers.stream().anyMatch(c -> !c.scope().worldId().equals(origin.scope().worldId())))
+                throw new IllegalArgumentException("Named job read grant");
+        }
+    }
+    /** The scope owner revalidates current policy and original-owner consent before this host-only call. */
+    public Job scopedQuery(UUID id, TrustedContext caller, NamedReadGrant grant) {
+        thread(); Job job = find(id);
+        if (job == null || caller == null || !sameWorld(caller) || grant == null
+                || !grant.jobId().equals(id) || !grant.origin().equals(job.origin())
+                || !policy.mayRead(caller, job) && !grant.readers().contains(caller))
+            throw new SecurityException("Job unavailable in your named view");
+        return job;
+    }
     /** Coordination consumers obtain no grant from a guessed ID or read-only sharing. */
     public boolean mayControl(UUID id, long generation, TrustedContext caller) {
         thread(); Job job=find(id);
         ActorRef worker=job==null?null:job.current()==null?job.responsible():job.current().worker();
         return job!=null && job.generation()==generation && sameWorld(caller)
                 && policy.mayControl(caller,job) && policy.controls(worker,job.origin());
+    }
+    /** Coordination hold only: never grants action authority, new claims or control of a foreign Job. */
+    public boolean stopPending(UUID id, long generation, TrustedContext caller) {
+        thread(); Job job=find(id);
+        if(job==null || !sameWorld(caller) || !job.origin().equals(caller) || job.generation()!=generation
+                || !policy.mayControl(caller,job) || job.current()==null || !job.current().open())return false;
+        return job.state()==State.CANCELLING || job.state()==State.INTERRUPTED
+                || !policy.controls(job.current().worker(),job.origin())
+                || clock.millis()>=job.current().allowance().deadlineEpochMillis();
     }
     public Optional<Job> bySubmission(UUID submission, TrustedContext caller) {
         thread();

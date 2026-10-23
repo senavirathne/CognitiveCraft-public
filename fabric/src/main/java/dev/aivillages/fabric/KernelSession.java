@@ -48,7 +48,10 @@ public final class KernelSession implements AutoCloseable {
                           RetentionRoots roots, WorldRetentionManager retention,
                           WorldRetentionService retentionService, ObservedWorldKnowledgeStore observations,
                           ObservedKnowledgeService knowledgeService, PlanJournal plans, PlanJournal.Snapshot initialPlans,
-                          BlueprintStore blueprints) { }
+                          BlueprintStore blueprints, AccomplishmentLedger accomplishments, KnowledgeAccessStore access,
+                          OrganizationJournal organizations,
+                          Organizations.Snapshot initialOrganizations, boolean organizationsReadOnly,
+                          MandateJournal mandates, Mandates.Snapshot initialMandates, boolean mandatesReadOnly) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -64,6 +67,11 @@ public final class KernelSession implements AutoCloseable {
     private record PreparedBlueprint(BlueprintStore.Inspection inspection,Blueprint.View view) { }
     private final Map<UUID,PreparedBlueprint> blueprintStages=new HashMap<>();
     private FabricBlueprintMaterials blueprintMaterials;
+    private final java.util.concurrent.atomic.AtomicInteger accomplishmentQueries=new java.util.concurrent.atomic.AtomicInteger();
+    private AccomplishmentService accomplishmentService;
+    private KnowledgeAccessService accessService;
+    private final java.util.concurrent.atomic.AtomicInteger accessQueries=new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.ConcurrentHashMap<UUID,KnowledgeAccess.Pair> learningStarts=new java.util.concurrent.ConcurrentHashMap<>();
     private volatile UUID observationSource;
     private final java.util.concurrent.atomic.AtomicInteger observationQueries = new java.util.concurrent.atomic.AtomicInteger();
     private final LocalGenerationAdapter model;
@@ -82,6 +90,8 @@ public final class KernelSession implements AutoCloseable {
     private FabricGatewayWorld worldAccess;
     private CitizenRegistry citizens;
     private JobLifecycleStore jobs;
+    private OrganizationRegistry organizations;
+    private MandateRegistry mandates;
     private FabricPrerequisiteRuntime prerequisites;
     private GoalPlanner planner;
     private ResourceLeaseService leases;
@@ -92,9 +102,9 @@ public final class KernelSession implements AutoCloseable {
     private List<TrustedContext> dispatchScopes=List.of();
     private long dispatchRevision=-1;
     private int dispatchScopeCursor;
-    private final Map<UUID, CitizenRegistry.Availability> availabilityFacts = new LinkedHashMap<>();
+    private CitizenLifecycle lifecycle;
+    private FabricCitizenLifecycle lifecycleAdapter;
     private UUID pendingEnrollmentEntity;
-    private int availabilityCursor;
     private boolean closed;
     private boolean closeRequested;
     private final CompletableFuture<Void> storeClosure = new CompletableFuture<>();
@@ -125,9 +135,10 @@ public final class KernelSession implements AutoCloseable {
                 PrimitiveDiagnosticStore.Faults.none());
     }
     /** Isolated real-store/fault fixtures retain the production composition and worker owners. */
-    KernelSession(MinecraftServer server,Path world,LanguageRequests.Port injectedLanguage,
+    KernelSession(MinecraftServer server,Path suppliedWorld,LanguageRequests.Port injectedLanguage,
                   GenerationPort injectedGeneration,PrimitiveDiagnostics.Sink injectedSink,
                   PrimitiveDiagnostics.Policy diagnosticPolicy,PrimitiveDiagnosticStore.Faults faults) {
+        final Path world = suppliedWorld.toAbsolutePath().normalize();
         this.server = server;
         blueprintRegistry=FabricBlueprintRegistry.capture();
         var configuration=diagnosticPolicy==null?PrimitiveDiagnosticConfig.read(System.getenv())
@@ -164,6 +175,10 @@ public final class KernelSession implements AutoCloseable {
             ObservedWorldKnowledgeStore observations = null;
             PlanJournal plans = null;
             BlueprintStore blueprints = null;
+            AccomplishmentLedger accomplishments = null;
+            KnowledgeAccessStore access = null;
+            OrganizationJournal organizations = null;
+            MandateJournal mandates = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -203,6 +218,24 @@ public final class KernelSession implements AutoCloseable {
                 retention.register(plans.retentionOwner());
                 blueprints=BlueprintStore.open(world,journal.state().worldId());
                 retention.register(blueprints.retentionOwner());
+                final var accomplishmentJobs=jobs;
+                final var accomplishmentCitizens=identities;
+                accomplishments=AccomplishmentLedger.open(world,journal.state().worldId(),
+                        new JobOutcomeSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot),roots);
+                retention.register(accomplishments.retentionOwner());
+                accomplishments.capacity(amount->retention.assessReplacement("accomplishments",WorldRetentionManager.Category.EVIDENCE,amount)
+                        .status()==WorldRetentionManager.Capacity.AVAILABLE);
+                final var learningEvidence=accomplishments;
+                access=KnowledgeAccessStore.openUnmigrated(world,journal.state().worldId(),
+                        new KnowledgeAccessSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot,learningEvidence::snapshot),
+                        KnowledgeAccessStore.repositoryCatalog(repository),clock,roots);
+                retention.register(access.retentionOwner());
+                access.capacity(amount->retention.assessReplacement("knowledge-access",WorldRetentionManager.Category.EVIDENCE,amount)
+                        .status()==WorldRetentionManager.Capacity.AVAILABLE);
+                organizations=OrganizationJournal.open(world,journal.state().worldId());
+                retention.register(organizations.retentionOwner());
+                mandates=MandateJournal.open(world,journal.state().worldId());
+                retention.register(mandates.retentionOwner());
                 plans.capacity(bytes -> retention.assessReplacement("plans",WorldRetentionManager.Category.EVIDENCE,
                         new WorldRetentionManager.Amount(bytes*3L,24)).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 var knowledgeService = new ObservedKnowledgeService(observations);
@@ -219,6 +252,9 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16, 10_485_760));
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
+                var accessMigration=access.migrateSharedAccess(()->false);
+                if(!access.readOnly()&&accessMigration.code()!=KnowledgeAccess.Code.APPLIED&&accessMigration.code()!=KnowledgeAccess.Code.DUPLICATE)
+                    throw new IllegalStateException("Shared access migration unavailable: "+accessMigration);
                 var observationMigration = observations.migrate(observations.revision(), () -> false);
                 if (observationMigration.status() != ObservedWorldKnowledgeStore.Status.UNCHANGED
                         && observationMigration.status() != ObservedWorldKnowledgeStore.Status.MIGRATED
@@ -229,8 +265,14 @@ public final class KernelSession implements AutoCloseable {
                 return new Loaded(journal, journal.state(), repository, guard, identities,
                         identities.snapshot(), identities.readOnly() || journal.readOnly(), retrieval,
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
-                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints);
+                        retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments,access,
+                        organizations, organizations.snapshot(), organizations.readOnly(),
+                        mandates, mandates.snapshot(), mandates.readOnly());
             } catch (Exception failure) {
+                if(access!=null)try{access.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
+                if(accomplishments!=null)try{accomplishments.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
+                if(mandates!=null)try{mandates.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
+                if(organizations!=null)try{organizations.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(blueprints!=null)try{blueprints.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(plans!=null)try{plans.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if (observations != null) try { observations.close(); } catch (Exception closeFailure) { failure.addSuppressed(closeFailure); }
@@ -270,13 +312,19 @@ public final class KernelSession implements AutoCloseable {
             compose();
         }
         citizens.tick();
+        refreshLearningPresence(null);
+        accomplishmentService.maintain(jobs.snapshot(),worker);
+        accessService.maintain(jobs.snapshot(),worker);
+        organizations.tick();
+        organizations.expire();
+        mandates.maintain(server.overworld().getGameTime());
         loaded.knowledgeService().beginTick();
         loaded.knowledgeService().maintain(worker);
         loaded.retentionService().beginTick();
         refreshRetentionRoots();
         loaded.retentionService().maintain(worker);
         loaded.retrieval().maintain(worker);
-        refreshAvailability();
+        lifecycleAdapter.step();
         if (pendingEnrollmentEntity != null && citizens.ready()) pendingEnrollmentEntity = null;
         language.tick();
         if (!language.pending()) interpretingPlayer = null;
@@ -321,9 +369,32 @@ public final class KernelSession implements AutoCloseable {
         var repository = loaded.repository();
         var staging = new ResearchAdmissionController.TrialArtifacts(repository);
         var grants = new ResearchAdmissionController.TrialGrants(clock);
-        CapabilityResolver.ControlPolicy control = this::controls;
-        AuthorityPolicy authority = (actor, effect, context) -> controls(actor, context)
+        var access=loaded.access();
+        AuthorityPolicy direct = (actor, effect, context) -> controls(actor, context) && citizens.available(actor)
                 && villager(actor) != null;
+        mandates = new MandateRegistry(loaded.initialMandates(), (expected, next) ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return loaded.mandates().replace(expected, next); }
+                    catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
+                }, worker), new MandateRegistry.References() {
+                    public boolean authority(ActorRef actor,Effect effect,TrustedContext issuer) { return direct.currentlyAllows(actor,effect,issuer); }
+                    public boolean available(TrustedContext coordinator) {
+                        return server.getPlayerList().getPlayer(coordinator.principal().id()) != null;
+                    }
+                    public boolean organization(UUID reference,TrustedContext issuer) {
+                        if(reference==null)return true;
+                        return organizations != null && organizations.snapshot().scopes().stream()
+                                .anyMatch(s -> s.id().equals(reference) && s.owner().equals(issuer) && !s.expired()
+                                        && (s.expiresAt()==0 || clock.millis()<s.expiresAt()));
+                    }
+                }, new MandateJobExecutions(() -> jobs), clock, Mandates.Limits.defaults(), loaded.mandatesReadOnly());
+        mandates.retentionGuard((keys, complete) -> {
+            var update=loaded.roots().publishNext("mandates",keys,complete);
+            return update==RetentionRoots.Update.APPLIED || update==RetentionRoots.Update.UNCHANGED;
+        });
+        CapabilityResolver.ControlPolicy control = (actor,context) -> controls(actor,context)
+                || mandates.controls(actor,Effect.OBSERVE,context);
+        AuthorityPolicy authority = new MandateAuthority(direct,mandates);
         BoundedSkillExecutor.ControlPolicy runControl = new BoundedSkillExecutor.ControlPolicy() {
             @Override public boolean mayInspect(TrustedContext caller, TrustedContext owner,
                                                 UUID runId) { return owner.equals(caller); }
@@ -340,7 +411,14 @@ public final class KernelSession implements AutoCloseable {
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.leases().replace(expected, next); }
                     catch (Exception failure) { throw new IllegalStateException(failure); }
-                }, worker), (owner, caller) -> new JobLeaseOwners(jobs, clock).inspect(owner, caller),
+                }, worker), new ResourceLeaseService.Owners() {
+                    public ResourceLeases.OwnerFacts inspect(ResourceLeases.Owner owner,TrustedContext caller) {
+                        return new JobLeaseOwners(jobs,clock).inspect(owner,caller);
+                    }
+                    public boolean stopPending(ResourceLeases.Owner owner,TrustedContext caller) {
+                        return new JobLeaseOwners(jobs,clock).stopPending(owner,caller);
+                    }
+                },
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
         leasedGateway = new LeasedGateway(gateway, leases,
@@ -348,14 +426,15 @@ public final class KernelSession implements AutoCloseable {
                         ? LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run)
                         : LeasedGateway.workspaces(new JobLeaseOwners(jobs, clock), request, run),
                 () -> server.overworld().getGameTime(), 1200, 200, 64, 512);
+        leasedGateway.admission(LeasedGateway.mandates(mandates,direct));
         var executor = new BoundedSkillExecutor(staging, capabilities, primitives,
-                CapabilityResolver.enrolledWorldSkills(control), grants, runControl, leasedGateway,
+                access, grants, runControl, leasedGateway,
                 leasedGateway::releaseRun, clock, () -> server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8, 16, 32, 64));
         var resolver = new CapabilityResolver.Engine(capabilities, primitives,
                 loaded.retrieval().candidates(), loaded.retrieval().authoritativeFallback(),
                 PlanningGoals.support(), control,
-                CapabilityResolver.enrolledWorldSkills(control), authority,
+                access, authority,
                 CapabilityResolver.cropPrerequisites(),
                 () -> server.overworld().getGameTime(), CapabilityResolver.Limits.defaults());
         broker = new AIWorkBroker(generationSource, clock, AIWorkBroker.Settings.defaults(),
@@ -369,7 +448,7 @@ public final class KernelSession implements AutoCloseable {
                 }, AIWorkBroker.Sharing.privateScopes());
         var research = new ResearchAdmissionController(capabilities, primitives, repository,
                 broker, new CropFixtureRunner(staging, capabilities, primitives,
-                        CapabilityResolver.enrolledWorldSkills(control), worker, clock),
+                        access, worker, clock),
                 new ResearchAdmissionController.TrialPort() {
                     final ResearchAdmissionController.ExecutorTrialPort delegate =
                             new ResearchAdmissionController.ExecutorTrialPort(executor);
@@ -392,7 +471,7 @@ public final class KernelSession implements AutoCloseable {
                 refs -> publishRoots("research", refs.stream().map(WorldRetentionManager::artifact).collect(java.util.stream.Collectors.toSet())));
         RequestEnvironment environment = new RequestEnvironment() {
             @Override public boolean enrolled(ActorRef actor, TrustedContext context) {
-                return controls(actor, context);
+                return control.controls(actor, context);
             }
             @Override public boolean loaded(Cuboid source, ObservationRef observation) {
                 if (sourceCells(source) > 256 || !source.dimension().equals(observation.dimension()))
@@ -413,9 +492,40 @@ public final class KernelSession implements AutoCloseable {
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.jobs().replace(expected, next); }
                     catch (Exception failure) { throw new IllegalStateException(failure); }
-                }, worker), JobLifecycleStore.privateJobs(this::controls),
+                }, worker), JobLifecycleStore.privateJobs(control::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        organizations = new OrganizationRegistry(loaded.initialOrganizations(), (expected, next) ->
+                CompletableFuture.supplyAsync(() -> {
+                    try { return loaded.organizations().replace(expected, next); }
+                    catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
+                }, worker), new OrganizationRegistry.References() {
+                    public OrganizationRegistry.MemberFact citizen(ActorRef actor) {
+                        var enrollment = citizens.find(actor.citizenId());
+                        if (enrollment == null || !enrollment.actor().equals(actor)) return null;
+                        if (!citizens.controls(actor, enrollment.owner()))
+                            return new OrganizationRegistry.MemberFact(enrollment.owner(), Organizations.Participation.UNAVAILABLE);
+                        var current = citizens.query(actor.citizenId(), enrollment.owner());
+                        var participation = switch (current.availability()) {
+                            case LOADED -> Organizations.Participation.ACTIVE;
+                            case UNKNOWN -> Organizations.Participation.UNKNOWN;
+                            case UNLOADED -> Organizations.Participation.UNLOADED;
+                            case UNAVAILABLE, REPLACEMENT_UNRESOLVED -> Organizations.Participation.UNAVAILABLE;
+                        };
+                        return new OrganizationRegistry.MemberFact(enrollment.owner(), participation);
+                    }
+                    public boolean headquarters(ContainerRef ref, TrustedContext caller) {
+                        return caller.scope().worldId().equals(loaded.initialOrganizations().worldId())
+                                && gatewayWorld().container(ref).status() == ObservationStatus.PRESENT;
+                    }
+                }, jobs, clock, Organizations.Limits.defaults(), loaded.organizationsReadOnly());
+        organizations.retentionGuard((keys, complete) -> {
+            var update = loaded.roots().publishNext("organizations", keys, complete);
+            return update == RetentionRoots.Update.APPLIED || update == RetentionRoots.Update.UNCHANGED;
+        });
+        accomplishmentService=new AccomplishmentService(loaded.accomplishments());
+        accessService=new KnowledgeAccessService(access);
+        refreshLearningPresence(null);
         prerequisites = new FabricPrerequisiteRuntime(server,jobs,leases,resolver,clock,this::observePrerequisite);
         prerequisites.facilities(this::observeFacilityPreparation);
         blueprintMaterials=new FabricBlueprintMaterials(server,leases);
@@ -507,14 +617,24 @@ public final class KernelSession implements AutoCloseable {
         dispatchGateway=new LeasedGateway(gateway,leases,
                 (request,run)->LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run),
                 ()->server.overworld().getGameTime(),1200,200,8,512);
+        dispatchGateway.admission(LeasedGateway.mandates(mandates,direct));
         var dispatchExecutor=new BoundedSkillExecutor(staging,capabilities,primitives,
-                CapabilityResolver.enrolledWorldSkills(control),grants,runControl,dispatchGateway,
+                access,grants,runControl,dispatchGateway,
                 dispatchGateway::releaseRun,clock,()->server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8,16,32,64));
-        dispatcher=new WorkerDispatcher(jobs,citizens,this::observe,resolver::resolve,
+        dispatcher=new WorkerDispatcher(jobs,new MandateWorkers(citizens,mandates),this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
                 job->ResourceDelivery.isDelivery(job.request().request().capability()) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
+        dispatcher.jobResolver((job,request,observation)->resolver.withEligibility(access.policyForJob(job.id())).resolve(request,observation));
+
+        lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
+            // Notify both owners; short-circuiting would leave the second owner's work running.
+            boolean bootstrapStopped = controller.interruptActor(actor);
+            boolean dispatchStopped = dispatcher.interruptActor(actor);
+            return bootstrapStopped && dispatchStopped;
+        }, jobs, leases), CitizenLifecycle.Settings.production(), server.overworld().getGameTime());
+        lifecycleAdapter = new FabricCitizenLifecycle(server, citizens, lifecycle);
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
             @Override public List<String> references(TrustedContext caller) {
@@ -721,6 +841,77 @@ public final class KernelSession implements AutoCloseable {
         ready(); return jobs.bySubmission(submission, caller);
     }
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
+    /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
+    /** Host-facing IMP-022 API. No player command/client feature is introduced by this data owner. */
+    public KnowledgeAccess.Decision knowledgeEligibility(ActorRef actor,ArtifactRef method,TrustedContext caller){
+        ready();return loaded.access().evaluateUse(actor,method,caller);
+    }
+    public CompletableFuture<KnowledgeAccess.Result> requirePersonalLearning(ActorRef actor,TrustedContext caller){
+        ready();if(!controls(actor,caller))throw new SecurityException("Apprentice control");
+        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(new IllegalStateException("Learning operation bound"));}
+        try{return CompletableFuture.supplyAsync(()->loaded.access().requirePersonalLearning(actor,caller,()->closed),worker)
+                .whenComplete((ignored,error)->accessQueries.decrementAndGet());}
+        catch(RuntimeException refused){accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+    }
+    public CompletableFuture<KnowledgeAccess.Result> startApprenticeship(UUID jobId,ActorRef teacher,
+                                                                        ArtifactRef method,TrustedContext caller){
+        ready();var job=jobs.query(jobId,caller);
+        if(loaded.access().snapshot().practices().stream().filter(p->p.stage()==KnowledgeAccess.Stage.PRACTICING).count()+learningStarts.size()>=8)
+            return CompletableFuture.completedFuture(new KnowledgeAccess.Result(KnowledgeAccess.Code.LIMIT,Reason.STORAGE_LIMIT_REACHED,jobId,0,0,false));
+        var learner=((ActorValue)job.request().request().arguments().get("actor")).value();
+        var pair=new KnowledgeAccess.Pair(teacher,learner);
+        if(learningStarts.putIfAbsent(jobId,pair)!=null)return CompletableFuture.completedFuture(new KnowledgeAccess.Result(KnowledgeAccess.Code.PENDING,null,jobId,0,0,false));
+        refreshLearningPresence(pair);
+        if(accessQueries.incrementAndGet()>8){accessQueries.decrementAndGet();learningStarts.remove(jobId,pair);
+            return CompletableFuture.failedFuture(new IllegalStateException("Learning operation bound"));}
+        try{return CompletableFuture.supplyAsync(()->loaded.access().startApprenticeship(jobId,teacher,method,caller,()->closed),worker)
+                .whenComplete((ignored,error)->{learningStarts.remove(jobId,pair);accessQueries.decrementAndGet();});}
+        catch(RuntimeException refused){learningStarts.remove(jobId,pair);accessQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+    }
+    private void refreshLearningPresence(KnowledgeAccess.Pair starting){
+        var pairs=new java.util.HashSet<KnowledgeAccess.Pair>();
+        for(var practice:loaded.access().snapshot().practices())if(practice.stage()==KnowledgeAccess.Stage.PRACTICING)
+            pairs.add(new KnowledgeAccess.Pair(practice.teacher().actor(),practice.learner().actor()));
+        pairs.addAll(learningStarts.values());
+        if(starting!=null)pairs.add(starting);
+        var present=new java.util.HashSet<KnowledgeAccess.Pair>();
+        for(var pair:pairs.stream().limit(8).toList()){
+            var teacher=villager(pair.teacher());var learner=villager(pair.learner());
+            var teacherOwner=citizens.snapshot().citizens().stream().filter(c->c.actor().equals(pair.teacher())).findFirst().orElse(null);
+            var learnerOwner=citizens.snapshot().citizens().stream().filter(c->c.actor().equals(pair.learner())).findFirst().orElse(null);
+            if(teacher!=null&&learner!=null&&teacher.isAlive()&&learner.isAlive()&&teacherOwner!=null&&learnerOwner!=null
+                    &&controls(pair.teacher(),teacherOwner.owner())&&controls(pair.learner(),learnerOwner.owner())
+                    &&pair.teacher().dimension().equals(pair.learner().dimension())&&teacher.distanceToSqr(learner)<=256)
+                present.add(pair);
+        }
+        loaded.access().source().observe(citizens.snapshot(),jobs.snapshot(),present);
+    }
+
+    public CompletableFuture<Accomplishments.Query> accomplishments(ServerPlayer player,UUID citizenId,int maximum){
+        if(!server.isSameThread())throw new IllegalStateException("Evidence intake requires server thread");
+        ready();var owner=caller(player);var citizen=citizens.query(citizenId,owner);
+        return accomplishmentWork(()->loaded.accomplishments().query(citizen.actor(),owner,maximum));
+    }
+    CompletableFuture<Accomplishments.Query> accomplishments(ActorRef actor,TrustedContext caller,int maximum){
+        if(!server.isSameThread())throw new IllegalStateException("Evidence intake requires server thread");
+        ready();return accomplishmentWork(()->loaded.accomplishments().query(actor,caller,maximum));
+    }
+    private <T> CompletableFuture<T> accomplishmentWork(java.util.function.Supplier<T> operation){
+        if(accomplishmentQueries.incrementAndGet()>8){accomplishmentQueries.decrementAndGet();
+            return CompletableFuture.failedFuture(new IllegalStateException("Evidence query capacity"));}
+        try{return CompletableFuture.supplyAsync(operation,worker).whenComplete((ignored,error)->accomplishmentQueries.decrementAndGet());}
+        catch(RuntimeException refused){accomplishmentQueries.decrementAndGet();return CompletableFuture.failedFuture(refused);}
+    }
+    /** Host integration only; no organization client command or model policy endpoint is registered. */
+    public OrganizationRegistry organizations() {
+        if (!server.isSameThread()) throw new IllegalStateException("Organization intake requires server thread");
+        ready(); return organizations;
+    }
+    /** Host-only scoped mandate intake; text/IR and organization titles cannot create these grants. */
+    public MandateRegistry mandates() {
+        if (!server.isSameThread()) throw new IllegalStateException("Mandate intake requires server thread");
+        ready(); return mandates;
+    }
     private boolean publishRoots(String source, java.util.Set<WorldRetentionManager.Key> keys) {
         if (keys.size() > RetentionRoots.MAX_ROOTS) return false;
         desiredRoots.put(source, java.util.Set.copyOf(keys));
@@ -1210,52 +1401,27 @@ public final class KernelSession implements AutoCloseable {
     boolean jobsReady() { return jobs != null && jobs.ready(); }
     boolean leasesReady() { return leases != null && leases.ready(); }
     ResourceLeaseService leaseOwner() { return leases; }
-    boolean identityReady() { return citizens != null && citizens.ready(); }
+    boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
+            && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {
         ready(); return citizens.query(citizenId, caller(player));
     }
 
     public void entityLoaded(Entity entity) {
-        if (entity instanceof Villager && entity.isAlive()) recordAvailability(entity, CitizenRegistry.Availability.LOADED);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.loaded(entity);
     }
     public void entityUnloaded(Entity entity) {
-        recordAvailability(entity, CitizenRegistry.Availability.UNLOADED);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.unloaded(entity);
     }
     public void entityUnavailable(Entity entity) {
-        recordAvailability(entity, CitizenRegistry.Availability.UNAVAILABLE);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.died(entity);
     }
     public void entityReplacementUnresolved(Entity entity) {
-        recordAvailability(entity, CitizenRegistry.Availability.REPLACEMENT_UNRESOLVED);
+        if (lifecycleAdapter != null && !closed) lifecycleAdapter.replacement(entity);
     }
-    private void recordAvailability(Entity entity, CitizenRegistry.Availability fact) {
-        if (citizens == null || closed) return;
-        citizens.snapshot().citizens().stream().filter(c -> c.actor().entityId().equals(entity.getUUID()))
-                .findFirst().ifPresent(c -> {
-                    UUID id = c.actor().citizenId();
-                    var previous = availabilityFacts.get(id);
-                    if (fact != CitizenRegistry.Availability.UNLOADED
-                            || previous != CitizenRegistry.Availability.UNAVAILABLE
-                            && previous != CitizenRegistry.Availability.REPLACEMENT_UNRESOLVED)
-                        availabilityFacts.put(id, fact == CitizenRegistry.Availability.LOADED
-                                && !c.actor().dimension().equals(entity.level().dimension().identifier().toString())
-                                ? CitizenRegistry.Availability.UNKNOWN : fact);
-                });
-    }
-    private void refreshAvailability() {
-        if (!availabilityFacts.isEmpty()) {
-            var entry = availabilityFacts.entrySet().iterator().next();
-            var changed = citizens.observeAvailability(entry.getKey(), entry.getValue());
-            if (changed.accepted()) availabilityFacts.remove(entry.getKey());
-            return;
-        }
-        var rows = citizens.snapshot().citizens();
-        if (rows.isEmpty()) return;
-        availabilityCursor %= rows.size();
-        var citizen = rows.get(availabilityCursor);
-        availabilityCursor = (availabilityCursor + 1) % rows.size();
-        var loadedActor = villager(citizen.actor());
-        refreshLoadedAvailability(citizens, citizen, loadedActor != null);
-    }
+    CitizenLifecycle lifecycleOwner() { return lifecycle; }
+    FabricCitizenLifecycle lifecycleAdapter() { return lifecycleAdapter; }
+    int lifecycleLookups() { return lifecycleAdapter == null ? 0 : lifecycleAdapter.lastLookups(); }
 
     static void refreshLoadedAvailability(CitizenRegistry citizens, CitizenRegistry.Citizen citizen,
                                           boolean loaded) {
@@ -1279,9 +1445,13 @@ public final class KernelSession implements AutoCloseable {
         if (closeRequested) return;
         closeRequested = true;
         blueprintClosing.set(true);
+        if(accomplishmentService!=null)accomplishmentService.close();
+        if(accessService!=null)accessService.close();
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
         if(planner!=null)planner.close();
+        if(organizations!=null)organizations.close();
+        if(mandates!=null)mandates.close();
         if(broker!=null)broker.close();
         closed = true;
         if (model != null) model.close();
@@ -1298,7 +1468,7 @@ public final class KernelSession implements AutoCloseable {
                     opened.retentionService().closeWorker();
                     opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
-                    for (AutoCloseable store : List.of(opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
+                    for (AutoCloseable store : List.of(opened.access(),opened.accomplishments(),opened.mandates(),opened.organizations(),opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {
                             AiVillages.LOG.error("Kernel close failed", closeFailure);

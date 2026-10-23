@@ -49,6 +49,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     private static final double SOURCE_APPROACH_DISTANCE_SQUARED = 0.64;
     private static final double OAK_APPROACH_DISTANCE_SQUARED = 1.15 * 1.15;
     private static final double OAK_SETTLED_MOTION_SQUARED = 0.01 * 0.01;
+    private static final double INTERACTION_REACH = 2.5;
+    private static final double[] LOG_INTERACTION_HEIGHTS = {0.5,0.125,0.875};
     // Preparation recognizes the same actual-item range as native pickup; it
     // must not demand a standing cell under a low ceiling for reachable loot.
     private static final double OAK_DROP_APPROACH_DISTANCE_SQUARED = 2.5 * 2.5;
@@ -64,7 +66,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos settledCell;
         long settledSince = -1;
         boolean endpointRefined;
-        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach, boolean dropApproach,BlockPos reserved) {
+        Route(BlockPos target, UUID runId, boolean sourceApproach, boolean solidApproach, boolean dropApproach,BlockPos reserved,
+              List<NavigationRoute.Approach> resourceApproaches) {
             this.target = target;
             this.runId = runId;
             this.sourceApproach = sourceApproach;
@@ -72,14 +75,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             this.dropApproach = dropApproach;
             this.reserved = reserved;
             List<NavigationRoute.Approach> samples = new ArrayList<>(8);
+            if(resourceApproaches!=null)samples.addAll(resourceApproaches);
             // Wheat source goals remain inside the selected crop cell. Owned oak
             // loot also permits four adjacent standing cells when its own cell
             // is too low or its actual item ray is occluded.
-            if (sourceApproach) samples.add(new NavigationRoute.Approach(
+            if (resourceApproaches==null && sourceApproach) samples.add(new NavigationRoute.Approach(
                     target.getX(), target.getY(), target.getZ()));
             for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-                if (dropApproach ? Math.abs(dx) + Math.abs(dz) == 1
-                        : !sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0)) {
+                if (resourceApproaches==null && (dropApproach ? Math.abs(dx) + Math.abs(dz) == 1
+                        : !sourceApproach && (solidApproach ? Math.abs(dx) + Math.abs(dz) == 1 : dx != 0 || dz != 0))) {
                     double ox=reserved!=null && solidApproach ? .25*dx : 0;
                     double oz=reserved!=null && solidApproach ? .25*dz : 0;
                     samples.add(new NavigationRoute.Approach(target.getX()+dx,target.getY(),target.getZ()+dz,ox,oz));
@@ -296,18 +300,47 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         return canReach(v, Vec3.atCenterOf(p), p);
     }
     private boolean canReach(Villager v, Vec3 target, BlockPos targetBlock) {
-        if (v.distanceToSqr(target) > 6.25) return false;
+        if (v.distanceToSqr(target) > INTERACTION_REACH * INTERACTION_REACH) return false;
         var hit = level.clip(new ClipContext(v.getEyePosition(), target,
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, v));
         return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(targetBlock);
     }
     private Vec3 oakInteractionPoint(Villager v,BlockPos p) {
         if(!loaded(p) || !loaded(v.blockPosition()))return null;
-        for(double height:new double[]{0.5,0.125,0.875}) {
+        for(double height:LOG_INTERACTION_HEIGHTS) {
             var point=new Vec3(p.getX()+.5,p.getY()+height,p.getZ()+.5);
             if(canReach(v,point,p))return point;
         }
         return null;
+    }
+    private Route newRoute(Villager v,BlockPos target,UUID run,boolean sourceApproach,boolean solidApproach,
+                           boolean dropApproach,BlockPos reserved) {
+        return new Route(target,run,sourceApproach,solidApproach,dropApproach,reserved,
+                solidApproach && reserved==null ? logApproaches(v,target) : null);
+    }
+    private List<NavigationRoute.Approach> logApproaches(Villager v,BlockPos target) {
+        var samples=new ArrayList<NavigationRoute.Approach>(8);
+        double lowest=java.util.Arrays.stream(LOG_INTERACTION_HEIGHTS).min().orElseThrow();
+        double highest=java.util.Arrays.stream(LOG_INTERACTION_HEIGHTS).max().orElseThrow();
+        int bottom=(int)Math.ceil(target.getY()+lowest-INTERACTION_REACH);
+        int top=(int)Math.floor(target.getY()+highest+INTERACTION_REACH);
+        // Interaction targets are blocks; path targets are supported feet cells.
+        // Search only the existing reach interval in each adjacent column. Two
+        // empty standing/head cells between supports permit at most two samples
+        // per column here, preserving NavigationRoute's eight-approach bound.
+        for(int dx=-1;dx<=1;dx++)for(int dz=-1;dz<=1;dz++)if(Math.abs(dx)+Math.abs(dz)==1)
+            for(int y=bottom;y<=top;y++) {
+                var foot=target.offset(dx,y-target.getY(),dz);
+                if(!walkable(v,foot))continue;
+                var feet=Vec3.atBottomCenterOf(foot);
+                if(!level.noCollision(v,v.getBoundingBox().move(feet.subtract(v.position()))))continue;
+                boolean inReach=false;
+                for(double height:LOG_INTERACTION_HEIGHTS)
+                    if(feet.distanceToSqr(new Vec3(target.getX()+.5,target.getY()+height,target.getZ()+.5))
+                            <=INTERACTION_REACH*INTERACTION_REACH) {inReach=true;break;}
+                if(inReach)samples.add(new NavigationRoute.Approach(foot.getX(),foot.getY(),foot.getZ()));
+            }
+        return samples;
     }
     private boolean oakApproachGeometry(Villager v, BlockPos target) {
         BlockPos now=v.blockPosition();
@@ -392,7 +425,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(oakApproach && route==null) {
             UUID owner=GatewayControl.owner(v);
             if(owner==null)return new Movement(false,true,0,travel);
-            route=new Route(targetPos,owner,sourceApproach,solidApproach,ownedDrop,reserved);routes.put(v.getUUID(),route);
+            route=newRoute(v,targetPos,owner,sourceApproach,solidApproach,ownedDrop,reserved);routes.put(v.getUUID(),route);
         }
         boolean selectedFace = route == null || route.approachTarget == null
                 || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ()
@@ -426,7 +459,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (route == null) {
             UUID runId = GatewayControl.owner(v);
             if (runId == null) return new Movement(false, true, 0, travel);
-            route = new Route(targetPos, runId, sourceApproach, solidApproach,ownedDrop,reserved);
+            route = newRoute(v,targetPos,runId,sourceApproach,solidApproach,ownedDrop,reserved);
             routes.put(v.getUUID(),route);
         }
         if (route.policy.stage() == NavigationRoute.Stage.FOLLOW_PATH) {
@@ -734,17 +767,39 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourcePickup(actor,id,expected,item);
         Villager v=villager(actor); Entity entity=level.getEntity(id);
         if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive() || !loaded(drop.blockPosition()))
-            return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
+            return pickupRejected(actor,entity,expected,Reason.STALE_OBSERVATION,"actor-or-entity-unavailable");
         if(!level.mayInteract(v,drop.blockPosition()) || !level.getGameRules().get(GameRules.MOB_GRIEFING))
-            return new ItemPickup(0,expected,Reason.AUTHORITY_DENIED);
+            return pickupRejected(actor,drop,expected,Reason.AUTHORITY_DENIED,"current-authority");
         ItemStack stack=drop.getItem();
-        if(!defaultLog(stack,item) || stack.getCount()!=expected) return new ItemPickup(0,expected,Reason.STALE_OBSERVATION);
-        if(drop.hasPickUpDelay() || !canReach(v,drop.position(),drop.blockPosition()))
-            return new ItemPickup(0,expected,Reason.TARGET_UNAVAILABLE);
+        if(!defaultLog(stack,item) || stack.getCount()!=expected)
+            return pickupRejected(actor,drop,expected,Reason.STALE_OBSERVATION,"identity-or-quantity");
+        if(drop.hasPickUpDelay())
+            return pickupRejected(actor,drop,expected,Reason.TARGET_UNAVAILABLE,"native-pickup-delay");
+        if(!canReach(v,drop.position(),drop.blockPosition()))
+            return pickupRejected(actor,drop,expected,Reason.TARGET_UNAVAILABLE,"native-distance-or-ray");
         ItemStack remaining=v.getInventory().addItem(stack.copy()); int moved=stack.getCount()-remaining.getCount();
-        if(moved<=0) return new ItemPickup(0,expected,Reason.TARGET_UNAVAILABLE);
+        if(moved<=0) return pickupRejected(actor,drop,expected,Reason.TARGET_UNAVAILABLE,"native-inventory-capacity");
         if(remaining.isEmpty()) drop.discard(); else drop.setItem(remaining);
         v.getInventory().setChanged(); return new ItemPickup(moved,remaining.getCount(),null);
+    }
+    private ItemPickup pickupRejected(ActorRef actor,Entity entity,int expected,Reason reason,String guard) {
+        if(Boolean.getBoolean("cognitivecraft.gametest.trace") || Boolean.getBoolean("cognitivecraft.navigation.trace")) {
+            var v=villager(actor);
+            boolean inspectRay=v!=null && entity!=null && loaded(v.blockPosition()) && loaded(entity.blockPosition())
+                    && level.mayInteract(v,entity.blockPosition())
+                    && v.distanceToSqr(entity.position())<=INTERACTION_REACH*INTERACTION_REACH;
+            var hit=!inspectRay ? null : level.clip(new ClipContext(v.getEyePosition(),entity.position(),
+                    ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,v));
+            System.out.println("CognitiveCraft LOG_PICKUP rejected guard="+guard+" reason="+reason
+                    +" run="+(v==null ? null : GatewayControl.owner(v))+" actor="+actor.entityId()
+                    +" actorPosition="+(v==null ? null : v.position())+" expected="+expected
+                    +" drop="+(entity==null ? null : entity.getUUID())+" alive="+(entity!=null && entity.isAlive())
+                    +" position="+(entity==null ? null : entity.position())+" cell="+(entity==null ? null : entity.blockPosition())
+                    +" distanceSquared="+(v==null || entity==null ? null : v.distanceToSqr(entity.position()))
+                    +" hitType="+(hit==null ? null : hit.getType())+" hitBlock="+(hit==null ? null : hit.getBlockPos())
+                    +" stack="+(entity instanceof ItemEntity d ? d.getItem() : null)+" tick="+tick());
+        }
+        return new ItemPickup(0,expected,reason);
     }
     @Override public ItemTransfer resourceTransferOne(ActorRef actor,ContainerRef target,ResourceDelivery.ItemIdentity item) {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceTransferOne(actor,target,item);

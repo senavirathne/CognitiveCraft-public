@@ -1,0 +1,297 @@
+{
+  "schema": 1,
+  "unit": "IMP-023",
+  "disposition": "UNCOMMITTED_VERIFICATION_PENDING",
+  "sourceBase": "4d038643449dc5e3da3e9397bcb49f9f39184d6a",
+  "documentationBase": "6535a74794d84a35fc1fe1767f4dae28d4fea4f4",
+  "architecture": "0.5",
+  "organizationSchema": 1,
+  "policyVersion": 1,
+  "workingSourceSha256": "499f606c8af9f8844b9f885047dff0b2693f01594b8789cb45a42945ade7a894",
+  "workingSourceHashDefinition": "sorted relative path + NUL + exact file bytes + NUL, all tracked/nonignored source files except this readiness record",
+  "changedFiles": {
+    ".github/evidence/imp-023-static-validation.json": "f21d1364063bcd15aba4c92aa18c6cddd55a9d3fc684537bdcf5bffc34c3ea17",
+    ".github/workflows/organization-scopes.yml": "39edd137cee982a402c159533143b6bbe56ade5cc43e8aa821c0e3ecadd0a009",
+    "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java": "dc46475e511e0000eb08c15507f4dd9bd40688ca0ce1fa4b89979cc3742c0c5c",
+    "core/src/main/java/dev/aivillages/core/kernel/OrganizationJournal.java": "d7639a9da90681290240ef577b576f9bcd690b78556dc32f36e59231c7b56754",
+    "core/src/main/java/dev/aivillages/core/kernel/OrganizationRegistry.java": "75f4504d5b47af2d16716830be64df9cc6f8d124bea13f1e8c5cbbc9d220d2a6",
+    "core/src/main/java/dev/aivillages/core/kernel/Organizations.java": "b3c9972562c149c572ae380621097872379f3aefc70cb3928fbd6b3831e9a83c",
+    "core/src/main/java/dev/aivillages/core/kernel/SaveCompatibility.java": "18ed1b971f11a2fc656df0b32aaa7cb3778c2f5e60af76fb7ed354acfad2df4d",
+    "core/src/test/java/dev/aivillages/core/kernel/OrganizationIntegrationTest.java": "7c7247636254f69335c0de3c187ce0d2a034ecfd3409482d6f9ba3217cd134f1",
+    "core/src/test/java/dev/aivillages/core/kernel/OrganizationJournalTest.java": "ed2a077d1174d3934a2b5bccac0d36e8c8dad49cc31063fb2a8502d182c3e5c5",
+    "core/src/test/java/dev/aivillages/core/kernel/OrganizationRegistryTest.java": "817306d744a62fc4a2167cb3b519dd42f6fa66f946ffcabf786908d6e5c7bd25",
+    "fabric/src/main/java/dev/aivillages/fabric/KernelSession.java": "b640250ed5b43a729c6a61c3ef372ba78554df4b1bbcbda8a23f1158e6341627"
+  },
+  "prerequisiteInterfaces": {
+    "CitizenRegistry.java": "f829158200f0e1e8581acc9c1986f148110b97a92ef64453a06eaa2dcacad3d2",
+    "CitizenIdentityStore.java": "751fa31f9ece41e4e5d90038995cba500f5ccac12b144f2141076938b853c030",
+    "Jobs.java": "5aebfb7d43328ad3a569f09bf6fe82fe13198ed04d57a610cd199527e79031a7",
+    "JobLifecycleStore.java": "dc46475e511e0000eb08c15507f4dd9bd40688ca0ce1fa4b89979cc3742c0c5c",
+    "JobJournal.java": "b550da2a14cfba1490424ec05dc894d2f77cb5a64e5d9ddda96f753c9a0c2d68",
+    "SaveCompatibility.java": "18ed1b971f11a2fc656df0b32aaa7cb3778c2f5e60af76fb7ed354acfad2df4d",
+    "RetentionRoots.java": "6cd422a55026a1470b5e57d247413ea246bc56c6d06c04bf164a5c1363aa1a5f",
+    "RetentionFileOwner.java": "14987725baef623e964558d70db68f58ef6805ceefcd48578c29df7b96a96dd3",
+    "WorldRetentionManager.java": "c5051bade92501b373b6b1000fefc765b09175b86b4318a47219e6ed6260b20f"
+  },
+  "declaredTestInvocations": {
+    "OrganizationRegistryTest": 69,
+    "OrganizationJournalTest": 27,
+    "OrganizationIntegrationTest": 5
+  },
+  "executedJavaTests": 0,
+  "javaBuildsRun": false,
+  "published": false,
+  "merged": false,
+  "clientBoundary": "NOT_CLIENT_EXPOSED",
+  "limits": {
+    "scopes": 16,
+    "temporaryParties": 8,
+    "membersPerScope": 16,
+    "jobLinksPerScope": 16,
+    "namedContextsPerSet": 8,
+    "policyBytes": 4096,
+    "queryResults": 8,
+    "privateLinkFilterWork": 16,
+    "historyPerScope": 8,
+    "expiryInspectionsPerTick": 4,
+    "snapshotBytes": 262144,
+    "physicalEnvelopeBytes": 786432,
+    "admissionRecords": 1968,
+    "ttlMillis": 604800000,
+    "acknowledgementMillis": 30000
+  },
+  "permittedStaticChecks": [
+    "git diff --check",
+    "workflow YAML/embedded Python parse",
+    "declared matrix/selector counts",
+    "Java lexical delimiters only",
+    "new core import boundary",
+    "8 pinned documentation Git blob hashes",
+    "source/documentation patches apply to pinned baselines",
+    "archive integrity and artifact hashes",
+    "real source index remains unstaged"
+  ],
+  "requiredUnrunCommands": [
+    "bash gradlew :core:test",
+    "bash gradlew :fabric:build",
+    "bash gradlew :providers:test :fabric:test :fabric:gameTestJar"
+  ],
+  "workflow": ".github/workflows/organization-scopes.yml",
+  "baselineChecks": [
+    {
+      "name": "Real Minecraft gameplay acceptance",
+      "id": 38377837499,
+      "status": "completed",
+      "conclusion": "failure",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "CognitiveCraft verification",
+      "id": 38377609800,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Research local-model physical trial",
+      "id": 38377609969,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Real Minecraft gameplay acceptance",
+      "id": 38377610015,
+      "status": "completed",
+      "conclusion": "cancelled",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Primitive diagnostics acceptance",
+      "id": 38377609596,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Capability retrieval acceptance",
+      "id": 38377609865,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Save and artifact compatibility acceptance",
+      "id": 38377610056,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Bounded goal planning acceptance",
+      "id": 38377609758,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Deterministic prerequisite acceptance",
+      "id": 38377609838,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Worker dispatcher acceptance",
+      "id": 38377609826,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "World retention acceptance",
+      "id": 38377610031,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Citizen identity acceptance",
+      "id": 38377609761,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Observed world knowledge acceptance",
+      "id": 38377609750,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "AI work broker acceptance",
+      "id": 38377609598,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Default nearest physical acceptance",
+      "id": 38377610044,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Resource lease acceptance",
+      "id": 38377609747,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Blueprint artifact boundary acceptance",
+      "id": 38377609835,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Real Minecraft client E2E smoke",
+      "id": 38377609720,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Local generation smoke",
+      "id": 38377609797,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Needle language acceptance",
+      "id": 38377609623,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "Job lifecycle acceptance",
+      "id": 38377609814,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    },
+    {
+      "name": "RB-001 oak-log acquisition acceptance",
+      "id": 38377609588,
+      "status": "completed",
+      "conclusion": "success",
+      "sha": "4d038643449dc5e3da3e9397bcb49f9f39184d6a"
+    }
+  ],
+  "publicationPolicy": "Return locally uncommitted; do not publish or bypass policy with local compilation. Actions require authorization to publish a review branch.",
+  "sourceWorkspace": "/workspace/scratch/c176a6e2e73b/CognitiveCraft-public-current",
+  "originalPreparationBase": "bf6b985d3d37c4a1529ae31723bc672f96e69ac2",
+  "jobReadableSchemas": [
+    1,
+    2
+  ],
+  "historicalInitialBaselineChecks": [
+    {
+      "runId": 38219705381,
+      "name": "CognitiveCraft verification",
+      "conclusion": "success"
+    },
+    {
+      "runId": 38219705444,
+      "name": "Blueprint artifact boundary acceptance",
+      "conclusion": "success"
+    },
+    {
+      "runId": 38219705348,
+      "name": "Needle language acceptance",
+      "conclusion": "success"
+    },
+    {
+      "runId": 38230831233,
+      "name": "Real Minecraft gameplay acceptance",
+      "conclusion": "failure",
+      "failedJobId": 114749602661,
+      "family": "E2E-AI-001",
+      "outcome": "BLOCKED",
+      "reason": "TARGET_UNAVAILABLE",
+      "predatesChange": true
+    }
+  ],
+  "recoveredPackageVersion": 2,
+  "recoveredSourceSha256": "023200531d02da4f3e22df1d78a977788342dbab55f145c58339c5a181652132",
+  "staticValidation": ".github/evidence/imp-023-static-validation.json",
+  "continuationCorrections": [
+    "exclusive stage creation and current/backup/stage drift checks",
+    "closed-writer publication fence and idempotent close",
+    "departed contributor revocation after expired-party reload"
+  ],
+  "baselineClientFailure": {
+    "run": 38377837499,
+    "failedJob": 115243842502,
+    "source": "4d038643449dc5e3da3e9397bcb49f9f39184d6a",
+    "clientJobs": "success",
+    "stage": "exact-head owner-evidence qualification",
+    "newImplementationExecuted": false
+  },
+  "prerequisiteBaselineSha256": {
+    "CitizenRegistry.java": "f829158200f0e1e8581acc9c1986f148110b97a92ef64453a06eaa2dcacad3d2",
+    "CitizenIdentityStore.java": "751fa31f9ece41e4e5d90038995cba500f5ccac12b144f2141076938b853c030",
+    "Jobs.java": "5aebfb7d43328ad3a569f09bf6fe82fe13198ed04d57a610cd199527e79031a7",
+    "JobLifecycleStore.java": "17dc870aaaa6d04c02333728e5bcb624a1c8440a94ebc63af0f39f8595bc3e0e",
+    "JobJournal.java": "b550da2a14cfba1490424ec05dc894d2f77cb5a64e5d9ddda96f753c9a0c2d68",
+    "SaveCompatibility.java": "303992a4c438e36d9b21f75707bcb863704eb113ec3fd9a9f5e7dac243207235",
+    "RetentionRoots.java": "6cd422a55026a1470b5e57d247413ea246bc56c6d06c04bf164a5c1363aa1a5f",
+    "RetentionFileOwner.java": "14987725baef623e964558d70db68f58ef6805ceefcd48578c29df7b96a96dd3",
+    "WorldRetentionManager.java": "c5051bade92501b373b6b1000fefc765b09175b86b4318a47219e6ed6260b20f"
+  }
+}

@@ -42,7 +42,8 @@ public final class NeedleWire {
         boolean plank=birchPlank || classification.intent()==LanguageReferenceClassifier.Intent.MAKE_OAK_PLANKS || stick || axe || table;
         String sourceAlias=sourceAlias(classification.intent());
         String resource=birch ? "birch logs" : birchPlank ? "birch planks" : table ? "crafting tables" : axe ? "wooden axes" : stick ? "sticks" : plank ? "oak planks" : oak ? "oak logs" : "wheat";
-        String prompt = input.text(), from = null, through = null, destination = null;
+        String prompt = classification.production()==null ? input.text() : classification.production().modelText();
+        String from = null, through = null, destination = null;
         if(axe || table) {
             // Disposable textual normalization only. Core independently grounds the original text.
             prompt=Pattern.compile("(?i)(\\b(?:make|craft|produce)\\s+)(?:(?:me|us)\\s+)?a(\\s+(?:wooden\\s+axe|crafting\\s+table)\\b)").matcher(prompt).replaceAll(m->java.util.regex.Matcher.quoteReplacement(m.group(1)+"1"+m.group(2)));
@@ -60,26 +61,30 @@ public final class NeedleWire {
         if (classification.source().state() == ReferenceState.EXPLICIT_CONCRETE) {
             from = classification.source().first();
             through = classification.source().second();
-            var source = Pattern.compile(plank ? "\\bfrom\\s+(?:the\\s+)?(?:chest|container|barrel)\\s+(?:at\\s+)?("+COORD+")"
-                    : "\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
-                    Pattern.CASE_INSENSITIVE).matcher(prompt);
-            if (source.find()) prompt = prompt.substring(0, source.start()) + "from "+sourceAlias + prompt.substring(source.end());
-        }
-        if (classification.destination().state() == ReferenceState.EXPLICIT_CONCRETE) {
-            destination = classification.destination().first();
-            var target = Pattern.compile("\\b(deliver|deposit|put|store)\\b.{0,200}?\\b(?:at|to|into|in)\\s+"
-                    + "(?:the\\s+)?(?:(?:chest|container|barrel)\\s+(?:at\\s+)?)?(" + COORD + ")",
-                    Pattern.CASE_INSENSITIVE).matcher(prompt);
-            if (target.find()) {
-                String verb = target.group(1);
-                prompt = prompt.substring(0, target.start()) + verb + " to chest" + prompt.substring(target.end());
+            if (plank) {
+                prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.source(), sourceAlias, "from");
+            } else {
+                var source = Pattern.compile("\\bfrom\\s+(" + COORD + ")\\s+through\\s+(" + COORD + ")",
+                        Pattern.CASE_INSENSITIVE).matcher(prompt);
+                if (source.find()) prompt = prompt.substring(0, source.start()) + "from "+sourceAlias + prompt.substring(source.end());
             }
         }
 
+        if (classification.destination().state() == ReferenceState.EXPLICIT_CONCRETE) {
+            destination = classification.destination().first();
+            prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.destination(), "chest", "at|to|into|in");
+        }
+
         if (classification.source().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\bfrom\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:field|farm|(?:oak|birch)\\s+logs?|log\\s+area|chest|container|barrel)\\b", "from "+sourceAlias);
+            prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.source(), sourceAlias, "from");
         if (classification.destination().state() == ReferenceState.EXPLICIT_NEAREST)
-            prompt = prompt.replaceFirst("(?i)\\b(?:to|into|in)\\s+(?:the\\s+)?nearest\\s+(?:suitable\\s+)?(?:chest|container|barrel)\\b", "to chest");
+            prompt = dev.aivillages.core.kernel.WorldReferenceLanguage.alias(prompt, classification.destination(), "chest", "at|to|into|in");
+
+        // Facility binding is host-only and has no field in this model tool schema.
+        // Keep its independently grounded raw descriptor, omitting that transport span.
+        if (axe && statedReference(classification.table().state()))
+            prompt=Pattern.compile("\\s+(?:and\\s+)?(?:at|using)\\s+"+Pattern.quote(classification.table().evidence())
+                    +"(?=\\s|[.!?;]|$)",Pattern.CASE_INSENSITIVE).matcher(prompt).replaceFirst("");
 
         String explicitId = null;
         String explicitCitizen = classification.actor().state() == ReferenceState.EXPLICIT_CONCRETE
@@ -195,7 +200,10 @@ public final class NeedleWire {
 
             if (prepared.classification().actor().state() == ReferenceState.EXPLICIT_UNSUPPORTED
                     || prepared.classification().source().state() == ReferenceState.EXPLICIT_UNSUPPORTED
-                    || prepared.classification().destination().state() == ReferenceState.EXPLICIT_UNSUPPORTED)
+                    || prepared.classification().destination().state() == ReferenceState.EXPLICIT_UNSUPPORTED
+                    || prepared.classification().table().state() == ReferenceState.EXPLICIT_UNSUPPORTED
+                    || prepared.classification().production()!=null && prepared.classification().production().issue()
+                            !=dev.aivillages.core.kernel.ProductionLanguage.Issue.NONE)
                 return LanguageRequests.Result.clarification();
             return switch (tool) {
                 case "harvest_wheat" -> prepared.classification().intent()==LanguageReferenceClassifier.Intent.HARVEST_WHEAT

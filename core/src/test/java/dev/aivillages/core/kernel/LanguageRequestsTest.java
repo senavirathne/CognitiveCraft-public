@@ -289,7 +289,7 @@ class LanguageRequestsTest {
         assertEquals(LanguageRequests.Phase.SUBMITTED, f.complete(f.ask(TEXT.replace("Ada", id)),
                 extraction(id, 4L, "0,64,0", "2,64,2", "5,64,0")).phase());
     }
-    @Test void unboundChestClarifiesAndCannotInventCoordinates() {
+    @Test void nearestDemonstrativeRejectsInventedModelCoordinates() {
         var f = new Fixture(); var id = f.ask("Ada harvest 4 wheat from 0,64,0 through 2,64,2 into this chest");
         assertEquals(LanguageRequests.Phase.CLARIFICATION, f.complete(id).phase()); assertEquals(0, f.submissions);
     }

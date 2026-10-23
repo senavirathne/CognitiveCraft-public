@@ -1,0 +1,13 @@
+# All-branch integration — 23 October 2026
+
+The user authorized continuing until all published branches are merged into main. The source inventory in `all-branches-source.json` records all 54 non-main branch heads observed at the start. Integration preserves their ancestry and the current main baseline `a630cdcbabaaf04786d3b068cafdabbe19613b76`.
+
+The current physical-execution and natural-language/planning workstreams combine without code conflicts. Accomplishment, supervised knowledge, organization, delegation and ordinary citizen lifecycle owners are reconciled through the existing resolver, dispatcher, gateway, persistence and session owners. The resolver preserves resource/facility prerequisite entry points when selecting a Job-specific knowledge policy. Delegated effects retain target-time scope checks; lifecycle unavailability remains an immediate direct-authority fence. All stores remain registered, bounded and closed through their existing owners.
+
+The older connected-client branch is superseded by the subsequently qualified main/client implementation. Its history is retained without restoring obsolete workflows, instrument versions or physical owners. Diagnostic/evidence branches are also retained; their archival workflows keep their original restricted triggers. No frozen case, recipe catalog, model, execution allowance or acceptance assertion is relaxed.
+
+The original frozen assessment and its original production baseline remain unchanged. A separate integration workflow records the actual new JAR and complete production inventory at the reviewed commit, then uses the same 45 cases, exact expectations, frame/client identity checks, outcome classifications and conservation evidence. Its measurement collection is not a gameplay-success score gate. A complete measurement report must retain any failure rather than call it successful gameplay.
+
+The six Agent 2 focused workflows also accept this integration branch so genuine interpretation and planning measurements can qualify the combined source. Required source builds, native execution and actual models run in GitHub Actions. Local Python harness validation passes 72 cases; source/native/model qualification is pending until the exact new campaign concludes. No integration PASS or merge is claimed by this preparation record.
+
+The final documentation integration records exact source campaign identities, failures and fixes, merge commits, original history and independently executed local audit results. Documentation GitHub Actions remain excluded. The live branch inventory is checked again at completion so a branch that moves during qualification cannot be silently counted as integrated.

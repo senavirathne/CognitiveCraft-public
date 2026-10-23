@@ -106,7 +106,7 @@ final class SaveCompatibilityTest {
             identities.replace(imported,new CitizenRegistry.Snapshot(imported.worldId(),imported.revision()+1,
                     imported.citizens(),imported.migration()));
         }
-        String future=Files.readString(citizens(world)).replace("\"schema\":1","\"schema\":"+Long.MAX_VALUE);
+        String future=Files.readString(citizens(world)).replace("\"schema\":"+CitizenIdentityStore.SCHEMA,"\"schema\":"+Long.MAX_VALUE);
         Files.writeString(citizens(world),future);var before=ArtifactCompatibilityTest.hashes(world);
         try(var journal=BootstrapJournal.open(world);var identities=CitizenIdentityStore.open(world,legacy.worldId())) {
             var plan=inspectBootstrap(journal,identities);
@@ -202,7 +202,7 @@ final class SaveCompatibilityTest {
     }
     @Test void readerRegistryIsExplicitFiniteAndDoesNotClaimInventedArtifactMigrations() {
         assertTrue(registered().readable(new Format("bootstrap",1)));assertTrue(registered().readable(new Format("bootstrap",2)));
-        assertEquals(2,registered().rules().size());assertFalse(registered().migration(new Format("skill-body",1)).isPresent());
+        assertEquals(3,registered().rules().size());assertFalse(registered().migration(new Format("skill-body",1)).isPresent());
         assertTrue(registered().readable(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)));
         assertTrue(registered().readable(new Format(ObservedWorldKnowledgeStore.DOMAIN,2)));
         assertTrue(registered().migration(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)).isPresent());

@@ -64,16 +64,19 @@ class NeedleAdapterTest {
         assertFalse(tools.contains("permission")); assertFalse(tools.contains("budget")); assertFalse(tools.contains("principal"));
         assertTrue(tools.length() < 8192);
     }
-    @Test void disposableReferencesKeepOnlyExplicitCoordinatesAndCannotFillMissingChest() {
+    @Test void disposableReferencesKeepExplicitCoordinatesAndNearestSelectionSeparate() {
         var prepared = NeedleWire.prepare(input());
         assertEquals("0,64,0", prepared.from()); assertEquals("2,64,2", prepared.through());
         assertEquals("5,64,0", prepared.destination()); assertTrue(prepared.text().contains("from farm"));
         var missing = NeedleWire.prepare(new LanguageRequests.Input("Ada harvest 4 wheat into this chest", List.of("Ada")));
         assertNull(missing.from()); assertNull(missing.through()); assertNull(missing.destination());
-        assertEquals(dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState.EXPLICIT_UNSUPPORTED,
+        assertEquals(dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState.EXPLICIT_NEAREST,
                 missing.classification().destination().state());
-        assertEquals(LanguageRequests.Kind.CLARIFICATION,
+        assertEquals(LanguageRequests.Kind.INVALID,
                 NeedleWire.decode(OUTPUT.getBytes(StandardCharsets.UTF_8), missing).kind());
+        var automatic = NeedleWire.decode(OUTPUT.replace(",\"source\":\"farm\"", "").getBytes(StandardCharsets.UTF_8), missing);
+        assertEquals(LanguageRequests.Kind.EXTRACTED, automatic.kind());
+        assertNull(automatic.extracted().destination());
     }
 
     @Test void omittedWorldReferencesAreAbsentFromToolSchemaAndRemainNullInExtraction() {
