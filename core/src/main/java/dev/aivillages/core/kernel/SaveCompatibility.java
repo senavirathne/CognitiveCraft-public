@@ -13,6 +13,8 @@ import static dev.aivillages.core.kernel.Contracts.*;
 /** IMP-015 policy 1. Registered readers and owner-only, off-thread, quiescent migration coordination. */
 public final class SaveCompatibility {
     public static final int POLICY = 1;
+    /** Finite trusted owner table; independent persistence features share this registration budget. */
+    public static final int MAX_READER_REGISTRATIONS = 32;
     public static final String BOOTSTRAP = "bootstrap", CITIZENS = "citizens";
     private SaveCompatibility() { }
 
@@ -41,7 +43,7 @@ public final class SaveCompatibility {
     public record Registry(List<Reader> readers, List<Rule> rules) {
         public Registry {
             readers = List.copyOf(readers); rules = List.copyOf(rules);
-            if (readers.size() > 16 || rules.size() > 16
+            if (readers.size() > MAX_READER_REGISTRATIONS || rules.size() > 16
                     || readers.stream().map(Reader::domain).distinct().count() != readers.size()
                     || rules.stream().map(Rule::source).distinct().count() != rules.size())
                 throw new IllegalArgumentException("Compatibility registrations");
