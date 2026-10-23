@@ -21,3 +21,9 @@ The final documentation integration records exact source campaign identities, fa
 ### Acquisition evidence across delivery families
 
 Combined native checks exposed that IMP-022 reconciled only crop acquisitions: real resource admissions became `KNOWLEDGE_REQUIRED` on reuse. Acquisition reconciliation now accepts every registered delivery family through the existing `ResourceDelivery` receipt verifier. It validates acknowledged Jobs bindings, enrollment, exact method/run references, full physical lineage, cumulative credit and cross-job receipt reuse before publishing the first shared method revision. Crop accomplishment/teaching evidence keeps its existing scope; personal learners and future method revisions do not inherit access. A focused integration test rejects a successful status with incomplete resource receipts and checks shared use, personal isolation, foreign ownership, exact revision and restart persistence.
+
+### Loaded-only nearest observation domain
+
+The unchanged Needle native fixture exposed a second integration regression: the new typed generic container scan treated every unloaded cell in its bounded envelope as uncertain evidence, unlike the existing loaded-only nearest contract. The Fabric adapter now excludes cells outside the eligible loaded domain for all container types and facilities. Unknown evidence for a loaded object still fails closed; selected objects that unload are rejected by final freshness validation. No chunks are loaded and no fallback to a different object type is added. The original native fixture, quantities and expected bindings are unchanged.
+
+The combined frozen qualification workflow now triggers on production source changes as well as its corpus/instrumentation paths, ensuring later integration fixes receive an exact-head production build and frozen-case run. The original corpus, prompts and expectations remain byte-identical.

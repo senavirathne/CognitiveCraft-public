@@ -40,8 +40,11 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
         WorldReferenceDiscovery.Observation observations = new WorldReferenceDiscovery.Observation() {
             private ObservationStatus containerType(ActorRef actor,ContainerRef target,ObjectType type,Effect effect) {
                 var pos=new BlockPos(target.x(),target.y(),target.z());
-                if(!target.dimension().equals(anchor.dimension()) || !world.loadedForDiscovery(pos)
-                        || !world.discoverable(actor,pos,effect))return ObservationStatus.UNKNOWN;
+                if(!target.dimension().equals(anchor.dimension()))return ObservationStatus.UNKNOWN;
+                // Nearest search ranges over eligible loaded objects. Unloaded cells are
+                // outside that domain, while uncertain observations inside it remain UNKNOWN.
+                if(!world.loadedForDiscovery(pos))return ObservationStatus.ABSENT;
+                if(!world.discoverable(actor,pos,effect))return ObservationStatus.UNKNOWN;
                 var state=player.level().getBlockState(pos);
                 boolean matches=switch(type) {
                     case BARREL -> state.is(net.minecraft.world.level.block.Blocks.BARREL);
@@ -67,7 +70,11 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             @Override public SurvivalGateway.ActorState actor(ActorRef actor) { return world.actor(actor); }
             @Override public WorldReferenceDiscovery.FacilitySample facility(ActorRef actor,FacilityRef table) {
                 var pos=new BlockPos(table.x(),table.y(),table.z());
-                if(!table.dimension().equals(anchor.dimension()) || !world.loadedForDiscovery(pos) || !world.discoverable(actor,pos,Effect.CRAFT))
+                if(!table.dimension().equals(anchor.dimension()))
+                    return new WorldReferenceDiscovery.FacilitySample(ObservationStatus.UNKNOWN,"wrong-dimension");
+                if(!world.loadedForDiscovery(pos))
+                    return new WorldReferenceDiscovery.FacilitySample(ObservationStatus.ABSENT,"outside-loaded-domain");
+                if(!world.discoverable(actor,pos,Effect.CRAFT))
                     return new WorldReferenceDiscovery.FacilitySample(ObservationStatus.UNKNOWN,"unavailable");
                 var level=player.level();
                 if(!level.getBlockState(pos).is(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE))return new WorldReferenceDiscovery.FacilitySample(ObservationStatus.ABSENT,"not-table");

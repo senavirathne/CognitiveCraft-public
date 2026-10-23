@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [integration/all-branches-20261023]
-    paths: ['e2e/**', 'scripts/verify-generalization.py', '.github/workflows/integration-qualification.yml', 'scripts/verify-integration.py', '.github/implementation/all-branches-source.json']
+    paths: ['core/**', 'providers/**', 'fabric/**', 'e2e/**', 'scripts/verify-generalization.py', '.github/workflows/integration-qualification.yml', 'scripts/verify-integration.py', '.github/implementation/all-branches-source.json']
 permissions:
   contents: read
 concurrency:
