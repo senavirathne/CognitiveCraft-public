@@ -19,6 +19,9 @@ jobs:
       JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -73,6 +76,9 @@ jobs:
     timeout-minutes: 65
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

@@ -162,9 +162,12 @@ def main():
     selected=[a for a in artifacts if a["name"] in ("dropped-logs-native"+suffix,"dropped-logs-connected"+suffix)]
     assert len(selected)==2
     results=[review(m,args.root,True) for m in selected]
-    assert all(r["head"]==os.environ["GITHUB_SHA"] for r in results)
+    expected_head=os.environ.get("EXPECTED_HEAD_SHA",os.environ["GITHUB_SHA"])
+    assert all(r["head"]==expected_head for r in results)
     client=next(r for r in results if r.get("cases"))
     native=next(r for r in results if r.get("moduleCases"))
+    assert client["metadata"]["sourceCommit"]==expected_head
+    assert client["metadata"]["reviewedHeadCommit"]==expected_head
     assert client["status"]=="PASS" and all(c["status"]=="PASS" for c in client["cases"])
     assert native["moduleCases"]["nonpassing"]==0 and len(native["nativePhases"])==2
     assert sum(len(p["caseNames"]) for p in native["nativePhases"])==9
@@ -189,6 +192,6 @@ def main():
                       "changedMembers":changed,"unchangedMembers":len(previous)-len(changed),"added":0,"removed":0})
     (args.root/"production-member-comparison.json").write_text(json.dumps(diffs,indent=2)+"\n")
     print("TASK3_BINARY_MEMBER_REVIEW "+json.dumps(diffs,separators=(",",":")),flush=True)
-    print("TASK3_COMPLETE_ARCHIVE_REVIEW_PASS",os.environ["GITHUB_SHA"],flush=True)
+    print("TASK3_COMPLETE_ARCHIVE_REVIEW_PASS",expected_head,flush=True)
 
 if __name__=="__main__":main()
