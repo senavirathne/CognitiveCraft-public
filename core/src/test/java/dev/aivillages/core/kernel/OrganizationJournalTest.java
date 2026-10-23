@@ -208,7 +208,10 @@ class OrganizationJournalTest {
         assertTrue(registry.readable(new SaveCompatibility.Format(Organizations.DOMAIN, 1)));
         assertFalse(registry.readable(new SaveCompatibility.Format(Organizations.DOMAIN, 2)));
         assertTrue(registry.migration(new SaveCompatibility.Format(Organizations.DOMAIN, 1)).isEmpty());
-        assertEquals(2, registry.rules().size());
+        assertEquals(3, registry.rules().size());
+        var lifecycle = registry.migration(new SaveCompatibility.Format(SaveCompatibility.CITIZENS, 1)).orElseThrow();
+        assertEquals(new SaveCompatibility.Format(SaveCompatibility.CITIZENS, CitizenIdentityStore.SCHEMA), lifecycle.target());
+        assertFalse(lifecycle.executableSemanticsChange());
     }
     @Test void retentionAccountsScopeHistoryAndAllRecoveryEnvelopesWithoutDeletingReferences() throws Exception {
         try (var journal = OrganizationJournal.open(world, WORLD)) {

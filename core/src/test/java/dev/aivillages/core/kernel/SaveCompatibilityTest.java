@@ -208,8 +208,8 @@ final class SaveCompatibilityTest {
         assertTrue(registered().migration(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)).isPresent());
         for(long version:List.of(3L,Long.MAX_VALUE))assertFalse(registered().readable(new Format("bootstrap",version)));
         assertFalse(registered().readable(new Format("future-world-knowledge",1)));
-        var readers=new ArrayList<Reader>();for(int i=0;i<16;i++)readers.add(new Reader("domain-"+i,1,Set.of(1)));
-        assertEquals(16,new Registry(readers,List.of()).readers().size());readers.add(new Reader("overflow",1,Set.of(1)));
+        var readers=new ArrayList<Reader>();for(int i=0;i<MAX_READER_REGISTRATIONS;i++)readers.add(new Reader("domain-"+i,1,Set.of(1)));
+        assertEquals(MAX_READER_REGISTRATIONS,new Registry(readers,List.of()).readers().size());readers.add(new Reader("overflow",1,Set.of(1)));
         assertThrows(IllegalArgumentException.class,()->new Registry(readers,List.of()));
         assertThrows(IllegalArgumentException.class,()->new Registry(List.of(new Reader("a",1,Set.of(1))),List.of(
                 new Rule(new Format("a",2),new Format("a",1),false))));
