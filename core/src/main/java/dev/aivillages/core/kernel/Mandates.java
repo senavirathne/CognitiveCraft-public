@@ -27,7 +27,7 @@ public final class Mandates {
             workers = Set.copyOf(workers); actions = Set.copyOf(actions);
             resources = Set.copyOf(resources); containers = Set.copyOf(containers);
             Objects.requireNonNull(area);
-            if (workers.isEmpty() || workers.size() > 8 || actions.isEmpty() || actions.size() > 7
+            if (workers.isEmpty() || workers.size() > 8 || actions.isEmpty() || actions.size() > Effect.values().length
                     || resources.isEmpty() || resources.size() > 4 || containers.isEmpty() || containers.size() > 4
                     || workers.stream().map(ActorRef::citizenId).distinct().count() != workers.size()
                     || workers.stream().anyMatch(a -> !a.dimension().equals(area.dimension()))

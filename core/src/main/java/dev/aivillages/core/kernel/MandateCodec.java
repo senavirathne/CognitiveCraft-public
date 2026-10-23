@@ -30,7 +30,7 @@ final class MandateCodec {
         var rights = object(row,"rights","$"); exact(rights,"workers","actions","resources","area","containers");
         var workers = new HashSet<ActorRef>(); for (Object value : list(rights,"workers",8))
             unique(workers.add(JobCodec.actor(map(value))));
-        var actions = EnumSet.noneOf(Effect.class); for (Object value : list(rights,"actions",7)) unique(actions.add(Effect.valueOf((String)value)));
+        var actions = EnumSet.noneOf(Effect.class); for (Object value : list(rights,"actions",Effect.values().length)) unique(actions.add(Effect.valueOf((String)value)));
         var resources = new HashSet<String>(); for (Object value : list(rights,"resources",4)) unique(resources.add((String)value));
         var containers = new HashSet<ContainerRef>(); for (Object value : list(rights,"containers",4)) unique(containers.add(JobCodec.container(map(value))));
         var events = new ArrayList<Event>(); for (Object value : list(row,"events",8)) {
