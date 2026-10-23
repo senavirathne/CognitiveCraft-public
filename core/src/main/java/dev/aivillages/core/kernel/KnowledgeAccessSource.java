@@ -41,12 +41,15 @@ public final class KnowledgeAccessSource {
     Jobs.Job verified(UUID id,JobOutcomeSource.Work work){
         var state=jobs.get();if(state==null)throw new JobOutcomeSource.Invalid();
         var job=state.jobs().stream().filter(j->j.id().equals(id)).findFirst().orElseThrow(JobOutcomeSource.Invalid::new);
-        return outcomes.read(Accomplishments.OutcomeRef.of(job),work).job();
+        return outcomes.readDelivery(Accomplishments.OutcomeRef.of(job),work).job();
     }
     /** Ledger progress and actual Jobs receipts must both support the exact successful run. */
     boolean learned(Jobs.Job job,ArtifactRef method,ActorRef learner,JobOutcomeSource.Work work){
         if(job.state()!=Jobs.State.SUCCEEDED||job.current()==null||job.current().uncertain())return false;
         var attempt=job.current();if(!attempt.worker().equals(learner))return false;
+        if(ResourceDelivery.resource(job.request().request().capability()))return attempt.terminal()!=null
+                &&attempt.terminal().status()==Outcomes.ExecutionStatus.SUCCEEDED
+                &&attempt.executions().stream().anyMatch(e->e.artifact().equals(method)&&JobOutcomeSource.completed(attempt,e,work));
         var state=evidence.get();if(state==null||!state.world().equals(job.origin().scope().worldId()))return false;
         var progress=state.progress().stream().filter(p->p.job().equals(job.id())&&p.revision()>=job.revision()&&p.completed()).findFirst().orElse(null);
         return progress!=null&&attempt.executions().stream().anyMatch(e->e.artifact().equals(method)&&JobOutcomeSource.completed(attempt,e,work));

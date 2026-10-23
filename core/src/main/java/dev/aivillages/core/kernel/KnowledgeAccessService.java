@@ -30,7 +30,7 @@ public final class KnowledgeAccessService implements AutoCloseable {
         }
         var job=jobs.jobs().get(cursor++);
         var practice=store.snapshot().practices().stream().filter(p->p.job().equals(job.id())&&p.stage()==Stage.PRACTICING).findFirst().orElse(null);
-        if(practice==null&&(job.state()!=Jobs.State.SUCCEEDED||!job.request().request().capability().equals(CropDelivery.ID)))return;
+        if(practice==null&&(job.state()!=Jobs.State.SUCCEEDED||!ResourceDelivery.isDelivery(job.request().request().capability())))return;
         try{pending=CompletableFuture.supplyAsync(()->practice!=null
                 ?store.recordLearningOutcome(job.id(),practice.learner().owner(),closed::get)
                 :store.recordAcquisition(job.id(),closed::get),worker);

@@ -22,13 +22,16 @@ public final class JobOutcomeSource {
     static final class Stale extends RuntimeException { }
     record Verified(Jobs.Job job,Map<UUID,CitizenRegistry.Citizen> citizens) { }
 
-    Verified read(OutcomeRef reference,Work work){
+    Verified read(OutcomeRef reference,Work work){return read(reference,work,false);}
+    Verified readDelivery(OutcomeRef reference,Work work){return read(reference,work,true);}
+    private Verified read(OutcomeRef reference,Work work,boolean resources){
         var snapshot=jobs.get();var identities=citizens.get();
         if(snapshot==null||identities==null||!reference.world().equals(snapshot.worldId())||!reference.world().equals(identities.worldId()))throw new Invalid();
         Jobs.Job selected=null;
         for(var job:snapshot.jobs()){work.step();if(job.id().equals(reference.job()))selected=job;}
         if(selected==null)throw new Invalid();
         if(selected.revision()!=reference.revision())throw new Stale();
+        if(resources&&ResourceDelivery.resource(selected.request().request().capability()))return readResource(snapshot,identities,selected,work);
         if(!selected.request().request().capability().equals(CropDelivery.ID))throw new Invalid();
         var index=new HashMap<UUID,CitizenRegistry.Citizen>();
         for(var citizen:identities.citizens()){work.step();index.put(citizen.actor().citizenId(),citizen);}
@@ -62,9 +65,52 @@ public final class JobOutcomeSource {
         }
         return new Verified(selected,Map.copyOf(index));
     }
+    /** Reuse the same receipt-family verifiers as Jobs; a terminal status alone teaches nothing. */
+    private Verified readResource(Jobs.Snapshot snapshot,CitizenRegistry.Snapshot identities,Jobs.Job selected,Work work){
+        var index=new HashMap<UUID,CitizenRegistry.Citizen>();
+        for(var citizen:identities.citizens()){work.step();index.put(citizen.actor().citizenId(),citizen);}
+        var ids=new HashSet<UUID>();
+        for(var attempt:selected.attempts()){
+            work.step();var citizen=index.get(attempt.worker().citizenId());
+            if(citizen==null||!citizen.actor().equals(attempt.worker())||!citizen.owner().equals(selected.origin())
+                    ||!attempt.bound().context().equals(selected.origin())
+                    ||!attempt.bound().request().capability().equals(selected.request().request().capability())
+                    ||!new ActorValue(attempt.worker()).equals(attempt.bound().request().arguments().get("actor"))
+                    ||!attempt.receipts().isEmpty())throw new Invalid();
+            for(var entry:selected.request().request().arguments().entrySet()){
+                work.step();if(!entry.getKey().equals("actor")&&!entry.getKey().equals("amount")
+                        &&!entry.getValue().equals(attempt.bound().request().arguments().get(entry.getKey())))throw new Invalid();
+            }
+            var executions=new HashMap<UUID,Jobs.ExecutionReference>();
+            for(var execution:attempt.executions()){
+                work.step();if(!execution.artifact().capability().equals(attempt.bound().request().capability())
+                        ||executions.put(execution.runId(),execution)!=null)throw new Invalid();
+            }
+            var byRun=new HashMap<UUID,List<ResourceDelivery.Receipt>>();
+            for(var receipt:attempt.resourceReceipts()){
+                work.step();if(!ids.add(receipt.receiptId())||!executions.containsKey(receipt.runId()))throw new Invalid();
+                byRun.computeIfAbsent(receipt.runId(),ignored->new ArrayList<>()).add(receipt);
+            }
+            long proven=0;
+            for(var entry:byRun.entrySet()){
+                for(int n=0;n<entry.getValue().size()*2;n++)work.step();
+                proven=Math.addExact(proven,ResourceDelivery.quantity(attempt.bound(),entry.getKey(),entry.getValue()));
+            }
+            long requested=((IntValue)attempt.bound().request().arguments().get("amount")).value();
+            long original=((IntValue)selected.request().request().arguments().get("amount")).value();
+            if(attempt.credited()>proven||attempt.credited()>requested||requested<1||requested>original)throw new Invalid();
+            if(attempt.terminal()!=null&&attempt.terminal().status()==Outcomes.ExecutionStatus.SUCCEEDED
+                    &&(attempt.uncertain()||attempt.executions().stream().noneMatch(e->completed(attempt,e,work))))throw new Invalid();
+        }
+        for(var other:snapshot.jobs())if(!other.id().equals(selected.id()))for(var attempt:other.attempts()){
+            for(var receipt:attempt.receipts()){work.step();if(ids.contains(receipt.receiptId()))throw new Invalid();}
+            for(var receipt:attempt.resourceReceipts()){work.step();if(ids.contains(receipt.receiptId()))throw new Invalid();}
+        }
+        return new Verified(selected,Map.copyOf(index));
+    }
     static boolean completed(Jobs.Attempt attempt,Jobs.ExecutionReference execution,Work work){
-        for(int n=0;n<attempt.receipts().size()*2;n++)work.step();
-        return CropDelivery.completed(attempt.bound(),execution.runId(),attempt.receipts());
+        for(int n=0;n<attempt.receiptCount()*2;n++)work.step();
+        return ResourceDelivery.completed(attempt.bound(),execution.runId(),attempt.receipts(),attempt.resourceReceipts());
     }
     boolean controls(ActorRef actor,TrustedContext caller){
         if(caller==null||actor==null)return false;var snapshot=citizens.get();

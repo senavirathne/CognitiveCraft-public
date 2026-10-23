@@ -414,6 +414,46 @@ class KnowledgeAccessStoreTest {
         }
     }
 
+    private static Jobs.Job resourceJob(Jobs.Job original,ArtifactRef method,boolean complete){
+        var a=original.current();var args=new HashMap<String,Value>(OakLogTestSupport.bound(2).request().arguments());
+        args.put("actor",new ActorValue(a.worker()));
+        var bound=new ValidatedRequest(new CapabilityRequest(method.capability(),args),original.origin(),a.bound().observation());
+        var run=a.executions().getFirst().runId();var rows=OakLogTestSupport.chain(bound,run,2);
+        if(!complete)rows=rows.subList(0,2);
+        var attempt=new Jobs.Attempt(a.id(),a.generation(),a.worker(),bound,a.allowance(),
+                List.of(new Jobs.ExecutionReference(run,method,List.of(method))),a.usage(),List.of(),a.effects(),a.credited(),a.terminal(),a.uncertain(),a.cancellationDeliveries(),rows);
+        return new Jobs.Job(original.id(),original.submissionId(),original.revision(),bound,null,List.of(),List.of(),
+                original.state(),original.reason(),original.cancellationOutcome(),original.allowance(),original.usage(),original.generation(),List.of(attempt),original.events());
+    }
+    @Test void resourceAcquisitionUsesAcknowledgedReceiptFamilyAndRetainsPersonalAndRevisionBoundaries()throws Exception{
+        try(var f=new Fixture(temp)){
+            f.methods.available.clear();var method=new ArtifactRef(OakLogDelivery.ID,"c".repeat(64));
+            var next=new ArtifactRef(OakLogDelivery.ID,"d".repeat(64));
+            var fresh=temp.resolve("resource-shared-world");
+            try(var access=KnowledgeAccessStore.open(fresh,f.f.scene.world,f.source,f.methods,f.f.scene.clock,new RetentionRoots())){
+                var ordinary=JobLifecycleStoreTest.actor();var personal=JobLifecycleStoreTest.actor();
+                f.enroll(ordinary,f.f.scene.owner);f.enroll(personal,f.f.scene.owner);f.observe(true);
+                assertEquals(Code.APPLIED,access.requirePersonalLearning(personal,f.f.scene.owner,()->false).code());
+                f.methods.available.put(method,null);
+                var original=f.f.scene.memory.state.jobs().getFirst();
+                var forged=resourceJob(original,method,false);
+                f.f.override.set(new Jobs.Snapshot(f.f.scene.world,10,List.of(forged),List.of()));
+                assertEquals(Code.INVALID,access.recordAcquisition(forged.id(),()->false).code());
+                assertTrue(access.snapshot().grants().isEmpty());assertFalse(access.mayUse(ordinary,method,f.f.scene.owner));
+                var job=resourceJob(original,method,true);
+                var jobs=new Jobs.Snapshot(f.f.scene.world,11,List.of(job),List.of());f.f.override.set(jobs);
+                var service=new KnowledgeAccessService(access);service.maintain(jobs,Runnable::run);service.maintain(jobs,Runnable::run);
+                assertTrue(access.mayUse(ordinary,method,f.f.scene.owner));assertFalse(access.mayUse(personal,method,f.f.scene.owner));
+                assertFalse(access.mayUse(ordinary,method,f.f.scene.foreign));
+                f.methods.available.put(next,null);assertFalse(access.mayUse(ordinary,next,f.f.scene.owner));
+                assertEquals(List.of(method),access.snapshot().legacyMethods());service.close();
+            }
+            try(var reopened=KnowledgeAccessStore.open(fresh,f.f.scene.world,f.source,f.methods,f.f.scene.clock,new RetentionRoots())){
+                assertEquals(List.of(method),reopened.snapshot().legacyMethods());assertFalse(reopened.mayUse(f.teacher,next,f.f.scene.owner));
+            }
+        }
+    }
+
     @Test void compatibleVersionMigrationAtGrantCapacityReturnsTypedLimitAndPreservesKnownAccess()throws Exception{
         try(var f=new Fixture(temp)){
             var job=f.complete(f.assign(f.start()));assertEquals(Code.APPLIED,f.finish(job).code());f.methods.available.put(NEXT,null);
