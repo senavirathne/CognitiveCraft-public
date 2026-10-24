@@ -120,11 +120,13 @@ def total(state,item):
 
 def execute(h,c):
     h.reset_case(c)
+    h.executed_case=False
     before=h.snapshot(); atomic(h.case_dir/'before.json',before)
     client_before=h.client_snapshot('PlayerA')
     require(client_before and client_before['play'] and not client_before['singleplayer'],'Real multiplayer client required')
     if c['family']=='W5':
         citizen=h.citizens['PlayerA']; entity=h.entities['PlayerA']
+        h.executed_case=True
         h.command('PlayerA','/aivillage kernel name '+citizen+' '+c['citizenName'],'name='+c['citizenName'])
         listing=h.command('PlayerA','/aivillage kernel citizens','citizens=')
         require(citizen in listing and c['citizenName'] in listing,'Durable name/identity mismatch')
@@ -135,6 +137,7 @@ def execute(h,c):
     atomic(h.case_dir/'request.json',request)
     if not request['accepted']:
         return dict(status='EXPECTED_SAFE_REFUSAL',genuineGameplay=False,request=request,properties={},refusalObserved=True)
+    h.executed_case=True
     h.actions_active=True; run=request['run']; disturbance=None
     if c['family']=='W6':
         boundary=h.wait(lambda: (v if (v:=h.run_view('PlayerA',run)) and v.get('phase') in ('EXECUTING','TERMINAL') else None),'Witness active boundary',60)
@@ -178,11 +181,11 @@ def execute(h,c):
     receipts=view.get('receipts',[]) if c['item']==WHEAT else view.get('resourceReceipts',[])
     props['receiptIdentity']=all(r.get('actor',{}).get('citizenId')==h.citizens['PlayerA'] for r in receipts)
     props['uniqueReceipts']=len({r['receiptId'] for r in receipts})==len(receipts)
-    props['pickupLineage']=sum(r.get('quantity',0) for r in receipts if r.get('stage')=='PICKUP')>=delta
+    props['pickupLineage']=sum(r.get('wheat',0) if c['item']==WHEAT else r.get('quantity',0) for r in receipts if r.get('stage')=='PICKUP')>=delta
     if not conservation or not props['truthfulCompletion'] or not props['receiptIdentity'] or not props['uniqueReceipts']:
         status='FAIL_SAFETY'
     elif c['family']=='W6':
-        status='PASS' if disturbance else 'INCONCLUSIVE'
+        status='PASS' if disturbance and c['disturbance']!='restart' else 'INCONCLUSIVE'
     else:
         status='PASS' if success and all(props.values()) else 'FAIL_GENERALIZATION'
     return dict(status=status,genuineGameplay=True,request=request,properties=props,view=view,
@@ -236,6 +239,7 @@ def main():
             try:
                 rec.update(execute(h,c))
             except Exception as error:
+                rec['genuineGameplay']=getattr(h,'executed_case',False)
                 rec.update(status='INCONCLUSIVE' if isinstance(error,Inconclusive) else 'INFRASTRUCTURE_BLOCKED' if isinstance(error,(InfrastructureBlocked,AssessmentBlocked,OSError)) else 'INCONCLUSIVE',reason=str(error),trace=traceback.format_exc())
                 try: atomic(case_dir/'failure-state.json',h.snapshot())
                 except Exception: pass
