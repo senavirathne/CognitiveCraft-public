@@ -1,0 +1,81 @@
+name: Abstract crafting generalization campaign
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Campaign size (full includes exhaustive vanilla substitutions)
+        type: choice
+        options: [smoke, full]
+        default: full
+      seed:
+        description: Reproducible development seed; held-out entropy is drawn after freeze
+        type: string
+        default: '20261024'
+      source_ref:
+        description: Exact campaign commit to check out; empty uses the selected workflow commit
+        type: string
+        required: false
+        default: test/generalization-crafting
+permissions:
+  contents: read
+concurrency:
+  group: generalization-crafting-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  consolidated-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Freeze and verify unchanged production
+        run: python3 scripts/campaign-crafting/verify.py baseline
+      - name: Build production once and verify the evaluator
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
+      - name: Prepare official runtime and compile isolated instruments once
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/campaign-crafting/prepare.py
+      - name: Run every selected family through the same server and client
+        env:
+          CAMPAIGN_MODE: ${{ inputs.mode }}
+          CAMPAIGN_SEED: ${{ inputs.seed }}
+        run: |
+          python3 e2e/campaigns/crafting/run.py --root build/e2e/crafting --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED"
+      - name: Reconcile all cases, original logs and physical evidence
+        if: always()
+        run: python3 scripts/campaign-crafting/verify.py collect --root build/e2e/crafting
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: generalization-crafting-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+          path: |
+            build/e2e/crafting/
+            build/campaign-crafting-baseline.json
+            fabric/build/libs/ai-villages-0.1.0.jar
+            build/e2e-driver/
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/

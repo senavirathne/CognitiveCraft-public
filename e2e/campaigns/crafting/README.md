@@ -1,0 +1,131 @@
+# Abstract crafting and production campaign
+
+Testing and diagnosis only. Production baseline:
+`ea7de8000b2b484b885576c34ed5358274936ce9`.
+Documentation baseline: `d80f1db443a2493b3e422f435e069a7863076b07`.
+
+## Current execution status
+
+The campaign is implemented on `test/generalization-crafting` and has **not yet
+executed in Minecraft**. No recipe, facility, composition or recovery outcome is
+claimed. The Java 25 oracle and observational mixins also await runtime compilation
+and loading in Actions. Python evaluator checks are separate from gameplay evidence.
+
+The workflow is manual-only, contains one consolidated job and uploads one artifact.
+It builds the production JAR once, prepares official Minecraft/Fabric assets once,
+and starts only `minecraft` and `client-a` from the existing `e2e/compose.yml`.
+Two citizens are controlled through the same persistent player connection. Ollama
+is started once for genuine independent method admission and stopped before the
+generated campaign. No production recipes, capabilities or policies are changed.
+
+## Families and oracle
+
+| Family | Shared property |
+|---|---|
+| P1 | All discovered vanilla plank recipes/ingredient alternatives, quantities, batches and surplus |
+| P2 | Sticks, wooden axes and tables with every accepted plank, valid mixed grids and matching canonical controls |
+| P3 | Ready, partial, raw, distributed, held and insufficient stock, plus real client mutations/contention |
+| P4 | Different already-completed intermediates, quantities and admitted prerequisite graphs |
+| P5 | Existing, stored, produced, placed and reused facilities, invalid sites and collisions |
+| P6 | Blueprint rotations, correct existing cells, staged stock, shortages and explicit unsupported transfer |
+| P7 | Witnessed primitive boundaries, cancellation, acknowledged save/crash, conservative interruption and offline changed-binding reuse |
+| P8 | The separate player-accessible legacy wheat-to-bread executor and physical delivery |
+
+`capabilities.json` audits 18 gameplay entries and 51 registered primitive signatures.
+Agent 1 assignments are explicitly unverified; their results are not imported.
+Blueprint construction, arbitrary recipes, chest/barrel placement and automatic
+instruction replay are not inferred from internal methods or structural data.
+
+`oracle.py` discovers recipe IDs and shapes from the verified official game JAR.
+The isolated `CraftingRecipeOracle` then obtains actual loaded ingredient alternatives
+from RecipeManager. Every generated recipe grid is independently checked with the
+running game's `matches`, `assemble` and remainder APIs. Material names are not a
+closed list. New plank types in those rules automatically enter the same generator.
+
+The generator uses a seeded pairwise covering array plus explicit exhaustive ingredient
+alternatives. Each family has at least 12 development variations. Definition hashes
+are written before a separate held-out seed is drawn. Held-out selections, unscheduled
+generated candidates, exact seeds and replay inputs remain distinct.
+
+Physical conservation includes containers, all observed actors, player inventory,
+drops, standing logs and placed crafting tables. Production output must agree with
+vanilla integer stoichiometry, the requested destination, retained surplus, actual
+receipts and the connected client's menu/block observations. Existing Job success
+or a safe alternative-material refusal cannot alone produce a PASS.
+
+## Actions execution
+
+GitHub requires a newly introduced `workflow_dispatch` workflow to exist on the
+default branch before its first manual dispatch. This campaign keeps source and
+documentation branches unmerged. A separate, explicit registration decision is
+therefore necessary. The concrete registration change is **only**
+`.github/workflows/generalization-crafting.yml` on main. Its default `source_ref`
+selects this campaign branch. No campaign or production branch merge is required
+to register that one file. The default-branch change has not been performed.
+
+After registration, use one invocation for the entire full campaign:
+
+```bash
+gh workflow run generalization-crafting.yml \
+  --repo senavirathne/CognitiveCraft-public \
+  --ref main \
+  -f source_ref=test/generalization-crafting \
+  -f mode=full \
+  -f seed=20261024
+```
+
+For exact identity, replace `source_ref` with the published campaign commit SHA.
+Set `mode=smoke` for a short diagnostic run. The full campaign does not create
+individual recipe/material runs or an Actions matrix. Existing project-wide CI
+remains unchanged and may still run for branch publication.
+
+The workflow's evidence step checks production identity, scheduled denominators,
+all recipe alternatives, original log/frame hashes and connected physical evidence.
+It does not impose a gameplay success score. Missing admissions, missing cases and
+missing runtime evidence remain incomplete execution, even if harness unit tests pass.
+
+## Evidence and replay
+
+One artifact contains `campaign.json`, `assessment.json`, `report.md`,
+`capabilityCoverage`, the recipe oracle, freeze/seed/schedule records, all per-case
+directories, original native screenshots, server/client logs, process identities,
+world checkpoint hashes, stopped saves, the exact production JAR and observer JARs.
+Every attempt retains its original result. At most four fresh failure reproductions
+are appended; a reduced quantity is labelled a minimization candidate until observed.
+
+Every `cases/<id>/result.json` includes initial parameters and physical stock,
+original player command, bindings/principals, planning/Jobs snapshots, receipt
+lineage, first divergence, invariant checks, final custody, and byte-addressed raw
+server/client log slices. The test-only mixins log starts, handles, terminal results
+and cancellation without modifying arguments, return values or gameplay state.
+
+The following are harness commands for an Actions runner with the prepared runtime:
+
+```bash
+python3 scripts/campaign-crafting/verify.py baseline
+python3 e2e/campaigns/crafting/run.py --root build/e2e/crafting --mode full --seed 20261024
+python3 scripts/campaign-crafting/verify.py collect --root build/e2e/crafting
+```
+
+Replay any preserved `case.json` in a new run directory with
+`--replay <path/to/case.json>`. Bootstrap still performs genuine admission; no
+saved executable body is fabricated or silently installed. All failures and
+earlier attempts remain intact.
+
+## Known boundaries that remain visible
+
+- Valid vanilla substitutions safely refused by oak-specific bindings are
+  `GAP_RECIPE_EQUIVALENCE`, never gameplay success.
+- Vanilla plank outputs with no player adapter are `GAP_NO_GAMEPLAY_ADAPTER`,
+  explicitly unexecuted even though their vanilla semantics are probed.
+- Actor-held and separate-container stock are evaluated as distribution/binding
+  limits where the current contract only accepts one source container.
+- A missed dynamic/recovery boundary is `INCONCLUSIVE_BOUNDARY`.
+- Unfinished saved work is expected to interrupt conservatively. A new explicit
+  request is evaluated separately from automatic replay, which is not supported.
+- Simultaneous independent principals and effect-time ownership revocation have
+  no coverage claim in this one-client campaign. The coverage ledger requires
+  later Agent 1 reconciliation or a genuinely available additional surface.
+
+No production fixes, automatic merges, documentation-repository Actions or
+modifications of Agent 1's files belong to this campaign.

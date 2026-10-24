@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "recordedAt": 1792828596.4990437,
+  "status": "WAITING_FOR_ACTIONS_REGISTRATION_AND_DISPATCH",
+  "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
+  "productionFilesUnchanged": 181,
+  "newMinecraftCasesAttempted": 0,
+  "newMinecraftCasesCompleted": 0,
+  "newMinecraftCasesPassed": 0,
+  "researchComplete": false,
+  "pythonValidation": {
+    "existingHarnessTests": 72,
+    "campaignEvaluatorTests": 21,
+    "status": "PASS",
+    "areGameplayEvidence": false
+  },
+  "definitionHashes": {
+    "e2e/campaigns/crafting/__init__.py": "92dbb41c8d9bc31fdd1292d9b597de26333f1cd92a5df7687d8f1f6dfaa98b97",
+    "e2e/campaigns/crafting/execution.py": "48b0981fdbb25575153756dbd5c3b5ba93003dd9af03c1e564703ab2a33d9498",
+    "e2e/campaigns/crafting/generator.py": "657da7c875e0aa58f0f28b6f636d2ae4c228341a8cf5ef921be8ca25b75ba10a",
+    "e2e/campaigns/crafting/harness.py": "ad526a69a9edd98294a338e5d6620b46d696fa8a7a4dd47195038047f865dcf1",
+    "e2e/campaigns/crafting/invariants.py": "2a97b1e0090edf1e3e13ca7a0eb54a18a664d0bc06c59157d4b23eccb884c07c",
+    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingGatewayTraceMixin.java": "a155d287ab194695d02cd4df82729a54fc43c452fffd90757a0b67923aea33ef",
+    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingLegacyTraceMixin.java": "15bbff068d67403862646d78c94bd8d6241db64dece435e87e0d1ca005ddd294",
+    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingPrimitiveTrace.java": "49222faa630057d18c3c8cbb249ae3b764b2770cb777c1ea5ba60c2de3e38172",
+    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingRecipeOracle.java": "9c6eb13b5fa1c8bb926602cda2ed2b3b5572dc0d14b92f86fe11934e8a10c53b",
+    "e2e/campaigns/crafting/oracle.py": "0cc5586bf6069306ecb980418dcd95f762b0d620cce51d8ad970261b4d5d0006",
+    "e2e/campaigns/crafting/run.py": "904358bea4c88dd1cbef95bd3def4e2ac55168c040f19e3ae1f9bb64758927b6",
+    "e2e/campaigns/crafting/test_campaign.py": "1f948989a318626dbf49c13937dc3f4b31b1dd85c66ac8002219de0087278f3a"
+  },
+  "java25Instrumentation": "NOT_COMPILED_OR_LOADED_YET",
+  "runtimeCorpus": "NOT_GENERATED_FROM_LIVE_RECIPES_YET",
+  "actionsWorkflow": ".github/workflows/generalization-crafting.yml",
+  "actionsRunId": null,
+  "blockers": [
+    "New manual workflow must be registered on default branch before first dispatch",
+    "Campaign branches must remain unmerged",
+    "Connected GitHub tools do not expose workflow dispatch; browser is signed out"
+  ],
+  "defaultBranchChanged": false,
+  "branchesMerged": false
+}
