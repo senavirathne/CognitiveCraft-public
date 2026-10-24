@@ -42,6 +42,10 @@ class CraftingHarness(Harness):
     def __init__(self, root, baseline):
         super().__init__(root, "compose", None)
         atomic(self.root / "observation-area.json", AREA)
+        # Required read-only inputs for the unchanged shared assessment observer.
+        # These classifier observations are not admitted methods or gameplay cases.
+        atomic(self.root / "assessment-language.json",
+               read(Path(__file__).parent / "observer/assessment-language.json"))
         navigation.LEVEL = AREA["footY"]
         atomic(self.root / "oracle-candidates.json", candidates(SDK / "minecraft-client.jar"))
         self.env["COGNITIVECRAFT_E2E_SNAPSHOT_TICKS"] = "1"

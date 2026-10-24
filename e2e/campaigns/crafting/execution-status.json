@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "recordedAt": 1792859538.885134,
+  "recordedAt": 1792860101.127014,
   "status": "RUNTIME_REQUALIFICATION_PENDING",
   "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
   "productionFilesUnchanged": 181,
@@ -10,7 +10,7 @@
   "researchComplete": false,
   "pythonValidation": {
     "existingHarnessTests": 72,
-    "campaignEvaluatorTests": 54,
+    "campaignEvaluatorTests": 56,
     "status": "PASS",
     "areGameplayEvidence": false
   },
@@ -19,7 +19,7 @@
     "e2e/campaigns/crafting/evidence.py": "c338135d0c57fdecdc8459f25d6fae30443b0f71c6412bc09ac3297f84a03942",
     "e2e/campaigns/crafting/execution.py": "59f39a990542fbce2b1dfc17522f2e2fed88bc035666e04fd808b8245d555dd6",
     "e2e/campaigns/crafting/generator.py": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204",
-    "e2e/campaigns/crafting/harness.py": "e5f052527f67da7fc9c4da270a080b5ce14214ac9a738609c16733bc3ecc6818",
+    "e2e/campaigns/crafting/harness.py": "a6087259cee25c189e0b289073c84cbde14cfcb6b6c03886d8598bab0f2be0e8",
     "e2e/campaigns/crafting/invariants.py": "7e90b3a367678a955b145916bf63d22fffb4a39ce348a11e0940cbab89afcb50",
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingPrimitiveTrace.java": "49222faa630057d18c3c8cbb249ae3b764b2770cb777c1ea5ba60c2de3e38172",
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingRecipeOracle.java": "9c6eb13b5fa1c8bb926602cda2ed2b3b5572dc0d14b92f86fe11934e8a10c53b",
@@ -30,14 +30,15 @@
     "e2e/campaigns/crafting/run.py": "ac622299999133bca5231fbab3f519ac258661defa3e34be98129b3d71daf2b2",
     "e2e/campaigns/crafting/scheduling.py": "63c231d8f5b2f226b9e54b24fd5ad8c33320adb1ad1e0822a403e23f97ceffa6",
     "e2e/campaigns/crafting/test_campaign.py": "57b2fef70215101ba621c59fbc117e9591a69e5d952a2e3b69dcb0db94e5fac3",
-    "e2e/campaigns/crafting/test_harness_guards.py": "6d6f59ae29bd5b50d87a2d1479df523d208b2ae0b45e1908c3eb41142428ecac"
+    "e2e/campaigns/crafting/test_harness_guards.py": "6d6f59ae29bd5b50d87a2d1479df523d208b2ae0b45e1908c3eb41142428ecac",
+    "e2e/campaigns/crafting/test_runtime_bootstrap.py": "508c5bb473af7c6446b4ace8ffb35b78f717205d4976e737dbe028cfabb82807"
   },
-  "java25Instrumentation": "COMPILED; FIRST_SERVER_START_REJECTED_RESERVED_MIXIN_PACKAGE",
+  "java25Instrumentation": "COMPILED_AND_ENTRYPOINT_LOADED; SHARED_OBSERVER_INPUT_MISSING_IN_SECOND_RUN",
   "runtimeCorpus": "NOT_GENERATED_FROM_LIVE_RECIPES_YET",
   "actionsWorkflow": ".github/workflows/generalization-crafting.yml",
-  "actionsRunId": 40111258592,
+  "actionsRunId": 40112071537,
   "blockers": [
-    "First Docker run failed before client startup because normal observer classes shared the reserved Mixin package; test-only namespace correction awaits a fresh run"
+    "Second Docker run passed Mixin class loading and server startup but the shared observer required assessment-language.json; test-only fixture initialization correction awaits a fresh run"
   ],
   "defaultBranchChanged": false,
   "branchesMerged": false,
@@ -85,6 +86,16 @@
       "error": "IllegalClassLoadError: CraftingRecipeOracle is in a defined mixin package",
       "artifactId": 12566986756,
       "artifactSHA256": "a969f759a9ce5620722cd7c2319cac5a4edd3870b919d3ab234ab6e6bbd39f02"
+    },
+    {
+      "id": 40112071537,
+      "sourceCommit": "46d04b51515c5e46097d2106977262689f1b2dbf",
+      "conclusion": "failure",
+      "classification": "HARNESS_INFRASTRUCTURE",
+      "generatedGameplayAttempts": 0,
+      "error": "NoSuchFileException: /evidence/assessment-language.json in shared observer",
+      "artifactId": 12567590178,
+      "artifactSHA256": "0c5a7c65bc68bfe08bfa67ea41067d5c3e28de7a2ca18089d3bc9cec85ad6f4f"
     }
   ]
 }

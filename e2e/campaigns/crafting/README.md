@@ -6,12 +6,14 @@ Documentation baseline: `d80f1db443a2493b3e422f435e069a7863076b07`.
 
 ## Current execution status
 
-The campaign is implemented on `test/generalization-crafting` and has **not yet
-executed in Minecraft**. No recipe, facility, composition or recovery outcome is
-claimed. The Java 25 oracle and observational mixins also await runtime compilation
-and loading in Actions. Python evaluator checks are separate from gameplay evidence.
+The campaign is implemented on `test/generalization-crafting`. Two Docker launches
+have run, but both stopped in observer setup before generated gameplay cases.
+The Java 25 instruments compiled and the dedicated server started in the second
+launch. No recipe, facility, composition or recovery outcome is established yet.
+Python evaluator checks are separate from gameplay evidence.
 
-The workflow is manual-only, contains one consolidated job and uploads one artifact.
+The workflow has a branch-specific push trigger and optional manual dispatch,
+contains one consolidated job and uploads one artifact.
 It builds the production JAR once, prepares official Minecraft/Fabric assets once,
 and starts only `minecraft` and `client-a` from the existing `e2e/compose.yml`.
 Two citizens are controlled through the same persistent player connection. Ollama
@@ -26,10 +28,10 @@ outcome instead of relabelling a completed request as interrupted, and compares 
 container/actor/player/drop custody after restart. Raw logs use fixed byte boundaries;
 the verifier ties commands, identities, vanilla probes and native frames to each case.
 
-The current local checks pass **72 existing harness tests and 54 evaluator tests**.
+Current validation passes **72 existing harness tests and 56 evaluator/bootstrap checks**.
 Seven existing Actions checks passed on the previous published candidate `9ba8477`.
-Those checks are not new crafting gameplay evidence. The new manual campaign remains
-unexecuted, and its Java 25 instrumentation remains unqualified at runtime.
+Those checks are not new crafting gameplay evidence. A fresh branch run must still
+qualify the complete observer startup and execute the generated cases.
 
 | Family | Shared property |
 |---|---|
@@ -80,6 +82,13 @@ entrypoint shared Mixin's reserved package. Its artifact and original server log
 are retained; this is a harness infrastructure failure, not a crafting result.
 The two mixins now occupy a dedicated package, separate from normal observer
 classes. A fresh branch workflow revision qualifies that correction in Minecraft.
+
+The second run, 40112071537 at `46d04b5`, passed class loading and started the
+dedicated server, then the unchanged shared observer rejected a missing
+`assessment-language.json`. The campaign now writes the observer's five frozen
+read-only classifier inputs before starting any service. They do not admit or
+execute methods and are not counted as gameplay cases. Two bootstrap-contract
+checks cover that required input and Mixin namespace separation.
 
 Manual `workflow_dispatch` inputs remain available for a separately registered
 manual workflow; push launches have explicit defaults. The full campaign does
