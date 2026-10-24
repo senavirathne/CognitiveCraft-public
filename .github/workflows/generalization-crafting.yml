@@ -1,5 +1,8 @@
 name: Abstract crafting generalization campaign
 on:
+  push:
+    branches: [test/generalization-crafting]
+    paths: [.github/workflows/generalization-crafting.yml]
   workflow_dispatch:
     inputs:
       mode:
@@ -56,8 +59,8 @@ jobs:
           python3 scripts/campaign-crafting/prepare.py
       - name: Run every selected family through the same server and client
         env:
-          CAMPAIGN_MODE: ${{ inputs.mode }}
-          CAMPAIGN_SEED: ${{ inputs.seed }}
+          CAMPAIGN_MODE: ${{ inputs.mode || 'full' }}
+          CAMPAIGN_SEED: ${{ inputs.seed || '20261024' }}
         run: |
           python3 e2e/campaigns/crafting/run.py --root build/e2e/crafting --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED"
       - name: Reconcile all cases, original logs and physical evidence
