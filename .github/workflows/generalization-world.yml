@@ -1,5 +1,10 @@
 name: Physical world generalization campaign
 on:
+  # User-authorized exception to the original manual-only requirement.
+  # Launch only a deliberate request on this isolated branch; main is unchanged.
+  push:
+    branches: [test/generalization-world]
+    paths: [e2e/campaigns/world/launch.json]
   workflow_dispatch:
     inputs:
       mode:
@@ -26,6 +31,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   campaign:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[world-campaign]')
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -33,6 +39,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Validate launch request and preserve every requested case before build
+        env:
+          CAMPAIGN_MODE: ${{ inputs.mode }}
+          CAMPAIGN_SEED: ${{ inputs.seed }}
+          CAMPAIGN_FAMILIES: ${{ inputs.families }}
+          CAMPAIGN_BUDGET: ${{ inputs.budget }}
+        run: python3 scripts/campaign-world/launch.py plan
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -51,13 +64,10 @@ jobs:
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
       - name: Run sequential cases through one persistent connected client
-        env:
-          CAMPAIGN_MODE: ${{ inputs.mode }}
-          CAMPAIGN_SEED: ${{ inputs.seed }}
-          CAMPAIGN_FAMILIES: ${{ inputs.families }}
-          CAMPAIGN_BUDGET: ${{ inputs.budget }}
-        run: |
-          python3 e2e/campaigns/world/runner.py --root build/e2e/generalization-world --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED" --families "$CAMPAIGN_FAMILIES" --budget "$CAMPAIGN_BUDGET"
+        run: python3 scripts/campaign-world/launch.py run
+      - name: Reconcile requested and observed denominators, preserving failures
+        if: always()
+        run: python3 scripts/campaign-world/launch.py report
       - uses: actions/upload-artifact@v4
         if: always()
         with:

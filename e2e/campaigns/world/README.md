@@ -1,14 +1,21 @@
-# Physical world generalization campaign — work in progress
+# Independent physical world generalization campaign
 
-The campaign is **INCOMPLETE**. No production behavior was modified. No real Minecraft case has run in this environment. The generated corpus is not a gameplay result.
-
-Frozen source baseline: `ea7de8000b2b484b885576c34ed5358274936ce9`.
-Frozen source tree: `f0915a127521cb32f45e606c39098011796d1f1d`.
+Frozen production baseline: `ea7de8000b2b484b885576c34ed5358274936ce9`.
+Production tree: `f0915a127521cb32f45e606c39098011796d1f1d`.
 Documentation baseline: `d80f1db443a2493b3e422f435e069a7863076b07`.
+Source branch: `test/generalization-world`; documentation branch: `docs/generalization-world`.
 
-## Run
+**Mission incomplete.** Generated definitions and harness checks are not Minecraft gameplay evidence. Original blocked attempts remain unchanged in `local-attempt*.json`. Actions results must be read independently of those historical local attempts. Production code, production dependencies, original fixtures, other agents' work, mandatory CI, and main remain unchanged.
 
-From the source checkout, with Docker Compose, Java 25 and the existing Minecraft runtime dependencies:
+## Controlled Actions execution
+
+On 24 October 2026 the user authorized a branch-only push trigger to replace the original manual-only launch restriction. `.github/workflows/generalization-world.yml` accepts a push only on `test/generalization-world`, only when `e2e/campaigns/world/launch.json` changes, and only when the head commit contains `[world-campaign]`. Ordinary development pushes do not launch the campaign. Existing `workflow_dispatch` remains available after GitHub registration.
+
+Edit `launch.json` to set the full/smoke mode, seed, families, budget and unique launch identity. Publish one prepared batch with the explicit marker. No browser authentication or default-branch change is required for this trigger. No documentation-repository Actions are added. Existing source CI may also run on the branch; these runs are supporting project checks, not campaign gameplay.
+
+The workflow uses one job and no matrix. It preserves the requested corpus before the build, builds the mod once, prepares official assets once, and compiles existing observers/drivers once. One server and one connected client are reused across compatible cases. Genuine model admission happens once per resource family, then the model service is stopped. A failed resource admission is retained; it does not erase other resources' trials. Restart cases replace the server process and require the original client process to survive. One consolidated evidence artifact is uploaded even after failure. A setup failure produces an explicit blocked record for every requested case.
+
+## Local reproduction on a Docker-capable host
 
 ```bash
 bash gradlew --no-daemon :fabric:build
@@ -18,32 +25,40 @@ python3 e2e/campaigns/world/runner.py --root build/e2e/world-smoke --mode smoke
 python3 e2e/campaigns/world/runner.py --root build/e2e/world-full --mode full --seed 104729
 ```
 
-The manual `generalization-world.yml` workflow builds once, prepares assets once, compiles instruments once and calls one batch. There is one job and no matrix. One server and one connected PlayerA client are reused; same-save recovery restarts the server and reconnects the existing client process. An Ollama service is required once for genuine independent admissions of wheat, oak and birch methods, then stopped before measured cases. No Needle installation or client-b is needed by the currently implemented adapters. No automatic trigger was added or existing CI weakened.
+Selection options: `--families W1,W2`, `--budget 24`, `--case W2-003`. Use a fresh evidence root for every attempt. Full mode requests 12 cases per family plus 12 from the subsequent held-out seed, for 144 cases. Generator and assertion hashes are frozen before held-out generation. Every held-out reproduction command retains the original campaign seed and full case ID. Smoke selects one case per family. `--generate-only` produces definitions without claiming execution.
 
-Selection: `--families W1,W2`, `--budget 24`, or `--case W2-003`. Use a new root for every original attempt. Reproduction commands are written per case. `--generate-only` writes the corpus without claiming execution. Full mode freezes generator/assertion file hashes first, then includes twelve cases per family from the requested seed plus twelve from the next held-out seed, **144 requested cases**. Smoke selects six. The cyclic deterministic design changes multiple parameters together; exhaustive pairwise coverage is not claimed.
+A deterministic greedy design selects combinations that cover previously unseen pairs among item, quantity, geometry, container, terrain and orientation. It does not claim exhaustive pairwise coverage in twelve samples. Every neighboring base design changes at least three independent factors. Coordinates, actor start, destination slots, actor occupancy, crop maturity distractors and disturbance/lifecycle modes vary independently of original fixtures. The observed platform is relocated to x/z 64 and foot height 208.
 
-## Implemented adapters
+## Abstract families and observations
 
-W1–W4 reuse a parameterized acquisition/delivery transaction for wheat, exact oak logs and exact birch logs. They vary quantity, positions, geometry, log orientation, actor start, obstacle detours, chest/barrel, occupancy and initial destination stock. These are overlapping end-to-end property views, not four independently implemented world actions. W5 currently tests durable renaming of the original enrolled citizen. W6 attempts cancellation, actual connected-player block removal and saved-world server termination. A missed disturbance is inconclusive, never a gameplay pass.
+| Family | Generated behavior | Independent physical checks |
+|---|---|---|
+| W1 | Acquisition/delivery through flat terrain, detours and corridors | Actual actor positions during execution, block effects and destination transfer |
+| W2 | Exact oak, birch and mature wheat; line, separated and vertical arrangements; log axes; immature crops and unrelated material | Native source mutations, preserved distractors, physical custody and attributable receipts |
+| W3 | Pickup with empty, six-, seven- and eight-slot actor inventories | Native inventory occupancy precondition; all actor/container/drop/player custody; partial or safe refusal outcomes |
+| W4 | Chest/barrel delivery with empty, mergeable, exact and exhausted capacity | Initial slot contents, actual destination delta and synchronized connected-client container menu |
+| W5 | Naming, fresh enrollment on four variations per seed, reconnect, native unload/reload and same-save restart | Real entity UUID, durable citizen identity/name/owner, native lifecycle events and generation, connected roster |
+| W6 | Cancellation, actual player resource removal, gate closure, and crashes after witnessed HARVEST/PICKUP/DEPOSIT stages | Disturbance occurrence, actual server termination, durable save files, same client process, no replay and truthful interruption |
 
-Assertions compare block mutation, native inventory/drop totals, destination delta, actual actor displacement, receipt identity/uniqueness/pickup lineage, normal connected multiplayer state and inference counters. Raw observer snapshots and logs are retained in the consolidated runtime root; each case has parameters, provenance, before/after or failure state, run/request, events, client events, server log excerpt, frame references, property results and replay command when reached. Blocked cases retain parameters, result, provenance limitation and replay command.
+W1–W4 are overlapping physical property views of the same production acquisition/delivery pipeline. They do not pretend to be four new player actions. W5 fresh subjects are bounded to stay below the production roster's sixteen-result page. Correct refusal is counted separately from successful delivery. A failed model admission, missed dynamic boundary, incomplete observation or cleanup failure is never promoted to a gameplay pass.
 
-## Explicit gaps preventing mission completion
+`oracle.py` counts the tested resource across actual containers, actors, dropped entities and independently observed player inventories. Each harvested ordinary log or mature wheat plant creates one tested item under the fixture's unmodified vanilla drop rules; seed byproducts are outside that item's ledger. Existing stock grants no harvest credit. Receipt checks require actor, entity, run and destination identity, unique receipt IDs, per-batch HARVEST ≥ PICKUP ≥ DEPOSIT, physical harvest attribution and actual deposit delta. Receipts alone cannot prove success.
 
-- The inventory is an initial implementation audit: 51 registered primitives plus 13 cross-cutting/legacy capability rows. See `inventory.json`; static inventory is not coverage.
-- Fresh per-case enrollment, same-entity native unload/reload, death/removal and unsupported replacement are not implemented by the new W5 generator.
-- Nearest-reference and natural-language resolution require a real interpreter and dedicated target-selection assertions. Typed explicit-coordinate commands do not test them.
-- Legacy FarmPort planting/replanting, loose seed/wheat collection, home movement, bread delivery and legacy enrollment/auto/stop need their own reusable gameplay adapters. Bread transformation is primarily Agent 2's responsibility.
-- Two-principal authority and lease contention require on-demand client-b and native lease assertions. Single-player interference does not test simultaneous competing authority.
-- Actor inventory occupancy, partial pickup, moving drops, immature/depleted fields, full/refilled containers, navigation changes during execution and durable acquisition/delivery phase-specific crash boundaries need additional cases and independent observations.
-- Recipe and crafting-table placement primitives are retained in the full inventory as Agent 2 primary ownership, with physical-transfer reconciliation open. No other agent's unmerged work is consumed.
-- W6 recovery currently captures an observed executing boundary and saved-world hashes; it does not yet independently guarantee a specific acquisition/pickup/deposit checkpoint. Recovery and safety completion rates must remain unevaluated until those assertions are added.
-- No confirmed gameplay root cause, minimized counterexample or reproduction consistency can be reported without actual execution.
+Each reached case preserves parameters, exact provenance and production JAR hash, before/after or failure snapshots, submitted instruction, run outcome, ordered physical observations, lease views, raw server/client events, native frame references, expected/actual properties, and replay command. Crash cases additionally preserve durable checkpoint data and same-save hashes. Original failures survive later runs. Summary rates retain separate requested, attempted, genuine-execution and property-evaluation denominators.
 
-## Local validation and outcome
+## Inventory and explicit remaining limitations
 
-Three corpus checks passed: deterministic replay, supported/bounded fixtures and changes to at least three parameters between neighboring variations. Python compilation passed. These are supporting checks only.
+`inventory.json` retains all 51 registered primitive signatures and 13 cross-cutting/legacy capabilities, including Agent 2's recipe/placement scope. The inventory generator inspects the registered production signatures, and its source references lead to the real gateway, Fabric adapter, lifecycle and legacy controllers. Withdrawing logs for recipes belongs to Agent 2's primary recipe scope. Shared movement and custody boundaries remain visible for reconciliation.
 
-The first attempted batch selected 72 cases before held-out support was added. The second selected 144. Both stopped at the Docker preflight; the executable is unavailable. For the retained full attempt: **144 requested / 0 gameplay executions / 144 INFRASTRUCTURE_BLOCKED / 0 PASS / 0 gameplay failures measured**. Every physical property has evaluated denominator zero; rates are undefined, not 0% or 100%. `local-attempt.json` preserves that attempt. No JAR or model identity exists for an unstarted runtime.
+A candidate family request does **not** prove that a particular primitive opcode ran: admitted methods can select alternate primitive paths, and existing public status/trace logs do not expose every primitive start and completion. Coverage reconciliation therefore gives no automatic primitive credit. Native effects and family results are reported separately. Zero genuine runs means untested.
 
-The current GitHub connector exposes repository changes and workflow reads/retries, but no new-workflow dispatch operation. The workflow has not been invoked. This new manual-only workflow may also require presence on the default branch before GitHub offers dispatch; no merge is authorized by this campaign. Production CI and workflow registration must be resolved without adding a push trigger or automatically merging these branches.
+The following gaps still prevent mission completion even if all currently generated cases pass:
+
+- Legacy FarmPort planting/replanting, loose seed/wheat collection, bread delivery, legacy enrollment/auto/stop, and conditional provider-plan home movement require dedicated reusable adapters. Legacy bread transformation is primarily Agent 2's scope.
+- Nearest-reference resolution requires a real interpreter, competing eligible/ineligible targets and a dedicated selected-target oracle; explicit-coordinate requests do not test it.
+- Two simultaneous owners' resource lease contention and foreign citizen control require on-demand client-b, independent scope/lease observations, and any necessary genuine method admission for that principal. The current batch does not launch client-b or simulate a second player.
+- Native citizen death/removal, unsupported replacement, authority changes not exposed by a player command, moving drops, and specific partial pickup geometries retain explicit coverage limitations.
+- Admission errors, missed checkpoint stages and absent primitive invocation witnesses need evidence-based follow-up. Recovery success requires actual saved-world execution, not a mocked result.
+- No production root cause or minimized counterexample is confirmed solely by this source audit. Reports must distinguish observed facts from hypotheses and retain first attempts.
+
+The supporting campaign checks validate deterministic replay, observation bounds, multi-factor changes, held-out selection, complete custody accounting and refusal of phantom completion. The existing Python harness suite is also checked. These are not gameplay executions.
