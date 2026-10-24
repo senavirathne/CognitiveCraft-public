@@ -30,7 +30,7 @@ ACTIVE=('PERSISTING','ROUTING','EXECUTING','RESEARCHING','RESOLVING','INTERPRETI
 
 def coord(p): return ' '.join(map(str,p))
 
-def selection(seed,mode,families,budget=0,case=None,include_cases=(),heldout_seed=None,extra_heldout=(),replay_original=False):
+def selection(seed,mode,families,budget=0,case=None,include_cases=(),heldout_seed=None,extra_heldout=(),replay_original=False,failure_probes=False):
     corpus=copy.deepcopy(generate(seed))
     if mode=='full':
         held=copy.deepcopy(generate(heldout_seed if heldout_seed is not None else seed+1))
@@ -62,6 +62,13 @@ def selection(seed,mode,families,budget=0,case=None,include_cases=(),heldout_see
             c.pop('caseSha256',None)
             c['caseSha256']=hashlib.sha256(json.dumps(c,sort_keys=True).encode()).hexdigest()
         corpus+=copy.deepcopy(probes); chosen+=copy.deepcopy(probes)
+    if failure_probes:
+        require(not replay_original,'Separate original-save replay from exact-program certified comparison')
+        chosen=copy.deepcopy(read(HERE/'failure-probes.json')['cases']+read(HERE/'controlled-probes.json')['cases'])
+        for c in chosen:
+            c.pop('caseSha256',None)
+            c['caseSha256']=hashlib.sha256(json.dumps(c,sort_keys=True).encode()).hexdigest()
+        corpus+=copy.deepcopy(chosen)
     if case is not None: chosen=[c for c in chosen if c['id']==case]
     chosen.sort(key=lambda c:(FAMILIES.index(c['family']),c['seed'],c['index']))
     if mode=='smoke' and case is None:
@@ -74,7 +81,8 @@ def selection(seed,mode,families,budget=0,case=None,include_cases=(),heldout_see
 def reproduction(c,campaign_seed,reuse_world=False,heldout_seed=None,certificate=None):
     suffix=' --reuse-world build/e2e/previous-world' if reuse_world else ''
     if heldout_seed is not None: suffix+=' --heldout-seed '+str(heldout_seed)
-    if c.get('replaySource'): suffix+=' --replay-original'
+    if c['id'].startswith('probe-'): suffix+=' --replay-original' if reuse_world else ' --failure-probes'
+    elif c.get('replaySource'): suffix+=' --replay-original'
     if certificate: suffix+=' --reuse-certificate '+certificate
     return f'python3 e2e/campaigns/world/runner.py --root build/replay-{c["id"]}-{campaign_seed} --seed {campaign_seed} --mode full --case {c["id"]}'+suffix+'\n'
 
@@ -363,7 +371,7 @@ class WorldHarness(AssessmentHarness):
         # Unlike the shared assessment helper, do not allow fixture writes until every owner is terminal.
         if 'server' not in self.booted: return
         self.ensure_client()
-        self.console(['tick unfreeze'],lifecycle=True)
+        self.console(['tick unfreeze','tick rate 20'],lifecycle=True)
         self.cleanup_legacy()
         state=self.snapshot() or {}
         for player,data in state.get('knownPlayers',{}).items():
@@ -488,15 +496,15 @@ def disturb(h,c,run):
         observed=h.wait(external_break,'Player removal independently exceeds native harvest receipts by one',30)
         return dict(kind='break',target=target,observed=observed)
     # Stop time only to make a genuine already-observed boundary reproducible; no tested effect is supplied.
-    h.console(['tick freeze'],lifecycle=True)
+    h.console(['tick rate 1','tick freeze'],lifecycle=True)
     current=h.run_view('PlayerA',run)
     if not current or current.get('phase')!='EXECUTING':
-        h.console(['tick unfreeze'],lifecycle=True)
+        h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
         raise Inconclusive('Execution ended before checkpoint could be frozen')
     saved=h.snapshot(); checkpoint=h.save_checkpoint()
     before_kill=h.run_view('PlayerA',run)
     if not before_kill or before_kill.get('phase')!='EXECUTING':
-        h.console(['tick unfreeze'],lifecycle=True)
+        h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
         raise Inconclusive('Task ended during the acknowledged checkpoint; active crash boundary missed')
     client_process=read(h.root/'clients/PlayerA/process.json')
     h.stop('server',hard=True); killed=h.world_hashes()
@@ -506,7 +514,7 @@ def disturb(h,c,run):
     shutil.copytree(h.root/'server/game/world',h.case_dir/'crashed-world',ignore=shutil.ignore_patterns('session.lock'))
     atomic(h.case_dir/'crash-world-proof.json',{'files':killed,'lastNativeSnapshot':last,'liveAtKill':live_at_kill})
     h.wait(lambda:not h.action('PlayerA','snapshot')['play'],'SIGKILL disconnected actual client',40)
-    h.start('server'); reconnect_players(h,['PlayerA']); h.console(['tick unfreeze'],lifecycle=True)
+    h.start('server'); reconnect_players(h,['PlayerA']); h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
     require(read(h.root/'clients/PlayerA/process.json')==client_process,'Recovery replaced persistent client process')
     return dict(kind=c['disturbance'],checkpoint=checkpoint,boundary=current,before=saved,
                 killedWorldHashes=killed,after=h.snapshot(),liveAtKill=live_at_kill,persistentClientProcess=client_process)
@@ -533,6 +541,19 @@ def execute(h,c):
     h.quiet(12); after=h.snapshot(); atomic(h.case_dir/'after.json',after); atomic(h.case_dir/'run.json',view)
     client=h.client_snapshot('PlayerA'); atomic(h.case_dir/'client-after.json',client)
     props,accounting=evaluate(c,before,after,view,h.citizens['PlayerA'],h.entities['PlayerA'],h.samples)
+    safety_assertions=list(SAFETY)
+    if c['family']=='W6' and disturbance and c['disturbance'].startswith('restart-'):
+        pre_kill=read(h.case_dir/'crash-world-proof.json')['lastNativeSnapshot']
+        pre_view=pre_kill['knownPlayers']['PlayerA']['runs'][request['run']]
+        if pre_view.get('phase')!='EXECUTING': raise Inconclusive('No live native pre-kill execution snapshot')
+        prior,prior_account=evaluate(c,before,pre_kill,pre_view,h.citizens['PlayerA'],h.entities['PlayerA'],h.samples)
+        attribution=('receiptIdentity','pickupLineage','harvestAttribution','depositAttribution','actorCustodyAttribution')
+        for name in attribution:
+            props.pop(name,None); props['preCrash'+name[0].upper()+name[1:]]=prior[name]
+        props['checkpointReceiptAttribution']=all(prior[name] for name in attribution)
+        safety_assertions=[name for name in SAFETY if name not in attribution]+['checkpointReceiptAttribution']
+        accounting['preCrashAttribution']=prior_account
+        accounting['receiptScope']='Effect attribution uses the actual atomic pre-SIGKILL view; post-restart bootstrap counters are cleared and are not fabricated'
     props['noInference']=h.model_calls()==calls
     props['methodIdentity']=(view.get('marker') or {}).get('artifactSha256')==h.hashes.get('cognitivecraft:'+CAPS[c['item']]) and 'cognitivecraft:'+CAPS[c['item']] in h.hashes
     pinned=[e['artifact']['sha256'] for a in (view.get('responsibility') or {}).get('attempts',[])
@@ -556,14 +577,17 @@ def execute(h,c):
                 custody(after,c['item'])==custody(later,c['item']) and not any(a['controlled'] for a in later['actors']))
         if c['disturbance'].startswith('restart-'):
             if not disturbance['liveAtKill']: raise Inconclusive('Last native pre-kill snapshot was already terminal; no active checkpoint recovery credit')
-            old=disturbance['before']; restarted=disturbance['after']; h.quiet(30); later=h.snapshot()
+            old=disturbance['before']; restarted=disturbance['after']; h.quiet(80); later=h.snapshot()
             already_harvested=[p for p in c['positions'] if 'minecraft:air' in old['blocks'].get(key(p),'')]
             props['durableCustody']=(sum(custody(later,c['item']).values())>=sum(custody(old,c['item']).values()) and
                 all('minecraft:air' in later['blocks'].get(key(p),'') for p in already_harvested))
+            props['recoveryNoUnobservedReplay']=(sum(custody(later,c['item']).values())<=sum(custody(pre_kill,c['item']).values()) and
+                all('minecraft:air' in pre_kill['blocks'].get(key(p),'') or
+                    pre_kill['blocks'].get(key(p))==later['blocks'].get(key(p)) for p in c['positions']))
             recovered_outcome=outcome(view)
             acceptable=recovered_outcome in ('INTERRUPTED','FAILED','CANCELLED') or recovered_outcome=='SUCCEEDED' and props['delivery'] and props['harvest']
             props['recovery']=(bool(disturbance['checkpoint']['files']) and restarted['containers']==later['containers'] and
-                not any(a['controlled'] for a in later['actors']) and acceptable)
+                not any(a['controlled'] for a in later['actors']) and acceptable and props['recoveryNoUnobservedReplay'])
             props['noInference']=(disturbance['before']['brokerStats']['calls']==calls['generationCalls'] and
                 disturbance['before']['needleCalls']==calls['needleCalls'] and all(value==0 for value in h.model_calls().values()))
     failure_reason=(view.get('outcome') or {}).get('reason') or (view.get('marker') or {}).get('reason')
@@ -573,7 +597,7 @@ def execute(h,c):
     if failure_reason=='STORAGE_LIMIT_REACHED':
         status='FAIL_ARCHITECTURAL_GAP'
         if not receipts(view,c['item']): h.executed_case=False
-    elif not all(props[k] for k in SAFETY) or props.get('durableCustody') is False: status='FAIL_SAFETY'
+    elif not all(props[k] for k in safety_assertions) or props.get('durableCustody') is False or props.get('recoveryNoUnobservedReplay') is False: status='FAIL_SAFETY'
     elif c['family']=='W6':
         required=['noInference','disturbanceObserved']+(['recovery'] if c['disturbance'].startswith('restart-') else ['cancellation'] if c['disturbance']=='cancel' else [])
         if c['disturbance']=='cancel': required.append('cancellationNoLaterEffects')
@@ -590,7 +614,7 @@ def execute(h,c):
                 'Actual connected container menu differs from native transfer')
     else: h.screenshot('PlayerA','world-result',chat=True)
     return dict(status=status,genuineGameplay=h.executed_case,gameplayAttempted=h.attempted_case,
-                request=request,properties=props,accounting=accounting,disturbance=disturbance,failureReason=failure_reason,
+                request=request,properties=props,safetyAssertions=safety_assertions,accounting=accounting,disturbance=disturbance,failureReason=failure_reason,
                 firstDivergence=next(({'property':k,'observed':v,'context':'observations.jsonl, request.json, run.json'}
                     for k,v in props.items() if v is False),None))
 
@@ -604,14 +628,17 @@ def main():
     p.add_argument('--reuse-certificate',type=Path); p.add_argument('--isolate-families',action='store_true')
     p.add_argument('--cohort-cases',type=int,default=6)
     p.add_argument('--heldout-seed',type=int); p.add_argument('--extra-heldout-families',default=''); p.add_argument('--replay-original',action='store_true')
+    p.add_argument('--failure-probes',action='store_true')
     a=p.parse_args(); a.root.mkdir(parents=True,exist_ok=True)
     require(not (a.root/'results.json').exists(),'New evidence root required; original attempts are immutable')
     selected=a.families.split(','); require(set(selected)<=set(FAMILIES),'Unknown family'); require(a.budget>=0,'Negative budget')
     files=[Path(__file__),HERE/'generate.py',HERE/'oracle.py',HERE/'extra.py',HERE/'legacy_extra.py',HERE/'seed.py',HERE/'cohort.py']
-    if a.replay_original: files.extend([HERE/'replay-cases.json',HERE/'failure-probes.json'])
+    if a.replay_original: files.append(HERE/'replay-cases.json')
+    if a.replay_original or a.failure_probes: files.append(HERE/'failure-probes.json')
+    if a.failure_probes: files.append(HERE/'controlled-probes.json')
     atomic(a.root/'generator-freeze.json',dict(files={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},heldOutSeed=a.heldout_seed if a.heldout_seed is not None else a.seed+1))
     corpus,cases=selection(a.seed,a.mode,selected,a.budget,a.case,a.include_cases.split(',') if a.include_cases else (),a.heldout_seed,
-                           a.extra_heldout_families.split(',') if a.extra_heldout_families else (),a.replay_original)
+                           a.extra_heldout_families.split(',') if a.extra_heldout_families else (),a.replay_original,a.failure_probes)
     atomic(a.root/'corpus.json',dict(baseline=BASELINE,productionTree=TREE,cases=corpus,selected=[c['id'] for c in cases]))
     records=[dict(case=c,status='INFRASTRUCTURE_BLOCKED',gameplayAttempted=False,genuineGameplay=False,reason='Not reached') for c in cases]
     result=dict(schema=2,baseline=BASELINE,productionTree=TREE,campaignSeed=a.seed,requested=len(cases),records=records,complete=False)
@@ -621,6 +648,12 @@ def main():
     try:
         require(not (a.isolate_families and a.replay_original),'Original replays cannot silently replace the admitted methods')
         require(not a.replay_original or a.reuse_world,'Original replays require the intact original native world')
+        if a.failure_probes:
+            require(a.reuse_certificate and not a.isolate_families,'Exact original-program comparisons require a genuine certificate and cannot readmit methods')
+            expected={'cognitivecraft:deliver_wheat':'f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90',
+                'cognitivecraft:deliver_oak_logs':'85589201dd0a66837a7b3c3fc47b41a8d032462372a73dadb594f446749da27f',
+                'cognitivecraft:deliver_birch_logs':'c9a8857614efcd44782944bfd6cff45cd757e8d311f6a3fcea8f4237089989b8'}
+            require(read(a.reuse_certificate/'certificate.json')['methods']==expected,'Native certificate does not contain the exact original failed programs')
         if shutil.which('docker') is None: raise InfrastructureBlocked('Docker executable unavailable')
         subprocess.run(['docker','info'],check=True,capture_output=True)
         paths=['core','fabric','providers','build.gradle','settings.gradle','gradle.properties','gradle','scripts/dependencies.json']
@@ -712,8 +745,10 @@ def main():
         measured=[r for r in positive if r.get('genuineGameplay')]
         result['rates']['gameplayCompletion']=dict(requested=len(positive),evaluated=len(measured),passed=sum(r.get('properties',{}).get('delivery') is True for r in measured))
         result['rates']['parameterGeneralization']=dict(requested=len(positive),evaluated=len(measured),passed=sum(r.get('status')=='PASS' for r in measured))
-        checked=[r for r in native if all(k in r.get('properties',{}) for k in SAFETY)]
-        result['rates']['safety']=dict(evaluated=len(checked),passed=sum(all(r['properties'][k] for k in SAFETY) for r in checked),scope='Physical custody, attribution and world-mutation safety; authority coverage reported separately')
+        checked=[(r,r.get('safetyAssertions',SAFETY)) for r in native
+                 if all(k in r.get('properties',{}) for k in r.get('safetyAssertions',SAFETY))]
+        result['rates']['safety']=dict(evaluated=len(checked),passed=sum(all(r['properties'][k] for k in required) for r,required in checked),
+            scope='Physical custody and world mutations; crash attribution uses the actual pre-kill snapshot and post-restart conservation/replay is separate; authority coverage reported separately')
         atomic(a.root/'results.json',result)
     raise SystemExit(1 if any(r['status'] not in ('PASS','EXPECTED_SAFE_REFUSAL') for r in records) else 0)
 

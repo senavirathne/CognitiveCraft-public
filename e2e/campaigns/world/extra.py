@@ -285,7 +285,9 @@ def authority(h,c):
             values=[h.job_view(player,jid) for player,jid in jobs]
             return values if all(v and v['state'] in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED','WAITING') for v in values) else None
         h.wait(finished,'Bounded competing owners reached completed or explicit waiting states',180)
-        h.quiet(12); after=h.snapshot(); views=[h.job_view(player,jid) for player,jid in jobs]
+        h.quiet(12); after=h.snapshot()
+        # Physical custody and durable owner accounting must come from one atomic native snapshot.
+        views=[after['knownPlayers'][player]['jobs'][jid] for player,jid in jobs]
         if any(v['state']=='ACTIVE' for v in views): raise Inconclusive('A waiting contender resumed during final accounting')
         atomic(h.case_dir/'after.json',after); atomic(h.case_dir/'jobs.json',views)
         total=sum(custody(after,'minecraft:wheat').values()); original=sum(custody(before,'minecraft:wheat').values())
@@ -299,16 +301,32 @@ def authority(h,c):
             (h.hashes.get('cognitivecraft:deliver_wheat') if player=='PlayerA' else h.foreign_method)
             for (player,_),job in zip(jobs,views) for attempt in job.get('attempts',[])
             for execution in attempt.get('executions',[]))
-        expected={}; unique=set(); receipt_authority=True
+        expected={}; unique=set(); receipt_authority=True; job_deposits=[]; batch_stages={}; native_harvest=0
         for (player,_),job in zip(jobs,views):
             allowed={a['actor']['citizenId'] for a in after['knownPlayers'][player]['citizens']['citizens']}
+            deposits=0
             for attempt in job.get('attempts',[]):
+                execution_ids={e['runId'] for e in attempt.get('executions',[])}
+                arguments=attempt['bound']['request']['arguments']
                 for receipt in attempt.get('receipts',[]):
                     rid=receipt['receiptId']; actor=receipt['actor']; eid=actor['entityId']
-                    receipt_authority &= rid not in unique and actor['citizenId'] in allowed and actor==attempt['worker']
+                    receipt_authority &= (rid not in unique and actor['citizenId'] in allowed and actor==attempt['worker']
+                        and receipt['runId'] in execution_ids and receipt['source']==arguments['source']['value']
+                        and receipt['destination']==arguments['destination']['value'])
                     unique.add(rid)
                     expected[eid]=expected.get(eid,0)+(receipt['wheat'] if receipt['stage']=='PICKUP' else -receipt['wheat'] if receipt['stage']=='DEPOSIT' else 0)
+                    batch=batch_stages.setdefault(receipt['batchId'],{'HARVEST':0,'PICKUP':0,'DEPOSIT':0})
+                    batch[receipt['stage']]+=receipt['wheat']
+                    if receipt['stage']=='DEPOSIT': deposits+=receipt['wheat']
+                    if receipt['stage']=='HARVEST': native_harvest+=receipt['wheat']
+            job_deposits.append(deposits)
         props['receiptAuthority']=receipt_authority
+        props['harvestAttribution']=native_harvest==harvested
+        props['pickupLineage']=all(b['DEPOSIT']<=b['PICKUP']<=b['HARVEST'] for b in batch_stages.values())
+        props['jobDepositAttribution']=all(after['containers'].get(key(dst),{}).get('minecraft:wheat',0)-
+            before['containers'].get(key(dst),{}).get('minecraft:wheat',0)==deposits
+            for (_,_,dst),deposits in zip(participants,job_deposits))
+        props['jobCreditAttribution']=all(v['fulfilled']<=deposits for v,deposits in zip(views,job_deposits))
         start={a['uuid']:a['inventory'].get('minecraft:wheat',0) for a in before['actors']}
         props['receiptCustody']=all(a['inventory'].get('minecraft:wheat',0)-start.get(a['uuid'],0)==expected.get(a['uuid'],0) for a in after['actors'])
         if boundary: props['cancellation']=h.job_view(*jobs[0])['state']=='CANCELLED'

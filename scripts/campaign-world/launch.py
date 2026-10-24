@@ -38,12 +38,18 @@ def configuration():
         for key in ('mode','seed','families','budget'):
             val=os.environ.get('CAMPAIGN_'+key.upper())
             if val: raw[key]=val
+        # Manual inputs describe a fresh requested campaign, not the last branch launch's replay mode.
+        for key in ('nativeCertificate','failureProbes','previousRun','replayOriginal','extraHeldoutFamilies','includeCases','reviewPrior','heldoutSeed'):
+            raw.pop(key,None)
+        raw.update(launchId='manual-'+os.environ.get('GITHUB_RUN_ID','local'),isolateFamilies=True,cohortCases=6)
     raw['seed']=int(raw['seed']); raw['budget']=int(raw['budget'])
     if isinstance(raw['families'],str): raw['families']=raw['families'].split(',')
     if raw['mode'] not in ('full','smoke') or not 0<=raw['budget']<=300 or not set(raw['families'])<=set(FAMILIES):
         raise ValueError('Invalid bounded campaign configuration')
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',raw['launchId']): raise ValueError('Invalid launch identity')
     if raw.get('previousRun') not in (None,40076986301): raise ValueError('Only the explicitly identified original world artifact may be reused')
+    if raw.get('nativeCertificate') not in (None,12563506914): raise ValueError('Only the source-pinned genuine exact-program certificate may be imported')
+    if raw.get('failureProbes') and not raw.get('nativeCertificate'): raise ValueError('Comparisons require the exact-program native certificate')
     if not isinstance(raw.get('includeCases',[]),list): raise ValueError('Explicit case selection must be a list')
     if os.environ.get('GITHUB_EVENT_NAME')=='push':
         if os.environ.get('GITHUB_REF')!='refs/heads/test/generalization-world': raise ValueError('Unexpected launch branch')
@@ -58,7 +64,7 @@ def plan():
     files={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in frozen_paths}
     write(OUT/'plan-freeze.json',dict(files=files,heldOutSeed=config.get('heldoutSeed',config['seed']+1)))
     _,cases=selection(config['seed'],config['mode'],config['families'],config['budget'],include_cases=config.get('includeCases',[]),
-        heldout_seed=config.get('heldoutSeed'),extra_heldout=config.get('extraHeldoutFamilies',[]),replay_original=config.get('replayOriginal',False))
+        heldout_seed=config.get('heldoutSeed'),extra_heldout=config.get('extraHeldoutFamilies',[]),replay_original=config.get('replayOriginal',False),failure_probes=config.get('failureProbes',False))
     write(OUT/'plan.json',dict(configuration=config,requested=len(cases),cases=cases,baseline=BASELINE,productionTree=TREE,
         generatorFreeze=files,ci={k:v for k,v in os.environ.items() if k in ('GITHUB_SHA','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_REF','GITHUB_EVENT_NAME')}))
     print('WORLD_PLAN '+json.dumps(dict(requested=len(cases),**config)),flush=True)
@@ -67,6 +73,7 @@ def plan():
             f.write('interpreter='+str('W7' in config['families']).lower()+'\n')
             f.write('previous_run='+str(config.get('previousRun') or '')+'\n')
             f.write('review_prior='+str(config.get('reviewPrior',False)).lower()+'\n')
+            f.write('native_certificate='+str(bool(config.get('nativeCertificate'))).lower()+'\n')
 
 
 def run():
@@ -79,6 +86,8 @@ def run():
     if c.get('replayOriginal'): args+=['--replay-original']
     if c.get('previousRun'): args+=['--reuse-world',str(ROOT/'build/e2e/previous-world')]
     if c.get('isolateFamilies'): args+=['--isolate-families','--cohort-cases',str(c.get('cohortCases',6))]
+    if c.get('failureProbes'): args+=['--failure-probes']
+    if c.get('nativeCertificate'): args+=['--reuse-certificate',str(OUT/'certificates/exact-original-methods')]
     raise SystemExit(subprocess.call(args,cwd=ROOT))
 
 
@@ -90,7 +99,7 @@ def report():
     planned=json.loads(plan_path.read_text()); result_path=OUT/'results.json'
     if result_path.exists(): result=json.loads(result_path.read_text())
     else:
-        failed=[stage.lower() for stage in ('BUILD','INTERPRETER','EXTRACT','INSPECT')
+        failed=[stage.lower() for stage in ('BUILD','INTERPRETER','EXTRACT','INSPECT','CERTIFICATE')
             if os.environ.get('CAMPAIGN_'+stage)=='failure']
         reason='Actions setup failed before gameplay at: '+(', '.join(failed) if failed else 'see actual failed job step')
         records=[dict(case=c,status='INFRASTRUCTURE_BLOCKED',gameplayAttempted=False,genuineGameplay=False,reason=reason)

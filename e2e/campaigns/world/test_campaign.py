@@ -5,9 +5,39 @@ import math
 from pathlib import Path
 from generate import generate, FAMILIES
 from runner import selection, reproduction, WorldHarness
-from oracle import custody, evaluate
+from oracle import custody, evaluate, receipts
 
 class CorpusTests(unittest.TestCase):
+    def test_recovered_receipts_use_only_the_actual_matching_durable_execution(self):
+        own={'runId':'run','stage':'PICKUP','wheat':1}
+        foreign={'runId':'other','stage':'PICKUP','wheat':99}
+        view={'id':'run','receipts':[],'responsibility':{'attempts':[
+            {'id':'submission','executions':[{'runId':'run'}],'receipts':[own]},
+            {'id':'other','executions':[{'runId':'other'}],'receipts':[foreign]}]}}
+        self.assertEqual(receipts(view,'minecraft:wheat'),[own])
+        self.assertEqual(view['receipts'],[])
+
+    def test_certified_comparisons_reproduce_the_exact_saved_parameters(self):
+        _,cases=selection(104729,'full',('W1','W4'),failure_probes=True)
+        self.assertEqual(len(cases),13)
+        for c in cases:
+            _,replayed=selection(104729,'full',('W1','W4'),case=c['id'],failure_probes=True)
+            self.assertEqual(replayed,[c])
+            command=reproduction(c,104729,certificate='build/replay/certificate')
+            self.assertIn('--failure-probes',command)
+            self.assertIn('--reuse-certificate build/replay/certificate',command)
+            self.assertNotIn('--replay-original',command)
+
+    def test_quantity_distance_controls_hold_native_source_stock_fixed(self):
+        _,cases=selection(104729,'full',('W1','W4'),failure_probes=True)
+        controls={c['id'].split('W1-001-')[-1]:c for c in cases if c.get('comparisonFamily')=='W1-001-fixed-stock'}
+        self.assertEqual(len(controls),4)
+        def normalized(c): return {k:v for k,v in c.items() if k not in ('id','caseSha256','quantity','destination')}
+        self.assertTrue(all(normalized(c)==normalized(controls['q1-stock3']) for c in controls.values()))
+        self.assertTrue(all(len(c['positions'])==3 for c in controls.values()))
+        self.assertEqual(controls['q1-stock3']['destination'],controls['q2-stock3']['destination'])
+        self.assertEqual(controls['q2-stock3']['quantity'],controls['q2-stock3-near']['quantity'])
+
     def test_reproduction_and_independent_seed(self):
         self.assertEqual(generate(23),generate(23))
         self.assertNotEqual(generate(23),generate(29))

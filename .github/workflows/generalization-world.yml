@@ -81,6 +81,12 @@ jobs:
         id: inspect
         if: steps.plan.outputs.previous_run != ''
         run: python3 scripts/campaign-world/inspect_prior.py
+      - name: Import an intact genuinely admitted certificate with exact original program hashes
+        id: certificate
+        if: steps.plan.outputs.native_certificate == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/campaign-world/certificate.py
       - name: Read prior immutable artifacts and preserve a separately qualified review
         id: review
         if: steps.plan.outputs.review_prior == 'true'
@@ -98,6 +104,7 @@ jobs:
           CAMPAIGN_INTERPRETER: ${{ steps.interpreter.conclusion }}
           CAMPAIGN_EXTRACT: ${{ steps.extract.conclusion }}
           CAMPAIGN_INSPECT: ${{ steps.inspect.conclusion }}
+          CAMPAIGN_CERTIFICATE: ${{ steps.certificate.conclusion }}
         run: python3 scripts/campaign-world/launch.py report
       - name: Preserve evidence with a manifest, excluding runtime caches and native memory dumps
         if: always()

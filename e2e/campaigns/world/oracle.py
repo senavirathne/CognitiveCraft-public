@@ -15,7 +15,16 @@ def custody(state,item):
                             for p in state.get('knownPlayers',{}).values()))
 
 def receipts(view,item):
-    return view.get('receipts',[]) if item==WHEAT else view.get('resourceReceipts',[])
+    field='receipts' if item==WHEAT else 'resourceReceipts'
+    transient=view.get(field) or []
+    if transient: return transient
+    # Recovered bootstrap views deliberately omit transient counters. Use the actual
+    # durable attempt for this execution, preserving the original raw view unchanged.
+    rows=[]
+    for attempt in (view.get('responsibility') or {}).get('attempts',[]):
+        if attempt.get('id')==view.get('id') or any(e.get('runId')==view.get('id') for e in attempt.get('executions',[])):
+            rows.extend(attempt.get(field) or [])
+    return rows
 
 def amount(receipt,item):
     return receipt.get('wheat',0) if item==WHEAT else receipt.get('quantity',0)
