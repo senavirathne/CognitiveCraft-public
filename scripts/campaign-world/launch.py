@@ -34,6 +34,8 @@ def configuration():
     if raw['mode'] not in ('full','smoke') or not 0<=raw['budget']<=300 or not set(raw['families'])<=set(FAMILIES):
         raise ValueError('Invalid bounded campaign configuration')
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}',raw['launchId']): raise ValueError('Invalid launch identity')
+    if raw.get('previousRun') not in (None,40076986301): raise ValueError('Only the explicitly identified original world artifact may be reused')
+    if not isinstance(raw.get('includeCases',[]),list): raise ValueError('Explicit case selection must be a list')
     if os.environ.get('GITHUB_EVENT_NAME')=='push':
         if os.environ.get('GITHUB_REF')!='refs/heads/test/generalization-world': raise ValueError('Unexpected launch branch')
         event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
@@ -42,18 +44,30 @@ def configuration():
 
 def plan():
     config=configuration(); OUT.mkdir(parents=True,exist_ok=True)
-    _,cases=selection(config['seed'],config['mode'],config['families'],config['budget'])
-    files={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
-           for p in sorted(HERE.glob('*.py'))}
+    frozen_paths=[*sorted(HERE.glob('*.py')),*sorted(HERE.glob('*.json')),
+                  *sorted((HERE/'client').rglob('*.java')),*sorted((ROOT/'scripts/campaign-world').glob('*.py'))]
+    files={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in frozen_paths}
+    write(OUT/'plan-freeze.json',dict(files=files,heldOutSeed=config.get('heldoutSeed',config['seed']+1)))
+    _,cases=selection(config['seed'],config['mode'],config['families'],config['budget'],include_cases=config.get('includeCases',[]),
+        heldout_seed=config.get('heldoutSeed'),extra_heldout=config.get('extraHeldoutFamilies',[]),replay_original=config.get('replayOriginal',False))
     write(OUT/'plan.json',dict(configuration=config,requested=len(cases),cases=cases,baseline=BASELINE,productionTree=TREE,
         generatorFreeze=files,ci={k:v for k,v in os.environ.items() if k in ('GITHUB_SHA','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_REF','GITHUB_EVENT_NAME')}))
     print('WORLD_PLAN '+json.dumps(dict(requested=len(cases),**config)),flush=True)
+    if os.environ.get('GITHUB_OUTPUT'):
+        with Path(os.environ['GITHUB_OUTPUT']).open('a') as f:
+            f.write('interpreter='+str('W7' in config['families']).lower()+'\n')
+            f.write('previous_run='+str(config.get('previousRun') or '')+'\n')
 
 
 def run():
     value=json.loads((OUT/'plan.json').read_text()); c=value['configuration']
     args=[sys.executable,str(HERE/'runner.py'),'--root',str(OUT),'--mode',c['mode'],'--seed',str(c['seed']),
           '--families',','.join(c['families']),'--budget',str(c['budget'])]
+    if c.get('includeCases'): args+=['--include-cases',','.join(c['includeCases'])]
+    if c.get('heldoutSeed') is not None: args+=['--heldout-seed',str(c['heldoutSeed'])]
+    if c.get('extraHeldoutFamilies'): args+=['--extra-heldout-families',','.join(c['extraHeldoutFamilies'])]
+    if c.get('replayOriginal'): args+=['--replay-original']
+    if c.get('previousRun'): args+=['--reuse-world',str(ROOT/'build/e2e/previous-world')]
     raise SystemExit(subprocess.call(args,cwd=ROOT))
 
 
@@ -77,22 +91,47 @@ def report():
         write(directory/'parameters.json',c); write(directory/'result.json',rec)
         if not (directory/'provenance.json').exists():
             write(directory/'provenance.json',dict(baseline=BASELINE,productionTree=TREE,ci=planned['ci'],releaseSha256=None))
-        (directory/'reproduce.txt').write_text(reproduction(c,planned['configuration']['seed']))
+        (directory/'reproduce.txt').write_text(reproduction(c,planned['configuration']['seed'],bool(planned['configuration'].get('previousRun')),planned['configuration'].get('heldoutSeed')))
     families={f:dict(requested=sum(r['case']['family']==f for r in result['records']),
         attempted=sum(r['case']['family']==f and r.get('gameplayAttempted',False) for r in result['records']),
         gameplay=sum(r['case']['family']==f and r.get('genuineGameplay',False) for r in result['records']),
-        counts=dict(Counter(r['status'] for r in result['records'] if r['case']['family']==f))) for f in planned['configuration']['families']}
+        counts=dict(Counter(r['status'] for r in result['records'] if r['case']['family']==f)))
+        for f in FAMILIES if any(c['family']==f for c in planned['cases'])}
     summary={k:v for k,v in result.items() if k!='records'}; summary.update(families=families,ci=planned['ci'],
         launch=planned['configuration'],records=[{k:v for k,v in r.items() if k not in ('trace','disturbance')}
              for r in result['records']])
     write(OUT/'summary.json',summary)
     inventory=json.loads((HERE/'inventory.json').read_text())
+    items={'cognitivecraft:deliver_wheat':'minecraft:wheat','cognitivecraft:deliver_oak_logs':'minecraft:oak_log','cognitivecraft:deliver_birch_logs':'minecraft:birch_log'}
+    legacy_modes={'legacy-harvest-replant':'harvest-replant','legacy-plant':'plant','legacy-loose-pickup':'pickup','legacy-bread-delivery':'delivery','legacy-enroll-release-auto-stop':'auto-release','legacy-death':'legacy-death'}
     for row in inventory['capabilities']:
         row['generatedCandidateVariations']=families.get(row['family'],{}).get('requested',0)
         row['generatedVariations']=0; row['genuineExecutions']=0
         row['coverageClaim']='UNVERIFIED_PRIMITIVE_PATH' if row.get('primitive') else 'REQUIRES_CASE_WITNESS'
         row['familyResults']=families.get(row['family'],{})
         row['limitation']=row.get('limitation','')+'; aggregate family results do not prove this particular operation was invoked'
+        witnesses=[]
+        if row['capability'] in items:
+            witnesses=[r for r in result['records'] if r['case']['item']==items[row['capability']] and r['case']['family'] in ('W1','W2','W3','W4','W6','W7')]
+        elif row['capability'] in legacy_modes:
+            witnesses=[r for r in result['records'] if r['case']['family']=='W8' and r['case'].get('legacyMode')==legacy_modes[row['capability']]]
+        elif row['capability']=='kernel-enroll-name':
+            witnesses=[r for r in result['records'] if r['case']['family']=='W5']
+        elif row['capability']=='citizen-lifecycle':
+            witnesses=[r for r in result['records'] if r['case']['family'] in ('W5','W10')]
+        elif row['capability']=='nearest-reference':
+            witnesses=[r for r in result['records'] if r['case']['family']=='W7']
+        elif row['capability']=='leases-contention':
+            witnesses=[r for r in result['records'] if r['case']['family']=='W9' and r['case'].get('authorityMode') in ('competition','cross-principal')]
+        elif row['capability'] in ('cancellation','acquisition-delivery-recovery'):
+            witnesses=[r for r in result['records'] if r['case']['family']=='W6' and
+                (r['case'].get('disturbance')=='cancel' if row['capability']=='cancellation' else str(r['case'].get('disturbance')).startswith('restart-'))]
+        if witnesses:
+            row.update(generatedVariations=len(witnesses),genuineExecutions=sum(r.get('genuineGameplay',False) for r in witnesses),
+                successful=sum(r.get('properties',{}).get('delivery',r.get('status')=='PASS') is True for r in witnesses),
+                failed=sum(r['status'].startswith('FAIL_') for r in witnesses),safeRefusals=sum(r['status']=='EXPECTED_SAFE_REFUSAL' for r in witnesses),
+                blocked=sum(r['status']=='INFRASTRUCTURE_BLOCKED' for r in witnesses),inconclusive=sum(r['status']=='INCONCLUSIVE' for r in witnesses),
+                caseWitnesses=[r['case']['id'] for r in witnesses],coverageClaim='ACTUAL_CASE_RESULTS' if any(r.get('genuineGameplay') for r in witnesses) else 'UNTESTED')
     inventory['executionSummary']='summary.json'; inventory['coverageClaim']='NO_AUTOMATIC_PRIMITIVE_CREDIT'
     write(OUT/'coverage.json',inventory)
     failures=[]
@@ -103,7 +142,7 @@ def report():
             actual=r.get('accounting',r.get('reason','No physical accounting available')),
             firstDivergence=r.get('firstDivergence') or {'decision':r.get('reason','Not yet identified')},
             logs='cases/'+c['id']+'/server.log',custody=r.get('accounting'),
-            reproduction=reproduction(c,planned['configuration']['seed']).strip(),reproductionConsistency='SINGLE_ATTEMPT',
+            reproduction=reproduction(c,planned['configuration']['seed'],bool(planned['configuration'].get('previousRun')),planned['configuration'].get('heldoutSeed')).strip(),reproductionConsistency='SINGLE_ATTEMPT',
             smallestCounterexample='NOT_MINIMIZED; original parameters preserved',
             boundary='UNCONFIRMED; inspect native route/custody, admission and durable owner evidence',
             cause='EVIDENCE_BOUNDED: no production cause inferred from a final exception',

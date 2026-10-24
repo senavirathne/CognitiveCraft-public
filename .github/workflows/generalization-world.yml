@@ -18,7 +18,7 @@ on:
         type: string
       families:
         description: Comma-separated abstract families
-        default: W1,W2,W3,W4,W5,W6
+        default: W1,W2,W3,W4,W5,W6,W7,W8,W9,W10
         type: string
       budget:
         description: Maximum selected cases; 0 selects all
@@ -26,6 +26,7 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: generalization-world-${{ github.ref }}
   cancel-in-progress: false
@@ -40,6 +41,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Validate launch request and preserve every requested case before build
+        id: plan
         env:
           CAMPAIGN_MODE: ${{ inputs.mode }}
           CAMPAIGN_SEED: ${{ inputs.seed }}
@@ -62,20 +64,32 @@ jobs:
           bash gradlew --no-daemon --stacktrace :fabric:build
           python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
           python3 e2e/runtime.py prepare
-          python3 e2e/runtime.py compile
+          python3 scripts/campaign-world/compile.py
+      - name: Prepare the real interpreter once when nearest-reference cases require it
+        if: steps.plan.outputs.interpreter == 'true'
+        run: python3 tools/needle/install.py build/needle
+      - name: Download the exact previous campaign's native world and immutable evidence
+        if: steps.plan.outputs.previous_run != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/campaign-world/extract.py
+      - name: Inspect the preserved first divergences without changing original files
+        if: steps.plan.outputs.previous_run != ''
+        run: python3 scripts/campaign-world/inspect.py
       - name: Run sequential cases through one persistent connected client
+        timeout-minutes: 300
         run: python3 scripts/campaign-world/launch.py run
       - name: Reconcile requested and observed denominators, preserving failures
         if: always()
         run: python3 scripts/campaign-world/launch.py report
+      - name: Preserve evidence with a manifest, excluding runtime caches and native memory dumps
+        if: always()
+        run: python3 scripts/campaign-world/artifact.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: generalization-world-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: warn
-          retention-days: 30
-          path: |
-            build/e2e/generalization-world/
-            fabric/build/libs/ai-villages-0.1.0.jar
-            build/e2e-driver/
+          retention-days: 90
+          path: build/e2e/world-evidence/

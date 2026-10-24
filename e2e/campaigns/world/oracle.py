@@ -65,7 +65,8 @@ def evaluate(case,before,after,view,citizen,entity,samples):
                delivery=success and deposited==case['quantity'],harvest=harvested==case['quantity'],navigation=moved)
     props['immaturePreserved']=all(before['blocks'].get(key(p))==after['blocks'].get(key(p)) for p in case.get('immature',[]))
     props['unrelatedPreserved']=all(before['blocks'].get(key(p))==after['blocks'].get(key(p)) for p in case.get('unrelated',[]))
+    props['standingSupportsPreserved']=all(before['blocks'].get(key(p))==after['blocks'].get(key(p)) for p in case.get('standingSupports',[]))
     return props,dict(harvestedBlocks=harvested,destinationDelta=deposited,receipts=sums,
                       custodyBefore=initial,custodyAfter=final,observationMissing=unknown)
 
-SAFETY=('conservation','receiptIdentity','pickupLineage','harvestAttribution','depositAttribution','truthfulCompletion','immaturePreserved','unrelatedPreserved')
+SAFETY=('conservation','receiptIdentity','pickupLineage','harvestAttribution','depositAttribution','truthfulCompletion','immaturePreserved','unrelatedPreserved','standingSupportsPreserved')
