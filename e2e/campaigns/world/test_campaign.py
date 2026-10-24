@@ -5,9 +5,44 @@ import math
 from pathlib import Path
 from generate import generate, FAMILIES
 from runner import selection, reproduction, WorldHarness
-from oracle import custody, evaluate, receipts
+from oracle import custody, evaluate, receipts,cancelled_owner
 
 class CorpusTests(unittest.TestCase):
+    def test_cancelled_run_requires_both_native_reason_and_terminal_durable_owner(self):
+        view={'phase':'TERMINAL','outcome':{'status':'FAILED','reason':'CANCELLED'},
+              'responsibility':{'state':'CANCELLED'}}
+        self.assertTrue(cancelled_owner(view))
+        view['responsibility']['state']='CANCELLING'
+        self.assertFalse(cancelled_owner(view))
+        view['responsibility']['state']='CANCELLED'; view['outcome']['reason']='BUDGET_EXHAUSTED'
+        self.assertFalse(cancelled_owner(view))
+
+    def test_direct_responsibility_is_observed_without_inventing_a_queue_job(self):
+        h=object.__new__(WorldHarness)
+        native={'id':'direct','state':'CANCELLING'}
+        state={'knownPlayers':{'PlayerA':{'jobs':{},'runs':{'run':{'responsibility':native}}}}}
+        h.snapshot=lambda:state
+        self.assertIs(h.job_view('PlayerA','direct'),native)
+        self.assertIsNone(h.job_view('PlayerB','direct'))
+        self.assertEqual(state['knownPlayers']['PlayerA']['jobs'],{})
+
+    def test_cleanup_allows_real_completion_race_and_requires_terminal_owner(self):
+        h=object.__new__(WorldHarness); state={'id':'job','state':'ACTIVE'}
+        h.job_view=lambda *args:state
+        def command(*args):
+            state['state']='SUCCEEDED'
+            return 'job=job cancellation=false reason=ALREADY_TERMINAL'
+        h.command=command
+        def wait(fn,*args):
+            result=fn()
+            if not result: raise TimeoutError('native owner did not settle')
+            return result
+        h.wait=wait
+        self.assertEqual(h.settle_job('PlayerA','job')['terminal'],'SUCCEEDED')
+        state['state']='CANCELLING'; h.command=lambda *args:'job=job cancellation=true'
+        with self.assertRaises(TimeoutError): h.settle_job('PlayerA','job')
+        self.assertEqual(h.cleanup_stage,'settlement')
+
     def test_recovered_receipts_use_only_the_actual_matching_durable_execution(self):
         own={'runId':'run','stage':'PICKUP','wheat':1}
         foreign={'runId':'other','stage':'PICKUP','wheat':99}

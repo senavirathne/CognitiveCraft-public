@@ -38,6 +38,12 @@ def outcome(view):
     # Current outcome can precede the last durable marker; never overwrite it with an older checkpoint.
     return (view.get('outcome') or {}).get('status') or (view.get('marker') or {}).get('outcome')
 
+def cancelled_owner(view):
+    # The production run reports FAILED/CANCELLED while its durable Job reports CANCELLED.
+    # Require both actual witnesses; neither the acknowledgement nor a guessed status suffices.
+    return (view.get('phase')=='TERMINAL' and (view.get('responsibility') or {}).get('state')=='CANCELLED' and
+        ((view.get('outcome') or {}).get('reason') or (view.get('marker') or {}).get('reason'))=='CANCELLED')
+
 def evaluate(case,before,after,view,citizen,entity,samples):
     item=case['item']; rows=receipts(view,item); sums=stages(view,item)
     positions=case['positions']

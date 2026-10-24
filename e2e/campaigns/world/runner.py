@@ -23,10 +23,11 @@ import navigation
 from suite import Harness, InfrastructureBlocked, ROOT, UUID_PATTERN, atomic, read, require, reconnect_players
 from generalization_support import AssessmentHarness, AssessmentBlocked, Inconclusive, LOG, BIRCH
 from generate import generate, BASELINE, TREE, FAMILIES, point
-from oracle import evaluate, outcome, stages, receipts, SAFETY, key, WHEAT,custody
+from oracle import evaluate, outcome, stages, receipts, SAFETY, key, WHEAT,custody,cancelled_owner
 
 CAPS={WHEAT:'deliver_wheat',LOG:'deliver_oak_logs',BIRCH:'deliver_birch_logs'}
 ACTIVE=('PERSISTING','ROUTING','EXECUTING','RESEARCHING','RESOLVING','INTERPRETING')
+TERMINAL_JOBS=('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED')
 
 def coord(p): return ' '.join(map(str,p))
 
@@ -367,9 +368,34 @@ class WorldHarness(AssessmentHarness):
         self.command('PlayerA','/aivillage kernel inference false','admission=false')
         self.compose('stop','ollama'); self.actions_active=False
 
+    def job_view(self,player,jid):
+        data=(self.snapshot() or {}).get('knownPlayers',{}).get(player,{})
+        return data.get('jobs',{}).get(jid) or next((v['responsibility'] for v in data.get('runs',{}).values()
+            if (v.get('responsibility') or {}).get('id')==jid),None)
+
+    def settle_job(self,player,jid):
+        """Fence a real owner, allowing a completion race without inventing cancellation."""
+        self.cleanup_stage='acknowledgement'
+        view=self.job_view(player,jid)
+        if view and view['state'] in TERMINAL_JOBS:
+            return {'alreadyTerminal':view['state']}
+        answers=[]
+        def acknowledged():
+            view=self.job_view(player,jid)
+            if view and view['state'] in TERMINAL_JOBS: return True
+            answer=self.command(player,'/aivillage kernel job-cancel '+jid,'job='+jid)
+            answers.append(answer)
+            return 'cancellation=false reason=BUDGET_EXHAUSTED' not in answer
+        self.wait(acknowledged,'Public Job cancellation publication available',30)
+        self.cleanup_stage='settlement'
+        final=self.wait(lambda:(v if (v:=self.job_view(player,jid)) and v['state'] in TERMINAL_JOBS else None),
+                        'Actual Job terminal before fixture reset '+jid,45)
+        return {'feedback':answers,'terminal':final['state']}
+
     def cleanup_world(self):
         # Unlike the shared assessment helper, do not allow fixture writes until every owner is terminal.
         if 'server' not in self.booted: return
+        self.cleanup_stage='acknowledgement'
         self.ensure_client()
         self.console(['tick unfreeze','tick rate 20'],lifecycle=True)
         self.cleanup_legacy()
@@ -382,22 +408,18 @@ class WorldHarness(AssessmentHarness):
                 continue
             for rid,v in data.get('runs',{}).items():
                 if v.get('phase') in ACTIVE:
-                    self.command(player,'/aivillage kernel cancel '+rid,'cancel|CANCEL|denied|unavailable',20)
+                    self.cleanup_stage='acknowledgement'
+                    self.command(player,'/aivillage kernel cancel '+rid,'run='+rid+'|denied|unavailable',20)
                 job=v.get('responsibility')
                 if job and job.get('state') not in ('SUCCEEDED','FAILED','CANCELLED'):
-                    jid=job['id']
-                    self.command(player,'/aivillage kernel job-cancel '+jid,'job='+jid)
-                    def stopped(player=player,rid=rid,jid=jid):
-                        d=(self.snapshot() or {}).get('knownPlayers',{}).get(player,{})
-                        j=(d.get('runs',{}).get(rid) or {}).get('responsibility') or d.get('jobs',{}).get(jid)
-                        return j and j.get('state') in ('SUCCEEDED','FAILED','CANCELLED')
-                    self.wait(stopped,'Actual direct responsibility cancelled before fixture reset',45)
+                    self.settle_job(player,job['id'])
             for jid,j in data.get('jobs',{}).items():
                 if j.get('state') not in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED'):
-                    self.cancel_job(player,jid)
+                    self.settle_job(player,jid)
+        self.cleanup_stage='settlement'
         self.wait(lambda:all(v.get('phase') not in ACTIVE for d in (self.snapshot() or {}).get('knownPlayers',{}).values()
                             for v in d.get('runs',{}).values()),'All gameplay owners terminal before resetting fixtures',40)
-        self.actions_active=False; self.quiet(3)
+        self.actions_active=False; self.quiet(3); self.cleanup_stage=None
 
     def cleanup_legacy(self):
         if getattr(self,'legacy_subjects',{}): self.action('PlayerA','close-menu')
@@ -496,7 +518,7 @@ def disturb(h,c,run):
         observed=h.wait(external_break,'Player removal independently exceeds native harvest receipts by one',30)
         return dict(kind='break',target=target,observed=observed)
     # Stop time only to make a genuine already-observed boundary reproducible; no tested effect is supplied.
-    h.console(['tick rate 1','tick freeze'],lifecycle=True)
+    h.console(['tick freeze'],lifecycle=True)
     current=h.run_view('PlayerA',run)
     if not current or current.get('phase')!='EXECUTING':
         h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
@@ -570,7 +592,9 @@ def execute(h,c):
     if c['family']=='W6' and disturbance:
         props['disturbanceObserved']=True
         if c['disturbance']=='cancel':
-            props['cancellation']=outcome(view) in ('CANCELLED','INTERRUPTED')
+            props['cancellation']=cancelled_owner(view)
+            disturbance['cancellationEvidence']={'phase':view.get('phase'),'outcome':view.get('outcome'),
+                'marker':view.get('marker'),'jobState':(view.get('responsibility') or {}).get('state')}
             h.quiet(30); later=h.snapshot()
             props['cancellationNoLaterEffects']=(after['containers']==later['containers'] and
                 all(after['blocks'].get(key(p))==later['blocks'].get(key(p)) for p in c['positions']) and
@@ -710,11 +734,17 @@ def main():
                 if not a.isolate_families or not getattr(h,'current_certificate',None): raise
                 state=h.snapshot(); atomic(h.case_dir/'unsettled-owner-native-state.json',state)
                 (h.case_dir/'cleanup-server.log').write_text(h.server_log()[offset:])
-                rec['observedTaskStatus']=rec['status']; rec['status']='FAIL_ARCHITECTURAL_GAP'
+                unsettled={j['id']:j for data in state.get('knownPlayers',{}).values()
+                    for j in [*data.get('jobs',{}).values(),
+                              *(v['responsibility'] for v in data.get('runs',{}).values() if v.get('responsibility'))]
+                    if j['state'] not in TERMINAL_JOBS}
+                actual_settlement_failure=bool(unsettled) and getattr(h,'cleanup_stage',None)=='settlement'
+                rec['observedTaskStatus']=rec['status']
+                rec['status']='FAIL_ARCHITECTURAL_GAP' if actual_settlement_failure else 'INCONCLUSIVE'
                 rec['cleanupFailure']={'reason':str(error),'evidence':'unsettled-owner-native-state.json',
-                    'boundary':'Public cancellation did not become terminal; complete native game quarantined before any new fixture write',
-                    'jobs':[{'run':rid,'id':j['id'],'state':j['state']} for data in state.get('knownPlayers',{}).values()
-                            for rid,v in data.get('runs',{}).items() if (j:=v.get('responsibility')) and j['state'] not in ('SUCCEEDED','FAILED','CANCELLED')]}
+                    'stage':getattr(h,'cleanup_stage',None),'actualSettlementFailure':actual_settlement_failure,
+                    'boundary':'Complete native game quarantined before new fixture writes; only acknowledged cancellation with a nonterminal durable Job receives architectural-gap credit',
+                    'jobs':[{'id':j['id'],'state':j['state']} for j in unsettled.values()]}
                 atomic(h.case_dir/'result.json',rec); atomic(a.root/'results.json',result)
                 restore_cohort(h,h.current_certificate,quarantine=True)
             h.case=None; h.case_dir=None

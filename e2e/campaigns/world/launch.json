@@ -1,11 +1,16 @@
 {
   "schema": 1,
-  "launchId": "world-original-program-comparisons-20261024-07",
+  "launchId": "world-recovery-authority-safety-20261024-08",
   "mode": "full",
   "seed": 104729,
-  "families": ["W1", "W4"],
-  "failureProbes": true,
-  "nativeCertificate": 12563506914,
+  "heldoutSeed": 86028121,
+  "families": [
+    "W6",
+    "W9",
+    "W12"
+  ],
+  "isolateFamilies": true,
+  "cohortCases": 6,
   "reviewPrior": false,
   "budget": 0
 }

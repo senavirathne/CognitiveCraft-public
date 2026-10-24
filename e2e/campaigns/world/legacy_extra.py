@@ -124,7 +124,10 @@ def legacy_safety(h,c):
             h.executed_case=True
             current=next(a for a in h.snapshot()['actors'] if a['uuid']==eid)
             if math.dist(h.client_snapshot('PlayerA')['pos'],current['pos'])>3:
-                raise Inconclusive('Actual subject left ordinary interaction reach before hazard; no forced active teleport')
+                h.walk('PlayerA',[math.floor(v) for v in current['pos']],reach=2)
+                current=next(a for a in h.snapshot()['actors'] if a['uuid']==eid)
+            if math.dist(h.client_snapshot('PlayerA')['pos'],current['pos'])>3:
+                raise Inconclusive('Moving subject remained outside ordinary interaction reach after real player walking')
             if mode=='damage-active':
                 h.action('PlayerA','attack',uuid=eid)
                 health=h.wait(lambda:(v if (v:=native_health(h,eid))<first_health else None),
