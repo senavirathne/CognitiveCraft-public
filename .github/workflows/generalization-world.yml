@@ -60,27 +60,44 @@ jobs:
             build/server-sdk
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
       - name: Build once and check campaign invariants
+        id: build
         run: |
           bash gradlew --no-daemon --stacktrace :fabric:build
           python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
+          python3 -m unittest discover -s scripts/campaign-world -p 'test_*.py'
           python3 e2e/runtime.py prepare
           python3 scripts/campaign-world/compile.py
       - name: Prepare the real interpreter once when nearest-reference cases require it
+        id: interpreter
         if: steps.plan.outputs.interpreter == 'true'
         run: python3 tools/needle/install.py build/needle
       - name: Download the exact previous campaign's native world and immutable evidence
+        id: extract
         if: steps.plan.outputs.previous_run != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/campaign-world/extract.py
       - name: Inspect the preserved first divergences without changing original files
+        id: inspect
         if: steps.plan.outputs.previous_run != ''
-        run: python3 scripts/campaign-world/inspect.py
+        run: python3 scripts/campaign-world/inspect_prior.py
+      - name: Read prior immutable artifacts and preserve a separately qualified review
+        id: review
+        if: steps.plan.outputs.review_prior == 'true'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/campaign-world/review.py
       - name: Run sequential cases through one persistent connected client
         timeout-minutes: 300
         run: python3 scripts/campaign-world/launch.py run
       - name: Reconcile requested and observed denominators, preserving failures
         if: always()
+        env:
+          CAMPAIGN_BUILD: ${{ steps.build.conclusion }}
+          CAMPAIGN_INTERPRETER: ${{ steps.interpreter.conclusion }}
+          CAMPAIGN_EXTRACT: ${{ steps.extract.conclusion }}
+          CAMPAIGN_INSPECT: ${{ steps.inspect.conclusion }}
         run: python3 scripts/campaign-world/launch.py report
       - name: Preserve evidence with a manifest, excluding runtime caches and native memory dumps
         if: always()

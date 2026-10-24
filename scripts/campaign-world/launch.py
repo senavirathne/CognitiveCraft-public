@@ -66,6 +66,7 @@ def plan():
         with Path(os.environ['GITHUB_OUTPUT']).open('a') as f:
             f.write('interpreter='+str('W7' in config['families']).lower()+'\n')
             f.write('previous_run='+str(config.get('previousRun') or '')+'\n')
+            f.write('review_prior='+str(config.get('reviewPrior',False)).lower()+'\n')
 
 
 def run():
@@ -77,6 +78,7 @@ def run():
     if c.get('extraHeldoutFamilies'): args+=['--extra-heldout-families',','.join(c['extraHeldoutFamilies'])]
     if c.get('replayOriginal'): args+=['--replay-original']
     if c.get('previousRun'): args+=['--reuse-world',str(ROOT/'build/e2e/previous-world')]
+    if c.get('isolateFamilies'): args+=['--isolate-families','--cohort-cases',str(c.get('cohortCases',6))]
     raise SystemExit(subprocess.call(args,cwd=ROOT))
 
 
@@ -88,7 +90,9 @@ def report():
     planned=json.loads(plan_path.read_text()); result_path=OUT/'results.json'
     if result_path.exists(): result=json.loads(result_path.read_text())
     else:
-        reason='Actions build, asset preparation or driver compilation failed before gameplay; see job logs'
+        failed=[stage.lower() for stage in ('BUILD','INTERPRETER','EXTRACT','INSPECT')
+            if os.environ.get('CAMPAIGN_'+stage)=='failure']
+        reason='Actions setup failed before gameplay at: '+(', '.join(failed) if failed else 'see actual failed job step')
         records=[dict(case=c,status='INFRASTRUCTURE_BLOCKED',gameplayAttempted=False,genuineGameplay=False,reason=reason)
                  for c in planned['cases']]
         result=dict(schema=2,baseline=BASELINE,productionTree=TREE,requested=len(records),records=records,complete=False,
@@ -100,7 +104,7 @@ def report():
         write(directory/'parameters.json',c); write(directory/'result.json',rec)
         if not (directory/'provenance.json').exists():
             write(directory/'provenance.json',dict(baseline=BASELINE,productionTree=TREE,ci=planned['ci'],releaseSha256=None))
-        (directory/'reproduce.txt').write_text(reproduction(c,planned['configuration']['seed'],bool(planned['configuration'].get('previousRun')),planned['configuration'].get('heldoutSeed')))
+        (directory/'reproduce.txt').write_text(reproduction(c,planned['configuration']['seed'],bool(planned['configuration'].get('previousRun')),planned['configuration'].get('heldoutSeed'),rec.get('nativeCertificate')))
     families={f:dict(requested=sum(r['case']['family']==f for r in result['records']),
         attempted=sum(r['case']['family']==f and r.get('gameplayAttempted',False) for r in result['records']),
         gameplay=sum(r['case']['family']==f and r.get('genuineGameplay',False) for r in result['records']),
@@ -155,7 +159,7 @@ def report():
             actual=r.get('accounting',r.get('reason','No physical accounting available')),
             firstDivergence=r.get('firstDivergence') or {'decision':r.get('reason','Not yet identified')},
             logs='cases/'+c['id']+'/server.log',custody=r.get('accounting'),
-            reproduction=reproduction(c,planned['configuration']['seed'],bool(planned['configuration'].get('previousRun')),planned['configuration'].get('heldoutSeed')).strip(),reproductionConsistency='SINGLE_ATTEMPT',
+            reproduction=reproduction(c,planned['configuration']['seed'],bool(planned['configuration'].get('previousRun')),planned['configuration'].get('heldoutSeed'),r.get('nativeCertificate')).strip(),reproductionConsistency='SINGLE_ATTEMPT',
             smallestCounterexample='NOT_MINIMIZED; original parameters preserved',
             boundary='UNCONFIRMED; inspect native route/custody, admission and durable owner evidence',
             cause='EVIDENCE_BOUNDED: no production cause inferred from a final exception',

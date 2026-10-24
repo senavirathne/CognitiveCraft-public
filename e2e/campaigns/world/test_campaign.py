@@ -129,4 +129,18 @@ class CorpusTests(unittest.TestCase):
         props,_=evaluate(c,before,after,view,'citizen','entity',[])
         self.assertFalse(props['receiptIdentity'])
 
+    def test_conserved_item_in_foreign_actor_does_not_prove_claimed_pickup_custody(self):
+        import copy
+        c=next(c for c in generate() if c['item']=='minecraft:oak_log' and c['quantity']==1)
+        block=','.join(map(str,c['positions'][0])); destination=','.join(map(str,c['destination']))
+        before={'blocks':{block:c['item']},'containers':{destination:{}},'drops':[],'knownPlayers':{},
+            'actors':[{'uuid':'actor','pos':[66,208,66],'inventory':{}},{'uuid':'foreign','pos':[80,208,76],'inventory':{}}]}
+        after=copy.deepcopy(before); after['blocks'][block]='minecraft:air'; after['actors'][1]['inventory'][c['item']]=1
+        rows=[{'receiptId':str(i),'batchId':'batch','runId':'run','actor':{'citizenId':'citizen','entityId':'actor'},
+            'destination':dict(zip(('x','y','z'),c['destination'])),'item':{'id':c['item']},'stage':stage,'quantity':1}
+            for i,stage in enumerate(('HARVEST','PICKUP'))]
+        props,_=evaluate(c,before,after,{'id':'run','outcome':{'status':'BLOCKED'},'resourceReceipts':rows},'citizen','actor',[])
+        self.assertTrue(props['conservation'])
+        self.assertFalse(props['actorCustodyAttribution'])
+
 if __name__=='__main__': unittest.main()

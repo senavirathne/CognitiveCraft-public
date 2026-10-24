@@ -23,7 +23,7 @@ import navigation
 from suite import Harness, InfrastructureBlocked, ROOT, UUID_PATTERN, atomic, read, require, reconnect_players
 from generalization_support import AssessmentHarness, AssessmentBlocked, Inconclusive, LOG, BIRCH
 from generate import generate, BASELINE, TREE, FAMILIES, point
-from oracle import evaluate, outcome, stages, receipts, SAFETY, key, WHEAT
+from oracle import evaluate, outcome, stages, receipts, SAFETY, key, WHEAT,custody
 
 CAPS={WHEAT:'deliver_wheat',LOG:'deliver_oak_logs',BIRCH:'deliver_birch_logs'}
 ACTIVE=('PERSISTING','ROUTING','EXECUTING','RESEARCHING','RESOLVING','INTERPRETING')
@@ -71,10 +71,11 @@ def selection(seed,mode,families,budget=0,case=None,include_cases=(),heldout_see
     return corpus,chosen
 
 
-def reproduction(c,campaign_seed,reuse_world=False,heldout_seed=None):
+def reproduction(c,campaign_seed,reuse_world=False,heldout_seed=None,certificate=None):
     suffix=' --reuse-world build/e2e/previous-world' if reuse_world else ''
     if heldout_seed is not None: suffix+=' --heldout-seed '+str(heldout_seed)
     if c.get('replaySource'): suffix+=' --replay-original'
+    if certificate: suffix+=' --reuse-certificate '+certificate
     return f'python3 e2e/campaigns/world/runner.py --root build/replay-{c["id"]}-{campaign_seed} --seed {campaign_seed} --mode full --case {c["id"]}'+suffix+'\n'
 
 
@@ -89,6 +90,9 @@ class WorldHarness(AssessmentHarness):
         corpus=read(E2E/'generalization/cases.json')
         atomic(self.root/'assessment-language.json',{r['id']:r['requirement'] for r in corpus['scenarios'] if r['category']=='language'})
         self.env['COGNITIVECRAFT_E2E_SNAPSHOT_TICKS']='1'
+        metadata=read(self.root/'metadata.json')
+        metadata['campaignInstrumentation']=read(ROOT/'build/e2e-driver/campaign-instruments.json')
+        atomic(self.root/'metadata.json',metadata)
         if interpreter:
             shutil.copytree(ROOT/'build/needle',self.root/'needle',dirs_exist_ok=True)
             self.env['COGNITIVECRAFT_NEEDLE_DIR']='/evidence/needle'
@@ -294,26 +298,42 @@ class WorldHarness(AssessmentHarness):
             atomic(self.root/'models.json',json.load(response))
         self.backend_prepared=True
 
-    def bootstrap_world(self,reuse_world=None):
+    def public_intake(self,player,command,tag):
+        answers=[]
+        def ready():
+            answer=self.command(player,command,tag+'='+UUID_PATTERN)
+            answers.append(answer)
+            if 'accepted=false reason=BUDGET_EXHAUSTED' in answer:
+                self.event('campaign-zero-work-publication-refusal',{'player':player,'command':command,'feedback':answer})
+                return None
+            return answer
+        answer=self.wait(ready,'Public intake available without repeating accepted work',30)
+        return answer,answers[:-1]
+
+    def bootstrap_world(self,reuse_world=None,resources=(WHEAT,LOG,BIRCH),reuse_certificate=None):
         self.env['COGNITIVECRAFT_OLLAMA_MODEL']='qwen3:4b-instruct-2507-q4_K_M'
-        self.compose('build','minecraft')
-        if reuse_world:
+        if not getattr(self,'image_prepared',False):
+            self.compose('build','minecraft'); self.image_prepared=True
+        if reuse_certificate:
+            from cohort import restore
+            restore(self,reuse_certificate)
+        elif reuse_world:
             from seed import restore
             restore(self,reuse_world)
         else: self.fresh(two=False); self.enroll()
-        missing=[item for item in (WHEAT,LOG,BIRCH) if 'cognitivecraft:'+CAPS[item] not in self.hashes]
-        if not missing:
+        missing=[item for item in resources if 'cognitivecraft:'+CAPS[item] not in self.hashes]
+        if not missing or reuse_world or reuse_certificate:
             self.command('PlayerA','/aivillage kernel inference false','admission=false'); return
         self.prepare_backend()
         self.command('PlayerA','/aivillage kernel inference true','admission=true')
         for item in missing:
             self.family='ADMISSION-'+CAPS[item]
-            self.case_dir=self.root/'admissions'/CAPS[item]; self.case_dir.mkdir(parents=True)
+            self.case_dir=self.root/'admissions'/getattr(self,'resource_cohort','initial')/CAPS[item]; self.case_dir.mkdir(parents=True)
             c=next(c for c in generate() if c['item']==item)
             c={**c,'quantity':1,'positions':[point(7,8)],'destinationSlots':[],'occupiedSlots':0,
                 'actorOccupiedSlots':0,'existingStock':0,'terrain':'flat','immature':[],'unrelated':[],
                 'standingSupports':[],'sourceBounds':point(7,8)+point(7,8),'disturbance':None}
-            admission={'item':item,'status':'INCONCLUSIVE'}
+            admission={'item':item,'status':'INCONCLUSIVE','cohort':getattr(self,'resource_cohort','initial')}
             try:
                 self.reset_case(c); before=self.snapshot(); calls=self.model_calls(); req=self.request_case(c,True)
                 atomic(self.case_dir/'before.json',before); atomic(self.case_dir/'request.json',req)
@@ -350,6 +370,15 @@ class WorldHarness(AssessmentHarness):
             for rid,v in data.get('runs',{}).items():
                 if v.get('phase') in ACTIVE:
                     self.command(player,'/aivillage kernel cancel '+rid,'cancel|CANCEL|denied|unavailable',20)
+                job=v.get('responsibility')
+                if job and job.get('state') not in ('SUCCEEDED','FAILED','CANCELLED'):
+                    jid=job['id']
+                    self.command(player,'/aivillage kernel job-cancel '+jid,'job='+jid)
+                    def stopped(player=player,rid=rid,jid=jid):
+                        d=(self.snapshot() or {}).get('knownPlayers',{}).get(player,{})
+                        j=(d.get('runs',{}).get(rid) or {}).get('responsibility') or d.get('jobs',{}).get(jid)
+                        return j and j.get('state') in ('SUCCEEDED','FAILED','CANCELLED')
+                    self.wait(stopped,'Actual direct responsibility cancelled before fixture reset',45)
             for jid,j in data.get('jobs',{}).items():
                 if j.get('state') not in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED'):
                     self.cancel_job(player,jid)
@@ -449,16 +478,23 @@ def disturb(h,c,run):
     if not current or current.get('phase')!='EXECUTING':
         h.console(['tick unfreeze'],lifecycle=True)
         raise Inconclusive('Execution ended before checkpoint could be frozen')
-    checkpoint=h.save_checkpoint(); saved=h.snapshot()
-    source=h.root/'server/game/world/data/cognitivecraft'
-    if source.exists(): shutil.copytree(source,h.case_dir/'durable-checkpoint',dirs_exist_ok=True)
+    saved=h.snapshot(); checkpoint=h.save_checkpoint()
+    before_kill=h.run_view('PlayerA',run)
+    if not before_kill or before_kill.get('phase')!='EXECUTING':
+        h.console(['tick unfreeze'],lifecycle=True)
+        raise Inconclusive('Task ended during the acknowledged checkpoint; active crash boundary missed')
     client_process=read(h.root/'clients/PlayerA/process.json')
     h.stop('server',hard=True); killed=h.world_hashes()
+    last=h.snapshot()
+    last_view=last.get('knownPlayers',{}).get('PlayerA',{}).get('runs',{}).get(run) or {}
+    live_at_kill=last_view.get('phase')=='EXECUTING'
+    shutil.copytree(h.root/'server/game/world',h.case_dir/'crashed-world',ignore=shutil.ignore_patterns('session.lock'))
+    atomic(h.case_dir/'crash-world-proof.json',{'files':killed,'lastNativeSnapshot':last,'liveAtKill':live_at_kill})
     h.wait(lambda:not h.action('PlayerA','snapshot')['play'],'SIGKILL disconnected actual client',40)
     h.start('server'); reconnect_players(h,['PlayerA']); h.console(['tick unfreeze'],lifecycle=True)
     require(read(h.root/'clients/PlayerA/process.json')==client_process,'Recovery replaced persistent client process')
     return dict(kind=c['disturbance'],checkpoint=checkpoint,boundary=current,before=saved,
-                killedWorldHashes=killed,after=h.snapshot(),persistentClientProcess=client_process)
+                killedWorldHashes=killed,after=h.snapshot(),liveAtKill=live_at_kill,persistentClientProcess=client_process)
 
 
 def execute(h,c):
@@ -495,12 +531,25 @@ def execute(h,c):
         props['disturbanceObserved']=True
         if c['disturbance']=='cancel': props['cancellation']=outcome(view) in ('CANCELLED','INTERRUPTED')
         if c['disturbance'].startswith('restart-'):
-            old=disturbance['before']; h.quiet(30); later=h.snapshot()
-            props['recovery']=(bool(disturbance['checkpoint']['files']) and old['containers']==later['containers'] and
-                not any(a['controlled'] for a in later['actors']) and outcome(view) in ('INTERRUPTED','FAILED','CANCELLED'))
+            if not disturbance['liveAtKill']: raise Inconclusive('Last native pre-kill snapshot was already terminal; no active checkpoint recovery credit')
+            old=disturbance['before']; restarted=disturbance['after']; h.quiet(30); later=h.snapshot()
+            already_harvested=[p for p in c['positions'] if 'minecraft:air' in old['blocks'].get(key(p),'')]
+            props['durableCustody']=(sum(custody(later,c['item']).values())>=sum(custody(old,c['item']).values()) and
+                all('minecraft:air' in later['blocks'].get(key(p),'') for p in already_harvested))
+            recovered_outcome=outcome(view)
+            acceptable=recovered_outcome in ('INTERRUPTED','FAILED','CANCELLED') or recovered_outcome=='SUCCEEDED' and props['delivery'] and props['harvest']
+            props['recovery']=(bool(disturbance['checkpoint']['files']) and restarted['containers']==later['containers'] and
+                not any(a['controlled'] for a in later['actors']) and acceptable)
             props['noInference']=(disturbance['before']['brokerStats']['calls']==calls['generationCalls'] and
                 disturbance['before']['needleCalls']==calls['needleCalls'] and all(value==0 for value in h.model_calls().values()))
-    if not all(props[k] for k in SAFETY): status='FAIL_SAFETY'
+    failure_reason=(view.get('outcome') or {}).get('reason') or (view.get('marker') or {}).get('reason')
+    if not request['accepted']:
+        match=re.search(r'reason=([A-Z_]+)',request.get('feedback',''))
+        if match: failure_reason=match.group(1)
+    if failure_reason=='STORAGE_LIMIT_REACHED':
+        status='FAIL_ARCHITECTURAL_GAP'
+        if not receipts(view,c['item']): h.executed_case=False
+    elif not all(props[k] for k in SAFETY) or props.get('durableCustody') is False: status='FAIL_SAFETY'
     elif c['family']=='W6':
         required=['noInference','disturbanceObserved']+(['recovery'] if c['disturbance'].startswith('restart-') else ['cancellation'] if c['disturbance']=='cancel' else [])
         status='PASS' if all(props.get(k) for k in required) else 'FAIL_GAMEPLAY'
@@ -515,7 +564,7 @@ def execute(h,c):
                 'Actual connected container menu differs from native transfer')
     else: h.screenshot('PlayerA','world-result',chat=True)
     return dict(status=status,genuineGameplay=h.executed_case,gameplayAttempted=h.attempted_case,
-                request=request,properties=props,accounting=accounting,disturbance=disturbance,
+                request=request,properties=props,accounting=accounting,disturbance=disturbance,failureReason=failure_reason,
                 firstDivergence=next(({'property':k,'observed':v,'context':'observations.jsonl, request.json, run.json'}
                     for k,v in props.items() if v is False),None))
 
@@ -526,11 +575,13 @@ def main():
     p.add_argument('--mode',choices=('smoke','full'),default='smoke'); p.add_argument('--families',default=','.join(FAMILIES))
     p.add_argument('--budget',type=int,default=0); p.add_argument('--case'); p.add_argument('--generate-only',action='store_true')
     p.add_argument('--include-cases',default=''); p.add_argument('--reuse-world',type=Path)
+    p.add_argument('--reuse-certificate',type=Path); p.add_argument('--isolate-families',action='store_true')
+    p.add_argument('--cohort-cases',type=int,default=6)
     p.add_argument('--heldout-seed',type=int); p.add_argument('--extra-heldout-families',default=''); p.add_argument('--replay-original',action='store_true')
     a=p.parse_args(); a.root.mkdir(parents=True,exist_ok=True)
     require(not (a.root/'results.json').exists(),'New evidence root required; original attempts are immutable')
     selected=a.families.split(','); require(set(selected)<=set(FAMILIES),'Unknown family'); require(a.budget>=0,'Negative budget')
-    files=[Path(__file__),HERE/'generate.py',HERE/'oracle.py',HERE/'extra.py',HERE/'legacy_extra.py',HERE/'seed.py']
+    files=[Path(__file__),HERE/'generate.py',HERE/'oracle.py',HERE/'extra.py',HERE/'legacy_extra.py',HERE/'seed.py',HERE/'cohort.py']
     if a.replay_original: files.extend([HERE/'replay-cases.json',HERE/'failure-probes.json'])
     atomic(a.root/'generator-freeze.json',dict(files={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},heldOutSeed=a.heldout_seed if a.heldout_seed is not None else a.seed+1))
     corpus,cases=selection(a.seed,a.mode,selected,a.budget,a.case,a.include_cases.split(',') if a.include_cases else (),a.heldout_seed,
@@ -542,15 +593,36 @@ def main():
     if a.generate_only: return
     h=None
     try:
+        require(not (a.isolate_families and a.replay_original),'Original replays cannot silently replace the admitted methods')
+        require(not a.replay_original or a.reuse_world,'Original replays require the intact original native world')
         if shutil.which('docker') is None: raise InfrastructureBlocked('Docker executable unavailable')
         subprocess.run(['docker','info'],check=True,capture_output=True)
         paths=['core','fabric','providers','build.gradle','settings.gradle','gradle.properties','gradle','scripts/dependencies.json']
         changed=subprocess.check_output(['git','diff',BASELINE,'--',*paths],cwd=ROOT,text=True)
         require(not changed,'Production differs from frozen baseline')
         require(not subprocess.check_output(['git','ls-files','--others','--exclude-standard',*paths],cwd=ROOT,text=True),'Untracked production inputs')
-        h=WorldHarness(a.root,interpreter='W7' in selected); h.bootstrap_world(a.reuse_world)
+        from cohort import begin as begin_cohort,restore as restore_cohort,resources as family_resources
+        require(1<=a.cohort_cases<=6,'A native fixture cohort contains at most six measured cases')
+        require(not (a.reuse_world and a.reuse_certificate),'Choose one authentic native seed')
+        h=WorldHarness(a.root,interpreter=any(c['family']=='W7' for c in cases))
+        needed=tuple(dict.fromkeys(c['item'] for c in cases if family_resources(c['family'])))
+        if a.isolate_families:
+            require(not a.reuse_world and not a.reuse_certificate,'Isolated family training uses fresh genuine admissions')
+            begin_cohort(h,cases[0]['family'])
+        else: h.bootstrap_world(a.reuse_world,needed,a.reuse_certificate)
         for rec,c in zip(records,cases):
+            if a.isolate_families and family_resources(c['family']):
+                if c['family']!=getattr(h,'resource_cohort',None): begin_cohort(h,c['family'])
+                elif h.cohort_case_count>=a.cohort_cases: restore_cohort(h,h.current_certificate)
             h.case_dir=a.root/'cases'/c['id']; h.case_dir.mkdir(parents=True); h.case=c; h.family=c['id']
+            if family_resources(c['family']) and getattr(h,'current_certificate',None):
+                cert=h.current_certificate.relative_to(h.root) if h.current_certificate.is_relative_to(h.root) else h.current_certificate
+                rec['nativeCertificate']=('build/e2e/replay-artifact/generalization-world/'+str(cert)
+                    if not cert.is_absolute() else str(cert))
+                rec['fixtureCohort']=h.fixture_cohort
+                atomic(h.case_dir/'cohort.json',{'fixture':h.fixture_cohort,'certificate':str(cert),
+                    'certificateSha256':hashlib.sha256((h.current_certificate/'certificate.json').read_bytes()).hexdigest(),
+                    'methods':dict(h.hashes),'purpose':'Explicit isolated native fixture; not gameplay recovery'})
             h.executed_case=False; h.attempted_case=False; offset=len(h.server_log()); frame_offset=len(h.screenshots)
             rec['started']=time.time(); atomic(h.case_dir/'parameters.json',c)
             atomic(h.case_dir/'provenance.json',read(a.root/'metadata.json'))
@@ -560,6 +632,8 @@ def main():
                     'INFRASTRUCTURE_BLOCKED' if isinstance(error,(InfrastructureBlocked,AssessmentBlocked,OSError)) else
                     'FAIL_GAMEPLAY' if h.attempted_case and isinstance(error,AssertionError) else 'INCONCLUSIVE',
                     reason=str(error),trace=traceback.format_exc(),gameplayAttempted=h.attempted_case,genuineGameplay=h.executed_case)
+                if 'STORAGE_LIMIT_REACHED' in str(error):
+                    rec.update(status='FAIL_ARCHITECTURAL_GAP',genuineGameplay=False,failureReason='STORAGE_LIMIT_REACHED')
                 with contextlib.suppress(Exception): atomic(h.case_dir/'failure-state.json',h.snapshot())
             finally:
                 rec['finished']=time.time(); (h.case_dir/'server.log').write_text(h.server_log()[offset:])
@@ -570,6 +644,7 @@ def main():
                 atomic(a.root/'results.json',result)
                 print('WORLD_PROGRESS '+json.dumps({'case':c['id'],'status':rec['status'],'genuineGameplay':rec['genuineGameplay']},separators=(',',':')),flush=True)
             h.cleanup_world(); h.case=None; h.case_dir=None
+            if a.isolate_families and family_resources(c['family']): h.cohort_case_count+=1
         result['batchFinished']=True
     except Exception as error:
         result['infrastructureFailure']=dict(reason=str(error),trace=traceback.format_exc())
@@ -583,18 +658,20 @@ def main():
             c=rec['case']; d=a.root/'cases'/c['id']; d.mkdir(parents=True,exist_ok=True)
             atomic(d/'result.json',rec); atomic(d/'parameters.json',c)
             atomic(d/'provenance.json',read(a.root/'metadata.json',dict(baseline=BASELINE,productionTree=TREE,releaseSha256=None,reason='Runtime never started')))
-            (d/'reproduce.txt').write_text(reproduction(c,a.seed,bool(a.reuse_world),a.heldout_seed))
+            (d/'reproduce.txt').write_text(reproduction(c,a.seed,bool(a.reuse_world),a.heldout_seed,rec.get('nativeCertificate')))
         result['counts']=dict(Counter(r['status'] for r in records)); result['gameplayAttempts']=sum(r['gameplayAttempted'] for r in records)
         result['genuineGameplayExecutions']=sum(r['genuineGameplay'] for r in records)
-        result['rates']={name:dict(passed=sum(r.get('properties',{}).get(name) is True for r in records),
-            evaluated=sum(name in r.get('properties',{}) for r in records)) for name in
+        native=[r for r in records if r.get('genuineGameplay')]
+        result['rates']={name:dict(passed=sum(r.get('properties',{}).get(name) is True for r in native),
+            evaluated=sum(name in r.get('properties',{}) for r in native),
+            observedWithoutNativeExecution=sum(name in r.get('properties',{}) for r in records if not r.get('genuineGameplay'))) for name in
             ('conservation','truthfulCompletion','navigation','delivery','harvest','identity','recovery','cancellation',
              'authority','receiptAuthority','leaseContention','groupAdmission','safetyInterruption')}
         positive=[r for r in records if r['case']['family'] in ('W1','W2','W3','W4','W7') and r['case']['expectedCompletion']]
         measured=[r for r in positive if r.get('genuineGameplay')]
         result['rates']['gameplayCompletion']=dict(requested=len(positive),evaluated=len(measured),passed=sum(r.get('properties',{}).get('delivery') is True for r in measured))
-        result['rates']['parameterGeneralization']=dict(requested=len(positive),evaluated=len(measured),passed=sum(all(r.get('properties',{}).get(k) is True for k in ('delivery','methodIdentity','noInference')) for r in measured))
-        checked=[r for r in records if all(k in r.get('properties',{}) for k in SAFETY)]
+        result['rates']['parameterGeneralization']=dict(requested=len(positive),evaluated=len(measured),passed=sum(r.get('status')=='PASS' for r in measured))
+        checked=[r for r in native if all(k in r.get('properties',{}) for k in SAFETY)]
         result['rates']['safety']=dict(evaluated=len(checked),passed=sum(all(r['properties'][k] for k in SAFETY) for r in checked),scope='Physical custody, attribution and world-mutation safety; authority coverage reported separately')
         atomic(a.root/'results.json',result)
     raise SystemExit(1 if any(r['status'] not in ('PASS','EXPECTED_SAFE_REFUSAL') for r in records) else 0)

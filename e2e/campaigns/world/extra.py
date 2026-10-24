@@ -117,11 +117,12 @@ def death(h,c):
     if getattr(h,'death_cohort',None)!=c['seed']:
         h.cleanup_world(); h.case=None
         h.competition_citizen=None; h.competition_entity=None; h.foreign_citizen=None; h.foreign_entity=None
-        h.actor_pool=None
+        h.actor_pool=[]
         h.fresh(two=False); h.enroll(); h.hashes={}
         h.command('PlayerA','/aivillage kernel inference false','admission=false')
         h.death_cohort=c['seed']; h.case=c; h.samples=[]; h.last_sample=None
     h.reset_case(c)
+
     base_citizen,base_entity=h.citizens['PlayerA'],h.entities['PlayerA']
     existing={a['uuid'] for a in h.snapshot()['actors']}
     h.console(['tp '+base_entity+' 83.5 208 66.5',
@@ -188,14 +189,14 @@ def foreign_worker(h,c):
         hi=[max(p[k] for p in c['positions']) for k in range(3)]
         before=h.snapshot(); calls=h.model_calls(); atomic(h.case_dir/'before.json',before)
         command='/aivillage kernel harvest '+h.foreign_citizen+' 1 '+coord(lo+hi+c['secondaryDestination'])
-        answer=h.command('PlayerB',command,'run='+UUID_PATTERN)
+        answer,refusals=h.public_intake('PlayerB',command,'run')
         require('accepted=true' in answer,'Guest admission intake refused: '+answer)
         rid=re.search('run=('+UUID_PATTERN+')',answer).group(1); h.actions_active=True
         view=h.finish_run(rid,'PlayerB',admitted=True)
         require(h.model_calls()['generationCalls']>calls['generationCalls'],'Guest method was not genuinely generated')
         require(h.container(c['secondaryDestination'],'minecraft:wheat')==1,'Guest admission lacks physical output')
         h.foreign_method=view['marker']['artifactSha256']
-        record.update(status='PASS',command=command,view=view,artifact=h.foreign_method,callsBefore=calls,callsAfter=h.model_calls())
+        record.update(status='PASS',command=command,view=view,artifact=h.foreign_method,callsBefore=calls,callsAfter=h.model_calls(),publicationRefusals=refusals)
     except Exception as error:
         import traceback
         record.update(status='FAIL_ARCHITECTURAL_GAP',reason=str(error),trace=traceback.format_exc())
@@ -208,6 +209,10 @@ def foreign_worker(h,c):
         h.case,h.case_dir,h.family=previous; h.samples=[]; h.last_sample=None
         h.executed_case=False; h.attempted_case=False
     h.reset_case(c)
+    # Preserve B's own genuinely admitted artifact with the same complete native world.
+    if getattr(h,'resource_cohort',None)=='W9':
+        from cohort import save
+        save(h,'W9-with-genuine-guest')
 
 
 def authority(h,c):
@@ -215,7 +220,7 @@ def authority(h,c):
     h.reset_case(c); mode=c['authorityMode']
     if mode=='foreign-control':
         h.start('PlayerB'); h.console(['op PlayerB','tp PlayerB 81.5 208 76.5']); h.ensure_client('PlayerB')
-        before=h.snapshot(); atomic(h.case_dir/'before.json',before)
+        before=h.snapshot(); calls=h.model_calls(); atomic(h.case_dir/'before.json',before)
         req=h.request_case(c); require(req['accepted'],'A request was not admitted before foreign access test')
         h.active_run=req['run']; h.actions_active=True
         try:
@@ -230,6 +235,7 @@ def authority(h,c):
             terminal=h.finish_run(req['run'],success=False); h.quiet(10); after=h.snapshot()
             atomic(h.case_dir/'after.json',after); atomic(h.case_dir/'run.json',terminal)
             props['noForeignCancellation']=terminal.get('marker',{}).get('outcome')!='CANCELLED'
+            props['noInference']=h.model_calls()==calls
             h.screenshot('PlayerB','foreign-authority-refusal',chat=True)
             return dict(status='EXPECTED_SAFE_REFUSAL' if all(props.values()) else 'FAIL_SAFETY',properties=props,
                 genuineGameplay=True,gameplayAttempted=True,request=req,foreignFeedback=denied,boundary=boundary)
@@ -258,15 +264,15 @@ def authority(h,c):
         for index,(citizen,eid) in enumerate(getattr(h,'actor_pool',[])):
             h.console(['tp '+eid+' '+coord([66.5,208,66.5+index]),'data merge entity '+eid+' {Inventory:[]}'])
         h.console(['tp PlayerA 66.5 208 69.5']); h.stock_fixture({},c['secondaryDestination'],c['container'])
-        before=h.snapshot(); atomic(h.case_dir/'before.json',before)
+        before=h.snapshot(); calls=h.model_calls(); atomic(h.case_dir/'before.json',before)
         lo=[min(p[k] for p in c['positions']) for k in range(3)]; hi=[max(p[k] for p in c['positions']) for k in range(3)]
         demand=c['quantity']//2+1; jobs=[]; instructions=[]
         for player,citizen,dst in participants:
             command='/aivillage kernel queue '+citizen+' '+str(demand)+' '+coord(lo+hi+dst)
-            h.attempted_case=True; answer=h.command(player,command,'job='+UUID_PATTERN)
+            h.attempted_case=True; answer,refusals=h.public_intake(player,command,'job')
             require('accepted=true' in answer,'Real competing job intake refused: '+answer)
             jid=re.search('job=('+UUID_PATTERN+')',answer).group(1)
-            jobs.append((player,jid)); instructions.append({'player':player,'command':command,'feedback':answer}); h.actions_active=True
+            jobs.append((player,jid)); instructions.append({'player':player,'command':command,'feedback':answer,'publicationRefusals':refusals}); h.actions_active=True
             if len(jobs)==1:
                 h.wait(lambda:(v if (v:=h.job_view(player,jid)) and v['state']=='ACTIVE' else None),
                        'First real resource owner active before contention',90)
@@ -287,7 +293,12 @@ def authority(h,c):
         delivered=sum(after['containers'].get(key(p),{}).get('minecraft:wheat',0) for p in (c['destination'],c['secondaryDestination']))
         props={'conservation':total==original+harvested,'leaseContention':sum(v['fulfilled'] for v in views)<=harvested,
                'noOversubscription':not all(v['fulfilled']==demand for v in views),
-               'truthfulCompletion':sum(v['fulfilled'] for v in views)<=delivered<=harvested}
+               'truthfulCompletion':sum(v['fulfilled'] for v in views)<=delivered<=harvested,
+               'noInference':h.model_calls()==calls}
+        props['methodIdentity']=all(execution['artifact']['sha256']==
+            (h.hashes.get('cognitivecraft:deliver_wheat') if player=='PlayerA' else h.foreign_method)
+            for (player,_),job in zip(jobs,views) for attempt in job.get('attempts',[])
+            for execution in attempt.get('executions',[]))
         expected={}; unique=set(); receipt_authority=True
         for (player,_),job in zip(jobs,views):
             allowed={a['actor']['citizenId'] for a in after['knownPlayers'][player]['citizens']['citizens']}
