@@ -1,6 +1,7 @@
-package dev.aivillages.e2e;
+package dev.aivillages.e2e.crafting.mixin;
 
 import java.util.Map;
+import dev.aivillages.e2e.CraftingPrimitiveTrace;
 import dev.aivillages.core.Plan;
 import dev.aivillages.core.WorldPort;
 import dev.aivillages.fabric.FarmPort;

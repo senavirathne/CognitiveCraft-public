@@ -1,6 +1,7 @@
-package dev.aivillages.e2e;
+package dev.aivillages.e2e.crafting.mixin;
 
 import java.util.Map;
+import dev.aivillages.e2e.CraftingPrimitiveTrace;
 import dev.aivillages.core.kernel.Budgets;
 import dev.aivillages.core.kernel.SurvivalGateway;
 import static dev.aivillages.core.kernel.Contracts.*;

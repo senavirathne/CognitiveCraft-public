@@ -1,4 +1,5 @@
 name: Abstract crafting generalization campaign
+# Branch launch 2: isolate test mixins from normal observer classes.
 on:
   push:
     branches: [test/generalization-crafting]

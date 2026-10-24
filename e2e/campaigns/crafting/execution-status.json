@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "recordedAt": 1792836590.1590462,
-  "status": "WAITING_FOR_ACTIONS_REGISTRATION_AND_DISPATCH",
+  "recordedAt": 1792859538.885134,
+  "status": "RUNTIME_REQUALIFICATION_PENDING",
   "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
   "productionFilesUnchanged": 181,
   "newMinecraftCasesAttempted": 0,
@@ -21,10 +21,10 @@
     "e2e/campaigns/crafting/generator.py": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204",
     "e2e/campaigns/crafting/harness.py": "e5f052527f67da7fc9c4da270a080b5ce14214ac9a738609c16733bc3ecc6818",
     "e2e/campaigns/crafting/invariants.py": "7e90b3a367678a955b145916bf63d22fffb4a39ce348a11e0940cbab89afcb50",
-    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingGatewayTraceMixin.java": "a155d287ab194695d02cd4df82729a54fc43c452fffd90757a0b67923aea33ef",
-    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingLegacyTraceMixin.java": "15bbff068d67403862646d78c94bd8d6241db64dece435e87e0d1ca005ddd294",
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingPrimitiveTrace.java": "49222faa630057d18c3c8cbb249ae3b764b2770cb777c1ea5ba60c2de3e38172",
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingRecipeOracle.java": "9c6eb13b5fa1c8bb926602cda2ed2b3b5572dc0d14b92f86fe11934e8a10c53b",
+    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/crafting/mixin/CraftingGatewayTraceMixin.java": "233c9ed9a5ff479bc7c5ad43565afc3d82171c37ad82e9d97581abbb39fafc45",
+    "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/crafting/mixin/CraftingLegacyTraceMixin.java": "7d79120cbf3c9490b1439717627098ce7d3fbfab1637031702d25b98c7712271",
     "e2e/campaigns/crafting/oracle.py": "d5e8eff6585c8672f3b549de7f069f552833bd98b9a014fdec28ed2b5c91f9a4",
     "e2e/campaigns/crafting/recipe_model.py": "773475c84c57680689cf9f9701d55a12c3fc444601261c7faba94c98596b4907",
     "e2e/campaigns/crafting/run.py": "ac622299999133bca5231fbab3f519ac258661defa3e34be98129b3d71daf2b2",
@@ -32,14 +32,12 @@
     "e2e/campaigns/crafting/test_campaign.py": "57b2fef70215101ba621c59fbc117e9591a69e5d952a2e3b69dcb0db94e5fac3",
     "e2e/campaigns/crafting/test_harness_guards.py": "6d6f59ae29bd5b50d87a2d1479df523d208b2ae0b45e1908c3eb41142428ecac"
   },
-  "java25Instrumentation": "NOT_COMPILED_OR_LOADED_YET",
+  "java25Instrumentation": "COMPILED; FIRST_SERVER_START_REJECTED_RESERVED_MIXIN_PACKAGE",
   "runtimeCorpus": "NOT_GENERATED_FROM_LIVE_RECIPES_YET",
   "actionsWorkflow": ".github/workflows/generalization-crafting.yml",
-  "actionsRunId": null,
+  "actionsRunId": 40111258592,
   "blockers": [
-    "New manual workflow must be registered on default branch before first dispatch",
-    "Campaign branches must remain unmerged",
-    "Connected GitHub tools do not expose workflow dispatch; browser is signed out"
+    "First Docker run failed before client startup because normal observer classes shared the reserved Mixin package; test-only namespace correction awaits a fresh run"
   ],
   "defaultBranchChanged": false,
   "branchesMerged": false,
@@ -65,5 +63,28 @@
     "Immutable trace byte ranges and strict original command evidence",
     "Per-family fair scheduling with matching controls first",
     "Stop on an actual STORAGE_LIMIT_REACHED without changing production quotas"
+  ],
+  "branchTrigger": {
+    "authorized": true,
+    "event": "push",
+    "branch": "test/generalization-crafting",
+    "paths": [
+      ".github/workflows/generalization-crafting.yml"
+    ],
+    "mode": "full",
+    "seed": 20261024,
+    "mainRequired": false
+  },
+  "actionsHistory": [
+    {
+      "id": 40111258592,
+      "sourceCommit": "ff6c414e61fdfaa039b6b8773ba4175f4e4c24b1",
+      "conclusion": "failure",
+      "classification": "HARNESS_INFRASTRUCTURE",
+      "generatedGameplayAttempts": 0,
+      "error": "IllegalClassLoadError: CraftingRecipeOracle is in a defined mixin package",
+      "artifactId": 12566986756,
+      "artifactSHA256": "a969f759a9ce5620722cd7c2319cac5a4edd3870b919d3ab234ab6e6bbd39f02"
+    }
   ]
 }

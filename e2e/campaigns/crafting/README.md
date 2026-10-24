@@ -66,29 +66,25 @@ or a safe alternative-material refusal cannot alone produce a PASS.
 
 ## Actions execution
 
-GitHub requires a newly introduced `workflow_dispatch` workflow to exist on the
-default branch before its first manual dispatch. This campaign keeps source and
-documentation branches unmerged. A separate, explicit registration decision is
-therefore necessary. The concrete registration change is **only**
-`.github/workflows/generalization-crafting.yml` on main. Its default `source_ref`
-selects this campaign branch. No campaign or production branch merge is required
-to register that one file. The default-branch change has not been performed.
+The user explicitly authorized branch-only push execution on 24 October 2026.
+The push trigger is restricted to `test/generalization-crafting` and changes to
+`.github/workflows/generalization-crafting.yml`. It runs the event's exact commit
+in full mode with development seed `20261024`; held-out entropy is drawn after
+definition freeze. The GitHub plugin can launch it by committing the workflow
+file on that branch. No default-branch registration, main change, merge or browser
+dispatch is required. Other file changes do not launch this campaign.
 
-After registration, use one invocation for the entire full campaign:
+The first branch-only run, 40111258592 at `ff6c414`, passed build, evaluator and
+Java 25 instrument compilation, then failed before gameplay because the observer
+entrypoint shared Mixin's reserved package. Its artifact and original server log
+are retained; this is a harness infrastructure failure, not a crafting result.
+The two mixins now occupy a dedicated package, separate from normal observer
+classes. A fresh branch workflow revision qualifies that correction in Minecraft.
 
-```bash
-gh workflow run generalization-crafting.yml \
-  --repo senavirathne/CognitiveCraft-public \
-  --ref main \
-  -f source_ref=test/generalization-crafting \
-  -f mode=full \
-  -f seed=20261024
-```
-
-For exact identity, replace `source_ref` with the published campaign commit SHA.
-Set `mode=smoke` for a short diagnostic run. The full campaign does not create
-individual recipe/material runs or an Actions matrix. Existing project-wide CI
-remains unchanged and may still run for branch publication.
+Manual `workflow_dispatch` inputs remain available for a separately registered
+manual workflow; push launches have explicit defaults. The full campaign does
+not create individual recipe/material runs or an Actions matrix. Existing
+project-wide CI remains unchanged and may still run for branch publication.
 
 The workflow's evidence step checks production identity, scheduled denominators,
 all recipe alternatives, original log/frame hashes and connected physical evidence.
