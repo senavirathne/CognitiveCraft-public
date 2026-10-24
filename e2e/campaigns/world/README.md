@@ -1,5 +1,7 @@
 # Independent physical world generalization campaign
 
+Execution update: [fourth batch 40101094391](https://github.com/senavirathne/CognitiveCraft-public/actions/runs/40101094391), source `45b8d7708ea547102f484b576fe46992f4ee4419`, is in progress. Its W7 setup still leaves language inference disabled; those cases cannot certify nearest-container behavior. The fifth launch requests 120 W1–W4/W7 cases, with base seed 104729 and held-out seed 67867967. W1–W4 share the same three genuinely admitted methods across their base/held-out variants and restore the complete native certificate after at most six measured cases. W7 uses its own genuine oak method, temporarily enables the public inference switch for real language interpretation with the generator service stopped, and requires unchanged generation-broker calls plus the exact admitted method hash. Historical failures and original-method minimization limits remain separate. No fifth-run result is claimed before execution.
+
 Frozen production baseline: `ea7de8000b2b484b885576c34ed5358274936ce9`.
 Production tree: `f0915a127521cb32f45e606c39098011796d1f1d`.
 Documentation baseline: `d80f1db443a2493b3e422f435e069a7863076b07`.

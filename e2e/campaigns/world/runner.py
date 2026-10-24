@@ -261,10 +261,15 @@ class WorldHarness(AssessmentHarness):
             self.wait(lambda:'Ada' in self.command('PlayerA','/aivillage kernel citizens','citizens='),'Named actor published before language request',30)
             text=f'Ada, fetch {c["quantity"]} oak logs and put them into {reference} {c["container"]}.'
             command='/aivillage kernel ask '+text; self.attempted_case=True
-            answer=self.command('PlayerA',command,'interpretation='+UUID_PATTERN)
-            ticket=re.search('interpretation=('+UUID_PATTERN+')',answer).group(1)
-            view=self.wait(lambda:(v if (v:=self.run_view('PlayerA',ticket)) and v['phase'] not in ('INTERPRETING','RESOLVING') else None),
-                           'Real interpreter and independent nearest selection',65)
+            # The public switch governs both generation and language interpretation.
+            # Keep the generator service stopped; require the admitted artifact and unchanged broker calls below.
+            self.command('PlayerA','/aivillage kernel inference true','admission=true')
+            try:
+                answer=self.command('PlayerA',command,'interpretation='+UUID_PATTERN)
+                ticket=re.search('interpretation=('+UUID_PATTERN+')',answer).group(1)
+                view=self.wait(lambda:(v if (v:=self.run_view('PlayerA',ticket)) and v['phase'] not in ('INTERPRETING','RESOLVING') else None),
+                               'Real interpreter and independent nearest selection',65)
+            finally: self.command('PlayerA','/aivillage kernel inference false','admission=false')
             self.event('nearest-interpretation',dict(ticket=ticket,view=view,text=text))
             return dict(command=command,feedback=answer,accepted=view['phase']=='SUBMITTED',
                         run=view.get('runId') or ticket,interpretation=view)
@@ -612,7 +617,8 @@ def main():
         else: h.bootstrap_world(a.reuse_world,needed,a.reuse_certificate)
         for rec,c in zip(records,cases):
             if a.isolate_families and family_resources(c['family']):
-                if c['family']!=getattr(h,'resource_cohort',None): begin_cohort(h,c['family'])
+                group=lambda f:'pipeline' if f in ('W1','W2','W3','W4') else f
+                if group(c['family'])!=group(getattr(h,'resource_cohort',None)): begin_cohort(h,c['family'])
                 elif h.cohort_case_count>=a.cohort_cases: restore_cohort(h,h.current_certificate)
             h.case_dir=a.root/'cases'/c['id']; h.case_dir.mkdir(parents=True); h.case=c; h.family=c['id']
             if family_resources(c['family']) and getattr(h,'current_certificate',None):
