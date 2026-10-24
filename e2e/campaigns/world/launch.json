@@ -1,12 +1,10 @@
 {
   "schema": 1,
-  "launchId": "world-followup-20261024-02",
+  "launchId": "world-legacy-nearest-20261024-03",
   "mode": "full",
   "seed": 104729,
-  "heldoutSeed": 15485863,
-  "families": ["W7", "W8", "W9", "W10"],
-  "extraHeldoutFamilies": ["W1", "W2", "W3", "W4", "W5", "W6"],
-  "replayOriginal": true,
+  "heldoutSeed": 32452843,
+  "families": ["W7", "W11", "W12"],
   "previousRun": 40076986301,
   "budget": 0
 }

@@ -18,7 +18,7 @@ on:
         type: string
       families:
         description: Comma-separated abstract families
-        default: W1,W2,W3,W4,W5,W6,W7,W8,W9,W10
+        default: W1,W2,W3,W4,W5,W6,W7,W8,W9,W10,W11,W12
         type: string
       budget:
         description: Maximum selected cases; 0 selects all

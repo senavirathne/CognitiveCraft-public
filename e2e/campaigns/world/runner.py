@@ -172,6 +172,7 @@ class WorldHarness(AssessmentHarness):
 
     def reset_case(self,c):
         require(not self.actions_active,'No fixtures during active gameplay')
+        require(not getattr(self,'legacy_subjects',{}),'No fixture reset until all enrolled legacy owners are released')
         self.ensure_client()
         self.console(['tp PlayerA 66.5 208 69.5'])
         self.wait(lambda:(s if (s:=self.snapshot()) and 'PlayerA' in s.get('players',{}) and
@@ -338,6 +339,7 @@ class WorldHarness(AssessmentHarness):
         if 'server' not in self.booted: return
         self.ensure_client()
         self.console(['tick unfreeze'],lifecycle=True)
+        self.cleanup_legacy()
         state=self.snapshot() or {}
         for player,data in state.get('knownPlayers',{}).items():
             if not data.get('online'):
@@ -354,6 +356,14 @@ class WorldHarness(AssessmentHarness):
         self.wait(lambda:all(v.get('phase') not in ACTIVE for d in (self.snapshot() or {}).get('knownPlayers',{}).values()
                             for v in d.get('runs',{}).values()),'All gameplay owners terminal before resetting fixtures',40)
         self.actions_active=False; self.quiet(3)
+
+    def cleanup_legacy(self):
+        if getattr(self,'legacy_subjects',{}): self.action('PlayerA','close-menu')
+        for name in list(getattr(self,'legacy_subjects',{})):
+            self.command('PlayerA','/aivillage stop '+name,'stop: '+re.escape(name))
+            self.command('PlayerA','/aivillage release '+name,'release: '+re.escape(name))
+            del self.legacy_subjects[name]
+        require(not getattr(self,'legacy_subjects',{}),'Legacy owner cleanup must be acknowledged before fixture writes')
 
 
 def citizen_case(h,c):
@@ -453,9 +463,10 @@ def disturb(h,c,run):
 
 def execute(h,c):
     h.executed_case=False; h.attempted_case=False; h.samples=[]; h.last_sample=None; h.active_run=None
-    if c['family'] in ('W8','W9','W10'):
+    if c['family'] in ('W8','W9','W10','W11','W12'):
         from extra import legacy,authority,death
-        return {'W8':legacy,'W9':authority,'W10':death}[c['family']](h,c)
+        from legacy_extra import legacy_group,legacy_safety
+        return {'W8':legacy,'W9':authority,'W10':death,'W11':legacy_group,'W12':legacy_safety}[c['family']](h,c)
     h.reset_case(c)
     if c['family']=='W5': return citizen_case(h,c)
     before=h.snapshot(); atomic(h.case_dir/'before.json',before)
@@ -519,7 +530,7 @@ def main():
     a=p.parse_args(); a.root.mkdir(parents=True,exist_ok=True)
     require(not (a.root/'results.json').exists(),'New evidence root required; original attempts are immutable')
     selected=a.families.split(','); require(set(selected)<=set(FAMILIES),'Unknown family'); require(a.budget>=0,'Negative budget')
-    files=[Path(__file__),HERE/'generate.py',HERE/'oracle.py',HERE/'extra.py',HERE/'seed.py']
+    files=[Path(__file__),HERE/'generate.py',HERE/'oracle.py',HERE/'extra.py',HERE/'legacy_extra.py',HERE/'seed.py']
     if a.replay_original: files.extend([HERE/'replay-cases.json',HERE/'failure-probes.json'])
     atomic(a.root/'generator-freeze.json',dict(files={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},heldOutSeed=a.heldout_seed if a.heldout_seed is not None else a.seed+1))
     corpus,cases=selection(a.seed,a.mode,selected,a.budget,a.case,a.include_cases.split(',') if a.include_cases else (),a.heldout_seed,
@@ -577,7 +588,8 @@ def main():
         result['genuineGameplayExecutions']=sum(r['genuineGameplay'] for r in records)
         result['rates']={name:dict(passed=sum(r.get('properties',{}).get(name) is True for r in records),
             evaluated=sum(name in r.get('properties',{}) for r in records)) for name in
-            ('conservation','truthfulCompletion','navigation','delivery','harvest','identity','recovery','cancellation')}
+            ('conservation','truthfulCompletion','navigation','delivery','harvest','identity','recovery','cancellation',
+             'authority','receiptAuthority','leaseContention','groupAdmission','safetyInterruption')}
         positive=[r for r in records if r['case']['family'] in ('W1','W2','W3','W4','W7') and r['case']['expectedCompletion']]
         measured=[r for r in positive if r.get('genuineGameplay')]
         result['rates']['gameplayCompletion']=dict(requested=len(positive),evaluated=len(measured),passed=sum(r.get('properties',{}).get('delivery') is True for r in measured))

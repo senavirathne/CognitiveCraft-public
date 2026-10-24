@@ -4,7 +4,7 @@ import tempfile
 import math
 from pathlib import Path
 from generate import generate, FAMILIES
-from runner import selection, reproduction
+from runner import selection, reproduction, WorldHarness
 from oracle import custody, evaluate
 
 class CorpusTests(unittest.TestCase):
@@ -89,9 +89,25 @@ class CorpusTests(unittest.TestCase):
                 self.assertLess(distance(c['distractorFull']),distance(c['destination']))
                 self.assertLess(distance(c['distractorWrongType']),distance(c['destination']))
                 self.assertLess(distance(c['destination']),distance(c['distractorFar']))
+                source_anchor=[(min(p[k] for p in c['positions'])+max(p[k] for p in c['positions']))//2 for k in range(3)]
+                source_distance=lambda p:sum((a-b)**2 for a,b in zip(source_anchor,p))
+                self.assertLess(source_distance(c['destination']),source_distance(c['distractorFar']))
             if c['family']=='W8':
                 self.assertLessEqual(max(abs(c['actor'][k]-c['destination'][k]) for k in (0,2)),12)
                 self.assertTrue(all(max(abs(p[k]-c['destination'][k]) for k in (0,2))<=12 for p in c['positions']))
+
+    def test_unacknowledged_legacy_cleanup_cannot_clear_the_fixture_fence(self):
+        h=object.__new__(WorldHarness)
+        h.legacy_subjects={'Farmer':'actual-native-uuid'}; h.actions_active=False
+        h.action=lambda *args,**kwargs:None
+        def failed_ack(*args,**kwargs): raise TimeoutError('Normal player stop/release not acknowledged')
+        h.command=failed_ack
+        with self.assertRaises(TimeoutError): h.cleanup_legacy()
+        self.assertEqual(h.legacy_subjects,{'Farmer':'actual-native-uuid'})
+        with self.assertRaisesRegex(AssertionError,'legacy owners'): h.reset_case(generate()[0])
+        h.command=lambda *args,**kwargs:'actual normal command acknowledgement'
+        h.cleanup_legacy()
+        self.assertFalse(h.legacy_subjects)
 
     def test_batch_and_actor_receipt_forgery_fail_independent_oracle(self):
         import copy

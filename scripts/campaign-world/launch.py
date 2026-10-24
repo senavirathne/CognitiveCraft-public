@@ -23,6 +23,15 @@ def write(path,body):
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(body,indent=2)+'\n')
 
+def expectation(c):
+    if c['family']=='W5': return 'Authorized native enrollment/name and same-entity lifecycle continuity through '+str(c.get('lifecycle'))
+    if c['family']=='W8': return 'Actual legacy '+str(c.get('legacyMode'))+' effect and truthful bounded controller termination'
+    if c['family']=='W9': return 'Scoped '+str(c.get('authorityMode'))+' decisions, actual overlapping owners and conserved custody'
+    if c['family']=='W10': return 'Native death, terminal owner fencing and no unsupported successor inheritance'
+    if c['family']=='W11': return 'Two actual owned legacy workers admitted together; conserved native acquisition and bounded termination'
+    if c['family']=='W12': return 'Verified native '+str(c.get('safetyMode'))+' hazard; correct safety refusal/interruption and no later task effects'
+    return f'Physically acquire and deliver {c["quantity"]} {c["item"]}; preserve custody and authority'
+
 def configuration():
     raw=json.loads((HERE/'launch.json').read_text())
     if os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch':
@@ -121,6 +130,10 @@ def report():
             witnesses=[r for r in result['records'] if r['case']['family'] in ('W5','W10')]
         elif row['capability']=='nearest-reference':
             witnesses=[r for r in result['records'] if r['case']['family']=='W7']
+        elif row['capability']=='legacy-group-food':
+            witnesses=[r for r in result['records'] if r['case']['family']=='W11']
+        elif row['capability']=='legacy-safety-interruption':
+            witnesses=[r for r in result['records'] if r['case']['family']=='W12']
         elif row['capability']=='leases-contention':
             witnesses=[r for r in result['records'] if r['case']['family']=='W9' and r['case'].get('authorityMode') in ('competition','cross-principal')]
         elif row['capability'] in ('cancellation','acquisition-delivery-recovery'):
@@ -138,7 +151,7 @@ def report():
     for r in result['records']:
         if r['status']=='PASS': continue
         c=r['case']; failures.append(dict(case=c['id'],status=r['status'],seed=c['seed'],parameters=c,
-            expected=f'Physically acquire and deliver {c["quantity"]} {c["item"]}; preserve custody and authority',
+            expected=expectation(c),
             actual=r.get('accounting',r.get('reason','No physical accounting available')),
             firstDivergence=r.get('firstDivergence') or {'decision':r.get('reason','Not yet identified')},
             logs='cases/'+c['id']+'/server.log',custody=r.get('accounting'),

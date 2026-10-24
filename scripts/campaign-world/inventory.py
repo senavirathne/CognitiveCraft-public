@@ -78,6 +78,12 @@ for row in rows:
     if row['capability']=='legacy-death':
         row['family']='W8'; row['generatedCandidateVariations']=12
         row['limitation']='W8 legacy-death cases require actual connected-player native death and truthful legacy controller status; kernel death is tested separately in W10.'
+    if row['capability']=='legacy-group-food':
+        row['family']='W11'; row['generatedCandidateVariations']=12
+        row['limitation']='W11 requires the actual shared public food command, two independently enrolled native workers, simultaneous active controller witnesses and conserved physical acquisition; no bread transformation completion claim.'
+    if row['capability']=='legacy-safety-interruption':
+        row['family']='W12'; row['generatedCandidateVariations']=12
+        row['limitation']='W12 tests actual player attack, genuinely low native health admission refusal, and real trading across controller ticks. Fire, sleep and visible-monster conditions retain explicit coverage limitations.'
 
 registered=[
 ('deliver_wheat','CropDelivery.java','harvest','W2','Mature wheat -> tracked drops -> actor custody -> chest/barrel; amount 1..64','Agent 1'),

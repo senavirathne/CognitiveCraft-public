@@ -27,6 +27,8 @@ def legacy(h,c):
     subject=actor['uuid']; mode=c['legacyMode']; q=c['quantity']
     h.attempted_case=True
     h.command('PlayerA','/aivillage enroll '+name,'Enrolled '+name)
+    if not hasattr(h,'legacy_subjects'): h.legacy_subjects={}
+    h.legacy_subjects[name]=subject
     h.command('PlayerA','/aivillage home '+name+' '+coord(c['destination']),'Work area set')
     # Fixture construction is still before the food job; it never supplies a tested active effect.
     lines=[]
@@ -103,8 +105,7 @@ def legacy(h,c):
             limitations=['No bread crafting completion is claimed; these cases test the selected physical effect and truthful bounded controller termination'])
     finally:
         # A normal player stop/release is also required cleanup; no active fixture reset.
-        with contextlib.suppress(Exception): h.command('PlayerA','/aivillage stop '+name,'stop: '+name)
-        with contextlib.suppress(Exception): h.command('PlayerA','/aivillage release '+name,'release: '+name)
+        h.cleanup_legacy()
         h.actions_active=False
 
 

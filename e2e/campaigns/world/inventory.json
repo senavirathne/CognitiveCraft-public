@@ -2391,16 +2391,17 @@
         "lifecycle boundary"
       ],
       "owner": "Agent 1",
-      "family": "W8",
+      "family": "W11",
       "generatedVariations": 0,
       "genuineExecutions": 0,
       "successful": 0,
       "failed": 0,
       "safeRefusals": 0,
       "observability": "Native entity identity/lifecycle, raw world snapshots, client feedback and durable run/lease records",
-      "limitation": "Explicit adapter coverage limitation: generic acquisition does not certify this capability; dedicated generator/observer assertions remain required",
+      "limitation": "W11 requires the actual shared public food command, two independently enrolled native workers, simultaneous active controller witnesses and conserved physical acquisition; no bread transformation completion claim.",
       "blocked": 0,
-      "inconclusive": 0
+      "inconclusive": 0,
+      "generatedCandidateVariations": 12
     },
     {
       "capability": "legacy-safety-interruption",
@@ -2423,16 +2424,17 @@
         "lifecycle boundary"
       ],
       "owner": "Agent 1",
-      "family": "W8",
+      "family": "W12",
       "generatedVariations": 0,
       "genuineExecutions": 0,
       "successful": 0,
       "failed": 0,
       "safeRefusals": 0,
       "observability": "Native entity identity/lifecycle, raw world snapshots, client feedback and durable run/lease records",
-      "limitation": "Explicit adapter coverage limitation: generic acquisition does not certify this capability; dedicated generator/observer assertions remain required",
+      "limitation": "W12 tests actual player attack, genuinely low native health admission refusal, and real trading across controller ticks. Fire, sleep and visible-monster conditions retain explicit coverage limitations.",
       "blocked": 0,
-      "inconclusive": 0
+      "inconclusive": 0,
+      "generatedCandidateVariations": 12
     },
     {
       "capability": "legacy-death",
