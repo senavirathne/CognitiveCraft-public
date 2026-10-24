@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "run": 40076986301,
+  "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+  "auditBasis": "Static request-domain check before original run results were available",
+  "qualifications": [
+    {
+      "case": "heldout-W2-004",
+      "parameters": {
+        "id": "heldout-W2-004",
+        "family": "W2",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            70,
+            208,
+            71
+          ],
+          [
+            70,
+            209,
+            71
+          ],
+          [
+            70,
+            210,
+            71
+          ],
+          [
+            70,
+            211,
+            71
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          67,
+          208,
+          66
+        ],
+        "destination": [
+          81,
+          208,
+          74
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "destinationSlots": [
+          [
+            0,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            1,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            2,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            3,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            4,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            5,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            6,
+            "minecraft:cobblestone",
+            64
+          ],
+          [
+            7,
+            "minecraft:cobblestone",
+            64
+          ]
+        ],
+        "existingStock": 0,
+        "capacityMode": "empty",
+        "actorOccupiedSlots": 0,
+        "terrain": "corridor",
+        "logAxis": "y",
+        "citizenName": "Citizen_104730_4",
+        "lifecycle": null,
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "expectedCompletion": true,
+        "immature": [],
+        "unrelated": [
+          [
+            80,
+            208,
+            76
+          ]
+        ],
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "5b6bea7a97abe9d24dafb1e5872bcdaf7174049ce8773d95d2c1a031250ce191"
+      },
+      "observedSourceBounds": [
+        70,
+        208,
+        71,
+        80,
+        211,
+        76
+      ],
+      "sourceVolume": 264,
+      "contractMaximum": 256,
+      "cause": "Harness included an unrelated distractor outside the selected source in its bounding cuboid",
+      "resultQualification": "Retain original raw verdict. If rejected for REQUEST_INVALID, classify as INCONCLUSIVE test-domain error, not a production generalization failure.",
+      "correction": "Exclude unrelated outside-source distractors from the request area; leave original evidence and assertions immutable."
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+name: Physical world generalization campaign
+on:
+  # User-authorized exception to the original manual-only requirement.
+  # Launch only a deliberate request on this isolated branch; main is unchanged.
+  push:
+    branches: [test/generalization-world]
+    paths: [e2e/campaigns/world/launch.json]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Smoke or full campaign
+        type: choice
+        options: [smoke, full]
+        default: smoke
+      seed:
+        description: Reproduction seed
+        default: '104729'
+        type: string
+      families:
+        description: Comma-separated abstract families
+        default: W1,W2,W3,W4,W5,W6,W7,W8,W9,W10,W11,W12
+        type: string
+      budget:
+        description: Maximum selected cases; 0 selects all
+        default: '0'
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: generalization-world-${{ github.ref }}
+  # An explicit replacement launch can stop a harness-invalid run while always-run
+  # report/artifact steps preserve its partial evidence; ordinary launches queue.
+  cancel-in-progress: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[world-replace]') }}
+jobs:
+  campaign:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[world-campaign]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate launch request and preserve every requested case before build
+        id: plan
+        env:
+          CAMPAIGN_MODE: ${{ inputs.mode }}
+          CAMPAIGN_SEED: ${{ inputs.seed }}
+          CAMPAIGN_FAMILIES: ${{ inputs.families }}
+          CAMPAIGN_BUDGET: ${{ inputs.budget }}
+        run: python3 scripts/campaign-world/launch.py plan
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Build once and check campaign invariants
+        id: build
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
+          python3 -m unittest discover -s scripts/campaign-world -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 scripts/campaign-world/compile.py
+      - name: Prepare the real interpreter once when nearest-reference cases require it
+        id: interpreter
+        if: steps.plan.outputs.interpreter == 'true'
+        run: python3 tools/needle/install.py build/needle
+      - name: Download the exact previous campaign's native world and immutable evidence
+        id: extract
+        if: steps.plan.outputs.previous_run != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/campaign-world/extract.py
+      - name: Inspect the preserved first divergences without changing original files
+        id: inspect
+        if: steps.plan.outputs.previous_run != ''
+        run: python3 scripts/campaign-world/inspect_prior.py
+      - name: Import an intact genuinely admitted certificate with exact original program hashes
+        id: certificate
+        if: steps.plan.outputs.native_certificate == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/campaign-world/certificate.py
+      - name: Read prior immutable artifacts and preserve a separately qualified review
+        id: review
+        if: steps.plan.outputs.review_prior == 'true'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/campaign-world/review.py
+      - name: Run sequential cases through one persistent connected client
+        timeout-minutes: 300
+        run: python3 scripts/campaign-world/launch.py run
+      - name: Reconcile requested and observed denominators, preserving failures
+        if: always()
+        env:
+          CAMPAIGN_BUILD: ${{ steps.build.conclusion }}
+          CAMPAIGN_INTERPRETER: ${{ steps.interpreter.conclusion }}
+          CAMPAIGN_EXTRACT: ${{ steps.extract.conclusion }}
+          CAMPAIGN_INSPECT: ${{ steps.inspect.conclusion }}
+          CAMPAIGN_CERTIFICATE: ${{ steps.certificate.conclusion }}
+        run: python3 scripts/campaign-world/launch.py report
+      - name: Preserve evidence with a manifest, excluding runtime caches and native memory dumps
+        if: always()
+        run: python3 scripts/campaign-world/artifact.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: generalization-world-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 90
+          path: build/e2e/world-evidence/

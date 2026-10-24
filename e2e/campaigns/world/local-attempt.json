@@ -1,0 +1,7027 @@
+{
+  "schema": 1,
+  "baseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
+  "productionTree": "f0915a127521cb32f45e606c39098011796d1f1d",
+  "requested": 144,
+  "records": [
+    {
+      "case": {
+        "id": "W1-000",
+        "family": "W1",
+        "seed": 104729,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f4aa0d6fe2debe4529a29d3f66574afb0ff5f21a03743796ebcce4f903b8586d"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-001",
+        "family": "W1",
+        "seed": 104729,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "c33a3bcab334739eef47335acf4317c0ee54e34e26687c61da018b438cc957b5"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-002",
+        "family": "W1",
+        "seed": 104729,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "8d4661ab1406b6604f15d3481cff453fa7545e89d8dfd2083798e6c4af83f5ab"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-003",
+        "family": "W1",
+        "seed": 104729,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            12,
+            201,
+            8
+          ],
+          [
+            14,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "4933182ece41f6089702873fb8b194773879fa4478ef13a5c693435b0a1871df"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-004",
+        "family": "W1",
+        "seed": 104729,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "39ac028fd452dcc5efe3ade614278fa2a2c909a4d565be389216b9c732eed160"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-005",
+        "family": "W1",
+        "seed": 104729,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "afc28ea1645cbb6b1e3d9fca4c0f684a442973ea4513a38cdfe15ea6a5773712"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-006",
+        "family": "W1",
+        "seed": 104729,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            6,
+            202,
+            7
+          ],
+          [
+            6,
+            203,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9877da414de114c14631f793e5d7594bd831702468fad8e2b3e57e465dbc9757"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-007",
+        "family": "W1",
+        "seed": 104729,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            8,
+            202,
+            8
+          ],
+          [
+            8,
+            203,
+            8
+          ],
+          [
+            8,
+            204,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "cf593afbd86ed5b8db4ea011f28077f4b86e82241066ae01e6cac77fe13e7a1d"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-008",
+        "family": "W1",
+        "seed": 104729,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "45f70480c98f4e57e0276accf955b3644cb7f021ccf920b0ff2eca9c73611425"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-009",
+        "family": "W1",
+        "seed": 104729,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "88387a0b96116f41948e972c7aee0556a4dabb98d34fa811b011e6ee56869f8a"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-010",
+        "family": "W1",
+        "seed": 104729,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            11,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a717a13cf31f6db606e88706ba0c555ddd4d6ba56f335845431cd1da8c21314f"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W1-011",
+        "family": "W1",
+        "seed": 104729,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ],
+          [
+            12,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "3734ef30da7600482d1b9259aa1663bd376ca87f11e9305fa11eb25ade7e00ed"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-000",
+        "family": "W2",
+        "seed": 104729,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "6b72951006e0887798e065025dd4944893b40fe309110c1becf8c50d696b6623"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-001",
+        "family": "W2",
+        "seed": 104729,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "85246cebf70f3e3e4df934a58a629539f41862fb3d6e4ee99c8e76dc902acf5e"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-002",
+        "family": "W2",
+        "seed": 104729,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "cbb8479ea16bb2818b91ccebd568ae6eeb9f2a27841356d83f72c05c9ca45528"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-003",
+        "family": "W2",
+        "seed": 104729,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ],
+          [
+            13,
+            201,
+            9
+          ],
+          [
+            15,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9d23307c8df74401f0b94d5daf2a2a97d80351ee94bb80db70fb67e8af85696a"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-004",
+        "family": "W2",
+        "seed": 104729,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "eaf1b3377d8e52374179cbe84dd40638ca88ce719fab9139193671dbdc5966f5"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-005",
+        "family": "W2",
+        "seed": 104729,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "1dff35478f56962f0d4243635cc861b2e001b866299d687e597bfd401ef4ea7b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-006",
+        "family": "W2",
+        "seed": 104729,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            7,
+            202,
+            7
+          ],
+          [
+            7,
+            203,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "2d9e3c46b99a0fb259a1e8c844c4104322f99d6a2853323a2dea660cec487b17"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-007",
+        "family": "W2",
+        "seed": 104729,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            8,
+            202,
+            8
+          ],
+          [
+            8,
+            203,
+            8
+          ],
+          [
+            8,
+            204,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "8bd711860d24281171f4745c6c1a5499ac5e13c8917c160bb170248ebfea9517"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-008",
+        "family": "W2",
+        "seed": 104729,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "366ffda5ed8dd1392b754b7e686a38297fe34daede806aaf1dd5e4fb085b9246"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-009",
+        "family": "W2",
+        "seed": 104729,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "13b8f8fb7c27d2f0920156003f7eccc0537bfad1309228de26d8e1e5c42a7980"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-010",
+        "family": "W2",
+        "seed": 104729,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "5d745b52496f13d9c2efad6413e4dff29d794c59f19e31aac45c7ca353915eaa"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W2-011",
+        "family": "W2",
+        "seed": 104729,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "fda89e6516b95362690aecf21d9807360b336e1a9e6ed013ea694471434da8ad"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-000",
+        "family": "W3",
+        "seed": 104729,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e09051af643c9c142d9807c1a9218e1a64e18b3bb7240cada196fc842e864735"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-001",
+        "family": "W3",
+        "seed": 104729,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a14ba20288311282625a1a5d1812500826683009faa7043b87982ba552140200"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-002",
+        "family": "W3",
+        "seed": 104729,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "23ca35fcef1627dbfc31e75b9d020b2fe19e6646dd7a8f65ed0cf136017e36e8"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-003",
+        "family": "W3",
+        "seed": 104729,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            12,
+            201,
+            8
+          ],
+          [
+            14,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "675bbae65a3dc7d2f8ca6ff03bb5e6ff1016ce81b4b0521416875e30e3425698"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-004",
+        "family": "W3",
+        "seed": 104729,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "23c8b3d4ced169eeaa5ddf2aa2d672cd4ad83a275daaacb0af87f59062ff72c8"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-005",
+        "family": "W3",
+        "seed": 104729,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "1373807ab86f735eaad647736848167f15773886589664243161f58b4965bad2"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-006",
+        "family": "W3",
+        "seed": 104729,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            7,
+            202,
+            9
+          ],
+          [
+            7,
+            203,
+            9
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f7280c35de46117a796798a17a62f9b41b31d65ff42f33abc06feec7dc7407d5"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-007",
+        "family": "W3",
+        "seed": 104729,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            8,
+            202,
+            7
+          ],
+          [
+            8,
+            203,
+            7
+          ],
+          [
+            8,
+            204,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "877b842e3a9d0b8a945c0b4b569e2fa0fcc80ff5fa960609ca40e80a2876b4d9"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-008",
+        "family": "W3",
+        "seed": 104729,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "8b386f249e28f26e0e9d3d8e986748cb2d3e65078a3a707bc455dda026f80a95"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-009",
+        "family": "W3",
+        "seed": 104729,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "d4d89e06026e885634a948b976cbac0afebb1725bacabc6655a70cad6a7bb065"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-010",
+        "family": "W3",
+        "seed": 104729,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            11,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "4401374c3d053a96bb3e4d58a808d59d6568fef72b3f52596984dff453f36ed8"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W3-011",
+        "family": "W3",
+        "seed": 104729,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "edfda5b074a495f39ad34494a50a5a98a642312b6fc030b977681378ed4d94a7"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-000",
+        "family": "W4",
+        "seed": 104729,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "35e99667a76650059c1af77c3fe4380baf4569eeca5df7a2f3c2ecb4bdfdbfd0"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-001",
+        "family": "W4",
+        "seed": 104729,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "0d2406b71ad0e2de271b1d67ed54bea23ffcb4267c0b455f5f0c959440020f6b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-002",
+        "family": "W4",
+        "seed": 104729,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ],
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "97eb3de1793c2bec0faf620ad620e48c04ad6444e8e97ed45b476d53124c498c"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-003",
+        "family": "W4",
+        "seed": 104729,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ],
+          [
+            12,
+            201,
+            7
+          ],
+          [
+            14,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9c1df809a10782de71d10b26ce7a2c9208a270200029743e5ad0114146d3ef47"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-004",
+        "family": "W4",
+        "seed": 104729,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "b7dff5064573a63d3a6be5744418ddd097d1f822f44e8748ec2a0b3df0f015b4"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-005",
+        "family": "W4",
+        "seed": 104729,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e62672e9e25395322451f1bd6df0ae4c0d09ec42926ca5a6bd32f7b9d5a75b6c"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-006",
+        "family": "W4",
+        "seed": 104729,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            6,
+            202,
+            7
+          ],
+          [
+            6,
+            203,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "63b58039061e6cd3c0a3102aa79fe82fb550ab11d02693c12d2535c4aadf4c4e"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-007",
+        "family": "W4",
+        "seed": 104729,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            9,
+            202,
+            7
+          ],
+          [
+            9,
+            203,
+            7
+          ],
+          [
+            9,
+            204,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9c703aa1edd95b050739c5771d721dadc5b2efab1dc37fc9dd2f161dee37f929"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-008",
+        "family": "W4",
+        "seed": 104729,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "d5e40c46d0b47b97403a0eadee9c178832d89e6432d7331c3149c3402b1a29e7"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-009",
+        "family": "W4",
+        "seed": 104729,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "7b3556ede7904bf2ac8cec2d5fb26ba18e8964055664813a42ef4f5d40dbafa5"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-010",
+        "family": "W4",
+        "seed": 104729,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "d8d4434ff25f4e9cccc43180d741ae577c651509381494176206e75bdcca6928"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W4-011",
+        "family": "W4",
+        "seed": 104729,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "483e3ad4700fc0c1a39ff1e38dfd1c177ff0e67624ccd670e604f32271c5fc1a"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-000",
+        "family": "W5",
+        "seed": 104729,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "3a6c84c4911fe8e267845c7477e8738ed19cc81fe4c7ee5b4e509bafc10da368"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-001",
+        "family": "W5",
+        "seed": 104729,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "0ec549701078875dd70cae919afa976e867287f7ab9728ad091032e3c43ec26d"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-002",
+        "family": "W5",
+        "seed": 104729,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "706fabd5b1cccdfd99ae2cda4cdf96430ccdc17349cc96e9b7066cea6ce452fb"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-003",
+        "family": "W5",
+        "seed": 104729,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            11,
+            201,
+            7
+          ],
+          [
+            13,
+            201,
+            7
+          ],
+          [
+            15,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "7249441b7cf058adf3d6fb610e98d44426c38d9c3a35e3aa8d519f8c960dd789"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-004",
+        "family": "W5",
+        "seed": 104729,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "dcd72669efab5eb8e5c83c9873c6540ef41e3bbb114311e1463beae82ce7a2e6"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-005",
+        "family": "W5",
+        "seed": 104729,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9d0889c2367726482ba7de307b714710629dd639b7f2da1e7e698577314c813f"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-006",
+        "family": "W5",
+        "seed": 104729,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            9,
+            202,
+            9
+          ],
+          [
+            9,
+            203,
+            9
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "6a1b091e20d632d98b4afe7988f1e9fdad6115bfc90393f871ad0a3e831c1913"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-007",
+        "family": "W5",
+        "seed": 104729,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            7,
+            202,
+            7
+          ],
+          [
+            7,
+            203,
+            7
+          ],
+          [
+            7,
+            204,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "897656302389cfdde5ec9d82ccb7298336e36c3db03f22bd22712a6be3d29cc3"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-008",
+        "family": "W5",
+        "seed": 104729,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "372ff0e4535a0e54b2c538c0b1825e66f6698e79e3bb3c9dedf31ff2ba18fc83"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-009",
+        "family": "W5",
+        "seed": 104729,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "4f656b228ccaef4d28ded35430e25f87628a01516a0d221c8724026c64f00cc4"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-010",
+        "family": "W5",
+        "seed": 104729,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "7718bead20abb6967546d539bb82a1cce425649c4d0d7adae501510cf19c8c1b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W5-011",
+        "family": "W5",
+        "seed": 104729,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "12ebdc07133b1a30bbcc243caa5fc4cedbe7842f790165fde39465705e7aa71e"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-000",
+        "family": "W6",
+        "seed": 104729,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "fb459b1552c81f47afbd97636586058466f9627a29defbe5c2298c65ab69837e"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-001",
+        "family": "W6",
+        "seed": 104729,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a81c95912efa8e7ae42e768792fdcb5dd9402c190f0891202a4d539c1cc0a903"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-002",
+        "family": "W6",
+        "seed": 104729,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "54f3815bfa4ee16dfcb3d0835c0163e2c789c7ca8aa56786d36b796362d8eea2"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-003",
+        "family": "W6",
+        "seed": 104729,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            12,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "862432e85f91c976213ccf5dd3f26ecb2555a8e1bd3ac4691f3868595f671a40"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-004",
+        "family": "W6",
+        "seed": 104729,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "3560abc34de22525faa1c23ddb5d5c512d883b89cdd29a6a9915f51090c9af91"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-005",
+        "family": "W6",
+        "seed": 104729,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            11,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "0a56cc6788da2651e492c0bd8d7c134235052780622f9d5e46a65450849ffa16"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-006",
+        "family": "W6",
+        "seed": 104729,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ],
+          [
+            6,
+            202,
+            9
+          ],
+          [
+            6,
+            203,
+            9
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "4275595dca4f2e5c31f77a5a8795c5b938d2a053f9a4a10b7e2b6cbacd56ce72"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-007",
+        "family": "W6",
+        "seed": 104729,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            8,
+            202,
+            7
+          ],
+          [
+            8,
+            203,
+            7
+          ],
+          [
+            8,
+            204,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a21601d47e04ecc863afa82ae9ee3b4dafacce9758c07d2c8cb6dfa499d77ab6"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-008",
+        "family": "W6",
+        "seed": 104729,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "b8481e75dc7eef592b5b3fb4dc663e209722eec855e0b24d7f7a9a4b1abad676"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-009",
+        "family": "W6",
+        "seed": 104729,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "d3ddc2fbca3aac20ce1dd3e7b1fdd181654e054a5093122d032d0c9d4b3cd866"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-010",
+        "family": "W6",
+        "seed": 104729,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "54785c964282a8c6d31f56fc1d40397ee16f8feb3baf904bbe44dc274473efb1"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "W6-011",
+        "family": "W6",
+        "seed": 104729,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "cfb4265841935225f0c2e68626f865ba78a71f3a5115667bfc06f39e75caf47b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-000",
+        "family": "W1",
+        "seed": 104730,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "7e64ed23f29aed2141a4965f5936a2e60adb08b7d6b41a7ad04d8695b0160980"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-001",
+        "family": "W1",
+        "seed": 104730,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "b56800eb85e963fda26b44436c8ea0e701108f6e3f09f226e4ca54459bd6bd47"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-002",
+        "family": "W1",
+        "seed": 104730,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "6caaaa7cc08620398faeb3d324c0298e0537ed5f1a078d4f9e52da879eaa7e16"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-003",
+        "family": "W1",
+        "seed": 104730,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            11,
+            201,
+            7
+          ],
+          [
+            13,
+            201,
+            7
+          ],
+          [
+            15,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "1b837e2aa06f540b8accfa8f47ea80d69e4b13ff0155b11e04b636418d5b9585"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-004",
+        "family": "W1",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "2ba08cf84359cd8d0bc3b70baa22e4b99907f736c1afee9643d401f78f2316c7"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-005",
+        "family": "W1",
+        "seed": 104730,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "6c3c192329f14c67cac14f8ce761ea6d7e52d304b3d6f079ee03012adcb8f315"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-006",
+        "family": "W1",
+        "seed": 104730,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            9,
+            202,
+            9
+          ],
+          [
+            9,
+            203,
+            9
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "0065f513bf45fc863b222b693f9e87db5a73edaa07ea7809ad226ed980a6d9be"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-007",
+        "family": "W1",
+        "seed": 104730,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            9,
+            202,
+            8
+          ],
+          [
+            9,
+            203,
+            8
+          ],
+          [
+            9,
+            204,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e45877eda5650bdf6190c63c556286c18c100bd8a822ba2e72246c341234c1bf"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-008",
+        "family": "W1",
+        "seed": 104730,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "3be03761843a48ec999ba3e9b3f0f824ebccec3392df2583830c2fd0236556ee"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-009",
+        "family": "W1",
+        "seed": 104730,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "816e68b8673fbef1b9f23cedf493b3efc65ee022dac243425a1eecc1706a4a8c"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-010",
+        "family": "W1",
+        "seed": 104730,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            11,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "c586ffdb072932c1c03e05e8e784d472703266b809403cc80fbade5dc9d7118a"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W1-011",
+        "family": "W1",
+        "seed": 104730,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9de843e4615d779cda88343274f835cc50134cc6ebf0eb571057c6ab3c4df4d0"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-000",
+        "family": "W2",
+        "seed": 104730,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "7d1c56903d74e232eb54f139ba7bb8414ce24141bfdc237ebe868f3dd9fa3f86"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-001",
+        "family": "W2",
+        "seed": 104730,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "80ce903a00d309a5d8899581c5dbfab728334b69f1d301e10596913346013478"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-002",
+        "family": "W2",
+        "seed": 104730,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "262420b2b77087b6c65c43f6107a58a52e9ca0217c21356b8c5f0e0b926cb29b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-003",
+        "family": "W2",
+        "seed": 104730,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ],
+          [
+            12,
+            201,
+            9
+          ],
+          [
+            14,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "bf435ad1ad894525c46b43db2790d2f10f7dc906ce60b17a49d3b15684c81a4d"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-004",
+        "family": "W2",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "9d9984535a23bd474436d945e06b9703122d62bd0bbc18b70c66a69bd3e06204"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-005",
+        "family": "W2",
+        "seed": 104730,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "606c67b6b7fed3a17940fefe65ca99e1bce5b64c11db6a1376c14aadb0f2444a"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-006",
+        "family": "W2",
+        "seed": 104730,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            7,
+            202,
+            8
+          ],
+          [
+            7,
+            203,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e2b69744bf1fb9d7481408b32ae4576dc516e36ea658269f8568a1ba4ead8d69"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-007",
+        "family": "W2",
+        "seed": 104730,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            8,
+            202,
+            8
+          ],
+          [
+            8,
+            203,
+            8
+          ],
+          [
+            8,
+            204,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "c7f7101dd8ccb4daf24d4ea97bbb310936fdd85bc002132dc09a027ab07ebce9"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-008",
+        "family": "W2",
+        "seed": 104730,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "813b39c2e48819a167f7ee835b42138c2dce6f0f6d993060aba48cfc70ea76f2"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-009",
+        "family": "W2",
+        "seed": 104730,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e641390d369ce4a454828b1562fdc214a411d0e32f07900444d1837a8a30eaaf"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-010",
+        "family": "W2",
+        "seed": 104730,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "c11440559b6ccc21fdce7e8252f9d7a945c5edfa26c7174fee3bbfc0056267c0"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W2-011",
+        "family": "W2",
+        "seed": 104730,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            11,
+            201,
+            8
+          ],
+          [
+            12,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e4430ed225116c7898e1e0266509efb6cd80971798a4e721d998ee2a6eff507b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-000",
+        "family": "W3",
+        "seed": 104730,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a6c2a64d72f068d7264e1beb69f42d1d249e6dd5249f0fbb70e1592d309fa9d6"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-001",
+        "family": "W3",
+        "seed": 104730,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a5407dd43ea11fcac119a3839574d334a1a7521c6f77449cb5c968c29ff04933"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-002",
+        "family": "W3",
+        "seed": 104730,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "d5bcbb043d2aa2c32e7231bd589d4019c09952be6428396ccbcf3f370b237122"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-003",
+        "family": "W3",
+        "seed": 104730,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ],
+          [
+            13,
+            201,
+            9
+          ],
+          [
+            15,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "16998ab9ff3d162035dace40bec1dc6dbe8b44ca2f944a0eeb65dc4956e296bc"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-004",
+        "family": "W3",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "ceb451203dac3f4ab839d504d48e43d62064b87afd8212eba3ffbe1a6f957b48"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-005",
+        "family": "W3",
+        "seed": 104730,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "846f74ae9621a32c89f5d6e3a2ea2357c83b5896ed3de3dc44c8a93d3a513e65"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-006",
+        "family": "W3",
+        "seed": 104730,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            8,
+            202,
+            8
+          ],
+          [
+            8,
+            203,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e79a542a046c75ed6aee7e3122d1d08695908a56bf90ad1c470958593d463c72"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-007",
+        "family": "W3",
+        "seed": 104730,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            7,
+            202,
+            8
+          ],
+          [
+            7,
+            203,
+            8
+          ],
+          [
+            7,
+            204,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "8bed363716f6e78868e5d9e0cdb7f1aa5b3fff7cf64e7cb7b7173d4d15ce34d6"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-008",
+        "family": "W3",
+        "seed": 104730,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f7248019fba52f53e18aeeff2c54c8f8005652ba43cf8855f95a4c231de6421d"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-009",
+        "family": "W3",
+        "seed": 104730,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            7,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f47c1f9aa1983e477a4694f84d8a7f90e86d3d4ca1b601ab024d295bcafd118c"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-010",
+        "family": "W3",
+        "seed": 104730,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "4e79a940c7283c01eca1b1d66e5cec8a3fee04265794025c70f067c885ca66fb"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W3-011",
+        "family": "W3",
+        "seed": 104730,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "252d2df5fd02a785e1324f612c0c48f51489fd134ae7d168a9e9e47428f2ed63"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-000",
+        "family": "W4",
+        "seed": 104730,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "15488c3d255f85e3533b6439fef89e6cac542611b88f0f124120657f7d7f6ea6"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-001",
+        "family": "W4",
+        "seed": 104730,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "3a411de0fe1170a7932cf32616530f93f9e47393750bc402eff12e577f6363d8"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-002",
+        "family": "W4",
+        "seed": 104730,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "d27d5e6cb10287c86a8b1de81ffbf0e0d1cd168323cd6e9023588a6b64235d8a"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-003",
+        "family": "W4",
+        "seed": 104730,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ],
+          [
+            13,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "84fbd0128b55ba0dcbf07edf3a8cd83ea0f0d7e6ad4a603e2d16b701b8139bbc"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-004",
+        "family": "W4",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "fc816fdee656550f990a78d49047f5f258f9409f8d08b9a56fee56a2917ff7c9"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-005",
+        "family": "W4",
+        "seed": 104730,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "5191db05ea18eb54f43892dae132de9d10bffe58389dfe279d236d37e9419f05"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-006",
+        "family": "W4",
+        "seed": 104730,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ],
+          [
+            6,
+            202,
+            9
+          ],
+          [
+            6,
+            203,
+            9
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f4925d41251526487cf77b9b67d0d6af46449de5914c834a71788664bce0f848"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-007",
+        "family": "W4",
+        "seed": 104730,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            9,
+            202,
+            9
+          ],
+          [
+            9,
+            203,
+            9
+          ],
+          [
+            9,
+            204,
+            9
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f58c055fc58618c90acd8788928977c284375835efa35bdf592cc18fc4e225cc"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-008",
+        "family": "W4",
+        "seed": 104730,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "4a0ee4a2b91717689f3ec557521c9672ba862c0b1de1177524d2104213965172"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-009",
+        "family": "W4",
+        "seed": 104730,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "e770a7f1e2bbd7eace2ee8764eaf6dbd5e2ed4ee6bf760d9b44748daac5627b8"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-010",
+        "family": "W4",
+        "seed": 104730,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "1bc919658096c59cb2f37d31d6b5278d9b344a4e20236fcde9d0d9d5c864a7b2"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W4-011",
+        "family": "W4",
+        "seed": 104730,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ],
+          [
+            10,
+            201,
+            9
+          ],
+          [
+            11,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "259690c92816e7b1efc055681ee4b3627dad01358a71a567f343eebb98bf4376"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-000",
+        "family": "W5",
+        "seed": 104730,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a65e04b0345bcffed640263dc807645cb1a5c0408deb7b123445ab9d1b3cbea1"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-001",
+        "family": "W5",
+        "seed": 104730,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "875eed1093f306d8e3608c303a8651780c173a751a471b4410cee637fa04a147"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-002",
+        "family": "W5",
+        "seed": 104730,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "2dc282ca673676b8a571ae038e700f70a243f1fa5e1a98b8408f98203d619aaa"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-003",
+        "family": "W5",
+        "seed": 104730,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ],
+          [
+            12,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "577876fdde09b048c5d2d66139d8a2e1324beee42ed4040e0b67a801a6cc49a7"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-004",
+        "family": "W5",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a31c7f1fe80b05ccf98adf7b9e4b8b8195bba4410d19d1fb3331ab0c01c1e09e"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-005",
+        "family": "W5",
+        "seed": 104730,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            11,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f7d784fd97c2b62b1055ab6c67177430b72ec75b11a396fa7f1f3038f96a2135"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-006",
+        "family": "W5",
+        "seed": 104730,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            9,
+            202,
+            8
+          ],
+          [
+            9,
+            203,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "093ae21dc32789034773720cb43cbcc50bd973a2c6e79067576b0cb8d7c10596"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-007",
+        "family": "W5",
+        "seed": 104730,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            7
+          ],
+          [
+            7,
+            202,
+            7
+          ],
+          [
+            7,
+            203,
+            7
+          ],
+          [
+            7,
+            204,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "87d271407f13a6e627e0408f6aeb74b5dea23b07fbf81a8faec86e4144e2a88b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-008",
+        "family": "W5",
+        "seed": 104730,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "19d872ee6623b26d92a620863bc3be5a7ea2fc66a6c5475ef4ebe26b19b44c06"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-009",
+        "family": "W5",
+        "seed": 104730,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "dd021e92c1b23949c66cf5151e634db4067680f16c8c54707c83a93ae40d739f"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-010",
+        "family": "W5",
+        "seed": 104730,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "b0f793ec9e2b825526385964e3ea0d7fcbff6fcedcfcd12bd499bff431cda105"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W5-011",
+        "family": "W5",
+        "seed": 104730,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            11,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": null,
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "139b8e8aca3d59dfc3bda57cdefdf54d1e7a6745d9c2ecd5d72e62f294618e33"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-000",
+        "family": "W6",
+        "seed": 104730,
+        "index": 0,
+        "item": "minecraft:oak_log",
+        "quantity": 1,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 0,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_0",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "2ca3ce596eb6520ad024a88b31a64a2e0af2b7f4dff75d69388f34f5256ab7c8"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-001",
+        "family": "W6",
+        "seed": 104730,
+        "index": 1,
+        "item": "minecraft:birch_log",
+        "quantity": 2,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            7,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 7,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_1",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "095445d2fdb7670057defb647fb1b7676ef04eb11f807e00d22e73d1bf55b0b7"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-002",
+        "family": "W6",
+        "seed": 104730,
+        "index": 2,
+        "item": "minecraft:wheat",
+        "quantity": 3,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ],
+          [
+            8,
+            201,
+            9
+          ],
+          [
+            9,
+            201,
+            9
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "chest",
+        "occupiedSlots": 14,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_2",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "967e468029a6eb922d82357ae9ab36278f8ed0cd40497a40bb753ba534ced9d6"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-003",
+        "family": "W6",
+        "seed": 104730,
+        "index": 3,
+        "item": "minecraft:oak_log",
+        "quantity": 4,
+        "positions": [
+          [
+            6,
+            201,
+            8
+          ],
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ],
+          [
+            12,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "barrel",
+        "occupiedSlots": 21,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_3",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "af873feb9c49758534af382688ace47c91f4eb15dd43eb7636e72cc9facaa7c3"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-004",
+        "family": "W6",
+        "seed": 104730,
+        "index": 4,
+        "item": "minecraft:birch_log",
+        "quantity": 1,
+        "positions": [
+          [
+            9,
+            201,
+            8
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "chest",
+        "occupiedSlots": 1,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_4",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "28c4db16853295fb52102dd23ac8dc934d17e314022fdabc42988f28909ba734"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-005",
+        "family": "W6",
+        "seed": 104730,
+        "index": 5,
+        "item": "minecraft:wheat",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            11,
+            201,
+            7
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "barrel",
+        "occupiedSlots": 8,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_5",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "36e8048a5f507a4322138d35c5f478cb0d498688517cd66da9a41787d4f6c66b"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-006",
+        "family": "W6",
+        "seed": 104730,
+        "index": 6,
+        "item": "minecraft:oak_log",
+        "quantity": 3,
+        "positions": [
+          [
+            6,
+            201,
+            7
+          ],
+          [
+            6,
+            202,
+            7
+          ],
+          [
+            6,
+            203,
+            7
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "chest",
+        "occupiedSlots": 15,
+        "existingStock": 0,
+        "terrain": "flat",
+        "logAxis": "x",
+        "citizenName": "Citizen_6",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "b5dbf25d0fe1814317231e451344d17e2cf072794724cf3f195302f92248d817"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-007",
+        "family": "W6",
+        "seed": 104730,
+        "index": 7,
+        "item": "minecraft:birch_log",
+        "quantity": 4,
+        "positions": [
+          [
+            7,
+            201,
+            8
+          ],
+          [
+            7,
+            202,
+            8
+          ],
+          [
+            7,
+            203,
+            8
+          ],
+          [
+            7,
+            204,
+            8
+          ]
+        ],
+        "geometry": "vertical",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          8
+        ],
+        "container": "barrel",
+        "occupiedSlots": 22,
+        "existingStock": 1,
+        "terrain": "detour",
+        "logAxis": "y",
+        "citizenName": "Citizen_7",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "f409ed4696e6f766898a0b436e46bb7973c1adc9800c7fce86d2765a6cf2c5b3"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-008",
+        "family": "W6",
+        "seed": 104730,
+        "index": 8,
+        "item": "minecraft:wheat",
+        "quantity": 1,
+        "positions": [
+          [
+            7,
+            201,
+            9
+          ]
+        ],
+        "geometry": "separated",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          9
+        ],
+        "container": "chest",
+        "occupiedSlots": 2,
+        "existingStock": 2,
+        "terrain": "flat",
+        "logAxis": "z",
+        "citizenName": "Citizen_8",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "14c972d0a0594073d6dc8d41faf37352ee24ad2ff633362c16319f01a1955c12"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-009",
+        "family": "W6",
+        "seed": 104730,
+        "index": 9,
+        "item": "minecraft:oak_log",
+        "quantity": 2,
+        "positions": [
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          2,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          10
+        ],
+        "container": "barrel",
+        "occupiedSlots": 9,
+        "existingStock": 0,
+        "terrain": "detour",
+        "logAxis": "x",
+        "citizenName": "Citizen_9",
+        "disturbance": "cancel",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "992317e0a1f80eee8b2d7980b9bb8316410061afe812e410f6271cbdb2251c37"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-010",
+        "family": "W6",
+        "seed": 104730,
+        "index": 10,
+        "item": "minecraft:birch_log",
+        "quantity": 3,
+        "positions": [
+          [
+            8,
+            201,
+            8
+          ],
+          [
+            9,
+            201,
+            8
+          ],
+          [
+            10,
+            201,
+            8
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          3,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          6
+        ],
+        "container": "chest",
+        "occupiedSlots": 16,
+        "existingStock": 1,
+        "terrain": "flat",
+        "logAxis": "y",
+        "citizenName": "Citizen_10",
+        "disturbance": "break",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "a215f0d7c9a0c059e5828f2bf3b30765452f5ec0e3e6533ec773029fa5671940"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    },
+    {
+      "case": {
+        "id": "heldout-W6-011",
+        "family": "W6",
+        "seed": 104730,
+        "index": 11,
+        "item": "minecraft:wheat",
+        "quantity": 4,
+        "positions": [
+          [
+            8,
+            201,
+            7
+          ],
+          [
+            9,
+            201,
+            7
+          ],
+          [
+            10,
+            201,
+            7
+          ],
+          [
+            11,
+            201,
+            7
+          ]
+        ],
+        "geometry": "line",
+        "actor": [
+          4,
+          201,
+          2
+        ],
+        "destination": [
+          17,
+          201,
+          7
+        ],
+        "container": "barrel",
+        "occupiedSlots": 23,
+        "existingStock": 2,
+        "terrain": "detour",
+        "logAxis": "z",
+        "citizenName": "Citizen_11",
+        "disturbance": "restart",
+        "ownership": "PlayerA",
+        "nearbyUnrelated": "minecraft:cobblestone",
+        "caseSha256": "216cdd0aa2b22b7e194afb0a2dbbffc4d24e366c51e1ea51669ff74119cd4255"
+      },
+      "status": "INFRASTRUCTURE_BLOCKED",
+      "genuineGameplay": false,
+      "reason": "Docker executable unavailable"
+    }
+  ],
+  "complete": false,
+  "infrastructureFailure": {
+    "reason": "Docker executable unavailable",
+    "trace": "Traceback (most recent call last):\n  File \"/workspace/scratch/500c6a4a1760/CognitiveCraft-public/e2e/campaigns/world/runner.py\", line 220, in main\n    require(shutil.which('docker') is not None,'Docker executable unavailable')\n  File \"/workspace/scratch/500c6a4a1760/CognitiveCraft-public/e2e/suite.py\", line 91, in require\n    raise AssertionError(reason)\nAssertionError: Docker executable unavailable\n"
+  },
+  "counts": {
+    "INFRASTRUCTURE_BLOCKED": 144
+  },
+  "genuineGameplayExecutions": 0,
+  "rates": {
+    "conservation": {
+      "passed": 0,
+      "evaluated": 0
+    },
+    "truthfulCompletion": {
+      "passed": 0,
+      "evaluated": 0
+    },
+    "navigation": {
+      "passed": 0,
+      "evaluated": 0
+    },
+    "delivery": {
+      "passed": 0,
+      "evaluated": 0
+    },
+    "harvest": {
+      "passed": 0,
+      "evaluated": 0
+    },
+    "identity": {
+      "passed": 0,
+      "evaluated": 0
+    }
+  }
+}

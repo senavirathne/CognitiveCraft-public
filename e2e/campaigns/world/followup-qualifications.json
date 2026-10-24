@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "qualifications": [
+    {
+      "schema": 1,
+      "sourceCommit": "526c183ea65523744fc7997737790868253fb04b",
+      "run": 40085523505,
+      "basis": "Independent source-contract audit before follow-up results became available; no runtime outcome consulted",
+      "case": "heldout-W7-006",
+      "seed": 15485863,
+      "finding": "W7 nearest assertion used player anchor. Normal typed nominal destination policy uses source-area center unless phrase explicitly says nearest to you.",
+      "sourceEvidence": [
+        "core/src/main/java/dev/aivillages/core/kernel/WorldReferenceBinding.java:259",
+        "core/src/main/java/dev/aivillages/core/kernel/WorldReferenceLanguage.java:33",
+        "core/src/main/java/dev/aivillages/core/kernel/WorldReferenceDiscovery.java:286"
+      ],
+      "sourceAnchor": [
+        76,
+        208,
+        71
+      ],
+      "configuredDestination": [
+        71,
+        208,
+        69
+      ],
+      "configuredSquaredDistance": 29,
+      "eligibleFarContainer": [
+        79,
+        208,
+        75
+      ],
+      "eligibleFarSquaredDistance": 25,
+      "treatment": "Retain raw case/result. If real interpretation uses default source anchor and selects/delivers to the latter container, qualify only this container-choice assertion as INCONCLUSIVE test expectation; independently recompute custody, authority and conservation. Do not turn raw failure into a gameplay pass without a correct selected-target oracle.",
+      "futureCorrection": "Derive expected container from independent nominal-reference contract and fixture source anchor; preserve the original evidence."
+    }
+  ],
+  "legacyCleanupAudit": {
+    "sourceCommit": "526c183ea65523744fc7997737790868253fb04b",
+    "finding": "W8 suppresses stop/release errors. No such failure is assumed before reviewing raw logs. A later fixture would be invalid if a legacy owner remained active.",
+    "correction": "Track normal legacy enrollment, require acknowledged stop and release, retain the fixture fence when an acknowledgement fails.",
+    "qualification": "Conditional only: inspect actual per-case cleanup acknowledgements before claiming any resulting contamination."
+  }
+}
