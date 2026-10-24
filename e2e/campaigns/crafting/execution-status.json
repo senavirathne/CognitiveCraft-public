@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "recordedAt": 1792864442.3551097,
-  "status": "PARTIAL_CAPACITY_BLOCKED_FOCUSED_REPLAY_PENDING",
+  "recordedAt": 1792866078.0233853,
+  "status": "PARTIAL_CAPACITY_BLOCKED_BIRCH_QUANTITY_PAIR_PENDING",
   "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
   "productionFilesUnchanged": 181,
   "newMinecraftCasesAttempted": 34,
@@ -10,16 +10,16 @@
   "researchComplete": false,
   "pythonValidation": {
     "existingHarnessTests": 72,
-    "campaignEvaluatorTests": 58,
+    "campaignEvaluatorTests": 60,
     "status": "PASS",
     "areGameplayEvidence": false
   },
   "definitionHashes": {
     "e2e/campaigns/crafting/__init__.py": "92dbb41c8d9bc31fdd1292d9b597de26333f1cd92a5df7687d8f1f6dfaa98b97",
     "e2e/campaigns/crafting/evidence.py": "c338135d0c57fdecdc8459f25d6fae30443b0f71c6412bc09ac3297f84a03942",
-    "e2e/campaigns/crafting/execution.py": "e3d537d900c3eea249cd57fa4f4ffbd0625d43c4b54ca6b1491744ceb2365809",
+    "e2e/campaigns/crafting/execution.py": "bcfd455d9e48c95540951ea3928619544d1ae0f7b7d6ab9b623f60beae0e9523",
     "e2e/campaigns/crafting/generator.py": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204",
-    "e2e/campaigns/crafting/harness.py": "2d99f0ac275fe84d160306d5ea5605ccd9e86ca907df20a9623acaa7e17e8c77",
+    "e2e/campaigns/crafting/harness.py": "f8ab2fc906bcbcc5f145bd943e56fbad4186a60dd97a956e3b4d7d92ac5fd1f4",
     "e2e/campaigns/crafting/invariants.py": "7e90b3a367678a955b145916bf63d22fffb4a39ce348a11e0940cbab89afcb50",
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingPrimitiveTrace.java": "49222faa630057d18c3c8cbb249ae3b764b2770cb777c1ea5ba60c2de3e38172",
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingRecipeOracle.java": "9c6eb13b5fa1c8bb926602cda2ed2b3b5572dc0d14b92f86fe11934e8a10c53b",
@@ -27,20 +27,19 @@
     "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/crafting/mixin/CraftingLegacyTraceMixin.java": "7d79120cbf3c9490b1439717627098ce7d3fbfab1637031702d25b98c7712271",
     "e2e/campaigns/crafting/oracle.py": "d5e8eff6585c8672f3b549de7f069f552833bd98b9a014fdec28ed2b5c91f9a4",
     "e2e/campaigns/crafting/recipe_model.py": "773475c84c57680689cf9f9701d55a12c3fc444601261c7faba94c98596b4907",
-    "e2e/campaigns/crafting/run.py": "e639e9067733f666e4bcc238907985bd1e61583c4c636eae322f6b0eb7a767c1",
+    "e2e/campaigns/crafting/run.py": "af25a6204511465f300bcab8aaef6c487b107fbd64bdcfac3bdfb33a8c9d3179",
     "e2e/campaigns/crafting/scheduling.py": "63c231d8f5b2f226b9e54b24fd5ad8c33320adb1ad1e0822a403e23f97ceffa6",
     "e2e/campaigns/crafting/test_campaign.py": "57b2fef70215101ba621c59fbc117e9591a69e5d952a2e3b69dcb0db94e5fac3",
     "e2e/campaigns/crafting/test_harness_guards.py": "6d6f59ae29bd5b50d87a2d1479df523d208b2ae0b45e1908c3eb41142428ecac",
-    "e2e/campaigns/crafting/test_runtime_bootstrap.py": "c327a49d9a64039933eb9c36276d5eeb4da100626656e7b4b49fa01825b1fa59"
+    "e2e/campaigns/crafting/test_runtime_bootstrap.py": "5917649d350dacc8966279ff1a1ea5b3d38606691af53f5df52f522ab95ca793"
   },
   "java25Instrumentation": "COMPILED_LOADED_AND_USED_IN_CONNECTED_CLIENT_GAMEPLAY",
   "runtimeCorpus": "GENERATED_FROM_LIVE_RECIPES; 334 SCHEDULED; 34 ATTEMPTED; 300 UNEXECUTED",
   "actionsWorkflow": ".github/workflows/generalization-crafting.yml",
   "actionsRunId": 40112796714,
   "blockers": [
-    "Resource lease retention held 128 retired rows (124 RELEASED, 4 REVOKED) and rejected new claims; no quota or history changes made",
-    "Four legacy FAIL_SAFETY flags used stale pre-fixture table snapshots; corrected measurement awaits focused reproductions",
-    "300 scheduled cases including all held-out selections remain unexecuted in the capacity-blocked full run"
+    "Original full run remains blocked by 128 retired lease records; 300 scheduled cases unexecuted",
+    "The two ready-birch replay cases were unnecessarily gated on gathering admission; corrected requirement awaits two-case replay"
   ],
   "defaultBranchChanged": false,
   "branchesMerged": false,
@@ -107,6 +106,15 @@
       "generatedGameplayAttempts": 34,
       "artifactId": 12568796135,
       "artifactSHA256": "972e717e81a6d7a8df1a1debe74dc1223f75171a84bdf78e5a5171142394ace1"
+    },
+    {
+      "id": 40118329451,
+      "sourceCommit": "d4666fe1b5840bfd58c289c3228c81c1af1b5677",
+      "conclusion": "failure",
+      "classification": "RECORDED_WITH_TWO_UNATTEMPTED_ADMISSION_GATED_CASES",
+      "generatedGameplayAttempts": 12,
+      "artifactId": 12570503331,
+      "artifactSHA256": "d5db7bf2c57001454772992093ac680414e94976452c4013798c32c6a47ef17c"
     }
   ],
   "observedFullRun": {
@@ -144,9 +152,27 @@
     "artifactSHA256": "7722dd442cac4d7ea6b2336b6957e3f5f417e805cfc9b9b095bcb0bbe7c44f2c"
   },
   "focusedReplay": {
-    "caseCount": 14,
+    "caseCount": 2,
     "source": "e2e/campaigns/crafting/reproductions.json",
-    "purpose": "Fresh minimal recipe substitutions and matching controls, birch quantity 3/4 comparison, and all four legacy fixture regressions",
+    "purpose": "Ready birch quantities 3/4 require only admitted plank production, not unneeded acquisition",
     "completesRemainingFullCases": false
-  }
+  },
+  "focusedReplayResults": {
+    "runId": 40118329451,
+    "sourceCommit": "d4666fe1b5840bfd58c289c3228c81c1af1b5677",
+    "scheduled": 14,
+    "attempted": 12,
+    "classifications": {
+      "PASS": 8,
+      "GAP_RECIPE_EQUIVALENCE": 4,
+      "BLOCKED_ADMISSION": 2
+    },
+    "evidenceProblems": [],
+    "allFourLegacyCasesPass": true,
+    "allFourMaterialGapsReproducedWithPassingControls": true,
+    "birchQuantityPairNotAttempted": true,
+    "artifactId": 12570503331,
+    "artifactSHA256": "d5db7bf2c57001454772992093ac680414e94976452c4013798c32c6a47ef17c"
+  },
+  "measurementCorrection": "One shared before-measurement observer barrier covers complete legacy table setup and newly placed acquisition logs; conservation rules and production are unchanged"
 }

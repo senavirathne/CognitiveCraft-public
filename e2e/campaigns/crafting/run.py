@@ -84,7 +84,7 @@ def needed_artifacts(case):
     if case["mode"] == "blueprint":
         return [OAK, "oak-acquisition"]
     if case.get("output") == BIRCH:
-        return [BIRCH, "birch-acquisition"]
+        return [BIRCH, "birch-acquisition"] if case.get("distribution") in {"gather", "insufficient"} else [BIRCH]
     if case["mode"] == "recovery":
         return ["placement", AXE] if case["boundary"] == "after-placement" else [OAK, STICK, AXE]
     output = case.get("output", AXE)

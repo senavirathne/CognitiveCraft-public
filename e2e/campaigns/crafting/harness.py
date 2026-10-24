@@ -30,6 +30,23 @@ def coord(value):
     return " ".join(map(str, value))
 
 
+def fixture_observation(h, expected_tables=None, *, expected_blocks=None):
+    """Measure only after both real observers acknowledge the required setup."""
+    def matches(value):
+        blocks = value.get("blocks", {})
+        tables = {key for key, block in blocks.items() if TABLE in block}
+        return (expected_tables is None or tables == expected_tables) and all(
+            wanted in blocks.get(key, "") for key, wanted in (expected_blocks or {}).items())
+
+    def ready():
+        state = h.snapshot() or {}
+        if not matches(state):
+            return None
+        client = h.client_snapshot("PlayerA")
+        return (state, client) if matches(client) else None
+    return h.wait(ready, "Server and client observed the complete physical fixture", 20)
+
+
 class BoundaryMissed(RuntimeError):
     pass
 
@@ -352,6 +369,7 @@ class CraftingHarness(Harness):
             row = {"capability": output, "status": "NOT_EXECUTED"}
             self.family = "ADMISSION-" + output.split(":")[-1]
             try:
+                fixture_blocks = {}
                 recipe = self.recipes.get(output)
                 if recipe:
                     grid = ["" if i < 0 else (OAK if OAK in recipe["ingredients"][i] else
@@ -373,9 +391,10 @@ class CraftingHarness(Harness):
                     else:
                         material = LOG if output == "oak-acquisition" else "minecraft:birch_log"
                         self.console(["setblock " + coord(LO) + " " + material])
+                        fixture_blocks[",".join(map(str, LO))] = material
                         text = "/aivillage kernel gather-" + ("oak" if material == LOG else "birch") + " " + self.citizens["PlayerA"] + " 1 " + coord(LO+HI+self.destination)
                 calls = self.model_calls()
-                physical_before, client_before = self.snapshot(), self.client_snapshot("PlayerA")
+                physical_before, client_before = fixture_observation(self, expected_blocks=fixture_blocks)
                 request = self.submit_command(text)
                 result = self.finish_request(request, 650)
                 require(result["completed"], "Genuine method admission did not complete")

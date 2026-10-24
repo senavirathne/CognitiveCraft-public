@@ -15,9 +15,34 @@ sys.path.insert(0, str(E2E))
 from campaigns.crafting import harness
 from suite import atomic
 from campaigns.crafting.execution import fixture_observation
+from campaigns.crafting.run import needed_artifacts
 
 
 class ObserverBootstrapTests(unittest.TestCase):
+    def test_new_standing_log_must_be_observed_before_acquisition_admission(self):
+        snapshots = iter([{"blocks": {}}, {"blocks": {"70,208,65": "Block{minecraft:birch_log}"}}])
+
+        class Observers:
+            calls = 0
+            def snapshot(self):
+                self.calls += 1
+                return next(snapshots)
+            def client_snapshot(self, player):
+                return {"blocks": {"70,208,65": "Block{minecraft:birch_log}"}}
+            def wait(self, predicate, reason, seconds):
+                return predicate() or predicate()
+
+        observer = Observers()
+        before, client = fixture_observation(observer, expected_blocks={"70,208,65": "minecraft:birch_log"})
+        self.assertEqual(observer.calls, 2)
+        self.assertEqual(before["blocks"], client["blocks"])
+
+    def test_ready_birch_needs_production_without_unneeded_gathering_admission(self):
+        case = {"mode": "compose", "output": harness.BIRCH, "distribution": "ready", "worldLogs": 0}
+        self.assertEqual(needed_artifacts(case), [harness.BIRCH])
+        case["distribution"] = "gather"
+        self.assertEqual(needed_artifacts(case), [harness.BIRCH, "birch-acquisition"])
+
     def test_stale_server_fixture_cannot_create_a_false_table_resource_delta(self):
         snapshots = iter([{"blocks": {}}, {"blocks": {"72,208,69": "Block{minecraft:crafting_table}"}}])
 

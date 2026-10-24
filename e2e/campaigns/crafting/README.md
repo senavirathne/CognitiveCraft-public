@@ -29,11 +29,15 @@ outcome instead of relabelling a completed request as interrupted, and compares 
 container/actor/player/drop custody after restart. Raw logs use fixed byte boundaries;
 the verifier ties commands, identities, vanilla probes and native frames to each case.
 
-Current validation passes **72 existing harness tests and 58 evaluator/bootstrap checks**.
+Current validation passes **72 existing harness tests and 60 evaluator/bootstrap checks**.
 Seven existing Actions checks passed on the previous published candidate `9ba8477`.
-Those checks are separate from gameplay evidence. Fourteen bounded fresh
-reproductions and controls qualify the fixture barrier and observed gaps; they do
-not complete the 300 unexecuted full-campaign cases.
+Those checks are separate from gameplay evidence. Run 40118329451 recorded the
+fourteen-case focused batch: 8 PASS, 4 reproduced recipe gaps and 2 BLOCKED_ADMISSION.
+All four corrected legacy cases passed; all four minimized substitutions remained
+refused with canonical controls passing. The birch quantity pair did not execute
+because the harness unnecessarily required gathering despite stocked input logs.
+The next replay contains only that pair and genuinely admits only its producer.
+These replays do not complete the 300 unexecuted full-campaign cases.
 
 | Family | Shared property |
 |---|---|

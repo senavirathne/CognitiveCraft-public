@@ -9,7 +9,7 @@ import time
 
 from suite import UUID_PATTERN, atomic, read, require, reconnect_players
 from .generator import LOG, OAK, BIRCH, STICK, AXE, TABLE
-from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS
+from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS, fixture_observation
 from .invariants import totals, recipe_balance, composition_balance, delta, physical_custody, interruption_verification
 from .oracle import requirements, rotated_cells
 from .recipe_model import rules, demands
@@ -311,19 +311,6 @@ def execute_dynamic(h, case):
     result["dynamic"] = {"event": event, "boundary": witness, "mutation": mutation,
                          "client": h.client_snapshot("PlayerA"), "witnessed": True}
     return request, result
-
-
-def fixture_observation(h, expected_tables):
-    """Wait for both real observers to see setup before measuring any activity."""
-    def ready():
-        state = h.snapshot()
-        tables = {key for key, block in state.get("blocks", {}).items() if TABLE in block}
-        if tables != expected_tables:
-            return None
-        client = h.client_snapshot("PlayerA")
-        tables = {key for key, block in client.get("blocks", {}).items() if TABLE in block}
-        return (state, client) if tables == expected_tables else None
-    return h.wait(ready, "Server and client observed the complete legacy fixture", 20)
 
 
 def execute_legacy(h, case, expected):
