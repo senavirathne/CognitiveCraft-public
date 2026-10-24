@@ -1,0 +1,71 @@
+name: Physical world generalization campaign
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Smoke or full campaign
+        type: choice
+        options: [smoke, full]
+        default: smoke
+      seed:
+        description: Reproduction seed
+        default: '104729'
+        type: string
+      families:
+        description: Comma-separated abstract families
+        default: W1,W2,W3,W4,W5,W6
+        type: string
+      budget:
+        description: Maximum selected cases; 0 selects all
+        default: '0'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: generalization-world-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Build once and check campaign invariants
+        run: |
+          bash gradlew --no-daemon --stacktrace :fabric:build
+          python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+      - name: Run sequential cases through one persistent connected client
+        env:
+          CAMPAIGN_MODE: ${{ inputs.mode }}
+          CAMPAIGN_SEED: ${{ inputs.seed }}
+          CAMPAIGN_FAMILIES: ${{ inputs.families }}
+          CAMPAIGN_BUDGET: ${{ inputs.budget }}
+        run: |
+          python3 e2e/campaigns/world/runner.py --root build/e2e/generalization-world --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED" --families "$CAMPAIGN_FAMILIES" --budget "$CAMPAIGN_BUDGET"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: generalization-world-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            build/e2e/generalization-world/
+            fabric/build/libs/ai-villages-0.1.0.jar
+            build/e2e-driver/
