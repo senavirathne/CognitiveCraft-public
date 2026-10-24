@@ -106,7 +106,7 @@ final class SaveCompatibilityTest {
             identities.replace(imported,new CitizenRegistry.Snapshot(imported.worldId(),imported.revision()+1,
                     imported.citizens(),imported.migration()));
         }
-        String future=Files.readString(citizens(world)).replace("\"schema\":1","\"schema\":"+Long.MAX_VALUE);
+        String future=Files.readString(citizens(world)).replace("\"schema\":"+CitizenIdentityStore.SCHEMA,"\"schema\":"+Long.MAX_VALUE);
         Files.writeString(citizens(world),future);var before=ArtifactCompatibilityTest.hashes(world);
         try(var journal=BootstrapJournal.open(world);var identities=CitizenIdentityStore.open(world,legacy.worldId())) {
             var plan=inspectBootstrap(journal,identities);
@@ -202,14 +202,14 @@ final class SaveCompatibilityTest {
     }
     @Test void readerRegistryIsExplicitFiniteAndDoesNotClaimInventedArtifactMigrations() {
         assertTrue(registered().readable(new Format("bootstrap",1)));assertTrue(registered().readable(new Format("bootstrap",2)));
-        assertEquals(2,registered().rules().size());assertFalse(registered().migration(new Format("skill-body",1)).isPresent());
+        assertEquals(3,registered().rules().size());assertFalse(registered().migration(new Format("skill-body",1)).isPresent());
         assertTrue(registered().readable(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)));
         assertTrue(registered().readable(new Format(ObservedWorldKnowledgeStore.DOMAIN,2)));
         assertTrue(registered().migration(new Format(ObservedWorldKnowledgeStore.DOMAIN,1)).isPresent());
         for(long version:List.of(3L,Long.MAX_VALUE))assertFalse(registered().readable(new Format("bootstrap",version)));
         assertFalse(registered().readable(new Format("future-world-knowledge",1)));
-        var readers=new ArrayList<Reader>();for(int i=0;i<16;i++)readers.add(new Reader("domain-"+i,1,Set.of(1)));
-        assertEquals(16,new Registry(readers,List.of()).readers().size());readers.add(new Reader("overflow",1,Set.of(1)));
+        var readers=new ArrayList<Reader>();for(int i=0;i<MAX_READER_REGISTRATIONS;i++)readers.add(new Reader("domain-"+i,1,Set.of(1)));
+        assertEquals(MAX_READER_REGISTRATIONS,new Registry(readers,List.of()).readers().size());readers.add(new Reader("overflow",1,Set.of(1)));
         assertThrows(IllegalArgumentException.class,()->new Registry(readers,List.of()));
         assertThrows(IllegalArgumentException.class,()->new Registry(List.of(new Reader("a",1,Set.of(1))),List.of(
                 new Rule(new Format("a",2),new Format("a",1),false))));

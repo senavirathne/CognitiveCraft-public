@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "authorizationDate": "2026-10-23",
+  "authorization": "continue untill all branches are merge to main",
+  "repository": "senavirathne/CognitiveCraft-public",
+  "startingMain": "a630cdcbabaaf04786d3b068cafdabbe19613b76",
+  "requiredHeads": [
+    {
+      "branch": "ci/adopt-source-failure-regressions",
+      "sha": "e657d1b26c6a1ea3683767e1450f0dfd8ceb8908"
+    },
+    {
+      "branch": "feature/imp010-capability-retrieval",
+      "sha": "5f203254b5188863c6b4fa4ad43d1e4979305ba6"
+    },
+    {
+      "branch": "feature/imp011-job-lifecycle",
+      "sha": "143057d31baaab16983f3a852664bee203c2ca4f"
+    },
+    {
+      "branch": "feature/imp012-resource-leases",
+      "sha": "107562a72aa458d4f0d6464e8dda402f1468445b"
+    },
+    {
+      "branch": "feature/imp013-worker-dispatcher",
+      "sha": "7679deb46c21f7ba2fc069a117b481be4d6cd779"
+    },
+    {
+      "branch": "feature/imp014-ai-work-broker",
+      "sha": "c97f570e453e3726357753ed9a83034a0d54a454"
+    },
+    {
+      "branch": "feature/real-client-gameplay-e2e",
+      "sha": "5130a8fe5a23b34c16a8d04095d4bfddc7df2f8c"
+    },
+    {
+      "branch": "fix/nlu-planning-reliability",
+      "sha": "0413392bf3d31c211943133d1d3cd964a113da52"
+    },
+    {
+      "branch": "fix/rb006b-center-ray-qualification",
+      "sha": "b5dfefd992aca85fb5843c58d80e2d033cc11c02"
+    },
+    {
+      "branch": "fix/rb006b-crash-clearance",
+      "sha": "6723e0b6e402df5c6397c5fefd3e2156278e03dc"
+    },
+    {
+      "branch": "fix/rb006b-facility-stall",
+      "sha": "2abe72ba0a83e09e9c16e425432422323e4950a3"
+    },
+    {
+      "branch": "fix/rb006b-guard-evidence",
+      "sha": "ec5bd704835bfacf4eecae2858245d17735b9029"
+    },
+    {
+      "branch": "fix/rb006b-independent-258c027",
+      "sha": "258c027150e48f3e6f1f72394fde5decc4ac6373"
+    },
+    {
+      "branch": "fix/rb006b-qualification-258c027",
+      "sha": "258c027150e48f3e6f1f72394fde5decc4ac6373"
+    },
+    {
+      "branch": "fix/rb006b-standing-point-qualification",
+      "sha": "2abe72ba0a83e09e9c16e425432422323e4950a3"
+    },
+    {
+      "branch": "fix/rb006b-standing-qualification",
+      "sha": "c73817d0ea3035d698cf9385d3e393c83e5e5411"
+    },
+    {
+      "branch": "fix/rb-world-execution",
+      "sha": "c98eb93651c1ca038b9f41becb9be1bc146d3bc7"
+    },
+    {
+      "branch": "rb005-evidence-inspection",
+      "sha": "52cc4bc3f38d35791fee313f1b5a69cfad71e1a2"
+    },
+    {
+      "branch": "rb-001-oak-log-acquisition",
+      "sha": "28058da6caee6aceb74efaaa17311913310360c2"
+    },
+    {
+      "branch": "rb-002-oak-plank-production",
+      "sha": "227d0eb3d43f003529fd9ed76bc2f9843980b882"
+    },
+    {
+      "branch": "rb-003-generation-diagnostics",
+      "sha": "12e1e282039d23674015a63b4d9702cde8e085b2"
+    },
+    {
+      "branch": "rb-003-stick-production",
+      "sha": "87b1bcf0f6c37daab4216a17b08f0f61f8cd61bf"
+    },
+    {
+      "branch": "rb-004-wooden-axe-production",
+      "sha": "7f46d79232bddf60d375c3226cd463e02271ff0b"
+    },
+    {
+      "branch": "rb-005-resource-composition",
+      "sha": "2b4961799a8fb3f4641809d081b39e8ec494b9bd"
+    },
+    {
+      "branch": "rb-006-table-provisioning",
+      "sha": "a186c5f96c56a8559b6c387a81dfa71b4cf56909"
+    },
+    {
+      "branch": "rb-006b-facility-provisioning",
+      "sha": "8a91335975781be87369ff128581ba3842f0ba2f"
+    },
+    {
+      "branch": "rb-007-birch-resource-family",
+      "sha": "5d9dde9e2ca3c72249d9482ec18ad00bd551035e"
+    },
+    {
+      "branch": "rb-008-blueprint-material-staging",
+      "sha": "7b77184d4a88c65c9bd059df74b32430345d3e09"
+    },
+    {
+      "branch": "work/e2e-imp001-019",
+      "sha": "3d54ebe5e9883e0db91802a06980efba0fb83016"
+    },
+    {
+      "branch": "work/imp-014-1",
+      "sha": "a87f8ae696702dbaf51d57b8e234390ff05df36a"
+    },
+    {
+      "branch": "work/imp-015",
+      "sha": "fafb7418a4e8a8a6599a71f833a728cad8672aba"
+    },
+    {
+      "branch": "work/imp-016",
+      "sha": "d8d8e9c9a29719caa86b24576e04e978d1a8df38"
+    },
+    {
+      "branch": "work/imp-017-evidence",
+      "sha": "8a7b9f6f6f54f222f01a4a94ff6dd5f09601bb6d"
+    },
+    {
+      "branch": "work/imp-017-final-report",
+      "sha": "b5bada45341307903b390a6994c07490601df81c"
+    },
+    {
+      "branch": "work/imp-017",
+      "sha": "36570ecbf21386e646de40863f10b24207e06b82"
+    },
+    {
+      "branch": "work/imp-018-final-report",
+      "sha": "a996b84f8820b2749979b1880816c15dd4d55db3"
+    },
+    {
+      "branch": "work/imp-018",
+      "sha": "3dae87ca12247d497b8cd6edd924a3c9212f97e2"
+    },
+    {
+      "branch": "work/imp-019-final-report",
+      "sha": "64819cf6dd8cebed6c64a3d732502a18514c4f55"
+    },
+    {
+      "branch": "work/imp-019",
+      "sha": "bf259e27adad8f70d296a7f97905d8dd06f44629"
+    },
+    {
+      "branch": "work/imp-020-acceptance",
+      "sha": "8d28e1222b094e8c90533d1a18cb4baa736c41b9"
+    },
+    {
+      "branch": "work/imp-020-acceptance-report",
+      "sha": "08bd00c7bdeb99ca9e0ef4dc3aab9736855bfe3e"
+    },
+    {
+      "branch": "work/imp-020-publication-report-1796a45",
+      "sha": "89f13d8e0297a6f22b13202069cc650f601551c6"
+    },
+    {
+      "branch": "work/imp-020",
+      "sha": "1796a452a07f540f4109a1ae02d4edcde566d6ac"
+    },
+    {
+      "branch": "work/imp-021",
+      "sha": "438c56a721b45afaf415d76b3837d80605729c0b"
+    },
+    {
+      "branch": "work/imp-022",
+      "sha": "a2dd6353a9ee63026c5836ba3df168311d47267a"
+    },
+    {
+      "branch": "work/imp-023",
+      "sha": "0325282ab7aa177a1b752727e339191db8c2f6ea"
+    },
+    {
+      "branch": "work/imp-024",
+      "sha": "56259206a081d637c82bea3147e3175a8a2b3c2d"
+    },
+    {
+      "branch": "work/imp-029",
+      "sha": "ac1f47b9f14e67f0b67dfdc095b485cfce248d32"
+    },
+    {
+      "branch": "work/planning-quality-comparison",
+      "sha": "4f831265689e566e864d01ad979f4408301b0c81"
+    },
+    {
+      "branch": "work/rb-e2e-navigation",
+      "sha": "f2a36482f200514495c175f3f8ce1a8aa83bf8bf"
+    },
+    {
+      "branch": "work/rb-evidence-reconciliation",
+      "sha": "5965c0eeafe1b8ce146748a575a906f037c9caab"
+    },
+    {
+      "branch": "work/rb-gameplay-generalization",
+      "sha": "e416a15f932593be68b704bb27c227171dbe6562"
+    },
+    {
+      "branch": "work/rb-gameplay-generalization-qualified",
+      "sha": "6bee5919be01ce32767aa0e00b67c6036664e5ee"
+    },
+    {
+      "branch": "work/rb-series-e2e",
+      "sha": "4cae5f55d27bdecfb99da1a58143177e1dabe586"
+    }
+  ],
+  "scope": "All branch heads observed at integration start. Final live branch-head containment is verified again before completion."
+}

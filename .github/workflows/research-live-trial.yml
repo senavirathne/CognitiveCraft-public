@@ -10,7 +10,7 @@ on:
       - 'fabric/**'
       - '.github/workflows/research-live-trial.yml'
   pull_request:
-    branches: [main, feature/default-nearest-world-references, work/rb-gameplay-generalization-qualified]
+    branches: [main, work/rb-gameplay-generalization-qualified, work/imp-021]
     paths:
       - 'e2e/**'
       - 'core/**'

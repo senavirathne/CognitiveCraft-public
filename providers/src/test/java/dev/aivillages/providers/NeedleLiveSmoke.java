@@ -57,6 +57,10 @@ public final class NeedleLiveSmoke {
                     };
                     pass = result.kind() == LanguageRequests.Kind.EXTRACTED && expected.equals(result.extracted())
                             && result.confidence() >= LanguageRequests.MIN_CONFIDENCE;
+                } else if (i == 6) {
+                    var expected = new LanguageRequests.Extracted("Ada",4L,"0,64,0","2,64,2",null);
+                    pass = result.kind() == LanguageRequests.Kind.EXTRACTED && expected.equals(result.extracted())
+                            && result.confidence() >= LanguageRequests.MIN_CONFIDENCE;
                 } else if (i >= 14 && i < 19) {
                     var expected = new LanguageRequests.Extracted(LanguageRequests.Action.NAME_CITIZEN,null,null,null,null,null,"Ada");
                     pass = result.kind() == LanguageRequests.Kind.EXTRACTED && expected.equals(result.extracted())

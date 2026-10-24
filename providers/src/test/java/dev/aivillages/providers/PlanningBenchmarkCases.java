@@ -11,7 +11,7 @@ final class PlanningBenchmarkCases {
         return load("requests.json");
     }
     static List<Case> load(String dataset) throws Exception {
-        if(!Set.of("requests.json","acceptance-requests.json").contains(dataset))throw new IllegalArgumentException("Committed dataset required");
+        if(!Set.of("requests.json","acceptance-requests.json","structure-cases.json","resource-cases.json","facility-cases.json","order-cases.json").contains(dataset))throw new IllegalArgumentException("Committed dataset required");
         try(var stream=PlanningBenchmarkCases.class.getResourceAsStream("/planning/"+dataset)) {
             if(stream==null)throw new IllegalStateException("Committed benchmark cases required");
             var root=StrictJson.transportObject(new String(stream.readAllBytes(),StandardCharsets.UTF_8));

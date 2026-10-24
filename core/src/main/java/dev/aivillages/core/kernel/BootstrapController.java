@@ -26,6 +26,10 @@ public final class BootstrapController {
         BootstrapJournal.Enrollment primary();
         boolean ready();
     }
+    /** Acknowledges dependent owner metadata after Jobs commits, before public completion. No effects. */
+    @FunctionalInterface public interface CompletionPublisher {
+        CompletionStage<Boolean> publish(UUID jobId,ArtifactRef method,TrustedContext owner);
+    }
     @FunctionalInterface public interface Observer {
         ObservationSnapshot capture(CapabilityRequest request, ActorRef actor);
     }
@@ -79,6 +83,15 @@ public final class BootstrapController {
     }
     private record Written(BootstrapJournal.State state, Throwable error, Runnable after,
                            long completedMillis, BootstrapJournal.State expectedNext) { }
+    private record CompletionAck(Boolean acknowledged,Throwable error,Runnable after,long completedMillis) { }
+    private CompletionPublisher completionPublisher=(job,method,owner)->java.util.concurrent.CompletableFuture.completedFuture(true);
+    private final ConcurrentLinkedQueue<CompletionAck> completionAcks=new ConcurrentLinkedQueue<>();
+    private boolean publishingCompletion;
+    private long completionDeadlineMillis;
+    public void completionPublisher(CompletionPublisher publisher) {
+        thread();if(active!=null)throw new IllegalStateException("Completion publisher is a composition port");
+        completionPublisher=Objects.requireNonNull(publisher);
+    }
     private final Storage storage;
     private final JobLifecycleStore jobs;
     private Runnable afterJob;
@@ -261,6 +274,7 @@ public final class BootstrapController {
     }
 
     private void route(Run run) {
+        if (run.actorLost) { terminate(run, "INTERRUPTED", Reason.INTERRUPTED); return; }
         run.phase = Phase.ROUTING;
         ObservationSnapshot snapshot;
         try { snapshot = observer.capture(run.request, ((ActorValue)run.request.arguments().get("actor")).value()); }
@@ -281,6 +295,7 @@ public final class BootstrapController {
                     if (!inferenceEnabled) terminate(run, "BLOCKED", Reason.MODEL_UNAVAILABLE);
                     else {
                         Runnable begin = () -> {
+                            if (run.actorLost) { terminate(run, "INTERRUPTED", Reason.INTERRUPTED); return; }
                             if (run.cancelPending) { terminate(run, "CANCELLED", Reason.CANCELLED); return; }
                             run.research = research.start(decision, run.bound, jobs == null
                                     ? researchBudget.issue(run.request.capability(),clock.millis()) : run.researchLimits);
@@ -308,7 +323,7 @@ public final class BootstrapController {
     public boolean prepareTrial(ValidatedRequest bound, RunCorrelation correlation, List<ArtifactRef> pinned) {
         thread();
         if (jobs == null) return true;
-        if (storageFailed || active == null || !active.bound.equals(bound) || active.cancelPending)
+        if (storageFailed || active == null || !active.bound.equals(bound) || active.cancelPending || active.actorLost)
             throw new IllegalStateException("Trial job unavailable");
         if (!jobs.ready()) return false;
         var job = jobs.query(active.jobId, active.owner);
@@ -319,6 +334,7 @@ public final class BootstrapController {
     }
 
     private void startExecution(Run run, ArtifactRef ref) {
+        if (run.actorLost) { terminate(run, "INTERRUPTED", Reason.INTERRUPTED); return; }
         run.artifact = ref;
         if (jobs != null && jobs.query(run.jobId, run.owner).current() == null) {
             assignJob(run, ref, execution.pinned(ref), run.executionLimits.total(), () -> startExecution(run, ref));
@@ -353,6 +369,19 @@ public final class BootstrapController {
         }
         if (storageFailed) {
             writes.clear(); // A late acknowledgement cannot revive a fenced controller.
+            completionAcks.clear();
+            return;
+        }
+        CompletionAck completion=completionAcks.poll();
+        if(completion!=null) {
+            publishingCompletion=false;
+            if(completion.error()!=null||!Boolean.TRUE.equals(completion.acknowledged())
+                    ||completion.completedMillis()>completionDeadlineMillis)failStorage();
+            else completion.after().run();
+            return;
+        }
+        if(publishingCompletion) {
+            if(clock.millis()>=completionDeadlineMillis)failStorage();
             return;
         }
         Written written = writes.poll();
@@ -372,14 +401,16 @@ public final class BootstrapController {
             }
         }
         if (written != null) return; // A completion and an engine slice are separate ticks.
-        if (active != null && !writing && active.phase == Phase.RESEARCHING)
+        if (active != null && active.actorLost && !writing && !active.finishing)
+            terminate(active, "INTERRUPTED", Reason.INTERRUPTED);
+        else if (active != null && !writing && active.phase == Phase.RESEARCHING)
             advanceResearch(active);
         else if (active != null && !writing && active.phase == Phase.EXECUTING)
             advanceExecution(active);
     }
 
     private void failStorage() {
-        storageFailed = true; ready = false; writing = false;
+        storageFailed = true; ready = false; writing = false; publishingCompletion=false;
         if (active == null) {
             List<View> snapshots = recent.stream().map(view -> view.phase() != Phase.PERSISTING
                     ? view : new View(view.id(), Phase.TERMINAL, view.marker(), view.routing(),
@@ -425,6 +456,14 @@ public final class BootstrapController {
         terminate(run, run.executionOutcome.status().name(), run.executionOutcome.reason());
     }
     private void terminate(Run run, String result, Reason reason) {
+        if (run.actorLost && !run.finishing) {
+            boolean cancel = run.cancelPending || run.cancelRequested;
+            run.executionOutcome = new Outcomes.Execution(cancel ? ExecutionStatus.CANCELLED : ExecutionStatus.INTERRUPTED,
+                    cancel ? Reason.CANCELLED : Reason.INTERRUPTED, run.effects, null);
+            complete(run, cancel ? "CANCELLED" : "INTERRUPTED", cancel ? Reason.CANCELLED : Reason.INTERRUPTED);
+        } else complete(run, result, reason);
+    }
+    private void complete(Run run, String result, Reason reason) {
         if (run.phase == Phase.TERMINAL) return;
         run.finishing = true;
         if (jobs != null && !run.jobFinished) {
@@ -433,7 +472,7 @@ public final class BootstrapController {
             if (job.state().terminal()) { run.jobFinished = true; }
             else if (job.current() == null) {
                 changed = reason == Reason.CANCELLED ? jobs.cancel(job.id(), job.guard(), run.owner)
-                        : jobs.transition(job.id(), job.guard(), Jobs.State.FAILED,
+                        : jobs.transition(job.id(), job.guard(), reason == Reason.INTERRUPTED ? Jobs.State.INTERRUPTED : Jobs.State.FAILED,
                                 reason == null ? Reason.ACTION_FAILED : reason, run.owner);
                 if (!changed.accepted()) { failStorage(); return; }
                 run.phase = Phase.PERSISTING;
@@ -460,6 +499,22 @@ public final class BootstrapController {
                 afterJob = () -> { run.jobFinished = true; terminate(run, result, reason); };
                 return;
             }
+        }
+        if(reason==null&&run.artifact!=null&&!run.completionStarted) {
+            run.completionStarted=true;
+            try {
+                var publication=Objects.requireNonNull(completionPublisher.publish(run.jobId,run.artifact,run.owner));
+                var future=publication.toCompletableFuture();
+                if(future.isDone()) {
+                    if(!Boolean.TRUE.equals(future.join())) {failStorage();return;}
+                } else {
+                    completionDeadlineMillis=Math.addExact(clock.millis(),MAX_STORAGE_WAIT_MILLIS);
+                    publishingCompletion=true;run.phase=Phase.PERSISTING;
+                    publication.whenComplete((ack,error)->completionAcks.add(new CompletionAck(ack,error,
+                            ()->complete(run,result,reason),clock.millis())));
+                    return;
+                }
+            } catch(RuntimeException failed) {failStorage();return;}
         }
         run.phase = Phase.PERSISTING;
         BootstrapJournal.RunMarker marker = new BootstrapJournal.RunMarker(run.id,
@@ -534,6 +589,28 @@ public final class BootstrapController {
             throw new SecurityException("Bootstrap owner required");
         return result;
     }
+    /** Trusted lifecycle notification. Immediate cessation is independent of pending metadata I/O. */
+    public boolean interruptActor(ActorRef actor) {
+        thread();
+        if (active == null || !((ActorValue)active.request.arguments().get("actor")).value().equals(actor)) return true;
+        Run run = active;
+        if (run.finishing) return false;
+        run.actorLost = true;
+        if (run.execution != null) {
+            var progress = run.cancelPending || run.cancelRequested
+                    ? run.execution.cancel(run.owner) : run.execution.interrupt(run.owner);
+            run.effects = progress.summary().committedEffects(); run.receipts = progress.summary().receipts();
+            run.resourceReceipts = progress.summary().resourceReceipts(); run.usage = progress.summary().usage();
+        }
+        if (run.research != null) {
+            var status = run.research.cancel(run.owner);
+            run.effects = status.committedEffects(); run.receipts = status.receipts();
+            run.resourceReceipts = status.resourceReceipts(); run.usage = status.usage();
+            if (status.outcome() != null) run.calls = status.outcome().modelCalls();
+        }
+        return false; // The Run/Job publication acknowledgement must still be observed.
+    }
+
     public View cancel(UUID id, TrustedContext caller) {
         thread(); View existing = status(id, caller);
         if (active == null || !active.id.equals(id)) return existing;
@@ -588,6 +665,7 @@ public final class BootstrapController {
     private final class Run {
         final UUID jobId = UUID.randomUUID();
         final UUID id; final TrustedContext owner; final CapabilityRequest request;
+        boolean actorLost;
         ValidatedRequest bound;
         BootstrapJournal.RunMarker marker;
         Phase phase;
@@ -605,7 +683,7 @@ public final class BootstrapController {
         List<CropDelivery.CropReceipt> receipts = List.of();
         List<ResourceDelivery.Receipt> resourceReceipts=List.of();
         Reason storageError;
-        boolean cancelPending, finishing, cancelRequested, jobFinished;
+        boolean cancelPending, finishing, cancelRequested, jobFinished, completionStarted;
         Run(UUID id, TrustedContext owner, CapabilityRequest request, ValidatedRequest bound) {
             this.id = id; this.owner = owner; this.request = request; this.bound = bound;
             this.marker = new BootstrapJournal.RunMarker(id,

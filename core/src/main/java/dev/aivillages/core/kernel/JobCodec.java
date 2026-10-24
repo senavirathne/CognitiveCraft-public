@@ -119,14 +119,14 @@ final class JobCodec {
                 row.containsKey("terminal") ? (Execution)Outcomes.decode(StrictJson.canonical(row.get("terminal"))) : null,
                 bool(row,"uncertain","$"),Math.toIntExact(number(row,"cancellationDeliveries","$")),resources);
     }
-    private static Map<String,Object> bound(ValidatedRequest bound) {
+    static Map<String,Object> bound(ValidatedRequest bound) {
         var o = bound.observation(); var c = bound.context();
         return Map.of("request",strict(RequestCodec.encode(bound.request())),
                 "principal",c.principal().id().toString(),"world",c.scope().worldId().toString(),
                 "domain",c.scope().domainId().toString(),
                 "observation",Map.of("id",o.snapshotId().toString(),"revision",o.revision(),"dimension",o.dimension()));
     }
-    private static ValidatedRequest bound(Map<String,Object> row) throws StrictJson.Invalid {
+    static ValidatedRequest bound(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"request","principal","world","domain","observation");
         var decoded = RequestCodec.decode(StrictJson.canonical(row.get("request")));
         if (!(decoded instanceof RequestCodec.Valid valid)) throw new StrictJson.Invalid("$","BOUND_REQUEST");
@@ -135,50 +135,50 @@ final class JobCodec {
                 new TrustedContext(new PrincipalRef(id(row,"principal")),new ScopeRef(id(row,"world"),id(row,"domain"))),
                 new ObservationRef(id(observation,"id"),number(observation,"revision","$"),string(observation,"dimension","$")));
     }
-    private static Map<String,Object> limits(Budgets.Limits limits) {
+    static Map<String,Object> limits(Budgets.Limits limits) {
         return Map.of("maxima",usageMap(limits.maxima()),"deadline",limits.deadlineEpochMillis());
     }
-    private static Budgets.Limits limits(Map<String,Object> row) throws StrictJson.Invalid {
+    static Budgets.Limits limits(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"maxima","deadline");
         return new Budgets.Limits(usage(object(row,"maxima","$")),number(row,"deadline","$"));
     }
-    private static Map<String,Object> usageMap(Map<Budgets.Kind,Long> values) {
+    static Map<String,Object> usageMap(Map<Budgets.Kind,Long> values) {
         var result = new TreeMap<String,Object>(); values.forEach((k,v) -> result.put(k.name(),v)); return result;
     }
-    private static Map<Budgets.Kind,Long> usage(Map<String,Object> row) throws StrictJson.Invalid {
+    static Map<Budgets.Kind,Long> usage(Map<String,Object> row) throws StrictJson.Invalid {
         if (row.size() > Budgets.Kind.values().length) throw new StrictJson.Invalid("$","USAGE_LIMIT");
         var result = new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
         for (var entry : row.entrySet()) result.put(Budgets.Kind.valueOf(entry.getKey()),number(row,entry.getKey(),"$"));
         return result;
     }
-    private static Map<String,Object> ref(ArtifactRef ref) {
+    static Map<String,Object> ref(ArtifactRef ref) {
         return Map.of("capability",ref.capability().name(),"version",(long)ref.capability().version(),"sha256",ref.sha256());
     }
-    private static ArtifactRef ref(Map<String,Object> row) throws StrictJson.Invalid {
+    static ArtifactRef ref(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"capability","version","sha256");
         return new ArtifactRef(new CapabilityId(string(row,"capability","$"),Math.toIntExact(number(row,"version","$"))),
                 string(row,"sha256","$"));
     }
-    private static Map<String,Object> actor(ActorRef actor) {
+    static Map<String,Object> actor(ActorRef actor) {
         return Map.of("citizen",actor.citizenId().toString(),"entity",actor.entityId().toString(),"dimension",actor.dimension());
     }
-    private static ActorRef actor(Map<String,Object> row) throws StrictJson.Invalid {
+    static ActorRef actor(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"citizen","entity","dimension");
         return new ActorRef(id(row,"citizen"),id(row,"entity"),string(row,"dimension","$"));
     }
-    private static Map<String,Object> area(Cuboid a) {
+    static Map<String,Object> area(Cuboid a) {
         return Map.of("dimension",a.dimension(),"minX",(long)a.minX(),"minY",(long)a.minY(),"minZ",(long)a.minZ(),
                 "maxX",(long)a.maxX(),"maxY",(long)a.maxY(),"maxZ",(long)a.maxZ());
     }
-    private static Cuboid area(Map<String,Object> row) throws StrictJson.Invalid {
+    static Cuboid area(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"dimension","minX","minY","minZ","maxX","maxY","maxZ");
         return new Cuboid(string(row,"dimension","$"),integer(row,"minX"),integer(row,"minY"),integer(row,"minZ"),
                 integer(row,"maxX"),integer(row,"maxY"),integer(row,"maxZ"));
     }
-    private static Map<String,Object> container(ContainerRef c) {
+    static Map<String,Object> container(ContainerRef c) {
         return Map.of("dimension",c.dimension(),"x",(long)c.x(),"y",(long)c.y(),"z",(long)c.z());
     }
-    private static ContainerRef container(Map<String,Object> row) throws StrictJson.Invalid {
+    static ContainerRef container(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"dimension","x","y","z");
         return new ContainerRef(string(row,"dimension","$"),integer(row,"x"),integer(row,"y"),integer(row,"z"));
     }

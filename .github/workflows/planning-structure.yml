@@ -1,0 +1,141 @@
+name: Planning verification evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/nlu-planning-reliability, integration/all-branches-20261023]
+    paths: ['core/src/main/**', 'fabric/src/main/**', '.github/workflows/planning-structure.yml', 'providers/src/main/**', 'providers/src/test/java/dev/aivillages/providers/Planning*', 'providers/src/test/resources/planning/**', 'core/src/main/java/dev/aivillages/core/kernel/MaterialPlan.java', 'core/src/main/java/dev/aivillages/core/kernel/PlanningFeedback.java', 'core/src/test/java/dev/aivillages/core/kernel/Planning*', 'scripts/planning-*.py']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-structure-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  measurements:
+    name: Task 5.4 original and restored-wire measurements (${{ matrix.model }}, shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 0}
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 1}
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 2}
+          - {model: 'qwen2.5:1.5b-instruct', id: '15b', shard: 3}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 0}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 1}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 2}
+          - {model: 'qwen2.5:3b-instruct', id: '3b', shard: 3}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Execute unchanged production validator and correction regressions first
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test
+      - name: Record host and start the same pinned CPU backend for each comparison arm
+        timeout-minutes: 15
+        env:
+          MODEL: ${{ matrix.model }}
+        run: |
+          mkdir -p providers/build/planning-quality
+          lscpu > providers/build/planning-quality/host-cpu.txt
+          free -m > providers/build/planning-quality/host-memory.txt
+          docker run --detach --name cognitivecraft-planning-ollama --publish 127.0.0.1:11434:11434 --env OLLAMA_NUM_PARALLEL=1 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:11434/api/version && break
+            sleep 2
+          done
+          pulled=false
+          for pull_attempt in 1 2 3; do
+            if docker exec cognitivecraft-planning-ollama ollama pull "$MODEL"; then pulled=true; break; fi
+            if [ "$pull_attempt" -lt 3 ]; then sleep 5; fi
+          done
+          test "$pulled" = true
+          docker inspect cognitivecraft-planning-ollama > providers/build/planning-quality/backend-container.json
+          curl --fail --silent http://127.0.0.1:11434/api/tags > providers/build/planning-quality/model-tags.json
+          docker exec cognitivecraft-planning-ollama ollama show "$MODEL" > providers/build/planning-quality/model-details.txt
+      - name: Measure the assigned requests with at most one correction per proposal
+        timeout-minutes: 32
+        env:
+          COGNITIVECRAFT_OLLAMA_MODEL: ${{ matrix.model }}
+          PLANNING_BENCHMARK_SHARD: ${{ matrix.shard }}
+          PLANNING_BENCHMARK_SHARDS: '4'
+          PLANNING_BENCHMARK_DATASET: acceptance-requests.json
+          PLANNING_STRUCTURE_SUPPLEMENT: 'true'
+          PLANNING_RESOURCE_SUPPLEMENT: 'true'
+          PLANNING_FACILITY_SUPPLEMENT: 'true'
+          PLANNING_ORDER_SUPPLEMENT: 'true'
+        run: |
+          set -o pipefail
+          bash ./gradlew --no-daemon --stacktrace :providers:runPlanningLiveBenchmark | tee providers/build/planning-quality/held-out.log
+      - name: Retain backend resource use and diagnostics
+        if: always()
+        run: |
+          mkdir -p providers/build/planning-quality
+          docker stats --no-stream cognitivecraft-planning-ollama > providers/build/planning-quality/backend-resources.txt || true
+          docker logs cognitivecraft-planning-ollama > providers/build/planning-quality/backend.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: planning-verification-measurements-${{ matrix.id }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
+          path: providers/build/planning-quality/**
+  integrity:
+    name: Task 5.4 complete frozen regression and wire integrity
+    needs: measurements
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Test measurement integrity independently of model success rate
+        run: python3 -m unittest discover -s scripts -p 'test_planning_*.py'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: planning-verification-measurements-*
+          path: providers/build/planning-quality/imports
+      - name: Require 50 frozen genuine measurements per model and report quality separately
+        env:
+          REVIEWED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/planning-quality.py providers/build/planning-quality --head "$REVIEWED_HEAD" --expected-dataset-sha 629798799640026f8ae7f096027bece765d3dda74386fbbceead0237be76a9a9
+      - name: Reconcile every actual request, raw response, rejection and separate unseen case
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-structure.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+      - name: Reconcile trusted stock, resource refusals and separate Task 5.2 cases
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-resources.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+      - name: Reconcile facility states, placement permissions and separate Task 5.3 cases
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-facilities.py providers/build/planning-quality --head "$REVIEWED_HEAD"
+      - name: Reconcile frozen schema values, canonical wire order and Task 5.4 cases
+        env:
+          REVIEWED_HEAD: ${{ github.sha }}
+        run: python3 scripts/planning-order.py providers/build/planning-quality --head "$REVIEWED_HEAD" --wire-order canonical
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: planning-verification-quality-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            providers/build/planning-quality/acceptance.json
+            providers/build/planning-quality/structure-integrity.json
+            providers/build/planning-quality/resource-integrity.json
+            providers/build/planning-quality/facility-integrity.json
+            providers/build/planning-quality/order-integrity.json

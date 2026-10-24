@@ -13,6 +13,8 @@ import static dev.aivillages.core.kernel.Contracts.*;
 /** IMP-015 policy 1. Registered readers and owner-only, off-thread, quiescent migration coordination. */
 public final class SaveCompatibility {
     public static final int POLICY = 1;
+    /** Finite trusted owner table; independent persistence features share this registration budget. */
+    public static final int MAX_READER_REGISTRATIONS = 32;
     public static final String BOOTSTRAP = "bootstrap", CITIZENS = "citizens";
     private SaveCompatibility() { }
 
@@ -41,7 +43,7 @@ public final class SaveCompatibility {
     public record Registry(List<Reader> readers, List<Rule> rules) {
         public Registry {
             readers = List.copyOf(readers); rules = List.copyOf(rules);
-            if (readers.size() > 16 || rules.size() > 16
+            if (readers.size() > MAX_READER_REGISTRATIONS || rules.size() > 16
                     || readers.stream().map(Reader::domain).distinct().count() != readers.size()
                     || rules.stream().map(Rule::source).distinct().count() != rules.size())
                 throw new IllegalArgumentException("Compatibility registrations");
@@ -66,7 +68,7 @@ public final class SaveCompatibility {
     public static Registry registered() {
         return new Registry(List.of(new Reader(BOOTSTRAP, BootstrapJournal.IDENTITY_REFERENCE_SCHEMA,
                 Set.of(BootstrapJournal.SCHEMA, BootstrapJournal.IDENTITY_REFERENCE_SCHEMA)),
-                currentReader(CITIZENS, CitizenIdentityStore.SCHEMA), currentReader("skill-body", RepositoryCodec.SCHEMA),
+                new Reader(CITIZENS, CitizenIdentityStore.SCHEMA, Set.of(1, 2)), currentReader("skill-body", RepositoryCodec.SCHEMA),
                 currentReader("skill-manifest", VersionedSkillRepository.MANIFEST_SCHEMA),
                 new Reader("jobs",JobJournal.RESOURCE_SCHEMA,Set.of(JobJournal.SCHEMA,JobJournal.RESOURCE_SCHEMA)),
                 currentReader("leases", ResourceLeaseJournal.SCHEMA),
@@ -76,8 +78,13 @@ public final class SaveCompatibility {
                 currentReader(PlanJournal.DOMAIN, PlanJournal.SCHEMA),
                 currentReader(Blueprint.DOMAIN, Blueprint.SCHEMA),
                 currentReader(BlueprintStore.DOMAIN, BlueprintStore.SCHEMA),
+                currentReader(Accomplishments.DOMAIN, Accomplishments.SCHEMA),
+                currentReader(KnowledgeAccess.DOMAIN, KnowledgeAccess.SCHEMA),
+                currentReader(Organizations.DOMAIN, OrganizationJournal.SCHEMA),
+                currentReader("mandates", MandateJournal.SCHEMA),
                 new Reader(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA, Set.of(1, 2))),
-                List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
+                List.of(BOOTSTRAP_HANDOFF, new Rule(new Format(CITIZENS, 1),
+                        new Format(CITIZENS, CitizenIdentityStore.SCHEMA), false), new Rule(new Format(ObservedWorldKnowledgeStore.DOMAIN, 1),
                         new Format(ObservedWorldKnowledgeStore.DOMAIN, ObservedWorldKnowledgeStore.SCHEMA), false)));
     }
     private static Reader currentReader(String domain, int schema) { return new Reader(domain, schema, Set.of(schema)); }

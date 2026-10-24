@@ -116,6 +116,7 @@ public final class E2EObserver implements ModInitializer {
                 inventory.addProperty(type, (inventory.has(type) ? inventory.get(type).getAsInt() : 0) + item.getCount());
             }
             var actor = new JsonObject(); actor.addProperty("uuid", villager.getUUID().toString());
+            actor.addProperty("name", villager.getName().getString());
             actor.addProperty("alive", villager.isAlive()); actor.addProperty("baby", villager.isBaby());
             actor.addProperty("noAI", villager.isNoAi());
             actor.add("pos", JSON.toJsonTree(List.of(villager.getX(), villager.getY(), villager.getZ())));
@@ -163,6 +164,14 @@ public final class E2EObserver implements ModInitializer {
             if (kernel != null) try {
                 data.addProperty("scope",kernel.scope(player.getUUID()));
                 data.add("citizens", JSON.toJsonTree(kernel.citizens(player)));
+                var lifecycle = new JsonObject();
+                for (var address : kernel.citizens(player).citizens())
+                    lifecycle.add(address.actor().citizenId().toString(), JSON.toJsonTree(kernel.citizen(player,address.actor().citizenId())));
+                data.add("lifecycle", lifecycle);
+                data.add("leases", JSON.toJsonTree(kernel.leaseOwner().snapshot().leases().stream()
+                        .filter(l -> l.origin().principal().id().equals(player.getUUID())
+                                && (l.origin().scope().worldId()+"/"+l.origin().scope().domainId()).equals(kernel.scope(player.getUUID())))
+                        .toList()));
                 data.addProperty("catalog", kernel.catalog(player));
                 var runs = new JsonObject();
                 for (var id : kernel.runOrTicketIds(player, false)) {

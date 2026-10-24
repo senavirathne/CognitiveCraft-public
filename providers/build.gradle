@@ -21,3 +21,41 @@ tasks.register('runNeedleLiveSmoke', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'dev.aivillages.providers.NeedleLiveSmoke'
 }
+
+tasks.register('runD01LanguageLiveProbe', JavaExec) {
+    workingDir rootProject.projectDir
+    group = 'verification'
+    description = 'Actual pinned Needle evidence for the frozen D01 and independent oak-delivery paraphrases.'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D01LanguageLiveProbe'
+}
+
+
+tasks.register('runD02LanguageLiveProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D02LanguageLiveProbe'
+    workingDir rootProject.projectDir
+}
+
+tasks.register('runD03LanguageLiveProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D03LanguageLiveProbe'
+    workingDir rootProject.projectDir
+}
+
+tasks.register('runD04LanguageLiveProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D04LanguageLiveProbe'
+    workingDir rootProject.projectDir
+}
+
+tasks.register('runD05LanguageLiveProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.aivillages.providers.D05LanguageLiveProbe'
+    workingDir rootProject.projectDir
+}

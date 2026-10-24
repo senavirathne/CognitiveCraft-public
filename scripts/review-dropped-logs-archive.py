@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Byte-pinned read-only review of Task 3 campaigns; never starts Minecraft or inference."""
 import argparse
+import importlib.util
 import base64
 import hashlib
 import io
@@ -9,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import struct
+import subprocess
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -137,10 +139,109 @@ def review(meta,root,emit_frame=False):
     print("TASK3_ARCHIVE_REVIEW "+json.dumps(out,separators=(",",":")),flush=True)
     return out
 
+def current_artifacts(artifacts,run_id,attempt,head):
+    """Keep successful producer jobs when Actions retries only failed jobs."""
+    selected=[]
+    for kind in ("native","connected"):
+        prefix=f"dropped-logs-{kind}-{run_id}-"
+        candidates=[]
+        for artifact in artifacts:
+            name=artifact["name"]
+            if not name.startswith(prefix) or not name[len(prefix):].isdigit():continue
+            number=int(name[len(prefix):])
+            if number<1 or number>attempt or artifact.get("expired"):continue
+            if artifact.get("workflow_run",{}).get("head_sha")!=head:continue
+            candidates.append((number,artifact))
+        assert candidates,(kind,run_id,head)
+        latest=max(number for number,_ in candidates)
+        matches=[artifact for number,artifact in candidates if number==latest]
+        assert len(matches)==1,(kind,latest)
+        selected.append(matches[0])
+    return selected
+
+def junit_inventory(path):
+    suites={};nonpassing=0
+    with zipfile.ZipFile(path) as archive:
+        for name in archive.namelist():
+            if "/test-results/test/" not in name or not name.endswith(".xml"):continue
+            tree=ET.fromstring(archive.read(name));cases=list(tree.iter("testcase"))
+            module=name.split("/",1)[0];key=module+":"+tree.get("name",Path(name).name)
+            assert key not in suites,key
+            suites[key]=len(cases)
+            nonpassing+=sum(any(case.find(tag) is not None for tag in ("failure","error","skipped")) for case in cases)
+    assert suites and {key.split(":",1)[0] for key in suites}=={"core","providers","fabric"}
+    assert nonpassing==0,nonpassing
+    return suites
+
+def validate_qualified_source(record,manifest,head,root,paths,jar_sha,corpus_sha,historical_sha):
+    """A verification-only descendant may reuse a qualified binary; changed production may not."""
+    def git(*args):return subprocess.check_output(["git",*args],cwd=root,text=True).strip()
+    assert record["profile"]=="all-published-branches-integration-v1"
+    assert git("rev-parse","HEAD")==head
+    assert not git("status","--porcelain","--untracked-files=normal")
+    subprocess.run(["git","merge-base","--is-ancestor",record["sourceCommit"],head],cwd=root,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    assert git("rev-parse",record["sourceCommit"]+"^{tree}")==record["sourceTree"]
+    assert record["requiredHeads"]==manifest["requiredHeads"] and record["startingMain"]==manifest["startingMain"]
+    for ancestor in [manifest["startingMain"],*(row["sha"] for row in manifest["requiredHeads"])]:
+        subprocess.run(["git","merge-base","--is-ancestor",ancestor,head],cwd=root,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    assert record["corpusSha256"]==corpus_sha
+    assert record["historicalBaselineFileSha256"]==historical_sha
+    assert record["releaseJarSha256"]==jar_sha
+    assert record["productionFileCount"]==len(paths)
+    assert [row["path"] for row in record["productionFiles"]]==sorted(paths)
+    for row in record["productionFiles"]:
+        assert hashlib.sha256((root/row["path"]).read_bytes()).hexdigest()==row["sha256"],row["path"]
+        assert git("hash-object",row["path"])==row["gitBlob"],row["path"]
+    # Do not borrow regression results across changed Java tests or frozen instruments.
+    changed=git("diff","--name-only",record["sourceCommit"],head).splitlines()
+    protected=("core/src/test/","providers/src/test/","fabric/src/test/","fabric/src/gameTest/","e2e/","tools/needle/")
+    assert not any(path.startswith(protected) for path in changed),changed
+    return {"profile":record["profile"],"qualificationSourceCommit":record["sourceCommit"],"reviewedHead":head,
+            "qualificationSourceTree":record["sourceTree"],"productionFilesVerified":len(paths),
+            "releaseJarSha256":jar_sha,"frozenCorpusSha256":corpus_sha,"productionUnchanged":True}
+
+def integrated_qualification(root,head,native,current_jar):
+    repository=Path(__file__).resolve().parents[1]
+    spec=importlib.util.spec_from_file_location("integration_proof",repository/"scripts/verify-integration.py")
+    verifier=importlib.util.module_from_spec(spec);spec.loader.exec_module(verifier)
+    manifest=json.loads((repository/".github/implementation/all-branches-source.json").read_text())
+    corpus=hashlib.sha256((repository/"e2e/generalization/cases.json").read_bytes()).hexdigest()
+    historical=hashlib.sha256((repository/"e2e/generalization/baseline.json").read_bytes()).hexdigest()
+    jar_sha=hashlib.sha256(current_jar).hexdigest();errors=[]
+    ancestors=subprocess.check_output(["git","rev-list","--max-count=64",head],cwd=repository,text=True).splitlines()
+    for ancestor in ancestors:
+        with urllib.request.urlopen(request(API+f"/actions/runs?head_sha={ancestor}&per_page=100"),timeout=60) as stream:
+            runs=json.load(stream)["workflow_runs"]
+        for run in runs:
+            if run["path"]!=".github/workflows/integration-qualification.yml" or run["conclusion"]!="success":continue
+            with urllib.request.urlopen(request(API+f"/actions/runs/{run['id']}/artifacts?per_page=100"),timeout=60) as stream:
+                artifacts=json.load(stream)["artifacts"]
+            name=f"rb-integration-binary-{run['id']}-{run['run_attempt']}"
+            candidates=[artifact for artifact in artifacts if artifact["name"]==name and not artifact["expired"]]
+            if len(candidates)!=1:continue
+            artifact=candidates[0];path=download(artifact,root)
+            with zipfile.ZipFile(path) as archive:
+                record=read_json(archive,"integration-baseline.json")
+                jars=[name for name in archive.namelist() if name.endswith("/ai-villages-0.1.0.jar")]
+                assert len(jars)==1 and hashlib.sha256(archive.read(jars[0])).hexdigest()==record["releaseJarSha256"]
+            try:
+                assert record["sourceCommit"]==ancestor==artifact["workflow_run"]["head_sha"]
+                proof=validate_qualified_source(record,manifest,head,repository,verifier.production_paths(),jar_sha,corpus,historical)
+                expected=junit_inventory(path);actual=junit_inventory(root/(str(native["artifactId"])+".zip"))
+                assert actual==expected,"Qualified and native module suite/case inventories differ"
+            except (AssertionError,subprocess.CalledProcessError) as error:
+                errors.append(str(error));continue
+            proof.update(qualificationRun=run["id"],qualificationArtifact=artifact["id"],
+                    qualificationArtifactDigest=artifact["digest"],moduleSuitesVerified=len(expected),moduleCasesVerified=sum(expected.values()))
+            (root/"integration-production-qualification.json").write_text(json.dumps(proof,indent=2)+"\n")
+            return proof
+    raise AssertionError("No successful combined qualification matches this production binary and source inventory: "+repr(errors))
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root",type=Path,required=True)
     parser.add_argument("--historical",action="store_true")
+    parser.add_argument("--integrated",action="store_true")
     args=parser.parse_args();args.root.mkdir(parents=True,exist_ok=True)
     if args.historical:
         for ident,size,digest in ((12410460341,89972218,"a5fc4f065708cdc700c8618791d11ca84a71c7d9b34efd47962cd286fdf45cff"),
@@ -158,11 +259,9 @@ def main():
         return
     with urllib.request.urlopen(request(API+"/actions/runs/"+os.environ["GITHUB_RUN_ID"]+"/artifacts"),timeout=60) as stream:
         artifacts=json.load(stream)["artifacts"]
-    suffix="-"+os.environ["GITHUB_RUN_ID"]+"-"+os.environ["GITHUB_RUN_ATTEMPT"]
-    selected=[a for a in artifacts if a["name"] in ("dropped-logs-native"+suffix,"dropped-logs-connected"+suffix)]
-    assert len(selected)==2
-    results=[review(m,args.root,True) for m in selected]
     expected_head=os.environ.get("EXPECTED_HEAD_SHA",os.environ["GITHUB_SHA"])
+    selected=current_artifacts(artifacts,os.environ["GITHUB_RUN_ID"],int(os.environ["GITHUB_RUN_ATTEMPT"]),expected_head)
+    results=[review(m,args.root,True) for m in selected]
     assert all(r["head"]==expected_head for r in results)
     client=next(r for r in results if r.get("cases"))
     native=next(r for r in results if r.get("moduleCases"))
@@ -181,15 +280,20 @@ def main():
         with zipfile.ZipFile(io.BytesIO(raw)) as z:
             return {p:hashlib.sha256(z.read(p)).hexdigest() for p in z.namelist()}
     current_jar=jar_bytes(native["artifactId"]);current_members=members(current_jar)
+    qualification=integrated_qualification(args.root,expected_head,native,current_jar) if args.integrated else None
     diffs=[]
     for previous_id,expected in ((12410997027,{"dev/aivillages/fabric/FabricGatewayWorld.class"}),
             (12410672066,{"dev/aivillages/fabric/FabricGatewayWorld.class","dev/aivillages/core/kernel/LeasedGateway.class"})):
         previous=members(jar_bytes(previous_id))
-        assert previous.keys()==current_members.keys()
-        changed=sorted(p for p in previous if previous[p]!=current_members[p])
-        assert set(changed)==expected,changed
+        changed=sorted(p for p in previous.keys()&current_members.keys() if previous[p]!=current_members[p])
+        added=sorted(current_members.keys()-previous.keys());removed=sorted(previous.keys()-current_members.keys())
+        if qualification is None:
+            assert previous.keys()==current_members.keys()
+            assert set(changed)==expected,changed
         diffs.append({"previousArtifactId":previous_id,"currentNativeArtifactId":native["artifactId"],
-                      "changedMembers":changed,"unchangedMembers":len(previous)-len(changed),"added":0,"removed":0})
+                      "changedMembers":changed,"unchangedMembers":len(previous)-len(changed)-len(removed),
+                      "added":len(added),"removed":len(removed),"addedMembers":added,"removedMembers":removed,
+                      "qualification":qualification})
     (args.root/"production-member-comparison.json").write_text(json.dumps(diffs,indent=2)+"\n")
     print("TASK3_BINARY_MEMBER_REVIEW "+json.dumps(diffs,separators=(",",":")),flush=True)
     print("TASK3_COMPLETE_ARCHIVE_REVIEW_PASS",expected_head,flush=True)

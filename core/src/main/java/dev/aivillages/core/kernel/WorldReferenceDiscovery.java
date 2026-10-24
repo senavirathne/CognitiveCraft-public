@@ -34,12 +34,23 @@ public final class WorldReferenceDiscovery {
             }
             return new ItemContainerSample(item,ObservationStatus.UNKNOWN,0,0,"unsupported");
         }
+        /** A specific noun must be proven by the adapter, never inferred from capacity or identity text. */
+        default ItemContainerSample itemContainer(ActorRef actor,ContainerRef target,ResourceDelivery.ItemIdentity item,ObjectType type) {
+            var sample=itemContainer(actor,target,item);
+            return type.specificContainer() && sample.status()==ObservationStatus.PRESENT
+                    ? new ItemContainerSample(item,ObservationStatus.UNKNOWN,0,sample.slotsInspected(),"unobserved-container-type") : sample;
+        }
         default InputContainerSample inputContainer(ActorRef actor,ContainerRef source,ResourceDelivery.ItemIdentity item) {
             return item.equals(ResourceDelivery.OAK_LOG) ? inputContainer(actor,source)
                     : new InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unsupported-input");
         }
         default InputContainerSample inputContainer(ActorRef actor,ContainerRef source) {
             return new InputContainerSample(ObservationStatus.UNKNOWN,0,0,"unsupported");
+        }
+        default InputContainerSample inputContainer(ActorRef actor,ContainerRef source,ResourceDelivery.ItemIdentity item,ObjectType type) {
+            var sample=inputContainer(actor,source,item);
+            return type.specificContainer() && sample.status()==ObservationStatus.PRESENT
+                    ? new InputContainerSample(ObservationStatus.UNKNOWN,0,sample.slotsInspected(),"unobserved-container-type") : sample;
         }
     }
     public record FacilitySample(ObservationStatus status,String identity) {
@@ -122,6 +133,9 @@ public final class WorldReferenceDiscovery {
         return inputContainers(actor,required,anchor,world,item,false);
     }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item,boolean allowShortfall) {
+        return inputContainers(actor,required,anchor,world,item,allowShortfall,ObjectType.UNSPECIFIED);
+    }
+    public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item,boolean allowShortfall,ObjectType type) {
         if(required<1 || required>32 || !LogAcquisition.log(item) && !item.equals(ResourceDelivery.OAK_PLANKS))
             throw new IllegalArgumentException("Input batch envelope");
         return new Discovery<>() {
@@ -132,7 +146,7 @@ public final class WorldReferenceDiscovery {
                     int at=cursor++;work++;
                     var point=new Point(anchor.dimension(),anchor.x()-HORIZONTAL_RADIUS+at%width,
                             anchor.y()-VERTICAL_RANGE+at/(width*width),anchor.z()-HORIZONTAL_RADIUS+(at/width)%width);
-                    var ref=new ContainerRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.inputContainer(actor,ref,item);
+                    var ref=new ContainerRef(point.dimension(),point.x(),point.y(),point.z());var sample=world.inputContainer(actor,ref,item,type);
                     work+=sample.slotsInspected();
                     if(sample.status()==ObservationStatus.UNKNOWN)unknown=true;
                     else if(sample.status()==ObservationStatus.PRESENT && (sample.available()>=required || allowShortfall)) {
@@ -166,16 +180,48 @@ public final class WorldReferenceDiscovery {
         return new OakLogDiscovery.Source(actor,amount,anchor,world,LogAcquisition.item(capability));
     }
     public static Discovery<ItemContainerTarget> itemContainers(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world) {
+        return itemContainers(capability,actor,amount,anchor,world,ObjectType.UNSPECIFIED);
+    }
+    public static Discovery<ItemContainerTarget> itemContainers(CapabilityId capability,ActorRef actor,int amount,Point anchor,Observation world,ObjectType type) {
         if(RecipeProduction.is(capability)) {
             if(amount<1 || amount>64)throw new IllegalArgumentException("Plank amount");
-            return new OakLogDiscovery.Containers(actor,amount,anchor,world,RecipeProduction.of(capability).output());
+            return new ItemContainerDiscovery(actor,amount,anchor,world,RecipeProduction.of(capability).output(),type);
         }
-        if(capability.equals(CropDelivery.ID)) return mapDiscovery(containers(actor,amount,anchor,world),
-                c -> new ItemContainerTarget(c.container(),new ItemContainerSample(ResourceDelivery.WHEAT,c.evidence().status(),
-                        c.evidence().wheatCapacity(),c.evidence().slotsInspected(),c.evidence().identity())));
+        if(capability.equals(CropDelivery.ID)) {
+            if(amount<1 || amount>64)throw new IllegalArgumentException("Wheat amount");
+            return new ItemContainerDiscovery(actor,amount,anchor,world,ResourceDelivery.WHEAT,type);
+        }
         if(!LogAcquisition.is(capability) || amount<1 || amount>OakLogDelivery.MAX_AMOUNT)
             throw new IllegalArgumentException("Container capability");
-        return new OakLogDiscovery.Containers(actor,amount,anchor,world,LogAcquisition.item(capability));
+        return new ItemContainerDiscovery(actor,amount,anchor,world,LogAcquisition.item(capability),type);
+    }
+    private static final class ItemContainerDiscovery implements Discovery<ItemContainerTarget> {
+        final ActorRef actor; final int amount; final Point anchor; final Observation world;
+        final ResourceDelivery.ItemIdentity item;
+        final ObjectType type;
+        List<Candidate<ItemContainerTarget>> candidates=new ArrayList<>(); int cursor; boolean unknown;
+        ItemContainerDiscovery(ActorRef actor,int amount,Point anchor,Observation world,ResourceDelivery.ItemIdentity item,ObjectType type) {
+            this.actor=actor;this.amount=amount;this.anchor=anchor;this.world=world;this.item=item;this.type=type;
+        }
+        public Scan<ItemContainerTarget> poll(int maxWork) {
+            int work=0;
+            while(cursor<SEARCH_CELLS && maxWork-work>=MAX_CONTAINER_SLOTS+1) {
+                int at=cursor++,width=HORIZONTAL_RADIUS*2+1; work++;
+                Point p=new Point(anchor.dimension(),anchor.x()-HORIZONTAL_RADIUS+at%width,
+                        anchor.y()-VERTICAL_RANGE+at/(width*width),anchor.z()-HORIZONTAL_RADIUS+(at/width)%width);
+                var target=new ContainerRef(p.dimension(),p.x(),p.y(),p.z());
+                var sample=world.itemContainer(actor,target,item,type); work+=sample.slotsInspected();
+                if(sample.status()==ObservationStatus.UNKNOWN) unknown=true;
+                else if(sample.status()==ObservationStatus.PRESENT && sample.capacity()>=amount) {
+                    if(candidates.size()==MAX_CANDIDATES) return Scan.complete(List.of(),work,Reason.BUDGET_EXHAUSTED,List.of("container-candidate-limit"));
+                    candidates.add(new Candidate<>(new ItemContainerTarget(target,sample),p,sample.identity()));
+                }
+            }
+            if(cursor<SEARCH_CELLS) return Scan.progress(List.of(),work,List.of());
+            return unknown ? Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-container-envelope"))
+                    : Scan.complete(candidates,work,Reason.FACILITY_MISSING,List.of());
+        }
+        public void cancel() { cursor=SEARCH_CELLS; candidates=List.of(); }
     }
     public static final class SourceValidation {
         private final SourceArea source; private final ActorRef actor; private final Observation world;

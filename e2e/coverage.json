@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "scope": "IMP-001 through IMP-019; IMP-014.1 and IMP-028; conditional IMP-029",
+  "scope": "IMP-001 through IMP-019; IMP-014.1, IMP-028 and IMP-029",
   "implementationBaseline": "01c623f4915e8f760659eac1a1426e1bbca6e3a5",
   "brokerRecheck": "IMP-014 is merged in public PR 6; archived absent status is superseded",
   "units": [
@@ -625,20 +625,38 @@
     },
     {
       "unit": "IMP-029",
-      "role": "conditional prerequisite",
-      "implementation_status": "ABSENT",
-      "implementation": "ABSENT",
-      "families": [],
-      "componentTests": [],
-      "ownerWorkflow": null,
-      "networkExposure": "BLOCKED_BY_IMPLEMENTATION",
-      "requiredVariants": [],
-      "boundary": "No Citizen Lifecycle Reconciliation owner; existing IMP-008 unload behavior remains covered",
-      "happyPath": "No Citizen Lifecycle Reconciliation owner; existing IMP-008 unload behavior remains covered",
-      "negative": "Existing exact owner matrix plus applicable physical failure",
-      "authorization": "TrustedContext remains scoped; no observer mutation",
-      "recovery": "Exact owner cold/warm evidence; applicable network recovery",
-      "aiDependency": "none for known execution"
+      "role": "lifecycle owner",
+      "implementation_status": "IMPLEMENTED",
+      "implementation": "CitizenLifecycle / CitizenWorkReconciler / FabricCitizenLifecycle",
+      "families": [
+        "GP-E2E-029"
+      ],
+      "componentTests": [
+        {
+          "suite": "dev.aivillages.core.kernel.CitizenLifecycleTest"
+        },
+        {
+          "suite": "dev.aivillages.core.kernel.CitizenLifecycleStorageTest"
+        },
+        {
+          "suite": "dev.aivillages.core.kernel.CitizenWorkReconcilerTest"
+        }
+      ],
+      "ownerWorkflow": "citizen-lifecycle.yml",
+      "networkExposure": "CLIENT_REACHABLE",
+      "requiredVariants": [
+        "unload_reload",
+        "partial_death",
+        "scope_isolation",
+        "restart",
+        "unsupported_successor"
+      ],
+      "boundary": "Ordinary native lifecycle; identity schema 2, generation fences and recoverable owner acknowledgements",
+      "happyPath": "Same verified entity unload/reload retains identity and scope",
+      "negative": "Death/removal and ambiguous reasons remain distinct; unsupported successors never inherit rights",
+      "authorization": "Exact actor, world, original principal/scope and generation",
+      "recovery": "Saved-world native phases and connected-client abrupt restart; no effect replay",
+      "aiDependency": "none for lifecycle or known execution"
     }
   ],
   "documentation": "https://github.com/senavirathne/CognitiveCraft-Documentation/tree/work/e2e-imp001-019/docs/e2e",
@@ -659,7 +677,8 @@
     "needle-language.yml",
     "resource-leases.yml",
     "research-live-trial.yml",
-    "client-e2e-smoke.yml"
+    "client-e2e-smoke.yml",
+    "citizen-lifecycle.yml"
   ],
   "resourceCoverage": "rb-coverage.json"
 }

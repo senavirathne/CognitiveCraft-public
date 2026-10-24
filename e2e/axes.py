@@ -17,7 +17,7 @@ TABLE = [7, 201, 9]
 SECOND_TABLE = [15, 201, 11]
 
 
-def scenario(h):
+def scenario(h, *, d03_evidence=False):
     from suite import ROOT, UUID_PATTERN, DENIED_PATTERN, require, read, reconnect_players, completed_jsonl
     require(h.topology == "compose", "RB production requires the actual configured backend and network topology")
     private = h.root / "needle"
@@ -43,6 +43,8 @@ def scenario(h):
     require("axeCatalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "Production was seeded as known")
     require("oakCatalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "RB-001 was seeded as a dependency")
     require("plankCatalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "RB-002 was seeded as a dependency")
+    if d03_evidence:
+        h.console(["setblock 9 201 7 minecraft:barrel"])
     h.console(["setblock " + " ".join(map(str, SOURCE)) + " minecraft:chest",
                "setblock " + " ".join(map(str, SECOND_SOURCE)) + " minecraft:chest",
                "setblock " + " ".join(map(str, TABLE)) + " minecraft:crafting_table",
@@ -143,6 +145,10 @@ def scenario(h):
     require([(p["name"],p["type"]) for p in descriptor["parameters"]] == [("actor","ACTOR"),("amount","INT"),("source","CONTAINER"),("destination","CONTAINER"),("table","FACILITY")], "Runtime production interface changed")
     require(not descriptor["dependencies"] and not body["ir"]["dependencies"] and body["spec"]["completion"] == "ATTRIBUTABLE_TRANSFORMATION_DELIVERY", "Stocked production depended on another method")
     typed = {"descriptor":descriptor,"spec":body["spec"],"bodySha256":hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    if d03_evidence:
+        from d03 import language_evidence
+        return language_evidence(h,prepare,verify,acquisition,typed,models,read(private/"manifest.json"))
 
     source = prepare(1); before = h.container(source, PLANK); inv = actor_inventory("PlayerA", h); calls = h.model_calls(); h.actions_active = True
     answer = h.command("PlayerA", "/aivillage kernel ask Ada, make one wooden axe using available materials and store it.", "interpretation="+UUID_PATTERN)

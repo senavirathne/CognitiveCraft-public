@@ -18,6 +18,72 @@ import static org.junit.jupiter.api.Assertions.*;
 final class BootstrapControllerTest {
     private static final ArtifactRef REF = new ArtifactRef(CropDelivery.ID, "a".repeat(64));
 
+    @Test void dependentPublicationMustAcknowledgeBeforeSuccessfulCompletionBecomesPublic() {
+        var s=new Scene();s.enroll();s.known=true;
+        var acknowledgement=new CompletableFuture<Boolean>();var calls=new int[1];
+        s.controller.completionPublisher((job,method,owner)->{
+            assertNotNull(job);assertEquals(REF,method);assertEquals(s.owner,owner);calls[0]++;
+            return acknowledgement;
+        });
+        var submitted=s.controller.submit(s.request(1),s.owner);var pending=s.complete(submitted.id());
+        assertEquals(BootstrapController.Phase.PERSISTING,pending.phase());
+        assertEquals(3,pending.outcome().committedEffects());assertEquals(1,calls[0]);
+        s.complete(submitted.id());assertEquals(1,calls[0]);
+        acknowledgement.complete(true);var done=s.complete(submitted.id());
+        assertEquals(BootstrapController.Phase.TERMINAL,done.phase());assertEquals("SUCCEEDED",done.marker().outcome());
+        assertEquals(3,done.marker().effects());assertNull(done.storageError());assertEquals(1,calls[0]);
+    }
+    @Test void rejectedDependentPublicationPreservesSpentEffectsWithoutClaimingSuccessfulCompletion() {
+        var s=new Scene();s.enroll();s.known=true;
+        var acknowledgement=new CompletableFuture<Boolean>();
+        s.controller.completionPublisher((job,method,owner)->acknowledgement);
+        var submitted=s.controller.submit(s.request(1),s.owner);s.complete(submitted.id());
+        acknowledgement.complete(false);var failed=s.complete(submitted.id());
+        assertEquals(Reason.STORAGE_UNAVAILABLE,failed.storageError());
+        assertEquals(3,failed.outcome().committedEffects());assertNotEquals("SUCCEEDED",failed.marker().outcome());
+    }
+    @Test void dependentPublicationWaitIsFiniteAndLateAcknowledgementCannotReviveIt() {
+        var s=new Scene();s.enroll();s.known=true;
+        var acknowledgement=new CompletableFuture<Boolean>();
+        s.controller.completionPublisher((job,method,owner)->acknowledgement);
+        var submitted=s.controller.submit(s.request(1),s.owner);s.complete(submitted.id());
+        s.clock.now+=BootstrapController.MAX_STORAGE_WAIT_MILLIS+1;s.controller.tick();
+        var failed=s.controller.status(submitted.id(),s.owner);assertEquals(Reason.STORAGE_UNAVAILABLE,failed.storageError());
+        acknowledgement.complete(true);assertEquals(failed,s.complete(submitted.id()));
+        assertEquals(3,failed.outcome().committedEffects());
+    }
+
+    @Test void lifecycleLossInterruptsPartialExecutionAndFencesLateSuccess() {
+        var s = new Scene(); s.enroll(); s.known = true; s.delayedExecution = true;
+        var submitted = s.controller.submit(s.request(4), s.owner);
+        for (int n=0;n<8;n++) s.controller.tick();
+        assertFalse(s.controller.interruptActor(s.actor));
+        var view = s.complete(submitted.id());
+        assertEquals("INTERRUPTED", view.marker().outcome()); assertEquals(2, view.marker().effects());
+        assertTrue(s.controller.interruptActor(s.actor));
+        s.delayedExecution = false;
+        for (int n=0;n<8;n++) s.controller.tick();
+        assertEquals(view, s.controller.status(submitted.id(), s.owner));
+    }
+    @Test void lifecycleLossDuringPendingPublicationCannotStartResearchOrExecution() {
+        var s = new Scene(); s.enroll(); s.memory.holdNext = true;
+        var submitted = s.controller.submit(s.request(4), s.owner);
+        s.controller.interruptActor(s.actor); s.memory.release();
+        var view = s.complete(submitted.id());
+        assertEquals("INTERRUPTED", view.marker().outcome());
+        assertEquals(0, s.modelStarts[0]); assertEquals(0, s.executionStarts[0]);
+    }
+    @Test void lifecycleLossDuringResearchCannotAdmitFromLateProviderCompletion() {
+        var s = new Scene(); s.enroll(); s.controller.inference(true); s.delayed = true;
+        var submitted = s.controller.submit(s.request(4), s.owner);
+        for (int n=0;n<6;n++) s.controller.tick();
+        assertEquals(1, s.modelStarts[0]); s.controller.interruptActor(s.actor);
+        var view = s.complete(submitted.id());
+        assertEquals("INTERRUPTED", view.marker().outcome()); assertEquals(0, s.executionStarts[0]);
+        for (int n=0;n<8;n++) s.controller.tick();
+        assertEquals(view, s.controller.status(submitted.id(), s.owner));
+    }
+
     private static final class TestClock extends Clock {
         long now = 1_000;
         @Override public ZoneId getZone() { return ZoneId.of("UTC"); }

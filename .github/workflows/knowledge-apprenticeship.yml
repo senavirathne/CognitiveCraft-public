@@ -1,0 +1,154 @@
+name: Knowledge access and apprenticeship acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/knowledge-apprenticeship.yml']
+  push:
+    paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/knowledge-apprenticeship.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowledge-apprenticeship-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: IMP-022 matrix, regressions and two-JVM GP-22
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Execute every access, supervision, migration, recovery and bounded-intake case
+        run: bash ./gradlew --no-daemon --stacktrace :core:test --tests dev.aivillages.core.kernel.KnowledgeAccessStoreTest --tests dev.aivillages.core.kernel.KnowledgeAccessServiceTest
+      - name: Require a nonempty complete scoped test inventory
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,xml.etree.ElementTree as ET
+          counts={}
+          for suite,minimum in [('KnowledgeAccessStoreTest',35),('KnowledgeAccessServiceTest',4)]:
+              cases=list(ET.parse(Path('core/build/test-results/test/TEST-dev.aivillages.core.kernel.'+suite+'.xml')).getroot().iter('testcase'))
+              if len(cases)<minimum or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Every declared scoped case must execute and pass: '+suite)
+              counts[suite]=len(cases)
+          out=Path('fabric/build/apprenticeship-evidence');out.mkdir(parents=True,exist_ok=True)
+          (out/'matrix.json').write_text(json.dumps(counts,indent=2)+'\n');print(counts)
+          PY
+      - name: Execute complete affected regressions and package production and test mods
+        run: bash ./gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+      - name: Select native cold apprenticeship and saved Minecraft witness
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.ApprenticeshipGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Consume real wheat, fence lost supervision and learn one shared body
+        timeout-minutes: 8
+        env:
+          COGNITIVECRAFT_APPRENTICESHIP_PHASE: cold
+          COGNITIVECRAFT_RESTART_PROBE: cold
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Preserve cold proof and stop an actual Ollama backend before reuse
+        timeout-minutes: 4
+        run: |
+          python3 - <<'PY'
+          import shutil,xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run');out=Path('fabric/build/apprenticeship-evidence')
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Two active passing cold native cases required')
+          if 'IMP-022 GP-22 accepted phase=cold stock=8 grants=2 bodies=1 failedGrant=false modelCalls=0 noReplay=true' not in (root/'logs/latest.log').read_text():raise SystemExit('Active physical cold proof missing')
+          shutil.copy2(root/'gametest-results.xml',out/'cold.xml');shutil.copy2(root/'logs/latest.log',out/'cold.log')
+          PY
+          docker run --detach --name cognitivecraft-apprenticeship-backend --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:11434/api/version > fabric/build/apprenticeship-evidence/backend-version.json; then break; fi
+            sleep 2
+          done
+          python3 -c 'import json; assert json.load(open("fabric/build/apprenticeship-evidence/backend-version.json"))["version"]=="0.12.10"'
+          docker inspect --format '{{json .State}}' cognitivecraft-apprenticeship-backend > fabric/build/apprenticeship-evidence/backend-before.json
+          docker stop cognitivecraft-apprenticeship-backend
+          docker inspect --format '{{json .State}}' cognitivecraft-apprenticeship-backend > fabric/build/apprenticeship-evidence/backend-stopped.json
+          python3 -c 'import json; assert not json.load(open("fabric/build/apprenticeship-evidence/backend-stopped.json"))["Running"]'
+          if curl --fail --silent --max-time 2 http://127.0.0.1:11434/api/version; then exit 1; fi
+      - name: Select the second process reopening the same save and shared repository
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');m=json.loads(p.read_text())
+          m['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.ApprenticeshipRestartGameTests','dev.aivillages.fabric.ServerRestartProbeGameTests']
+          p.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Execute learned wheat method with the real backend stopped in another JVM
+        timeout-minutes: 6
+        env:
+          COGNITIVECRAFT_APPRENTICESHIP_PHASE: warm
+          COGNITIVECRAFT_RESTART_PROBE: warm
+        run: bash ./gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - name: Require native conservation, repeat-safe access, finite storage and clean release
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,shutil,subprocess,zipfile,xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path('fabric/build/gametest-run');out=Path('fabric/build/apprenticeship-evidence');saved=root/'world/cognitivecraft-apprenticeship-fixture'
+          cases=[c for c in ET.parse(root/'gametest-results.xml').getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
+          if len(cases)!=2 or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('Two active passing warm native cases required')
+          if 'IMP-022 GP-22 accepted phase=warm stock=10 grants=2 bodies=1 failedGrant=false modelCalls=0 noReplay=true' not in (root/'logs/latest.log').read_text():raise SystemExit('Active physical warm proof missing')
+          shutil.copy2(root/'gametest-results.xml',out/'warm.xml');shutil.copy2(root/'logs/latest.log',out/'warm.log')
+          cold=json.loads((saved/'cold.json').read_text());warm=json.loads((saved/'warm.json').read_text())
+          for phase,p,stock,mature in [('cold',cold,8,3),('warm',warm,10,1)]:
+              if (p['phase'],p['stock'],p['mature'],p['grants'],p['practices'],p['bodies'],p['failedResources'],p['partialEffects'],p['modelCalls'])!=(phase,stock,mature,2,3,1,1,1,0):raise SystemExit('Native conservation/learning mismatch')
+              if not 0<p['accessBytes']<=1048576 or not p['accessBytes']<=p['ownerBytes']<=3145728:raise SystemExit('Unbounded access storage')
+          if cold['accessSha256']!=warm['accessSha256'] or cold['revision']!=warm['revision']:raise SystemExit('Reload or successful reuse duplicated a grant')
+          if (cold['process'],cold['processStarted'])==(warm['process'],warm['processStarted']):raise SystemExit('Reuse must cross a real JVM boundary')
+          for name in ('cold.json','warm.json','restart.json'):shutil.copy2(saved/name,out/name)
+          counts={}
+          for module in ('core','providers','fabric'):
+              cases=[c for p in Path(module+'/build/test-results/test').glob('TEST-*.xml') for c in ET.parse(p).getroot().iter('testcase')]
+              if not cases or any(c.find(t) is not None for c in cases for t in ('failure','error','skipped')):raise SystemExit('All affected regressions must execute: '+module)
+              counts[module]=len(cases)
+          jars=[p for p in Path('fabric/build/libs').glob('*.jar') if not any(s in p.name for s in ('sources','gametest','dev'))]
+          if len(jars)!=1:raise SystemExit('Exactly one production JAR required')
+          with zipfile.ZipFile(jars[0]) as jar:
+              if any('GameTest' in name or name.endswith(('.gguf','.safetensors')) for name in jar.namelist()):raise SystemExit('Fixtures or weights leaked into release')
+              for name in ('KnowledgeAccess','KnowledgeAccessStore','KnowledgeAccessSource','KnowledgeAccessService','KnowledgeAccessJournal','KnowledgeAccessCodec'):
+                  if 'dev/aivillages/core/kernel/'+name+'.class' not in jar.namelist():raise SystemExit('Access runtime missing: '+name)
+          proof={'schema':1,'source':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),'tests':counts,'total':sum(counts.values()),'coldProjectTests':2,'warmProjectTests':2,'cold':cold,'warm':warm,'sha256':hashlib.sha256(jars[0].read_bytes()).hexdigest(),'backendStopped':not json.loads((out/'backend-stopped.json').read_text())['Running'],'clientBoundary':'NOT_CLIENT_EXPOSED'}
+          (out/'acceptance.json').write_text(json.dumps(proof,indent=2)+'\n');print(proof)
+          PY
+      - name: Restore native test registration
+        if: always()
+        run: git restore fabric/src/gameTest/resources/fabric.mod.json
+      - name: Stop the explicit backend fixture
+        if: always()
+        run: docker rm --force cognitivecraft-apprenticeship-backend || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-022-knowledge-apprenticeship-acceptance
+          path: |
+            core/build/test-results/test/**
+            providers/build/test-results/test/**
+            fabric/build/test-results/test/**
+            fabric/build/apprenticeship-evidence/**
+            fabric/build/gametest-run/gametest-results.xml
+            fabric/build/gametest-run/logs/**
+            fabric/build/libs/*.jar

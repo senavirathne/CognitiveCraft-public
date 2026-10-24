@@ -1,0 +1,87 @@
+[
+  {
+    "id": "D03-original",
+    "text": "We need three wooden axes. Use what we've already got.",
+    "amount": 3,
+    "citizen": null,
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D03-want",
+    "text": "I want one wooden axe using available materials.",
+    "amount": 1,
+    "citizen": null,
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D03-would-like",
+    "text": "Ada, we would like two wooden axes from this chest and put them in that barrel.",
+    "amount": 2,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D03-named",
+    "text": "Ada, I need four wooden axes. Use the materials we already have.",
+    "amount": 4,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D03-coordinates",
+    "text": "We require three wooden axes from chest at 5,201,5 using crafting table at 7,201,9 and put them in barrel at 9,201,7.",
+    "amount": 3,
+    "citizen": null,
+    "from": "5,201,5",
+    "destination": "9,201,7",
+    "table": "7,201,9",
+    "outcome": "EXTRACTED"
+  },
+  {
+    "id": "D03-missing-amount",
+    "text": "We need wooden axes. Use available materials.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D03-unsupported-material",
+    "text": "We need three stone axes. Use existing stock.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D03-unsupported-recipe",
+    "text": "We want two stone pickaxes using available materials.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D03-negated",
+    "text": "We do not need three wooden axes. Use what we already have.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D03-compound",
+    "text": "We need three wooden axes and build a house. Use available materials.",
+    "outcome": "UNSUPPORTED"
+  },
+  {
+    "id": "D03-unbound-source",
+    "text": "We need two wooden axes from my northern chest.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D03-unbound-table",
+    "text": "We need three wooden axes using my private table.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D03-invalid-amount",
+    "text": "We need five wooden axes. Use available materials.",
+    "outcome": "CLARIFICATION"
+  },
+  {
+    "id": "D03-existing-control",
+    "text": "Ada, make one wooden axe using available materials and store it.",
+    "amount": 1,
+    "citizen": "Ada",
+    "outcome": "EXTRACTED"
+  }
+]

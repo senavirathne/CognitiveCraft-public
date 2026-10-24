@@ -14,7 +14,7 @@ DESTINATION = [9, 201, 7]
 SECOND_DESTINATION = [17, 201, 7]
 
 
-def scenario(h):
+def scenario(h, *, d02_evidence=False):
     from suite import ROOT, UUID_PATTERN, DENIED_PATTERN, require, read, reconnect_players, completed_jsonl
     require(h.topology == "compose", "RB production requires the actual configured backend and network topology")
     private = h.root / "needle"
@@ -39,6 +39,9 @@ def scenario(h):
     h.fresh(two=True); h.enroll(); h.enroll("PlayerB", "Mira"); h.release_gate(); h.release_gate("PlayerB")
     require("plankCatalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "Production was seeded as known")
     require("oakCatalog=[]" in h.command("PlayerA", "/aivillage kernel catalog", "catalog="), "RB-001 was seeded as a dependency")
+    if d02_evidence:
+        # The supplementary D02 destination starts empty before old-stock setup.
+        h.console(["setblock 9 201 7 minecraft:barrel"])
     h.console(["setblock " + " ".join(map(str, SOURCE)) + " minecraft:chest",
                "setblock " + " ".join(map(str, SECOND_SOURCE)) + " minecraft:chest",
                "setblock 8 200 7 minecraft:stone", "setblock 8 200 11 minecraft:stone",
@@ -136,6 +139,10 @@ def scenario(h):
     require([(p["name"],p["type"]) for p in descriptor["parameters"]] == [("actor","ACTOR"),("amount","INT"),("source","CONTAINER"),("destination","CONTAINER")], "Runtime production interface changed")
     require(not descriptor["dependencies"] and not body["ir"]["dependencies"] and body["spec"]["completion"] == "ATTRIBUTABLE_TRANSFORMATION_DELIVERY", "Stocked production depended on another method")
     typed = {"descriptor":descriptor,"spec":body["spec"],"bodySha256":hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    if d02_evidence:
+        from d02 import language_evidence
+        return language_evidence(h,prepare,verify,acquisition,typed,models,read(private/"manifest.json"))
 
     source = prepare(8); before = h.container(source, PLANK); inv = actor_inventory("PlayerA", h); calls = h.model_calls(); h.actions_active = True
     answer = h.command("PlayerA", "/aivillage kernel ask Ada, make 8 oak planks from the available oak logs and store them.", "interpretation="+UUID_PATTERN)

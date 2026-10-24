@@ -357,7 +357,7 @@ public final class SurvivalGateway implements GatewayPort {
     public ObservedEvidence observedEvidence(ActionHandle handle, TrustedContext caller) {
         thread(); Active action = get(handle);
         if (action.evidence == null || !action.evidence.owner().equals(caller)
-                || !authority.currentlyAllows(action.evidence.actor(), Effect.OBSERVE, caller)
+                || !allows(action, Effect.OBSERVE, target(action))
                 || world.permit(action.run.request, Effect.OBSERVE, target(action)) != null)
             throw new SecurityException("Observation unavailable");
         return action.evidence;
@@ -515,7 +515,7 @@ public final class SurvivalGateway implements GatewayPort {
         Run run = action.run;
         Operation op = action.operation;
         Effect effect = op.signature().effects().iterator().next();
-        if (!authority.currentlyAllows(run.actor, effect, run.request.context())) {
+        if (!allows(action, effect, target(action))) {
             finish(action, Reason.AUTHORITY_DENIED, null, null); return;
         }
         if(CraftingTablePlacement.is(run.request.request().capability())) {
@@ -615,6 +615,7 @@ public final class SurvivalGateway implements GatewayPort {
         if(definition.axe() && (op==Operation.MOVE_TO_TABLE || op==Operation.CRAFT_WOODEN_AXE || op==Operation.CRAFT_CRAFTING_TABLE)) {
             var f=((FacilityValue)run.request.request().arguments().get("table")).value();target=new Cell(f.dimension(),f.x(),f.y(),f.z());
         }
+        if (!allows(action,effect,target)) {finish(action,Reason.AUTHORITY_DENIED,null,null);return;}
         Reason denied=world.permit(run.request,effect,target);
         if(denied!=null) {finish(action,denied,null,null);return;}
         long requested=((IntValue)run.request.request().arguments().get("amount")).value();
@@ -710,7 +711,7 @@ public final class SurvivalGateway implements GatewayPort {
         Cell selected = selectNextCrop(action, Effect.OBSERVE);
         if (selected == null) return;
         // Selection evidence is refreshed while navigation progresses.
-        if (!authority.currentlyAllows(action.run.actor, Effect.OBSERVE, action.run.request.context())) {
+        if (!allows(action, Effect.OBSERVE, selected)) {
             finish(action, Reason.AUTHORITY_DENIED, null, null); return;
         }
         Reason observed = world.permit(action.run.request, Effect.OBSERVE, selected);
@@ -728,7 +729,7 @@ public final class SurvivalGateway implements GatewayPort {
     }
     private void approachOwnedDrop(Active action) {
         Run run=action.run;
-        if(!authority.currentlyAllows(run.actor,Effect.OBSERVE,run.request.context())) {
+        if(!allows(action,Effect.OBSERVE,target(action))) {
             finish(action,Reason.AUTHORITY_DENIED,null,null);return;
         }
         action.usage.debit(Kind.OBSERVATIONS,1);
@@ -740,6 +741,9 @@ public final class SurvivalGateway implements GatewayPort {
             finish(action,Reason.TARGET_INVALID,null,null);return;
         }
         action.selectedTarget=current.cell();
+        if (!allows(action, Effect.OBSERVE, current.cell()) || !allows(action, Effect.MOVE, current.cell())) {
+            finish(action, Reason.AUTHORITY_DENIED, null, null); return;
+        }
         Reason denied=world.permit(run.request,Effect.OBSERVE,current.cell());
         if(denied==null)denied=world.permit(run.request,Effect.MOVE,current.cell());
         if(denied!=null) { finish(action,denied,null,null);return; }
@@ -762,7 +766,7 @@ public final class SurvivalGateway implements GatewayPort {
             Cell cell = new Cell(area.dimension(), (int)(area.minX() + cursor % width),
                     (int)(area.minY() + cursor / (width * depth)),
                     (int)(area.minZ() + (cursor / width) % depth));
-            if (!authority.currentlyAllows(action.run.actor, observationPermission, action.run.request.context())) {
+            if (!allows(action, observationPermission, cell)) {
                 finish(action, Reason.AUTHORITY_DENIED, null, null); return null;
             }
             Reason denied = world.permit(action.run.request, observationPermission, cell);
@@ -779,6 +783,7 @@ public final class SurvivalGateway implements GatewayPort {
     }
 
     private void move(Active action, Cell target) {
+        if (!allows(action, Effect.MOVE, target)) { finish(action, Reason.AUTHORITY_DENIED, null, null); return; }
         if (!action.usage.canDebit(Kind.TRAVEL_BLOCKS, 1)
                 || !action.usage.canDebit(Kind.INSTRUCTIONS, limits.navigationCallsPerPoll())
                 || action.travel >= limits.maxTravelBlocks()) {
@@ -872,6 +877,7 @@ public final class SurvivalGateway implements GatewayPort {
         finish(action,null,stock.status()==ObservationStatus.UNKNOWN ? null : new IntValue(stock.quantity()),snapshot);
     }
     private void harvest(Active action, Cell cell) {
+        if (!allows(action, Effect.HARVEST, cell)) { finish(action, Reason.AUTHORITY_DENIED, null, null); return; }
         Run run = action.run;
         if (!cell.inside(source(run.request))) { finish(action, Reason.AUTHORITY_DENIED, null, null); return; }
         ItemBlock crop = world.resourceBlock(cell,action.run.item);
@@ -952,6 +958,7 @@ public final class SurvivalGateway implements GatewayPort {
         finish(action, Reason.RESOURCE_MISSING, null, null);
     }
     private void pickup(Active action, Cell target) {
+        if (!allows(action, Effect.PICKUP, target)) { finish(action, Reason.AUTHORITY_DENIED, null, null); return; }
         Run run = action.run;
         if (!inventoryCurrent(run,world.resourceInventory(run.actor,run.item))) {
             if (Boolean.getBoolean("cognitivecraft.gametest.trace"))
@@ -1012,6 +1019,7 @@ public final class SurvivalGateway implements GatewayPort {
         } else finish(action, result.reason() == null ? Reason.TARGET_UNAVAILABLE : result.reason(), null, null);
     }
     private void transfer(Active action, Cell target) {
+        if (!allows(action, Effect.TRANSFER, target)) { finish(action, Reason.AUTHORITY_DENIED, null, null); return; }
         Run run = action.run;
         action.requested = ((IntValue)action.arguments.get("amount")).value() > Integer.MAX_VALUE
                 ? Integer.MAX_VALUE : (int)((IntValue)action.arguments.get("amount")).value();
@@ -1210,6 +1218,10 @@ public final class SurvivalGateway implements GatewayPort {
         if (run.item.equals(ResourceDelivery.WHEAT)) return world.actor(run.actor).inventoryWheat()==run.expectedItems;
         return stock.status()==ObservationStatus.PRESENT && stock.reason()==null
                 && stock.quantity()==run.expectedItems && stock.fingerprint().equals(run.inventoryFingerprint);
+    }
+    private boolean allows(Active action, Effect effect, Cell target) {
+        return authority.currentlyAllows(action.run.request, action.run.id, effect,
+                new EffectTarget(target.dimension(), target.x(), target.y(), target.z()));
     }
     private Cell target(Active action) {
         if (action.operation == Operation.OBSERVE_SOURCE || action.operation==Operation.OBSERVE_OAK_SOURCE

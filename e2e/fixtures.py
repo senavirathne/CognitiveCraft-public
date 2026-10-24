@@ -65,7 +65,10 @@ def commands(two: bool = True, legacy: bool = False) -> list[str]:
         for z in (6, 7, 8, 10, 11, 12):
             result += [f"setblock {x} 200 {z} minecraft:farmland[moisture=7]",
                        f"setblock {x} 201 {z} minecraft:wheat[age=7]"]
-    result += ["setblock 8 200 7 minecraft:water", "setblock 8 200 11 minecraft:water",
+    # Hydrate the crops while keeping the supplied walking surface continuous.
+    # Open water holes let random harvest drops sink below physical pickup reach.
+    result += ["setblock 8 200 7 minecraft:stone_brick_slab[type=top,waterlogged=true]",
+               "setblock 8 200 11 minecraft:stone_brick_slab[type=top,waterlogged=true]",
                "setblock 9 201 7 minecraft:chest", "setblock 7 201 9 minecraft:chest",
                "setblock 17 201 7 minecraft:chest", "setblock 4 200 10 minecraft:farmland[moisture=7]",
                "setblock 4 201 10 minecraft:wheat[age=2]",

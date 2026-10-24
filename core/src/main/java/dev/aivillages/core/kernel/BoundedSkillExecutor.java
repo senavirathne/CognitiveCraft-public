@@ -142,16 +142,17 @@ public final class BoundedSkillExecutor {
         ActorRef actor = actor(request);
         if (actor == null) return new Rejected(Reason.REQUEST_INVALID);
         Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned = new LinkedHashMap<>();
-        Reason invalid = pin(artifact, permit != null, actor, request.context(), pinned,
+        Reason invalid = pin(artifact, permit != null, actor, request.context(), request, correlation, pinned,
                 new HashSet<>(), 0, new int[] {0});
         if (invalid != null) return new Rejected(invalid);
         SkillCompiler.CompiledSkill root = pinned.get(artifact);
         if (!arguments(root.artifact().descriptor().parameters(), request.request().arguments()))
             return new Rejected(Reason.REQUEST_INVALID);
-        return new Started(new Run(request, correlation, limits, usage, pinned));
+        return new Started(new Run(request, correlation, limits, usage, pinned, permit != null));
     }
 
     private Reason pin(ArtifactRef ref, boolean trialRoot, ActorRef actor, TrustedContext context,
+                       ValidatedRequest request, RunCorrelation correlation,
                        Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, Set<ArtifactRef> active,
                        int depth, int[] edges) {
         if (depth > SkillCompiler.MAX_CONTROL_DEPTH || ++edges[0] > SkillCompiler.MAX_DEPENDENCY_EDGES
@@ -171,10 +172,12 @@ public final class BoundedSkillExecutor {
         SkillArtifact body = source.body(ref).orElse(null);
         if (body == null || !body.descriptor().ref().equals(ref))
             return depth == 0 ? Reason.ARTIFACT_INVALID : Reason.DEPENDENCY_INCOMPATIBLE;
-        if (!trialRoot && !eligibility.mayUse(actor, ref, context)) return Reason.KNOWLEDGE_REQUIRED;
+        if (!trialRoot && !(eligibility instanceof AttemptEligibilityPolicy attempts
+                ? attempts.mayUseInRun(request, correlation, ref)
+                : eligibility.mayUse(actor, ref, context))) return Reason.KNOWLEDGE_REQUIRED;
         active.add(ref);
         for (ArtifactRef dependency : body.descriptor().dependencies()) {
-            Reason result = pin(dependency, false, actor, context, pinned, active, depth + 1, edges);
+            Reason result = pin(dependency, false, actor, context, request, correlation, pinned, active, depth + 1, edges);
             if (result != null) return result;
         }
         active.remove(ref);
@@ -236,6 +239,7 @@ public final class BoundedSkillExecutor {
         private final Budgets.ExecutionLimits limits;
         private final Budgets.Ledger usage;
         private final Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned;
+        private final boolean trial;
         private final Deque<Frame> stack = new ArrayDeque<>();
         private final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         private final List<Trace> trace = new ArrayList<>();
@@ -250,10 +254,11 @@ public final class BoundedSkillExecutor {
 
         private Run(ValidatedRequest request, RunCorrelation correlation,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage,
-                    Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned) {
+                    Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, boolean trial) {
             this.request = request; this.correlation = correlation;
             this.limits = limits; this.usage = usage;
             this.pinned = Collections.unmodifiableMap(new LinkedHashMap<>(pinned));
+            this.trial = trial;
             lastTick = tickClock.getAsLong();
             stack.push(new Frame(correlation.artifact(), pinned.get(correlation.artifact()).program(),
                     request.request().arguments(), null));
@@ -266,6 +271,12 @@ public final class BoundedSkillExecutor {
         public Progress tick(TrustedContext caller) {
             thread(); control(caller);
             if (terminal != null) return snapshot();
+            // Before polling a pending primitive as well as before beginning another one.
+            // finish() retains the gateway's actual partial receipts and cancels future effects.
+            if (!trial && eligibility instanceof AttemptEligibilityPolicy attempts
+                    && !attempts.mayContinue(request, correlation, pinned.keySet())) {
+                finish(ExecutionStatus.BLOCKED, Reason.KNOWLEDGE_REQUIRED); return snapshot();
+            }
             long now = tickClock.getAsLong();
             if (now < lastTick) { finish(ExecutionStatus.INTERRUPTED, Reason.INTERRUPTED); return snapshot(); }
             if (clock.millis() > limits.total().deadlineEpochMillis()) {

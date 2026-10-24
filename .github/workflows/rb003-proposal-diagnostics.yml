@@ -1,0 +1,48 @@
+name: RB-003 actual proposal diagnostics
+on:
+  push:
+    branches: [rb-003-generation-diagnostics]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JAVA_TOOL_OPTIONS: '-Dcognitivecraft.gametest.trace=true'
+      COGNITIVECRAFT_OLLAMA_MODEL: qwen3:4b-instruct-2507-q4_K_M
+      COGNITIVECRAFT_RB003_GENUINE: 'true'
+      COGNITIVECRAFT_RB003_PHASE: cold
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - name: Select the unchanged production native fixture with bounded transport capture
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('fabric/src/gameTest/resources/fabric.mod.json');v=json.loads(p.read_text())
+          v['entrypoints']['fabric-gametest']=['dev.aivillages.fabric.StickKernelGameTests'];p.write_text(json.dumps(v,indent=2)+'\n')
+          PY
+          bash gradlew --no-daemon --stacktrace :fabric:gameTestClasses
+      - name: Start the same pinned actual backend and model
+        run: |
+          docker run --detach --name rb003-actual-proposal --publish 127.0.0.1:11434:11434 ollama/ollama:0.12.10
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:11434/api/version && break; sleep 2; done
+          docker exec rb003-actual-proposal ollama pull qwen3:4b-instruct-2507-q4_K_M
+          curl --fail --silent http://127.0.0.1:11434/api/generate --header 'Content-Type: application/json' --data '{"model":"qwen3:4b-instruct-2507-q4_K_M","stream":false,"keep_alive":"30m"}' | python3 -c 'import json,sys; assert json.load(sys.stdin)["done"]'
+      - name: Actual model, production decoding and physical admission with original assertions and limits
+        run: bash gradlew --no-daemon --stacktrace :fabric:runGameTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rb003-actual-proposal-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          include-hidden-files: true
+          path: fabric/build/gametest-run/

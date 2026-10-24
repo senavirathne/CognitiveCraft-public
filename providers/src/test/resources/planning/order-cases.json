@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "purpose": "Task 5.4 independent held-out contract-order cases frozen before production edits; never part of the original fifty-request score",
+  "cases": [
+    {
+      "id": "order-unseen-01",
+      "category": "order_feasible",
+      "kind": "material",
+      "request": "Supply eleven sticks from the supplied logs, preserving whole-batch remainders.",
+      "goals": {
+        "minecraft:stick": 11
+      },
+      "inventory": {
+        "minecraft:oak_log": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "order-unseen-02",
+      "category": "order_feasible",
+      "kind": "material",
+      "request": "Deliver one wooden axe and two table items using the existing placed table and supplied logs.",
+      "goals": {
+        "minecraft:wooden_axe": 1,
+        "minecraft:crafting_table": 2
+      },
+      "inventory": {
+        "minecraft:oak_log": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "order-unseen-03",
+      "category": "order_feasible",
+      "kind": "material",
+      "request": "Supply two wooden axes, three sticks and five birch planks using the existing placed table and supplied logs.",
+      "goals": {
+        "minecraft:wooden_axe": 2,
+        "minecraft:stick": 3,
+        "minecraft:birch_planks": 5
+      },
+      "inventory": {
+        "minecraft:oak_log": 3,
+        "minecraft:birch_log": 2
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "order-unseen-04",
+      "category": "order_feasible",
+      "kind": "material",
+      "request": "Supply three wooden axes. A table item is supplied, no table is placed, and one placement is authorized.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 10,
+        "minecraft:stick": 6,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": true,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "order-unseen-05",
+      "category": "order_feasible",
+      "kind": "material",
+      "request": "Deliver nine oak planks and three sticks from the supplied logs and planks; reserve every delivered item.",
+      "goals": {
+        "minecraft:oak_planks": 9,
+        "minecraft:stick": 3
+      },
+      "inventory": {
+        "minecraft:oak_log": 3,
+        "minecraft:oak_planks": 2
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "plan"
+    },
+    {
+      "id": "order-unseen-06",
+      "category": "order_negative",
+      "kind": "material",
+      "request": "Deliver one wooden axe and two table items using only these three logs and the existing placed table.",
+      "goals": {
+        "minecraft:wooden_axe": 1,
+        "minecraft:crafting_table": 2
+      },
+      "inventory": {
+        "minecraft:oak_log": 3
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "order-unseen-07",
+      "category": "order_negative",
+      "kind": "material",
+      "request": "Supply three wooden axes from these ingredients and table item. No table is placed and placement is forbidden.",
+      "goals": {
+        "minecraft:wooden_axe": 3
+      },
+      "inventory": {
+        "minecraft:oak_planks": 9,
+        "minecraft:stick": 6,
+        "minecraft:crafting_table": 1
+      },
+      "tableAvailable": false,
+      "placementAllowed": false,
+      "expectedStatus": "insufficient_resources"
+    },
+    {
+      "id": "order-unseen-08",
+      "category": "order_negative",
+      "kind": "material",
+      "request": "Supply two stone axes using only the registered finite recipe catalog and supplied ingredients.",
+      "goals": {
+        "minecraft:stone_axe": 2
+      },
+      "inventory": {
+        "minecraft:oak_planks": 16,
+        "minecraft:stick": 4
+      },
+      "tableAvailable": true,
+      "placementAllowed": false,
+      "expectedStatus": "unsupported"
+    }
+  ]
+}

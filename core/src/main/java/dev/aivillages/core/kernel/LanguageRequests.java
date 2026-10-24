@@ -353,12 +353,22 @@ public final class LanguageRequests {
                 || e.action()!=(birch ? Action.GATHER_BIRCH_LOGS : birchPlank ? Action.MAKE_BIRCH_PLANKS : table ? Action.MAKE_CRAFTING_TABLES : axe ? Action.MAKE_WOODEN_AXES : stick ? Action.MAKE_STICKS : plank ? Action.MAKE_OAK_PLANKS : oak ? Action.GATHER_OAK_LOGS : Action.HARVEST_WHEAT)) {
             clarify(t, "Only registered wheat, oak/birch resources, recipe production and citizen-naming intents are supported", List.of()); return;
         }
+        var production=classified.production();
+        if(production!=null && production.issue()!=ProductionLanguage.Issue.NONE) {
+            if(production.issue()==ProductionLanguage.Issue.INVALID_QUANTITY)invalid(t);
+            else clarify(t,production.issue()==ProductionLanguage.Issue.INPUT_QUANTITY_MISMATCH
+                    ? "Stated production inputs must match the registered recipe batches"
+                    : "Use supported production materials and instructions",List.of());
+            return;
+        }
         if (invalidNumericQuantity(t.input.text(),axe || table ? 4 : 64,table)) { invalid(t); return; }
         if (e.amount() == null) {
             clarify(t, "Specify the resource quantity", List.of()); return;
         }
         if (e.amount() < 1 || e.amount() > (axe || table ? 4 : oak ? OakLogDelivery.MAX_AMOUNT : 64)) { invalid(t); return; }
-        if ((!oak && !plank && !stick && !axe && !table && !containsReference(t.input.text(), "wheat")) || !groundedAmount(t.input.text(), e.amount(),axe,table)) {
+        boolean grounded=production!=null ? Objects.equals(production.outputAmount(),e.amount())
+                : groundedAmount(t.input.text(),e.amount(),axe,table);
+        if ((!oak && !plank && !stick && !axe && !table && !containsReference(t.input.text(), "wheat")) || !grounded) {
             clarify(t, "Resource quantity must be stated explicitly", List.of()); return;
         }
 
@@ -373,7 +383,7 @@ public final class LanguageRequests {
             t.handle = null; t.result = null;
             t.resolution = Objects.requireNonNull(binding.resolve(
                     new HarvestIntent(actor, e.amount(), source, destination,birch ? BirchLogDelivery.ID : birchPlank ? BirchPlankProduction.ID : table ? CraftingTableProduction.ID : axe ? WoodenAxeProduction.ID : stick ? StickProduction.ID : plank ? OakPlankProduction.ID : oak ? OakLogDelivery.ID : CropDelivery.ID,
-                            new WorldReferenceResolver.Reference<>(classified.table().state(),classified.table().state()==ReferenceState.EXPLICIT_CONCRETE ? coordinate(classified.table().first()) : null,classified.table().evidence())), t.owner));
+                            new WorldReferenceResolver.Reference<>(classified.table().state(),classified.table().state()==ReferenceState.EXPLICIT_CONCRETE ? coordinate(classified.table().first()) : null,classified.table().evidence(),classified.table().objectType(),classified.table().anchor())), t.owner));
             t.view = new View(t.id, Phase.RESOLVING, null, "Resolving world references", List.of(), null);
             pollResolution(t);
         } catch (SecurityException denied) {
@@ -426,7 +436,7 @@ public final class LanguageRequests {
                 if (e.citizen() != null) {
                     clarify(t, "Nearest citizen selection belongs to deterministic world resolution", List.of()); yield null;
                 }
-                yield WorldReferenceResolver.Reference.nearest(slot.evidence());
+                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType(),slot.anchor());
             }
             case EXPLICIT_CONCRETE -> {
                 if (e.citizen() == null || !e.citizen().equalsIgnoreCase(slot.first())) {
@@ -469,7 +479,7 @@ public final class LanguageRequests {
                     clarify(t, "Nearest source selection belongs to deterministic world resolution", List.of());
                     yield null;
                 }
-                yield WorldReferenceResolver.Reference.nearest(slot.evidence());
+                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType(),slot.anchor());
             }
             case EXPLICIT_CONCRETE -> {
                 if (e.from() == null || e.through() == null) {
@@ -489,7 +499,7 @@ public final class LanguageRequests {
                             Math.abs((long)rawFrom.z() - rawThrough.z()) + 1);
                     if (volume > 256) { invalid(t); yield null; }
                     yield WorldReferenceResolver.Reference.concrete(
-                            new AreaCoordinates(rawFrom, rawThrough), slot.evidence());
+                            new AreaCoordinates(rawFrom, rawThrough), slot.evidence(),slot.objectType());
                 } catch (RuntimeException invalid) { invalid(t); yield null; }
             }
             case EXPLICIT_UNSUPPORTED, AMBIGUOUS -> {
@@ -514,7 +524,7 @@ public final class LanguageRequests {
                     clarify(t, "Nearest destination selection belongs to deterministic world resolution", List.of());
                     yield null;
                 }
-                yield WorldReferenceResolver.Reference.nearest(slot.evidence());
+                yield WorldReferenceResolver.Reference.nearest(slot.evidence(),slot.objectType(),slot.anchor());
             }
             case EXPLICIT_CONCRETE -> {
                 if (e.destination() == null) {
@@ -527,7 +537,7 @@ public final class LanguageRequests {
                         clarify(t, "Destination coordinate did not match the player text", List.of());
                         yield null;
                     }
-                    yield WorldReferenceResolver.Reference.concrete(raw, slot.evidence());
+                    yield WorldReferenceResolver.Reference.concrete(raw, slot.evidence(),slot.objectType());
                 } catch (RuntimeException invalid) { invalid(t); yield null; }
             }
             case EXPLICIT_UNSUPPORTED, AMBIGUOUS -> {
