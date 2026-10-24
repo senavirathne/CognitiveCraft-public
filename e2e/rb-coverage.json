@@ -208,7 +208,26 @@
           "phase": "effects",
           "className": "placement_effect_game_tests",
           "marker": "RB006B_EFFECTS",
-          "cases": 5
+          "cases": 5,
+          "caseNames": [
+            "ai_villages_tests:placement_effect_game_tests_exact_approved_site_consumes_one_actual_table_and_preserves_native_custody",
+            "ai_villages_tests:placement_effect_game_tests_actor_on_approved_site_uses_explicit_movement_before_withdrawal_and_placement",
+            "ai_villages_tests:placement_effect_game_tests_placement_move_requires_the_same_center_ray_as_the_mutation",
+            "ai_villages_tests:placement_effect_game_tests_falling_after_withdrawal_waits_for_native_landing_and_crafts_one_batch",
+            "ai_villages_tests:placement_effect_game_tests_live_entity_crossing_after_withdrawal_waits_without_consuming_or_losing_authority"
+          ]
+        },
+        {
+          "phase": "effects-agent",
+          "className": "",
+          "marker": "RB006B_FALLING",
+          "cases": 4,
+          "caseNames": [
+            "ai_villages_tests:world_placement_game_tests_actor_on_approved_site_uses_explicit_movement_before_withdrawal_and_placement",
+            "ai_villages_tests:world_placement_game_tests_placement_move_requires_the_same_center_ray_as_the_mutation",
+            "ai_villages_tests:world_placement_game_tests_live_entity_crossing_after_withdrawal_waits_without_consuming_or_losing_authority",
+            "ai_villages_tests:recipe_landing_game_tests_falling_after_withdrawal_waits_for_native_landing_and_crafts_one_batch"
+          ]
         },
         {
           "phase": "controlled",

@@ -241,6 +241,12 @@ def selected_native_cases(path, phase):
     require(len({c.get("name") for c in cases}) == len(cases) and
             all(not phase["className"] or phase["className"] in c.get("name", "") for c in cases),
             "Duplicate/wrong selected native project case")
+    declared = phase.get("caseNames")
+    if declared is not None:
+        require(isinstance(declared, list) and len(declared) == expected and
+                all(isinstance(name, str) and name.startswith("ai_villages_tests:") for name in declared) and
+                len(set(declared)) == expected and {c.get("name") for c in cases} == set(declared),
+                "Missing/foreign declared native project case")
     return cases
 
 

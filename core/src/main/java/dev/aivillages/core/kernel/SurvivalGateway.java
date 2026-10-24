@@ -1113,6 +1113,12 @@ public final class SurvivalGateway implements GatewayPort {
             // Retained knowledge is advisory; unavailable intake cannot change primitive semantics.
             try { observationSink.accept(action.evidence); } catch (RuntimeException unavailable) { }
         }
+        if(action.operation==Operation.PICKUP_TRACKED_OAK_LOGS
+                && (Boolean.getBoolean("cognitivecraft.gametest.trace") || Boolean.getBoolean("cognitivecraft.navigation.trace")))
+            System.out.println("CognitiveCraft LOG_PICKUP terminal run="+action.run.id
+                    +" actor="+action.run.actor.entityId()+" reason="+reason+" effects="+action.effects
+                    +" expectedActorStock="+action.run.expectedItems+" tick="+world.tick()
+                    +" ledger="+action.usage.snapshot());
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
                 || action.operation == Operation.APPROACH_OAK_LOG
                 || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT || action.operation==Operation.MOVE_TO_TABLE || action.operation==Operation.MOVE_TO_PLACEMENT)

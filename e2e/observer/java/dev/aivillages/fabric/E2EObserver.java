@@ -27,6 +27,7 @@ public final class E2EObserver implements ModInitializer {
     private final Path root = Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"));
     private final int[] observationArea = observationArea();
     private final boolean assessment = Files.exists(root.resolve("observation-area.json"));
+    private final int assessmentMaxDy = assessmentMaxDy();
     private JsonObject vanillaRecipeEvidence;
     private JsonObject assessmentLanguageEvidence;
     private final AtomicReference<String> pending = new AtomicReference<>();
@@ -76,7 +77,7 @@ public final class E2EObserver implements ModInitializer {
             var column = new AABB(x, observationArea[1], z, x + 1, observationArea[1] + 3, z + 1);
             placementColumnsClear.addProperty(key, level.getEntities((net.minecraft.world.entity.Entity)null,
                     column, e -> e.isAlive() && !e.isSpectator()).isEmpty());
-            if (assessment) for (int dy = -1; dy <= 2; dy++)
+            if (assessment) for (int dy = -1; dy <= assessmentMaxDy; dy++)
                 blocks.addProperty(x+","+(observationArea[1]+dy)+","+z,level.getBlockState(pos.offset(0,dy,0)).toString());
             if ((x == 6 || x == 7) && (z == 6 || z == 7 || z == 8 || z == 10 || z == 11 || z == 12))
                 blocks.addProperty(x + ",200," + z, level.getBlockState(pos.below()).toString());
@@ -231,6 +232,15 @@ public final class E2EObserver implements ModInitializer {
                 throw new IllegalArgumentException("Bounded observation area required");
             return area;
         } catch(Exception failure) {throw new IllegalStateException("Assessment observation bounds",failure);}
+    }
+    private int assessmentMaxDy() {
+        if(!assessment)return 2;
+        try {
+            var value=JsonParser.parseString(Files.readString(root.resolve("observation-area.json"))).getAsJsonObject();
+            int maximum=value.has("maxObservationDy") ? value.get("maxObservationDy").getAsInt() : 2;
+            if(maximum<2 || maximum>4)throw new IllegalArgumentException("Bounded assessment height required");
+            return maximum;
+        } catch(Exception failure) {throw new IllegalStateException("Assessment observation height",failure);}
     }
 
     /** Observe the unchanged raw-text classifier; no model call, binding or execution. */

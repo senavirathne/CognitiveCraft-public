@@ -4,7 +4,7 @@ on:
     branches: [main]
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
   pull_request:
-    branches: [main, feature/default-nearest-world-references]
+    branches: [main, feature/default-nearest-world-references, work/rb-gameplay-generalization-qualified]
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/default-nearest.yml']
   workflow_dispatch:
 permissions:

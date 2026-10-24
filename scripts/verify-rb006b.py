@@ -20,11 +20,17 @@ def junit():
 def native(phase,classname,marker):
     folder=ROOT/'fabric/build/gametest-run';report=folder/'gametest-results.xml';log=folder/'logs/latest.log'
     cases=[c for c in ET.parse(report).getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')]
-    expected_cases=5 if phase=='effects' else 1
-    assert len(cases)==expected_cases and all(classname in c.get('name','') and not any(c.find(t) is not None for t in ('failure','error','skipped')) for c in cases)
+    declared = {'effects': ['ai_villages_tests:placement_effect_game_tests_exact_approved_site_consumes_one_actual_table_and_preserves_native_custody', 'ai_villages_tests:placement_effect_game_tests_actor_on_approved_site_uses_explicit_movement_before_withdrawal_and_placement', 'ai_villages_tests:placement_effect_game_tests_placement_move_requires_the_same_center_ray_as_the_mutation', 'ai_villages_tests:placement_effect_game_tests_falling_after_withdrawal_waits_for_native_landing_and_crafts_one_batch', 'ai_villages_tests:placement_effect_game_tests_live_entity_crossing_after_withdrawal_waits_without_consuming_or_losing_authority'], 'effects-agent': ['ai_villages_tests:world_placement_game_tests_actor_on_approved_site_uses_explicit_movement_before_withdrawal_and_placement', 'ai_villages_tests:world_placement_game_tests_placement_move_requires_the_same_center_ray_as_the_mutation', 'ai_villages_tests:world_placement_game_tests_live_entity_crossing_after_withdrawal_waits_without_consuming_or_losing_authority', 'ai_villages_tests:recipe_landing_game_tests_falling_after_withdrawal_waits_for_native_landing_and_crafts_one_batch']}
+    expected_cases=len(declared[phase]) if phase in declared else 1
+    assert len(cases)==expected_cases and not any(c.find(t) is not None for c in cases for t in ('failure','error','skipped'))
+    if phase in declared:
+        assert len({c.get('name') for c in cases})==expected_cases
+        assert {c.get('name') for c in cases}==set(declared[phase])
+    else:
+        assert all(classname in c.get('name','') for c in cases)
     count=sum(marker in line for line in log.read_text().splitlines());expected=3 if classname=='placement_kernel_game_tests' and phase!='genuine-warm' else 1
     assert count==expected,(phase,count,expected)
-    if phase=='effects':
+    if phase in declared:
         for regression in ('RB006B_FALLING nativeGravity=true','RB006B_COLLISION nativeEntity=true','RB006B_SELF_OCCUPANCY nativeNavigation=true','RB006B_CENTER_RAY nativeNavigation=true'):
             assert sum(regression in line for line in log.read_text().splitlines())==1,regression
     if classname=='placement_kernel_game_tests' and phase!='genuine-warm':
@@ -37,7 +43,7 @@ def identity():
     jar=ROOT/'fabric/build/libs/ai-villages-0.1.0.jar'
     with zipfile.ZipFile(jar) as z:
         names=z.namelist();assert 'dev/aivillages/core/kernel/CraftingTablePlacement.class' in names
-        assert not any('TableFixtures' in n or 'TableTestSupport' in n or 'TableKernelGameTests' in n or 'TableCompositionGameTests' in n or 'PlacementFixtures' in n or 'PlacementKernelGameTests' in n or 'PlacementEffectGameTests' in n for n in names)
+        assert not any('TableFixtures' in n or 'TableTestSupport' in n or 'TableKernelGameTests' in n or 'TableCompositionGameTests' in n or 'PlacementFixtures' in n or 'PlacementKernelGameTests' in n or 'PlacementEffectGameTests' in n or 'WorldPlacementGameTests' in n or 'RecipeLandingGameTests' in n for n in names)
     git=lambda arg:subprocess.check_output(['git','rev-parse',arg],cwd=ROOT,text=True).strip()
     value={'source':git('HEAD'),'tree':git('HEAD^{tree}'),'jarSha256':sha(jar),'java':25,'gradle':'9.7.0','minecraft':'26.3','loader':'0.19.5','fabricApi':'0.161.0+26.3','loom':'1.18.1'}
     OUT.mkdir(parents=True,exist_ok=True);(OUT/'identity.json').write_text(json.dumps(value,indent=2)+'\n');print('RB006B_IDENTITY '+json.dumps(value))
