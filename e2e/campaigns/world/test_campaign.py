@@ -5,12 +5,12 @@ import math
 from pathlib import Path
 from generate import generate, FAMILIES
 from runner import selection, reproduction, WorldHarness
-from oracle import custody, evaluate, receipts,cancelled_owner
+from oracle import custody, evaluate, receipts,cancelled_owner,settled_job,durable_owners
 
 class CorpusTests(unittest.TestCase):
     def test_cancelled_run_requires_both_native_reason_and_terminal_durable_owner(self):
         view={'phase':'TERMINAL','outcome':{'status':'FAILED','reason':'CANCELLED'},
-              'responsibility':{'state':'CANCELLED'}}
+              'responsibility':{'state':'CANCELLED','attempts':[{'terminal':{'reason':'CANCELLED'},'uncertain':False}]}}
         self.assertTrue(cancelled_owner(view))
         view['responsibility']['state']='CANCELLING'
         self.assertFalse(cancelled_owner(view))
@@ -27,7 +27,7 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(state['knownPlayers']['PlayerA']['jobs'],{})
 
     def test_cleanup_allows_real_completion_race_and_requires_terminal_owner(self):
-        h=object.__new__(WorldHarness); state={'id':'job','state':'ACTIVE'}
+        h=object.__new__(WorldHarness); state={'id':'job','state':'ACTIVE','attempts':[]}
         h.job_view=lambda *args:state
         def command(*args):
             state['state']='SUCCEEDED'
@@ -42,6 +42,34 @@ class CorpusTests(unittest.TestCase):
         state['state']='CANCELLING'; h.command=lambda *args:'job=job cancellation=true'
         with self.assertRaises(TimeoutError): h.settle_job('PlayerA','job')
         self.assertEqual(h.cleanup_stage,'settlement')
+
+    def test_interrupted_or_uncertain_native_owner_cannot_clear_fixture_fence(self):
+        h=object.__new__(WorldHarness)
+        state={'id':'job','state':'INTERRUPTED','attempts':[{'terminal':None,'uncertain':True}]}
+        h.job_view=lambda *args:state
+        commands=[]
+        def command(*args):
+            commands.append(args); state['state']='CANCELLING'
+            return 'job=job cancellation=true'
+        h.command=command
+        def wait(fn,*args):
+            result=fn()
+            if not result: raise TimeoutError('real attempt remains open')
+            return result
+        h.wait=wait
+        self.assertFalse(settled_job(state))
+        with self.assertRaises(TimeoutError): h.settle_job('PlayerA','job')
+        self.assertEqual(len(commands),1)
+        state['state']='CANCELLED'
+        self.assertFalse(settled_job(state))
+        state['attempts'][0].update(terminal={'reason':'CANCELLED'},uncertain=False)
+        self.assertTrue(settled_job(state))
+        data={'jobs':{},'runs':{'old':{'responsibility':state}}}
+        self.assertEqual(durable_owners(data),{'job':state})
+        state['state']='ACTIVE'
+        h.command=lambda *args:'job=job cancellation=false reason=AUTHORITY_DENIED'
+        with self.assertRaises(TimeoutError): h.settle_job('PlayerA','job')
+        self.assertEqual(h.cleanup_stage,'acknowledgement')
 
     def test_recovered_receipts_use_only_the_actual_matching_durable_execution(self):
         own={'runId':'run','stage':'PICKUP','wheat':1}

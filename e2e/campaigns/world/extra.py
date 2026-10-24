@@ -6,7 +6,7 @@ import re
 import time
 
 from generate import point
-from oracle import custody,key
+from oracle import custody,key,settled_job
 from suite import UUID_PATTERN,DENIED_PATTERN,require,atomic
 from generalization_support import Inconclusive
 
@@ -292,7 +292,7 @@ def authority(h,c):
         def finished():
             values=[h.job_view(player,jid) for player,jid in jobs]
             exhausted=all('minecraft:air' in h.block(p) for p in c['positions'])
-            return values if exhausted or all(v and v['state'] in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED') for v in values) else None
+            return values if exhausted or all(settled_job(v) for v in values) else None
         completion_boundary='source-exhausted-or-all-terminal'
         try: h.wait(finished,'Competing allocation completed or source physically exhausted',90)
         except TimeoutError: completion_boundary='bounded-observation-ended-with-partial-work'
@@ -302,7 +302,7 @@ def authority(h,c):
         h.quiet(12); after=h.snapshot()
         # Physical custody and durable owner accounting must come from one atomic native snapshot.
         views=[after['knownPlayers'][player]['jobs'][jid] for player,jid in jobs]
-        require(all(v['state'] in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED') for v in views),
+        require(all(settled_job(v) for v in views),
                 'Contender did not become terminal before final accounting')
         atomic(h.case_dir/'after.json',after); atomic(h.case_dir/'jobs.json',views)
         total=sum(custody(after,'minecraft:wheat').values()); original=sum(custody(before,'minecraft:wheat').values())

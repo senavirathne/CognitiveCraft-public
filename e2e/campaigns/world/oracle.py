@@ -3,6 +3,16 @@ from collections import defaultdict
 import math
 
 WHEAT='minecraft:wheat'
+TERMINAL_JOBS=('SUCCEEDED','FAILED','CANCELLED')
+
+def settled_job(view):
+    # Jobs.State.terminal() excludes INTERRUPTED; Jobs.Attempt.open() includes uncertainty.
+    return bool(view and view.get('state') in TERMINAL_JOBS and view.get('attempts') is not None and
+        all(a.get('terminal') is not None and a.get('uncertain') is False for a in view['attempts']))
+
+def durable_owners(data):
+    return {j['id']:j for j in [*data.get('jobs',{}).values(),
+        *(v['responsibility'] for v in data.get('runs',{}).values() if v.get('responsibility'))]}
 
 def key(pos):
     return ','.join(map(str,pos))
@@ -41,7 +51,8 @@ def outcome(view):
 def cancelled_owner(view):
     # The production run reports FAILED/CANCELLED while its durable Job reports CANCELLED.
     # Require both actual witnesses; neither the acknowledgement nor a guessed status suffices.
-    return (view.get('phase')=='TERMINAL' and (view.get('responsibility') or {}).get('state')=='CANCELLED' and
+    return (view.get('phase')=='TERMINAL' and settled_job(view.get('responsibility')) and
+        view['responsibility']['state']=='CANCELLED' and
         ((view.get('outcome') or {}).get('reason') or (view.get('marker') or {}).get('reason'))=='CANCELLED')
 
 def evaluate(case,before,after,view,citizen,entity,samples):

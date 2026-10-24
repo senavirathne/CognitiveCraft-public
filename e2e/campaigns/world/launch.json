@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "launchId": "world-recovery-authority-safety-20261024-08",
+  "launchId": "world-strict-owner-settlement-20261024-09",
   "mode": "full",
   "seed": 104729,
-  "heldoutSeed": 86028121,
+  "heldoutSeed": 104395303,
   "families": [
     "W6",
     "W9",

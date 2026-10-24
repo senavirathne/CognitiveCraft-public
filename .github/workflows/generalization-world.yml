@@ -29,7 +29,9 @@ permissions:
   actions: read
 concurrency:
   group: generalization-world-${{ github.ref }}
-  cancel-in-progress: false
+  # An explicit replacement launch can stop a harness-invalid run while always-run
+  # report/artifact steps preserve its partial evidence; ordinary launches queue.
+  cancel-in-progress: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[world-replace]') }}
 jobs:
   campaign:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[world-campaign]')

@@ -1,6 +1,10 @@
 # Independent physical world generalization campaign
 
-The eighth launch reruns W6/W9/W12 after preserving the completed sixth and seventh attempts. It requests 12 base and 12 new held-out variations per family (72 total), freezes assertions before held-out generation, and uses held-out seed 86028121. Production remains unchanged. W10 and W11 already passed all 24 native cases each in the sixth batch.
+The ninth launch replaces the eighth harness-invalid attempt using an explicit `[world-replace]` marker. GitHub concurrency cancels only an explicitly replaced branch run; ordinary launch requests still queue. Always-run reporting/artifact steps retain the interrupted attempt. No GitHub Actions write permission or production change is introduced.
+
+The eighth cleanup helper incorrectly treated INTERRUPTED as terminal. Production Jobs.State.terminal() recognizes only SUCCEEDED/FAILED/CANCELLED, and an attempt remains open when terminal is absent or uncertainty is true. The replacement requires the actual native terminal state plus closed, certain attempts before any fixture reset, explicitly cancels interrupted owners through the public command, and quarantines whole games whose owners cannot settle. Direct responsibilities and queue Jobs use the same guard. A regression verifies the real interrupted-to-CANCELLING path cannot clear the fence. Recovery custody and durable owner settlement remain separate observations.
+
+The replacement requests 72 W6/W9/W12 cases, with base seed 104729 and new held-out seed 104395303 after assertion freeze. Earlier raw attempts remain preserved. W10/W11 already passed their 24 native cases each in the sixth batch.
 
 The sixth batch exposed harness defects: `tick rate 1` was outside the existing clock allowlist, cleanup expected the wrong cancellation feedback, and cancellation looked for the wrong run status instead of the actual terminal Job plus native CANCELLED reason. The new checkpoint uses the permitted `tick freeze` command. Cleanup observes direct responsibilities as well as queued Jobs, tolerates completion races, and only calls a timeout architectural when an acknowledged cancellation leaves a real durable owner nonterminal. Every prior raw failure remains preserved.
 

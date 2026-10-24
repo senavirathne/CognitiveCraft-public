@@ -23,11 +23,10 @@ import navigation
 from suite import Harness, InfrastructureBlocked, ROOT, UUID_PATTERN, atomic, read, require, reconnect_players
 from generalization_support import AssessmentHarness, AssessmentBlocked, Inconclusive, LOG, BIRCH
 from generate import generate, BASELINE, TREE, FAMILIES, point
-from oracle import evaluate, outcome, stages, receipts, SAFETY, key, WHEAT,custody,cancelled_owner
+from oracle import evaluate, outcome, stages, receipts, SAFETY, key, WHEAT,custody,cancelled_owner,settled_job,durable_owners
 
 CAPS={WHEAT:'deliver_wheat',LOG:'deliver_oak_logs',BIRCH:'deliver_birch_logs'}
 ACTIVE=('PERSISTING','ROUTING','EXECUTING','RESEARCHING','RESOLVING','INTERPRETING')
-TERMINAL_JOBS=('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED')
 
 def coord(p): return ' '.join(map(str,p))
 
@@ -377,18 +376,18 @@ class WorldHarness(AssessmentHarness):
         """Fence a real owner, allowing a completion race without inventing cancellation."""
         self.cleanup_stage='acknowledgement'
         view=self.job_view(player,jid)
-        if view and view['state'] in TERMINAL_JOBS:
+        if settled_job(view):
             return {'alreadyTerminal':view['state']}
         answers=[]
         def acknowledged():
             view=self.job_view(player,jid)
-            if view and view['state'] in TERMINAL_JOBS: return True
+            if settled_job(view): return True
             answer=self.command(player,'/aivillage kernel job-cancel '+jid,'job='+jid)
             answers.append(answer)
-            return 'cancellation=false reason=BUDGET_EXHAUSTED' not in answer
+            return 'cancellation=true' in answer or settled_job(self.job_view(player,jid))
         self.wait(acknowledged,'Public Job cancellation publication available',30)
         self.cleanup_stage='settlement'
-        final=self.wait(lambda:(v if (v:=self.job_view(player,jid)) and v['state'] in TERMINAL_JOBS else None),
+        final=self.wait(lambda:(v if settled_job(v:=self.job_view(player,jid)) else None),
                         'Actual Job terminal before fixture reset '+jid,45)
         return {'feedback':answers,'terminal':final['state']}
 
@@ -403,22 +402,22 @@ class WorldHarness(AssessmentHarness):
         for player,data in state.get('knownPlayers',{}).items():
             if not data.get('online'):
                 require(not any(v.get('phase') in ACTIVE for v in data.get('runs',{}).values()),'Disconnected principal still owns active work; halt before fixtures')
-                require(all(j.get('state') in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED') for j in data.get('jobs',{}).values()),
+                require(all(settled_job(j) for j in durable_owners(data).values()),
                         'Disconnected principal still owns a nonterminal Job; halt before fixtures')
                 continue
             for rid,v in data.get('runs',{}).items():
                 if v.get('phase') in ACTIVE:
                     self.cleanup_stage='acknowledgement'
                     self.command(player,'/aivillage kernel cancel '+rid,'run='+rid+'|denied|unavailable',20)
-                job=v.get('responsibility')
-                if job and job.get('state') not in ('SUCCEEDED','FAILED','CANCELLED'):
-                    self.settle_job(player,job['id'])
-            for jid,j in data.get('jobs',{}).items():
-                if j.get('state') not in ('SUCCEEDED','FAILED','CANCELLED','INTERRUPTED'):
+            for jid,j in durable_owners(data).items():
+                if not settled_job(j):
                     self.settle_job(player,jid)
         self.cleanup_stage='settlement'
-        self.wait(lambda:all(v.get('phase') not in ACTIVE for d in (self.snapshot() or {}).get('knownPlayers',{}).values()
-                            for v in d.get('runs',{}).values()),'All gameplay owners terminal before resetting fixtures',40)
+        def all_settled():
+            return all(all(v.get('phase') not in ACTIVE for v in d.get('runs',{}).values()) and
+                all(settled_job(j) for j in durable_owners(d).values())
+                for d in (self.snapshot() or {}).get('knownPlayers',{}).values())
+        self.wait(all_settled,'All durable owners and attempts terminal before resetting fixtures',40)
         self.actions_active=False; self.quiet(3); self.cleanup_stage=None
 
     def cleanup_legacy(self):
@@ -727,7 +726,13 @@ def main():
                 atomic(h.case_dir/'screenshots.json',h.screenshots[frame_offset:]); atomic(h.case_dir/'result.json',rec)
                 atomic(a.root/'results.json',result)
                 print('WORLD_PROGRESS '+json.dumps({'case':c['id'],'status':rec['status'],'genuineGameplay':rec['genuineGameplay']},separators=(',',':')),flush=True)
-            try: h.cleanup_world()
+            try:
+                h.cleanup_world()
+                if c['family']=='W6' and c.get('disturbance','').startswith('restart-') and rec.get('properties'):
+                    fence=h.snapshot(); atomic(h.case_dir/'owner-settlement.json',fence)
+                    rec['properties']['recoveryOwnerSettled']=all(settled_job(j) for d in fence.get('knownPlayers',{}).values()
+                        for j in durable_owners(d).values())
+                    atomic(h.case_dir/'result.json',rec); atomic(a.root/'results.json',result)
             except TimeoutError as error:
                 # A real owner that cannot settle is evidence, not permission to edit its active fixture.
                 # Stop and retain that entire native game before loading a distinct genuine certificate.
@@ -735,12 +740,12 @@ def main():
                 state=h.snapshot(); atomic(h.case_dir/'unsettled-owner-native-state.json',state)
                 (h.case_dir/'cleanup-server.log').write_text(h.server_log()[offset:])
                 unsettled={j['id']:j for data in state.get('knownPlayers',{}).values()
-                    for j in [*data.get('jobs',{}).values(),
-                              *(v['responsibility'] for v in data.get('runs',{}).values() if v.get('responsibility'))]
-                    if j['state'] not in TERMINAL_JOBS}
+                    for j in durable_owners(data).values() if not settled_job(j)}
                 actual_settlement_failure=bool(unsettled) and getattr(h,'cleanup_stage',None)=='settlement'
                 rec['observedTaskStatus']=rec['status']
                 rec['status']='FAIL_ARCHITECTURAL_GAP' if actual_settlement_failure else 'INCONCLUSIVE'
+                if c['family']=='W6' and c.get('disturbance','').startswith('restart-') and rec.get('properties'):
+                    rec['properties']['recoveryOwnerSettled']=False
                 rec['cleanupFailure']={'reason':str(error),'evidence':'unsettled-owner-native-state.json',
                     'stage':getattr(h,'cleanup_stage',None),'actualSettlementFailure':actual_settlement_failure,
                     'boundary':'Complete native game quarantined before new fixture writes; only acknowledged cancellation with a nonterminal durable Job receives architectural-gap credit',
