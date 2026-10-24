@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "launchId": "world-pipeline-language-20261024-05",
+  "launchId": "world-recovery-authority-safety-20261024-06",
   "mode": "full",
   "seed": 104729,
-  "heldoutSeed": 67867967,
-  "families": ["W1", "W2", "W3", "W4", "W7"],
+  "heldoutSeed": 49979687,
+  "families": ["W6", "W9", "W10", "W11", "W12"],
   "isolateFamilies": true,
   "cohortCases": 6,
   "reviewPrior": false,

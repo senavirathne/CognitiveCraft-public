@@ -55,7 +55,7 @@ def save(h,name):
         h.case,h.case_dir,h.family=previous; h.samples=[]; h.last_sample=None
 
 
-def restore(h,directory):
+def restore(h,directory,quarantine=False):
     directory=Path(directory).resolve(); proof=read(directory/'certificate.json')
     require(proof and proof['productionBaseline']==BASELINE,'Expected a campaign native certificate')
     require(proof['semanticJarSha256']==semantic_jar(),'Certificate crossed a production code change')
@@ -65,7 +65,10 @@ def restore(h,directory):
     connected=[p for p in ('PlayerA','PlayerB') if p in h.booted]
     processes={p:read(h.root/'clients'/p/'process.json') for p in connected}
     if 'server' in h.booted:
-        h.cleanup_world(); h.stop('server')
+        if not quarantine: h.cleanup_world()
+        else:
+            h.event('quarantine-unsettled-native-world',{'reason':'Public owner cancellation did not settle; preserve the complete old game and use a distinct certified fixture'})
+        h.stop('server'); h.actions_active=False
         for p in connected: h.wait(lambda p=p:not h.action(p,'snapshot')['play'],'Fixture isolation disconnected '+p,40)
     game=h.root/'server/game'
     if game.exists(): game.rename(h.root/('saved-game-isolation-'+str(uuid.uuid4())[:8]))
