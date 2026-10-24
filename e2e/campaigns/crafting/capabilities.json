@@ -773,5 +773,19 @@
       "name": "Production ownership transfer/revocation",
       "reason": "No player-facing kernel revocation command found. Independent-principal effect-time revocation and lease competition require Agent 1 reconciliation or a separately witnessed available surface; not claimed covered"
     }
-  ]
+  ],
+  "finiteOwnerLimits": {
+    "evidence": "SOURCE_ONLY_NOT_RUNTIME_MEASURED",
+    "jobs": {
+      "total": 64,
+      "active": 32,
+      "settings": "core/src/main/java/dev/aivillages/core/kernel/Jobs.java",
+      "capacityGuard": "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java"
+    },
+    "bootstrapMarkers": {
+      "total": 16,
+      "source": "core/src/main/java/dev/aivillages/core/kernel/BootstrapJournal.java"
+    },
+    "campaignResponse": "Interleave families and stop only if an actual request reports STORAGE_LIMIT_REACHED; preserve all remaining cases as unexecuted; never raise production quotas"
+  }
 }

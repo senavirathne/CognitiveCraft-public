@@ -10,30 +10,55 @@ import time
 from suite import UUID_PATTERN, atomic, read, require, reconnect_players
 from .generator import LOG, OAK, BIRCH, STICK, AXE, TABLE
 from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS
-from .invariants import totals, recipe_balance, composition_balance, delta
-from .oracle import requirements
+from .invariants import totals, recipe_balance, composition_balance, delta, physical_custody, interruption_verification
+from .oracle import requirements, rotated_cells
+from .recipe_model import rules, demands
 
 
-def shortage(case, state, source):
-    """Vanilla arithmetic over measured resources; never reads an execution graph."""
-    stock = state["containers"].get(",".join(map(str, source)), {})
-    q, output = case.get("quantity", 1), case.get("output", AXE)
+def shortage(case, state, source, recipes, *, facility=None, blueprint_origin=None):
+    """Use actual source stock, observed acquisition cells and exported recipe ratios."""
+    source_stock = state["containers"].get(",".join(map(str, source)), {}).copy()
+    acquisition = Counter()
+    for key, block in state.get("blocks", {}).items():
+        position = list(map(int, key.split(",")))
+        if all(LO[i] <= position[i] <= HI[i] for i in range(3)):
+            item = re.search(r"minecraft:[a-z0-9_]+", block)
+            if item and item[0] in {LOG, "minecraft:birch_log"}:
+                acquisition[item[0]] += 1
+    stock = Counter(source_stock); stock.update(acquisition)
+    output, quantity = case.get("output", AXE), case.get("quantity", 1)
+    goals, projection = [], {}
     if case["mode"] == "blueprint":
-        q = len(case["body"]["cells"]) - min(case["completed"], len(case["body"]["cells"]))
-        planks = max(0, q - stock.get(OAK, 0)); sticks = 0
-    elif output == AXE:
-        sticks = max(0, 2*q - stock.get(STICK, 0))
-        planks = max(0, 3*q + 2*((sticks+3)//4) - stock.get(OAK, 0))
-    elif output == TABLE:
-        planks, sticks = max(0, 4*q - stock.get(OAK, 0)), 0
+        cells = rotated_cells(case["body"], blueprint_origin, case["rotation"])
+        matching = 0
+        for cell in cells:
+            block = state["blocks"].get(",".join(map(str, cell[:3])), "UNKNOWN")
+            wanted = case["body"]["palette"][cell[3]]
+            actual = re.search(r"minecraft:[a-z0-9_]+", block)
+            if actual and actual[0] == wanted["block"] and all(
+                    re.search(r"(?:\[|,)" + re.escape(k) + "=" + re.escape(v) + r"(?:,|\])", block)
+                    for k, v in wanted["properties"].items()):
+                matching += 1
+        quantity = len(cells) - matching
+        goals.append({"item": OAK, "quantity": quantity, "consumeExisting": True})
+        projection = {"fullBill": len(cells), "existingBlockContributions": matching, "outstanding": quantity,
+                      "initialStaged": source_stock.get(OAK, 0),
+                      "newOutputRequired": max(0, quantity-source_stock.get(OAK, 0))}
+    elif case["mode"] == "legacy":
+        return {"feasible": True, "scope": "Bread demand is evaluated after its separate actor fixture"}
+    elif (case["mode"] == "facility" and output == TABLE or
+          case["mode"] == "recovery" and case["boundary"] == "after-placement"):
+        goals.append({"item": TABLE, "quantity": 1, "consumeExisting": True, "allowMake": False})
     else:
-        count = (q+3)//4
-        available = stock.get("minecraft:birch_log", 0) + case.get("worldLogs", 0)
-        return {"requiredLogs": count, "availableLogs": available, "feasible": available >= count}
-    needed = (planks + 3) // 4
-    available = stock.get(LOG, 0) + case.get("worldLogs", 0)
-    return {"missingSticks": sticks, "missingPlanks": planks, "requiredLogs": needed,
-            "availableLogs": available, "feasible": available >= needed}
+        if case["mode"] == "facility":
+            present = TABLE in state["blocks"].get(",".join(map(str, facility)), "")
+            if not present:
+                goals.append({"item": TABLE, "quantity": 1, "consumeExisting": True})
+            projection["placementRequired"] = not present
+        goals.append({"item": output, "quantity": quantity, "consumeExisting": False})
+    return {**demands(rules(recipes), goals, stock), **projection,
+            "sourceStock": source_stock, "observedAcquisitionStock": dict(acquisition),
+            "stockScope": "Explicit input container plus the approved loaded acquisition area"}
 
 
 def check_artifacts(h, result):
@@ -54,6 +79,19 @@ def check_artifacts(h, result):
             if capability in capability_keys:
                 valid = valid and value == h.artifacts.get(capability_keys[capability])
     return valid and all(x in hashes for x in used), used
+
+
+def refusal_reason(request, result):
+    """Use this request's reported terminal reason, not the fact it used another wood."""
+    feedback = (request or {}).get("feedback") or ""
+    direct = re.search(r"\breason=([A-Z_]+)", feedback)
+    if direct and not (request or {}).get("accepted"):
+        return direct[1]
+    rows = result.get("views", [])
+    if rows:
+        root = rows[0]
+        return root.get("reason") or (root.get("marker") or {}).get("reason")
+    return None
 
 
 def execute_blueprint(h, case):
@@ -77,8 +115,14 @@ def execute_blueprint(h, case):
     result = h.finish_request(request, 260)
     result.update(preflight=preflight, blueprint=ref, transformedCells=h.blueprint_cells)
     if request["accepted"]:
-        result["allocationStatus"] = h.command("PlayerA", "/aivillage kernel blueprint-status " + request["identity"],
-                                               "blueprint-job=", 40)
+        def allocation():
+            answer = h.command("PlayerA", "/aivillage kernel blueprint-status " + request["identity"], "blueprint-job=", 40)
+            match = re.search(r"\ballocated=(\d+)\b", answer)
+            if match and (not result["completed"] or "currentlyAllocated=true" in answer):
+                return {"response": answer, "quantity": int(match[1]), "currentlyAllocated": "currentlyAllocated=true" in answer}
+            return None
+        result["allocation"] = h.wait(allocation, "Acknowledged current physical blueprint allocation", 20)
+        result["allocationStatus"] = result["allocation"]["response"]
     return request, result
 
 
@@ -95,7 +139,7 @@ def execute_facility(h, case):
     second = h.submit_command(h.command_text(reuse_case))
     final = h.finish_request(second, 180)
     after, final_client = h.snapshot(), h.client_snapshot("PlayerA")
-    conserved, balance = composition_balance(totals(before, client), totals(after, final_client))
+    conserved, balance = composition_balance(totals(before, client), totals(after, final_client), h.recipes)
     new_placements = any(r["stage"] == "PLACE" or r["stage"] == "CRAFT" and r["item"]["id"] == TABLE
                          for r in final.get("receipts", []))
     result["facilityReuse"] = {"request": second, "execution": final, "before": before, "after": after,
@@ -132,6 +176,7 @@ def execute_recovery(h, case):
     # Persist the initial fixture. A before-checkpoint crash is assessed against
     # that durable state, not an unjustified cross-file atomic-save assumption.
     initial_checkpoint = h.save_checkpoint()
+    initial_physical = h.snapshot()
     h.clock("tick rate 2")
     request = h.submit_command(h.command_text(case))
     if not request["accepted"]:
@@ -159,6 +204,10 @@ def execute_recovery(h, case):
     else:
         if case["boundary"] != "before-checkpoint":
             result["checkpoint"] = h.save_checkpoint()
+        result["durablePhysicalState"] = h.snapshot() if "checkpoint" in result else initial_physical
+        if not boundary_matches(case, request, h):
+            raise BoundaryMissed("The requested unfinished boundary was gone before the actual server kill")
+        result["killWitness"] = {"views": h.views(request), "state": h.snapshot(), "time": time.time()}
         cold = read(h.root / "server/process.json")
         h.stop("server", hard=True)
         h.actions_active = False
@@ -172,8 +221,11 @@ def execute_recovery(h, case):
         result["processes"] = {"cold": cold, "warm": warm}
         result.update(h.finish_request(request, 80))
     fence = h.snapshot(); fence_client = h.client_snapshot("PlayerA")
+    result["interruptionVerified"], result["interruptionVerification"] = interruption_verification(request, result, case["interruption"])
+    if "durablePhysicalState" in result:
+        result["durableCustodyVerified"] = physical_custody(result["durablePhysicalState"]) == physical_custody(fence)
     h.quiet(20)
-    require(totals(fence, fence_client) == totals(h.snapshot(), h.client_snapshot("PlayerA")),
+    require(physical_custody(fence) == physical_custody(h.snapshot()),
             "Interrupted task performed late physical effects")
     result["postInterruption"] = {"state": fence, "client": fence_client}
     if case["interruption"] == "restart":
@@ -191,13 +243,12 @@ def execute_recovery(h, case):
         require(h.model_calls() == calls, "Offline known reuse invoked inference")
         reuse_after = h.snapshot()
         ok, conservation = composition_balance(totals(reuse_before, reuse_client),
-                                                totals(reuse_after, h.client_snapshot("PlayerA")))
+                                                totals(reuse_after, h.client_snapshot("PlayerA")), h.recipes)
         result["offlineReuse"] = {"request": reuse_request, "result": reuse, "before": reuse_before,
                                   "after": reuse_after, "conservation": conservation, "conserved": ok,
                                   "delivered": h.container(h.destination, AXE), "calls": calls}
         require(ok and reuse["completed"] and h.container(h.destination, AXE) == 1,
                 "Changed-binding offline reuse did not produce one conserved physical axe")
-    result["completed"] = False
     return request, result
 
 

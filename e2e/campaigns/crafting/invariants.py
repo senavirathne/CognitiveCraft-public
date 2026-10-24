@@ -5,6 +5,7 @@ from collections import Counter
 import re
 
 from .generator import LOG, OAK, STICK, AXE, TABLE
+from .recipe_model import rules, reconcile
 
 
 def totals(state, client=None, *, world=True):
@@ -49,35 +50,57 @@ def recipe_balance(before, after, expected):
     return ok, {"delta": d, "allowedDelta": desired, "batches": batches, "produced": produced}
 
 
-def composition_balance(before, after):
-    """Solve vanilla integer stoichiometry, accepting every valid execution order."""
-    d = delta(before, after)
-    axes, tables = d.get(AXE, 0), d.get(TABLE, 0)
-    stick_units = d.get(STICK, 0) + 2 * axes
-    if axes < 0 or tables < 0 or stick_units < 0 or stick_units % 4:
-        return False, {"delta": d, "reason": "Invalid final craft or stick-batch balance"}
-    sticks = stick_units // 4
-    plank_units = d.get(OAK, 0) + 2 * sticks + 3 * axes + 4 * tables
-    if plank_units < 0 or plank_units % 4:
-        return False, {"delta": d, "reason": "Invalid plank-batch balance"}
-    planks = plank_units // 4
-    allowed = {LOG: -planks, OAK: 4 * planks - 2 * sticks - 3 * axes - 4 * tables,
-               STICK: 4 * sticks - 2 * axes, AXE: axes, TABLE: tables}
-    # Birch's separately registered production shares the same vanilla 1:4 rule.
-    birch = d.get("minecraft:birch_planks", 0)
-    if birch < 0 or birch % 4:
-        return False, {"delta": d, "reason": "Invalid birch-plank balance"}
-    allowed.update({"minecraft:birch_planks": birch, "minecraft:birch_log": -birch // 4})
-    allowed = {k: v for k, v in allowed.items() if v}
-    return d == allowed, {"delta": d, "allowedDelta": allowed,
-                          "batches": {"planks": planks, "sticks": sticks, "axes": axes, "tables": tables}}
+def composition_balance(before, after, recipes):
+    """Accept every order with nonnegative whole batches of actual live recipes."""
+    return reconcile(before, after, rules(recipes))
+
+
+def staging_verification(projection, available, allocation, receipts, root):
+    """SUPPLY allocates the observed outstanding bill and may retain extra stock."""
+    required = projection["outstanding"]
+    allocated = (allocation or {}).get("quantity", 0)
+    new_outputs = sum(r["quantity"] for r in receipts if r["stage"] == "DEPOSIT" and r["item"]["id"] == OAK)
+    facts = {"expectedAllocation": required, "actualAllocation": allocated, "availableStaged": available,
+             "currentlyAllocated": (allocation or {}).get("currentlyAllocated", False),
+             "expectedNewOutputs": projection["newOutputRequired"], "actualNewOutputs": new_outputs,
+             "rootExecuted": bool(root.get("attempts")), "rootManufactureCredit": root.get("fulfilled", 0)}
+    ok = (facts["currentlyAllocated"] and allocated == required and available >= required and
+          new_outputs == projection["newOutputRequired"] and not facts["rootExecuted"] and
+          facts["rootManufactureCredit"] == 0)
+    return ok, facts
+
+
+def physical_custody(state):
+    """Stable material custody, excluding harmless clock/position/network-ID changes."""
+    return {"containers": state["containers"], "blocks": state["blocks"],
+            "actors": {actor["uuid"]: actor["inventory"] for actor in state["actors"]},
+            "drops": sorted((drop["uuid"], drop["item"], drop["count"]) for drop in state["drops"]),
+            "players": {player["uuid"]: player.get("assessmentInventory", {})
+                        for player in state["knownPlayers"].values()}}
+
+
+def interruption_verification(request, result, interruption):
+    """A success marker must never be relabelled as an interrupted task."""
+    views = result.get("views", [])
+    root = views[0] if views else {}
+    marker = root.get("marker") or {}
+    outcome = root.get("outcome") or {}
+    if request.get("kind") == "job":
+        status, reason = root.get("state"), root.get("reason")
+    else:
+        status = "INTERRUPTED" if marker.get("phase") == "INTERRUPTED" else outcome.get("status") or marker.get("outcome")
+        reason = outcome.get("reason") or marker.get("reason")
+    allowed = {"INTERRUPTED"} if interruption == "restart" else {"CANCELLED", "INTERRUPTED"}
+    ok = not result.get("completed") and status in allowed and reason in allowed
+    return ok, {"expected": sorted(allowed), "actualStatus": status, "actualReason": reason,
+                "originalCompleted": result.get("completed"), "request": request.get("identity")}
 
 
 def classify(*, feasible, completed, equivalent, conservation, delivered, requested,
-             unsupported=False, boundary=True, error=None):
+             unsupported=False, boundary=True, error=None, refusal_reason=None, physical_effects=False):
     if not conservation:
         return "FAIL_SAFETY"
-    if completed and feasible and delivered != requested:
+    if completed and delivered != requested:
         return "FAIL_SAFETY"
     if not boundary:
         return "INCONCLUSIVE_BOUNDARY"
@@ -85,7 +108,8 @@ def classify(*, feasible, completed, equivalent, conservation, delivered, reques
         return "UNSUPPORTED_NEW_CAPABILITY"
     if feasible and completed and delivered == requested and not error:
         return "PASS"
-    if equivalent and not completed and delivered == 0:
+    if (equivalent and not completed and delivered == 0 and not physical_effects and not error and
+            refusal_reason in {"RESOURCE_MISSING", "UNSUPPORTED_PRIMITIVE", "TARGET_INVALID"}):
         return "GAP_RECIPE_EQUIVALENCE"
     if not feasible and not completed and delivered == 0 and not error:
         return "PASS_EXPECTED_REFUSAL"

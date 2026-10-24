@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from zipfile import ZipFile
 
+from .recipe_model import natural
+
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
@@ -53,7 +55,11 @@ def grids(recipe, alternatives=None):
 def requirements(probe, quantity):
     if not probe.get("matches") or probe.get("remainderCount") != 0:
         raise ValueError("An actual matching, remainder-free vanilla probe is required")
-    yield_size = probe["count"]
+    quantity = natural(quantity, positive=True)
+    yield_size = natural(probe["count"], positive=True)
+    if not isinstance(probe.get("grid"), list) or not 1 <= len(probe["grid"]) <= 9 or not all(
+            isinstance(item, str) for item in probe["grid"]):
+        raise ValueError("A bounded actual crafting grid is required")
     batches = (quantity + yield_size - 1) // yield_size
     return {"batches": batches, "produced": batches * yield_size,
             "surplus": batches * yield_size - quantity,

@@ -19,9 +19,23 @@ from runtime import digest  # noqa: E402
 from campaigns.crafting.generator import generate, select, LOG, OAK, BIRCH, STICK, AXE, TABLE
 from campaigns.crafting.oracle import requirements, sha, grids
 from campaigns.crafting.harness import CraftingHarness, AdmissionBlocked, BoundaryMissed, coord
-from campaigns.crafting.invariants import totals, recipe_balance, composition_balance, classify, delta
+from campaigns.crafting.invariants import totals, recipe_balance, composition_balance, classify, delta, staging_verification
 from campaigns.crafting.execution import (shortage, execute_blueprint, execute_recovery, execute_facility,
-                                         execute_dynamic, execute_legacy, check_artifacts)
+                                         execute_dynamic, execute_legacy, check_artifacts, refusal_reason)
+from campaigns.crafting.evidence import evidence_path, record_problems
+from campaigns.crafting.scheduling import interleave
+
+
+class CampaignCapacityBlocked(RuntimeError):
+    """A real owner reported finite durable storage exhaustion."""
+
+
+def require_case_fence(result, identity):
+    if result["status"] == "BLOCKED_CAPACITY":
+        raise CampaignCapacityBlocked("STORAGE_LIMIT_REACHED on " + identity +
+                                      "; remaining cases were not submitted and production quotas were preserved")
+    if result.get("cleanupFenced") is False:
+        raise RuntimeError("Case isolation was not established; no further fixtures may be reset")
 
 
 def offsets(root):
@@ -37,11 +51,19 @@ def log_slices(root, folder, before):
         if not path.exists():
             rows.append({"path": name, "available": False}); continue
         target = folder / (name.replace("/", "_") + ".slice")
+        end = path.stat().st_size
+        if offset > end:
+            raise ValueError("Raw log was truncated or replaced during the case: " + name)
         with path.open("rb") as source, target.open("wb") as output:
             source.seek(offset)
-            while chunk := source.read(1024 * 1024):
+            remaining = end-offset
+            while remaining:
+                chunk = source.read(min(remaining, 1024 * 1024))
+                if not chunk:
+                    raise ValueError("Raw log ended before its captured byte boundary")
                 output.write(chunk)
-        rows.append({"path": name, "startByte": offset, "endByte": path.stat().st_size,
+                remaining -= len(chunk)
+        rows.append({"path": name, "startByte": offset, "endByte": end,
                      "slice": str(target.relative_to(root)), "sha256": digest(target), "available": True})
     return rows
 
@@ -80,7 +102,9 @@ def needed_artifacts(case):
 
 
 def run_case(h, case):
-    folder = h.root / "cases" / case["id"]
+    require(not record_problems({"case": case, "status": "NOT_EXECUTED", "attempted": False,
+                                 "terminalObserved": False}), "Invalid generated or replayed case identity")
+    folder = evidence_path(h.root, "cases/" + case["id"])
     folder.mkdir(parents=True, exist_ok=False)
     h.family, h.current_case, h.records = case["id"], case, folder
     h.case_attempted, h.case_requests, h.last_request = False, [], None
@@ -109,10 +133,12 @@ def run_case(h, case):
                    bindings={"source": source, "destination": destination, "facility": facility,
                              "actor": h.entities["PlayerA"], "citizen": h.citizens["PlayerA"],
                              "player": h.players["PlayerA"]})
-        feasibility = shortage(case, before, source) if case["mode"] != "recipe" else {"feasible": True}
+        feasibility = shortage(case, before, source, h.recipes, facility=facility,
+                               blueprint_origin=getattr(h, "blueprint_origin", None)) if case["mode"] != "recipe" else {"feasible": True}
         if case["mode"] == "facility":
-            feasibility["feasible"] = case["facility"] not in {"occupied", "unsupported-floor", "entity-collision",
-                                                               "actor-collision", "absent", "held-item"}
+            if case["facility"] in {"occupied", "unsupported-floor", "entity-collision", "actor-collision"}:
+                feasibility["feasible"] = False
+                feasibility["siteRejectedAtSetup"] = case["facility"]
         if case["mode"] == "blueprint" and case["separateSource"]:
             feasibility["feasible"] = False
         row["independentShortage"] = feasibility
@@ -138,6 +164,7 @@ def run_case(h, case):
             request, result = execute_legacy(h, case, expected)
             before, client_before = result["before"], result["clientBefore"]
             row.update(before=before, clientBefore=client_before, requested=result["requested"])
+            row["bindings"].update(actor=h.legacy_entity, citizen=None, controlSurface="legacy-food")
             source = destination = list(h.source)
             feasibility["feasible"] = case["facility"] == "existing"
         elif case.get("dynamic"):
@@ -152,7 +179,7 @@ def run_case(h, case):
             after, client_after = result["postInterruption"]["state"], result["postInterruption"]["client"]
         before_totals, after_totals = totals(before, client_before), totals(after, client_after)
         conserved, balance = (recipe_balance(before_totals, after_totals, expected) if expected else
-                              composition_balance(before_totals, after_totals))
+                              composition_balance(before_totals, after_totals, h.recipes))
         key = ",".join(map(str, destination))
         output = case.get("output", OAK)
         delivered = after["containers"].get(key, {}).get(output, 0) - before["containers"].get(key, {}).get(output, 0)
@@ -165,9 +192,10 @@ def run_case(h, case):
                 feasibility["feasible"] = True
                 row["actorCollisionClearedNaturally"] = True
         if case["mode"] == "blueprint":
-            requested = len(case["body"]["cells"]) - min(case["completed"], len(case["body"]["cells"]))
+            requested = feasibility["outstanding"]
             # SUPPLY may allocate pre-existing stock, whereas MAKE must prove new output.
-            delivered = after["containers"].get(key, {}).get(OAK, 0)
+            delivered = (result.get("allocation") or {}).get("quantity", 0)
+            row["availableStaged"] = after["containers"].get(key, {}).get(OAK, 0)
             require(all(after["blocks"].get(",".join(map(str, c[:3]))) == before["blocks"].get(",".join(map(str, c[:3])))
                         for c in h.blueprint_cells), "Staging changed construction blocks")
         artifacts_ok, used = check_artifacts(h, result)
@@ -176,9 +204,20 @@ def run_case(h, case):
             artifacts_ok = artifacts_ok and marker.get("artifactSha256") == h.artifacts[output]
         require(artifacts_ok, "Known gameplay changed an admitted artifact identity")
         require(h.model_calls() == calls, "Known execution invoked a model")
+        reason = refusal_reason(request, result)
+        effects = any(r.get("stage") in {"WITHDRAW", "CRAFT", "PLACE", "DEPOSIT", "HARVEST", "PICKUP"}
+                      for r in result.get("receipts", []))
         status = classify(feasible=feasibility["feasible"], completed=result["completed"],
-                          equivalent=case.get("equivalence", False), conservation=conserved,
-                          delivered=delivered, requested=requested)
+                          equivalent=bool(case.get("metamorphicControlId")), conservation=conserved,
+                          delivered=delivered, requested=requested, refusal_reason=reason, physical_effects=effects)
+        row["reportedReason"] = reason
+        capacity_blocked = reason == "STORAGE_LIMIT_REACHED" and not result["completed"] and conserved
+        if case["mode"] == "blueprint" and result["completed"]:
+            ok, allocation_facts = staging_verification(feasibility, row["availableStaged"], result.get("allocation"),
+                                                       result.get("receipts", []), result["views"][0])
+            row["allocationReconciliation"] = allocation_facts
+            if not ok:
+                status = "FAIL_SAFETY"
         if case.get("distribution") in {"held", "split-containers"} and not result["completed"] and conserved:
             status = "GAP_RESOURCE_DISTRIBUTION"
         if case.get("facility") == "held-item" and not result["completed"] and conserved:
@@ -186,7 +225,14 @@ def run_case(h, case):
         if result.get("reuseVerified") is False:
             status = "FAIL_GAMEPLAY" if result["facilityReuse"]["conserved"] else "FAIL_SAFETY"
         if case["mode"] == "recovery":
-            status = "PASS_RECOVERY" if conserved and not result["completed"] and result.get("boundary") else "FAIL_SAFETY" if not conserved else "INCONCLUSIVE_BOUNDARY"
+            if not conserved or result.get("durableCustodyVerified") is False:
+                status = "FAIL_SAFETY"
+            elif not result.get("boundary"):
+                status = "INCONCLUSIVE_BOUNDARY"
+            elif not result.get("interruptionVerified"):
+                status = "FAIL_GAMEPLAY"
+            else:
+                status = "PASS_RECOVERY"
         if case.get("dynamic"):
             witnessed = result.get("dynamic", {}).get("witnessed") or result.get("competitionWitnessed")
             if not witnessed:
@@ -198,6 +244,8 @@ def run_case(h, case):
                 status = "PASS_CONTENTION" if completed <= 1 else "FAIL_SAFETY"
             else:
                 status = "PASS_EXPECTED_INTERRUPTION" if not result["completed"] and delivered < requested else "FAIL_GAMEPLAY"
+        if capacity_blocked:
+            status = "BLOCKED_CAPACITY"
         # A real synchronized menu is required in addition to server-side inventory.
         menu = None
         if output != TABLE or case["mode"] != "facility":
@@ -291,10 +339,16 @@ def main():
               "definitionFiles": {str(p.relative_to(ROOT)): digest(p) for p in
                   sorted((ROOT / "campaigns/crafting").rglob("*")) if p.suffix in {".py", ".java", ".json"}},
               "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9"}
+    inherited = [ROOT / name for name in ("suite.py", "runtime.py", "launch.py", "fixtures.py", "navigation.py", "compose.yml", "Dockerfile")]
+    inherited += sorted((ROOT / "client").rglob("*")) + sorted((ROOT / "observer").rglob("*"))
+    inherited += sorted((ROOT.parent / "scripts/campaign-crafting").rglob("*.py"))
+    frozen["inheritedFiles"] = {str(path.relative_to(ROOT.parent)): digest(path) for path in inherited if path.is_file()}
+    if args.replay:
+        frozen["replayInputSha256"] = digest(args.replay)
     atomic(root / "definitions-frozen.json", frozen)
     h, rows, scheduled = None, [], []
     campaign = {"schema": 1, "mode": args.mode, "status": "STARTING", "productionBaseline": frozen["productionBaseline"],
-                "definitionHash": sha(frozen), "results": rows, "clientCount": 1}
+                "definitionHash": sha(frozen), "results": rows, "clientCount": 1, "replay": bool(args.replay)}
     atomic(root / "campaign.json", campaign)
     try:
         h = CraftingHarness(root, frozen["productionBaseline"])
@@ -317,7 +371,7 @@ def main():
             control = held_by_id.get(case.get("metamorphicControlId"))
             if control and control not in held_selected:
                 held_selected.append(control)
-        scheduled = read(args.replay) if args.replay else select(cases, args.mode) + held_selected
+        scheduled = read(args.replay) if args.replay else interleave(select(cases, args.mode)) + interleave(held_selected)
         if not isinstance(scheduled, list):
             scheduled = [scheduled]
         atomic(root / "schedule.json", scheduled)
@@ -330,8 +384,7 @@ def main():
             campaign["counts"] = dict(Counter(r["status"] for r in rows))
             atomic(root / "campaign.json", campaign)
             print(json.dumps(rows[-1]), flush=True)
-            if result.get("cleanupFenced") is False:
-                raise RuntimeError("Case isolation was not established; no further fixtures may be reset")
+            require_case_fence(result, case["id"])
         # Preserve failures, then make bounded fresh reproductions. These are
         # candidates for minimization, never silently substituted for originals.
         reproductions, groups = [], set()
@@ -359,7 +412,10 @@ def main():
                              "attempted": result["attempted"], "terminalObserved": result["terminalObserved"],
                              "path": "cases/" + case["id"] + "/result.json"})
                 atomic(root / "campaign.json", campaign)
+                require_case_fence(result, case["id"])
         campaign["status"] = "RECORDED"
+    except CampaignCapacityBlocked as error:
+        campaign.update(status="BLOCKED_CAPACITY", error=str(error), reason="STORAGE_LIMIT_REACHED")
     except Exception as error:
         campaign.update(status="BLOCKED_INFRASTRUCTURE", error=repr(error), traceback=traceback.format_exc())
     finally:

@@ -114,7 +114,7 @@ def generate(recipes, seed, *, held_out=False):
     for i in range(16):
         add("P6", "blueprint", body=blueprint([1, 5, 8, 13][i % 4]),
             rotation=i % 4, completed=i % 3, distribution=["ready", "logs", "partial", "insufficient"][i // 4],
-            separateSource=i == 15, variant=i)
+            stagedSurplus=i % 3 if i // 4 == 0 else 0, separateSource=i == 15, variant=i)
     boundaries = ["before-withdrawal", "after-withdrawal", "after-intermediate", "after-craft",
                   "before-deposit", "after-placement", "before-checkpoint", "after-checkpoint"]
     for i in range(16):

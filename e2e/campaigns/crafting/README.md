@@ -20,6 +20,17 @@ generated campaign. No production recipes, capabilities or policies are changed.
 
 ## Families and oracle
 
+Branch-only continuation adds live-recipe composition arithmetic, measured blueprint
+contributions and staging-surplus accounting. Recovery preserves the actual terminal
+outcome instead of relabelling a completed request as interrupted, and compares saved
+container/actor/player/drop custody after restart. Raw logs use fixed byte boundaries;
+the verifier ties commands, identities, vanilla probes and native frames to each case.
+
+The current local checks pass **72 existing harness tests and 54 evaluator tests**.
+Seven existing Actions checks passed on the previous published candidate `9ba8477`.
+Those checks are not new crafting gameplay evidence. The new manual campaign remains
+unexecuted, and its Java 25 instrumentation remains unqualified at runtime.
+
 | Family | Shared property |
 |---|---|
 | P1 | All discovered vanilla plank recipes/ingredient alternatives, quantities, batches and surplus |
@@ -113,6 +124,14 @@ saved executable body is fabricated or silently installed. All failures and
 earlier attempts remain intact.
 
 ## Known boundaries that remain visible
+
+The source also declares finite owner limits: Jobs allows 64 total records and 32
+active records, while BootstrapJournal retains 16 run markers. `JobLifecycleStore`
+rejects capacity overflow with `STORAGE_LIMIT_REACHED`. These are source observations,
+not measured campaign failures. The schedule interleaves families and executes paired
+controls first. If a real request reports that capacity refusal, the campaign records
+`BLOCKED_CAPACITY`, stops further submissions and preserves the remaining schedule as
+unexecuted. It does not raise production quotas or restart the server to erase history.
 
 - Valid vanilla substitutions safely refused by oak-specific bindings are
   `GAP_RECIPE_EQUIVALENCE`, never gameplay success.

@@ -113,12 +113,13 @@ class CraftingHarness(Harness):
 
     def probe(self, case):
         recipe = self.recipes[case["recipe"]]
-        value = {"id": case["id"], "recipe": case["recipe"], "width": recipe["width"],
+        value = {"id": str(uuid.uuid4()), "caseId": case["id"], "recipe": case["recipe"], "width": recipe["width"],
                  "height": recipe["height"], "grid": case["grid"]}
         atomic(self.root / "oracle-request.json", value)
-        result = self.wait(lambda: (r if (r := read(self.root / "oracle-response.json")) and r["id"] == case["id"] else None),
+        result = self.wait(lambda: (r if (r := read(self.root / "oracle-response.json")) and r["id"] == value["id"] else None),
                            "Independent running-game recipe match", 20)
         require(result["worldEffects"] == 0 and result["matches"], "Generated substitution is not a valid vanilla recipe")
+        require(all(result.get(key) == val for key, val in value.items()), "Oracle response describes another probe/grid")
         return result
 
     def stock(self, position, contents, kind="chest", layout="packed"):
@@ -209,7 +210,7 @@ class CraftingHarness(Harness):
                 self.console(["setblock " + coord(self.facility) + " minecraft:air"])
             if case["mode"] == "blueprint":
                 outstanding = max(0, len(case["body"]["cells"]) - case["completed"])
-                stock = ({OAK: outstanding} if distribution == "ready" else
+                stock = ({OAK: outstanding + case.get("stagedSurplus", 0)} if distribution == "ready" else
                          {LOG: (outstanding + 3) // 4} if distribution == "logs" else
                          {OAK: min(2, outstanding), LOG: (max(0, outstanding-2)+3)//4} if distribution == "partial" else {})
                 self.destination = self.source if not case["separateSource"] else self.destination
@@ -316,7 +317,7 @@ class CraftingHarness(Harness):
             return rows if root.get("state") in {"SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED"} else None
         rows = self.wait(terminal, "Actual player request terminal evidence", timeout)
         root = rows[0]
-        completed = root.get("state") == "SUCCEEDED" if request["kind"] == "job" else root.get("marker", {}).get("outcome") in {"SUCCEEDED", "ADMITTED"}
+        completed = root.get("state") == "SUCCEEDED" if request["kind"] == "job" else (root.get("marker") or {}).get("outcome") in {"SUCCEEDED", "ADMITTED"}
         self.actions_active = False
         return {"completed": completed, "terminal": True, "views": rows, "receipts": self.receipts_for(request)}
 
@@ -379,7 +380,7 @@ class CraftingHarness(Harness):
                             "Admission receipts disagree with independently measured recipe effects")
                 else:
                     conserved, balance = composition_balance(totals(physical_before, client_before),
-                                                               totals(physical_after, client_after))
+                                                               totals(physical_after, client_after), self.recipes)
                     require(conserved, "Genuine admission lost or duplicated resources")
                     if output == "placement":
                         require(TABLE in physical_after["blocks"].get(",".join(map(str, self.facility)), "") and

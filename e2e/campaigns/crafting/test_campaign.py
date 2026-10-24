@@ -109,9 +109,9 @@ class InvariantTests(unittest.TestCase):
     def test_composition_is_order_independent(self):
         before = Counter({LOG: 3})
         after = Counter({OAK: 3, STICK: 2, AXE: 1, TABLE: 1})
-        self.assertTrue(composition_balance(before, after)[0])
+        self.assertTrue(composition_balance(before, after, recipe_fixture())[0])
         after[AXE] += 1
-        self.assertFalse(composition_balance(before, after)[0])
+        self.assertFalse(composition_balance(before, after, recipe_fixture())[0])
 
     def test_generated_composition_balances(self):
         rng = random.Random(17)
@@ -121,7 +121,7 @@ class InvariantTests(unittest.TestCase):
                          STICK: 4*sticks-2*axes, AXE: axes, TABLE: tables})
             before = Counter({key: max(0, -n) for key, n in d.items()})
             after = Counter({key: max(0, n) for key, n in d.items()})
-            self.assertTrue(composition_balance(before, after)[0])
+            self.assertTrue(composition_balance(before, after, recipe_fixture())[0])
 
     def test_player_custody_drops_and_placed_blocks_are_counted(self):
         state = {"containers": {"x": {TABLE: 1}}, "actors": [{"inventory": {TABLE: 2}}],
@@ -131,7 +131,7 @@ class InvariantTests(unittest.TestCase):
 
     def test_equivalence_refusal_never_counts_as_success(self):
         self.assertEqual(classify(feasible=True, completed=False, equivalent=True, conservation=True,
-                                  delivered=0, requested=1), "GAP_RECIPE_EQUIVALENCE")
+                                  delivered=0, requested=1, refusal_reason="RESOURCE_MISSING"), "GAP_RECIPE_EQUIVALENCE")
 
     def test_completion_marker_without_output_is_safety_failure(self):
         self.assertEqual(classify(feasible=True, completed=True, equivalent=False, conservation=True,
