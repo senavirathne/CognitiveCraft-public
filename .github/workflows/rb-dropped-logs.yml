@@ -149,13 +149,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          fetch-depth: 0
+      - name: Test archive selection and qualified source identity
+        run: python3 -m unittest discover -s scripts -p 'test_dropped_archive_review.py'
       - name: Verify original failures and all current archive bytes, production copies, frames and receipts
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 scripts/review-dropped-logs-archive.py --historical --root build/a02-independent-review
-          python3 scripts/review-dropped-logs-archive.py --root build/a02-independent-review
+          if [ -f .github/implementation/all-branches-source.json ]; then
+            python3 scripts/review-dropped-logs-archive.py --integrated --root build/a02-independent-review
+          else
+            python3 scripts/review-dropped-logs-archive.py --root build/a02-independent-review
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
