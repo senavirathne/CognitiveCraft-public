@@ -9,8 +9,10 @@ Documentation baseline: `d80f1db443a2493b3e422f435e069a7863076b07`.
 The campaign is implemented on `test/generalization-crafting`. Full run
 40112796714 at `aa8fb7b` admitted all eight methods and attempted 34 of 334 cases,
 then stopped on an actual capacity refusal. Four matched recipe substitutions
-were safely refused despite vanilla validity. The four legacy safety flags include
-a stale pre-fixture table snapshot and require the focused measurement correction.
+were safely refused despite vanilla validity and reproduced in fresh controls.
+All four legacy safety flags were invalid fixture-baseline measurements; all four
+fresh synchronized cases pass conservation. Run 40120320696 confirms composed
+birch quantity 3 fails REQUEST_INVALID while the same setup at quantity 4 passes.
 The original classifications and evidence are retained, not overwritten.
 
 The workflow has a branch-specific push trigger and optional manual dispatch,
@@ -36,7 +38,11 @@ fourteen-case focused batch: 8 PASS, 4 reproduced recipe gaps and 2 BLOCKED_ADMI
 All four corrected legacy cases passed; all four minimized substitutions remained
 refused with canonical controls passing. The birch quantity pair did not execute
 because the harness unnecessarily required gathering despite stocked input logs.
-The next replay contains only that pair and genuinely admits only its producer.
+The final replay contains only that pair and genuinely admits only its producer.
+Both cases executed: quantity 3 FAIL_GAMEPLAY with no attempts/physical delta;
+quantity 4 PASS with one log consumed and four planks delivered. Evidence collection
+is complete for that pair, but researchComplete remains false. All 132 Python
+checks and the unchanged-production guard passed in its Actions job.
 These replays do not complete the 300 unexecuted full-campaign cases.
 
 | Family | Shared property |

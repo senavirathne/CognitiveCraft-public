@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "recordedAt": 1792866078.0233853,
-  "status": "PARTIAL_CAPACITY_BLOCKED_BIRCH_QUANTITY_PAIR_PENDING",
+  "recordedAt": 1792866989.291942,
+  "status": "PARTIAL_CAPACITY_BLOCKED_FINDINGS_REPRODUCED",
   "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
   "productionFilesUnchanged": 181,
   "newMinecraftCasesAttempted": 34,
@@ -38,8 +38,8 @@
   "actionsWorkflow": ".github/workflows/generalization-crafting.yml",
   "actionsRunId": 40112796714,
   "blockers": [
-    "Original full run remains blocked by 128 retired lease records; 300 scheduled cases unexecuted",
-    "The two ready-birch replay cases were unnecessarily gated on gathering admission; corrected requirement awaits two-case replay"
+    "Full persistent run remains blocked by 128 retired lease records; 300 scheduled cases unexecuted",
+    "Exhaustive ingredient alternatives, held-out cases and actual server-restart recovery remain unexecuted"
   ],
   "defaultBranchChanged": false,
   "branchesMerged": false,
@@ -115,6 +115,15 @@
       "generatedGameplayAttempts": 12,
       "artifactId": 12570503331,
       "artifactSHA256": "d5db7bf2c57001454772992093ac680414e94976452c4013798c32c6a47ef17c"
+    },
+    {
+      "id": 40120320696,
+      "sourceCommit": "401773cf71c7dd473eb2ae93405cd23acd189a28",
+      "conclusion": "success",
+      "classification": "EVIDENCE_COLLECTED_WITH_CONFIRMED_GAMEPLAY_FAILURE",
+      "generatedGameplayAttempts": 2,
+      "artifactId": 12571690373,
+      "artifactSHA256": "f0ebd62bc2ca76f2a83704535c545158c8ee7dc0871fddc00c069fa11da41f98"
     }
   ],
   "observedFullRun": {
@@ -155,7 +164,16 @@
     "caseCount": 2,
     "source": "e2e/campaigns/crafting/reproductions.json",
     "purpose": "Ready birch quantities 3/4 require only admitted plank production, not unneeded acquisition",
-    "completesRemainingFullCases": false
+    "completesRemainingFullCases": false,
+    "completed": true,
+    "runId": 40120320696,
+    "classifications": {
+      "FAIL_GAMEPLAY": 1,
+      "PASS": 1
+    },
+    "evidenceProblems": [],
+    "executionComplete": true,
+    "researchComplete": false
   },
   "focusedReplayResults": {
     "runId": 40118329451,
@@ -174,5 +192,16 @@
     "artifactId": 12570503331,
     "artifactSHA256": "d5db7bf2c57001454772992093ac680414e94976452c4013798c32c6a47ef17c"
   },
-  "measurementCorrection": "One shared before-measurement observer barrier covers complete legacy table setup and newly placed acquisition logs; conservation rules and production are unchanged"
+  "measurementCorrection": "One shared before-measurement observer barrier covers complete legacy table setup and newly placed acquisition logs; conservation rules and production are unchanged",
+  "completedMeans": "Original full-run terminal observations, including failures; fresh reproductions counted separately",
+  "reviewedFindings": {
+    "materialGaps": 4,
+    "freshCanonicalControlsPass": 4,
+    "freshLegacyConservationPass": 4,
+    "confirmedProductionSafetyFailuresFromOriginalLegacyFlags": 0,
+    "birchQuantity3": "Reproduced FAIL_GAMEPLAY / REQUEST_INVALID / zero physical attempts",
+    "birchQuantity4": "PASS / one log consumed / four planks delivered",
+    "fullRunRemaining": 300,
+    "restartsTested": 0
+  }
 }
