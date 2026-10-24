@@ -1,5 +1,6 @@
 name: Abstract crafting generalization campaign
-# Branch launch 3: provide the shared observer's required read-only input.
+run-name: ${{ contains(github.event.head_commit.message, '[inspect-crafting-evidence]') && 'Inspect saved crafting evidence' || 'Full crafting generalization campaign' }}
+# Evidence inspection: reuse the saved archive; no new Minecraft execution.
 on:
   push:
     branches: [test/generalization-crafting]
@@ -22,6 +23,7 @@ on:
         default: test/generalization-crafting
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: generalization-crafting-${{ github.ref }}
   cancel-in-progress: false
@@ -29,46 +31,56 @@ jobs:
   consolidated-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    env:
+      CRAFTING_EVIDENCE_ONLY: ${{ contains(github.event.head_commit.message, '[inspect-crafting-evidence]') }}
     steps:
       - uses: actions/checkout@v6
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         with:
           ref: ${{ inputs.source_ref || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-java@v4
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         with:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
       - uses: actions/cache@v4
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         with:
           path: |
             build/e2e-sdk
             build/server-sdk
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
       - name: Freeze and verify unchanged production
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         run: python3 scripts/campaign-crafting/verify.py baseline
       - name: Build production once and verify the evaluator
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
       - name: Prepare official runtime and compile isolated instruments once
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
           python3 scripts/campaign-crafting/prepare.py
       - name: Run every selected family through the same server and client
+        if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         env:
           CAMPAIGN_MODE: ${{ inputs.mode || 'full' }}
           CAMPAIGN_SEED: ${{ inputs.seed || '20261024' }}
         run: |
           python3 e2e/campaigns/crafting/run.py --root build/e2e/crafting --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED"
       - name: Reconcile all cases, original logs and physical evidence
-        if: always()
+        if: ${{ always() && env.CRAFTING_EVIDENCE_ONLY != 'true' }}
         run: python3 scripts/campaign-crafting/verify.py collect --root build/e2e/crafting
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && env.CRAFTING_EVIDENCE_ONLY != 'true' }}
         with:
           name: generalization-crafting-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
@@ -83,3 +95,139 @@ jobs:
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/
+      - name: Inspect the original saved crafting archive
+        if: env.CRAFTING_EVIDENCE_ONLY == 'true'
+        timeout-minutes: 20
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import hashlib, json, os, shutil, urllib.error, urllib.request, zipfile
+          
+          artifact_id = 12568796135
+          expected_sha = "972e717e81a6d7a8df1a1debe74dc1223f75171a84bdf78e5a5171142394ace1"
+          archive = Path(os.environ["RUNNER_TEMP"]) / "crafting-original.zip"
+          output = Path("build/e2e/crafting-inspection")
+          output.mkdir(parents=True, exist_ok=True)
+          
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          
+          request = urllib.request.Request(
+              "https://api.github.com/repos/senavirathne/CognitiveCraft-public/actions/artifacts/" + str(artifact_id) + "/zip",
+              headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                       "Accept": "application/vnd.github+json",
+                       "X-GitHub-Api-Version": "2022-11-28"})
+          try:
+              urllib.request.build_opener(NoRedirect).open(request, timeout=120)
+          except urllib.error.HTTPError as redirect:
+              if redirect.code not in (301, 302, 303, 307, 308):
+                  raise
+              download_url = redirect.headers["Location"]
+          else:
+              raise RuntimeError("Expected GitHub artifact redirect")
+          if not download_url.startswith("https://"):
+              raise RuntimeError("HTTPS artifact download required")
+          with urllib.request.urlopen(download_url, timeout=300) as response, archive.open("wb") as target:
+              shutil.copyfileobj(response, target, 1024 * 1024)
+          with archive.open("rb") as stream:
+              actual_sha = hashlib.file_digest(stream, "sha256").hexdigest()
+          assert actual_sha == expected_sha, (actual_sha, expected_sha)
+          
+          prefix = "build/e2e/crafting/"
+          budget = 350 * 1024 * 1024
+          maximum_log = 64 * 1024 * 1024
+          root_names = {"campaign.json", "assessment.json", "admissions.json", "oracle-recipes.json",
+                        "metadata.json", "definitions-frozen.json", "held-out-seed.json",
+                        "cases-development.json", "cases-held-out.json", "schedule.json",
+                        "coverage.json", "report.md", "configuration-manifest.json",
+                        "screenshots.json", "resources.jsonl", "supervisor.jsonl",
+                        "observation-area.json", "oracle-candidates.json", "assessment-language.json"}
+          manifest = {"schema": 1, "originalRunId": 40112796714, "originalArtifactId": artifact_id,
+                      "originalArtifactSha256": actual_sha, "originalArchiveBytes": archive.stat().st_size,
+                      "inspectionOnly": True, "minecraftExecuted": False,
+                      "byteBudget": budget, "files": [], "omitted": []}
+          selected, used = [], 0
+          with zipfile.ZipFile(archive) as source:
+              campaign = json.loads(source.read(prefix + "campaign.json"))
+              assessment = json.loads(source.read(prefix + "assessment.json"))
+              manifest["originalSourceCommit"] = json.loads(source.read(prefix + "metadata.json"))["sourceCommit"]
+              failure_ids = {r["id"] for r in campaign["results"] if not r["status"].startswith("PASS")}
+              for item in source.infolist():
+                  if item.is_dir():
+                      continue
+                  path = PurePosixPath(item.filename)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise RuntimeError("Unsafe archive member")
+                  relative = item.filename.removeprefix(prefix)
+                  priority = None
+                  if item.filename == "build/campaign-crafting-baseline.json":
+                      priority = 0
+                  elif item.filename.startswith(prefix):
+                      if relative in root_names:
+                          priority = 0
+                      elif relative.startswith("cases/") and path.name in {"result.json", "case.json"}:
+                          priority = 0
+                      elif relative.startswith("server/game/world/data/cognitivecraft/") and path.suffix == ".json":
+                          priority = 0
+                      elif relative in {"server/stdout.log", "docker.log", "server/process.json",
+                                        "server/exit.json", "clients/PlayerA/stdout.log",
+                                        "clients/PlayerA/process.json", "clients/PlayerA/exit.json"}:
+                          priority = 1
+                      elif path.suffix == ".png":
+                          priority = 2
+                      elif relative.startswith("cases/") and path.suffix == ".slice" and "observations" not in path.name:
+                          priority = 2 if path.parts[4] in failure_ids else 3
+                      elif "crash-reports" in path.parts:
+                          priority = 1
+                  if priority is None:
+                      manifest["omitted"].append({"path": item.filename, "bytes": item.file_size,
+                                                  "zipCRC32": item.CRC, "reason": "outside bounded inspection subset"})
+                  else:
+                      selected.append((priority, item.filename, item))
+              for priority, name, item in sorted(selected):
+                  if (priority > 0 and item.file_size > maximum_log) or used + item.file_size > budget:
+                      manifest["omitted"].append({"path": name, "bytes": item.file_size,
+                                                  "zipCRC32": item.CRC, "reason": "inspection size bound"})
+                      continue
+                  target = output / name
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with source.open(item) as stream, target.open("wb") as destination:
+                      shutil.copyfileobj(stream, destination, 1024 * 1024)
+                  with target.open("rb") as stream:
+                      digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                  manifest["files"].append({"path": name, "bytes": item.file_size, "sha256": digest,
+                                             "zipCRC32": item.CRC})
+                  used += item.file_size
+              manifest["preservedBytes"] = used
+              (output / "inspection-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+              print(json.dumps({"originalSource": manifest["originalSourceCommit"],
+                                "campaignStatus": campaign["status"], "counts": campaign.get("counts"),
+                                "originalError": campaign.get("error"), "scheduled": campaign.get("scheduled"),
+                                "notExecuted": len(campaign.get("notExecuted", [])),
+                                "coverage": assessment.get("coverage"), "evidenceProblems": assessment.get("evidenceProblems"),
+                                "preservedFiles": len(manifest["files"]), "preservedBytes": used,
+                                "omittedFiles": len(manifest["omitted"])}), flush=True)
+              for row in campaign["results"]:
+                  if row["status"].startswith("PASS"):
+                      continue
+                  record = json.loads(source.read(prefix + row["path"]))
+                  print(json.dumps({"case": record["case"], "status": record["status"],
+                                    "reason": record.get("reportedReason"), "error": record.get("error"),
+                                    "conservation": record.get("conservation"),
+                                    "physicalDelta": record.get("physicalDelta"),
+                                    "receiptReconciliation": record.get("receiptReconciliation")}), flush=True)
+          archive.unlink()
+          PY
+      - name: Preserve bounded original evidence for inspection
+        if: ${{ always() && env.CRAFTING_EVIDENCE_ONLY == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: crafting-evidence-40112796714-${{ github.run_id }}
+          path: build/e2e/crafting-inspection/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
