@@ -1,12 +1,11 @@
 {
   "schema": 1,
-  "launchId": "world-durable-receipt-recovery-20261024-06b",
+  "launchId": "world-original-program-comparisons-20261024-07",
   "mode": "full",
   "seed": 104729,
-  "heldoutSeed": 49979687,
-  "families": ["W6", "W9", "W10", "W11", "W12"],
-  "isolateFamilies": true,
-  "cohortCases": 6,
+  "families": ["W1", "W4"],
+  "failureProbes": true,
+  "nativeCertificate": 12563506914,
   "reviewPrior": false,
   "budget": 0
 }
