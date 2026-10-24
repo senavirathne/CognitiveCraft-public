@@ -325,12 +325,18 @@ class CraftingHarness(Harness):
         self.actions_active = False
         return {"completed": completed, "terminal": True, "views": rows, "receipts": self.receipts_for(request)}
 
-    def bootstrap(self):
+    def bootstrap(self, required=None):
         # No seeded executable bodies. The only inference phase is genuine method admission.
-        self.env["COGNITIVECRAFT_OLLAMA_MODEL"] = "qwen3:4b-instruct-2507-q4_K_M"
+        order = [OAK, BIRCH, STICK, TABLE, AXE, "placement", "oak-acquisition", "birch-acquisition"]
+        selected = order if required is None else [item for item in order if item in required]
+        metadata = read(self.root / "metadata.json")
+        metadata["methodAdmissionRequirements"] = selected
+        atomic(self.root / "metadata.json", metadata)
+        self.env["COGNITIVECRAFT_OLLAMA_MODEL"] = "qwen3:4b-instruct-2507-q4_K_M" if selected else ""
         self.compose("build", "minecraft")
-        self.compose("up", "-d", "ollama")
-        self.compose("exec", "-T", "ollama", "ollama", "pull", self.env["COGNITIVECRAFT_OLLAMA_MODEL"])
+        if selected:
+            self.compose("up", "-d", "ollama")
+            self.compose("exec", "-T", "ollama", "ollama", "pull", self.env["COGNITIVECRAFT_OLLAMA_MODEL"])
         self.fresh(two=False)
         for i in range(2):
             spawn = [66.5 + i*14, 208, 69.5]
@@ -340,8 +346,9 @@ class CraftingHarness(Harness):
             self.enroll(name=["Ada", "Mira"][i])
             self.subjects.append((self.citizens["PlayerA"], self.entities["PlayerA"]))
         self.recipes = self.wait(lambda: read(self.root / "oracle-recipes.json"), "Live vanilla recipe catalogue", 30)["recipes"]
-        self.command("PlayerA", "/aivillage kernel inference true", "admission=true")
-        for output in [OAK, BIRCH, STICK, TABLE, AXE, "placement", "oak-acquisition", "birch-acquisition"]:
+        if selected:
+            self.command("PlayerA", "/aivillage kernel inference true", "admission=true")
+        for output in selected:
             row = {"capability": output, "status": "NOT_EXECUTED"}
             self.family = "ADMISSION-" + output.split(":")[-1]
             try:
@@ -401,7 +408,8 @@ class CraftingHarness(Harness):
             self.admissions.append(row)
             atomic(self.root / "admissions.json", {"rows": self.admissions, "artifacts": self.artifacts})
         self.command("PlayerA", "/aivillage kernel inference false", "admission=false")
-        self.compose("stop", "ollama")
+        if selected:
+            self.compose("stop", "ollama")
         self.assert_backend_stopped()
 
     def assert_backend_stopped(self):

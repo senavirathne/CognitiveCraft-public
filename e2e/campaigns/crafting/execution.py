@@ -313,6 +313,19 @@ def execute_dynamic(h, case):
     return request, result
 
 
+def fixture_observation(h, expected_tables):
+    """Wait for both real observers to see setup before measuring any activity."""
+    def ready():
+        state = h.snapshot()
+        tables = {key for key, block in state.get("blocks", {}).items() if TABLE in block}
+        if tables != expected_tables:
+            return None
+        client = h.client_snapshot("PlayerA")
+        tables = {key for key, block in client.get("blocks", {}).items() if TABLE in block}
+        return (state, client) if tables == expected_tables else None
+    return h.wait(ready, "Server and client observed the complete legacy fixture", 20)
+
+
 def execute_legacy(h, case, expected):
     if not h.legacy_entity:
         old = {a["uuid"] for a in h.snapshot()["actors"]}
@@ -330,7 +343,8 @@ def execute_legacy(h, case, expected):
     h.console(["setblock " + coord(list(x[2])) + " minecraft:air" for x in POSITIONS])
     if case["facility"] == "existing":
         h.console(["setblock " + coord(h.facility) + " minecraft:crafting_table"])
-    before, client = h.snapshot(), h.client_snapshot("PlayerA")
+    wanted_tables = {",".join(map(str, h.facility))} if case["facility"] == "existing" else set()
+    before, client = fixture_observation(h, wanted_tables)
     h.actions_active = True
     h.case_attempted = True
     pending = {"command": "/aivillage food BreadWorker", "kind": "legacy", "identity": h.legacy_entity,

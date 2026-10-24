@@ -14,9 +14,44 @@ E2E = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(E2E))
 from campaigns.crafting import harness
 from suite import atomic
+from campaigns.crafting.execution import fixture_observation
 
 
 class ObserverBootstrapTests(unittest.TestCase):
+    def test_stale_server_fixture_cannot_create_a_false_table_resource_delta(self):
+        snapshots = iter([{"blocks": {}}, {"blocks": {"72,208,69": "Block{minecraft:crafting_table}"}}])
+
+        class Observers:
+            calls = 0
+            def snapshot(self):
+                self.calls += 1
+                return next(snapshots)
+            def client_snapshot(self, player):
+                return {"blocks": {"72,208,69": "Block{minecraft:crafting_table}"}}
+            def wait(self, predicate, reason, seconds):
+                return predicate() or predicate()
+
+        observer = Observers()
+        before, client = fixture_observation(observer, {"72,208,69"})
+        self.assertEqual(observer.calls, 2)
+        self.assertEqual(before["blocks"], client["blocks"])
+
+    def test_absent_facility_requires_both_observers_to_acknowledge_removal(self):
+        class Observers:
+            calls = 0
+            def snapshot(self):
+                return {"blocks": {}}
+            def client_snapshot(self, player):
+                self.calls += 1
+                return {"blocks": {"old": "Block{minecraft:crafting_table}"}} if self.calls == 1 else {"blocks": {}}
+            def wait(self, predicate, reason, seconds):
+                return predicate() or predicate()
+
+        observer = Observers()
+        before, client = fixture_observation(observer, set())
+        self.assertEqual(observer.calls, 2)
+        self.assertEqual(before["blocks"], client["blocks"])
+
     def test_campaign_initialization_supplies_all_shared_observer_inputs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

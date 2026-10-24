@@ -164,7 +164,8 @@ def run_case(h, case):
             request, result = execute_legacy(h, case, expected)
             before, client_before = result["before"], result["clientBefore"]
             row.update(before=before, clientBefore=client_before, requested=result["requested"])
-            row["bindings"].update(actor=h.legacy_entity, citizen=None, controlSurface="legacy-food")
+            row["bindings"].update(actor=h.legacy_entity, citizen=None, controlSurface="legacy-food",
+                                   source=list(h.source), destination=list(h.source), facility=list(h.facility))
             source = destination = list(h.source)
             feasibility["feasible"] = case["facility"] == "existing"
         elif case.get("dynamic"):
@@ -351,8 +352,15 @@ def main():
                 "definitionHash": sha(frozen), "results": rows, "clientCount": 1, "replay": bool(args.replay)}
     atomic(root / "campaign.json", campaign)
     try:
+        replay_cases = read(args.replay) if args.replay else None
+        if args.replay and not isinstance(replay_cases, list):
+            replay_cases = [replay_cases]
+        if args.replay:
+            require(0 < len(replay_cases) <= 512 and all(isinstance(c, dict) for c in replay_cases),
+                    "A bounded nonempty replay schedule is required")
+        required = {item for case in replay_cases for item in needed_artifacts(case)} if replay_cases else None
         h = CraftingHarness(root, frozen["productionBaseline"])
-        h.bootstrap()
+        h.bootstrap(required)
         cases = generate(h.recipes, args.seed)
         atomic(root / "cases-development.json", cases)
         # Entropy is drawn only after definitions are frozen and baseline cases exist.
@@ -371,7 +379,7 @@ def main():
             control = held_by_id.get(case.get("metamorphicControlId"))
             if control and control not in held_selected:
                 held_selected.append(control)
-        scheduled = read(args.replay) if args.replay else interleave(select(cases, args.mode)) + interleave(held_selected)
+        scheduled = replay_cases if args.replay else interleave(select(cases, args.mode)) + interleave(held_selected)
         if not isinstance(scheduled, list):
             scheduled = [scheduled]
         atomic(root / "schedule.json", scheduled)

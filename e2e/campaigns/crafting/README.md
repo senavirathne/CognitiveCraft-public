@@ -6,11 +6,12 @@ Documentation baseline: `d80f1db443a2493b3e422f435e069a7863076b07`.
 
 ## Current execution status
 
-The campaign is implemented on `test/generalization-crafting`. Two Docker launches
-have run, but both stopped in observer setup before generated gameplay cases.
-The Java 25 instruments compiled and the dedicated server started in the second
-launch. No recipe, facility, composition or recovery outcome is established yet.
-Python evaluator checks are separate from gameplay evidence.
+The campaign is implemented on `test/generalization-crafting`. Full run
+40112796714 at `aa8fb7b` admitted all eight methods and attempted 34 of 334 cases,
+then stopped on an actual capacity refusal. Four matched recipe substitutions
+were safely refused despite vanilla validity. The four legacy safety flags include
+a stale pre-fixture table snapshot and require the focused measurement correction.
+The original classifications and evidence are retained, not overwritten.
 
 The workflow has a branch-specific push trigger and optional manual dispatch,
 contains one consolidated job and uploads one artifact.
@@ -28,10 +29,11 @@ outcome instead of relabelling a completed request as interrupted, and compares 
 container/actor/player/drop custody after restart. Raw logs use fixed byte boundaries;
 the verifier ties commands, identities, vanilla probes and native frames to each case.
 
-Current validation passes **72 existing harness tests and 56 evaluator/bootstrap checks**.
+Current validation passes **72 existing harness tests and 58 evaluator/bootstrap checks**.
 Seven existing Actions checks passed on the previous published candidate `9ba8477`.
-Those checks are not new crafting gameplay evidence. A fresh branch run must still
-qualify the complete observer startup and execute the generated cases.
+Those checks are separate from gameplay evidence. Fourteen bounded fresh
+reproductions and controls qualify the fixture barrier and observed gaps; they do
+not complete the 300 unexecuted full-campaign cases.
 
 | Family | Shared property |
 |---|---|
@@ -89,6 +91,19 @@ dedicated server, then the unchanged shared observer rejected a missing
 read-only classifier inputs before starting any service. They do not admit or
 execute methods and are not counted as gameplay cases. Two bootstrap-contract
 checks cover that required input and Mixin namespace separation.
+
+The full run then reached all eight families. Its capacity failure is in resource
+lease retention: 128 retired records (124 RELEASED, 4 REVOKED) blocked acquisition,
+not the previously unmeasured Jobs or bootstrap-marker limits. Limits and history
+remain untouched. The saved archive's 1.38 GB size exceeded plugin retrieval limits;
+inspection run 40116756965 verified its SHA-256 and extracted a bounded original
+subset with a manifest, without executing Minecraft.
+
+A deliberate `[crafting-replay]` workflow commit selects `reproductions.json`
+in replay/smoke mode. Its exact schedule is hashed before bootstrap. Only methods
+needed by those cases undergo genuine admission; a legacy-only replay needs none.
+Server and client must acknowledge the complete fixture before measured legacy
+work starts. Original failed records stay separate from these fresh results.
 
 Manual `workflow_dispatch` inputs remain available for a separately registered
 manual workflow; push launches have explicit defaults. The full campaign does

@@ -1,6 +1,6 @@
 name: Abstract crafting generalization campaign
-run-name: ${{ contains(github.event.head_commit.message, '[inspect-crafting-evidence]') && 'Inspect saved crafting evidence' || 'Full crafting generalization campaign' }}
-# Evidence inspection: reuse the saved archive; no new Minecraft execution.
+run-name: ${{ contains(github.event.head_commit.message, '[inspect-crafting-evidence]') && 'Inspect saved crafting evidence' || contains(github.event.head_commit.message, '[crafting-replay]') && 'Focused crafting reproductions' || 'Full crafting generalization campaign' }}
+# One client for full runs and bounded replays; inspection reuses saved evidence.
 on:
   push:
     branches: [test/generalization-crafting]
@@ -72,10 +72,13 @@ jobs:
       - name: Run every selected family through the same server and client
         if: env.CRAFTING_EVIDENCE_ONLY != 'true'
         env:
-          CAMPAIGN_MODE: ${{ inputs.mode || 'full' }}
+          CAMPAIGN_MODE: ${{ contains(github.event.head_commit.message, '[crafting-replay]') && 'smoke' || inputs.mode || 'full' }}
           CAMPAIGN_SEED: ${{ inputs.seed || '20261024' }}
+          CAMPAIGN_REPLAY: ${{ contains(github.event.head_commit.message, '[crafting-replay]') && 'e2e/campaigns/crafting/reproductions.json' || '' }}
         run: |
-          python3 e2e/campaigns/crafting/run.py --root build/e2e/crafting --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED"
+          args=(--root build/e2e/crafting --mode "$CAMPAIGN_MODE" --seed "$CAMPAIGN_SEED")
+          if [ -n "$CAMPAIGN_REPLAY" ]; then args+=(--replay "$CAMPAIGN_REPLAY"); fi
+          python3 e2e/campaigns/crafting/run.py "${args[@]}"
       - name: Reconcile all cases, original logs and physical evidence
         if: ${{ always() && env.CRAFTING_EVIDENCE_ONLY != 'true' }}
         run: python3 scripts/campaign-crafting/verify.py collect --root build/e2e/crafting
@@ -104,17 +107,17 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path, PurePosixPath
           import hashlib, json, os, shutil, urllib.error, urllib.request, zipfile
-          
+
           artifact_id = 12568796135
           expected_sha = "972e717e81a6d7a8df1a1debe74dc1223f75171a84bdf78e5a5171142394ace1"
           archive = Path(os.environ["RUNNER_TEMP"]) / "crafting-original.zip"
           output = Path("build/e2e/crafting-inspection")
           output.mkdir(parents=True, exist_ok=True)
-          
+
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self, req, fp, code, msg, headers, newurl):
                   return None
-          
+
           request = urllib.request.Request(
               "https://api.github.com/repos/senavirathne/CognitiveCraft-public/actions/artifacts/" + str(artifact_id) + "/zip",
               headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
@@ -135,7 +138,7 @@ jobs:
           with archive.open("rb") as stream:
               actual_sha = hashlib.file_digest(stream, "sha256").hexdigest()
           assert actual_sha == expected_sha, (actual_sha, expected_sha)
-          
+
           prefix = "build/e2e/crafting/"
           budget = 350 * 1024 * 1024
           maximum_log = 64 * 1024 * 1024
