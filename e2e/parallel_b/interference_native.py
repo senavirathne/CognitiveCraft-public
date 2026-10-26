@@ -10,7 +10,7 @@ import traceback
 import urllib.request
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from suite import ROOT,atomic,read,require
+from suite import ROOT,atomic,read,require,DENIED_PATTERN
 from runtime import SDK,digest
 from generalization_support import AssessmentHarness,LOG,PLANK,CAPS,SRC,DST,at,coord
 from parallel_b.diagnostics import enroll_subjects,settled,probe,lines,admit
@@ -22,6 +22,26 @@ from campaigns.crafting.oracle import candidates
 def actor(row):return row['details']['request']['request']['arguments']['actor']['value']['entityId']
 def b_count(snapshot):return snapshot['knownPlayers']['PlayerB']['assessmentInventory'].get(LOG,0)
 def source_key():return ','.join(map(str,SRC))
+
+
+def observed_preparation(root,run):
+    """Wait for the actual successful runtime observation, not an earlier intake preflight."""
+    path=root/'server/stdout.log'
+    if not path.exists():return None
+    active=False;handles=set()
+    for line in path.read_text(errors='replace').splitlines():
+        if 'CRAFTING_PRIMITIVE_TRACE ' not in line:continue
+        try:r=json.loads(line.split('CRAFTING_PRIMITIVE_TRACE ',1)[1]);v=r['value']
+        except (ValueError,KeyError):continue
+        if r['kind']=='primitive-start' and v['correlation']['runId']==run:
+            active=v['primitive']['id']=='cognitivecraft:observe_plank_inputs'
+        elif r['kind']=='primitive-handle' and v['handle']['runId']==run and active:
+            handles.add(v['handle']['id']);active=False
+        elif r['kind']=='primitive-terminal' and v['handle']['id'] in handles:
+            receipt=v['receipt']
+            if receipt.get('terminal') and receipt.get('result',{}).get('value') is True and not receipt.get('reason'):
+                return r
+    return None
 
 
 def open_source(h,stock):
@@ -50,6 +70,12 @@ def trial(h,index,*,missed=False):
     h.console(['data merge entity '+h.entities['PlayerA']+' {Inventory:[]}',
                'data merge entity '+h.entities['PlayerB']+' {Inventory:[]}'])
     menu=open_source(h,2 if missed else 1)
+    # Clean-fixture pose acknowledgement immediately before intake preserves a real
+    # travel window; no clock/AI/effect/authority change occurs during the request.
+    pose=[65.5,208,68.5]
+    h.console(['tp '+h.entities['PlayerA']+' '+coord(pose)])
+    h.wait(lambda:any(a['uuid']==h.entities['PlayerA'] and __import__('math').dist(a['pos'],pose)<1
+                     for a in h.snapshot()['actors']),'Native pre-request actor pose acknowledgement',20)
     before=h.snapshot();calls=h.model_calls();offset=len(lines(h.root/'server/b-guards.jsonl'))
     path=h.root/'cases'/f'{index:02d}.json'
     row={'index':index,'deliberatelyMissed':missed,'before':before,'callsBefore':calls,'guardsOffset':offset,
@@ -60,6 +86,8 @@ def trial(h,index,*,missed=False):
     require(req['accepted'],'Baseline interference request was not admitted: '+req['feedback'])
     h.wait(lambda:any(x['phase']=='preflight' and x['actualReturned'].get('availableInputs',0)>0 and actor(x)==h.entities['PlayerA']
                for x in lines(h.root/'server/b-guards.jsonl')[offset:]),'Actual native preflight with available source stock',35)
+    row['runtimePreflightTerminal']=h.wait(lambda:observed_preparation(h.root,req['run']),
+        'Original run successful observe_plank_inputs terminal before ordinary interference',40)
     if missed:
         row['view']=h.finish_run(req['run']);h.actions_active=True
         require(h.container(DST,PLANK)==4 and h.container(SRC,LOG)==1,'Missed control must complete before interference')
@@ -110,9 +138,11 @@ def shared_reuse(h):
     pin=h.hashes['cognitivecraft:'+CAPS[PLANK]]
     require(view['marker']['artifactSha256']==pin and h.container(DST,PLANK)==4,'Shared method changed identity or lacked native delivery')
     require(h.model_calls()==calls,'Shared reuse invoked generation')
-    foreign=h.command('PlayerA','/aivillage kernel status '+req['run'],r'Denied|unavailable')
     row={'request':req,'view':view,'before':before,'after':h.snapshot(),'callsBefore':calls,'callsAfter':h.model_calls(),
-         'sameMethodSha256':pin,'foreignStatus':foreign,'assertionStatus':'PASS','privateMode':'INTEGRATION_PENDING: A grant/private fixture port'}
+         'sameMethodSha256':pin,'assertionStatus':'PENDING_FOREIGN_STATUS','privateMode':'INTEGRATION_PENDING: A grant/private fixture port'}
+    atomic(h.root/'shared-reuse.json',row)
+    foreign=h.command('PlayerA','/aivillage kernel status '+req['run'],DENIED_PATTERN)
+    row.update(foreignStatus=foreign,assertionStatus='PASS')
     row['settlement']=settled(h,fence=True);atomic(h.root/'shared-reuse.json',row);return row
 
 
