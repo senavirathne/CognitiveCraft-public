@@ -237,6 +237,9 @@ public final class BootstrapController {
     public Submission submit(CapabilityRequest request, TrustedContext caller) {
         thread(); UUID id = UUID.randomUUID();
         if (!ready() || active != null) return new Submission(id, false, Reason.BUDGET_EXHAUSTED);
+        if(persisted.runs().size()==BootstrapJournal.MAX_RUNS
+                && persisted.runs().stream().noneMatch(this::markerMayRetire))
+            return new Submission(id,false,Reason.STORAGE_LIMIT_REACHED);
         var enrolled = identities == null ? persisted.enrollment()
                 : request != null && request.arguments().get("actor") instanceof ActorValue value
                         ? identities.find(value.value().citizenId()) : null;
@@ -535,13 +538,26 @@ public final class BootstrapController {
         });
     }
     private void remember(View view) {
-        if (recent.size() == BootstrapJournal.MAX_RUNS) recent.removeFirst();
+        // The durable bounded set has already selected a settled summary to rotate.
+        // Keep unresolved provenance in the process view as well as across restart.
+        recent.removeIf(v->v.id().equals(view.id()) || persisted.runs().stream().noneMatch(m->m.id().equals(v.id())));
+        if(recent.size()>=BootstrapJournal.MAX_RUNS)throw new IllegalStateException("Pinned run summaries");
         recent.addLast(view);
+    }
+    private boolean markerMayRetire(BootstrapJournal.RunMarker marker) {
+        if(jobs==null)return true; // Preserve the legacy standalone bounded-summary contract.
+        return jobs.snapshot().jobs().stream().filter(j->j.submissionId().equals(marker.id())).anyMatch(j->
+                (j.state()==Jobs.State.SUCCEEDED || j.state()==Jobs.State.FAILED || j.state()==Jobs.State.CANCELLED)
+                        && j.attempts().stream().noneMatch(Jobs.Attempt::open));
     }
     private List<BootstrapJournal.RunMarker> withMarker(BootstrapJournal.RunMarker marker) {
         List<BootstrapJournal.RunMarker> entries = new ArrayList<>(persisted.runs());
         entries.removeIf(value -> value.id().equals(marker.id()));
-        if (entries.size() == BootstrapJournal.MAX_RUNS) entries.removeFirst();
+        if(entries.size()==BootstrapJournal.MAX_RUNS) {
+            var retired=entries.stream().filter(this::markerMayRetire).findFirst()
+                    .orElseThrow(()->new IllegalStateException("Unresolved run summaries cannot be rotated"));
+            entries.remove(retired);
+        }
         entries.add(marker);
         return List.copyOf(entries);
     }

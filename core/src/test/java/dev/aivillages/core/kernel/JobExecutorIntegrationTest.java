@@ -21,12 +21,14 @@ class JobExecutorIntegrationTest {
         final JobLifecycleStore jobs;
         final SkillArtifact artifact;
         final BootstrapController controller;
+        final List<UUID> pinnedSubmissions=new ArrayList<>();
         BootstrapJournal.State markers;
         int starts, resolutions, models;
         boolean hold;
         Snapshot heldExpected, heldNext;
         CompletableFuture<Snapshot> held;
-        Scene() throws Exception {
+        Scene() throws Exception {this(0);}
+        Scene(int pinnedMarkers) throws Exception {
             var child = f.child(); artifact = f.root(child.descriptor().ref(), AdmissionStatus.ADMITTED);
             journal = JobJournal.open(world, OWNER.scope().worldId());
             jobs = new JobLifecycleStore(journal.snapshot(), (expected,next) -> {
@@ -35,8 +37,17 @@ class JobExecutorIntegrationTest {
             }, JobLifecycleStore.privateJobs((a,c)->a.equals(ACTOR)&&c.equals(OWNER)),
                     cancellation -> controllerCancel(cancellation), f.specs, JobLifecycleStoreTest.environment(),
                     f.clock, Settings.defaults(), false);
+            var retained=new ArrayList<BootstrapJournal.RunMarker>();
+            for(int n=0;n<pinnedMarkers;n++) {
+                UUID submission=UUID.randomUUID();pinnedSubmissions.add(submission);
+                var created=jobs.create(UUID.randomUUID(),submission,f.request.request(),OWNER,f.request.observation(),f.limits(100,20,1000).total(),List.of());
+                assertTrue(created.accepted());long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+                while(!jobs.ready() && System.nanoTime()<deadline){jobs.tick();Thread.sleep(1);}assertTrue(jobs.ready());
+                retained.add(new BootstrapJournal.RunMarker(submission,ACTOR.citizenId(),BootstrapJournal.Phase.INTERRUPTED,
+                        "INTERRUPTED",Reason.INTERRUPTED,0,0,artifact.descriptor().ref().sha256()));
+            }
             markers = new BootstrapJournal.State(OWNER.scope().worldId(),0,
-                    new BootstrapJournal.Enrollment(ACTOR,OWNER),List.of());
+                    new BootstrapJournal.Enrollment(ACTOR,OWNER),retained);
             var execution = new BootstrapController.Execution() {
                 public List<ArtifactRef> pinned(ArtifactRef ref) { return JobArtifactPins.closure(artifact.descriptor(), dependency -> f.catalog.body(dependency).map(SkillArtifact::descriptor)); }
                 public Start start(ValidatedRequest bound, ArtifactRef ref, UUID id, Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
@@ -144,6 +155,27 @@ class JobExecutorIntegrationTest {
             store.tick();var job=store.bySubmission(id,OWNER).orElseThrow();
             assertEquals(State.INTERRUPTED,job.state());assertTrue(job.current().uncertain());assertEquals(0,job.fulfilled());
             assertTrue(store.protectedRoots().artifacts().contains(ref));assertTrue(store.readyJobs(OWNER,0).jobs().isEmpty());
+        }
+    }
+    @Test void unresolvedOriginalMarkerSurvivesMoreThanSixteenSettledRealExecutorRuns()throws Exception {
+        try(var s=new Scene(1)) {
+            UUID original=s.pinnedSubmissions.getFirst();
+            for(int n=0;n<BootstrapJournal.MAX_RUNS+4;n++){UUID id=s.submit();s.until(()->s.terminal(id));assertEquals(State.SUCCEEDED,s.job(id).state());}
+            assertEquals(BootstrapJournal.MAX_RUNS,s.markers.runs().size());
+            assertTrue(s.markers.runs().stream().anyMatch(m->m.id().equals(original)));
+            assertTrue(s.controller.ownsSubmission(original));assertFalse(s.controller.liveSubmission(original));
+            assertTrue(s.controller.runIds(OWNER).contains(original));
+            assertEquals(BootstrapController.Phase.TERMINAL,s.controller.status(original,OWNER).phase());
+            assertEquals("INTERRUPTED",s.controller.status(original,OWNER).marker().outcome());
+        }
+    }
+    @Test void allSixteenUnresolvedMarkersBackpressureBeforeCreatingAnotherJob()throws Exception {
+        try(var s=new Scene(BootstrapJournal.MAX_RUNS)) {
+            Snapshot before=s.jobs.snapshot();var markers=s.markers;
+            var refused=s.controller.submit(s.f.request.request(),OWNER);
+            assertFalse(refused.accepted());assertEquals(Reason.STORAGE_LIMIT_REACHED,refused.reason());
+            assertEquals(before,s.jobs.snapshot());assertEquals(markers,s.markers);assertEquals(0,s.starts);
+            assertEquals(BootstrapJournal.MAX_RUNS,s.controller.runIds(OWNER).size());
         }
     }
 }

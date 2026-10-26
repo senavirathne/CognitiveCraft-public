@@ -19,6 +19,7 @@ allowed={
     'core/src/main/java/dev/aivillages/core/kernel/ResourceLeaseService.java',
     'core/src/main/java/dev/aivillages/core/kernel/LeaseArchive.java',
     'core/src/test/java/dev/aivillages/core/kernel/LeaseArchiveTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/JobExecutorIntegrationTest.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/')
 changed=subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()
