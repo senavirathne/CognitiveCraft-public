@@ -4,7 +4,7 @@
   "seeds": [260026, 260027],
   "repetitionsPerSeed": 1,
   "stopAtFirstPass": false,
-  "families": {"seven-log": {"item": "minecraft:oak_log", "quantity": 7}, "saved-planks": {"item": "minecraft:oak_planks", "quantity": 4}},
+  "families": {"seven-log": {"item": "minecraft:birch_log", "quantity": 7}, "saved-planks": {"item": "minecraft:oak_planks", "quantity": 4}},
   "variants": [
     {"id": "stable-log", "family": "seven-log", "factor": "baseline"},
     {"id": "stable-method", "family": "saved-planks", "factor": "baseline"},

@@ -34,5 +34,6 @@ class DiagnosticEvidenceTests(unittest.TestCase):
         ids=[x['id'] for x in matrix['variants']]
         self.assertEqual(len(ids),len(set(ids)))
         self.assertIn('unloaded-target',ids);self.assertIn('loaded-target',ids)
+        self.assertEqual('minecraft:birch_log',matrix['families']['seven-log']['item'])
 
 if __name__=='__main__':unittest.main()

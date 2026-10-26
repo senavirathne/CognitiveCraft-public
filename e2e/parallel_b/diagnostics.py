@@ -15,7 +15,7 @@ from zipfile import ZipFile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from suite import ROOT,atomic,read,require
 from runtime import SDK,digest
-from generalization_support import AssessmentHarness,LOG,PLANK,CAPS,SRC,DST,at,coord
+from generalization_support import AssessmentHarness,LOG,BIRCH,PLANK,CAPS,SRC,DST,at,coord
 from parallel_b.guards import clean_owners,instruments,observer_inputs
 from campaigns.crafting.oracle import candidates
 
@@ -49,24 +49,24 @@ def classify(row):
     return 'FAILED_OR_INTERRUPTED_PRESERVED_NO_REPLAY'
 
 def admit(h,item):
-    settled(h);h.reset({} if item==LOG else {LOG:1},table=False)
-    if item==LOG:h.logs(POSITIONS[:1])
+    settled(h);h.reset({} if item==BIRCH else {LOG:1},table=False)
+    if item==BIRCH:h.logs(POSITIONS[:1],item=BIRCH)
     calls=h.model_calls();before=h.snapshot()
-    req=h.request_run(item,1 if item==LOG else 4,minimum=POSITIONS[0],maximum=POSITIONS[0],acquire=True)
+    req=h.request_run(item,1 if item==BIRCH else 4,minimum=POSITIONS[0],maximum=POSITIONS[0],acquire=True)
     require(req['accepted'],'Genuine diagnostic method admission refused: '+req['feedback'])
     h.actions_active=True;view=h.finish_run(req['run'],admitted=True)
     require(view.get('marker',{}).get('artifactSha256') and h.model_calls()['generationCalls']>calls['generationCalls'],
             'Diagnostic method was not genuinely generated/admitted')
-    require(h.container(DST,item)==(1 if item==LOG else 4),'Admission lacks native physical output')
+    require(h.container(DST,item)==(1 if item==BIRCH else 4),'Admission lacks native physical output')
     h.hashes['cognitivecraft:'+CAPS[item]]=view['marker']['artifactSha256']
     row={'item':item,'request':req,'view':view,'before':before,'after':h.snapshot(),'callsBefore':calls,'callsAfter':h.model_calls()}
     atomic(h.root/('admission-'+item.split(':')[1]+'.json'),row);settled(h)
 
 def trial(h,schedule_seed,variant,index):
-    settled(h);family=variant['family'];item=LOG if family=='seven-log' else PLANK;q=7 if item==LOG else 4
-    h.family='B06-'+variant['id'];h.reset({} if item==LOG else {LOG:1},table=False)
+    settled(h);family=variant['family'];item=BIRCH if family=='seven-log' else PLANK;q=7 if item==BIRCH else 4
+    h.family='B06-'+variant['id'];h.reset({} if item==BIRCH else {LOG:1},table=False)
     h.console(['data merge entity '+h.entities['PlayerA']+' {Inventory:[]}'])
-    if item==LOG:h.logs(POSITIONS)
+    if item==BIRCH:h.logs(POSITIONS,item=BIRCH)
     # This is a fixture schedule seed, not a claim to change the Minecraft world seed.
     destination=DST[:];kind=variant['id']
     if kind.startswith('pose-'):h.console(['tp '+h.entities['PlayerA']+' 71.5 208 68.5 90 0'])
@@ -127,7 +127,7 @@ def main():
         with urllib.request.urlopen('http://127.0.0.1:11434/api/tags',timeout=20) as r:atomic(h.root/'models.json',json.load(r))
         h.fresh(two=True);h.enroll();h.enroll('PlayerB','Mira')
         h.command('PlayerA','/aivillage kernel inference true','admission=true')
-        for item in (LOG,PLANK):admit(h,item)
+        for item in (BIRCH,PLANK):admit(h,item)
         h.command('PlayerA','/aivillage kernel inference false','admission=false');h.compose('stop','ollama')
         h.console(['forceload add 10000 10000'])
         h.wait(lambda:probe(h,[FAR])['positions'][0]['loaded'],'Far control fixture initially loaded',45)
