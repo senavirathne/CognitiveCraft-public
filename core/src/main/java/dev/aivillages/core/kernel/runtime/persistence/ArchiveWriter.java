@@ -45,6 +45,7 @@ public final class ArchiveWriter implements AutoCloseable {
     }
     private final Path world,root;private final UUID worldId;private final PersistencePolicy policy;
     private final FileChannel channel;private final FileLock lock;private final Faults faults;private final Clock clock;
+    private volatile Faults observer=Faults.none();private boolean observing;
     private volatile ArchiveHistory history;private volatile boolean fenced,closed;private volatile long epoch;
     private volatile String currentDigest;
     private WorldRetentionManager.Owner accountingOwner;
@@ -69,6 +70,12 @@ public final class ArchiveWriter implements AutoCloseable {
     /** O(1), no I/O monitor. The manifest alone is never permission to evict a hot row. */
     public Manifest snapshot(){return history.manifest();}
     public ArchiveHistory historyView(){return history;}
+    /** Trusted host instrumentation; defaults to no-op and cannot create an acknowledgement. */
+    public synchronized void observePublication(Faults observer) {
+        if(observing)throw new IllegalStateException("Publication observer already bound");
+        this.observer=Objects.requireNonNull(observer);observing=true;
+    }
+    private void at(Point point)throws IOException {faults.at(point);observer.at(point);}
     public boolean readOnly(){return fenced || closed;}
     public long retentionRevision(){return epoch;}
     public Optional<Row> lookup(Key key)throws IOException {if(readOnly())throw new IOException("Fenced archive");return history.lookup(key);}
@@ -185,27 +192,27 @@ public final class ArchiveWriter implements AutoCloseable {
             if(!rows.isEmpty()) {
                 segment=encode(new Segment(worldId,owner,guard,rows));String digest=sha256(segment);
                 if(refs.stream().noneMatch(r->r.digest().equals(digest)))refs.add(new Ref(digest,owner,segment.length,rows.size(),clock.millis()));
-                faults.at(Point.BEFORE_SEGMENT);Path path=root.resolve(digest+".seg");
+                at(Point.BEFORE_SEGMENT);Path path=root.resolve(digest+".seg");
                 if(Files.exists(path,LinkOption.NOFOLLOW_LINKS)) {
                     if(!Arrays.equals(segment,ArchiveHistory.read(path,SEGMENT_BYTES)))throw new IOException("Conflicting immutable segment");
                 }else writeNew(path,segment);
-                forceDirectory();faults.at(Point.AFTER_SEGMENT_ACK);
+                forceDirectory();at(Point.AFTER_SEGMENT_ACK);
             }
             var revisions=new EnumMap<Owner,Long>(Owner.class);revisions.putAll(expected.ownerRevisions());revisions.put(owner,guard.ownerRevision());
             var next=new Manifest(worldId,Math.addExact(expected.revision(),1),revisions,guard.retentionGeneration(),refs,slots,migrations);byte[] bytes=encode(next);
             if(!ArchiveFormat.manifest(bytes,worldId).equals(next))throw new IOException("Manifest validation");
             if(!Objects.equals(fences.current(owner),guard))throw new IOException("Owner or retention fence changed before publication");
-            faults.at(Point.BEFORE_MANIFEST_STAGE);Path pending=root.resolve(ArchiveHistory.PENDING);
-            writeNew(pending,bytes);faults.at(Point.AFTER_MANIFEST_STAGE);
+            at(Point.BEFORE_MANIFEST_STAGE);Path pending=root.resolve(ArchiveHistory.PENDING);
+            writeNew(pending,bytes);at(Point.AFTER_MANIFEST_STAGE);
             Path current=root.resolve(ArchiveHistory.CURRENT),previous=root.resolve(ArchiveHistory.PREVIOUS);
             if(Files.exists(current,LinkOption.NOFOLLOW_LINKS)) {
                 ArchiveHistory.safe(previous);Files.copy(current,previous,StandardCopyOption.REPLACE_EXISTING);
                 try(var backup=FileChannel.open(previous,StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS)){backup.force(true);}
             }
-            faults.at(Point.AFTER_BACKUP);
+            at(Point.AFTER_BACKUP);
             if(!Objects.equals(fences.current(owner),guard))throw new IOException("Owner or retention fence changed at publication");
-            Files.move(pending,current,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);faults.at(Point.AFTER_MANIFEST_REPLACE);
-            forceDirectory();faults.at(Point.AFTER_DIRECTORY_ACK);
+            Files.move(pending,current,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);at(Point.AFTER_MANIFEST_REPLACE);
+            forceDirectory();at(Point.AFTER_DIRECTORY_ACK);
             if(!Objects.equals(fences.current(owner),guard))throw new IOException("Owner or retention fence changed after possible publication");
             ArchiveHistory verified=ArchiveHistory.read(world,worldId,policy);if(verified.state()!=ArchiveHistory.State.READY || !verified.manifest().equals(next))throw new IOException("Published history validation");
             history=verified;currentDigest=sha256(bytes);epoch=Math.addExact(epoch,1);return result(Status.ACKNOWLEDGED,owner,guard);
@@ -233,9 +240,9 @@ public final class ArchiveWriter implements AutoCloseable {
         Path path=root.resolve(candidate.digest+".seg");ArchiveHistory.safe(path);
         if(!identity(Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS)).equals(candidate.identity))return false;
         try {
-            faults.at(Point.BEFORE_CLEANUP);
+            at(Point.BEFORE_CLEANUP);
             if(!lease.permits(candidate.key(),candidate.revision,retentionOwner()) || cancel.getAsBoolean())return false;
-            Files.delete(path);forceDirectory();faults.at(Point.AFTER_CLEANUP);
+            Files.delete(path);forceDirectory();at(Point.AFTER_CLEANUP);
             history=ArchiveHistory.read(world,worldId,policy);epoch=Math.addExact(epoch,1);return true;
         }catch(IOException | RuntimeException failure){fenced=true;throw failure;}
     }

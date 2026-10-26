@@ -35,14 +35,14 @@ final class LeaseArchiveTest {
     List<Ref> retired(int count) {
         var result=new ArrayList<Ref>();for(int n=0;n<count;n++)result.add(cycle(f.alice,f.a));return result;
     }
-    void compact(LeaseArchive archive)throws Exception {archive.step(closure());background.run();archive.step(closure());f.ack();}
+    void compact(LeaseArchive archive)throws Exception {archive.step(closure());background.run();archive.step(closure());f.ack();archive.step(closure());}
     @Test void archivedCopyIsAcknowledgedBeforeHotPublicationAndExactLookupSurvivesRestart()throws Exception {
         List<Ref> old=retired(96);Ref first=old.getFirst();Lease original=f.service.historical(first,f.alice,f.a).orElseThrow();
         try(var writer=ArchiveWriter.open(world,f.world,PersistencePolicy.defaults())) {
             var archive=archive(writer,PersistencePolicy.defaults());archive.step(closure());background.run();
             assertEquals(96,f.service.snapshot().leases().size());
             assertTrue(writer.lookup(new ArchiveFormat.Key(ArchiveFormat.Owner.LEASES,ArchiveFormat.Kind.HISTORY,first.id())).isPresent());
-            archive.step(closure());assertFalse(f.service.ready());assertEquals(96,f.service.snapshot().leases().size());f.ack();
+            archive.step(closure());assertFalse(f.service.ready());assertEquals(96,f.service.snapshot().leases().size());f.ack();archive.step(closure());
             assertEquals(80,f.service.snapshot().leases().size());assertEquals(original,f.service.historical(first,f.alice,f.a).orElseThrow());
             assertEquals(16,archive.status().archived());assertEquals(16,archive.status().evicted());
         }
@@ -140,6 +140,17 @@ final class LeaseArchiveTest {
             var archive=new LeaseArchive(f.service,writer,new ArchiveService(writer,background),PersistencePolicy.defaults());archive.step(closure());
             assertTrue(archive.readOnly());assertFalse(f.service.ready());assertEquals(80,f.service.snapshot().leases().size());
             assertEquals(Code.REJECTED,f.alice(f.facility(1),1).code());assertTrue(Files.exists(world.resolve("retained-missing-segment.seg")));
+        }
+    }
+    @Test void hostBoundaryObservationsBracketAcknowledgedHotEvictionWithoutGrantingIt()throws Exception {
+        retired(96);var events=new ArrayList<LeaseArchive.Point>();
+        try(var writer=ArchiveWriter.open(world,f.world,PersistencePolicy.defaults())) {
+            var archive=archive(writer,PersistencePolicy.defaults());
+            archive.observe(point->{
+                events.add(point);assertEquals(point==LeaseArchive.Point.BEFORE_HOT_PUBLICATION?96:80,f.service.snapshot().leases().size());
+            });
+            compact(archive);assertEquals(List.of(LeaseArchive.Point.BEFORE_HOT_PUBLICATION,LeaseArchive.Point.AFTER_HOT_ACKNOWLEDGEMENT),events);
+            assertEquals(16,archive.status().evicted());
         }
     }
 }

@@ -1516,6 +1516,7 @@ public final class KernelSession implements AutoCloseable {
     boolean jobsReady() { return jobs != null && jobs.ready(); }
     boolean leasesReady() { return leases != null && leases.ready(); }
     ResourceLeaseService leaseOwner() { return leases; }
+    LeaseArchive leaseHistoryOwner() { return leaseArchive; }
     boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
             && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {

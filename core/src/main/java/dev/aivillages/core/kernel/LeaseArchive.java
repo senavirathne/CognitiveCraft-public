@@ -11,6 +11,8 @@ import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.*;
 
 /** Derived lease-history client. ResourceLeaseService remains the sole hot-state publisher. */
 public final class LeaseArchive {
+    public enum Point { BEFORE_HOT_PUBLICATION, AFTER_HOT_ACKNOWLEDGEMENT }
+    @FunctionalInterface public interface Boundary { void at(Point point)throws IOException; }
     public record Closure(long jobsRevision,long leaseRevision,long retentionGeneration,Set<UUID> settledJobs,boolean complete) {
         public Closure {
             if(jobsRevision<0 || leaseRevision<0 || retentionGeneration<0 || settledJobs.size()>64)throw new IllegalArgumentException("Reference closure");
@@ -69,13 +71,29 @@ public final class LeaseArchive {
     private long evicted;
     private long measuredRevision=-1,hotBytes,pendingSince;
     private String pressure="INITIALIZING";
+    private Boundary boundary=point->{};
+    private boolean observing;
+    private Set<UUID> eviction=Set.of();
     public LeaseArchive(ResourceLeaseService service,ArchiveWriter writer,ArchiveService storage,PersistencePolicy policy) {
         this.service=Objects.requireNonNull(service);this.writer=Objects.requireNonNull(writer);
         this.storage=Objects.requireNonNull(storage);this.policy=Objects.requireNonNull(policy);service.attachHistory(reader);
     }
+    /** Host instrumentation only; a callback is never evidence or permission to evict. */
+    public void observe(Boundary boundary) {
+        checkThread();if(observing)throw new IllegalStateException("Lease observer already bound");
+        this.boundary=Objects.requireNonNull(boundary);observing=true;
+    }
     /** One capture/offer per tick; all encoding, archive enumeration and file work use the existing worker. */
     public void step(Closure closure) {
         checkThread();current.set(Objects.requireNonNull(closure));lastScanned=0;
+        if(!eviction.isEmpty()) {
+            if(!service.ready()){if(service.failure()!=null){reader.failed=true;pressure="FENCED";}return;}
+            if(service.snapshot().leases().stream().noneMatch(l->eviction.contains(l.id()))) {
+                evicted=Math.addExact(evicted,eviction.size());eviction=Set.of();
+                try{boundary.at(Point.AFTER_HOT_ACKNOWLEDGEMENT);}catch(IOException failure){reader.failed=true;pressure="FENCED";}
+            }else{reader.failed=true;pressure="FENCED";}
+            return;
+        }
         if(pending!=null) {
             if(!pending.isDone()) {
                 if(System.nanoTime()-pendingSince>TimeUnit.MILLISECONDS.toNanos(service.settings().acknowledgementMillis())) {
@@ -87,8 +105,12 @@ public final class LeaseArchive {
                 Written done=pending.join();reader.index=done.index();lastScanned=done.scanned();
                 hotBytes=done.hotBytes();measuredRevision=done.revision();
                 pressure=done.status()==null?"NONE":done.status().name();
-                if(done.publication()!=null && service.archive(done.publication()))evicted=Math.addExact(evicted,done.publication().rows().size());
-            }catch(RuntimeException failure){reader.failed=true;pressure="FENCED";}
+                if(done.publication()!=null && done.publication().permits(service,service.snapshot())) {
+                    boundary.at(Point.BEFORE_HOT_PUBLICATION);
+                    if(service.archive(done.publication()))eviction=done.publication().rows().stream().map(Lease::id)
+                            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                }
+            }catch(IOException | RuntimeException failure){reader.failed=true;pressure="FENCED";}
             finally{pending=null;}
             return;
         }
@@ -155,7 +177,7 @@ public final class LeaseArchive {
     public Status status() {
         checkThread();Snapshot hot=service.snapshot();long reserved=writer.snapshot().slots().stream().mapToLong(Slot::remainingBytes).sum();
         return new Status(reader.ready(),reader.failed(),hot.leases().size(),(int)hot.leases().stream().filter(l->l.state()==State.ACTIVE).count(),
-                reader.index==null?0:reader.index.ids().size(),hotBytes,writer.historyView().bytes(),reserved,pending!=null,pressure,lastScanned,evicted);
+                reader.index==null?0:reader.index.ids().size(),hotBytes,writer.historyView().bytes(),reserved,pending!=null || !eviction.isEmpty(),pressure,lastScanned,evicted);
     }
     public boolean readOnly(){return reader.failed();}
     private void checkThread(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Lease archive game thread");}

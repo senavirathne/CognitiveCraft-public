@@ -14,7 +14,7 @@ concurrency:
   group: cc-runtime-a-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 jobs:
-  a03-lease-contracts:
+  a03-native-leases:
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
@@ -47,11 +47,18 @@ jobs:
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
-      - name: Retain A03 contract checkpoint; native qualification is separate
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 e2e/parallel_a/prepare.py
+          python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
+          python3 tools/needle/install.py build/needle
+      - name: Continuous native lease history, pinned original and actual publication crash cuts
+        run: python3 e2e/parallel_a/leases.py --root build/parallel-a/native
+      - name: Retain A03 native failures and exact-source history evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cc-runtime-a-a03-contracts-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: cc-runtime-a-a03-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
