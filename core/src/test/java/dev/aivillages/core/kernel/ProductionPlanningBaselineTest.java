@@ -8,10 +8,10 @@ import static dev.aivillages.core.kernel.Prerequisites.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** B00 diagnostic: exercise the real resolver and unchanged authoritative guard. */
+/** B02 regression over the B00 diagnostic: the authoritative equality guard is unchanged. */
 final class ProductionPlanningBaselineTest {
     @ParameterizedTest @ValueSource(ints={3,4})
-    void capturesOriginalBirchRootProjectionAndAdmission(int requested) {
+    void preservesExactBirchRootProjectionAtTheUnchangedAdmissionGuard(int requested) {
         var f=new ResourceCompositionTest.Fixture(requested,BirchPlankProduction.ID);
         f.stock.put(ResourceDelivery.BIRCH_LOG.id(),1L);
         var disk=new JobLifecycleStoreTest.Memory(f.world);
@@ -29,15 +29,15 @@ final class ProductionPlanningBaselineTest {
         assertTrue(p.accepted(),String.valueOf(p.reason()));
         var node=p.nodes().stream().filter(n->n.id().equals(f.id)).findFirst().orElseThrow();
         long projected=((IntValue)node.request().request().arguments().get("amount")).value();
-        assertEquals(4,projected);
+        assertEquals(requested,projected);
+        var quantities=RecipeProduction.of(BirchPlankProduction.ID).quantities(requested,
+                dev.aivillages.core.kernel.production.BatchQuantities.Role.ROOT);
+        assertEquals(4,quantities.physicalOutput());assertEquals(4-requested,quantities.surplus());
         var observations=new HashMap<UUID,ObservationRef>();
         p.nodes().forEach(n->observations.put(n.id(),n.request().observation()));
         var result=jobs.admitPrerequisites(p,observations,p.metrics().work(),f.owner);
-        if(requested==3) {
-            assertEquals(Reason.REQUEST_INVALID,result.reason());assertFalse(result.accepted());
-            assertEquals(original,jobs.query(f.id,f.owner));
-        } else assertTrue(result.accepted(),String.valueOf(result.reason()));
-        System.out.println("B00_PROJECTION requested="+requested+" projected="+projected+
+        assertTrue(result.accepted(),String.valueOf(result.reason()));
+        System.out.println("B02_PROJECTION requested="+requested+" projected="+projected+
                 " batches="+node.batches()+" rootRequestEqual="+f.request.equals(node.request().request())+
                 " admission="+result.code()+" reason="+result.reason());
     }

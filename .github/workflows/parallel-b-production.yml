@@ -10,7 +10,7 @@ concurrency:
   group: cc-production-b-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  b01-qualification:
+  b02-quantities:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -42,23 +42,17 @@ jobs:
           python3 e2e/runtime.py compile
           python3 scripts/campaign-crafting/prepare.py
           python3 scripts/campaign-crafting/prepare.py
-      - uses: actions/download-artifact@v4
-        with:
-          github-token: ${{ github.token }}
-          run-id: 40257555612
-          name: parallel-b-B00-f7f121859891506c5c0c2c4db7314bea56d47435-40257555612-1
-          path: build/parallel-b-seed/B00
-      - name: Real craft, exact collector refusals and actual kill barriers
-        run: python3 e2e/parallel_b/native_qualification.py --root build/e2e/parallel-b/B01 --seed build/parallel-b-seed/B00
+      - name: Exact three/four quantities, old output and full-destination refusal
+        run: python3 e2e/parallel_b/quantity_native.py --root build/e2e/parallel-b/B02
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: parallel-b-B01-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: parallel-b-B02-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
           path: |
-            build/e2e/parallel-b/B01/
+            build/e2e/parallel-b/B02/
             build/campaign-crafting-oracle/integrity.json
             build/e2e-sdk/integrity.json
             core/build/test-results/test/

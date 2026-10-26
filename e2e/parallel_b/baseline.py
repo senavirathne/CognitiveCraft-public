@@ -57,7 +57,7 @@ def submit(h, command, kind):
     return re.search(kind + "=(" + UUID_PATTERN + ")", answer).group(1), answer
 
 
-def scenario(h):
+def scenario(h, *, corrected=False):
     model = "qwen3:4b-instruct-2507-q4_K_M"
     h.env.update(COGNITIVECRAFT_OLLAMA_MODEL=model, COGNITIVECRAFT_E2E_SNAPSHOT_TICKS="1")
     h.compose("up", "-d", "ollama")
@@ -117,16 +117,17 @@ def scenario(h):
         after = h.snapshot()
         require(h.model_calls() == calls, "Known composed work invoked inference")
         require(root["request"]["request"]["arguments"]["amount"]["value"] == quantity, "Original root demand changed")
-        if quantity == 3:
+        if quantity == 3 and not corrected:
             require(root["state"] == "FAILED" and root["reason"] == "REQUEST_INVALID" and not root["attempts"],
                     "Original q=3 admission failure not reproduced: " + json.dumps(root))
             require(physical(h) == stock_before, "Rejected q=3 changed physical stock")
         else:
-            require(root["state"] == "SUCCEEDED" and root["fulfilled"] == 4, "q=4 native control failed: " + json.dumps(root))
-            require(h.container(SOURCE, LOG) == 0 and h.container(SOURCE, OTHER) == 2, "q=4 changed unrelated stock")
-            require(h.container(DESTINATION, PLANK) == stock_before["containers"][",".join(map(str,DESTINATION))].get(PLANK,0)+4,
-                    "q=4 actual delivery mismatch")
-            require(root["preparation"]["method"]["sha256"] == artifact, "q=4 used a different admitted method")
+            require(root["state"] == "SUCCEEDED" and root["fulfilled"] == quantity, "Native quantity control failed: " + json.dumps(root))
+            require(h.container(SOURCE, LOG) == 0 and h.container(SOURCE, OTHER) == 2, "Craft changed unrelated stock")
+            require(h.container(DESTINATION, PLANK) == stock_before["containers"][",".join(map(str,DESTINATION))].get(PLANK,0)+quantity,
+                    "Actual exact delivery mismatch")
+            require(inventory(h).get(PLANK,0)==stock_before["inventory"].get(PLANK,0)+4-quantity,"Actual actor-held surplus differs")
+            require(root["preparation"]["method"]["sha256"] == artifact, "Quantity control used a different admitted method")
         h.actions_active = False
         require(h.menu_count("PlayerA", DESTINATION, PLANK) == h.container(DESTINATION, PLANK), "Client destination differs")
         h.screenshot("PlayerA", "baseline-q" + str(quantity), chat=True)
@@ -134,7 +135,7 @@ def scenario(h):
                "before": before, "after": after, "root": root, "callsBefore": calls,
                "callsAfter": h.model_calls(), "diagnosticAssertion": "PASS", "gameplayOutcome": root["state"]}
         atomic(h.root / ("q" + str(quantity) + ".json"), row); rows.append(row)
-    return {"status": "PASS", "meaning": "Baseline diagnostic reproduced; q3 remains a production failure",
+    return {"status": "PASS", "meaning": "Corrected exact demand and whole-batch surplus" if corrected else "Baseline diagnostic reproduced; q3 remains a production failure",
             "artifact": artifact, "cases": [{"quantity": r["quantity"], "gameplayOutcome": r["gameplayOutcome"]} for r in rows]}
 
 

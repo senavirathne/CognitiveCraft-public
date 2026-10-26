@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.production.BatchQuantities;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.GatewayPrimitives.Operation;
 
@@ -16,6 +17,9 @@ public final class RecipeProduction {
         public int secondaryInputs(long amount) {return axe() ? WoodenAxeProduction.sticks(amount) : 0;}
         public int maximumAmount() {return axe() || table() ? 4 : 64;}
         public int maximumBatches() {return axe() || table() ? 4 : 16;}
+        public BatchQuantities quantities(long demand,BatchQuantities.Role role) {
+            return BatchQuantities.project(demand,outputPerBatch(),maximumAmount(),maximumBatches(),role);
+        }
         public int batches(long amount) {return table() ? CraftingTableProduction.batches(amount) : axe() ? WoodenAxeProduction.batches(amount) : OakPlankProduction.batches(amount);}
         public int withdrawalUnits(ResourceDelivery.ItemIdentity item) {
             return input.equals(item) ? inputPerBatch : axe() && ResourceDelivery.STICK.equals(item) ? 2 : 0;

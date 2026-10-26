@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.LongSupplier;
+import dev.aivillages.core.kernel.production.BatchQuantities;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
 import static dev.aivillages.core.kernel.Prerequisites.*;
@@ -123,7 +124,10 @@ public final class DeterministicPrerequisiteResolver {
                 Pool pool = pools.get(poolKey);
                 if (pool == null) { pool = new Pool(proof.available(), 0); pools.put(poolKey, pool); }
                 else if (pool.capacity != proof.available()) throw stop(Reason.STALE_OBSERVATION, Qualification.CHANGED);
-                long taken = Math.min(wanted, pool.capacity-pool.used);
+                // Existing final goods cannot fulfill a new-production root.
+                // Existing ingredients remain usable; their physical pool is unchanged.
+                long taken = ResourceComposition.quantityRole(owner,item)==BatchQuantities.Role.ROOT
+                        ? 0 : Math.min(wanted, pool.capacity-pool.used);
                 if (taken > 0) {
                     pool.used = Math.addExact(pool.used, taken);
                 }
@@ -157,8 +161,10 @@ public final class DeterministicPrerequisiteResolver {
                         }
                         long total = Math.addExact(planned.wanted, deficit);
                         if (total > limits.quantity()) throw stop(Reason.BUDGET_EXHAUSTED, Qualification.LIMIT);
-                        long batches = total / option.outputPerBatch() + (total % option.outputPerBatch() == 0 ? 0 : 1);
-                        long produced = Math.multiplyExact(batches, option.outputPerBatch());
+                        var quantities=BatchQuantities.project(total,option.outputPerBatch(),limits.quantity(),limits.quantity(),
+                                ResourceComposition.quantityRole(owner,item));
+                        long batches = quantities.batches();
+                        long produced = quantities.physicalOutput();
                         if (produced > limits.quantity()) throw stop(Reason.BUDGET_EXHAUSTED, Qualification.LIMIT);
                         long addedBatches = batches-planned.batches;
                         List<Ingredient> ingredients = option.inputs();
@@ -195,8 +201,7 @@ public final class DeterministicPrerequisiteResolver {
                         planned=plans.get(key);
                         // A staging deficit is an exact MAKE request. Its complete batch surplus remains
                         // physical actor custody, rather than being promised as deposited graph stock.
-                        long delivered=owner.bound().request().capability().equals(OakPlankProduction.ID)
-                                && item.equals(owner.item()) ? total : produced;
+                        long delivered=quantities.requiredDelivery();
                         var selected=Objects.requireNonNull(methods.resolve(option,batches,delivered,owner));
                         CapabilityResolver.Decision decision=selected.decision();
                         step(Math.addExact(Math.addExact(decision.candidateWork(),decision.queriedPages()),1+selected.inspected()));
