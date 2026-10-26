@@ -68,7 +68,7 @@ public final class RecoveredJobOwners implements AutoCloseable {
             physical = "ambiguous; no save-confirmed effect proof";
             if (observed != null && observed.kind() == StoppedKind.PARTIAL) blocker = Blocker.PARTIAL_CUSTODY;
             if (observed != null && observed.kind() == StoppedKind.WAIT_WORLD) blocker = Blocker.WAIT_WORLD;
-            if (!jobs.ready()) blocker = Blocker.STORAGE_UNAVAILABLE;
+            if (jobs.unavailableReason() == Outcomes.Reason.STORAGE_UNAVAILABLE) blocker = Blocker.STORAGE_UNAVAILABLE;
         }
         boolean recorded = job.attempts().stream().anyMatch(a -> a.receiptCount() > 0);
         var a = job.current();
@@ -105,6 +105,7 @@ public final class RecoveredJobOwners implements AutoCloseable {
     /** Fresh owner/authority projection; cache invalidation cannot expose a stale writer or private row. */
     public View view(UUID root, TrustedContext caller) {
         check(); Job job = jobs.query(root, caller);
+        if (job.parent() != null) throw new IllegalArgumentException("Activity requires a root Job");
         View old = projections.get(root);
         var fresh = projection(job, null);
         if (old != null && old.revision() == job.revision() && old.route() == fresh.route()
@@ -117,7 +118,7 @@ public final class RecoveredJobOwners implements AutoCloseable {
         if (caller == null || !caller.scope().worldId().equals(jobs.snapshot().worldId())
                 || offset < 0 || offset > jobs.settings().total() || maximum < 1 || maximum > 4)
             throw new IllegalArgumentException("Private activity page bounds");
-        var own = jobs.snapshot().jobs().stream().filter(j -> j.origin().equals(caller))
+        var own = jobs.snapshot().jobs().stream().filter(j -> j.parent() == null && j.origin().equals(caller))
                 .sorted(Comparator.comparing(j -> j.id().toString())).toList();
         var result = new ArrayList<View>();
         int end = Math.min(own.size(), offset + maximum);
