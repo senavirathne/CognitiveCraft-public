@@ -68,6 +68,7 @@ public final class ArchiveWriter implements AutoCloseable {
     }
     /** O(1), no I/O monitor. The manifest alone is never permission to evict a hot row. */
     public Manifest snapshot(){return history.manifest();}
+    public ArchiveHistory historyView(){return history;}
     public boolean readOnly(){return fenced || closed;}
     public long retentionRevision(){return epoch;}
     public Optional<Row> lookup(Key key)throws IOException {if(readOnly())throw new IOException("Fenced archive");return history.lookup(key);}

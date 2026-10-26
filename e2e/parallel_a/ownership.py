@@ -1,4 +1,4 @@
-"""Fail closed on edits outside the current A02 owned source boundary."""
+"""Fail closed on edits outside the current A03 owned source boundary."""
 import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
@@ -16,6 +16,9 @@ allowed={
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveWriterTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveServiceTest.java',
     'core/src/main/java/dev/aivillages/core/kernel/WorldRetentionManager.java',
+    'core/src/main/java/dev/aivillages/core/kernel/ResourceLeaseService.java',
+    'core/src/main/java/dev/aivillages/core/kernel/LeaseArchive.java',
+    'core/src/test/java/dev/aivillages/core/kernel/LeaseArchiveTest.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/')
 changed=subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()

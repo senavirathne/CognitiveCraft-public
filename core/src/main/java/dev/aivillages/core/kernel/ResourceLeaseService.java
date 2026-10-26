@@ -11,6 +11,12 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
 /** Sole game-thread lease owner. Storage publishes immutable snapshots on an external worker. */
 public final class ResourceLeaseService {
     @FunctionalInterface public interface Storage { CompletionStage<Snapshot> replace(Snapshot expected,Snapshot next); }
+    /** Trusted immutable retired history. Lookup is memory-only and never grants a live claim. */
+    public interface History {
+        boolean ready(); boolean failed();
+        Lease lookup(UUID id);
+        List<Lease> group(UUID id);
+    }
     @FunctionalInterface public interface Owners {
         OwnerFacts inspect(Owner owner,TrustedContext caller);
         /** Existing ownership may retain coordination while permission is denied and stop is unconfirmed. */
@@ -29,6 +35,7 @@ public final class ResourceLeaseService {
     private final UUID epoch=UUID.randomUUID();
     private Snapshot state;
     private Pending pending;
+    private History history;
     private boolean fenced;
     private Reason failure;
     private long previousTick=-1;
@@ -49,7 +56,29 @@ public final class ResourceLeaseService {
     }
     public Settings settings() { return settings; }
     public Snapshot snapshot() { checkThread();return state; }
-    public boolean ready() { checkThread();return !fenced && pending==null; }
+    public boolean ready() {
+        checkThread();if(history!=null && history.failed()){fenced=true;failure=Reason.STORAGE_UNAVAILABLE;}
+        return !fenced && pending==null && (history==null || history.ready());
+    }
+    public void attachHistory(History history) {
+        checkThread();if(this.history!=null)throw new IllegalStateException("Lease history already attached");
+        this.history=Objects.requireNonNull(history);
+    }
+    /** Exact historical evidence for the original holder, never permission to renew/use it. */
+    public Optional<Lease> historical(Ref ref,Owner owner,TrustedContext caller) {
+        checkThread();if(!ready())throw new IllegalStateException("Lease history unavailable");
+        Objects.requireNonNull(ref);Lease row=find(ref.id());if(row==null)return Optional.empty();
+        if(!row.origin().equals(caller) || !row.owner().equals(owner))throw new SecurityException("Private lease history");
+        return row.ref().equals(ref)?Optional.of(row):Optional.empty();
+    }
+    /** Only an opaque publication made by this service's archive client can remove hot history. */
+    public boolean archive(LeaseArchive.Publication publication) {
+        checkThread();if(!ready() || publication==null || !publication.permits(this,state))return false;
+        Set<UUID> ids=new HashSet<>();for(Lease row:publication.rows())ids.add(row.id());
+        List<Lease> retained=state.leases().stream().filter(l->!ids.contains(l.id())).toList();
+        if(retained.size()+ids.size()!=state.leases().size())return false;
+        return publish(retained,state.generation());
+    }
     public Reason failure() { checkThread();return failure; }
     public int lastReconciled() { checkThread();return lastReconciled; }
     public long currentTick() { checkThread();return now(); }
@@ -115,6 +144,8 @@ public final class ResourceLeaseService {
             return new Result(Code.PENDING,fenced?failure:null,id,List.of(),0,0);
         List<Lease> rows=state.leases().stream().filter(l->l.group().equals(id)
                 && l.owner().equals(owner) && l.origin().equals(facts.origin())).toList();
+        if(rows.isEmpty() && history!=null && history.ready())rows=history.group(id).stream()
+                .filter(l->l.owner().equals(owner) && l.origin().equals(facts.origin())).toList();
         if(rows.isEmpty())return result(Code.STALE,Reason.INTERRUPTED);
         if(fenced)return unavailable();
         if(!facts.live())return result(Code.REJECTED,ownerReason(facts));
@@ -203,6 +234,7 @@ public final class ResourceLeaseService {
         }
         UUID selected=group;
         List<Lease> all=rows.stream().filter(l->l.group().equals(selected)).toList();
+        if(all.isEmpty() && history!=null && history.ready())all=history.group(selected);
         if(all.size()!=references.size() || references.stream().map(Ref::id).distinct().count()!=all.size())
             return result(Code.REJECTED,Reason.REQUEST_INVALID);
         if(all.stream().allMatch(l->l.state()!=State.ACTIVE))return result(Code.RELEASED,null);
@@ -391,7 +423,10 @@ public final class ResourceLeaseService {
         return null;
     }
     private Reason ownerReason(OwnerFacts facts) { return facts.reason()==null?Reason.AUTHORITY_DENIED:facts.reason(); }
-    private Lease find(UUID id) { return state.leases().stream().filter(l->l.id().equals(id)).findFirst().orElse(null); }
+    private Lease find(UUID id) {
+        Lease hot=state.leases().stream().filter(l->l.id().equals(id)).findFirst().orElse(null);
+        return hot!=null?hot:history!=null && history.ready()?history.lookup(id):null;
+    }
     private Result reference(Lease row,Ref ref,TrustedContext caller,long tick,boolean active) {
         if(row==null)return result(Code.STALE,Reason.INTERRUPTED);
         OwnerFacts facts=facts(row.owner(),caller);

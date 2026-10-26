@@ -33,6 +33,12 @@ public final class ArchiveHistory {
         if(state!=State.READY)throw new IOException("Fenced archive cannot prove presence or absence");
         return Optional.ofNullable(current.get(Objects.requireNonNull(key)));
     }
+    /** Bounded immutable domain-reader input. Enumerate/decode on the storage worker. */
+    public List<Row> rows(Owner owner,Kind kind)throws IOException {
+        if(state!=State.READY)throw new IOException("Fenced archive cannot enumerate history");
+        return current.entrySet().stream().filter(e->e.getKey().owner()==owner && e.getKey().kind()==kind)
+                .map(Map.Entry::getValue).toList();
+    }
     public static ArchiveHistory read(Path world,UUID worldId,PersistencePolicy policy)throws IOException {
         Objects.requireNonNull(world);Objects.requireNonNull(worldId);Objects.requireNonNull(policy);
         Path root=world.resolve(RELATIVE_PATH);safe(root);

@@ -101,6 +101,9 @@ public final class KernelSession implements AutoCloseable {
     private WorkerDispatcher dispatcher;
     private dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveredOwners;
     private dev.aivillages.core.kernel.runtime.persistence.ArchiveService historyService;
+    private LeaseArchive leaseArchive;
+    private final boolean leaseHistoryEnabled = "true".equalsIgnoreCase(
+            System.getenv().getOrDefault("COGNITIVECRAFT_LEASE_HISTORY", "false"));
     private long historyReferenceBase;
     private boolean historyGenerationUnavailable;
     private final boolean runtimeHistoryEnabled = "true".equalsIgnoreCase(
@@ -351,6 +354,15 @@ public final class KernelSession implements AutoCloseable {
         if (!language.pending()) interpretingPlayer = null;
         gateway.tick();
         leases.tick();
+        if(leaseArchive!=null) {
+            var snapshot=jobs.snapshot();
+            var settled=snapshot.jobs().stream().filter(j->(j.state()==Jobs.State.SUCCEEDED
+                    || j.state()==Jobs.State.FAILED || j.state()==Jobs.State.CANCELLED)
+                    && j.attempts().stream().noneMatch(Jobs.Attempt::open)).map(Jobs.Job::id)
+                    .collect(java.util.stream.Collectors.toSet());
+            leaseArchive.step(new LeaseArchive.Closure(snapshot.revision(),leases.snapshot().revision(),historyGeneration(),settled,
+                    jobs.ready() && loaded.roots().snapshot().complete() && !historyGenerationUnavailable));
+        }
         leasedGateway.tick();
         broker.step();
         controller.tick();
@@ -443,6 +455,11 @@ public final class KernelSession implements AutoCloseable {
                 },
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
+        if(leaseHistoryEnabled) {
+            if(loaded.history()==null)throw new IllegalStateException("Lease history requires runtime history");
+            leaseArchive=new LeaseArchive(leases,loaded.history(),historyService,
+                    dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
+        }
         leasedGateway = new LeasedGateway(gateway, leases,
                 (request, run) -> LogAcquisition.is(request.request().capability())
                         ? LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run)
@@ -689,7 +706,8 @@ public final class KernelSession implements AutoCloseable {
                         return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
                     }
                 }, original -> Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof"), 4);
-        worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable)
+        worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
+                || leaseArchive!=null && leaseArchive.readOnly())
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target));
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
@@ -924,6 +942,8 @@ public final class KernelSession implements AutoCloseable {
         ready();return new RuntimeHistoryStatus(loaded.history()!=null,loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable),
                 loaded.history()==null?null:loaded.history().snapshot());
     }
+    /** Aggregate operator diagnostics only; no principal or historical resource identifiers. */
+    public LeaseArchive.Status runtimeLeaseHistoryStatus() { ready();return leaseArchive==null?null:leaseArchive.status(); }
     /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
     /** Host-facing IMP-022 API. No player command/client feature is introduced by this data owner. */
     public KnowledgeAccess.Decision knowledgeEligibility(ActorRef actor,ArtifactRef method,TrustedContext caller){
