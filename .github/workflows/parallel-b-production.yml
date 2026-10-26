@@ -86,6 +86,10 @@ jobs:
           python3 e2e/parallel_b/review_bundle.py --source build/parallel-b-native --output build/parallel-b-review \
             --head a7fbaae77eb88fd6f4992374ab425c23d196de2b --tree 21d6d5fe31477bb2fa43534c2f2ca470253f32a0 \
             --run 40354898095 --artifact-name parallel-b-B06-a7fbaae77eb88fd6f4992374ab425c23d196de2b-40354898095-1
+      - name: Independently verify and expose bounded original native vectors
+        run: |
+          python3 e2e/parallel_b/verify_diagnostics.py build/parallel-b-review/build/e2e/parallel-b/B06 a7fbaae77eb88fd6f4992374ab425c23d196de2b 21d6d5fe31477bb2fa43534c2f2ca470253f32a0 e2e/parallel_b/diagnostic-matrix.json
+          python3 e2e/parallel_b/emit_review_audit.py --root build/parallel-b-review --label final
       - uses: actions/upload-artifact@v4
         with:
           name: parallel-b-B06-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -106,6 +110,8 @@ jobs:
           python3 e2e/parallel_b/review_bundle.py --source build/parallel-b-prior --output build/parallel-b-review-prior \
             --head 6c51554f8d3105da83f82df8a1be441a5e04610f --tree 32acb11297a00341c187e0938f32db8f4eab9fb5 \
             --run 40353653834 --artifact-name parallel-b-B06-6c51554f8d3105da83f82df8a1be441a5e04610f-40353653834-1
+      - name: Expose the retained prior candidate under its own source identity
+        run: python3 e2e/parallel_b/emit_review_audit.py --root build/parallel-b-review-prior --label prior
       - uses: actions/upload-artifact@v4
         with:
           name: parallel-b-B06-review-prior-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
