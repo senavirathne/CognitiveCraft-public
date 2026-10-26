@@ -25,12 +25,16 @@ def main():
     parser.add_argument('--root',type=Path,required=True)
     parser.add_argument('--built',action='store_true')
     parser.add_argument('--entrypoint',action='append')
+    parser.add_argument('--extra-mod',type=Path,action='append',default=[])
     args=parser.parse_args();root=args.root.resolve();root.mkdir(parents=True,exist_ok=False)
     spec=importlib.util.spec_from_file_location('cc_parallel_b_headless',ROOT/'scripts/headless.py')
     headless=importlib.util.module_from_spec(spec);spec.loader.exec_module(headless)
     runtime=headless.prepare() if args.built else headless.build()[0]
     release=ROOT/'fabric/build/libs/ai-villages-0.1.0.jar';tests=ROOT/'fabric/build/libs/ai-villages-0.1.0-gametest.jar'
     production_hash=sha(release)
+    extra_mods=[p.resolve() for p in args.extra_mod]
+    if len(extra_mods)>3 or len({p.name for p in extra_mods})!=len(extra_mods):raise ValueError('Bounded unique extra observer mods required')
+    if any(p.name in {release.name,tests.name,'fabric-api.jar','gametest.jar'} for p in extra_mods):raise ValueError('Observer cannot replace a host mod')
     with ZipFile(runtime[0]) as native:
         version=json.loads(native.read('version.json'))
         if version['id']!='26.3':raise ValueError('Native recipe host runtime changed')
@@ -47,7 +51,7 @@ def main():
               'sourceCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
               'sourceTree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip(),
               'dirty':bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT)),
-              'productionSha256':production_hash,'originalTestJarSha256':sha(tests),'minecraft':'26.3','loader':'0.19.5',
+              'productionSha256':production_hash,'originalTestJarSha256':sha(tests),'extraMods':[{'file':p.name,'sha256':sha(p)} for p in extra_mods],'minecraft':'26.3','loader':'0.19.5',
               'dependencyLockSha256':sha(ROOT/'scripts/dependencies.json'),'nativeVersion':version,
               'installedRecipeDataSha256':installed_data,
               'nativeDependencies':[{'file':str(p.relative_to(headless.SDK)),'sha256':sha(p)} for p in [*runtime,headless.SDK/'fabric-api.jar',headless.SDK/'gametest.jar']],
@@ -67,7 +71,7 @@ def main():
                     value=json.loads(data);value['entrypoints']['fabric-gametest']=[entry];data=json.dumps(value).encode()
                 target.writestr(name,data)
         import shutil
-        for path in [headless.SDK/'fabric-api.jar',headless.SDK/'gametest.jar',release]:shutil.copy2(path,mods/path.name)
+        for path in [headless.SDK/'fabric-api.jar',headless.SDK/'gametest.jar',release,*extra_mods]:shutil.copy2(path,mods/path.name)
         command=[headless.executable('java'),'-Xms256M','-Xmx2G','-Dfabric-api.gametest',
                  '-Dfabric-api.gametest.report-file='+str(report),'-Dcognitivecraft.parallelB.evidence='+str(evidence),
                  '-cp',os.pathsep.join(map(str,runtime)),'net.fabricmc.loader.impl.launch.knot.KnotServer','nogui']
