@@ -1,4 +1,4 @@
-"""Fail closed on edits outside the current A01 owned source boundary."""
+"""Fail closed on edits outside the current A02 owned source boundary."""
 import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
@@ -12,6 +12,7 @@ allowed={
     'fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java',
     'fabric/src/main/java/dev/aivillages/fabric/KernelCommands.java',
     'core/src/test/java/dev/aivillages/core/kernel/RecoveredJobOwnersTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveHistoryReaderTest.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/')
 changed=subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()

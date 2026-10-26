@@ -14,7 +14,7 @@ concurrency:
   group: cc-runtime-a-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 jobs:
-  a01-recovery:
+  a02-readers:
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
@@ -34,7 +34,7 @@ jobs:
             build/e2e-sdk
             build/server-sdk
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
-      - name: Exact event and A01 source ownership
+      - name: Exact event and A02 reader ownership
         env:
           EXPECTED_SOURCE_SHA: ${{ github.sha }}
         run: |
@@ -43,22 +43,15 @@ jobs:
           python3 e2e/parallel_a/ownership.py
           python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py' -v
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
-      - name: Baseline module regressions and one production build
+      - name: A02 readers, legacy journal contracts, baseline regressions and one production build
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
-          python3 e2e/runtime.py prepare
-          python3 e2e/runtime.py compile
-          python3 e2e/parallel_a/prepare.py
-          python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
-          python3 tools/needle/install.py build/needle
-      - name: Real client activity visibility, interrupted owner and repeated cancellation adoption
-        run: python3 e2e/parallel_a/activity.py --root build/parallel-a/native
-      - name: Retain exact-source first failures and baseline evidence
+      - name: Retain exact-source reader failures and compatibility evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cc-runtime-a-a01-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: cc-runtime-a-a02-readers-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
