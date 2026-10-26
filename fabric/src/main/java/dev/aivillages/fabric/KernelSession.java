@@ -51,7 +51,8 @@ public final class KernelSession implements AutoCloseable {
                           BlueprintStore blueprints, AccomplishmentLedger accomplishments, KnowledgeAccessStore access,
                           OrganizationJournal organizations,
                           Organizations.Snapshot initialOrganizations, boolean organizationsReadOnly,
-                          MandateJournal mandates, Mandates.Snapshot initialMandates, boolean mandatesReadOnly) { }
+                          MandateJournal mandates, Mandates.Snapshot initialMandates, boolean mandatesReadOnly,
+                          dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -99,6 +100,9 @@ public final class KernelSession implements AutoCloseable {
     private LeasedGateway dispatchGateway;
     private WorkerDispatcher dispatcher;
     private dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveredOwners;
+    private dev.aivillages.core.kernel.runtime.persistence.ArchiveService historyService;
+    private final boolean runtimeHistoryEnabled = "true".equalsIgnoreCase(
+            System.getenv().getOrDefault("COGNITIVECRAFT_RUNTIME_HISTORY", "false"));
     private final boolean activityViewEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_VIEW", "false"));
     private final Map<String, java.util.Set<WorldRetentionManager.Key>> desiredRoots = new LinkedHashMap<>();
@@ -182,6 +186,7 @@ public final class KernelSession implements AutoCloseable {
             KnowledgeAccessStore access = null;
             OrganizationJournal organizations = null;
             MandateJournal mandates = null;
+            dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history = null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -255,6 +260,11 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16, 10_485_760));
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
+                if (runtimeHistoryEnabled) {
+                    history = dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter.open(world,journal.state().worldId(),
+                            dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
+                    retention.register(history.retentionOwner());
+                }
                 var accessMigration=access.migrateSharedAccess(()->false);
                 if(!access.readOnly()&&accessMigration.code()!=KnowledgeAccess.Code.APPLIED&&accessMigration.code()!=KnowledgeAccess.Code.DUPLICATE)
                     throw new IllegalStateException("Shared access migration unavailable: "+accessMigration);
@@ -270,8 +280,9 @@ public final class KernelSession implements AutoCloseable {
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
                         retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments,access,
                         organizations, organizations.snapshot(), organizations.readOnly(),
-                        mandates, mandates.snapshot(), mandates.readOnly());
+                        mandates, mandates.snapshot(), mandates.readOnly(), history);
             } catch (Exception failure) {
+                if(history!=null)try{history.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(access!=null)try{access.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(accomplishments!=null)try{accomplishments.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(mandates!=null)try{mandates.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
@@ -312,6 +323,7 @@ public final class KernelSession implements AutoCloseable {
                 return;
             }
             loaded = opening.join();
+            if(loaded.history()!=null)historyService=new dev.aivillages.core.kernel.runtime.persistence.ArchiveService(loaded.history(),worker);
             compose();
         }
         citizens.tick();
@@ -671,7 +683,8 @@ public final class KernelSession implements AutoCloseable {
                         return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
                     }
                 }, original -> Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof"), 4);
-        worldAccess.effectFence(recoveredOwners::fenced);
+        worldAccess.effectFence((request,effect,target)->loaded.history()!=null && loaded.history().readOnly()
+                && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target));
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
             // Notify both owners; short-circuiting would leave the second owner's work running.
@@ -886,6 +899,21 @@ public final class KernelSession implements AutoCloseable {
         ready(); return jobs.bySubmission(submission, caller);
     }
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
+    /** Trusted server-side immutable storage capture. No player/model command or physical authority. */
+    public record RuntimeStorageView(Jobs.Snapshot jobs,ResourceLeases.Snapshot leases,long retentionGeneration,boolean ready) { }
+    public RuntimeStorageView runtimeStorageView() {
+        ready();return new RuntimeStorageView(jobs.snapshot(),leases.snapshot(),loaded.roots().snapshot().generation(),jobs.ready() && leases.ready());
+    }
+    /** Startup-only storage activation; domain eviction and physical evidence protocols are separate gates. */
+    public dev.aivillages.core.kernel.runtime.persistence.ArchiveService runtimeHistory() {
+        ready();if(historyService==null)throw new IllegalStateException("Runtime history storage is disabled");return historyService;
+    }
+    public record RuntimeHistoryStatus(boolean enabled,boolean readOnly,
+            dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.Manifest manifest) { }
+    public RuntimeHistoryStatus runtimeHistoryStatus() {
+        ready();return new RuntimeHistoryStatus(loaded.history()!=null,loaded.history()!=null && loaded.history().readOnly(),
+                loaded.history()==null?null:loaded.history().snapshot());
+    }
     /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
     /** Host-facing IMP-022 API. No player command/client feature is introduced by this data owner. */
     public KnowledgeAccess.Decision knowledgeEligibility(ActorRef actor,ArtifactRef method,TrustedContext caller){
@@ -1507,6 +1535,7 @@ public final class KernelSession implements AutoCloseable {
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
         if(recoveredOwners!=null)recoveredOwners.close();
+        if(historyService!=null)historyService.stopAdmissions();
         if(planner!=null)planner.close();
         if(organizations!=null)organizations.close();
         if(mandates!=null)mandates.close();
@@ -1533,6 +1562,10 @@ public final class KernelSession implements AutoCloseable {
                             if (failedClose == null) failedClose = closeFailure;
                             else failedClose.addSuppressed(closeFailure);
                         }
+                    }
+                    if(opened.history()!=null)try{opened.history().close();}catch(Exception closeFailure){
+                        AiVillages.LOG.error("Runtime history close failed",closeFailure);
+                        if(failedClose==null)failedClose=closeFailure;else failedClose.addSuppressed(closeFailure);
                     }
                     if (failedClose == null) storeClosure.complete(null);
                     else storeClosure.completeExceptionally(failedClose);
