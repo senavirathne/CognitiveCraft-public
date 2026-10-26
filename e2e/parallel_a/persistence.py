@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,7 +16,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from activity import ActivityHarness
 from baseline import native_process,percentiles
 from suite import ROOT,atomic,read,require,reconnect_players
-from generalization_support import LOG,DST,at
+from generalization_support import LOG,DST,at,Inconclusive
 from generalization import acquisition,receipts
 
 LIMITS={'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackP95Ms':250,'ackP99Ms':1000,'ackMaxMs':30000,
@@ -59,17 +60,28 @@ class PersistenceHarness(ActivityHarness):
         io=self.probe(mode+'-benchmark')
         self.wait(lambda:self.snapshot()['tick']>=start_tick+LIMITS['ticks'],'400 actual stable-window ticks',60)
         captured=self.probe('end-window')
-        measured=self.wait(lambda:(v if (v:=read(self.root/'server/runtime-a-ticks.json')) and len([s for s in v['samples'] if s['time']>=start_ms])>=LIMITS['ticks'] else None),
-                           '400 event-bracketed tick samples flushed',15)
-        ticks=[s['nanos'] for s in measured['samples'] if s['time']>=start_ms][:LIMITS['ticks']]
+        try:
+            measured=self.wait(lambda:(v if (v:=read(self.root/'server/runtime-a-ticks.json')) and len([s for s in v['samples'] if s['time']>=start_ms])>=LIMITS['ticks'] else None),
+                               '400 event-bracketed tick samples flushed',15)
+        except TimeoutError as error:
+            raise Inconclusive('Selected tick observation window was not retained') from error
+        selected=[s for s in measured['samples'] if s['time']>=start_ms][:LIMITS['ticks']]
+        ticks=[s['nanos'] for s in selected]
         captures=captured['captureNanos'][:LIMITS['ticks']]
-        require(len(captures)==LIMITS['ticks'] and len(io['samplesNanos'])==LIMITS['ackSamples'],'Fixed capture/ack sample count missing')
+        if len(captures)!=LIMITS['ticks'] or len(io['samplesNanos'])!=LIMITS['ackSamples']:
+            raise Inconclusive('Fixed capture/ack observation count missing')
+        raw_file=self.root/f'{mode}-raw-window.json'
+        atomic(raw_file,{'schema':1,'configuration':mode,'startMillis':start_ms,'startTick':start_tick,
+                        'observerPid':measured['pid'],'nativeProcess':native_process(self),'probeProcess':captured['process'],
+                        'tickSamples':selected,'captureNanos':captures,'ackNanos':io['samplesNanos'],
+                        'captureRpc':captured['id'],'benchmarkRpc':io['id'],'limits':LIMITS})
         result={'configuration':mode,'tick':percentiles(ticks),'capture':percentiles(captures),'ack':percentiles(io['samplesNanos']),
                 'io':io,'startTick':start_tick,'startMillis':start_ms,'metric':measured['metric'],
+                'rawWindow':raw_file.name,'rawWindowSha256':hashlib.sha256(raw_file.read_bytes()).hexdigest(),
                 'selectors':'first 400 ticks after begin acknowledgement; first 400 captures after begin; all 64 sequential forced publications'}
+        atomic(self.root/f'{mode}-performance.json',result)
         for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
             require(result[field][percentile]<=LIMITS[limit],f'Frozen {mode} {field}/{percentile} exceeded {LIMITS[limit]} ms: '+json.dumps(result[field]))
-        atomic(self.root/f'{mode}-performance.json',result)
         return result
 
 def job_identities(h):
@@ -87,6 +99,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);args=parser.parse_args();args.root.mkdir(parents=True,exist_ok=True)
     result={'stage':'A02','status':'NOT_EXECUTED','limits':LIMITS,'cases':[],
             'claim':'storage foundation/native host integration; no domain eviction, physical proof or automatic continuation'};h=None
+    result['hardware']={'logicalCpus':os.cpu_count(),
+        'cpuModels':sorted({line.split(':',1)[1].strip() for line in Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')}),
+        'memoryTotal':next(line for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:'))}
     try:
         h=PersistenceHarness(args.root);h.env['COGNITIVECRAFT_RUNTIME_HISTORY']='false';h.bootstrap([LOG]);h.family='A02-baseline-control'
         control=acquisition(h,2,[at(6,2),at(9,2)]);baseline_status=h.probe('status');require(not baseline_status['storage']['enabled'],'Baseline new-history activation was not disabled')
@@ -123,7 +138,10 @@ def main():
         if response['accepted']:
             h.actions_active=True
             denied=h.finish_run(response['run'],success=False);require(denied.get('marker',{}).get('outcome')!='SUCCEEDED' and all(receipts(denied,s,LOG)==0 for s in ('HARVEST','PICKUP','DEPOSIT')),'Fenced history authorized native effects')
-        else:denied=response
+        else:
+            denied=response
+            require(any('reason='+reason in response['feedback'] for reason in ('INTERRUPTED','STORAGE_UNAVAILABLE')),
+                    'Negative intake refused for an unrelated reason: '+response['feedback'])
         require(LOG in h.block(at(6,2)) and h.container(DST,LOG)==0 and h.inventory().get(LOG,0)==0,'Unknown history changed actual participant custody')
         require(current.read_bytes()==damaged,'Unknown current archive header was overwritten')
         require({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in current.parent.iterdir() if p.is_file()}==archive_hashes,
@@ -137,7 +155,7 @@ def main():
                                 'retainedWorld':'retained-corrupt-history-world','rollbackSource':'coherent-before-corruption-world'})
         result['status']='PASS'
     except Exception as error:
-        result.update(status='FAIL',reason=str(error),trace=traceback.format_exc())
+        result.update(status='INCONCLUSIVE' if isinstance(error,Inconclusive) else 'FAIL',reason=str(error),trace=traceback.format_exc())
         if h is not None:result['lastNativeSnapshot']=h.snapshot()
         raise
     finally:
