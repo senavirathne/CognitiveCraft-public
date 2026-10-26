@@ -44,6 +44,18 @@ generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)
 generated.write_text(adapted)
 sources.append(generated)
+# A second bounded arena supplies a real independently loaded worker while the
+# interrupted actor's arena is absent. Both observers use only existing chunks.
+secondary = adapted.replace('RuntimeAArenaObserver', 'RuntimeASecondaryObserver')
+assert secondary.count('private final int[] observationArea = observationArea();') == 1
+secondary = secondary.replace('private final int[] observationArea = observationArea();',
+    'private final int[] observationArea = new int[]{319,208,63,340,78};')
+for name in ('snapshot.tmp', 'snapshot.json', 'observations.jsonl'):
+    assert secondary.count('server/' + name) == 1
+    secondary = secondary.replace('server/' + name, 'server/secondary-' + name)
+secondary_source = generated.with_name('RuntimeASecondaryObserver.java')
+secondary_source.write_text(secondary)
+sources.append(secondary_source)
 subprocess.run([java('javac'), '--release', '25', '-proc:none', '-encoding', 'UTF-8',
                 '-cp', os.pathsep.join(map(str, cp)), '-d', str(out), *map(str, sources)], check=True)
 observer = ROOT / 'build/e2e-driver/observer.jar'
@@ -58,18 +70,20 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
                 'dev.aivillages.fabric.RuntimeAArenaObserver' if entry == 'dev.aivillages.fabric.E2EObserver' else entry
                 for entry in manifest['entrypoints']['main']]
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAObserver')
+            manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeASecondaryObserver')
             data = json.dumps(manifest).encode()
         target.writestr(entry, data)
     for path in out.rglob('*.class'):
         target.write(path, path.relative_to(out).as_posix())
 with ZipFile(release) as packaged:
-    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'JournalCostProbe'))
+    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'JournalCostProbe'))
                    for n in packaged.namelist())
 assert digest(release) == before
 (ROOT / 'build/parallel-a/observer-adaptation.json').write_text(json.dumps({
     'baselinePath': baseline_source.relative_to(ROOT).as_posix(), 'baselineSha256': baseline_sha,
     'baselineGitBlob': '3617591542864ee1390abf87da674539094bf901',
     'adaptedSourceSha256': digest(generated), 'releaseSha256': before,
+    'secondarySourceSha256': digest(secondary_source), 'secondaryArea': [319,208,63,340,78],
     'observerSha256': digest(observer), 'claim': 'test-only existing chunk reads; unload gate still required',
     'replacements': replacements}, indent=2))
 probe = ROOT / 'build/parallel-a/journal-probe'

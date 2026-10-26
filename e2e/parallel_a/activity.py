@@ -18,6 +18,18 @@ from generalization import acquisition, receipts
 
 
 class ActivityHarness(RuntimeAHarness):
+    def snapshot(self):
+        state = super().snapshot()
+        other = read(self.root/'server/secondary-snapshot.json')
+        if not state or not other or abs(state['time']-other['time']) > 3000:
+            return state
+        state = dict(state)
+        for field in ('blocks','containers','placementColumnsClear'):
+            state[field] = {**state.get(field,{}), **other.get(field,{})}
+        for field in ('actors','drops'):
+            state[field] = list({v['uuid']:v for v in [*state.get(field,[]),*other.get(field,[])]}.values())
+        return state
+
     def enroll(self, player='PlayerA', name='Ada'):
         # Normal-AI villagers may wander between the two sequential enrollments.
         # Move the actual player to the currently unclaimed actor; never move or freeze the actor.
@@ -36,20 +48,37 @@ class ActivityHarness(RuntimeAHarness):
         return super().enroll(player,name)
 
     def prepare_unrelated(self):
-        # Separate actor/log/chest are all prepared before the interrupted task.
-        # No original actor, item, source or destination is replaced after its cut.
-        self.console(['summon minecraft:villager '+coord([81.5,208,74.5])+' {PersistenceRequired:1b}',
-                      'setblock '+coord(at(16,11))+' minecraft:oak_log',
-                      'setblock '+coord(at(18,12))+' minecraft:chest'])
-        self.walk('PlayerA',at(17,10),reach=2)
+        # A separate region, ordinary actor and its empty source/destination are
+        # prepared before the interrupted task. Only actual players move later.
+        self.other_source=[326,208,66];self.other_destination=[333,208,72]
+        self.console(['gamemode spectator PlayerA','tp PlayerA 329.5 208 69.5'])
+        self.wait(lambda: all(','.join(map(str,p)) in self.snapshot()['blocks']
+                  for p in ([319,208,63],[340,208,78])),
+                  'Actual player loads the separate pre-effect fixture region',40)
+        self.console(['fill 318 207 62 341 207 80 minecraft:stone',
+                      'fill 318 206 62 341 206 80 minecraft:sea_lantern',
+                      'fill 318 208 62 341 213 80 minecraft:air',
+                      'fill 318 208 62 341 213 62 minecraft:glass',
+                      'fill 318 208 80 341 213 80 minecraft:glass',
+                      'fill 318 208 62 318 213 80 minecraft:glass',
+                      'fill 341 208 62 341 213 80 minecraft:glass',
+                      'fill 318 214 62 341 214 80 minecraft:glass',
+                      'summon minecraft:villager 329.5 208 67.5 {PersistenceRequired:1b}',
+                      'setblock '+coord(self.other_source)+' minecraft:oak_log',
+                      'setblock '+coord(self.other_destination)+' minecraft:chest',
+                      'gamemode survival PlayerA'])
+        self.wait(lambda: any(a['uuid'] not in self.entities.values() for a in self.snapshot()['actors']),
+                  'Separate normal-AI adult exists before its native enrollment')
         primary=(self.citizens['PlayerA'],self.entities['PlayerA'])
         try:
             self.enroll('PlayerA','Hana')
             self.companion=(self.citizens['PlayerA'],self.entities['PlayerA'])
         finally:
             self.citizens['PlayerA'],self.entities['PlayerA']=primary
-        require(LOG in self.block(at(16,11)) and self.container(at(18,12),LOG)==0,
+        require(LOG in self.block(self.other_source) and self.container(self.other_destination,LOG)==0,
                 'Unrelated native resources were not prepared before interruption')
+        self.command('PlayerA','/tp 66.5 208 69.5','Teleported')
+        self.wait(lambda:self.snapshot()['arenaLoaded'],'Original actual arena remains loaded before its cut')
 
     def compose(self, *args):
         result = subprocess.run(['docker','compose','-p',self.project,'-f',str(ROOT/'e2e/compose.yml'),
@@ -113,37 +142,45 @@ class ActivityHarness(RuntimeAHarness):
             return {'view':v,'address':address,'nativeSnapshot':state} if v and v['blocker']=='WAIT_WORLD' and address and address['availability']=='UNLOADED' else None
         waiting=self.wait(unloaded,'Native chunk unload and truthful WAIT_WORLD activity',110)
         wait_feedback=self.command('PlayerA','/aivillage kernel activity '+root,'blocker=WAIT_WORLD')
-        self.command('PlayerA','/tp 66.5 208 69.5','Teleported')
-        self.command('PlayerB','/tp 80.5 208 69.5','Teleported')
-        for p in self.players:self.command(p,'/gamemode survival','Survival|survival')
-        reloaded=self.wait(lambda:(v if (v:=self.activity(root)) and v['blocker']=='NEEDS_ATTENTION' else None),
-                           'Same original actor reloads; ambiguity remains explicit',70)
-        self.wait(lambda: all(c['availability']=='LOADED' for c in self.snapshot()['knownPlayers']['PlayerA']['citizens']['citizens']
-                            if c['actor']['citizenId'] in (self.citizens['PlayerA'],self.companion[0])),
-                  'Both original enrolled actors are actually loaded before independent work',45)
-        self.quiet(20)
         original_credit=self.run_view('PlayerA',run)['responsibility']['attempts'][-1]['credited']
-        original_stock=self.container(DST,LOG)
+        # The original destination is absent. Never turn an unknown stock read
+        # into a zero or use it as physical proof while its chunk is unavailable.
+        self.command('PlayerA','/tp 329.5 208 69.5','Teleported')
+        self.command('PlayerA','/gamemode survival','Survival|survival')
+        self.wait(lambda:any(c['availability']=='LOADED' and c['actor']['citizenId']==self.companion[0]
+                             for c in self.snapshot()['knownPlayers']['PlayerA']['citizens']['citizens']),
+                  'Same pre-existing companion actually loaded in its separate region',60)
+        during=self.wait(unloaded,'Original actor stays absent while separate actor is available',30)
         primary=(self.citizens['PlayerA'],self.entities['PlayerA']);calls=self.model_calls()
         try:
             self.citizens['PlayerA'],self.entities['PlayerA']=self.companion
             self.actions_active=True
-            other_run=self.submit(LOG,1,minimum=at(16,11),maximum=at(16,11),destination=at(18,12))
+            other_run=self.submit(LOG,1,minimum=self.other_source,maximum=self.other_source,destination=self.other_destination)
             other=self.finish_run(other_run)
             require(all(receipts(other,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')),
                     'Unrelated original native actor did not conserve its own log')
-            require(self.container(at(18,12),LOG)==1 and self.inventory().get(LOG,0)==0 and
-                    self.menu_count('PlayerA',at(18,12),LOG)==1,'Unrelated connected physical delivery missing')
+            require(self.container(self.other_destination,LOG)==1 and self.inventory().get(LOG,0)==0 and
+                    self.menu_count('PlayerA',self.other_destination,LOG)==1,'Unrelated connected physical delivery missing')
             require(self.model_calls()==calls,'Known unrelated execution called a model')
         finally:
             self.citizens['PlayerA'],self.entities['PlayerA']=primary
-        require(self.container(DST,LOG)==original_stock and
-                self.run_view('PlayerA',run)['responsibility']['attempts'][-1]['credited']==original_credit,
+        after_unrelated=self.wait(unloaded,'Unrelated delivery completed while original actor still WAIT_WORLD',30)
+        require(self.run_view('PlayerA',run)['responsibility']['attempts'][-1]['credited']==original_credit,
                 'Unrelated progress changed the interrupted original effect or credit')
+        self.command('PlayerA','/tp 66.5 208 69.5','Teleported')
+        self.command('PlayerB','/tp 80.5 208 69.5','Teleported')
+        self.command('PlayerB','/gamemode survival','Survival|survival')
+        reloaded=self.wait(lambda:(v if (v:=self.activity(root)) and v['blocker']=='NEEDS_ATTENTION' else None),
+                           'Same original actor reloads; ambiguity remains explicit',70)
+        self.wait(lambda:any(c['availability']=='LOADED' and c['actor']['citizenId']==self.citizens['PlayerA']
+                             for c in self.snapshot()['knownPlayers']['PlayerA']['citizens']['citizens']),
+                  'Original enrolled actor actually loaded after independent work',45)
+        require(self.container(DST,LOG)==1,'Original saved first deposit changed while its owner was waiting')
         evidence={'first':first,'repeated':again,'feedback':feedback,'cancelFeedback':cancel,
                   'cancelling':cancelling,'secondRestart':after,'beforeNativeProcess':before,'afterNativeProcess':second,
                   'waiting':waiting,'waitingFeedback':wait_feedback,'reloaded':reloaded,
-                  'unrelated':{'run':other_run,'view':other,'stock':1,'modelCallsUnchanged':True},
+                  'unrelated':{'run':other_run,'view':other,'stock':1,'modelCallsUnchanged':True,
+                               'originalBefore':during,'originalAfter':after_unrelated,'executionClass':'NATIVE_WHILE_ORIGINAL_UNLOADED'},
                   'ownerSettlement':'NOT_CLAIMED','automaticContinuation':False}
         atomic(case/'activity-owner-evidence.json',evidence)
         return evidence
