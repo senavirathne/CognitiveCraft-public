@@ -101,6 +101,13 @@ def main():
         h.wait(lambda:clean_owners(h.snapshot().get("knownPlayers",{}).get("PlayerA",{})),
                "Prior saved owners are actually settled",40)
         h.command("PlayerA","/aivillage kernel inference false","admission=false")
+        if args.seed_root:
+            # The quantity track ends with a deliberately full destination. This
+            # separate positive fixture starts only after actual owner settlement.
+            h.console(['data merge block '+coord(DESTINATION)+' {Items:[]}'])
+            h.wait(lambda:h.snapshot()['containers'].get(','.join(map(str,DESTINATION)))=={},
+                   'Native empty destination for the separate cold-reuse positive',20)
+            require(h.menu_count('PlayerA',DESTINATION,PLANK)==0,'Client cold-reuse destination acknowledgement')
         seed(h);before=h.snapshot();calls=h.model_calls();before_planks=h.container(DESTINATION,PLANK)
         command="/aivillage kernel make-birch-planks "+h.citizens["PlayerA"]+" 4 "+coord(SOURCE+DESTINATION)
         h.actions_active=True
