@@ -109,8 +109,9 @@ def contracts():
             'nativePassesFromDefinitions':0,'freshSeedsCreated':False,
             'interference':{'attempts':2,'missedControls':1,'requiredWitnesses':1,
                 'window':'captured recipe preflight -> final legacy withdrawal return; no tick split inside atomic mutation',
-                'normalAction':'PlayerB QUICK_MOVE source log into own inventory',
-                'ack':'native source decrement and PlayerB inventory increment plus synchronized real client menu'}}
+                'inputItem':'minecraft:oak_log','movedItem':'minecraft:cobblestone',
+                'normalAction':'PlayerB QUICK_MOVE the unrelated cobblestone stack into own inventory; preserve the original leased oak input stock',
+                'ack':'native moved-stack decrement and PlayerB inventory increment plus synchronized real client menu'}}
 
 
 def held_out(seed):

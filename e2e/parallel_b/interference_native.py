@@ -18,9 +18,10 @@ from parallel_b.guards import instruments,observer_inputs
 from parallel_b.interference_oracle import evaluate
 from campaigns.crafting.oracle import candidates
 
+MOVED='minecraft:cobblestone'
 
 def actor(row):return row['details']['request']['request']['arguments']['actor']['value']['entityId']
-def b_count(snapshot):return snapshot['knownPlayers']['PlayerB']['assessmentInventory'].get(LOG,0)
+def b_count(snapshot):return snapshot['knownPlayers']['PlayerB']['assessmentInventory'].get(MOVED,0)
 def source_key():return ','.join(map(str,SRC))
 
 
@@ -47,17 +48,18 @@ def observed_preparation(root,run):
 def open_source(h,stock):
     h.walk('PlayerB',SRC);h.action('PlayerB','open',pos=SRC)
     return h.wait(lambda:(s if (s:=h.client_snapshot('PlayerB')) and s['menu']>0 and
-        sum(x['count'] for x in s['slots'] if not x['playerInventory'] and x['item']==LOG)==stock else None),
+        sum(x['count'] for x in s['slots'] if not x['playerInventory'] and x['item']==LOG)==stock and
+        sum(x['count'] for x in s['slots'] if not x['playerInventory'] and x['item']==MOVED)==1 else None),
         'PlayerB synchronized real source menu before request',30)
 
 
 def remove(h,menu,before_b):
-    slot=next(x['slot'] for x in menu['slots'] if not x['playerInventory'] and x['item']==LOG)
+    slot=next(x['slot'] for x in menu['slots'] if not x['playerInventory'] and x['item']==MOVED)
     scheduled={'beforeNativeTick':h.snapshot()['gameTick'],'clientResult':h.action('PlayerB','menu-click',slot=slot,quick=True)}
     def acknowledged():
         s=h.snapshot();c=h.client_snapshot('PlayerB')
-        native=h.container(SRC,LOG)==0 and b_count(s)==before_b+1
-        synchronized=sum(x['count'] for x in c['slots'] if x['playerInventory'] and x['item']==LOG)==before_b+1
+        native=h.container(SRC,MOVED)==0 and b_count(s)==before_b+1
+        synchronized=sum(x['count'] for x in c['slots'] if x['playerInventory'] and x['item']==MOVED)==before_b+1
         return {'snapshot':s,'client':c,'nativeMutation':native,'clientSynchronized':synchronized} if native and synchronized else None
     ack=h.wait(acknowledged,'Independent server source decrement, real PlayerB inventory and client synchronization',30)
     ack['probe']=probe(h,[SRC]);ack['scheduled']=scheduled
@@ -66,7 +68,9 @@ def remove(h,menu,before_b):
 
 def trial(h,index,*,missed=False):
     settled(h);h.family='B07-'+('deliberately-missed' if missed else 'window-'+str(index))
-    h.reset({LOG:2 if missed else 1},table=False,actor=at(1,4))
+    # Preserve all stock covered by the original input lease. Removing the unrelated
+    # stack changes the full native source fingerprint without bypassing that lease.
+    h.reset({LOG:2 if missed else 1,MOVED:1},table=False,actor=at(1,4))
     h.console(['data merge entity '+h.entities['PlayerA']+' {Inventory:[]}',
                'data merge entity '+h.entities['PlayerB']+' {Inventory:[]}'])
     menu=open_source(h,2 if missed else 1)
@@ -102,7 +106,7 @@ def trial(h,index,*,missed=False):
         pre=[x for x in guards if x['phase']=='preflight' and x['actualReturned']==captured and actor(x)==h.entities['PlayerA']]
         if pre:
             p=pre[-1];q=ack['probe'];native=q['positions'][0]
-            proof={'run':req['run'],'actor':h.entities['PlayerA'],
+            proof={'run':req['run'],'actor':h.entities['PlayerA'],'inputItem':LOG,'movedItem':MOVED,
                 'principal':before['knownPlayers']['PlayerA']['uuid'],'interferer':before['knownPlayers']['PlayerB']['uuid'],
                 'twoRealClients':True,'callsBefore':calls,'callsAfter':row['callsAfter'],
                 'preflight':{'actor':actor(p),'tick':p['gameTick'],'available':captured['availableInputs'],
@@ -113,7 +117,7 @@ def trial(h,index,*,missed=False):
                 'withdraw':{'actor':w['details']['actor']['entityId'],'tick':w['gameTick'],'captured':captured,
                     'sourceIdentity':w['details']['source']['blockEntityIdentity'],'reason':w['actualReturned'].get('reason'),
                     'inputCount':w['actualReturned']['moved']},
-                'quantities':{'sourceDelta':h.container(SRC,LOG)-before['containers'][source_key()].get(LOG,0),
+                'quantities':{'sourceDelta':h.container(SRC,MOVED)-before['containers'][source_key()].get(MOVED,0),
                     'playerBDelta':b_count(row['after'])-b_count(before),'actorInputDelta':h.inventory().get(LOG,0),
                     'actorOutputDelta':h.inventory().get(PLANK,0),'destinationDelta':h.container(DST,PLANK),
                     'creditedOutput':sum(r['quantity'] for r in row['view'].get('resourceReceipts',[]) if r['stage']=='DEPOSIT')}}
