@@ -418,9 +418,9 @@ class Harness:
         if component == "server":
             for player in ("PlayerA", "PlayerB"):
                 if player in self.booted:
-                    self.wait(lambda: not self.action(player, "snapshot").get("play"),
-                              "Client independently observed stopped server " + player, 30)
-                    self.event("server-disconnection-witness", {"player":player,"server":info})
+                    disconnected = self.wait(lambda: (s if (s := self.action(player, "snapshot")).get("play") is False else None),
+                                             "Client independently observed stopped server " + player, 30)
+                    self.event("server-disconnection-witness", {"player":player,"server":info,"client":disconnected})
 
     def fresh(self, two=False, known=False, legacy=False, compatibility=False, diagnostics="off"):
         self.actions_active = False

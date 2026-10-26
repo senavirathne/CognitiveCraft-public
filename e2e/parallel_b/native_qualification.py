@@ -123,12 +123,13 @@ def main():
         atomic(h.root/"rejected-clock.json",{"feedback":rejection,"isKillWitness":False})
         cold=read(h.root/"server/process.json")
         h.stop("server",hard=True)
-        require(not h.client_snapshot("PlayerA")["play"],"Client still observes a connected server after actual SIGKILL")
+        disconnected=h.action("PlayerA","snapshot")
+        require(disconnected.get("play") is False,"Client still observes a connected server after actual SIGKILL")
         events=[json.loads(l) for l in (h.root/"supervisor.jsonl").read_text().splitlines()]
         stopped=[e for e in events if e["kind"]=="process-stop-witness" and e["data"]["component"]=="server" and e["data"]["hard"]]
         require(len(stopped)==1,"Missing/duplicate independent SIGKILL witness")
         atomic(h.root/"kill-witness.json",{"process":cold,"processExitObserved":True,"disconnectionObserved":True,
-                "nativeInspection":stopped[0],"recoveryClaim":False})
+                "nativeInspection":stopped[0],"clientDisconnection":disconnected,"recoveryClaim":False})
         result.update(status="PASS",meaning="Native craft and repaired observer/kill/collection path; no recovery claim")
     except Exception as error:
         result.update(status="FAIL",reason=str(error),trace=traceback.format_exc())
