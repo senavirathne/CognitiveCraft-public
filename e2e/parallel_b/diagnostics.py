@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -45,7 +46,25 @@ def settled(h,*,fence=False):
             acknowledgements.append({'player':player,'job':owner['id'],'before':owner,'feedback':answer})
     h.wait(lambda:all(clean_owners(d) for d in h.snapshot().get('knownPlayers',{}).values()),
            'Actual terminal settled owners before any diagnostic fixture mutation',45)
-    return {'clean':True,'cancellationAcknowledgements':acknowledgements,'nativeOwnerProjection':h.snapshot()['knownPlayers']}
+    return {'clean':True,'cancellationAcknowledgements':acknowledgements,'nativeSnapshotAfterSettlement':h.snapshot()}
+
+def enroll_subjects(h):
+    before=h.snapshot();subjects=sorted(before['actors'],key=lambda a:a['uuid'])
+    require(len(subjects)==2 and all(a['alive'] and not a['baby'] and not a['noAI'] for a in subjects),
+            'Two ordinary native unclaimed subjects required before enrollment')
+    assignments=list(zip(('PlayerA','PlayerB'),(66,79),subjects))
+    h.console(['tp '+actor['uuid']+' '+coord([x+.5,208,66.5]) for _,x,actor in assignments])
+    evidence={'before':before,'subjects':[]}
+    for player,x,actor in assignments:
+        pose=[x+.5,208,66.5];player_pose=[x+.5,208,69.5]
+        h.console(['tp '+actor['uuid']+' '+coord(pose),'tp '+player+' '+coord(player_pose)])
+        witness=h.wait(lambda:(s if (s:=h.snapshot()) and any(a['uuid']==actor['uuid'] and math.dist(a['pos'],pose)<1 for a in s['actors'])
+                              and math.dist(h.client_snapshot(player)['pos'],player_pose)<1 else None),
+                       'Native subject and connected player acknowledge pre-enrollment pose',20)
+        h.enroll(player,'Ada' if player=='PlayerA' else 'Mira')
+        require(h.entities[player]==actor['uuid'],'Public enrollment selected a different native subject')
+        evidence['subjects'].append({'player':player,'entity':actor['uuid'],'citizen':h.citizens[player],'nativeWitness':witness})
+        atomic(h.root/'enrollment-fixture.json',evidence)
 
 def probe(h,positions):
     request={'id':str(uuid.uuid4()),'positions':positions};atomic(h.root/'server/b-probe.json',request)
@@ -144,7 +163,7 @@ def main():
         h.env['COGNITIVECRAFT_OLLAMA_MODEL']='qwen3:4b-instruct-2507-q4_K_M'
         h.compose('build','minecraft');h.compose('up','-d','ollama');h.compose('exec','-T','ollama','ollama','pull',h.env['COGNITIVECRAFT_OLLAMA_MODEL'])
         with urllib.request.urlopen('http://127.0.0.1:11434/api/tags',timeout=20) as r:atomic(h.root/'models.json',json.load(r))
-        h.fresh(two=True);h.enroll();h.enroll('PlayerB','Mira')
+        h.fresh(two=True);enroll_subjects(h)
         h.command('PlayerA','/aivillage kernel inference true','admission=true')
         for item in (BIRCH,PLANK):admit(h,item)
         h.command('PlayerA','/aivillage kernel inference false','admission=false');h.compose('stop','ollama')
