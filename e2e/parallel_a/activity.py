@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
+import math
 from pathlib import Path
 import re
 import subprocess
@@ -17,6 +18,23 @@ from generalization import acquisition, receipts
 
 
 class ActivityHarness(RuntimeAHarness):
+    def enroll(self, player='PlayerA', name='Ada'):
+        # Normal-AI villagers may wander between the two sequential enrollments.
+        # Move the actual player to the currently unclaimed actor; never move or freeze the actor.
+        def approached():
+            state=self.snapshot(); position=self.client_snapshot(player)['pos']
+            candidates=[a for a in state['actors'] if a['uuid'] not in self.entities.values()
+                        and a['alive'] and not a['baby'] and not a['noAI'] and not a['controlled']]
+            require(bool(candidates),'Actual unclaimed adult villager required for enrollment fixture')
+            chosen=min(candidates,key=lambda a:math.dist(position,a['pos']))
+            if math.dist(position,chosen['pos'])<=3:return chosen
+            self.walk(player,[math.floor(chosen['pos'][0]),math.floor(chosen['pos'][1]),math.floor(chosen['pos'][2])],reach=1.5)
+            actual=next((a for a in self.snapshot()['actors'] if a['uuid']==chosen['uuid']),None)
+            return actual if actual and math.dist(self.client_snapshot(player)['pos'],actual['pos'])<=3 else None
+        subject=self.wait(approached,'Connected player within native range of the live unclaimed villager',60)
+        self.event('a01-enrollment-native-proximity',{'player':player,'actor':subject})
+        return super().enroll(player,name)
+
     def prepare_unrelated(self):
         # Separate actor/log/chest are all prepared before the interrupted task.
         # No original actor, item, source or destination is replaced after its cut.
