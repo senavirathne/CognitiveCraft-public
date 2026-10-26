@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
+import sys
 import unittest
-from campaign_contracts import HERE,contracts,validate,held_out,sha
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from parallel_b.campaign_contracts import HERE,contracts,validate,held_out,sha
 
 
 class CampaignContractTests(unittest.TestCase):
