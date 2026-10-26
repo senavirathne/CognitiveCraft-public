@@ -51,10 +51,10 @@ public final class PlanningModel {
         public Location {if((container==null)==(actor==null) || slot<0 || slot>127)throw new IllegalArgumentException("Exact container or actor slot required");}
     }
     /** units is available/unallocated; observedUnits is the full native stack count used by exact bindings. */
-    public record Stock(String key,Location location,RecipeChoice.ItemKey item,long units,long observedUnits,long rootEligibleUnits,
+    public record Stock(String key,Location location,RecipeChoice.ItemKey item,long units,long observedUnits,long rootEligibleUnits,UUID eligibleRoot,List<String> eligibilityReferences,
                         Eligibility eligibility,Availability availability,boolean permitted,boolean reachable,long travelCost,long relevantRevision) {
-        public Stock {text(key,128);Objects.requireNonNull(location);Objects.requireNonNull(item);Objects.requireNonNull(eligibility);Objects.requireNonNull(availability);nonnegative(units,observedUnits,rootEligibleUnits,travelCost,relevantRevision);
-            if(item.empty() || observedUnits<units || observedUnits>64 || rootEligibleUnits>units || eligibility==Eligibility.NONE && rootEligibleUnits!=0
+        public Stock {text(key,128);Objects.requireNonNull(location);Objects.requireNonNull(item);Objects.requireNonNull(eligibility);Objects.requireNonNull(availability);eligibilityReferences=List.copyOf(eligibilityReferences);nonnegative(units,observedUnits,rootEligibleUnits,travelCost,relevantRevision);
+            if(item.empty() || observedUnits<units || observedUnits>64 || rootEligibleUnits>units || rootEligibleUnits>0 && (eligibleRoot==null || eligibilityReferences.isEmpty()) || eligibilityReferences.size()>16 || eligibilityReferences.stream().anyMatch(x->x==null || x.isBlank() || x.length()>128) || eligibility==Eligibility.NONE && rootEligibleUnits!=0
                     || availability!=Availability.PRESENT && observedUnits!=0 || !permitted && observedUnits!=0)throw new IllegalArgumentException("Private/unknown stock cannot expose or grant quantities");}
     }
     public record MethodPin(CapabilityId capability,String artifactHash,String semanticFingerprint,boolean usable,int artifactVersion,int contractVersion) {
@@ -63,9 +63,10 @@ public final class PlanningModel {
     }
     /** Ordered nonempty cells from an actual validated native recipe profile, never from model JSON. */
     public record RecipeProfile(String recipe,CapabilityId capability,List<List<RecipeChoice.ItemKey>> cells,
-                                RecipeChoice.ItemKey result,String semanticFingerprint,MethodPin method,Cost allowance) {
+                                RecipeChoice.ItemKey result,String semanticFingerprint,MethodPin method,Cost allowance,long reloadEpoch) {
+        public RecipeProfile(String recipe,CapabilityId capability,List<List<RecipeChoice.ItemKey>> cells,RecipeChoice.ItemKey result,String semanticFingerprint,MethodPin method,Cost allowance){this(recipe,capability,cells,result,semanticFingerprint,method,allowance,0);}
         public RecipeProfile {
-            var d=definition(capability);Objects.requireNonNull(result);Objects.requireNonNull(allowance);hash(semanticFingerprint);cells=cells.stream().map(List::copyOf).toList();
+            var d=definition(capability);Objects.requireNonNull(result);Objects.requireNonNull(allowance);hash(semanticFingerprint);nonnegative(reloadEpoch);cells=cells.stream().map(List::copyOf).toList();
             if(!d.recipe().equals(recipe) || !d.output().id().equals(result.id()) || cells.size()!=d.totalInputs() || allowance.effects<3 || allowance.ticks<1
                     || cells.stream().anyMatch(c->c.isEmpty() || c.size()>16 || c.stream().anyMatch(RecipeChoice.ItemKey::empty))
                     || method!=null && (!method.capability.equals(capability) || !method.semanticFingerprint.equals(semanticFingerprint)))throw new IllegalArgumentException("Bounded static profile, result and immutable method pin required");
@@ -94,16 +95,27 @@ public final class PlanningModel {
     public record ChoiceOffer(ValidatedRequest request,RecipeChoice choice,RecipeSources sources) {
         public ChoiceOffer {Objects.requireNonNull(request);Objects.requireNonNull(choice);Objects.requireNonNull(sources);RecipeChoicePlan.propose(new UUID(0,0),0,request,choice,sources);}
     }
+    public enum SettlementKind { ACCEPTED_EFFECT, NO_EFFECT, CURRENT_ALLOCATION }
+    /** Original identities and accepted references supplied by A. Historical references grant no current stock. */
+    public record SettledProgress(UUID root,String actionToken,String stepId,UUID attemptId,String effectId,
+                                  List<String> receiptReferences,List<String> settlementReferences,SettlementKind kind,
+                                  long authoritativeRevision,long executionGeneration,long confirmedCredit) {
+        public SettledProgress {Objects.requireNonNull(root);Objects.requireNonNull(attemptId);Objects.requireNonNull(kind);text(actionToken,96);text(stepId,128);text(effectId,128);receiptReferences=List.copyOf(receiptReferences);settlementReferences=List.copyOf(settlementReferences);nonnegative(authoritativeRevision,executionGeneration,confirmedCredit);
+            if(actionToken.isBlank() || stepId.isBlank() || settlementReferences.isEmpty() || receiptReferences.size()>16 || settlementReferences.size()>16 || kind==SettlementKind.ACCEPTED_EFFECT && (receiptReferences.isEmpty() || effectId.isBlank()) || receiptReferences.stream().anyMatch(x->x==null || x.isBlank() || x.length()>128) || settlementReferences.stream().anyMatch(x->x==null || x.isBlank() || x.length()>128))throw new IllegalArgumentException("Original scoped settlement identities/references required");}
+    }
     public record Snapshot(int schema,UUID world,UUID root,long revision,TrustedContext context,Owner owner,Goal goal,
                            ContainerRef activeDestination,long confirmedCredit,Budget budget,long nowMillis,long relevantWorldRevision,
                            List<Stock> stock,List<Acquisition> acquisition,List<RecipeProfile> recipes,Facility facility,List<ChoiceOffer> choices,
-                           Set<Kind> supportedKinds,Set<String> settledActionTokens,boolean catalogueComplete,boolean modelAvailable,long returnsUsed) {
+                           Set<Kind> supportedKinds,List<SettledProgress> progress,boolean catalogueComplete,boolean modelAvailable,long returnsUsed) {
         public Snapshot {Objects.requireNonNull(world);Objects.requireNonNull(root);Objects.requireNonNull(context);Objects.requireNonNull(owner);Objects.requireNonNull(goal);Objects.requireNonNull(activeDestination);Objects.requireNonNull(budget);
-            stock=List.copyOf(stock);acquisition=List.copyOf(acquisition);recipes=List.copyOf(recipes);choices=List.copyOf(choices);supportedKinds=Set.copyOf(supportedKinds);settledActionTokens=Set.copyOf(settledActionTokens);nonnegative(revision,confirmedCredit,nowMillis,relevantWorldRevision,returnsUsed);
-            if(schema!=SCHEMA || confirmedCredit>goal.demand || stock.size()>MAX_STOCK || acquisition.size()>8 || recipes.size()>MAX_RECIPES || choices.size()>32 || settledActionTokens.size()>MAX_ACTIONS
-                    || stock.stream().map(Stock::key).distinct().count()!=stock.size() || recipes.stream().map(RecipeProfile::recipe).distinct().count()!=recipes.size())throw new IllegalArgumentException("Bounded versioned planning snapshot required");}
+            stock=List.copyOf(stock);acquisition=List.copyOf(acquisition);recipes=List.copyOf(recipes);choices=List.copyOf(choices);supportedKinds=Set.copyOf(supportedKinds);progress=List.copyOf(progress);nonnegative(revision,confirmedCredit,nowMillis,relevantWorldRevision,returnsUsed);
+            if(schema!=SCHEMA || confirmedCredit>goal.demand || confirmedCredit>0 && progress.isEmpty() || stock.size()>MAX_STOCK || acquisition.size()>8 || recipes.size()>MAX_RECIPES || choices.size()>32 || progress.size()>MAX_ACTIONS
+                    || stock.stream().map(Stock::key).distinct().count()!=stock.size() || stock.stream().map(Stock::location).distinct().count()!=stock.size() || acquisition.stream().map(Acquisition::key).distinct().count()!=acquisition.size() || recipes.stream().map(RecipeProfile::recipe).distinct().count()!=recipes.size())throw new IllegalArgumentException("Bounded non-duplicated planning snapshot required");
+            for(int i=0;i<acquisition.size();i++)for(int j=i+1;j<acquisition.size();j++){var a=acquisition.get(i);var b=acquisition.get(j);if(a.availableUnits()>0 && b.availableUnits()>0 && overlap(a.source(),b.source()))throw new IllegalArgumentException("Overlapping acquisition quotas require authoritative target deduplication");}
+            for(var p:progress)if(!p.root().equals(root) || p.authoritativeRevision()>revision || p.executionGeneration()>owner.executionGeneration() || p.confirmedCredit()>confirmedCredit)throw new IllegalArgumentException("Settlement belongs to another/future root view");}
         public long remainingDemand(){return goal.demand-confirmedCredit;}
         public Optional<RecipeProfile> recipe(String id){return recipes.stream().filter(r->r.recipe.equals(id)).findFirst();}
+        public Set<String> settledActionTokens(){var tokens=new HashSet<String>();for(var p:progress){if(!p.root().equals(root) || p.authoritativeRevision()>revision || p.executionGeneration()>owner.executionGeneration() || p.confirmedCredit()>confirmedCredit)throw new IllegalArgumentException("Settlement projection belongs to another/future root view");if(p.kind()!=SettlementKind.NO_EFFECT)tokens.add(p.actionToken());}return Set.copyOf(tokens);}
     }
     public record Action(Kind kind,String recipe,CapabilityId capability,Map<RecipeChoice.ItemKey,Long> inputs,
                          RecipeChoice.ItemKey result,int yield,long requestedDemand,boolean rootOutput,Cost allowance,String sourceKey) {
@@ -134,24 +146,25 @@ public final class PlanningModel {
     public record SegmentProposal(int schema,String proposalId,String stepToken,UUID world,UUID root,long revision,UUID owner,TrustedContext context,ActorRef executor,
                                   long executionGeneration,Kind kind,CapabilityId capability,MethodPin method,List<String> coveredActionTokens,
                                   List<StockBinding> bindings,String acquisitionSourceKey,Cuboid acquisitionArea,ContainerRef destination,FacilityRef facility,
-                                  ChoiceOffer nativeChoice,Quantities quantities,Map<Counter,Long> requestedAllowance,long originalDeadlineMillis,Checkpoint checkpoint) {
+                                  ChoiceOffer nativeChoice,CapabilityRequest requestedInvocation,Quantities quantities,Map<Counter,Long> requestedAllowance,long originalDeadlineMillis,Checkpoint checkpoint) {
         public SegmentProposal {if(schema!=SCHEMA)throw new IllegalArgumentException("Proposal version");nonnegative(revision,executionGeneration,originalDeadlineMillis);hash(proposalId);text(stepToken,96);text(acquisitionSourceKey,128);Objects.requireNonNull(world);Objects.requireNonNull(root);Objects.requireNonNull(owner);Objects.requireNonNull(context);Objects.requireNonNull(executor);Objects.requireNonNull(kind);Objects.requireNonNull(quantities);Objects.requireNonNull(checkpoint);
             coveredActionTokens=List.copyOf(coveredActionTokens);bindings=List.copyOf(bindings);requestedAllowance=counts(requestedAllowance);if(coveredActionTokens.size()>MAX_ACTIONS || bindings.size()>MAX_STOCK || kind==Kind.ACQUIRE && acquisitionArea==null)throw new IllegalArgumentException("Bounded exact segment bindings required");}
     }
     /** A may persist this pure payload. B owns no writer, timer, wake loop or retry ledger. */
-    public record Memory(String signature,String lastProposalId,int unchangedChecks,long nextCheckMillis,String originalBudgetDigest,
+    public record Memory(UUID world,UUID root,UUID owner,TrustedContext context,String originalGoalDigest,String signature,String lastProposalId,int unchangedChecks,long nextCheckMillis,String originalBudgetDigest,
                          long originalDeadlineMillis,Map<Counter,Long> observedUsage,long returnsUsed) {
-        public static Memory empty(){return new Memory("","",0,0,"",0,zeroCounts(),0);}
-        public Memory {text(signature,128);text(lastProposalId,64);text(originalBudgetDigest,64);observedUsage=counts(observedUsage);nonnegative(nextCheckMillis,originalDeadlineMillis,returnsUsed);if(unchangedChecks<0 || unchangedChecks>4)throw new IllegalArgumentException("Bounded no-progress memory required");}
+        public static Memory empty(){return new Memory(null,null,null,null,"","","",0,0,"",0,zeroCounts(),0);}
+        public Memory {text(originalGoalDigest,64);text(signature,128);text(lastProposalId,64);text(originalBudgetDigest,64);observedUsage=counts(observedUsage);nonnegative(nextCheckMillis,originalDeadlineMillis,returnsUsed);if(unchangedChecks<0 || unchangedChecks>4 || !originalBudgetDigest.isEmpty() && (world==null || root==null || owner==null || context==null || !RecipeTransaction.hash(originalGoalDigest)))throw new IllegalArgumentException("Bounded scoped no-progress memory required");}
     }
-    public record ChoiceRequest(CapabilityId capability,long nativeAmount,ContainerRef destination,String semanticFingerprint,List<ContainerRef> permittedSources) {
-        public ChoiceRequest {Objects.requireNonNull(capability);Objects.requireNonNull(destination);hash(semanticFingerprint);permittedSources=List.copyOf(permittedSources);if(nativeAmount<1 || nativeAmount>64 || permittedSources.size()>4)throw new IllegalArgumentException("Bounded read-only native-choice request required");}
+    public record ChoiceRequest(CapabilityId capability,long nativeAmount,int batches,Map<RecipeChoice.ItemKey,Long> inputsPerBatch,ContainerRef destination,String semanticFingerprint,List<ContainerRef> permittedSources) {
+        public ChoiceRequest {Objects.requireNonNull(capability);Objects.requireNonNull(destination);hash(semanticFingerprint);inputsPerBatch=Map.copyOf(inputsPerBatch);permittedSources=List.copyOf(permittedSources);var d=definition(capability);if(nativeAmount<1 || nativeAmount>d.maximumAmount() || batches!=d.batches(nativeAmount) || inputsPerBatch.size()>d.totalInputs() || inputsPerBatch.keySet().stream().anyMatch(RecipeChoice.ItemKey::empty) || inputsPerBatch.values().stream().anyMatch(n->n<1 || n>d.totalInputs()) || inputsPerBatch.values().stream().mapToLong(Long::longValue).sum()!=d.totalInputs() || permittedSources.size()>4)throw new IllegalArgumentException("Bounded exact read-only native-choice request required");}
     }
     public enum DecisionKind { PROPOSE, BLOCKED, WAIT, GOAL_ALREADY_CREDITED }
     public record Decision(DecisionKind kind,String blocker,Analysis analysis,SegmentProposal proposal,ChoiceRequest neededChoice,Memory memory,long nextCheckMillis) {
         public Decision {Objects.requireNonNull(kind);text(blocker,128);Objects.requireNonNull(memory);nonnegative(nextCheckMillis);if(kind==DecisionKind.PROPOSE && proposal==null)throw new IllegalArgumentException("Explicit proposal required");}
     }
     static RecipeProduction.Definition definition(CapabilityId id){return id.version()==2?RecipeProduction.choiceDefinition(id):RecipeProduction.of(id);}
+    private static boolean overlap(Cuboid a,Cuboid b){return a.dimension().equals(b.dimension()) && a.minX()<=b.maxX() && b.minX()<=a.maxX() && a.minY()<=b.maxY() && b.minY()<=a.maxY() && a.minZ()<=b.maxZ() && b.minZ()<=a.maxZ();}
     static void text(String value,int max){if(value==null || value.length()>max)throw new IllegalArgumentException("Bounded text required");}
     static void hash(String value){if(!RecipeTransaction.hash(value))throw new IllegalArgumentException("SHA-256 identity required");}
     static void nonnegative(long... n){for(long value:n)if(value<0)throw new IllegalArgumentException("Nonnegative checked quantities required");}

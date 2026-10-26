@@ -105,6 +105,23 @@ final class FabricConcreteRecipeChoices {
         for(int i=0;i<ingredients.size();i++)if(ingredients.get(i).isPresent())rows.add(new Cell(i/shaped.getWidth()*width+i%shaped.getWidth(),ingredients.get(i).orElseThrow()));
         if(rows.size()!=definition.totalInputs())throw refuse(Reason.UNSUPPORTED_PRIMITIVE);return List.copyOf(rows);
     }
+    /** Native static data only. A supplies admitted-method pins and approved cost bounds separately. */
+    dev.aivillages.core.kernel.production.planning.PlanningModel.RecipeProfile describe(CapabilityId capability,
+            dev.aivillages.core.kernel.production.planning.PlanningModel.Cost allowance) {
+        thread();var d=RecipeProduction.choiceDefinition(capability);var current=view(capability);int width=d.axe()?3:2;
+        var alternatives=new ArrayList<List<RecipeChoice.ItemKey>>();var prototype=new ArrayList<>(Collections.nCopies(width*width,ItemStack.EMPTY));
+        for(var cell:cells(current,d)){var options=cell.ingredient().items().map(h->itemKey(level,new ItemStack(h))).sorted(Comparator.comparing(RecipeChoice.ItemKey::id)).toList();if(options.isEmpty() || options.size()>16)throw refuse(Reason.UNSUPPORTED_PRIMITIVE);alternatives.add(options);prototype.set(cell.gridSlot(),stack(options.getFirst()));}
+        var input=CraftingInput.of(width,width,prototype);if(!current.recipe().matches(input,level))throw refuse(Reason.UNSUPPORTED_PRIMITIVE);var result=current.recipe().assemble(input);
+        if(result.getCount()!=d.outputPerBatch() || !result.is(FabricResourceItems.item(d.output())) || !FabricRecipeTransactions.plain(result,result.getItem()) || current.recipe().getRemainingItems(input).stream().anyMatch(s->!s.isEmpty()))throw refuse(Reason.UNSUPPORTED_PRIMITIVE);
+        return new dev.aivillages.core.kernel.production.planning.PlanningModel.RecipeProfile(d.recipe(),capability,alternatives,itemKey(level,result),current.semantic(),null,allowance,current.epoch());
+    }
+    /** Validate a planner-selected immutable grid and all batches/capacity without a physical effect. */
+    void validate(ValidatedRequest request,RecipeChoice choice,UUID run,ChoiceAuthority authority,RecipeSources sources) {
+        thread();nativeActor(request,run);sources.validate(request);checkRequest(request,choice);var current=view(choice.capability());
+        sourceContainers(request,run,authority,sources,ChoicePhase.PREPARE,false);permitted(request,run,authority,container(request,"destination"),ChoicePhase.PREPARE,false);facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
+        if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);
+        wholeChoiceCapacity(request,run,authority,choice,current,sources);
+    }
     private CraftingInput input(RecipeChoice choice,int index) {
         return CraftingInput.of(choice.width(),choice.height(),choice.batch(index).grid().stream().map(this::stack).toList());
     }
