@@ -153,4 +153,27 @@ final class LeaseArchiveTest {
             assertEquals(16,archive.status().evicted());
         }
     }
+    @Test void unavailableHistoryCannotGrantAHotGroupOrClaimAnUnknownReferenceIsStale() {
+        var grant=f.alice(f.facility(1),1);Ref hot=f.one(grant);Snapshot before=f.service.snapshot();
+        f.service.attachHistory(new ResourceLeaseService.History() {
+            public boolean ready(){return false;}public boolean failed(){return true;}
+            public Lease lookup(UUID id){throw new AssertionError("Unavailable history must not be read");}
+            public List<Lease> group(UUID id){throw new AssertionError("Unavailable history must not be read");}
+        });
+        assertEquals(Outcomes.Reason.STORAGE_UNAVAILABLE,f.service.group(grant.group(),f.alice,f.a).reason());
+        assertEquals(Outcomes.Reason.STORAGE_UNAVAILABLE,f.service.validate(hot,f.a).reason());
+        assertEquals(Outcomes.Reason.STORAGE_UNAVAILABLE,f.service.validate(new Ref(UUID.randomUUID(),hot.epoch(),1),f.a).reason());
+        assertFalse(f.service.protectedRoots().complete());assertEquals(before,f.service.snapshot());
+    }
+    @Test void initializingHistoryIsPendingAndDoesNotInventPresenceOrAbsence() {
+        var grant=f.alice(f.facility(1),1);Ref hot=f.one(grant);
+        f.service.attachHistory(new ResourceLeaseService.History() {
+            public boolean ready(){return false;}public boolean failed(){return false;}
+            public Lease lookup(UUID id){throw new AssertionError("Initializing history");}
+            public List<Lease> group(UUID id){throw new AssertionError("Initializing history");}
+        });
+        assertEquals(Code.PENDING,f.service.group(grant.group(),f.alice,f.a).code());
+        assertEquals(Code.PENDING,f.service.validate(new Ref(UUID.randomUUID(),hot.epoch(),1),f.a).code());
+        assertFalse(f.service.protectedRoots().complete());assertNull(f.service.failure());
+    }
 }

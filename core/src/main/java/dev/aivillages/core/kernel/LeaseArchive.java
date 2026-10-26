@@ -19,7 +19,7 @@ public final class LeaseArchive {
             settledJobs=Set.copyOf(settledJobs);
         }
     }
-    private record Index(Map<UUID,Lease> ids,Map<UUID,List<Lease>> groups) {
+    private record Index(long revision,Map<UUID,Lease> ids,Map<UUID,List<Lease>> groups) {
         private Index {ids=Map.copyOf(ids);groups=Map.copyOf(groups);}
     }
     private final class Reader implements ResourceLeaseService.History {
@@ -57,7 +57,7 @@ public final class LeaseArchive {
         }
     }
     private record Written(Index index,Publication publication,ArchiveWriter.Status status,int scanned,long hotBytes,long revision) { }
-    public record Status(boolean ready,boolean readOnly,int hot,int active,int archived,long hotBytes,long archiveBytes,
+    public record Status(boolean ready,boolean readOnly,int hot,int active,int archived,long hotBytes,long hotBytesRevision,long archiveBytes,
                          long reservedBytes,boolean pending,String pressure,int lastScanned,long evicted) { }
     private final Thread thread=Thread.currentThread();
     private final ResourceLeaseService service;
@@ -104,7 +104,7 @@ public final class LeaseArchive {
             try {
                 Written done=pending.join();reader.index=done.index();lastScanned=done.scanned();
                 hotBytes=done.hotBytes();measuredRevision=done.revision();
-                pressure=done.status()==null?"NONE":done.status().name();
+                pressure=reader.failed?"FENCED":done.status()==null?"NONE":done.status().name();
                 if(done.publication()!=null && done.publication().permits(service,service.snapshot())) {
                     boundary.at(Point.BEFORE_HOT_PUBLICATION);
                     if(service.archive(done.publication()))eviction=done.publication().rows().stream().map(Lease::id)
@@ -151,6 +151,13 @@ public final class LeaseArchive {
         return List.copyOf(result);
     }
     private Index readIndex(ArchiveWriter w,Snapshot hot)throws IOException {
+        if(w.readOnly())throw new IOException("Fenced lease history");
+        Index previous=reader.index;
+        if(previous!=null && previous.revision()==w.snapshot().revision()) {
+            for(Lease lease:hot.leases())if(previous.ids().containsKey(lease.id()) && !previous.ids().get(lease.id()).equals(lease))
+                throw new IOException("Hot/archive lease conflict");
+            return previous;
+        }
         var ids=new HashMap<UUID,Lease>();var grouped=new HashMap<UUID,List<Lease>>();
         try {
             for(Row row:w.historyView().rows(ArchiveFormat.Owner.LEASES,ArchiveFormat.Kind.HISTORY)) {
@@ -170,14 +177,14 @@ public final class LeaseArchive {
             }
             for(Lease lease:hot.leases())if(ids.containsKey(lease.id()) && !ids.get(lease.id()).equals(lease))
                 throw new IOException("Hot/archive lease conflict");
-            return new Index(ids,groups);
+            return new Index(w.snapshot().revision(),ids,groups);
         }catch(StrictJson.Invalid | RuntimeException invalid){throw new IOException("Unreadable lease domain history",invalid);}
     }
     /** Trusted server diagnostics only; no identities or player command are exposed. */
     public Status status() {
         checkThread();Snapshot hot=service.snapshot();long reserved=writer.snapshot().slots().stream().mapToLong(Slot::remainingBytes).sum();
         return new Status(reader.ready(),reader.failed(),hot.leases().size(),(int)hot.leases().stream().filter(l->l.state()==State.ACTIVE).count(),
-                reader.index==null?0:reader.index.ids().size(),hotBytes,writer.historyView().bytes(),reserved,pending!=null || !eviction.isEmpty(),pressure,lastScanned,evicted);
+                reader.index==null?0:reader.index.ids().size(),hotBytes,measuredRevision,writer.historyView().bytes(),reserved,pending!=null || !eviction.isEmpty(),pressure,lastScanned,evicted);
     }
     public boolean readOnly(){return reader.failed();}
     private void checkThread(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Lease archive game thread");}

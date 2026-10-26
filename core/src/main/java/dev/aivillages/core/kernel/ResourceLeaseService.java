@@ -137,6 +137,7 @@ public final class ResourceLeaseService {
     }
     public Result group(UUID id,Owner owner,TrustedContext caller) {
         checkThread();long tick=now();
+        if(history!=null && !history.ready()){ready();return unavailable();}
         OwnerFacts facts=facts(owner,caller);
         if(facts==null)return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
         if(pending!=null && pending.next().leases().stream().anyMatch(l->l.group().equals(id)
@@ -175,6 +176,7 @@ public final class ResourceLeaseService {
     }
     public Result validate(Ref ref,TrustedContext caller) {
         checkThread();long tick=now();
+        if(history!=null && !history.ready()){ready();return unavailable();}
         if(ref==null)return result(Code.REJECTED,Reason.REQUEST_INVALID);
         Lease row=find(ref.id());Result error=reference(row,ref,caller,tick,true);
         if(error!=null)return error;
@@ -353,7 +355,7 @@ public final class ResourceLeaseService {
         checkThread();Set<UUID> ids=new LinkedHashSet<>();
         for(Lease l:state.leases())ids.add(l.owner().job());
         if(pending!=null)for(Lease l:pending.next().leases())ids.add(l.owner().job());
-        return new Roots(ids,!fenced);
+        return new Roots(ids,!fenced && (history==null || history.ready()));
     }
     private List<Demand> normalize(List<Demand> values) {
         if(values==null || values.isEmpty() || values.size()>settings.group())throw new IllegalArgumentException("Group cap");

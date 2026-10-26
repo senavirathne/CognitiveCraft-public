@@ -192,6 +192,7 @@ def main():
             view=h.finish_run(run,success=False)
             if view.get('marker',{}).get('outcome')!='SUCCEEDED':
                 require(all(receipts(view,s,LOG)==0 for s in ('HARVEST','PICKUP','DEPOSIT')) and LOG in h.block(h.other_source) and h.container(h.other_destination,LOG)==before,'Quota refusal produced a native effect')
+                require('STORAGE_LIMIT_REACHED' in json.dumps(view),'Refusal was not the unchanged lease storage limit')
                 refusal={'run':run,'view':view,'beforeDestination':before,'afterDestination':h.container(h.other_destination,LOG)};break
             require(all(receipts(view,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')),'Quota cohort positive is not native delivery');pressured.append({'run':run,'view':view})
         require(refusal is not None,'Archive quota refusal not reached inside bounded native Job history')
