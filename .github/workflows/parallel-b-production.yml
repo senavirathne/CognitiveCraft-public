@@ -1,0 +1,55 @@
+name: Parallel B production and planning
+on:
+  push:
+    branches: [impl/activity-production-planning]
+    paths: ['core/**', 'fabric/**', 'e2e/parallel_b/**', 'e2e/artifact_selection.py', 'e2e/suite.py', '.github/workflows/parallel-b-production.yml']
+permissions:
+  contents: read
+concurrency:
+  group: cc-production-b-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  b00-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Baseline modules and isolated B contract fixtures
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
+      - name: Hash-verified native runtime and isolated instruments
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+      - name: Genuine admission, baseline q3 failure and q4 native control
+        run: python3 e2e/parallel_b/baseline.py --root build/e2e/parallel-b/B00
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parallel-b-B00-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/e2e/parallel-b/B00/
+            build/e2e-sdk/integrity.json
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/libs/ai-villages-0.1.0.jar

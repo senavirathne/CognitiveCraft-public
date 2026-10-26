@@ -1,0 +1,1 @@
+{"expected":{"durableProof":false,"settled":false},"host":{"kind":"LIVE_OBSERVATION","produced":4,"saveConfirmed":false},"id":"fixture:observation-not-proof","schema":1}

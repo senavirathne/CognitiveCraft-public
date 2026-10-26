@@ -1,0 +1,1 @@
+{"expected":"REJECT_STALE_REVISION","id":"fixture:stale-revision","proposal":{"revision":7},"schema":1,"snapshot":{"revision":8}}

@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "sourceBase": "ea7de8000b2b484b885576c34ed5358274936ce9",
+  "sourceBaseTree": "f0915a127521cb32f45e606c39098011796d1f1d",
+  "docsBase": "d80f1db443a2493b3e422f435e069a7863076b07",
+  "sourceBranch": "impl/activity-production-planning",
+  "docsBranch": "docs/activity-production-planning",
+  "historicalSource": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+  "historicalDocs": "7bc4ccc673485bc5cc8c0d9a00414ebd0f7a80ad",
+  "historicalRun": 40112796714,
+  "baseline": {
+    "scheduled": 334,
+    "attempted": 34,
+    "terminalObserved": 33,
+    "notExecuted": 300,
+    "heldOutAttempted": 0,
+    "restartCasesAttempted": 0
+  },
+  "files": {
+    "frozen/oracle-recipes.json": {
+      "sha256": "2ba0c1a6a9da6f13d7fb633d4529c75d4cda0333e438bd659153fa417053dd66",
+      "bytes": 13456
+    },
+    "frozen/original-definition-hashes.json": {
+      "sha256": "5dbd1ef6e8fe8d71af4259c5acdec0b898fb69797f9a7764e44d0f5ec458d89b",
+      "bytes": 4424
+    },
+    "frozen/original-generator.py.txt": {
+      "sha256": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204",
+      "bytes": 9051
+    },
+    "frozen/original-invariants.py.txt": {
+      "sha256": "7e90b3a367678a955b145916bf63d22fffb4a39ce348a11e0940cbab89afcb50",
+      "bytes": 5603
+    },
+    "frozen/original-oracle.py.txt": {
+      "sha256": "d5e8eff6585c8672f3b549de7f069f552833bd98b9a014fdec28ed2b5c91f9a4",
+      "bytes": 3505
+    },
+    "frozen/original-recipe_model.py.txt": {
+      "sha256": "773475c84c57680689cf9f9701d55a12c3fc444601261c7faba94c98596b4907",
+      "bytes": 5458
+    },
+    "frozen/original-schedule.json": {
+      "sha256": "6482ffa30529e5be2f7856657c695c468489f5ff237e15726c5cb23b08f9bace",
+      "bytes": 141400
+    },
+    "fixtures/observation-not-proof.json": {
+      "sha256": "30a54bc4ccc6aaa7ec61b90fbc1a3b06594bb14e66075a5c59c6407d050dba5f",
+      "bytes": 169
+    },
+    "fixtures/over-budget.json": {
+      "sha256": "6f41114780f132e9433ecdda5662f1c72a8d9bfe2a60e14d1c00753f6082b0d5",
+      "bytes": 125
+    },
+    "fixtures/q3-y4.json": {
+      "sha256": "02aafb0877d95cc69f544104a8cfe9ec35244d0d8667a0e23ad732d88fac6b14",
+      "bytes": 255
+    },
+    "fixtures/stale-revision.json": {
+      "sha256": "515a49ec7305291013c6013fcd64af8892fb12f8ed30ea62b1773cbd5f6b68bf",
+      "bytes": 129
+    }
+  },
+  "fixtureProvenance": "Locally authored semantic fixtures: only the Series B markdown was attached. Bundle canonical fixture bytes were not supplied. These are not claims of matching a missing bundle digest.",
+  "nativeCapabilities": false,
+  "materialCases": [
+    {
+      "id": "P1-7fa6772d7782c9",
+      "input": {
+        "minecraft:birch_wood": 3
+      },
+      "output": "minecraft:birch_planks",
+      "requested": 11,
+      "physical": 12,
+      "surplus": 1
+    },
+    {
+      "id": "P1-45abae95caaf0f",
+      "input": {
+        "minecraft:stripped_birch_log": 2
+      },
+      "output": "minecraft:birch_planks",
+      "requested": 7,
+      "physical": 8,
+      "surplus": 1
+    },
+    {
+      "id": "P2-71b4cc3f46a8f7",
+      "input": {
+        "minecraft:acacia_planks": 4
+      },
+      "output": "minecraft:stick",
+      "requested": 7,
+      "physical": 8,
+      "surplus": 1
+    },
+    {
+      "id": "P2-8a399781fd8215",
+      "input": {
+        "minecraft:bamboo_planks": 1,
+        "minecraft:acacia_planks": 1
+      },
+      "output": "minecraft:stick",
+      "requested": 1,
+      "physical": 4,
+      "surplus": 3
+    }
+  ]
+}

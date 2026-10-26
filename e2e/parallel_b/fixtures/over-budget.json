@@ -1,0 +1,1 @@
+{"expected":"REJECT_BUDGET","id":"fixture:over-budget","proposal":{"effects":2},"schema":1,"snapshot":{"remainingEffects":1}}
