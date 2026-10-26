@@ -113,9 +113,13 @@ public final class WorldRetentionManager {
     RetentionRoots references() { return roots; }
     /** Approval for an owner's finite window replacement, with the same graph and reference fence. */
     public final class DiscardLease implements AutoCloseable {
-        private final Scan scan; private final Object token; private boolean closed;
-        private DiscardLease(Scan scan, Object token) { this.scan = scan; this.token = token; }
+        private final Scan scan; private final Object token; private final Set<Key> approved; private boolean closed;
+        private DiscardLease(Scan scan, Object token, Set<Key> approved) { this.scan = scan; this.token = token; this.approved=Set.copyOf(approved); }
         public boolean valid() { try { return !closed && scan.current(); } catch (IOException failure) { return false; } }
+        /** Scoped storage cleanup capability; an unrelated approval cannot authorize another file. */
+        public boolean permits(Key key,long ownerRevision) {
+            return approved.contains(key) && Objects.equals(scan.revisions.get(key.owner()),ownerRevision) && valid();
+        }
         @Override public void close() { if (!closed) { closed = true; roots.endDelete(token); scan.close(); } }
     }
     public record DiscardApproval(Capacity status, DiscardLease lease) { }
@@ -131,7 +135,7 @@ public final class WorldRetentionManager {
         }
         Object token = roots.beginDelete(scan.references.generation());
         if (token == null) { scan.close(); return new DiscardApproval(Capacity.STORAGE_UNAVAILABLE, null); }
-        var lease = new DiscardLease(scan, token);
+        var lease = new DiscardLease(scan, token, removed);
         if (!lease.valid()) { lease.close(); return new DiscardApproval(Capacity.STORAGE_UNAVAILABLE, null); }
         return new DiscardApproval(Capacity.AVAILABLE, lease);
     }

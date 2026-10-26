@@ -25,6 +25,7 @@ public final class ArchiveHistory {
     public State state(){return state;}
     public Manifest manifest(){return manifest;}
     public long bytes(){return bytes;}
+    public int records(){return current.size();}
     public Set<String> protectedSegments(){return references;}
     public Set<String> redundantSegments(){return redundant;}
     public List<String> diagnostics(){return diagnostics;}

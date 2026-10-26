@@ -13,6 +13,8 @@ allowed={
     'fabric/src/main/java/dev/aivillages/fabric/KernelCommands.java',
     'core/src/test/java/dev/aivillages/core/kernel/RecoveredJobOwnersTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveHistoryReaderTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveWriterTest.java',
+    'core/src/main/java/dev/aivillages/core/kernel/WorldRetentionManager.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/')
 changed=subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()

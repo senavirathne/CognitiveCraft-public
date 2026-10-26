@@ -1,4 +1,4 @@
-"""Read-only A00 owner/consumer inventory and official native save bytecode capture."""
+"""Read-only A owner/consumer inventory and official native save bytecode capture."""
 import argparse
 import hashlib
 import json
@@ -41,9 +41,13 @@ def main():
             for n,line in enumerate(path.read_text().splitlines(),1):
                 if re.search(r'Jobs\.Snapshot|Supplier<Jobs\.Snapshot>|jobs\.snapshot\(|\.snapshot\(\)\.jobs\(|lease[sO]*\.snapshot\(|JobOutcomeSource|KnowledgeAccessSource|retentionRoots\(',line):
                     consumers.append({'path':path.relative_to(ROOT).as_posix(),'line':n,'source':line.strip()})
+    history = ROOT/'core/src/main/java/dev/aivillages/core/kernel/runtime/persistence'
     source={'commit':run('git','rev-parse','HEAD'),'tree':run('git','rev-parse','HEAD^{tree}'),
-        'base':'ea7de8000b2b484b885576c34ed5358274936ce9','schemaPolicy':'no new schema allocated in A00',
+        'base':'ea7de8000b2b484b885576c34ed5358274936ce9','schemaPolicy':'legacy 0/1/2/3 meanings preserved; history format is separate',
         'baselineSchemas':{'Jobs':1,'JobJournal':[0,1,2,3],'ResourceLeaseJournal':1},
+        'runtimeHistory':{'readerSchema':1 if (history/'ArchiveFormat.java').exists() else None,
+                          'writerImplemented':(history/'ArchiveWriter.java').exists(),
+                          'participantAtomicityClaimed':False},
         'consumers':consumers,'nativeBytecode':[]}
     if args.native:
         jar=ROOT/'build/server-sdk/minecraft-server.jar'
@@ -59,7 +63,8 @@ def main():
             raise RuntimeError('Required native save owner was not captured; inspect class inventory')
     (args.out/'source-inventory.json').write_text(json.dumps(source,indent=2)+'\n')
     print('PARALLEL_A_SOURCE_INVENTORY '+json.dumps({'commit':source['commit'],'consumers':len(consumers),
-          'nativeClasses':len(source['nativeBytecode']),'schemaAllocated':False}))
+          'nativeClasses':len(source['nativeBytecode']),'historyReaderSchema':source['runtimeHistory']['readerSchema'],
+          'legacySchemaChanged':False}))
 
 
 if __name__=='__main__':main()
