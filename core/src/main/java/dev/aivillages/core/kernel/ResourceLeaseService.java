@@ -36,6 +36,7 @@ public final class ResourceLeaseService {
     private Snapshot state;
     private Pending pending;
     private History history;
+    private LeaseArchive archiving;
     private boolean fenced;
     private Reason failure;
     private long previousTick=-1;
@@ -56,10 +57,19 @@ public final class ResourceLeaseService {
     }
     public Settings settings() { return settings; }
     public Snapshot snapshot() { checkThread();return state; }
-    public boolean ready() {
+    private boolean storageReady() {
         checkThread();if(history!=null && history.failed()){fenced=true;failure=Reason.STORAGE_UNAVAILABLE;}
         return !fenced && pending==null && (history==null || history.ready());
     }
+    public boolean ready() {return storageReady() && archiving==null;}
+    boolean beginArchive(LeaseArchive client,Snapshot expected) {
+        checkThread();if(state!=expected || !ready())return false;archiving=Objects.requireNonNull(client);return true;
+    }
+    void endArchive(LeaseArchive client) {
+        checkThread();if(archiving==client)archiving=null;
+        else if(archiving!=null)throw new IllegalStateException("Archive capture owner");
+    }
+    boolean archiveHeldBy(LeaseArchive client){checkThread();return archiving==client;}
     public void attachHistory(History history) {
         checkThread();if(this.history!=null)throw new IllegalStateException("Lease history already attached");
         this.history=Objects.requireNonNull(history);
@@ -73,7 +83,7 @@ public final class ResourceLeaseService {
     }
     /** Only an opaque publication made by this service's archive client can remove hot history. */
     public boolean archive(LeaseArchive.Publication publication) {
-        checkThread();if(!ready() || publication==null || !publication.permits(this,state))return false;
+        checkThread();if(!storageReady() || publication==null || !publication.permits(this,state))return false;
         Set<UUID> ids=new HashSet<>();for(Lease row:publication.rows())ids.add(row.id());
         List<Lease> retained=state.leases().stream().filter(l->!ids.contains(l.id())).toList();
         if(retained.size()+ids.size()!=state.leases().size())return false;
@@ -137,7 +147,7 @@ public final class ResourceLeaseService {
     }
     public Result group(UUID id,Owner owner,TrustedContext caller) {
         checkThread();long tick=now();
-        if(history!=null && !history.ready()){ready();return unavailable();}
+        if(archiving!=null || history!=null && !history.ready()){ready();return unavailable();}
         OwnerFacts facts=facts(owner,caller);
         if(facts==null)return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
         if(pending!=null && pending.next().leases().stream().anyMatch(l->l.group().equals(id)

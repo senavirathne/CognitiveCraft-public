@@ -35,14 +35,17 @@ final class LeaseArchiveTest {
     List<Ref> retired(int count) {
         var result=new ArrayList<Ref>();for(int n=0;n<count;n++)result.add(cycle(f.alice,f.a));return result;
     }
-    void compact(LeaseArchive archive)throws Exception {archive.step(closure());background.run();archive.step(closure());f.ack();archive.step(closure());}
+    void compact(LeaseArchive archive)throws Exception {
+        archive.step(closure());background.run();archive.step(closure());
+        if(!f.service.ready()){f.service.tick();archive.step(closure());}assertTrue(f.service.ready());
+    }
     @Test void archivedCopyIsAcknowledgedBeforeHotPublicationAndExactLookupSurvivesRestart()throws Exception {
         List<Ref> old=retired(96);Ref first=old.getFirst();Lease original=f.service.historical(first,f.alice,f.a).orElseThrow();
         try(var writer=ArchiveWriter.open(world,f.world,PersistencePolicy.defaults())) {
             var archive=archive(writer,PersistencePolicy.defaults());archive.step(closure());background.run();
             assertEquals(96,f.service.snapshot().leases().size());
             assertTrue(writer.lookup(new ArchiveFormat.Key(ArchiveFormat.Owner.LEASES,ArchiveFormat.Kind.HISTORY,first.id())).isPresent());
-            archive.step(closure());assertFalse(f.service.ready());assertEquals(96,f.service.snapshot().leases().size());f.ack();archive.step(closure());
+            archive.step(closure());assertFalse(f.service.ready());assertEquals(96,f.service.snapshot().leases().size());f.service.tick();archive.step(closure());
             assertEquals(80,f.service.snapshot().leases().size());assertEquals(original,f.service.historical(first,f.alice,f.a).orElseThrow());
             assertEquals(16,archive.status().archived());assertEquals(16,archive.status().evicted());
         }
@@ -77,12 +80,13 @@ final class LeaseArchiveTest {
             assertTrue(f.service.historical(old.getFirst(),f.alice,f.a).isPresent());
         }
     }
-    @Test void changedOwnerRevisionCancelsEvictionEvenWhenSelectedRowsAreUnchanged()throws Exception {
+    @Test void boundedArchiveGateDefersNewLeaseWritesAndChangedJobsCancelHotEviction()throws Exception {
         retired(96);
         try(var writer=ArchiveWriter.open(world,f.world,PersistencePolicy.defaults())) {
-            var archive=archive(writer,PersistencePolicy.defaults());archive.step(closure());background.run();cycle(f.bob,f.b);
-            archive.step(closure());assertEquals(97,f.service.snapshot().leases().size());assertEquals(0,archive.status().evicted());
-            jobsRevision++;compact(archive);assertTrue(f.service.snapshot().leases().size()<97);
+            var archive=archive(writer,PersistencePolicy.defaults());archive.step(closure());
+            assertEquals(Code.PENDING,f.bob(f.facility(2),1).code());background.run();jobsRevision++;
+            archive.step(closure());assertEquals(96,f.service.snapshot().leases().size());assertEquals(0,archive.status().evicted());
+            assertTrue(f.service.ready());cycle(f.bob,f.b);compact(archive);assertTrue(f.service.snapshot().leases().size()<97);
         }
     }
     @Test void staleRenewReleaseAndForeignHistoryCannotChangeReplacementOwner()throws Exception {
@@ -147,9 +151,10 @@ final class LeaseArchiveTest {
         try(var writer=ArchiveWriter.open(world,f.world,PersistencePolicy.defaults())) {
             var archive=archive(writer,PersistencePolicy.defaults());
             archive.observe(point->{
-                events.add(point);assertEquals(point==LeaseArchive.Point.BEFORE_HOT_PUBLICATION?96:80,f.service.snapshot().leases().size());
+                events.add(point);if(point!=LeaseArchive.Point.ARCHIVE_ACKNOWLEDGED)
+                    assertEquals(point==LeaseArchive.Point.BEFORE_HOT_PUBLICATION?96:80,f.service.snapshot().leases().size());
             });
-            compact(archive);assertEquals(List.of(LeaseArchive.Point.BEFORE_HOT_PUBLICATION,LeaseArchive.Point.AFTER_HOT_ACKNOWLEDGEMENT),events);
+            compact(archive);assertEquals(List.of(LeaseArchive.Point.ARCHIVE_ACKNOWLEDGED,LeaseArchive.Point.BEFORE_HOT_PUBLICATION,LeaseArchive.Point.AFTER_HOT_ACKNOWLEDGEMENT),events);
             assertEquals(16,archive.status().evicted());
         }
     }

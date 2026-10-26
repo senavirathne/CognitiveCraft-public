@@ -361,7 +361,9 @@ public final class KernelSession implements AutoCloseable {
                     && j.attempts().stream().noneMatch(Jobs.Attempt::open)).map(Jobs.Job::id)
                     .collect(java.util.stream.Collectors.toSet());
             leaseArchive.step(new LeaseArchive.Closure(snapshot.revision(),leases.snapshot().revision(),historyGeneration(),settled,
-                    jobs.ready() && loaded.roots().snapshot().complete() && !historyGenerationUnavailable));
+                    jobs.ready() && loaded.roots().snapshot().complete() && !historyGenerationUnavailable
+                    && snapshot.jobs().stream().noneMatch(j->controller.liveSubmission(j.submissionId())
+                            || dispatcher!=null && dispatcher.ownsAttempt(j))));
         }
         leasedGateway.tick();
         broker.step();

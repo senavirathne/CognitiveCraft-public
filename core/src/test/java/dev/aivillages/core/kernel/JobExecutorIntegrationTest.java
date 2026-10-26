@@ -53,7 +53,8 @@ class JobExecutorIntegrationTest {
                 public Start start(ValidatedRequest bound, ArtifactRef ref, UUID id, Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
                     starts++; var job=jobs.bySubmission(id,OWNER).orElseThrow();
                     assertEquals(State.ACTIVE,job.state());
-                    assertEquals(job.current().executions(),journal.snapshot().jobs().getLast().current().executions());
+                    assertEquals(job.current().executions(),journal.snapshot().jobs().stream()
+                            .filter(saved->saved.id().equals(job.id())).findFirst().orElseThrow().current().executions());
                     var start=f.executor.startAdmitted(bound,ref,new RunCorrelation(id,ref,null),limits,usage);
                     if(start instanceof BoundedSkillExecutor.Rejected rejected)return new Start(null,rejected.reason());
                     var run=((BoundedSkillExecutor.Started)start).run();

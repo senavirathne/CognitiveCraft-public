@@ -11,7 +11,7 @@ import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.*;
 
 /** Derived lease-history client. ResourceLeaseService remains the sole hot-state publisher. */
 public final class LeaseArchive {
-    public enum Point { BEFORE_HOT_PUBLICATION, AFTER_HOT_ACKNOWLEDGEMENT }
+    public enum Point { ARCHIVE_ACKNOWLEDGED, BEFORE_HOT_PUBLICATION, AFTER_HOT_ACKNOWLEDGEMENT }
     @FunctionalInterface public interface Boundary { void at(Point point)throws IOException; }
     public record Closure(long jobsRevision,long leaseRevision,long retentionGeneration,Set<UUID> settledJobs,boolean complete) {
         public Closure {
@@ -42,7 +42,7 @@ public final class LeaseArchive {
         }
         public List<Lease> rows(){return rows;}
         boolean permits(ResourceLeaseService service,Snapshot actual) {
-            if(owner.service!=service || expected!=actual || !closure.complete() || !closure.equals(owner.current.get())
+            if(owner.service!=service || !service.archiveHeldBy(owner) || expected!=actual || !closure.complete() || !closure.equals(owner.current.get())
                     || !owner.reader.ready() || rows.isEmpty()
                     || !owner.writer.authentic(acknowledgement,ArchiveFormat.Owner.LEASES,
                             new Guard(actual.revision(),closure.retentionGeneration())))return false;
@@ -71,8 +71,8 @@ public final class LeaseArchive {
     private long evicted;
     private long measuredRevision=-1,hotBytes,pendingSince;
     private String pressure="INITIALIZING";
-    private Boundary boundary=point->{};
-    private boolean observing;
+    private volatile Boundary boundary=point->{};
+    private boolean observing,gated;
     private Set<UUID> eviction=Set.of();
     public LeaseArchive(ResourceLeaseService service,ArchiveWriter writer,ArchiveService storage,PersistencePolicy policy) {
         this.service=Objects.requireNonNull(service);this.writer=Objects.requireNonNull(writer);
@@ -87,9 +87,12 @@ public final class LeaseArchive {
     public void step(Closure closure) {
         checkThread();current.set(Objects.requireNonNull(closure));lastScanned=0;
         if(!eviction.isEmpty()) {
-            if(!service.ready()){if(service.failure()!=null){reader.failed=true;pressure="FENCED";}return;}
+            // Hot acknowledgement is observable while ordinary admission remains gated.
+            if(service.snapshot().leases().stream().anyMatch(l->eviction.contains(l.id()))) {
+                if(service.failure()!=null){reader.failed=true;pressure="FENCED";endGate();}return;
+            }
             if(service.snapshot().leases().stream().noneMatch(l->eviction.contains(l.id()))) {
-                evicted=Math.addExact(evicted,eviction.size());eviction=Set.of();
+                evicted=Math.addExact(evicted,eviction.size());eviction=Set.of();endGate();
                 try{boundary.at(Point.AFTER_HOT_ACKNOWLEDGEMENT);}catch(IOException failure){reader.failed=true;pressure="FENCED";}
             }else{reader.failed=true;pressure="FENCED";}
             return;
@@ -110,7 +113,8 @@ public final class LeaseArchive {
                     if(service.archive(done.publication()))eviction=done.publication().rows().stream().map(Lease::id)
                             .collect(java.util.stream.Collectors.toUnmodifiableSet());
                 }
-            }catch(IOException | RuntimeException failure){reader.failed=true;pressure="FENCED";}
+                if(eviction.isEmpty())endGate();
+            }catch(IOException | RuntimeException failure){reader.failed=true;pressure="FENCED";endGate();}
             finally{pending=null;}
             return;
         }
@@ -119,10 +123,16 @@ public final class LeaseArchive {
         if(captured.revision()!=closure.leaseRevision())return;
         if(reader.index!=null && (!service.ready() || captured.revision()==measuredRevision
                 && captured.leases().size()<policy.leaseRows() && hotBytes<policy.leaseBytes()))return;
+        boolean copy=reader.index!=null && (captured.leases().size()>=policy.leaseRows()
+                || captured.revision()==measuredRevision && hotBytes>=policy.leaseBytes());
+        if(copy) {
+            if(captured.leases().stream().anyMatch(l->l.state()==State.ACTIVE) || !service.beginArchive(this,captured))return;
+            gated=true;
+        }
         int start=cursor;if(reader.index!=null)cursor=(cursor+policy.scanRows())%Math.max(1,captured.leases().size());
         var offered=storage.offer(w->{
             long bytes=ResourceLeaseJournal.encode(captured).length;
-            if(reader.index==null || captured.leases().size()<policy.leaseRows() && bytes<policy.leaseBytes())
+            if(!copy)
                 return new Written(readIndex(w,captured),null,null,0,bytes,captured.revision());
             List<Lease> selected=select(captured,closure,start);int scanned=Math.min(policy.scanRows(),captured.leases().size());
             if(selected.isEmpty())return new Written(readIndex(w,captured),null,null,scanned,bytes,captured.revision());
@@ -130,12 +140,16 @@ public final class LeaseArchive {
             List<Row> rows=selected.stream().map(l->new Row(ArchiveFormat.Kind.HISTORY,l.id(),
                     ResourceLeaseCodec.encode(l).getBytes(StandardCharsets.UTF_8))).toList();
             ArchiveWriter.Result result=w.append(w.snapshot(),ArchiveFormat.Owner.LEASES,guard,rows,
-                    ignored->closure.equals(current.get())?guard:null);
+                    // The lease gate stabilizes the copied rows. Reference/Jobs changes
+                    // cancel hot removal below, while an immutable extra copy stays valid.
+                    ignored->current.get().leaseRevision()==captured.revision()?guard:null);
             Index index=readIndex(w,captured);
+            if(result.acknowledged())boundary.at(Point.ARCHIVE_ACKNOWLEDGED);
             Publication publication=result.acknowledged()?new Publication(this,captured,closure,selected,result.acknowledgement()):null;
             return new Written(index,publication,result.status(),scanned,bytes,captured.revision());
         });
-        if(offered.isPresent()){pending=offered.get();pendingSince=System.nanoTime();}else pressure=writer.readOnly()?"FENCED":"BUSY";
+        if(offered.isPresent()){pending=offered.get();pendingSince=System.nanoTime();}
+        else{pressure=writer.readOnly()?"FENCED":"BUSY";endGate();}
     }
     private List<Lease> select(Snapshot captured,Closure closure,int start) {
         List<Lease> hot=captured.leases();var result=new ArrayList<Lease>();var groups=new HashSet<UUID>();int bytes=81;
@@ -187,5 +201,6 @@ public final class LeaseArchive {
                 reader.index==null?0:reader.index.ids().size(),hotBytes,measuredRevision,writer.historyView().bytes(),reserved,pending!=null || !eviction.isEmpty(),pressure,lastScanned,evicted);
     }
     public boolean readOnly(){return reader.failed();}
+    private void endGate(){if(gated){service.endArchive(this);gated=false;}}
     private void checkThread(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Lease archive game thread");}
 }

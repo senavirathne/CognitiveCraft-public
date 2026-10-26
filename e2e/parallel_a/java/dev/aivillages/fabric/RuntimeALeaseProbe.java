@@ -38,7 +38,13 @@ public final class RuntimeALeaseProbe implements ModInitializer {
                 if(op.equals("lookup")) {
                     var old=command.getAsJsonObject("lease");var origin=old.getAsJsonObject("origin");
                     var scope=origin.getAsJsonObject("scope");UUID principal=UUID.fromString(command.has("principal")?command.get("principal").getAsString():origin.getAsJsonObject("principal").get("id").getAsString());
-                    var caller=new TrustedContext(new PrincipalRef(principal),new ScopeRef(UUID.fromString(scope.get("worldId").getAsString()),UUID.fromString(scope.get("domainId").getAsString())));
+                    TrustedContext caller=new TrustedContext(new PrincipalRef(principal),new ScopeRef(UUID.fromString(scope.get("worldId").getAsString()),UUID.fromString(scope.get("domainId").getAsString())));
+                    if(command.has("principal")) {
+                        var player=server.getPlayerList().getPlayer(principal);if(player==null)throw new IllegalArgumentException("Connected principal required");
+                        var citizens=kernel.citizens(player).citizens();
+                        caller=citizens.isEmpty()?new TrustedContext(new PrincipalRef(player.getUUID()),new ScopeRef(view.jobs().worldId(),player.getUUID()))
+                                :kernel.citizen(player,citizens.getFirst().actor().citizenId()).owner();
+                    }
                     var ref=new Ref(UUID.fromString(old.get("id").getAsString()),UUID.fromString(old.get("epoch").getAsString()),old.get("generation").getAsLong());
                     var owner=new Owner(UUID.fromString(old.getAsJsonObject("owner").get("job").getAsString()),old.getAsJsonObject("owner").get("generation").getAsLong());
                     try {
@@ -59,10 +65,12 @@ public final class RuntimeALeaseProbe implements ModInitializer {
                     boolean hot=point.endsWith("PUBLICATION") || point.endsWith("ACKNOWLEDGEMENT");
                     var work=kernel.runtimeHistory().offer(writer->{writer.observePublication(p->{
                         if(p.name().equals(point))barrier(point,token,false);
-                        else if(hot && p==ArchiveWriter.Point.AFTER_DIRECTORY_ACK)barrier("PREPARE_SAVE",token,true);
                     });return map("status","PASS","point",point,"token",token);});
                     if(work.isEmpty())reply(id,map("status","BUSY"),null);else {
-                        kernel.leaseHistoryOwner().observe(p->{if(p.name().equals(point))barrier(point,token,false);});
+                        kernel.leaseHistoryOwner().observe(p->{
+                            if(p.name().equals(point))barrier(point,token,false);
+                            else if(hot && p==LeaseArchive.Point.ARCHIVE_ACKNOWLEDGED)barrier("PREPARE_SAVE",token,true);
+                        });
                         work.get().whenComplete((value,error)->reply(id,value,error));
                     }return;
                 }

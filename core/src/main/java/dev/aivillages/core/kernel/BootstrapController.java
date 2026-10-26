@@ -237,9 +237,6 @@ public final class BootstrapController {
     public Submission submit(CapabilityRequest request, TrustedContext caller) {
         thread(); UUID id = UUID.randomUUID();
         if (!ready() || active != null) return new Submission(id, false, Reason.BUDGET_EXHAUSTED);
-        if(persisted.runs().size()==BootstrapJournal.MAX_RUNS
-                && persisted.runs().stream().noneMatch(this::markerMayRetire))
-            return new Submission(id,false,Reason.STORAGE_LIMIT_REACHED);
         var enrolled = identities == null ? persisted.enrollment()
                 : request != null && request.arguments().get("actor") instanceof ActorValue value
                         ? identities.find(value.value().citizenId()) : null;
@@ -248,6 +245,9 @@ public final class BootstrapController {
         if (request == null || !(request.arguments().get("actor") instanceof ActorValue actor)
                 || !actor.value().equals(enrolled.actor()))
             return new Submission(id, false, Reason.REQUEST_INVALID);
+        if(persisted.runs().size()==BootstrapJournal.MAX_RUNS
+                && persisted.runs().stream().noneMatch(this::markerMayRetire))
+            return new Submission(id,false,Reason.STORAGE_LIMIT_REACHED);
         ObservationSnapshot snapshot;
         try { snapshot = observer.capture(request, actor.value()); }
         catch (RuntimeException failed) { return new Submission(id, false, Reason.STALE_OBSERVATION); }

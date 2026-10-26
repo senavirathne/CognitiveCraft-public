@@ -32,6 +32,10 @@ class LeaseHarness(ActivityHarness):
     # one real interrupted original and another ordinary pre-existing actor.
     def observe_live(self,run):return RuntimeAHarness.observe_live(self,run)
     def observe_recovery(self,run,case):return RuntimeAHarness.observe_recovery(self,run,case)
+    def model_calls(self):
+        # The baseline generationCalls field is a rolling 16-marker summary.
+        # The actual broker's process counters do not fall when summaries rotate.
+        state=self.snapshot();return {'needleCalls':state['needleCalls'],'generationCalls':state['brokerStats']['calls']}
     def probe(self,op,**values):
         ready=self.wait(lambda:read(self.root/'server/lease-ready.json'),'Actual A03 native observer ready',60)
         identifier=str(uuid.uuid4());atomic(self.root/'server/lease-request.json',{'id':identifier,'process':ready['process'],'op':op,**values})
@@ -42,7 +46,7 @@ class LeaseHarness(ActivityHarness):
         return result
     def stable(self):
         def status():
-            value=self.probe('status');return value if value and value['ready'] and value['metrics']['ready'] and not value['metrics']['pending'] else None
+            value=self.probe('status');return value if value and value['ready'] and value['metrics']['ready'] and not value['metrics']['pending'] and value['metrics']['hot']<96 else None
         return self.wait(status,'Acknowledged hot/history state at unchanged limits',55)
     def lease_inventory(self):return self.wait(lambda:self.probe('inventory'),'Bounded actual hot/archive inventory',45)
     def restart(self):
@@ -66,7 +70,8 @@ class LeaseHarness(ActivityHarness):
         require(all(receipts(view,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')),'Actual repeated lease lifecycle lacks native conservation')
         require(self.container(self.other_destination,LOG)==before+1 and self.inventory().get(LOG,0)==0 and self.model_calls()==calls,
                 'Repeated known native delivery changed custody/model contract')
-        return {'run':run,'view':view,'beforeDestination':before,'afterDestination':before+1,'modelCallsUnchanged':True}
+        return {'run':run,'view':view,'beforeDestination':before,'afterDestination':before+1,'modelCallsUnchanged':True,
+                'modelCallsBefore':calls,'modelCallsAfter':self.model_calls(),'brokerStats':self.snapshot()['brokerStats']}
 
 def union_inventory(value):
     rows={l['id']:l for l in value['hot']['leases']}
@@ -98,6 +103,12 @@ def restart_cut(h,backup,point,original,old_reference,pinned_rows):
         if not marker():
             view=h.finish_run(run);require(all(receipts(view,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')),'Cut trigger failed native operation')
             produced.append({'run':run,'view':view,'beforeDestination':before})
+            def archived_or_idle():
+                reached=marker()
+                if reached:return reached
+                state=h.probe('status')
+                return state if state and state['ready'] and not state['metrics']['pending'] and state['metrics']['hot']<96 else None
+            h.wait(archived_or_idle,'Actual cut or quiescent metadata before another native trigger',35)
         else:
             produced.append({'run':run,'beforeDestination':before,'lastObserver':h.run_view('PlayerA',run)});break
     reached=h.wait(marker,'Intended publication boundary must actually be reached',30)
