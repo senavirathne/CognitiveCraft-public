@@ -114,4 +114,3 @@ def begin(h,family):
     h.bootstrap_world(resources=resources(family))
     if resources(family): save(h,family+'-admitted')
     h.case=None; h.case_dir=None
-

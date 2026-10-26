@@ -63,9 +63,11 @@ def negative_collectors(root,expected):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root",type=Path,required=True)
-    parser.add_argument("--seed",type=Path,required=True)
+    seeds=parser.add_mutually_exclusive_group(required=True)
+    seeds.add_argument("--seed",type=Path,help="Historical archive root containing build/e2e/parallel-b/B00")
+    seeds.add_argument("--seed-root",type=Path,help="Exact stopped native quantity/admission evidence root")
     args=parser.parse_args()
-    original=args.seed/"build/e2e/parallel-b/B00"
+    original=args.seed_root if args.seed_root else args.seed/"build/e2e/parallel-b/B00"
     seed_metadata=read(original/"metadata.json")
     production=ROOT/"fabric/build/libs/ai-villages-0.1.0.jar"
     observer=ROOT/"build/e2e-driver/observer.jar"
@@ -73,7 +75,7 @@ def main():
             "Saved method reuse requires the exact previously qualified production binary")
     instruments(production,observer)
     h=Harness(args.root,"compose",None)
-    h.project="cc-production-b-"+read(h.root/"metadata.json")["fixtureInstance"][:8]
+    h.project=os.environ.get('COGNITIVECRAFT_B_QUALIFICATION_PROJECT',"cc-production-b-"+read(h.root/"metadata.json")["fixtureInstance"][:8])
     h.family="B01-QUALIFICATION"
     expected={"sourceCommit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
               "sourceTree":subprocess.check_output(["git","rev-parse","HEAD^{tree}"],cwd=ROOT,text=True).strip(),
@@ -138,7 +140,9 @@ def main():
     finally:
         h.finish();atomic(h.root/"result.json",result)
         metadata=read(h.root/"metadata.json");metadata["profile"]="B01"
-        metadata["savedMethodSource"]={"commit":seed_metadata["sourceCommit"],"releaseSha256":seed_metadata["releaseSha256"],"run":40257555612}
+        metadata["savedMethodSource"]={"commit":seed_metadata["sourceCommit"],"releaseSha256":seed_metadata["releaseSha256"],
+            "run":seed_metadata.get('ci',{}).get('GITHUB_RUN_ID'),"attempt":seed_metadata.get('ci',{}).get('GITHUB_RUN_ATTEMPT'),
+            "manifestSha256":digest(original/'manifest.json')}
         atomic(h.root/"metadata.json",metadata)
         files=[{"path":str(p.relative_to(h.root)),"sha256":digest(p),"bytes":p.stat().st_size}
                for p in sorted(h.root.rglob("*")) if p.is_file() and p.name!="manifest.json"]

@@ -10,6 +10,121 @@ concurrency:
   group: cc-production-b-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  b08-freeze:
+    if: ${{ contains(github.event.head_commit.message, '[b08-freeze]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: |
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
+          python3 e2e/parallel_b/campaign_contracts.py verify
+          python3 e2e/parallel_b/branch_qualification.py --ownership-only --output build/B08-freeze-ownership.json
+  b08-exact-candidate:
+    if: ${{ contains(github.event.head_commit.message, '[b08-native]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      B08_ROOT: build/e2e/parallel-b/B08
+      COGNITIVECRAFT_B_QUALIFICATION_PROJECT: cc-b08-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: All owned module, planner, compatibility and qualification checks
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
+          python3 e2e/parallel_b/campaign_contracts.py verify
+          python3 e2e/parallel_b/branch_qualification.py --ownership-only --output build/B08-ownership.json
+      - name: Prepare verified clients and isolated read-only instruments once
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/campaign-crafting/prepare.py
+          python3 e2e/parallel_b/prepare_diagnostics.py
+      - name: Broader actual native recipe, planning, placement, bread and harvest hosts
+        run: |
+          python3 e2e/parallel_b/run_hosts.py --root "$B08_ROOT/hosts" --built --extra-mod build/e2e-driver/observer.jar \
+            --entrypoint dev.aivillages.fabric.GeneralizedRecipeChoiceGameTests \
+            --entrypoint dev.aivillages.fabric.ConcretePlankChoiceGameTests \
+            --entrypoint dev.aivillages.fabric.PlanningChoiceHostGameTests \
+            --entrypoint dev.aivillages.fabric.BirchPlankEffectGameTests \
+            --entrypoint dev.aivillages.fabric.OakPlankEffectGameTests \
+            --entrypoint dev.aivillages.fabric.StickEffectGameTests \
+            --entrypoint dev.aivillages.fabric.AxeEffectGameTests \
+            --entrypoint dev.aivillages.fabric.TableEffectGameTests \
+            --entrypoint dev.aivillages.fabric.PlacementEffectGameTests \
+            --entrypoint dev.aivillages.fabric.ParallelBLegacyBreadGameTests \
+            --entrypoint dev.aivillages.fabric.OakLogEffectGameTests \
+            --entrypoint dev.aivillages.fabric.BirchLogEffectGameTests
+      - name: Genuine exact-quantity, old-stock and capacity connected-client controls
+        run: |
+          python3 e2e/parallel_b/quantity_native.py --root "$B08_ROOT/quantity"
+          python3 e2e/parallel_b/native_audit.py --root "$B08_ROOT/quantity"
+      - name: Same-JAR stopped-world method reuse, native kill and collector negative controls
+        run: |
+          python3 e2e/parallel_b/native_qualification.py --root "$B08_ROOT/harness" --seed-root "$B08_ROOT/quantity"
+          python3 e2e/parallel_b/native_audit.py --root "$B08_ROOT/harness"
+      - name: Both controlled delivery families with zero model calls after admission
+        run: |
+          python3 e2e/parallel_b/diagnostics.py --root "$B08_ROOT/diagnostics"
+          python3 e2e/parallel_b/native_audit.py --root "$B08_ROOT/diagnostics"
+          python3 e2e/parallel_b/verify_diagnostics.py "$B08_ROOT/diagnostics" "$GITHUB_SHA" "$(git rev-parse HEAD^{tree})" e2e/parallel_b/diagnostic-matrix.json
+      - name: Genuine second-client window, late control and shared-method privacy regression
+        run: |
+          python3 e2e/parallel_b/interference_native.py --root "$B08_ROOT/interference"
+          python3 e2e/parallel_b/native_audit.py --root "$B08_ROOT/interference"
+      - name: Verify every owned gate on one source, tree, run, attempt and production JAR
+        run: python3 e2e/parallel_b/branch_qualification.py --root "$B08_ROOT" --output build/parallel-b-B08-review
+      - name: Preserve failed or incomplete native candidate separately
+        if: failure()
+        run: python3 e2e/parallel_b/branch_qualification.py --root "$B08_ROOT" --output build/parallel-b-B08-failed-review --retain-incomplete
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parallel-b-B08-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/e2e/parallel-b/B08/
+            build/B08-ownership.json
+            build/b-diagnostics/integrity.json
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/libs/ai-villages-0.1.0.jar
+            fabric/build/libs/ai-villages-0.1.0-gametest.jar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parallel-b-B08-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            build/parallel-b-B08-review/
+            build/parallel-b-B08-failed-review/
   b07-frozen-contracts:
     if: ${{ contains(github.event.head_commit.message, '[b07-freeze]') }}
     runs-on: ubuntu-latest

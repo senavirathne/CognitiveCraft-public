@@ -14804,6 +14804,11 @@
     "interference_oracle.py": "3df497a28f354107c0d0eced3612ebf0d59496266ec765e3681d52ed10177166",
     "contract_runner.py": "a46c13bb0eb820e4ae0bf7b4c55dc503b760a5a6e0614d3f8df0644a013bda87"
   },
+  "generatorPrograms": {
+    "campaign_contracts.py": "fec84513737e9c6252ffeff2cc14e39e3736dcae0972845c731039a298b73a77",
+    "heldout_bindings.py": "40e59c0cb7522c8c539de92a3a343a64c8315e3d340237252523aca9eb6ddcb1",
+    "frozen/original-generator.py.txt": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204"
+  },
   "nativePassesFromDefinitions": 0,
   "freshSeedsCreated": false,
   "interference": {

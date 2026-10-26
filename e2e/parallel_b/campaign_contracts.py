@@ -12,8 +12,11 @@ import hashlib
 import json
 from pathlib import Path
 import random
+import sys
 
 HERE=Path(__file__).resolve().parent
+sys.path.insert(0,str(HERE.parent))
+from parallel_b.heldout_bindings import resolve
 
 
 def sha(value):
@@ -106,6 +109,7 @@ def contracts():
             'craftPlacementSurplus':{'path':'choice-crash-cuts.json','sha256':file_sha(HERE/'choice-crash-cuts.json'),
                                     'count':20,'status':'INTEGRATION_PENDING'},
             'adversarial':adversarial,'boundaries':boundaries,'assertionPrograms':programs,
+            'generatorPrograms':{name:file_sha(HERE/name) for name in ('campaign_contracts.py','heldout_bindings.py','frozen/original-generator.py.txt')},
             'nativePassesFromDefinitions':0,'freshSeedsCreated':False,
             'interference':{'attempts':2,'missedControls':1,'requiredWitnesses':1,
                 'window':'captured recipe preflight -> final legacy withdrawal return; no tick split inside atomic mutation',
@@ -126,7 +130,7 @@ def held_out(seed):
         for value in values:
             binding={**base,axis:value};q=binding['quantity'];n=(q+3)//4
             rows.append({'id':'B07-H-'+sha([seed,axis,value,binding])[:16],'seed':seed,'axis':axis,
-                         'bindings':binding,'expected':{'inputLogs':n,'physicalPlanks':4*n,
+                         'bindings':binding,'nativeBindings':resolve(binding),'expected':{'inputLogs':n,'physicalPlanks':4*n,
                              'delivered':q,'actorSurplus':4*n-q,'rootRequested':q},
                          'status':'NOT_EXECUTED','dimensionSupport':'only baseline overworld; no extra dimension claim'})
     return rows

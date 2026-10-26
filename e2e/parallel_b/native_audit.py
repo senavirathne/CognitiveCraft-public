@@ -48,9 +48,12 @@ def audit(root):
     coverage=[{'primitive':'cognitivecraft:'+op,'status':'NATIVE_TERMINAL_WITNESSED' if 'cognitivecraft:'+op in witnesses else 'UNTESTED_IN_THIS_RUN',
                'nativeWitnesses':witnesses.get('cognitivecraft:'+op,[])} for op in ops]
     admissions=[]
-    for p in sorted(root.glob('admission-*.json')):
+    paths=sorted(root.glob('admission-*.json'))
+    canonical=root/'canonical.json'
+    if canonical.exists() and read(canonical).get('view',{}).get('marker',{}).get('outcome')=='ADMITTED':paths.append(canonical)
+    for p in paths:
         r=read(p);before=totals(r['before']);after=totals(r['after'])
-        admissions.append({'path':p.name,'sha256':digest(p),'request':r['request'],'method':r['view']['marker'].get('artifactSha256'),
+        admissions.append({'path':p.name,'sha256':digest(p),'request':r.get('request',{'command':r.get('command'),'run':r.get('run'),'feedback':r.get('feedback')}),'method':r['view']['marker'].get('artifactSha256'),
             'nativeBefore':dict(before),'nativeAfter':dict(after),'delta':{k:after[k]-before[k] for k in before.keys()|after.keys() if after[k]!=before[k]},
             'receiptQuantities':dict(Counter({stage:sum(x['quantity'] for x in r['view'].get('resourceReceipts',[]) if x['stage']==stage)
                 for stage in ('HARVEST','PICKUP','WITHDRAW','CRAFT','DEPOSIT')})),

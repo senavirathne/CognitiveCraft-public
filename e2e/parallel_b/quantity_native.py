@@ -17,6 +17,7 @@ from campaigns.crafting.oracle import candidates
 from parallel_b.baseline import scenario,seed,submit,physical,inventory,coord,SOURCE,DESTINATION,LOW,HIGH,LOG,PLANK,OTHER
 from parallel_b.guards import clean_owners,instruments,observer_inputs
 from parallel_b.qualification import verify,load
+from parallel_b.diagnostics import settled
 
 
 def terminal_job(h,jid):
@@ -74,7 +75,7 @@ def extra_cases(h,artifact):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument("--root",type=Path,required=True);args=p.parse_args()
-    h=Harness(args.root,"compose",None);h.project="cc-production-b-"+read(h.root/"metadata.json")["fixtureInstance"][:8];h.family="B02-QUANTITIES"
+    h=Harness(args.root,"compose",None);h.project=os.environ.get('COGNITIVECRAFT_B_QUALIFICATION_PROJECT',"cc-production-b-"+read(h.root/"metadata.json")["fixtureInstance"][:8]);h.family="B02-QUANTITIES"
     result={"status":"NOT_EXECUTED"}
     expected={"sourceCommit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
               "sourceTree":subprocess.check_output(["git","rev-parse","HEAD^{tree}"],cwd=ROOT,text=True).strip(),
@@ -88,6 +89,7 @@ def main():
         h.compose("build","minecraft")
         result=scenario(h,corrected=True)
         extra_cases(h,result["artifact"])
+        result['finalSettlement']=settled(h,fence=True)
     except Exception as error:
         result.update(status="FAIL",reason=str(error),trace=traceback.format_exc())
         atomic(h.root/"failure-snapshot.json",h.snapshot());raise

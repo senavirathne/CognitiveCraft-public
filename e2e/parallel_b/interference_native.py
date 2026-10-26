@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 from pathlib import Path
 import sys
 import traceback
@@ -152,7 +153,7 @@ def shared_reuse(h):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);a=p.parse_args()
-    h=AssessmentHarness(a.root,'parallel-b-interference');h.project='cc-production-b-'+read(h.root/'metadata.json')['fixtureInstance'][:8]
+    h=AssessmentHarness(a.root,'parallel-b-interference');h.project=os.environ.get('COGNITIVECRAFT_B_QUALIFICATION_PROJECT','cc-production-b-'+read(h.root/'metadata.json')['fixtureInstance'][:8])
     h.family='B07-STARTUP';(h.root/'b-diagnostics-enabled').touch();result={'status':'NOT_EXECUTED','rows':[]}
     try:
         instruments(ROOT/'fabric/build/libs/ai-villages-0.1.0.jar',ROOT/'build/e2e-driver/observer.jar')

@@ -154,7 +154,7 @@ def trial(h,schedule_seed,variant,index):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);a=p.parse_args()
     matrix=read(MATRIX);h=AssessmentHarness(a.root,'parallel-b-diagnostics')
-    h.project='cc-production-b-'+read(h.root/'metadata.json')['fixtureInstance'][:8];h.family='B06-STARTUP'
+    h.project=os.environ.get('COGNITIVECRAFT_B_QUALIFICATION_PROJECT','cc-production-b-'+read(h.root/'metadata.json')['fixtureInstance'][:8]);h.family='B06-STARTUP'
     (h.root/'b-diagnostics-enabled').touch();atomic(h.root/'matrix.json',matrix)
     result={'status':'NOT_EXECUTED','issueClosure':{'W-05':'UNKNOWN','W-06':'UNKNOWN'},'rows':[]}
     try:
