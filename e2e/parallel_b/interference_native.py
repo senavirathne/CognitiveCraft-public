@@ -121,8 +121,9 @@ def main():
     h=AssessmentHarness(a.root,'parallel-b-interference');h.project='cc-production-b-'+read(h.root/'metadata.json')['fixtureInstance'][:8]
     h.family='B07-STARTUP';(h.root/'b-diagnostics-enabled').touch();result={'status':'NOT_EXECUTED','rows':[]}
     try:
-        instruments(ROOT/'fabric/build/libs/ai-villages-0.1.0.jar',ROOT/'build/e2e-driver/observer.jar');observer_inputs(h.root)
+        instruments(ROOT/'fabric/build/libs/ai-villages-0.1.0.jar',ROOT/'build/e2e-driver/observer.jar')
         atomic(h.root/'oracle-candidates.json',candidates(SDK/'minecraft-client.jar'))
+        observer_inputs(h.root)
         h.env['COGNITIVECRAFT_OLLAMA_MODEL']='qwen3:4b-instruct-2507-q4_K_M'
         h.compose('build','minecraft');h.compose('up','-d','ollama');h.compose('exec','-T','ollama','ollama','pull',h.env['COGNITIVECRAFT_OLLAMA_MODEL'])
         with urllib.request.urlopen('http://127.0.0.1:11434/api/tags',timeout=20) as r:atomic(h.root/'models.json',json.load(r))

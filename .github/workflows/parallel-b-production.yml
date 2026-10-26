@@ -111,10 +111,11 @@ jobs:
       - name: Genuine PlayerB preflight-window transfer and deliberately late control
         run: python3 e2e/parallel_b/interference_native.py --root build/e2e/parallel-b/B07
       - name: Independent raw resource audit including genuine admission
-        if: always()
+        if: ${{ always() && hashFiles('build/e2e/parallel-b/B07/server/stdout.log') != '' }}
         run: python3 e2e/parallel_b/native_audit.py --root build/e2e/parallel-b/B07
       - name: Verify exact native producer and expose reviewable original vectors
-        run: python3 e2e/parallel_b/stage_review.py --root build/e2e/parallel-b/B07 --output build/parallel-b-B07-review
+        if: ${{ always() && hashFiles('build/e2e/parallel-b/B07/manifest.json') != '' }}
+        run: python3 e2e/parallel_b/stage_review.py --root build/e2e/parallel-b/B07 --output build/parallel-b-B07-review --retain-failed
       - uses: actions/upload-artifact@v4
         if: always()
         with:

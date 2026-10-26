@@ -14,13 +14,13 @@ from suite import ROOT,atomic,read,require
 from runtime import digest
 
 
-def bundle(base,output):
+def bundle(base,output,retain_failed=False):
     if output.exists():raise ValueError('Retain previous review package')
     meta=read(base/'metadata.json');result=read(base/'result.json')
     head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     tree=subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip()
     require((meta['sourceCommit'],meta['sourceTree'],meta['dirty'])==(head,tree,False),'Foreign/dirty native producer')
-    require(result['status']=='PASS','Collection cannot substitute for mandatory native gameplay')
+    require(result['status']=='PASS' or retain_failed,'Failed native evidence requires explicit retention mode')
     manifest=read(base/'manifest.json');require(manifest['source']==meta,'Native metadata envelope mismatch')
     copied=[]
     for row in manifest['files']:
@@ -48,7 +48,7 @@ def bundle(base,output):
         'nativeAttempt':os.environ.get('GITHUB_RUN_ATTEMPT'),'releaseSha256':digest(jar),'modules':modules,
         'nativeResult':result,'originalManifestSha256':digest(base/'manifest.json'),'copiedOriginalFiles':copied,
         'omitted':['native game directories','server/observations.jsonl'],
-        'fullArchiveRetained':True,'collectionIsGameplay':False}
+        'fullArchiveRetained':True,'collectionIsGameplay':False,'nativeGameplayQualified':result['status']=='PASS'}
     atomic(output/'review-package.json',report)
     print('NATIVE_STAGE_REVIEW',json.dumps({k:report[k] for k in ('nativeSource','nativeTree','releaseSha256','modules','nativeResult')}),flush=True)
     for p in sorted((base/'cases').glob('*.json')):
@@ -59,7 +59,8 @@ def bundle(base,output):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
-    a=p.parse_args();bundle(a.root,a.output)
+    p.add_argument('--retain-failed',action='store_true')
+    a=p.parse_args();bundle(a.root,a.output,a.retain_failed)
 
 
 if __name__=='__main__':main()
