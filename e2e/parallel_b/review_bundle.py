@@ -39,8 +39,11 @@ def bundle(source,output,head,tree,run,artifact):
     if output.exists():raise ValueError('Refuse to overwrite a review bundle')
     meta,result=validate_native(source,head,tree,run);base=source/STAGE
     original=load(base/'manifest.json');entries={row['path']:row for row in original['files']}
-    critical=['metadata.json','result.json','matrix.json','enrollment-fixture.json','configuration-manifest.json',
+    critical=['metadata.json','result.json','matrix.json','configuration-manifest.json',
               'admission-birch_log.json','admission-oak_planks.json','server/b-guards.jsonl','screenshots.json']
+    # Explicitly retain the completed pre-acknowledgement candidate as historical evidence.
+    # It is never a substitute for the final producer's required enrollment witness.
+    if head!='6c51554f8d3105da83f82df8a1be441a5e04610f':critical.append('enrollment-fixture.json')
     if any(name not in entries for name in critical):raise ValueError('Missing native evidence in original manifest')
     cases=sorted((base/'cases').glob('*.json'))
     if len(cases)!=22:raise ValueError('Missing native trial rows')
