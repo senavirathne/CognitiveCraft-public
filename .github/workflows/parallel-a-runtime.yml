@@ -1,0 +1,72 @@
+name: Parallel A runtime recovery qualification
+on:
+  push:
+    branches: [impl/activity-runtime-recovery]
+    paths:
+      - '.github/workflows/parallel-a-runtime.yml'
+      - 'e2e/parallel_a/**'
+      - 'core/src/**'
+      - 'fabric/src/**'
+      - '**/build.gradle'
+permissions:
+  contents: read
+concurrency:
+  group: cc-runtime-a-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  a00-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Exact event and unchanged production ownership
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          git merge-base --is-ancestor ea7de8000b2b484b885576c34ed5358274936ce9 HEAD
+          test -z "$(git diff ea7de8000b2b484b885576c34ed5358274936ce9 -- core/src/main fabric/src/main)"
+          python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py' -v
+          python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
+      - name: Baseline module regressions and one production build
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 e2e/parallel_a/prepare.py
+          python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
+          python3 tools/needle/install.py build/needle
+      - name: Isolated connected controls, saved interruption and unflushed characterization
+        run: python3 e2e/parallel_a/baseline.py --root build/parallel-a/native
+      - name: Retain exact-source first failures and baseline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a00-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/
+            build/e2e-sdk/integrity.json
+            build/e2e-driver/*.jar
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/libs/ai-villages-0.1.0.jar
