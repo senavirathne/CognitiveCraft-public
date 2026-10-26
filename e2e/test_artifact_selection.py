@@ -26,10 +26,10 @@ class ArtifactSelectionTest(unittest.TestCase):
         document["artifacts"].insert(0, replacement)
         document["total_count"] += 1
         selected = select(document, self.names(), self.workflow_run, self.head)
-        self.assertEqual([11812656291, 101, 102, 103], [row["id"] for row in selected])
+        self.assertEqual([11812656291, 101, 102, 103, 104], [row["id"] for row in selected])
         document["artifacts"].reverse()
         self.assertEqual(selected, select(document, self.names(), self.workflow_run, self.head))
-        self.assertEqual(5, len(document["artifacts"]), "Earlier failure evidence must remain preserved")
+        self.assertEqual(6, len(document["artifacts"]), "Earlier failure evidence must remain preserved")
 
     def test_newest_failure_is_selected_instead_of_promoting_an_older_success(self):
         document = self.inventory()
@@ -79,7 +79,7 @@ class ArtifactSelectionTest(unittest.TestCase):
         document["artifacts"] += [self.artifact("unrelated", 1000 + i)
                                   for i in range(MAX_ARTIFACTS - len(document["artifacts"]))]
         document["total_count"] = MAX_ARTIFACTS
-        self.assertEqual(4, len(select(document, self.names(), self.workflow_run, self.head)))
+        self.assertEqual(5, len(select(document, self.names(), self.workflow_run, self.head)))
         document["artifacts"].append(self.artifact("unrelated", 2000))
         document["total_count"] += 1
         with self.assertRaises(ValueError):

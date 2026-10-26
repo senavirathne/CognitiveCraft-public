@@ -390,6 +390,16 @@ class Harness:
         if self.topology == "compose":
             name = "minecraft" if component == "server" else "client-a" if component == "PlayerA" else "client-b"
             self.compose("kill", "-s", "SIGKILL", name) if hard else self.compose("stop", name)
+            # A delivered kill command is not a witnessed process exit. Inspect
+            # only this fixture's exact Compose service, after its actual stop.
+            identifier = self.compose("ps", "--all", "-q", name).stdout.strip()
+            inspected = json.loads(subprocess.check_output(["docker", "inspect", identifier], text=True))[0]
+            require(inspected["Config"]["Labels"]["com.docker.compose.project"] == self.project,
+                    "Stopped container belongs to another fixture")
+            from parallel_b.guards import stopped_process
+            stopped_process(inspected["State"], hard=hard)
+            self.event("process-stop-witness", {"component":component,"container":inspected["Id"],
+                       "process":info,"state":inspected["State"],"hard":hard})
         elif component in self.processes:
             process = self.processes.pop(component)
             if hard:
@@ -405,6 +415,12 @@ class Harness:
                 process.terminate(); process.wait(timeout=15)
         self.event("sigkill" if hard else "stop", {"component": component, "process": info})
         self.booted.discard(component)
+        if component == "server":
+            for player in ("PlayerA", "PlayerB"):
+                if player in self.booted:
+                    self.wait(lambda: not self.action(player, "snapshot").get("play"),
+                              "Client independently observed stopped server " + player, 30)
+                    self.event("server-disconnection-witness", {"player":player,"server":info})
 
     def fresh(self, two=False, known=False, legacy=False, compatibility=False, diagnostics="off"):
         self.actions_active = False

@@ -5,11 +5,12 @@ on:
     paths: ['core/**', 'fabric/**', 'e2e/parallel_b/**', 'e2e/artifact_selection.py', 'e2e/suite.py', '.github/workflows/parallel-b-production.yml']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: cc-production-b-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  b00-baseline:
+  b01-qualification:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -33,21 +34,32 @@ jobs:
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
           python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
       - name: Hash-verified native runtime and isolated instruments
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
-      - name: Genuine admission, baseline q3 failure and q4 native control
-        run: python3 e2e/parallel_b/baseline.py --root build/e2e/parallel-b/B00
+          python3 scripts/campaign-crafting/prepare.py
+          python3 scripts/campaign-crafting/prepare.py
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40257555612
+          name: parallel-b-B00-f7f121859891506c5c0c2c4db7314bea56d47435-40257555612-1
+          path: build/parallel-b-seed/B00
+      - name: Real craft, exact collector refusals and actual kill barriers
+        run: python3 e2e/parallel_b/native_qualification.py --root build/e2e/parallel-b/B01 --seed build/parallel-b-seed/B00
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: parallel-b-B00-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: parallel-b-B01-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
           path: |
-            build/e2e/parallel-b/B00/
+            build/e2e/parallel-b/B01/
+            build/campaign-crafting-oracle/integrity.json
             build/e2e-sdk/integrity.json
             core/build/test-results/test/
             providers/build/test-results/test/

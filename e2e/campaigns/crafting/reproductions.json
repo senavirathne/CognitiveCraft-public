@@ -1,0 +1,37 @@
+[
+  {
+    "family": "P4",
+    "mode": "compose",
+    "seed": 20261024,
+    "heldOut": false,
+    "actor": 0,
+    "layout": "last",
+    "location": 0,
+    "container": "barrel",
+    "output": "minecraft:birch_planks",
+    "quantity": 3,
+    "distribution": "ready",
+    "worldLogs": 0,
+    "variant": 2,
+    "id": "P4-b51f79d3e32cf7-reproduction-ready",
+    "reproductionOf": "P4-b51f79d3e32cf7",
+    "previousBlockedReplay": "P4-b51f79d3e32cf7-reproduction"
+  },
+  {
+    "family": "P4",
+    "mode": "compose",
+    "seed": 20261024,
+    "heldOut": false,
+    "actor": 0,
+    "layout": "last",
+    "location": 0,
+    "container": "barrel",
+    "output": "minecraft:birch_planks",
+    "quantity": 4,
+    "distribution": "ready",
+    "worldLogs": 0,
+    "variant": 2,
+    "id": "P4-birch-four-output-control-ready",
+    "quantityControlFor": "P4-b51f79d3e32cf7-reproduction-ready"
+  }
+]
