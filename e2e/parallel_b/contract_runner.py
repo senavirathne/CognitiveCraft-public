@@ -41,7 +41,9 @@ def check(contract, evidence, expected_source, expected_jar):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--output',type=Path,required=True)
-    p.add_argument('--adapter',type=Path);p.add_argument('--source');p.add_argument('--jar');a=p.parse_args()
+    p.add_argument('--adapter',type=Path);p.add_argument('--source');p.add_argument('--jar')
+    p.add_argument('--suite',choices=['supplemental','held-out'],default='supplemental')
+    p.add_argument('--held-out-plan',type=Path);a=p.parse_args()
     specs=json.loads((HERE/'qualification-specs.json').read_text());validate(specs)
     if a.output.exists():raise ValueError('Retain first failures; use a new output path')
     adapter=None
@@ -50,7 +52,14 @@ def main():
         spec=importlib.util.spec_from_file_location('joint_qualification_adapter',a.adapter)
         adapter=importlib.util.module_from_spec(spec);spec.loader.exec_module(adapter)
     rows=[]
-    for c in specs['resourceInterruptions']+specs['adversarial']+specs['boundaries']:
+    cases=specs['resourceInterruptions']+specs['adversarial']+specs['boundaries']
+    if a.suite=='held-out':
+        if not a.held_out_plan:raise ValueError('Select the exact frozen held-out plan explicitly')
+        held=json.loads(a.held_out_plan.read_text())
+        if held['assertionSpecSha256']!=file_sha(HERE/'qualification-specs.json'):
+            raise ValueError('Held-out plan belongs to another assertion freeze')
+        cases=held['cases']
+    for c in cases:
         if adapter is None or not adapter.supports(c):
             row={'status':'INTEGRATION_PENDING','nativeExecuted':False,'reason':'Required native fixture port absent'}
         else:

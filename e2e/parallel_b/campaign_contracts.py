@@ -26,7 +26,7 @@ def file_sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def contracts():
     original=json.loads((HERE/'frozen/original-schedule.json').read_text())
     programs={n:file_sha(HERE/n) for n in ('frozen/original-invariants.py.txt','frozen/original-oracle.py.txt',
-              'frozen/original-recipe_model.py.txt','interference_oracle.py')}
+              'frozen/original-recipe_model.py.txt','interference_oracle.py','contract_runner.py')}
     material=json.loads((HERE/'freeze.json').read_text())['materialCases']
     rows=[]
     for case in original:
@@ -37,8 +37,20 @@ def contracts():
     cohorts=[]
     for c in material:
         for kind in ('minimized','canonical-control','retry'):
+            expected=json.loads(json.dumps(c));definition=json.loads(json.dumps(next(x for x in original if x['id']==c['id'])))
+            definition.update(id=c['id']+'-b07-'+kind,cohort=kind,originalId=c['id'],surplus=0)
+            if kind=='minimized':
+                expected.update(requested=1,physical=4,surplus=3)
+                if c['output']=='minecraft:birch_planks':expected['input']={next(iter(c['input'])):1}
+                elif len(c['input'])==1:expected['input']={next(iter(c['input'])):2}
+                definition['quantity']=1
+            elif kind=='canonical-control':
+                canonical='minecraft:birch_log' if c['output']=='minecraft:birch_planks' else 'minecraft:oak_planks'
+                expected['input']={canonical:sum(c['input'].values())}
+                definition['grid']=[canonical if x else x for x in definition['grid']]
+            expected['id']=definition['id']
             cohorts.append({'id':c['id']+'-b07-'+kind,'originalId':c['id'],'cohort':kind,
-                            'expected':c,'status':'NOT_EXECUTED','separateFromOriginal':True})
+                            'expected':expected,'definition':definition,'status':'NOT_EXECUTED','separateFromOriginal':True})
     cuts=[]
     pre={'sourceBlocks':4,'drops':0,'actor':0,'destination':0,'historicalCredit':0}
     vectors={'harvest':dict(sourceBlocks=3,drops=1,actor=0,destination=0,historicalCredit=0),

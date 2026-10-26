@@ -37,3 +37,12 @@ class CampaignContractTests(unittest.TestCase):
             self.assertFalse(c['expected']['privateOracleFeedsRuntime']);self.assertFalse(c['expected']['automaticReplay'])
         self.assertEqual(20,value['craftPlacementSurplus']['count'])
         self.assertEqual(12,len(value['cohorts']))
+
+    def test_minimizations_and_canonical_controls_have_their_own_parameters(self):
+        for c in contracts()['cohorts']:
+            e=c['expected'];d=c['definition']
+            self.assertEqual(e['requested'],d['quantity']);self.assertEqual(e['physical'],e['requested']+e['surplus'])
+            if c['cohort']=='minimized':self.assertEqual((1,4,3),(e['requested'],e['physical'],e['surplus']))
+            if c['cohort']=='canonical-control':
+                self.assertTrue(set(e['input'])<={'minecraft:birch_log','minecraft:oak_planks'})
+            self.assertNotEqual(c['id'],c['originalId'])
