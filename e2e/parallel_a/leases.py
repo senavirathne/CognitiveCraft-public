@@ -44,7 +44,7 @@ class LeaseHarness(ActivityHarness):
         def status():
             value=self.probe('status');return value if value and value['ready'] and value['metrics']['ready'] and not value['metrics']['pending'] else None
         return self.wait(status,'Acknowledged hot/history state at unchanged limits',55)
-    def inventory(self):return self.wait(lambda:self.probe('inventory'),'Bounded actual hot/archive inventory',45)
+    def lease_inventory(self):return self.wait(lambda:self.probe('inventory'),'Bounded actual hot/archive inventory',45)
     def restart(self):
         old=native_process(self);process=read(self.root/'server/lease-ready.json')['process'];clients={p:read(self.root/'clients'/p/'process.json') for p in self.players}
         self.stop('server');self.start('server');reconnect_players(self,list(self.players))
@@ -138,7 +138,7 @@ def restart_cut(h,backup,point,original,old_reference,pinned_rows):
     else:
         h.stable();lookup=h.probe('lookup',lease=old_reference,staleControls=True);require(lookup['lease']==old_reference and lookup['hotUnchanged'],'Old reference/stale owner changed after native cut')
         require(all(lookup[k]['code'] not in ('GRANTED','VALID') for k in ('validate','renew','release')),'Old process reference became authority')
-        inventory=h.inventory();actual=union_inventory(inventory)
+        inventory=h.lease_inventory();actual=union_inventory(inventory)
         require(set(pinned_rows)<=set(l['id'] for l in inventory['hot']['leases']),'Pinned unresolved rows were evicted')
         require(old_reference['id'] in actual,'Required old lease is unresolved after cut')
         outcome={'storage':'RESOLVABLE','lookup':lookup,'inventory':inventory}
@@ -165,7 +165,7 @@ def main():
             if old_reference is None:
                 status=h.stable();job=record['view']['responsibility']['id'];old_reference=next(l for l in status['hot']['leases'] if l['owner']['job']==job)
             print('A03_NATIVE_LEASE_CYCLE '+json.dumps({'number':n+1,'run':record['run'],'job':record['view']['responsibility']['id']}),flush=True)
-        status=h.stable();inventory=h.inventory();all_rows=union_inventory(inventory);cycle_jobs={c['view']['responsibility']['id'] for c in cycles}
+        status=h.stable();inventory=h.lease_inventory();all_rows=union_inventory(inventory);cycle_jobs={c['view']['responsibility']['id'] for c in cycles}
         actual=[l for l in all_rows.values() if (l.get('owner',{}).get('job') or l.get('job')) in cycle_jobs]
         require(len(actual)==129 and len(cycle_jobs)==43 and all(l['state']!='ACTIVE' for l in actual),'Continuous native history did not exceed 128 legitimate retired leases in 43 Jobs')
         require(status['jobs']<64 and status['metrics']['active']<=64 and status['metrics']['hot']<=128 and status['metrics']['evicted']>0,'Native wall was crossed by raising quotas or exceeding Job wall')
