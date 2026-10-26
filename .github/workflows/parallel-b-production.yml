@@ -66,7 +66,7 @@ jobs:
           python3 e2e/parallel_b/prepare_diagnostics.py
       - name: Broader actual native recipe, planning, placement, bread and harvest hosts
         run: |
-          python3 e2e/parallel_b/run_hosts.py --root "$B08_ROOT/hosts" --built --extra-mod build/e2e-driver/observer.jar \
+          python3 e2e/parallel_b/run_hosts.py --root "$B08_ROOT/hosts" --built \
             --entrypoint dev.aivillages.fabric.GeneralizedRecipeChoiceGameTests \
             --entrypoint dev.aivillages.fabric.ConcretePlankChoiceGameTests \
             --entrypoint dev.aivillages.fabric.PlanningChoiceHostGameTests \
