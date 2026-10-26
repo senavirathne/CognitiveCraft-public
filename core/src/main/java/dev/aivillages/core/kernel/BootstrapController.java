@@ -128,6 +128,11 @@ public final class BootstrapController {
         thread();
         return active!=null && active.id.equals(submission) || persisted.runs().stream().anyMatch(r->r.id().equals(submission));
     }
+    /** Current process execution ownership; saved markers remain provenance through ownsSubmission. */
+    public boolean liveSubmission(UUID submission) {
+        thread();
+        return active != null && active.id.equals(submission) && active.phase != Phase.TERMINAL;
+    }
 
     public BootstrapController(BootstrapJournal.State initial, Storage storage, Observer observer,
             Resolver resolver, Research research, Execution execution,

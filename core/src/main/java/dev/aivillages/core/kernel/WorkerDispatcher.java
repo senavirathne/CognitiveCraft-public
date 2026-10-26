@@ -181,6 +181,15 @@ public final class WorkerDispatcher {
         return diagnostics.getOrDefault(id,List.of());
     }
     public void clearPolicyCache(){checkThread();cursors.clear();diagnostics.clear();}
+    /** Read-only current-process ownership, including a stopping executor/claim handle. */
+    public boolean ownsAttempt(UUID job, UUID attempt, long generation) {
+        checkThread();
+        Live holder = live.get(job);
+        if (holder == null) return false;
+        var original = jobs.snapshot().jobs().stream().filter(j -> j.id().equals(job)).findFirst().orElse(null);
+        return original != null && original.current() != null && original.generation() == generation
+                && original.current().id().equals(attempt);
+    }
     /** Shutdown stops executor-owned work; durable unfinished records remain interrupted on reload. */
     public void close() {
         checkThread();

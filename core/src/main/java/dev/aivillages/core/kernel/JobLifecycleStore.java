@@ -55,6 +55,7 @@ public final class JobLifecycleStore {
     private long deadline;
     private boolean fenced, readOnly;
     private Reason failure;
+    private RecoveryEvidenceAuthority recoveryAuthority;
     private Snapshot indexed;
     private Map<TrustedContext, List<Job>> dispatchIndex = Map.of();
     private java.util.function.Predicate<Snapshot> retentionGuard = next -> true;
@@ -100,6 +101,14 @@ public final class JobLifecycleStore {
     /** Trusted composition/retention seam, not an unscoped player query. */
     public Snapshot snapshot() { thread(); return state; }
     public Settings settings() { return settings; }
+
+    /** One process-local recovery client; Jobs remains the sole durable publisher. */
+    public RecoveryEvidenceAuthority attachRecovery(TrustedStoppedSource source) {
+        thread();
+        if (recoveryAuthority != null) throw new IllegalStateException("Recovery owner already attached");
+        recoveryAuthority = Jobs.recoveryEvidenceAuthority(source);
+        return recoveryAuthority;
+    }
 
     /** Disposable private index; rebuilt only when the authoritative publication changes. */
     public DispatchPage dispatchPage(TrustedContext caller, UUID after, int maximum) {
@@ -777,8 +786,36 @@ public final class JobLifecycleStore {
                             TrustedContext caller) {
         return observe(id, guard, report, caller, true, completeStoppedObservation);
     }
+    /** Typed host evidence for the original stopped attempt; legacy boolean API remains compatible. */
+    public Change reconcileStopped(UUID id, Guard guard, StoppedEvidence evidence, TrustedContext caller) {
+        thread(); var work = new Work(); Job job = controlled(id, caller);
+        if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
+        if (recoveryAuthority == null || !recoveryAuthority.authentic(evidence))
+            return reject(Reason.STALE_OBSERVATION, work);
+        var context = evidence.context(); var observation = evidence.observation();
+        var current = job.current();
+        if (current == null || !context.world().equals(state.worldId()) || !context.job().equals(id)
+                || !context.origin().equals(job.origin()) || !context.attempt().equals(current.id())
+                || context.generation() != job.generation() || !context.guard().equals(guard))
+            return reject(Reason.STALE_OBSERVATION, work);
+        // Stopped alone is not no-effect; partial custody needs the later native evidence protocol.
+        if (observation.kind() != StoppedKind.NO_EFFECT && observation.kind() != StoppedKind.EFFECT_COMPLETE)
+            return reject(Reason.INTERRUPTED, work);
+        Report report = observation.report();
+        if (!current.open() && current.effects() == report.effects() && current.usage().equals(report.usage())
+                && current.receipts().equals(report.receipts()) && current.resourceReceipts().equals(report.resourceReceipts())
+                && Objects.equals(current.terminal(), report.terminal())) return duplicate(job, work);
+        if (!job.guard().equals(guard) || !context.original().equals(current)
+                || observation.kind() == StoppedKind.NO_EFFECT && (current.effects() != 0 || current.receiptCount() != 0))
+            return reject(Reason.STALE_OBSERVATION, work);
+        return observe(id, guard, report, caller, true, true, true);
+    }
     private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
                            boolean reconciliation, boolean certain) {
+        return observe(id, guard, report, caller, reconciliation, certain, false);
+    }
+    private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
+                           boolean reconciliation, boolean certain, boolean typedStopped) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
@@ -787,7 +824,8 @@ public final class JobLifecycleStore {
                     && a.generation() == report.generation()).findFirst().orElse(null);
             if (old == null) return reject(Reason.STALE_OBSERVATION, work);
             boolean current = old.generation() == job.generation();
-            if (reconciliation && (!current || job.state() != State.INTERRUPTED || !certain || report.terminal() == null))
+            if (reconciliation && (!current || job.state() != State.INTERRUPTED
+                    && !(typedStopped && job.state() == State.CANCELLING) || !certain || report.terminal() == null))
                 return reject(Reason.STALE_OBSERVATION, work);
             Map<UUID, CropDelivery.CropReceipt> receipts = new LinkedHashMap<>();
             old.receipts().forEach(r -> receipts.put(r.receiptId(), r));

@@ -39,6 +39,12 @@ import net.minecraft.world.phys.Vec3;
 
 /** Minecraft 26.3 server-thread adapter. It never requests an unloaded chunk. */
 public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
+    @FunctionalInterface public interface EffectFence {
+        boolean blocked(ValidatedRequest request, Effect effect, Cell target);
+    }
+    private EffectFence effectFence = (request, effect, target) -> false;
+    /** Composition-owned, derived Jobs exclusion. It cannot grant native permission or mutate state. */
+    public void effectFence(EffectFence fence) { effectFence = Objects.requireNonNull(fence); }
     private final ServerLevel level;
     private final Map<UUID, MovementTravel> movementTravel = new HashMap<>();
     private final Map<UUID, Route> routes = new HashMap<>();
@@ -260,6 +266,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER
                 || effect==Effect.WITHDRAW || effect==Effect.CRAFT || effect==Effect.PLACE)
                 && !level.getGameRules().get(GameRules.MOB_GRIEFING)) return Reason.AUTHORITY_DENIED;
+        if (effectFence.blocked(request, effect, target)) return Reason.INTERRUPTED;
         return null;
     }
     @Override public CropState crop(Cell cell) {

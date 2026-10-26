@@ -16,12 +16,25 @@ public final class RuntimeAObserver implements ModInitializer {
         var t = new Thread(r,"runtime-a-measurement-writer"); t.setDaemon(true); return t;
     });
     private long start, tick;
+    private volatile String activitySnapshot;
     public void onInitialize() {
         ServerTickEvents.START_SERVER_TICK.register(s -> start = System.nanoTime());
         ServerTickEvents.END_SERVER_TICK.register(s -> {
             long elapsed = System.nanoTime() - start;
             synchronized(samples) { if(samples.size() < 20000) samples.add(Map.of(
                     "tick", ++tick, "time", System.currentTimeMillis(), "nanos", elapsed)); }
+            if (tick % 5 == 0 && "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_ACTIVITY_VIEW"))) {
+                try {
+                    var kernel = AiVillages.kernel();
+                    if (kernel != null) {
+                        var players = new LinkedHashMap<String,Object>();
+                        for (var player : s.getPlayerList().getPlayers().stream().limit(2).toList())
+                            players.put(player.getGameProfile().name(), kernel.activities(player,0,4));
+                        activitySnapshot = new Gson().toJson(Map.of("schema",1,"time",System.currentTimeMillis(),
+                                "players",players,"counters",kernel.recoveryOwner().counters()));
+                    }
+                } catch (IllegalStateException starting) { /* native startup is not a fabricated activity view */ }
+            }
         });
         writer.scheduleWithFixedDelay(this::flush,1,1,TimeUnit.SECONDS);
         ServerLifecycleEvents.SERVER_STOPPED.register(s -> { writer.shutdown(); flush(); });
@@ -36,6 +49,13 @@ public final class RuntimeAObserver implements ModInitializer {
             var temp = target.resolveSibling(target.getFileName()+".next");
             Files.writeString(temp,new Gson().toJson(body));
             Files.move(temp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            String activities = activitySnapshot;
+            if (activities != null) {
+                var activityTarget = target.resolveSibling("runtime-a-activities.json");
+                var staged = activityTarget.resolveSibling("runtime-a-activities.next");
+                Files.writeString(staged,activities);
+                Files.move(staged,activityTarget,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch(Exception e) { System.err.println("Runtime A observation write failed: "+e); }
     }
 }

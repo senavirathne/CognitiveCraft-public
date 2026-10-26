@@ -98,6 +98,9 @@ public final class KernelSession implements AutoCloseable {
     private LeasedGateway leasedGateway;
     private LeasedGateway dispatchGateway;
     private WorkerDispatcher dispatcher;
+    private dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveredOwners;
+    private final boolean activityViewEnabled = "true".equalsIgnoreCase(
+            System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_VIEW", "false"));
     private final Map<String, java.util.Set<WorldRetentionManager.Key>> desiredRoots = new LinkedHashMap<>();
     private List<TrustedContext> dispatchScopes=List.of();
     private long dispatchRevision=-1;
@@ -336,6 +339,7 @@ public final class KernelSession implements AutoCloseable {
         planner.tick();
         prerequisites.tick();
         dispatchGateway.tick();
+        recoveredOwners.step();
         if(dispatchRevision!=jobs.snapshot().revision()) {
             dispatchScopes=jobs.snapshot().jobs().stream().filter(j->!controller.ownsSubmission(j.submissionId()))
                     .map(Jobs.Job::origin).distinct().sorted(java.util.Comparator.comparing(c->c.principal().id().toString()
@@ -638,6 +642,37 @@ public final class KernelSession implements AutoCloseable {
                 job->ResourceDelivery.isDelivery(job.request().request().capability()) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
         dispatcher.jobResolver((job,request,observation)->resolver.withEligibility(access.policyForJob(job.id())).resolve(request,observation));
+
+        recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
+                new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {
+                    public boolean bootstrap(Jobs.Job job) { return controller.liveSubmission(job.submissionId()); }
+                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job.id(),
+                            job.current() == null ? job.submissionId() : job.current().id(), job.generation()); }
+                    public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence presence(Jobs.Job job) {
+                        var actor = job.current() == null ? job.responsible() : job.current().worker();
+                        var enrollment = citizens.find(actor.citizenId());
+                        if (enrollment == null || !enrollment.actor().equals(actor))
+                            return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.UNAVAILABLE;
+                        var current = citizens.query(actor.citizenId(), job.origin());
+                        if (current.availability() == CitizenRegistry.Availability.UNLOADED
+                                || current.availability() == CitizenRegistry.Availability.UNKNOWN)
+                            return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.WAIT_WORLD;
+                        if (current.availability() == CitizenRegistry.Availability.UNAVAILABLE
+                                || current.availability() == CitizenRegistry.Availability.REPLACEMENT_UNRESOLVED)
+                            return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.UNAVAILABLE;
+                        if (villager(actor) == null)
+                            return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.WAIT_WORLD;
+                        for (var value : job.request().request().arguments().values()) {
+                            if (value instanceof ContainerValue c && worldAccess.container(c.value()).status() == ObservationStatus.UNKNOWN)
+                                return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.WAIT_WORLD;
+                            if (value instanceof AreaValue a && (!server.overworld().hasChunkAt(new BlockPos(a.value().minX(),a.value().minY(),a.value().minZ()))
+                                    || !server.overworld().hasChunkAt(new BlockPos(a.value().maxX(),a.value().maxY(),a.value().maxZ()))))
+                                return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.WAIT_WORLD;
+                        }
+                        return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
+                    }
+                }, original -> Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof"), 4);
+        worldAccess.effectFence(recoveredOwners::fenced);
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
             // Notify both owners; short-circuiting would leave the second owner's work running.
@@ -1322,6 +1357,18 @@ public final class KernelSession implements AutoCloseable {
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
     public Jobs.Job queuedJob(ServerPlayer player,UUID id){ready();return jobs.query(id,caller(player));}
+    /** Read-only and private. Enabled explicitly for initial qualification, off by default. */
+    public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.View activity(ServerPlayer player, UUID root) {
+        ready();
+        if (!activityViewEnabled) throw new IllegalStateException("Activity view disabled");
+        return recoveredOwners.view(root, caller(player));
+    }
+    public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Page activities(ServerPlayer player, int offset, int maximum) {
+        ready();
+        if (!activityViewEnabled) throw new IllegalStateException("Activity view disabled");
+        return recoveredOwners.page(caller(player), offset, maximum);
+    }
+    dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveryOwner() { ready(); return recoveredOwners; }
     public List<UUID> queuedJobIds(ServerPlayer player,boolean cancellable){
         ready();var origin=caller(player);
         return jobs.snapshot().jobs().stream().filter(j->j.origin().equals(origin)&&!controller.ownsSubmission(j.submissionId()))
@@ -1460,6 +1507,7 @@ public final class KernelSession implements AutoCloseable {
         if(accessService!=null)accessService.close();
         if(primitiveDiagnostics!=null)primitiveDiagnostics.close();
         if(dispatcher!=null)dispatcher.close();
+        if(recoveredOwners!=null)recoveredOwners.close();
         if(planner!=null)planner.close();
         if(organizations!=null)organizations.close();
         if(mandates!=null)mandates.close();

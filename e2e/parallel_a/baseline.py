@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import sys
 import time
 import traceback
@@ -22,6 +23,12 @@ class RuntimeAHarness(AssessmentHarness):
     def __init__(self, root):
         super().__init__(root, 'parallel-a-a00')
         self.project = 'cc-runtime-a-' + str(uuid.uuid4())[:8]
+
+    def observe_live(self, run):
+        return None
+
+    def observe_recovery(self, run, case):
+        return None
 
     def console(self, lines, lifecycle=False):
         if lifecycle and all(re.fullmatch(r'tick (?:freeze|unfreeze|rate 20)', line) for line in lines):
@@ -50,6 +57,29 @@ def percentiles(values):
             'max': max(values)/1e6, 'samples': len(values), 'unit': 'milliseconds'}
 
 
+def native_process(h):
+    """Namespace PIDs may repeat on container restart; record the actual host JVM birth."""
+    container=h.compose('ps','-q','minecraft').stdout.strip()
+    require(bool(container),'Owned running server container required')
+    info=json.loads(subprocess.check_output(['docker','inspect',container],text=True))[0]
+    require(info['Config']['Labels']['com.docker.compose.project']==h.project,'Foreign container refused')
+    rows=subprocess.check_output(['docker','top',container,'-eo','pid,ppid,args'],text=True).splitlines()[1:]
+    jvms=[r.split(None,2) for r in rows if 'net.fabricmc.loader.impl.launch.knot.KnotServer' in r]
+    require(len(jvms)==1,'Exactly one actual native server JVM required')
+    pid=int(jvms[0][0]);stat=Path(f'/proc/{pid}/stat').read_text().split(') ',1)[1].split()
+    return {'hostJvmPid':pid,'hostParentPid':int(jvms[0][1]),'startTicks':int(stat[19]),
+            'containerId':info['Id'],'containerStartedAt':info['State']['StartedAt'],
+            'namespaceProcess':read(h.root/'server/process.json')}
+
+
+def same_native_alive(identity):
+    try:
+        stat=Path(f"/proc/{identity['hostJvmPid']}/stat").read_text().split(') ',1)[1].split()
+        return stat[0]!='Z' and int(stat[19])==identity['startTicks']
+    except FileNotFoundError:
+        return False
+
+
 def interruption(h, saved, case):
     h.family = case.name
     h.reset({}, table=False)
@@ -61,6 +91,7 @@ def interruption(h, saved, case):
     # deposit observation window comes from native travel between the two logs.
     h.console(['tick rate 20'], lifecycle=True)
     rid = h.submit(LOG, 2)
+    live_view = h.observe_live(rid)
     def at_cut():
         v = h.run_view('PlayerA', rid)
         if v and v.get('phase') == 'TERMINAL':
@@ -93,11 +124,13 @@ def interruption(h, saved, case):
     if before_kill.get('phase') != 'EXECUTING' or receipts(before_kill, 'DEPOSIT', LOG) != 1:
         raise Inconclusive('Selected effect window ended before the real kill')
     process = read(h.root/'server/process.json')
+    native = native_process(h)
     clients = {p: read(h.root/'clients'/p/'process.json') for p in h.players}
-    atomic(case/'before-kill.json', {'snapshot':cut,'view':before_kill,'custody':physical,'process':process,
+    atomic(case/'before-kill.json', {'snapshot':cut,'view':before_kill,'custody':physical,'process':process,'nativeProcess':native,
            'clients':clients,'initial':initial,'startSave':start_save,'effectSave':checkpoint,
            'postEffectSaveRequested':saved,'saveAckWallNanos':save_nanos})
     h.stop('server', hard=True)
+    h.wait(lambda: not same_native_alive(native),'Actual owned native JVM exited after SIGKILL',20)
     shutil.copytree(h.root/'server/game/world',case/'killed-world',ignore=shutil.ignore_patterns('session.lock'))
     killed_hashes = h.world_hashes()
     for player in h.players:
@@ -105,7 +138,10 @@ def interruption(h, saved, case):
     h.actions_active = False
     h.start('server'); reconnect_players(h, list(h.players))
     h.console(['tick unfreeze', 'tick rate 20'], lifecycle=True)
-    require(read(h.root/'server/process.json')['pid'] != process['pid'], 'New server JVM required')
+    restarted_native=native_process(h)
+    require((restarted_native['hostJvmPid'],restarted_native['startTicks']) !=
+            (native['hostJvmPid'],native['startTicks']) and
+            restarted_native['namespaceProcess']['start']>process['start'], 'New actual server JVM required')
     require(all(read(h.root/'clients'/p/'process.json') == old for p,old in clients.items()), 'Persistent clients were replaced')
     restored = h.wait(lambda: h.run_view('PlayerA', rid), 'Original owner visible after same-world restart', 45)
     h.quiet(80)
@@ -121,8 +157,11 @@ def interruption(h, saved, case):
     if saved:
         require(all(after_custody[k] == physical[k] for k in ('destination','inventory','drops','blocks','actorEntity')),
                 'Saved participant custody differs from actual pre-kill evidence')
+    recovery_view = h.observe_recovery(rid, case)
     evidence = {'status':'PASS','claim':'baseline cut characterization; unresolved recovery remains a failure signature',
                 'run':rid,'job':job['id'],'saved':saved,'requestedCut':'first DEPOSIT of two while EXECUTING',
+                'beforeNativeProcess':native,'afterNativeProcess':restarted_native,'oldNativeGoneAfterKill':True,
+                'liveActivityView':live_view,'recoveryActivityView':recovery_view,
                 'actuallyWitnessedCut':before_kill,'killedWorldHashes':killed_hashes,
                 'restored':restored,'after':after,'beforeCustody':physical,'afterCustody':after_custody,
                 'ownerSettlement':'FAIL','resumedCompletion':'NOT_EXECUTED',

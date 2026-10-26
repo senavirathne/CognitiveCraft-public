@@ -239,6 +239,77 @@ public final class Jobs {
     }
     public record Cancellation(UUID jobId, UUID attemptId, long generation, TrustedContext origin) { }
 
+    /** A-owned runtime boundary. Observations are supplied by a registered native host, never JSON. */
+    public enum StoppedKind { WAIT_WORLD, AMBIGUOUS, STOPPED, NO_EFFECT, EFFECT_COMPLETE, PARTIAL }
+    public record StoppedContext(UUID world, UUID job, Guard guard, UUID attempt, long generation,
+                                 TrustedContext origin, Attempt original) {
+        public StoppedContext {
+            Objects.requireNonNull(world); Objects.requireNonNull(job); Objects.requireNonNull(guard);
+            Objects.requireNonNull(attempt); Objects.requireNonNull(origin); Objects.requireNonNull(original);
+            if (!world.equals(origin.scope().worldId()) || generation != original.generation()
+                    || !attempt.equals(original.id()) || generation != guard.generation())
+                throw new IllegalArgumentException("Original stopped-attempt identity");
+        }
+        public static StoppedContext of(Job job) {
+            if (job.current() == null) throw new IllegalArgumentException("Original attempt required");
+            return new StoppedContext(job.origin().scope().worldId(), job.id(), job.guard(),
+                    job.current().id(), job.generation(), job.origin(), job.current());
+        }
+    }
+    public record StoppedObservation(StoppedKind kind, Report report, String witness) {
+        public StoppedObservation {
+            Objects.requireNonNull(kind); Objects.requireNonNull(witness);
+            if (witness.isBlank() || witness.length() > 256) throw new IllegalArgumentException("Bounded host witness");
+            if ((kind == StoppedKind.WAIT_WORLD || kind == StoppedKind.AMBIGUOUS) && report != null)
+                throw new IllegalArgumentException("Unknown state cannot provide a report");
+            if ((kind == StoppedKind.NO_EFFECT || kind == StoppedKind.EFFECT_COMPLETE || kind == StoppedKind.PARTIAL)
+                    && (report == null || report.terminal() == null))
+                throw new IllegalArgumentException("Complete native report required");
+            if (kind == StoppedKind.NO_EFFECT && (report.effects() != 0 || !report.receipts().isEmpty()
+                    || !report.resourceReceipts().isEmpty() || report.terminal().status() == ExecutionStatus.SUCCEEDED))
+                throw new IllegalArgumentException("No-effect evidence contradicts physical work");
+            if (kind == StoppedKind.EFFECT_COMPLETE && report.terminal().status() != ExecutionStatus.SUCCEEDED)
+                throw new IllegalArgumentException("Complete effect requires verified completion");
+        }
+        public static StoppedObservation ambiguous(String witness) {
+            return new StoppedObservation(StoppedKind.AMBIGUOUS, null, witness);
+        }
+    }
+    @FunctionalInterface public interface TrustedStoppedSource {
+        StoppedObservation observe(StoppedContext original);
+    }
+    /** Opaque capability: no constructor/factory taking player data or a certainty boolean. */
+    public static final class StoppedEvidence {
+        private final RecoveryEvidenceAuthority authority;
+        private final StoppedContext context;
+        private final StoppedObservation observation;
+        private StoppedEvidence(RecoveryEvidenceAuthority authority, StoppedContext context, StoppedObservation observation) {
+            this.authority = authority; this.context = context; this.observation = observation;
+        }
+        public StoppedContext context() { return context; }
+        public StoppedObservation observation() { return observation; }
+        public UUID process() { return authority.process(); }
+    }
+    /** Registered once by the composition root. capture calls its trusted source, not caller-supplied proof data. */
+    public static final class RecoveryEvidenceAuthority {
+        private final UUID process = UUID.randomUUID();
+        private final TrustedStoppedSource source;
+        private RecoveryEvidenceAuthority(TrustedStoppedSource source) { this.source = Objects.requireNonNull(source); }
+        public UUID process() { return process; }
+        public StoppedEvidence capture(StoppedContext original) {
+            Objects.requireNonNull(original);
+            var observed = Objects.requireNonNull(source.observe(original));
+            if (observed.report() != null && (!observed.report().attemptId().equals(original.attempt())
+                    || observed.report().generation() != original.generation()))
+                throw new IllegalArgumentException("Host report changed original identity");
+            return new StoppedEvidence(this, original, observed);
+        }
+        boolean authentic(StoppedEvidence evidence) { return evidence != null && evidence.authority == this; }
+    }
+    static RecoveryEvidenceAuthority recoveryEvidenceAuthority(TrustedStoppedSource source) {
+        return new RecoveryEvidenceAuthority(source);
+    }
+
     public static boolean legal(State from, State to) {
         return switch (from) {
             case READY -> Set.of(State.WAITING, State.ACTIVE, State.CANCELLED, State.FAILED).contains(to);

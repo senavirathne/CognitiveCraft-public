@@ -50,6 +50,22 @@ final class KernelCommands {
     }
     private void attachCommands(LiteralArgumentBuilder<CommandSourceStack> root) {
         var kernel = literal("kernel");
+        kernel.then(literal("activities").executes(c -> safe(c, (ctx, session) -> {
+            tell(ctx, "activities=" + session.activities(ctx.getSource().getPlayerOrException(), 0, 4)); return 1;
+        })).then(argument("offset", IntegerArgumentType.integer(0,64)).executes(c -> safe(c, (ctx, session) -> {
+            tell(ctx, "activities=" + session.activities(ctx.getSource().getPlayerOrException(),
+                    IntegerArgumentType.getInteger(ctx,"offset"), 4)); return 1;
+        }))));
+        kernel.then(literal("activity").then(argument("root-job-id",StringArgumentType.word())
+                .executes(c -> safe(c, (ctx, session) -> {
+                    var v = session.activity(ctx.getSource().getPlayerOrException(), uuid(ctx,"root-job-id"));
+                    tell(ctx, "activity="+v.root()+" goal="+v.goal()+" principal="+v.authorizingPrincipal()
+                            +" villager="+v.responsible()+" generation="+v.executionGeneration()+" state="+v.state()
+                            +" owner="+v.route()+" recoveryOwner="+v.recoveryOwner()+" process="+v.process()
+                            +" blocker="+v.blocker()+" reason="+v.jobReason()+" cancellation="+v.cancellationIntent()
+                            +" verifiedLegacyQuantity="+v.verifiedLegacyQuantity()+" progress="+v.progressEvidence()
+                            +" physical="+v.physicalEvidence()); return 1;
+                })));
         kernel.then(literal("enroll")
                 .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .executes(context -> safe(context, (c, session) -> {
