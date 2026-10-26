@@ -16,7 +16,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from suite import ROOT,atomic,read,require
 from runtime import SDK,digest
 from generalization_support import AssessmentHarness,LOG,BIRCH,PLANK,CAPS,SRC,DST,at,coord
-from parallel_b.guards import clean_owners,instruments,observer_inputs
+from parallel_b.guards import clean_owners,settled_owner,instruments,observer_inputs
 from campaigns.crafting.oracle import candidates
 
 MATRIX=Path(__file__).with_name('diagnostic-matrix.json')
@@ -26,9 +26,26 @@ FAR=[10004,208,10004]
 def lines(path):
     return [json.loads(x) for x in path.read_text().splitlines()] if path.exists() else []
 
-def settled(h):
+def pending_owners(snapshot):
+    pending=[]
+    for player,data in snapshot.get('knownPlayers',{}).items():
+        owners={j['id']:j for j in data.get('jobs',{}).values()}
+        for run in data.get('runs',{}).values():
+            owner=run.get('responsibility')
+            if owner is not None:owners[owner['id']]=owner
+        pending.extend((player,owner) for owner in owners.values() if not settled_owner(owner))
+    return pending
+
+def settled(h,*,fence=False):
+    acknowledgements=[]
+    if fence:
+        for player,owner in pending_owners(h.snapshot()):
+            if owner['state']=='CANCELLING':continue
+            answer=h.cancel_job(player,owner['id'])
+            acknowledgements.append({'player':player,'job':owner['id'],'before':owner,'feedback':answer})
     h.wait(lambda:all(clean_owners(d) for d in h.snapshot().get('knownPlayers',{}).values()),
            'Actual terminal settled owners before any diagnostic fixture mutation',45)
+    return {'clean':True,'cancellationAcknowledgements':acknowledgements,'nativeOwnerProjection':h.snapshot()['knownPlayers']}
 
 def probe(h,positions):
     request={'id':str(uuid.uuid4()),'positions':positions};atomic(h.root/'server/b-probe.json',request)
@@ -99,19 +116,21 @@ def trial(h,schedule_seed,variant,index):
          'delivered':actual,'actorHeld':h.inventory().get(item,0),'targetObservation':target,'targetAfter':target_after,'guards':lines(h.root/'server/b-guards.jsonl')[offset:],
          'retryOf':None,'automaticReplay':False,'remainingDemandForJointAdapter':None if actual is None else q-actual}
     row['classification']=classify(row)
+    row_path=h.root/'cases'/f'{index:02d}-{schedule_seed}-{kind}.json'
+    row['assertionStatus']='PENDING';atomic(row_path,row)
     require(row['callsBefore']==row['callsAfter'],'Known diagnostic method invoked generation')
     if row['classification']=='SUCCEEDED':
         require(actual==q and view['marker']['artifactSha256']==row['methodPin'],'Success lacks exact native delivery or pinned method identity')
     if kind in ('missing-target','moved-target','full-target','unloaded-target'):
         require(physical_before==physical_after,'Required refusal changed native participants: '+kind)
         require(not view or not view.get('resourceReceipts'),'Required refusal has resource effects: '+kind)
-    atomic(h.root/'cases'/f'{index:02d}-{schedule_seed}-{kind}.json',row)
+    row['assertionStatus']='PASS';atomic(row_path,row)
     h.screenshot('PlayerA','diagnostic-'+kind,chat=True)
-    settled(h)
+    row['settlement']=settled(h,fence=True);atomic(row_path,row)
     if kind=='loaded-target':
         h.console(['forceload remove 10000 10000'])
         h.wait(lambda:not probe(h,[FAR])['positions'][0]['loaded'],'Same target actually unloaded after load control',110)
-    return {k:v for k,v in row.items() if k not in ('before','after','physicalBefore','physicalAfter','guards','view')}
+    return {k:v for k,v in row.items() if k not in ('before','after','physicalBefore','physicalAfter','guards','view','settlement')}
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);a=p.parse_args()

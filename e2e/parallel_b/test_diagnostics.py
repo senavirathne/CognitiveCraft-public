@@ -5,7 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from parallel_b.diagnostics import classify,MATRIX
+from parallel_b.diagnostics import classify,pending_owners,settled,MATRIX
 
 class DiagnosticEvidenceTests(unittest.TestCase):
     def row(self):
@@ -37,5 +37,22 @@ class DiagnosticEvidenceTests(unittest.TestCase):
         self.assertEqual(len(ids),len(set(ids)))
         self.assertIn('unloaded-target',ids);self.assertIn('loaded-target',ids)
         self.assertEqual('minecraft:birch_log',matrix['families']['seven-log']['item'])
+
+    def test_failed_run_responsibility_is_found_even_when_absent_from_queue_map(self):
+        owner={'id':'fixture:waiting-root','state':'WAITING','attempts':[]}
+        snapshot={'knownPlayers':{'PlayerA':{'jobs':{},'runs':{'fixture:blocked-run':{'phase':'TERMINAL','responsibility':owner}}}}}
+        self.assertEqual([('PlayerA',owner)],pending_owners(snapshot))
+        owner['state']='CANCELLED'
+        self.assertEqual([],pending_owners(snapshot))
+
+    def test_cancellation_acknowledgement_alone_cannot_open_the_fixture_barrier(self):
+        owner={'id':'fixture:waiting-root','state':'WAITING','attempts':[]}
+        snapshot={'knownPlayers':{'PlayerA':{'jobs':{},'runs':{'fixture:blocked-run':{'phase':'TERMINAL','responsibility':owner}}}}}
+        class Port:
+            def snapshot(self):return snapshot
+            def cancel_job(self,player,jid):return 'cancellation=true'
+            def wait(self,predicate,reason,timeout):
+                if not predicate():raise TimeoutError('Acknowledged cancellation is still not settled')
+        with self.assertRaises(TimeoutError):settled(Port(),fence=True)
 
 if __name__=='__main__':unittest.main()
