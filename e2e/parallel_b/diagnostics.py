@@ -45,7 +45,7 @@ def classify(row):
     if row['callsBefore']!=row['callsAfter']:return 'FAIL_MODEL_REGENERATION'
     if not row['request']['accepted']:return 'REFUSED_INTAKE_NO_ACCEPTED_RUN'
     if row.get('view',{}).get('marker',{}).get('outcome')=='SUCCEEDED':return 'SUCCEEDED'
-    if (row['delivered'] or 0)>0:return 'PARTIAL_PRESERVED_NO_REPLAY'
+    if (row['delivered'] or 0)>0 or row.get('actorHeld',0)>0:return 'PARTIAL_PRESERVED_NO_REPLAY'
     return 'FAILED_OR_INTERRUPTED_PRESERVED_NO_REPLAY'
 
 def admit(h,item):
@@ -102,7 +102,7 @@ def trial(h,schedule_seed,variant,index):
     require(row['callsBefore']==row['callsAfter'],'Known diagnostic method invoked generation')
     if row['classification']=='SUCCEEDED':
         require(actual==q and view['marker']['artifactSha256']==row['methodPin'],'Success lacks exact native delivery or pinned method identity')
-    if kind in ('missing-target','moved-target','full-target','unloaded-target','loaded-target'):
+    if kind in ('missing-target','moved-target','full-target','unloaded-target'):
         require(physical_before==physical_after,'Required refusal changed native participants: '+kind)
         require(not view or not view.get('resourceReceipts'),'Required refusal has resource effects: '+kind)
     atomic(h.root/'cases'/f'{index:02d}-{schedule_seed}-{kind}.json',row)

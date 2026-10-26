@@ -19,6 +19,8 @@ class DiagnosticEvidenceTests(unittest.TestCase):
         self.assertEqual('FAILED_OR_INTERRUPTED_PRESERVED_NO_REPLAY',classify(row))
         row['delivered']=4
         self.assertEqual('PARTIAL_PRESERVED_NO_REPLAY',classify(row))
+        row['delivered']=0;row['actorHeld']=4
+        self.assertEqual('PARTIAL_PRESERVED_NO_REPLAY',classify(row))
 
     def test_new_model_call_invalidates_even_an_apparent_success(self):
         row=self.row();row['view']['marker']['outcome']='SUCCEEDED';row['delivered']=7;row['callsAfter']['generationCalls']=3
