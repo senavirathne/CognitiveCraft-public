@@ -73,6 +73,71 @@ jobs:
             fabric/build/test-results/test/
             fabric/build/libs/ai-villages-0.1.0.jar
             fabric/build/libs/ai-villages-0.1.0-gametest.jar
+  b07-native-interference:
+    if: ${{ contains(github.event.head_commit.message, '[b07-native]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Owned logic and frozen qualification guards
+        run: |
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
+          python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
+          python3 e2e/parallel_b/campaign_contracts.py verify
+          python3 e2e/parallel_b/contract_runner.py --output build/e2e/parallel-b/B07-pending.json
+      - name: Prepare hash-verified native clients and read-only final-check observer
+        run: |
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/campaign-crafting/prepare.py
+          python3 e2e/parallel_b/prepare_diagnostics.py
+      - name: Genuine PlayerB preflight-window transfer and deliberately late control
+        run: python3 e2e/parallel_b/interference_native.py --root build/e2e/parallel-b/B07
+      - name: Independent raw resource audit including genuine admission
+        if: always()
+        run: python3 e2e/parallel_b/native_audit.py --root build/e2e/parallel-b/B07
+      - name: Verify exact native producer and expose reviewable original vectors
+        run: python3 e2e/parallel_b/stage_review.py --root build/e2e/parallel-b/B07 --output build/parallel-b-B07-review
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parallel-b-B07-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/e2e/parallel-b/B07/
+            build/e2e/parallel-b/B07-pending.json
+            build/b-diagnostics/integrity.json
+            core/build/test-results/test/
+            providers/build/test-results/test/
+            fabric/build/test-results/test/
+            fabric/build/libs/ai-villages-0.1.0.jar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parallel-b-B07-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/parallel-b-B07-review/
   b06-review-evidence:
     if: ${{ contains(github.event.head_commit.message, '[b06-review]') }}
     runs-on: ubuntu-latest

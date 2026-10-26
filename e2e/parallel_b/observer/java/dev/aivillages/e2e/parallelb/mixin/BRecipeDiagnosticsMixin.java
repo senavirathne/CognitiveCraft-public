@@ -19,4 +19,6 @@ public abstract class BRecipeDiagnosticsMixin {
     private void parallelB$preflight(ValidatedRequest request,boolean future,CallbackInfoReturnable<RecipeTransaction.Preflight> returned){BGuardRead.preflight(level,request,future,returned.getReturnValue());}
     @Inject(method="guard",at=@At("RETURN"),remap=false)
     private void parallelB$guard(Villager actor,Container box,ContainerRef ref,String identity,String custody,CallbackInfoReturnable<Reason> returned){BGuardRead.guard(level,this,actor,box,ref,identity,custody,returned.getReturnValue());}
+    @Inject(method="withdraw(Ldev/aivillages/core/kernel/Contracts$ActorRef;Ldev/aivillages/core/kernel/Contracts$ContainerRef;Ldev/aivillages/core/kernel/RecipeTransaction$Preflight;Ljava/lang/String;Ljava/lang/String;)Ldev/aivillages/core/kernel/RecipeTransaction$Mutation;",at=@At("RETURN"),remap=false)
+    private void parallelB$withdraw(ActorRef actor,ContainerRef source,RecipeTransaction.Preflight captured,String custody,String fingerprint,CallbackInfoReturnable<RecipeTransaction.Mutation> returned){BGuardRead.withdraw(level,actor,source,captured,returned.getReturnValue());}
 }
