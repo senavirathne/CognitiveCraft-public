@@ -646,8 +646,7 @@ public final class KernelSession implements AutoCloseable {
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {
                     public boolean bootstrap(Jobs.Job job) { return controller.liveSubmission(job.submissionId()); }
-                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job.id(),
-                            job.current() == null ? job.submissionId() : job.current().id(), job.generation()); }
+                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job); }
                     public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence presence(Jobs.Job job) {
                         var actor = job.current() == null ? job.responsible() : job.current().worker();
                         var enrollment = citizens.find(actor.citizenId());

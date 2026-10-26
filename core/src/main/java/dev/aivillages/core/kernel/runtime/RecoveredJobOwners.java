@@ -139,7 +139,10 @@ public final class RecoveredJobOwners implements AutoCloseable {
                             && target.y() >= r.minY() && target.y() <= r.maxY() && target.z() >= r.minZ() && target.z() <= r.maxZ()) return true;
                 } else if (value instanceof ContainerValue container) {
                     var p = container.value();
-                    if (p.dimension().equals(target.dimension()) && p.x() == target.x() && p.y() == target.y() && p.z() == target.z()) return true;
+                    // A double chest can be addressed through either half. Without
+                    // an incarnation protocol, conservatively include face neighbors.
+                    if (p.dimension().equals(target.dimension()) && p.y() == target.y()
+                            && Math.abs((long)p.x()-target.x()) + Math.abs((long)p.z()-target.z()) <= 1) return true;
                 } else if (value instanceof FacilityValue facility) {
                     var p = facility.value();
                     if (p.dimension().equals(target.dimension()) && p.x() == target.x() && p.y() == target.y() && p.z() == target.z()) return true;

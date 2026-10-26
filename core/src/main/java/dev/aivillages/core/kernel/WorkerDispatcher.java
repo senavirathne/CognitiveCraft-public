@@ -190,6 +190,11 @@ public final class WorkerDispatcher {
         return original != null && original.current() != null && original.generation() == generation
                 && original.current().id().equals(attempt);
     }
+    /** Same read-only check when the caller already has the authoritative immutable row. */
+    public boolean ownsAttempt(Jobs.Job job) {
+        checkThread();
+        return live.containsKey(job.id()) && job.current() != null;
+    }
     /** Shutdown stops executor-owned work; durable unfinished records remain interrupted on reload. */
     public void close() {
         checkThread();

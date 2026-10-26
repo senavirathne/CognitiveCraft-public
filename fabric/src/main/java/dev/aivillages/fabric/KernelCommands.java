@@ -65,7 +65,7 @@ final class KernelCommands {
                             +" blocker="+v.blocker()+" reason="+v.jobReason()+" cancellation="+v.cancellationIntent()
                             +" verifiedLegacyQuantity="+v.verifiedLegacyQuantity()+" progress="+v.progressEvidence()
                             +" physical="+v.physicalEvidence()); return 1;
-                })));
+                }))));
         kernel.then(literal("enroll")
                 .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .executes(context -> safe(context, (c, session) -> {
