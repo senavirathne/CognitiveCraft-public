@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 import re
 import shutil
@@ -23,7 +24,7 @@ class RuntimeAHarness(AssessmentHarness):
         self.project = 'cc-runtime-a-' + str(uuid.uuid4())[:8]
 
     def console(self, lines, lifecycle=False):
-        if lifecycle and all(re.fullmatch(r'tick (?:freeze|unfreeze|rate (?:5|20))', line) for line in lines):
+        if lifecycle and all(re.fullmatch(r'tick (?:freeze|unfreeze|rate 20)', line) for line in lines):
             request = {'id': str(uuid.uuid4()), 'commands': lines}
             atomic(self.root / 'server/control.json', request)
             self.wait(lambda: (v := read(self.root / 'server/control-ack.json')) and v['id'] == request['id'],
@@ -56,7 +57,9 @@ def interruption(h, saved, case):
     initial = custody(h)
     # Save only the pre-effect starting world. The unflushed cohort never saves after mutation.
     start_save = h.save_checkpoint()
-    h.console(['tick rate 5'], lifecycle=True)
+    # Preserve ordinary 20 TPS and the existing action wall deadline. The partial
+    # deposit observation window comes from native travel between the two logs.
+    h.console(['tick rate 20'], lifecycle=True)
     rid = h.submit(LOG, 2)
     def at_cut():
         v = h.run_view('PlayerA', rid)
@@ -77,7 +80,8 @@ def interruption(h, saved, case):
     physical = custody(h)
     require(physical['destination'] == 1, 'Receipt lacks an independent actual chest deposit')
     job = view['responsibility']
-    require(job['id'] == rid and job['attempts'] and job['generation'] > 0, 'Original Jobs attempt identity required')
+    require(job['submissionId'] == rid and job['attempts'] and job['generation'] > 0,
+            'Original Jobs attempt and submission identities required')
     checkpoint = None
     if saved:
         started = time.monotonic_ns()
@@ -107,7 +111,7 @@ def interruption(h, saved, case):
     h.quiet(80)
     after = h.run_view('PlayerA', rid)
     original = after['responsibility']
-    require(original['id'] == rid and original['generation'] == job['generation'] and
+    require(original['id'] == job['id'] and original['submissionId'] == rid and original['generation'] == job['generation'] and
             [a['id'] for a in original['attempts']] == [a['id'] for a in job['attempts']], 'Original owner/attempt/generation changed')
     require(original['state'] == 'INTERRUPTED' and any(a['uncertain'] or a.get('terminal') is None for a in original['attempts']),
             'Historical unresolved-owner signature was not reproduced')
@@ -118,7 +122,7 @@ def interruption(h, saved, case):
         require(all(after_custody[k] == physical[k] for k in ('destination','inventory','drops','blocks','actorEntity')),
                 'Saved participant custody differs from actual pre-kill evidence')
     evidence = {'status':'PASS','claim':'baseline cut characterization; unresolved recovery remains a failure signature',
-                'run':rid,'saved':saved,'requestedCut':'first DEPOSIT of two while EXECUTING',
+                'run':rid,'job':job['id'],'saved':saved,'requestedCut':'first DEPOSIT of two while EXECUTING',
                 'actuallyWitnessedCut':before_kill,'killedWorldHashes':killed_hashes,
                 'restored':restored,'after':after,'beforeCustody':physical,'afterCustody':after_custody,
                 'ownerSettlement':'FAIL','resumedCompletion':'NOT_EXECUTED',
@@ -163,7 +167,10 @@ def main():
         selected=[s['nanos'] for s in measurements['samples'] if s['time']>=start_ms]
         results['performance']={'tick':percentiles(selected),'metric':measurements['metric'],
             'workload':'two real clients, two normal-AI villagers, one admitted method, idle at 20 TPS',
-            'host':read(h.root/'metadata.json')['host'],'pid':measurements['pid']}
+            'host':read(h.root/'metadata.json')['host'],'pid':measurements['pid'],
+            'hardware':{'logicalCpus':os.cpu_count(),
+                'cpuModels':sorted({line.split(':',1)[1].strip() for line in Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')}),
+                'memoryTotal':next(line for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemTotal:'))}}
         atomic(args.root/'baseline-tick-samples.json',measurements)
         h.save_checkpoint(); h.stop('server')
         baseline = args.root/'qualified-starting-game'

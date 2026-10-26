@@ -21,6 +21,13 @@ CLASSES=[
     'net.minecraft.world.ContainerHelper', 'net.minecraft.server.players.PlayerList',
     'net.minecraft.world.level.storage.PlayerDataStorage',
     'net.minecraft.world.level.storage.LevelStorageSource$LevelStorageAccess',
+    'net.minecraft.world.entity.npc.villager.AbstractVillager',
+    'net.minecraft.world.entity.npc.InventoryCarrier', 'net.minecraft.world.SimpleContainer',
+    'net.minecraft.world.level.chunk.storage.SimpleRegionStorage',
+    'net.minecraft.world.level.chunk.storage.IOWorker', 'net.minecraft.world.level.chunk.storage.RegionFile',
+    'net.minecraft.world.level.chunk.storage.SerializableChunkData',
+    'net.minecraft.world.level.chunk.LevelChunk',
+    'net.minecraft.world.level.storage.SavedDataStorage', 'net.minecraft.server.commands.SaveAllCommand',
 ]
 
 
