@@ -1,0 +1,1468 @@
+{
+  "schema": 1,
+  "freezeCommit": "cc4aa582c329de54815b0a9709fd17bbb40c0d71",
+  "entropyRunAfterFreeze": "40406127963",
+  "seed": 7766206266441330224,
+  "generatorSha256": "fec84513737e9c6252ffeff2cc14e39e3736dcae0972845c731039a298b73a77",
+  "assertionSpecSha256": "404666996349c4b4d4dcfa8529d74b9a5557167005bfaf0038a49e67142dce04",
+  "cases": [
+    {
+      "id": "B07-H-567849e931f35c1d",
+      "seed": 7766206266441330224,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:oak_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:oak_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_oak_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:oak_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-eaa61b9433cd5d53",
+      "seed": 7766206266441330224,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:birch_wood": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-c306d01b52db7360",
+      "seed": 7766206266441330224,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-b8e46cb26efe5918",
+      "seed": 7766206266441330224,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 1,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 1
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-e93be994e45fdf1d",
+      "seed": 7766206266441330224,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-5acc19748aeb59f8",
+      "seed": 7766206266441330224,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 4,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 4
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 4,
+        "actorSurplus": 0,
+        "rootRequested": 4
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-a2675a5fdfb628cf",
+      "seed": 7766206266441330224,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 7,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 2
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 7
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 2,
+        "physicalPlanks": 8,
+        "delivered": 7,
+        "actorSurplus": 1,
+        "rootRequested": 7
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-10d146b49c8528cf",
+      "seed": 7766206266441330224,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 3
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 11
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-fb47b556cd42ba14",
+      "seed": 7766206266441330224,
+      "axis": "actor",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-2e2fcd576f0a21b9",
+      "seed": 7766206266441330224,
+      "axis": "actor",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 1,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerB",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-ff1888772bfdd993",
+      "seed": 7766206266441330224,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 0,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 74,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-93c37aca0e6066ee",
+      "seed": 7766206266441330224,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-e92fb912bbaf64f4",
+      "seed": 7766206266441330224,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 2,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 78,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-12b9168a17028366",
+      "seed": 7766206266441330224,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 0,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 77,
+          "y": 208,
+          "z": 72
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-93ba739dfb0150bc",
+      "seed": 7766206266441330224,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-a7b1215fc268ba35",
+      "seed": 7766206266441330224,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-194012993b5026d1",
+      "seed": 7766206266441330224,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          72.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-3e5304d83ecd5382",
+      "seed": 7766206266441330224,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-b22ac124261d2e43",
+      "seed": 7766206266441330224,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          66.5,
+          208,
+          72.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [
+          {
+            "position": [
+              69,
+              208,
+              70
+            ],
+            "block": "minecraft:stone"
+          },
+          {
+            "position": [
+              69,
+              209,
+              70
+            ],
+            "block": "minecraft:stone"
+          }
+        ],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-6285b9d9904e060d",
+      "seed": 7766206266441330224,
+      "axis": "dimension",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "nativeBindings": {
+        "player": "PlayerA",
+        "actor": "publicly enrolled ordinary citizen belonging to the selected player; resolve fresh UUIDs at bootstrap",
+        "actorPose": [
+          65.5,
+          208,
+          68.5
+        ],
+        "source": {
+          "dimension": "minecraft:overworld",
+          "x": 70,
+          "y": 208,
+          "z": 69
+        },
+        "destination": {
+          "dimension": "minecraft:overworld",
+          "x": 80,
+          "y": 208,
+          "z": 74
+        },
+        "setupBlocks": [],
+        "fixtureFloor": {
+          "min": [
+            62,
+            207,
+            62
+          ],
+          "max": [
+            85,
+            207,
+            80
+          ],
+          "block": "minecraft:stone"
+        },
+        "startingSource": {
+          "minecraft:stripped_birch_log": 1
+        },
+        "goal": {
+          "capability": {
+            "name": "cognitivecraft:produce_birch_planks",
+            "version": 2
+          },
+          "outputItem": "minecraft:birch_planks",
+          "quantity": 3
+        },
+        "setupRequires": "actual closed/certain owners before administrative fixture setup",
+        "nativeIdentityAndAuthority": "supplied only by current A native adapter, never this dictionary",
+        "routeStatus": "INTEGRATION_PENDING_DISABLED_ON_B"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    }
+  ],
+  "nativeExecuted": 0
+}
