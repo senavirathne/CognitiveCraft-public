@@ -10,9 +10,9 @@ concurrency:
   group: cc-production-b-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  b05-planning-contracts:
+  b06-controlled-diagnostics:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
         with:
@@ -36,21 +36,25 @@ jobs:
           python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
-      - name: Native planner choice bridge and unchanged exact craft regressions
+      - name: Hash-verified client runtime and isolated read-only diagnostics
         run: |
-          python3 e2e/parallel_b/run_hosts.py --built --root build/e2e/parallel-b/B05 \
-            --entrypoint dev.aivillages.fabric.PlanningChoiceHostGameTests \
-            --entrypoint dev.aivillages.fabric.BirchPlankEffectGameTests \
-            --entrypoint dev.aivillages.fabric.StickEffectGameTests
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 scripts/campaign-crafting/prepare.py
+          python3 e2e/parallel_b/prepare_diagnostics.py
+      - name: Controlled seven-log and saved-method connected-client matrix
+        run: python3 e2e/parallel_b/diagnostics.py --root build/e2e/parallel-b/B06
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: parallel-b-B05-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: parallel-b-B06-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
           path: |
-            build/e2e/parallel-b/B05/
+            build/e2e/parallel-b/B06/
+            build/b-diagnostics/integrity.json
+            build/campaign-crafting-oracle/integrity.json
             build/e2e-sdk/integrity.json
             core/build/test-results/test/
             providers/build/test-results/test/

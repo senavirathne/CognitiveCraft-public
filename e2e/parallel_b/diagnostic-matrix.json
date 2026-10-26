@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "id": "B06-controlled-diagnostics-v1",
+  "seeds": [260026, 260027],
+  "repetitionsPerSeed": 1,
+  "stopAtFirstPass": false,
+  "families": {"seven-log": {"item": "minecraft:oak_log", "quantity": 7}, "saved-planks": {"item": "minecraft:oak_planks", "quantity": 4}},
+  "variants": [
+    {"id": "stable-log", "family": "seven-log", "factor": "baseline"},
+    {"id": "stable-method", "family": "saved-planks", "factor": "baseline"},
+    {"id": "pose-log", "family": "seven-log", "factor": "actor-start-pose"},
+    {"id": "pose-method", "family": "saved-planks", "factor": "actor-start-pose"},
+    {"id": "missing-target", "family": "saved-planks", "factor": "destination-deleted-before-request"},
+    {"id": "moved-target", "family": "saved-planks", "factor": "destination-moved-before-request"},
+    {"id": "replaced-target", "family": "saved-planks", "factor": "fresh-barrel-at-request-position"},
+    {"id": "delayed-method", "family": "saved-planks", "factor": "40-native-ticks-before-request"},
+    {"id": "full-target", "family": "saved-planks", "factor": "destination-capacity-zero"},
+    {"id": "unloaded-target", "family": "saved-planks", "factor": "far-destination-unloaded"},
+    {"id": "loaded-target", "family": "saved-planks", "factor": "same-far-destination-force-loaded"}
+  ],
+  "farPair": {"destination": [10004, 208, 10004], "loadIsTheOnlyDifferenceBetweenPair": true},
+  "retryPolicy": "No accepted run is replayed. Repetitions are independent roots after settled-owner barriers. Partial four-of-seven is preserved under its original identity; remaining-demand native continuation is I00.",
+  "assertion": "Preserve exact commands, first outcomes, native progress, poses, target loading/identity, method hashes, stock and guards; no model generation after admissions. Missing/full/unloaded controls cause no native physical effect. At least two valid trials of each family must succeed for diagnostic environment qualification. Historical causes may remain unknown."
+}
