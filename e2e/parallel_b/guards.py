@@ -40,7 +40,7 @@ def clock_response(command, response):
     if command == "tick freeze":
         accepted = "frozen" in text and "unfrozen" not in text
     elif command == "tick unfreeze":
-        accepted = "unfrozen" in text or "unfreeze" in text
+        accepted = text in {"the game is running normally", "the game is now unfrozen", "the game is unfrozen"}
     elif command.startswith("tick rate "):
         accepted = "tick rate" in text and "per second" in text
     else:
@@ -54,7 +54,7 @@ def verified_clock(h, command):
     # Player feedback is emitted after server command execution. The launcher's
     # control-ack merely confirms stdin delivery and cannot substitute for it.
     response = h.command("PlayerA", "/" + command,
-            r"(?i)frozen|unfreeze|tick rate|stepp|unknown|incorrect|incomplete|permission|failed|error", 30)
+            r"(?i)frozen|unfreeze|the game is running normally|tick rate|stepp|unknown|incorrect|incomplete|permission|failed|error", 30)
     clock_response(command, response)
     h.event("verified-native-clock", {"command": command, "feedback": response})
     return response
