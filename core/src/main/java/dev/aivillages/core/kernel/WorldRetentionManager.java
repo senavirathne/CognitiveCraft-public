@@ -120,6 +120,10 @@ public final class WorldRetentionManager {
         public boolean permits(Key key,long ownerRevision) {
             return approved.contains(key) && Objects.equals(scan.revisions.get(key.owner()),ownerRevision) && valid();
         }
+        public boolean permits(Key key,long ownerRevision,Owner expectedOwner) {
+            return scan.sources.stream().anyMatch(owner->owner==expectedOwner && owner.id().equals(key.owner()))
+                    && permits(key,ownerRevision);
+        }
         @Override public void close() { if (!closed) { closed = true; roots.endDelete(token); scan.close(); } }
     }
     public record DiscardApproval(Capacity status, DiscardLease lease) { }

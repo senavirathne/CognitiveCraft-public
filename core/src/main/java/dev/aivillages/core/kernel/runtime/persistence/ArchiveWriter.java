@@ -47,6 +47,7 @@ public final class ArchiveWriter implements AutoCloseable {
     private final FileChannel channel;private final FileLock lock;private final Faults faults;private final Clock clock;
     private volatile ArchiveHistory history;private volatile boolean fenced,closed;private volatile long epoch;
     private volatile String currentDigest;
+    private WorldRetentionManager.Owner accountingOwner;
     private ArchiveWriter(Path world,UUID worldId,PersistencePolicy policy,FileChannel channel,FileLock lock,Faults faults,Clock clock,ArchiveHistory history)throws IOException {
         this.world=world;this.root=world.resolve(ArchiveHistory.RELATIVE_PATH);this.worldId=worldId;this.policy=policy;
         this.channel=channel;this.lock=lock;this.faults=faults;this.clock=clock;this.history=history;fenced=history.state()!=ArchiveHistory.State.READY;
@@ -224,7 +225,7 @@ public final class ArchiveWriter implements AutoCloseable {
     public synchronized boolean cleanup(CleanupCandidate candidate,WorldRetentionManager.DiscardLease lease,BooleanSupplier cancel)throws IOException {
         Objects.requireNonNull(cancel);
         if(candidate==null || candidate.writer!=this || readOnly() || candidate.revision!=epoch || lease==null
-                || !lease.permits(candidate.key(),candidate.revision) || cancel.getAsBoolean())return false;
+                || !lease.permits(candidate.key(),candidate.revision,retentionOwner()) || cancel.getAsBoolean())return false;
         var fresh=ArchiveHistory.read(world,worldId,policy);
         if(fresh.state()!=ArchiveHistory.State.READY || !fresh.manifest().equals(snapshot())){fenced=true;return false;}
         if(fresh.protectedSegments().contains(candidate.digest) || !fresh.redundantSegments().contains(candidate.digest))return false;
@@ -232,15 +233,16 @@ public final class ArchiveWriter implements AutoCloseable {
         if(!identity(Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS)).equals(candidate.identity))return false;
         try {
             faults.at(Point.BEFORE_CLEANUP);
-            if(!lease.permits(candidate.key(),candidate.revision) || cancel.getAsBoolean())return false;
+            if(!lease.permits(candidate.key(),candidate.revision,retentionOwner()) || cancel.getAsBoolean())return false;
             Files.delete(path);forceDirectory();faults.at(Point.AFTER_CLEANUP);
             history=ArchiveHistory.read(world,worldId,policy);epoch=Math.addExact(epoch,1);return true;
         }catch(IOException | RuntimeException failure){fenced=true;throw failure;}
     }
     private static String identity(BasicFileAttributes a){return a.size()+":"+a.lastModifiedTime()+":"+a.fileKey();}
     /** Automatic domain collection stays protected; explicit cleanup additionally requires a scoped manager lease. */
-    public WorldRetentionManager.Owner retentionOwner() {
-        return new WorldRetentionManager.Owner() {
+    public synchronized WorldRetentionManager.Owner retentionOwner() {
+        if(accountingOwner!=null)return accountingOwner;
+        accountingOwner=new WorldRetentionManager.Owner() {
             public String id(){return RETENTION_OWNER;}public long revision(){return epoch;}
             public Optional<WorldRetentionManager.Amount> admissionCeiling(){return Optional.of(new WorldRetentionManager.Amount(policy.archiveBytes(),DEFAULT_RECORD_QUOTA));}
             public WorldRetentionManager.Cursor open() {
@@ -272,6 +274,7 @@ public final class ArchiveWriter implements AutoCloseable {
                 return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.PROTECTED);
             }
         };
+        return accountingOwner;
     }
     static byte[] encode(Segment segment)throws IOException {
         var output=new ByteArrayOutputStream();var data=new DataOutputStream(output);

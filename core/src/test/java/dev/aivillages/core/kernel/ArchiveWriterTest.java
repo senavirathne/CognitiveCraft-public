@@ -130,4 +130,34 @@ final class ArchiveWriterTest {
             assertTrue(Files.exists(f.directory().resolve(old.digest()+".seg")));
         }
     }
+    @ParameterizedTest @EnumSource(value=ArchiveWriter.Point.class,names={"BEFORE_CLEANUP","AFTER_CLEANUP"})
+    void cleanupFaultBeforeOrAfterDeletionKeepsCompleteExactUuidHistory(ArchiveWriter.Point point)throws Exception {
+        var f=new ArchiveHistoryReaderTest();f.world=world;var a=f.row(UUID.randomUUID(),"a");var b=f.row(UUID.randomUUID(),"b");
+        var old=f.store(Owner.JOBS,a);var current=f.store(Owner.JOBS,a,b);f.publish(ArchiveHistory.CURRENT,f.view(2,current));
+        var p=new PersistencePolicy(48,96,policy.jobBytes(),policy.leaseBytes(),policy.archiveBytes(),128,16,131_072,1,0,80,policy.reservedBytes(),8);
+        try(var writer=ArchiveWriter.open(world,f.worldId,p,where->{if(where==point)throw new IOException("fixture cleanup fault");},Clock.systemUTC())) {
+            var candidate=writer.candidate(old.digest()).orElseThrow();var roots=new RetentionRoots();roots.publishNext("fixture",Set.of(),true);
+            var manager=new WorldRetentionManager(WorldRetentionManager.Policy.defaults(),roots,caller->false);manager.register(writer.retentionOwner());
+            var approved=manager.approveDiscard(Set.of(candidate.key()));assertNotNull(approved.lease());
+            try(var lease=approved.lease()){assertThrows(IOException.class,()->writer.cleanup(candidate,lease,()->false));assertTrue(writer.readOnly());}
+        }
+        var reloaded=ArchiveHistory.read(world,f.worldId,p);assertEquals(ArchiveHistory.State.READY,reloaded.state());
+        assertEquals(a,reloaded.lookup(new Key(Owner.JOBS,Kind.HISTORY,a.id())).orElseThrow());assertEquals(b,reloaded.lookup(new Key(Owner.JOBS,Kind.HISTORY,b.id())).orElseThrow());
+    }
+    @Test void identicalInventoryFromAnotherRegisteredOwnerCannotLendCleanupAuthority()throws Exception {
+        var f=new ArchiveHistoryReaderTest();f.world=world;var a=f.row(UUID.randomUUID(),"a");var old=f.store(Owner.JOBS,a);var current=f.store(Owner.JOBS,a,f.row(UUID.randomUUID(),"b"));
+        f.publish(ArchiveHistory.CURRENT,f.view(2,current));var p=new PersistencePolicy(48,96,policy.jobBytes(),policy.leaseBytes(),policy.archiveBytes(),128,16,131_072,1,0,80,policy.reservedBytes(),8);
+        try(var writer=ArchiveWriter.open(world,f.worldId,p)) {
+            var candidate=writer.candidate(old.digest()).orElseThrow();var actual=writer.retentionOwner();assertSame(actual,writer.retentionOwner());
+            var wrapper=new WorldRetentionManager.Owner() {
+                public String id(){return actual.id();}public long revision()throws IOException{return actual.revision();}
+                public WorldRetentionManager.Cursor open()throws IOException{return actual.open();}
+                public WorldRetentionManager.OwnerResult collect(WorldRetentionManager.Entry e,long revision,java.util.function.BooleanSupplier cancel){return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.PROTECTED);}
+            };
+            var roots=new RetentionRoots();roots.publishNext("fixture",Set.of(),true);var other=new WorldRetentionManager(WorldRetentionManager.Policy.defaults(),roots,caller->false);other.register(wrapper);
+            var approved=other.approveDiscard(Set.of(candidate.key()));assertEquals(WorldRetentionManager.Capacity.AVAILABLE,approved.status());
+            try(var lease=approved.lease()){assertFalse(writer.cleanup(candidate,lease,()->false));}
+            assertTrue(Files.exists(f.directory().resolve(old.digest()+".seg")));
+        }
+    }
 }
