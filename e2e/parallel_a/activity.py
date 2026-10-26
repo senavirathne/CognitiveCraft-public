@@ -13,10 +13,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from baseline import RuntimeAHarness, interruption, native_process
 from suite import ROOT, DENIED_PATTERN, atomic, read, require, reconnect_players
 from generalization_support import at, coord, LOG, DST
-from generalization import acquisition
+from generalization import acquisition, receipts
 
 
 class ActivityHarness(RuntimeAHarness):
+    def prepare_unrelated(self):
+        # Separate actor/log/chest are all prepared before the interrupted task.
+        # No original actor, item, source or destination is replaced after its cut.
+        self.console(['summon minecraft:villager '+coord([81.5,208,74.5])+' {PersistenceRequired:1b}',
+                      'setblock '+coord(at(16,11))+' minecraft:oak_log',
+                      'setblock '+coord(at(18,12))+' minecraft:chest'])
+        self.walk('PlayerA',at(17,10),reach=2)
+        primary=(self.citizens['PlayerA'],self.entities['PlayerA'])
+        try:
+            self.enroll('PlayerA','Hana')
+            self.companion=(self.citizens['PlayerA'],self.entities['PlayerA'])
+        finally:
+            self.citizens['PlayerA'],self.entities['PlayerA']=primary
+        require(LOG in self.block(at(16,11)) and self.container(at(18,12),LOG)==0,
+                'Unrelated native resources were not prepared before interruption')
+
     def compose(self, *args):
         result = subprocess.run(['docker','compose','-p',self.project,'-f',str(ROOT/'e2e/compose.yml'),
                     '-f',str(ROOT/'e2e/parallel_a/compose-activity.yml'),*args],cwd=ROOT,env=self.env,text=True,capture_output=True)
@@ -68,8 +84,48 @@ class ActivityHarness(RuntimeAHarness):
         second=native_process(self)
         require((before['hostJvmPid'],before['startTicks'])!=(second['hostJvmPid'],second['startTicks']),
                 'Repeated native restart did not replace the actual JVM')
+        # Actual chunk unloading, with no forced loading or actor/inventory edits.
+        for p in self.players:
+            self.command(p,'/gamemode spectator','Spectator|spectator')
+            self.command(p,'/tp 10000.5 220 10000.5','Teleported')
+        def unloaded():
+            state=self.snapshot();v=self.activity(root)
+            address=next((c for c in state['knownPlayers']['PlayerA']['citizens']['citizens']
+                          if c['actor']['citizenId']==job['attempts'][-1]['worker']['citizenId']),None)
+            return {'view':v,'address':address,'nativeSnapshot':state} if v and v['blocker']=='WAIT_WORLD' and address and address['availability']=='UNLOADED' else None
+        waiting=self.wait(unloaded,'Native chunk unload and truthful WAIT_WORLD activity',110)
+        wait_feedback=self.command('PlayerA','/aivillage kernel activity '+root,'blocker=WAIT_WORLD')
+        self.command('PlayerA','/tp 66.5 208 69.5','Teleported')
+        self.command('PlayerB','/tp 80.5 208 69.5','Teleported')
+        for p in self.players:self.command(p,'/gamemode survival','Survival|survival')
+        reloaded=self.wait(lambda:(v if (v:=self.activity(root)) and v['blocker']=='NEEDS_ATTENTION' else None),
+                           'Same original actor reloads; ambiguity remains explicit',70)
+        self.wait(lambda: all(c['availability']=='LOADED' for c in self.snapshot()['knownPlayers']['PlayerA']['citizens']['citizens']
+                            if c['actor']['citizenId'] in (self.citizens['PlayerA'],self.companion[0])),
+                  'Both original enrolled actors are actually loaded before independent work',45)
+        self.quiet(20)
+        original_credit=self.run_view('PlayerA',run)['responsibility']['attempts'][-1]['credited']
+        original_stock=self.container(DST,LOG)
+        primary=(self.citizens['PlayerA'],self.entities['PlayerA']);calls=self.model_calls()
+        try:
+            self.citizens['PlayerA'],self.entities['PlayerA']=self.companion
+            self.actions_active=True
+            other_run=self.submit(LOG,1,minimum=at(16,11),maximum=at(16,11),destination=at(18,12))
+            other=self.finish_run(other_run)
+            require(all(receipts(other,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')),
+                    'Unrelated original native actor did not conserve its own log')
+            require(self.container(at(18,12),LOG)==1 and self.inventory().get(LOG,0)==0 and
+                    self.menu_count('PlayerA',at(18,12),LOG)==1,'Unrelated connected physical delivery missing')
+            require(self.model_calls()==calls,'Known unrelated execution called a model')
+        finally:
+            self.citizens['PlayerA'],self.entities['PlayerA']=primary
+        require(self.container(DST,LOG)==original_stock and
+                self.run_view('PlayerA',run)['responsibility']['attempts'][-1]['credited']==original_credit,
+                'Unrelated progress changed the interrupted original effect or credit')
         evidence={'first':first,'repeated':again,'feedback':feedback,'cancelFeedback':cancel,
                   'cancelling':cancelling,'secondRestart':after,'beforeNativeProcess':before,'afterNativeProcess':second,
+                  'waiting':waiting,'waitingFeedback':wait_feedback,'reloaded':reloaded,
+                  'unrelated':{'run':other_run,'view':other,'stock':1,'modelCallsUnchanged':True},
                   'ownerSettlement':'NOT_CLAIMED','automaticContinuation':False}
         atomic(case/'activity-owner-evidence.json',evidence)
         return evidence

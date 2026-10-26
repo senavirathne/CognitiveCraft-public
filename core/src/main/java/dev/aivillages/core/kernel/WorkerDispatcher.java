@@ -185,15 +185,12 @@ public final class WorkerDispatcher {
     public boolean ownsAttempt(UUID job, UUID attempt, long generation) {
         checkThread();
         Live holder = live.get(job);
-        if (holder == null) return false;
-        var original = jobs.snapshot().jobs().stream().filter(j -> j.id().equals(job)).findFirst().orElse(null);
-        return original != null && original.current() != null && original.generation() == generation
-                && original.current().id().equals(attempt);
+        return holder != null && holder.generation == generation && holder.run.equals(attempt);
     }
     /** Same read-only check when the caller already has the authoritative immutable row. */
     public boolean ownsAttempt(Jobs.Job job) {
         checkThread();
-        return live.containsKey(job.id()) && job.current() != null;
+        return job.current() != null && ownsAttempt(job.id(),job.current().id(),job.generation());
     }
     /** Shutdown stops executor-owned work; durable unfinished records remain interrupted on reload. */
     public void close() {

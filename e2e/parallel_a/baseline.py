@@ -30,6 +30,9 @@ class RuntimeAHarness(AssessmentHarness):
     def observe_recovery(self, run, case):
         return None
 
+    def prepare_unrelated(self):
+        return None
+
     def console(self, lines, lifecycle=False):
         if lifecycle and all(re.fullmatch(r'tick (?:freeze|unfreeze|rate 20)', line) for line in lines):
             request = {'id': str(uuid.uuid4()), 'commands': lines}
@@ -84,6 +87,7 @@ def interruption(h, saved, case):
     h.family = case.name
     h.reset({}, table=False)
     h.logs([at(6, 2), at(13, 2)])
+    h.prepare_unrelated()
     initial = custody(h)
     # Save only the pre-effect starting world. The unflushed cohort never saves after mutation.
     start_save = h.save_checkpoint()
