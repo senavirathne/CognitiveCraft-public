@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   b06-controlled-diagnostics:
+    if: ${{ !contains(github.event.head_commit.message, '[b06-review]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -61,3 +62,34 @@ jobs:
             fabric/build/test-results/test/
             fabric/build/libs/ai-villages-0.1.0.jar
             fabric/build/libs/ai-villages-0.1.0-gametest.jar
+  b06-review-evidence:
+    if: ${{ contains(github.event.head_commit.message, '[b06-review]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Evidence transport identity and refusal regressions
+        run: python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 40354898095
+          name: parallel-b-B06-a7fbaae77eb88fd6f4992374ab425c23d196de2b-40354898095-1
+          path: build/parallel-b-native
+      - name: Verify native producer and package original review evidence
+        env:
+          NATIVE_REVIEW_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 e2e/parallel_b/review_bundle.py --source build/parallel-b-native --output build/parallel-b-review \
+            --head a7fbaae77eb88fd6f4992374ab425c23d196de2b --tree 21d6d5fe31477bb2fa43534c2f2ca470253f32a0 \
+            --run 40354898095 --artifact-name parallel-b-B06-a7fbaae77eb88fd6f4992374ab425c23d196de2b-40354898095-1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parallel-b-B06-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-b-review/
