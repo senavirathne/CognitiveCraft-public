@@ -1,0 +1,433 @@
+{
+  "schema": 1,
+  "sourceRun": 40076986301,
+  "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+  "originalMethodSha256": "f3d174ef715b96de725a6a541dc908295033c284453c1cee0a27683115fdcb90",
+  "purpose": "Single-factor quantity/distance controls retain all three original source plants; supplement, never alter, the original nine diagnostic probes",
+  "cases": [
+    {
+      "id": "probe-control-W1-001-q1-stock3",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 1,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ],
+        [
+          72,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        71
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "comparisonFamily": "W1-001-fixed-stock",
+      "comparisonOriginalCaseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513",
+      "caseSha256": "423f566d9d98a245b6a5993a687439d288302bde8066a81ff8c33615df379ec9"
+    },
+    {
+      "id": "probe-control-W1-001-q2-stock3",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 2,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ],
+        [
+          72,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        71
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "comparisonFamily": "W1-001-fixed-stock",
+      "comparisonOriginalCaseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513",
+      "caseSha256": "fdb37951a8ed6286597f200d622e99437afd6939809011be3402e8f1d31873db"
+    },
+    {
+      "id": "probe-control-W1-001-q3-stock3",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 3,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ],
+        [
+          72,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        71
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "comparisonFamily": "W1-001-fixed-stock",
+      "comparisonOriginalCaseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513",
+      "caseSha256": "155ea95c5b916a48e42ccb3b4fde3dbf97bfbe578d37b5fdaeec5a3d4dec6050"
+    },
+    {
+      "id": "probe-control-W1-001-q2-stock3-near",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 2,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ],
+        [
+          72,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        75,
+        208,
+        70
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "comparisonFamily": "W1-001-fixed-stock",
+      "comparisonOriginalCaseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513",
+      "caseSha256": "60bfb437d9610869380db491402459dfb42eaede255320c17f2755b44a58b04d"
+    }
+  ]
+}

@@ -1,0 +1,1186 @@
+{
+  "schema": 1,
+  "sourceRun": 40076986301,
+  "purpose": "Predeclared physical minimization comparisons, retaining original failed attempts",
+  "cases": [
+    {
+      "id": "probe-W1-001-q1",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 1,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        71
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W1-001",
+        "caseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513"
+      },
+      "minimization": {
+        "baseCase": "W1-001",
+        "variant": "q1",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W1-001-q2",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 2,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        71
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W1-001",
+        "caseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513"
+      },
+      "minimization": {
+        "baseCase": "W1-001",
+        "variant": "q2",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W1-001-q2-near",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 2,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        75,
+        208,
+        70
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W1-001",
+        "caseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513"
+      },
+      "minimization": {
+        "baseCase": "W1-001",
+        "variant": "q2-near",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W1-001-q3-near",
+      "family": "W1",
+      "seed": 104729,
+      "index": 1,
+      "item": "minecraft:wheat",
+      "quantity": 3,
+      "positions": [
+        [
+          70,
+          208,
+          72
+        ],
+        [
+          71,
+          208,
+          72
+        ],
+        [
+          72,
+          208,
+          72
+        ]
+      ],
+      "geometry": "line",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        75,
+        208,
+        70
+      ],
+      "container": "chest",
+      "occupiedSlots": 7,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "flat",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_1",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        70,
+        208,
+        72,
+        80,
+        208,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W1-001",
+        "caseSha256": "68a49c4cddf0ff026192686f51cfc951548a397d96075de0497684836db06513"
+      },
+      "minimization": {
+        "baseCase": "W1-001",
+        "variant": "q3-near",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W4-010-tight-source",
+      "family": "W4",
+      "seed": 104729,
+      "index": 10,
+      "item": "minecraft:wheat",
+      "quantity": 3,
+      "positions": [
+        [
+          71,
+          208,
+          73
+        ],
+        [
+          73,
+          208,
+          73
+        ],
+        [
+          75,
+          208,
+          73
+        ]
+      ],
+      "geometry": "separated",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        70
+      ],
+      "container": "chest",
+      "occupiedSlots": 27,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          7,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          8,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          9,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          10,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          11,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          12,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          13,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          14,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          15,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          16,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          17,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          18,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          19,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          20,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          21,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          22,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          23,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          24,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          25,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          26,
+          "minecraft:wheat",
+          61
+        ]
+      ],
+      "existingStock": 61,
+      "capacityMode": "exact",
+      "actorOccupiedSlots": 0,
+      "terrain": "detour",
+      "logAxis": "x",
+      "citizenName": "Citizen_104729_10",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        71,
+        208,
+        73,
+        75,
+        208,
+        73
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W4-010",
+        "caseSha256": "bbfa070978ea65f6349a4ec6f85bd5ceb8d6b485e9252d5ac3df426325744c37"
+      },
+      "minimization": {
+        "baseCase": "W4-010",
+        "variant": "tight-source",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W4-010-q1-capacity",
+      "family": "W4",
+      "seed": 104729,
+      "index": 10,
+      "item": "minecraft:wheat",
+      "quantity": 1,
+      "positions": [
+        [
+          71,
+          208,
+          73
+        ]
+      ],
+      "geometry": "separated",
+      "actor": [
+        67,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        70
+      ],
+      "container": "chest",
+      "occupiedSlots": 27,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          7,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          8,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          9,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          10,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          11,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          12,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          13,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          14,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          15,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          16,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          17,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          18,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          19,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          20,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          21,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          22,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          23,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          24,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          25,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          26,
+          "minecraft:wheat",
+          63
+        ]
+      ],
+      "existingStock": 63,
+      "capacityMode": "exact",
+      "actorOccupiedSlots": 0,
+      "terrain": "detour",
+      "logAxis": "x",
+      "citizenName": "Citizen_104729_10",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        71,
+        208,
+        73,
+        80,
+        208,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W4-010",
+        "caseSha256": "bbfa070978ea65f6349a4ec6f85bd5ceb8d6b485e9252d5ac3df426325744c37"
+      },
+      "minimization": {
+        "baseCase": "W4-010",
+        "variant": "q1-capacity",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W4-008-tight-source",
+      "family": "W4",
+      "seed": 104729,
+      "index": 8,
+      "item": "minecraft:oak_log",
+      "quantity": 1,
+      "positions": [
+        [
+          70,
+          208,
+          73
+        ]
+      ],
+      "geometry": "vertical",
+      "actor": [
+        68,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        73
+      ],
+      "container": "chest",
+      "occupiedSlots": 16,
+      "destinationSlots": [
+        [
+          0,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          1,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          2,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          3,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          4,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          5,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          6,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          7,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          8,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          9,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          10,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          11,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          12,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          13,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          14,
+          "minecraft:cobblestone",
+          64
+        ],
+        [
+          15,
+          "minecraft:cobblestone",
+          64
+        ]
+      ],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "detour",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_8",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        70,
+        208,
+        73,
+        70,
+        208,
+        73
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W4-008",
+        "caseSha256": "3d1eb075e89916e5f5ed85235e5d7786a2973df3c57c46e4040816cef0f3ae61"
+      },
+      "minimization": {
+        "baseCase": "W4-008",
+        "variant": "tight-source",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W1-000-three-high",
+      "family": "W1",
+      "seed": 104729,
+      "index": 0,
+      "item": "minecraft:oak_log",
+      "quantity": 3,
+      "positions": [
+        [
+          72,
+          208,
+          72
+        ],
+        [
+          72,
+          209,
+          72
+        ],
+        [
+          72,
+          210,
+          72
+        ]
+      ],
+      "geometry": "vertical",
+      "actor": [
+        66,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        70
+      ],
+      "container": "barrel",
+      "occupiedSlots": 0,
+      "destinationSlots": [],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "detour",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_0",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [],
+      "sourceBounds": [
+        72,
+        208,
+        72,
+        80,
+        211,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W1-000",
+        "caseSha256": "fbc9bc371d6a44b4d09b82f86b7ed49a158bf09d725ca5f63c98149ec979b4a0"
+      },
+      "minimization": {
+        "baseCase": "W1-000",
+        "variant": "three-high",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    },
+    {
+      "id": "probe-W1-000-four-high-support",
+      "family": "W1",
+      "seed": 104729,
+      "index": 0,
+      "item": "minecraft:oak_log",
+      "quantity": 4,
+      "positions": [
+        [
+          72,
+          208,
+          72
+        ],
+        [
+          72,
+          209,
+          72
+        ],
+        [
+          72,
+          210,
+          72
+        ],
+        [
+          72,
+          211,
+          72
+        ]
+      ],
+      "geometry": "vertical",
+      "actor": [
+        66,
+        208,
+        66
+      ],
+      "destination": [
+        81,
+        208,
+        70
+      ],
+      "container": "barrel",
+      "occupiedSlots": 0,
+      "destinationSlots": [],
+      "existingStock": 0,
+      "capacityMode": "empty",
+      "actorOccupiedSlots": 0,
+      "terrain": "detour",
+      "logAxis": "y",
+      "citizenName": "Citizen_104729_0",
+      "lifecycle": null,
+      "disturbance": null,
+      "ownership": "PlayerA",
+      "expectedCompletion": true,
+      "immature": [],
+      "unrelated": [
+        [
+          80,
+          208,
+          76
+        ]
+      ],
+      "nearbyUnrelated": "minecraft:cobblestone",
+      "actorChoice": 0,
+      "standingSupports": [
+        [
+          73,
+          208,
+          72
+        ]
+      ],
+      "sourceBounds": [
+        72,
+        208,
+        72,
+        80,
+        211,
+        76
+      ],
+      "replaySource": {
+        "run": 40076986301,
+        "sourceCommit": "1ae31f09114e41edb61f41a9dede1b0a040b5269",
+        "case": "W1-000",
+        "caseSha256": "fbc9bc371d6a44b4d09b82f86b7ed49a158bf09d725ca5f63c98149ec979b4a0"
+      },
+      "minimization": {
+        "baseCase": "W1-000",
+        "variant": "four-high-support",
+        "claim": "Bounded diagnostic comparison; no smallest-case claim until physical execution"
+      }
+    }
+  ]
+}

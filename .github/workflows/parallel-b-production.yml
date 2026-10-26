@@ -2,7 +2,7 @@ name: Parallel B production and planning
 on:
   push:
     branches: [impl/activity-production-planning]
-    paths: ['core/**', 'fabric/**', 'e2e/parallel_b/**', 'e2e/artifact_selection.py', 'e2e/suite.py', '.github/workflows/parallel-b-production.yml']
+    paths: ['core/**', 'fabric/**', 'e2e/parallel_b/**', 'e2e/campaigns/**', 'scripts/campaign-crafting/**', 'scripts/campaign-world/**', 'e2e/artifact_selection.py', 'e2e/suite.py', '.github/workflows/parallel-b-production.yml']
 permissions:
   contents: read
   actions: read
