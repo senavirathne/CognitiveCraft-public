@@ -15,6 +15,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   a03-native-leases:
+    if: >-
+      ${{ !startsWith(github.event.head_commit.message, 'chore(runtime-a): split A03 evidence') }}
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
@@ -70,3 +72,86 @@ jobs:
             providers/build/test-results/test/
             fabric/build/test-results/test/
             fabric/build/libs/ai-villages-0.1.0.jar
+  a03-artifact-review:
+    if: >-
+      ${{ startsWith(github.event.head_commit.message, 'chore(runtime-a): split A03 evidence') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require unchanged qualified runtime and exact original artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_EVENT_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_EVENT_SHA"
+          git diff --exit-code 013f2f412b194c8f95252c758dafd52b783de41e HEAD -- . ':(exclude).github/workflows/parallel-a-runtime.yml'
+          mkdir -p build/parallel-a/review
+          gh api repos/senavirathne/CognitiveCraft-public/actions/artifacts/12661370149/zip > build/parallel-a/review/original.zip
+          python3 - <<'PYVERIFY'
+          import hashlib,json,zipfile
+          from pathlib import Path,PurePosixPath
+          root=Path('build/parallel-a/review');original=root/'original.zip'
+          def sha(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for data in iter(lambda:f.read(1048576),b''):h.update(data)
+              return h.hexdigest()
+          expected='a7e57a9c0ba1b097aaf28e0ec9875ac3c645ea183789e67f6a3538e658e7daa1'
+          assert original.stat().st_size==736210628 and sha(original)==expected
+          with zipfile.ZipFile(original) as z:
+              assert all(not PurePosixPath(n).is_absolute() and '..' not in PurePosixPath(n).parts for n in z.namelist())
+              assert z.testzip() is None
+              entries=len(z.infolist())
+          parts=[]
+          with original.open('rb') as f:
+              for index in range(3):
+                  part=root/('part-'+str(index).zfill(2)+'.bin');remaining=256*1024*1024
+                  with part.open('wb') as out:
+                      while remaining:
+                          data=f.read(min(1048576,remaining))
+                          if not data:break
+                          out.write(data);remaining-=len(data)
+                  parts.append({'name':part.name,'bytes':part.stat().st_size,'sha256':sha(part)})
+              assert not f.read(1)
+          assert sum(p['bytes'] for p in parts)==original.stat().st_size
+          manifest={'schema':1,'source':'013f2f412b194c8f95252c758dafd52b783de41e','tree':'9d1a5186def6e8232030c2dcbe33f087040c9825',
+                    'originalRun':40340328870,'originalArtifact':12661370149,'originalBytes':original.stat().st_size,'originalSha256':expected,
+                    'archiveEntries':entries,'collectionIntegrity':'PASS','parts':parts,'nativeExecutionRepeated':False}
+          (root/'A03-original-artifact-split-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          print('A03_ORIGINAL_ARCHIVE_VERIFIED '+json.dumps(manifest))
+          PYVERIFY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a03-original-part-00-${{ github.sha }}-${{ github.run_id }}
+          path: build/parallel-a/review/part-00.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a03-original-part-01-${{ github.sha }}-${{ github.run_id }}
+          path: build/parallel-a/review/part-01.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a03-original-part-02-${{ github.sha }}-${{ github.run_id }}
+          path: build/parallel-a/review/part-02.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a03-original-manifest-${{ github.sha }}-${{ github.run_id }}
+          path: build/parallel-a/review/A03-original-artifact-split-manifest.json
+          if-no-files-found: error
+          retention-days: 30
