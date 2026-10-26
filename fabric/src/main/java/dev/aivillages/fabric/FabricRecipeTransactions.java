@@ -31,10 +31,30 @@ final class FabricRecipeTransactions {
     dev.aivillages.core.kernel.production.RecipeChoice selectChoice(ValidatedRequest request,UUID run,RecipeTransaction.ChoiceAuthority authority) {
         return concrete.select(request,run,authority);
     }
+    dev.aivillages.core.kernel.production.RecipeChoice selectChoice(ValidatedRequest request,UUID run,RecipeTransaction.ChoiceAuthority authority,dev.aivillages.core.kernel.production.RecipeSources sources) {
+        return concrete.select(request,run,authority,sources);
+    }
     FabricConcreteRecipeChoices.Context prepareChoice(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,
             int batch,UUID run,RecipeTransaction.ChoiceAuthority authority) {return concrete.prepare(request,choice,batch,run,authority);}
+    FabricConcreteRecipeChoices.Context prepareChoice(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,
+            int batch,UUID run,RecipeTransaction.ChoiceAuthority authority,dev.aivillages.core.kernel.production.RecipeSources sources) {return concrete.prepare(request,choice,batch,run,authority,sources);}
     FabricConcreteRecipeChoices.Result executeChoice(FabricConcreteRecipeChoices.Context context,RecipeTransaction.ChoicePhase phase) {
         return concrete.execute(context,phase);
+    }
+    RecipeTransaction.Mutation craft(ActorRef actor,RecipeTransaction.Preflight captured,String custody,RecipeTransaction.HostObserver observer) {
+        if(observer==null || observer==RecipeTransaction.HostObserver.NONE)return craft(actor,captured,custody);
+        return new FabricHostObservations(level,world).call(actor,null,null,captured.facility(),"CRAFT",captured.recipe()==null?RecipeTransaction.fingerprint("unavailable-legacy-recipe"):captured.recipe().fingerprint(),observer,
+                ()->craft(actor,captured,custody),FabricHostObservations::recipe);
+    }
+    RecipeTransaction.Mutation withdraw(ActorRef actor,ContainerRef source,RecipeTransaction.Preflight captured,String custody,String sourceFingerprint,RecipeTransaction.HostObserver observer) {
+        if(observer==null || observer==RecipeTransaction.HostObserver.NONE)return withdraw(actor,source,captured,custody,sourceFingerprint);
+        return new FabricHostObservations(level,world).call(actor,source,null,null,"WITHDRAW",captured.recipe()==null?RecipeTransaction.fingerprint("unavailable-legacy-recipe"):captured.recipe().fingerprint(),observer,
+                ()->withdraw(actor,source,captured,custody,sourceFingerprint),FabricHostObservations::recipe);
+    }
+    RecipeTransaction.Mutation deposit(ActorRef actor,ContainerRef destination,RecipeTransaction.Preflight captured,String custody,int amount,RecipeTransaction.HostObserver observer) {
+        if(observer==null || observer==RecipeTransaction.HostObserver.NONE)return deposit(actor,destination,captured,custody,amount);
+        return new FabricHostObservations(level,world).call(actor,null,destination,null,"DEPOSIT",captured.recipe()==null?RecipeTransaction.fingerprint("unavailable-legacy-recipe"):captured.recipe().fingerprint(),observer,
+                ()->deposit(actor,destination,captured,custody,amount),FabricHostObservations::recipe);
     }
     private RecipeTransaction.Mutation denied(ActorRef actor,RecipeTransaction.Preflight captured,String guard,Reason reason){
         if(Boolean.getBoolean("cognitivecraft.gametest.trace")){

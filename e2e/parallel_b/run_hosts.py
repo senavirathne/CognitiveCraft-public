@@ -31,9 +31,16 @@ def main():
     runtime=headless.prepare() if args.built else headless.build()[0]
     release=ROOT/'fabric/build/libs/ai-villages-0.1.0.jar';tests=ROOT/'fabric/build/libs/ai-villages-0.1.0-gametest.jar'
     production_hash=sha(release)
+    with ZipFile(runtime[0]) as native:
+        version=json.loads(native.read('version.json'))
+        if version['id']!='26.3':raise ValueError('Native recipe host runtime changed')
+        installed_data={name:hashlib.sha256(native.read(name)).hexdigest() for name in [
+            'data/minecraft/recipe/oak_planks.json','data/minecraft/recipe/birch_planks.json',
+            'data/minecraft/recipe/stick.json','data/minecraft/recipe/crafting_table.json','data/minecraft/recipe/wooden_axe.json',
+            'data/minecraft/tags/item/planks.json','data/minecraft/tags/item/wooden_tool_materials.json']}
     with ZipFile(release) as z:
         if any('gametest' in n.lower() or 'e2e' in n.lower() for n in z.namelist()):raise ValueError('Test code in production JAR')
-    entries=args.entrypoint or ['dev.aivillages.fabric.ConcretePlankChoiceGameTests',
+    entries=args.entrypoint or ['dev.aivillages.fabric.GeneralizedRecipeChoiceGameTests','dev.aivillages.fabric.ConcretePlankChoiceGameTests',
                                'dev.aivillages.fabric.BirchPlankEffectGameTests','dev.aivillages.fabric.OakPlankEffectGameTests']
     metadata={'schema':1,'nativeHostOnly':True,'connectedClients':0,'autonomousGameplay':False,
               'runtimeAuthority':'Explicit bounded test-scope authority plus actual native gateway control; no authoritative Job/receipt',
@@ -41,6 +48,9 @@ def main():
               'sourceTree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],cwd=ROOT,text=True).strip(),
               'dirty':bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT)),
               'productionSha256':production_hash,'originalTestJarSha256':sha(tests),'minecraft':'26.3','loader':'0.19.5',
+              'dependencyLockSha256':sha(ROOT/'scripts/dependencies.json'),'nativeVersion':version,
+              'installedRecipeDataSha256':installed_data,
+              'nativeDependencies':[{'file':str(p.relative_to(headless.SDK)),'sha256':sha(p)} for p in [*runtime,headless.SDK/'fabric-api.jar',headless.SDK/'gametest.jar']],
               'javaVersion':subprocess.run([headless.executable('java'),'-version'],capture_output=True,text=True,check=True).stderr,
               'ci':{k:os.environ[k] for k in ['GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_REF_NAME'] if k in os.environ},'phases':[]}
     (root/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')

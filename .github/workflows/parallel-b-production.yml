@@ -10,7 +10,7 @@ concurrency:
   group: cc-production-b-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  b03-recipe-choices:
+  b04-generalized-recipes:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -36,17 +36,27 @@ jobs:
           python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
-      - name: Real native choice hosts and unchanged exact-material regressions
-        run: python3 e2e/parallel_b/run_hosts.py --built --root build/e2e/parallel-b/B03
+      - name: Real native choices and broader unchanged recipe placement bread regressions
+        run: |
+          python3 e2e/parallel_b/run_hosts.py --built --root build/e2e/parallel-b/B04 \
+            --entrypoint dev.aivillages.fabric.GeneralizedRecipeChoiceGameTests \
+            --entrypoint dev.aivillages.fabric.ConcretePlankChoiceGameTests \
+            --entrypoint dev.aivillages.fabric.BirchPlankEffectGameTests \
+            --entrypoint dev.aivillages.fabric.OakPlankEffectGameTests \
+            --entrypoint dev.aivillages.fabric.StickEffectGameTests \
+            --entrypoint dev.aivillages.fabric.TableEffectGameTests \
+            --entrypoint dev.aivillages.fabric.AxeEffectGameTests \
+            --entrypoint dev.aivillages.fabric.PlacementEffectGameTests \
+            --entrypoint dev.aivillages.fabric.ParallelBLegacyBreadGameTests
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: parallel-b-B03-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: parallel-b-B04-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
           path: |
-            build/e2e/parallel-b/B03/
+            build/e2e/parallel-b/B04/
             build/e2e-sdk/integrity.json
             core/build/test-results/test/
             providers/build/test-results/test/

@@ -9,10 +9,21 @@ import static dev.aivillages.core.kernel.Contracts.*;
 /** Immutable proposal data. Native matching and A's execution authority are still required. */
 public record RecipeChoice(CapabilityId capability,String recipe,String semanticFingerprint,String runtimeCompatibility,
                            long reloadEpoch,int width,int height,List<Batch> batches,ItemKey result,int resultCount,
-                           long demand,List<ItemAmount> remainders) {
+                           long demand,List<ItemAmount> remainders,FacilityBinding facility) {
     public static final int SCHEMA=1, COMPATIBILITY_VERSION=2;
     public static final String RUNTIME="minecraft:26.3/native-static-choice-v2";
     public static final int MAX_BYTES=65_536;
+
+    /** Current native facility identity, never proof of who placed or saved it. */
+    public record FacilityBinding(FacilityRef reference,String identity) {
+        public FacilityBinding {Objects.requireNonNull(reference);if(identity==null || identity.isBlank() || identity.length()>128)throw new IllegalArgumentException("Facility identity");}
+        public Map<String,Object> value(){return Map.of("dimension",reference.dimension(),"x",reference.x(),"y",reference.y(),"z",reference.z(),"identity",identity);}
+    }
+    /** Preserves the exact B03 inventory-only constructor and canonical encoding. */
+    public RecipeChoice(CapabilityId capability,String recipe,String semanticFingerprint,String runtimeCompatibility,long reloadEpoch,
+                        int width,int height,List<Batch> batches,ItemKey result,int resultCount,long demand,List<ItemAmount> remainders) {
+        this(capability,recipe,semanticFingerprint,runtimeCompatibility,reloadEpoch,width,height,batches,result,resultCount,demand,remainders,null);
+    }
 
     public record ItemKey(String id,String components) {
         public static final ItemKey EMPTY=new ItemKey("minecraft:air","{}");
@@ -69,22 +80,27 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
         if(batches.stream().anyMatch(b->b.grid().size()!=width*height))throw new IllegalArgumentException("Ordered grid shape mismatch");
         var dimensions=batches.stream().flatMap(b->b.bindings().stream()).map(b->b.source().dimension()).distinct().toList();
         if(dimensions.size()!=1)throw new IllegalArgumentException("Cross-dimension recipe inputs");
+        if(definition.axe() ? facility==null || width!=3 || height!=3 || !facility.reference().dimension().equals(dimensions.getFirst()) : facility!=null)
+            throw new IllegalArgumentException("Exact native facility context required only for axes");
         // Exact source-count transitions are verified natively at each preparation.
         // Merely constructing this value never proves stock or permissions.
-        String canonical=canonicalValue(capability,recipe,semanticFingerprint,runtimeCompatibility,reloadEpoch,width,height,batches,result,resultCount,demand,remainders);
+        String canonical=canonicalValue(capability,recipe,semanticFingerprint,runtimeCompatibility,reloadEpoch,width,height,batches,result,resultCount,demand,remainders,facility);
         if(canonical.getBytes(StandardCharsets.UTF_8).length>MAX_BYTES)throw new IllegalArgumentException("Choice byte bound");
     }
     public BatchQuantities quantities(){return RecipeProduction.choiceDefinition(capability).quantities(demand,BatchQuantities.Role.ROOT);}
     public long deliveryForBatch(int index){batch(index);return Math.min(resultCount,Math.subtractExact(demand,Math.multiplyExact((long)index,resultCount)));}
     public Batch batch(int index){return batches.get(index);}
-    public String canonical(){return canonicalValue(capability,recipe,semanticFingerprint,runtimeCompatibility,reloadEpoch,width,height,batches,result,resultCount,demand,remainders);}
+    public String canonical(){return canonicalValue(capability,recipe,semanticFingerprint,runtimeCompatibility,reloadEpoch,width,height,batches,result,resultCount,demand,remainders,facility);}
     public byte[] canonicalBytes(){return canonical().getBytes(StandardCharsets.UTF_8);}
     public String digest(){return RecipeTransaction.fingerprint(canonical());}
     public Map<ItemKey,Long> exactInputs(){var counts=new HashMap<ItemKey,Long>();for(var b:batches)for(var binding:b.bindings())counts.merge(binding.item(),1L,Math::addExact);return Map.copyOf(counts);}
     public static RecipeChoice fromCanonical(String text) {
+        if(text==null || text.getBytes(StandardCharsets.UTF_8).length>MAX_BYTES)throw new IllegalArgumentException("Choice byte bound");
         try {
             var v=StrictJson.transportObject(text);
-            keys(v,"schema","compatibilityVersion","capability","recipe","semanticFingerprint","runtimeCompatibility","reloadEpoch","width","height","batches","result","resultCount","demand","remainders");
+            var expected=new HashSet<>(Set.of("schema","compatibilityVersion","capability","recipe","semanticFingerprint","runtimeCompatibility","reloadEpoch","width","height","batches","result","resultCount","demand","remainders"));
+            if(v.containsKey("facility"))expected.add("facility");
+            if(!v.keySet().equals(expected))throw new IllegalArgumentException("Unknown/missing choice fields");
             if(number(v,"schema")!=SCHEMA || number(v,"compatibilityVersion")!=COMPATIBILITY_VERSION)throw new IllegalArgumentException("Choice version");
             var cap=object(v.get("capability"));keys(cap,"name","version");
             var batches=new ArrayList<Batch>();
@@ -99,9 +115,11 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
                 batches.add(new Batch(grid,bindings));
             }
             var remainders=new ArrayList<ItemAmount>();for(var raw:list(v.get("remainders"))) {var value=object(raw);keys(value,"item","count");remainders.add(new ItemAmount(item(value.get("item")),number(value,"count")));}
+            FacilityBinding facility=null;
+            if(v.containsKey("facility")){var f=object(v.get("facility"));keys(f,"dimension","x","y","z","identity");facility=new FacilityBinding(new FacilityRef(string(f,"dimension"),integer(f,"x"),integer(f,"y"),integer(f,"z")),string(f,"identity"));}
             var choice=new RecipeChoice(new CapabilityId(string(cap,"name"),integer(cap,"version")),string(v,"recipe"),string(v,"semanticFingerprint"),
                     string(v,"runtimeCompatibility"),number(v,"reloadEpoch"),integer(v,"width"),integer(v,"height"),batches,item(v.get("result")),
-                    integer(v,"resultCount"),number(v,"demand"),remainders);
+                    integer(v,"resultCount"),number(v,"demand"),remainders,facility);
             if(!choice.canonical().equals(text))throw new IllegalArgumentException("Noncanonical choice bytes");return choice;
         } catch(StrictJson.Invalid invalid){throw new IllegalArgumentException("Invalid canonical choice",invalid);}
     }
@@ -114,13 +132,13 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
     private static void keys(Map<String,Object> value,String... expected){if(!value.keySet().equals(Set.of(expected)))throw new IllegalArgumentException("Unknown/missing choice fields");}
     public static Map<String,Object> container(ContainerRef ref){return Map.of("dimension",ref.dimension(),"x",ref.x(),"y",ref.y(),"z",ref.z());}
     private static String canonicalValue(CapabilityId capability,String recipe,String semantic,String runtime,long epoch,int width,int height,
-                                         List<Batch> batches,ItemKey result,int count,long demand,List<ItemAmount> remainders) {
+                                         List<Batch> batches,ItemKey result,int count,long demand,List<ItemAmount> remainders,FacilityBinding facility) {
         var value=new TreeMap<String,Object>();value.put("schema",SCHEMA);value.put("compatibilityVersion",COMPATIBILITY_VERSION);
         value.put("capability",Map.of("name",capability.name(),"version",capability.version()));value.put("recipe",recipe);
         value.put("semanticFingerprint",semantic);value.put("runtimeCompatibility",runtime);value.put("reloadEpoch",epoch);
         value.put("width",width);value.put("height",height);value.put("batches",batches.stream().map(Batch::value).toList());
         value.put("result",result.value());value.put("resultCount",count);value.put("demand",demand);
-        value.put("remainders",remainders.stream().map(ItemAmount::value).toList());return StrictJson.canonical(value);
+        value.put("remainders",remainders.stream().map(ItemAmount::value).toList());if(facility!=null)value.put("facility",facility.value());return StrictJson.canonical(value);
     }
     /** Full native component codec output is canonicalized separately; outer counts remain integers. */
     public static String canonicalComponents(String json) {

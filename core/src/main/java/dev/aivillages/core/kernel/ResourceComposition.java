@@ -23,6 +23,10 @@ public final class ResourceComposition {
             ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice) {
         return dev.aivillages.core.kernel.production.RecipeChoicePlan.propose(root,revision,request,choice);
     }
+    public static dev.aivillages.core.kernel.production.RecipeChoicePlan proposeChoice(UUID root,long revision,ValidatedRequest request,
+            dev.aivillages.core.kernel.production.RecipeChoice choice,dev.aivillages.core.kernel.production.RecipeSources sources) {
+        return dev.aivillages.core.kernel.production.RecipeChoicePlan.propose(root,revision,request,choice,sources);
+    }
     public static CapabilityRequest project(Prerequisites.Need need,CapabilityId capability,long quantity) {
         if(!make(need))throw new IllegalArgumentException("Registered axe MAKE goal required");
         var root=need.bound().request();var a=root.arguments();

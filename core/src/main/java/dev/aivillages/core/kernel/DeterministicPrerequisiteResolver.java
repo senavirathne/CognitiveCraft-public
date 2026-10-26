@@ -23,6 +23,10 @@ public final class DeterministicPrerequisiteResolver {
             dev.aivillages.core.kernel.production.RecipeChoice choice) {
         return ResourceComposition.proposeChoice(root,revision,request,choice);
     }
+    public dev.aivillages.core.kernel.production.RecipeChoicePlan describeChoice(UUID root,long revision,ValidatedRequest request,
+            dev.aivillages.core.kernel.production.RecipeChoice choice,dev.aivillages.core.kernel.production.RecipeSources sources) {
+        return ResourceComposition.proposeChoice(root,revision,request,choice,sources);
+    }
     public static OutcomeCoverage outcomeCoverage(CapabilityId capability, Catalog catalog) {
         Objects.requireNonNull(capability);Objects.requireNonNull(catalog);
         return new OutcomeCoverage(capability,catalog.productions().stream().anyMatch(p->p.capability().equals(capability)),

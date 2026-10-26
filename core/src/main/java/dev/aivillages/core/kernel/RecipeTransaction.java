@@ -11,8 +11,27 @@ public final class RecipeTransaction {
     private RecipeTransaction() { }
     public enum ChoicePhase { DISCOVER, PREPARE, WITHDRAW, CRAFT, DEPOSIT }
     public enum ChoiceObservationKind { PRECHECK_NO_EFFECT, APPLIED, PARTIAL_UNCERTAIN, EXCEPTION_UNCERTAIN }
+    @FunctionalInterface public interface HostObserver {
+        HostObserver NONE=observation->{};
+        void observed(HostObservation observation);
+    }
+    /** Optional baseline observation. Reported deltas are host returns, not save-confirmed receipts. */
+    public record HostObservation(String invocationToken,String semanticDigest,String operation,List<ObservedParticipant> participants,
+                                  Map<String,String> worldBefore,Map<String,String> worldAfter,Map<String,Long> reportedDeltas,
+                                  ChoiceObservationKind kind,Reason reason,String basis) {
+        public HostObservation {
+            if(invocationToken==null || invocationToken.length()>64 || !hash(semanticDigest)
+                    || !Set.of("WITHDRAW","CRAFT","DEPOSIT","PLACE").contains(operation) || basis==null || basis.length()>256)
+                throw new IllegalArgumentException("Bounded optional host observation");
+            participants=List.copyOf(participants);worldBefore=Map.copyOf(worldBefore);worldAfter=Map.copyOf(worldAfter);reportedDeltas=Map.copyOf(reportedDeltas);Objects.requireNonNull(kind);
+            if(participants.size()>4 || worldBefore.size()>16 || worldAfter.size()>16 || reportedDeltas.size()>8
+                    || reportedDeltas.values().stream().anyMatch(v->v<0 || v>64))throw new IllegalArgumentException("Bounded observation data");
+        }
+        public boolean saveConfirmed(){return false;}
+    }
     @FunctionalInterface public interface ChoiceAuthority {
         boolean permits(TrustedContext caller,ActorRef actor,ContainerRef target,ChoicePhase phase);
+        default boolean permitsFacility(TrustedContext caller,ActorRef actor,FacilityRef target,ChoicePhase phase){return false;}
     }
     public record ObservedSlot(int slot,dev.aivillages.core.kernel.production.RecipeChoice.ItemKey item,int count) {
         public ObservedSlot {Objects.requireNonNull(item);if(slot<0 || slot>127 || count<0 || count>64)throw new IllegalArgumentException("Bounded observed slot");}
