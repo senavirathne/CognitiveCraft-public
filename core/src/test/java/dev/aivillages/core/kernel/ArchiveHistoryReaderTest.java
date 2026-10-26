@@ -41,6 +41,12 @@ final class ArchiveHistoryReaderTest {
     @Test void absentDirectoryIsReadOnlyEmptyAndNeverCreated()throws Exception {
         assertEquals(ArchiveHistory.State.READY,read().state());assertFalse(Files.exists(world.resolve(ArchiveHistory.RELATIVE_PATH)));
     }
+    @Test void savedReferenceBaseDoesNotResetOnProcessRestartOrWrapSigned64BitGeneration() {
+        long old=retentionGeneration(0,42);assertEquals(43,retentionGeneration(old,1));
+        assertEquals(Long.MAX_VALUE,retentionGeneration(Long.MAX_VALUE-1,1));
+        assertThrows(ArithmeticException.class,()->retentionGeneration(Long.MAX_VALUE,1));
+        assertThrows(IllegalArgumentException.class,()->retentionGeneration(-1,0));
+    }
     @Test void exactUnorderedLegacyUuidLookupAndOwnerNamespacesArePreserved()throws Exception {
         UUID id=UUID.fromString("00000000-0000-0000-0000-000000000001");var high=row(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"),"high");
         var job=store(Owner.JOBS,high,row(id,"job"));var lease=store(Owner.LEASES,row(id,"lease"));publish(ArchiveHistory.CURRENT,view(1,job,lease));

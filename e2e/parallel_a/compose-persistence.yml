@@ -1,0 +1,5 @@
+services:
+  minecraft:
+    environment:
+      COGNITIVECRAFT_RUNTIME_HISTORY: ${COGNITIVECRAFT_RUNTIME_HISTORY:-false}
+      COGNITIVECRAFT_A02_PROBE: "true"

@@ -47,6 +47,13 @@ jobs:
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 e2e/parallel_a/prepare.py
+          python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
+          python3 tools/needle/install.py build/needle
+      - name: Same-world storage compatibility, frozen benchmark, backpressure and corruption fence
+        run: python3 e2e/parallel_a/persistence.py --root build/parallel-a/native
       - name: Retain exact-source foundation failures and compatibility evidence
         if: always()
         uses: actions/upload-artifact@v4

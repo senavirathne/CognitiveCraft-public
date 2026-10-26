@@ -13,6 +13,11 @@ public final class ArchiveFormat {
     private ArchiveFormat() { }
     public static final long MAGIC = 0x4343414849535431L; // CCAHIST1
     public static final int SCHEMA = 1;
+    /** Native reference counters are process-local; the saved base preserves checked ordering across restarts. */
+    public static long retentionGeneration(long savedBase,long processGeneration) {
+        if(savedBase<0 || processGeneration<0)throw new IllegalArgumentException("Nonnegative reference generation");
+        return Math.addExact(savedBase,processGeneration);
+    }
     public enum Owner { JOBS, LEASES }
     public enum Kind { HISTORY, INTENT, RESULT, CANCELLATION, SETTLEMENT }
     public enum Phase { RESERVED, RESULT, CANCELLING, SETTLED }

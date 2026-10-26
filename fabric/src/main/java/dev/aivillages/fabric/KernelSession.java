@@ -101,6 +101,8 @@ public final class KernelSession implements AutoCloseable {
     private WorkerDispatcher dispatcher;
     private dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveredOwners;
     private dev.aivillages.core.kernel.runtime.persistence.ArchiveService historyService;
+    private long historyReferenceBase;
+    private boolean historyGenerationUnavailable;
     private final boolean runtimeHistoryEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_RUNTIME_HISTORY", "false"));
     private final boolean activityViewEnabled = "true".equalsIgnoreCase(
@@ -323,7 +325,10 @@ public final class KernelSession implements AutoCloseable {
                 return;
             }
             loaded = opening.join();
-            if(loaded.history()!=null)historyService=new dev.aivillages.core.kernel.runtime.persistence.ArchiveService(loaded.history(),worker);
+            if(loaded.history()!=null) {
+                historyReferenceBase=loaded.history().snapshot().retentionGeneration();
+                historyService=new dev.aivillages.core.kernel.runtime.persistence.ArchiveService(loaded.history(),worker);
+            }
             compose();
         }
         citizens.tick();
@@ -337,6 +342,7 @@ public final class KernelSession implements AutoCloseable {
         loaded.knowledgeService().maintain(worker);
         loaded.retentionService().beginTick();
         refreshRetentionRoots();
+        if(loaded.history()!=null)historyGeneration();
         loaded.retentionService().maintain(worker);
         loaded.retrieval().maintain(worker);
         lifecycleAdapter.step();
@@ -683,7 +689,7 @@ public final class KernelSession implements AutoCloseable {
                         return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
                     }
                 }, original -> Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof"), 4);
-        worldAccess.effectFence((request,effect,target)->loaded.history()!=null && loaded.history().readOnly()
+        worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable)
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target));
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
@@ -901,8 +907,12 @@ public final class KernelSession implements AutoCloseable {
     public Jobs.Roots jobRoots() { ready(); return jobs.protectedRoots(); }
     /** Trusted server-side immutable storage capture. No player/model command or physical authority. */
     public record RuntimeStorageView(Jobs.Snapshot jobs,ResourceLeases.Snapshot leases,long retentionGeneration,boolean ready) { }
+    private long historyGeneration() {
+        try{return dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.retentionGeneration(historyReferenceBase,loaded.roots().snapshot().generation());}
+        catch(ArithmeticException overflow){historyGenerationUnavailable=true;return Long.MAX_VALUE;}
+    }
     public RuntimeStorageView runtimeStorageView() {
-        ready();return new RuntimeStorageView(jobs.snapshot(),leases.snapshot(),loaded.roots().snapshot().generation(),jobs.ready() && leases.ready());
+        ready();long generation=historyGeneration();return new RuntimeStorageView(jobs.snapshot(),leases.snapshot(),generation,jobs.ready() && leases.ready() && !historyGenerationUnavailable);
     }
     /** Startup-only storage activation; domain eviction and physical evidence protocols are separate gates. */
     public dev.aivillages.core.kernel.runtime.persistence.ArchiveService runtimeHistory() {
@@ -911,7 +921,7 @@ public final class KernelSession implements AutoCloseable {
     public record RuntimeHistoryStatus(boolean enabled,boolean readOnly,
             dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.Manifest manifest) { }
     public RuntimeHistoryStatus runtimeHistoryStatus() {
-        ready();return new RuntimeHistoryStatus(loaded.history()!=null,loaded.history()!=null && loaded.history().readOnly(),
+        ready();return new RuntimeHistoryStatus(loaded.history()!=null,loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable),
                 loaded.history()==null?null:loaded.history().snapshot());
     }
     /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
