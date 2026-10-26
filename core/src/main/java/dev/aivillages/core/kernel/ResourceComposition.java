@@ -19,6 +19,10 @@ public final class ResourceComposition {
     public static BatchQuantities.Role quantityRole(Prerequisites.Need need,String item) {
         return make(need) && item.equals(need.item()) ? BatchQuantities.Role.ROOT : BatchQuantities.Role.MATERIAL_CHILD;
     }
+    public static dev.aivillages.core.kernel.production.RecipeChoicePlan proposeChoice(UUID root,long revision,
+            ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice) {
+        return dev.aivillages.core.kernel.production.RecipeChoicePlan.propose(root,revision,request,choice);
+    }
     public static CapabilityRequest project(Prerequisites.Need need,CapabilityId capability,long quantity) {
         if(!make(need))throw new IllegalArgumentException("Registered axe MAKE goal required");
         var root=need.bound().request();var a=root.arguments();

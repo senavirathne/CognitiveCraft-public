@@ -18,6 +18,11 @@ public final class DeterministicPrerequisiteResolver {
     /** Exact bounded outcome vocabulary check, before a broad goal may enter planning.
      * A handled outcome must return to deterministic prerequisites; this never runs a model. */
     public record OutcomeCoverage(CapabilityId capability, boolean handled, boolean complete, int inspected) { }
+    /** Additive selected-grid description; no baseline Node/owner schema is silently widened. */
+    public dev.aivillages.core.kernel.production.RecipeChoicePlan describeChoice(UUID root,long revision,ValidatedRequest request,
+            dev.aivillages.core.kernel.production.RecipeChoice choice) {
+        return ResourceComposition.proposeChoice(root,revision,request,choice);
+    }
     public static OutcomeCoverage outcomeCoverage(CapabilityId capability, Catalog catalog) {
         Objects.requireNonNull(capability);Objects.requireNonNull(catalog);
         return new OutcomeCoverage(capability,catalog.productions().stream().anyMatch(p->p.capability().equals(capability)),

@@ -58,6 +58,11 @@ public final class RecipeProduction {
         if(CraftingTableProduction.ID.equals(id))return TABLES;
         throw new IllegalArgumentException("Unsupported production capability");
     }
+    /** Version 2 is proposed only; this does not register a runtime capability or alter version 1. */
+    public static Definition choiceDefinition(CapabilityId id) {
+        if(id.version()!=2)throw new IllegalArgumentException("Concrete choice compatibility version 2 required");
+        return of(new CapabilityId(id.name(),1));
+    }
     public static Definition recipe(String key) {
         if(BirchPlankProduction.RECIPE.equals(key))return BIRCH_PLANKS;
         if(OakPlankProduction.RECIPE.equals(key))return PLANKS;

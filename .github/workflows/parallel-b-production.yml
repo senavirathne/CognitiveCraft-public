@@ -10,7 +10,7 @@ concurrency:
   group: cc-production-b-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  b02-quantities:
+  b03-recipe-choices:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -31,31 +31,25 @@ jobs:
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
       - name: Baseline modules and isolated B contract fixtures
         run: |
-          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar
           python3 -m unittest discover -s e2e -p 'test_*.py'
           python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
-      - name: Hash-verified native runtime and isolated instruments
-        run: |
-          python3 e2e/runtime.py prepare
-          python3 e2e/runtime.py compile
-          python3 scripts/campaign-crafting/prepare.py
-          python3 scripts/campaign-crafting/prepare.py
-      - name: Exact three/four quantities, old output and full-destination refusal
-        run: python3 e2e/parallel_b/quantity_native.py --root build/e2e/parallel-b/B02
+      - name: Real native choice hosts and unchanged exact-material regressions
+        run: python3 e2e/parallel_b/run_hosts.py --built --root build/e2e/parallel-b/B03
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: parallel-b-B02-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: parallel-b-B03-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
           path: |
-            build/e2e/parallel-b/B02/
-            build/campaign-crafting-oracle/integrity.json
+            build/e2e/parallel-b/B03/
             build/e2e-sdk/integrity.json
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/
             fabric/build/libs/ai-villages-0.1.0.jar
+            fabric/build/libs/ai-villages-0.1.0-gametest.jar

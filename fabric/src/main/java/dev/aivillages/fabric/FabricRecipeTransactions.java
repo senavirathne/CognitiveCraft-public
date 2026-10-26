@@ -21,12 +21,21 @@ import net.minecraft.world.level.block.Blocks;
 final class FabricRecipeTransactions {
     private final ServerLevel level;
     private final FabricGatewayWorld world;
+    private final FabricConcreteRecipeChoices concrete;
     private final Map<String,RecipeManager> managers=new HashMap<>();
     private final Map<String,RecipeView> snapshots=new HashMap<>();
     private record AxeCustody(int slot,ItemStack actual,String fingerprint) { }
     private final Map<ActorRef,AxeCustody> axeCustody=new HashMap<>();
     void release(ActorRef actor) {axeCustody.remove(actor);}
-    FabricRecipeTransactions(ServerLevel level,FabricGatewayWorld world) {this.level=level;this.world=world;}
+    FabricRecipeTransactions(ServerLevel level,FabricGatewayWorld world) {this.level=level;this.world=world;this.concrete=new FabricConcreteRecipeChoices(level,world);}
+    dev.aivillages.core.kernel.production.RecipeChoice selectChoice(ValidatedRequest request,UUID run,RecipeTransaction.ChoiceAuthority authority) {
+        return concrete.select(request,run,authority);
+    }
+    FabricConcreteRecipeChoices.Context prepareChoice(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,
+            int batch,UUID run,RecipeTransaction.ChoiceAuthority authority) {return concrete.prepare(request,choice,batch,run,authority);}
+    FabricConcreteRecipeChoices.Result executeChoice(FabricConcreteRecipeChoices.Context context,RecipeTransaction.ChoicePhase phase) {
+        return concrete.execute(context,phase);
+    }
     private RecipeTransaction.Mutation denied(ActorRef actor,RecipeTransaction.Preflight captured,String guard,Reason reason){
         if(Boolean.getBoolean("cognitivecraft.gametest.trace")){
             var v=world.recipeActor(actor);

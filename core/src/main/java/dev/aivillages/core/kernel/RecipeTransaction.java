@@ -9,6 +9,28 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
 /** Bounded installed-recipe and physical-custody values; never Minecraft objects or inventory authority. */
 public final class RecipeTransaction {
     private RecipeTransaction() { }
+    public enum ChoicePhase { DISCOVER, PREPARE, WITHDRAW, CRAFT, DEPOSIT }
+    public enum ChoiceObservationKind { PRECHECK_NO_EFFECT, APPLIED, PARTIAL_UNCERTAIN, EXCEPTION_UNCERTAIN }
+    @FunctionalInterface public interface ChoiceAuthority {
+        boolean permits(TrustedContext caller,ActorRef actor,ContainerRef target,ChoicePhase phase);
+    }
+    public record ObservedSlot(int slot,dev.aivillages.core.kernel.production.RecipeChoice.ItemKey item,int count) {
+        public ObservedSlot {Objects.requireNonNull(item);if(slot<0 || slot>127 || count<0 || count>64)throw new IllegalArgumentException("Bounded observed slot");}
+    }
+    public record ObservedParticipant(String identity,List<ObservedSlot> before,List<ObservedSlot> after) {
+        public ObservedParticipant {if(identity==null || identity.length()>256)throw new IllegalArgumentException("Participant identity");before=List.copyOf(before);after=List.copyOf(after);if(before.size()>128 || after.size()>128)throw new IllegalArgumentException("Participant slots");}
+    }
+    /** Live trusted-host observations only: never a receipt, settlement or Minecraft save certificate. */
+    public record ChoiceObservation(String preparationToken,String choiceDigest,int batch,ChoicePhase phase,
+                                    ChoiceObservationKind kind,List<ObservedParticipant> participants,Reason reason,String basis) {
+        public ChoiceObservation {
+            Objects.requireNonNull(phase);Objects.requireNonNull(kind);participants=List.copyOf(participants);
+            if(preparationToken==null || preparationToken.length()>64 || !hash(choiceDigest) || batch<0 || batch>15
+                    || participants.size()>4 || basis==null || basis.length()>256)throw new IllegalArgumentException("Bounded live host observation");
+            if(kind==ChoiceObservationKind.PRECHECK_NO_EFFECT && reason==null)throw new IllegalArgumentException("Refusal reason required");
+        }
+        public boolean saveConfirmed(){return false;}
+    }
     public record Snapshot(String key,String fingerprint,long generation,int inputs,int outputs,int remainders) {
         public Snapshot {
             if(!hash(fingerprint) || generation<0
