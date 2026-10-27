@@ -125,7 +125,8 @@ assert digest(release) == before
     'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
         'serialization': 'immutable JSON frame captured on the server thread; full string encoding on the existing observer writer; same cadence and fields',
-        'references': 'exact row positions recorded by encoder; compact template is parsed and full-frame bytes are reconstructed/checked; independent scanner cross-check in Java self-test; no second full-frame scan in native writer',
+        'references': 'exact row positions recorded by encoder; compact template is parsed and every reconstructed character is compared with the original; independent scanner/full-frame SHA cross-check and changed-body/prefix/length/missing-body rejection in Java self-test; no second full-frame allocation',
+        'writerBuffers': 'one reusable scratch buffer per existing observer writer, at most 4 Mi characters retained; completed Strings remain independent; larger frames are permitted but their buffers are discarded; cadence and complete bytes unchanged',
         'jobEncoding': 'original authorization/query/filter precedes encoding; exact immutable Job identity and complete immutable run/lease value equality; fresh outer fields; immutable child literals in writer; shared 128 rows/16 MiB; exact Gson frame bytes, same values and cadence',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))

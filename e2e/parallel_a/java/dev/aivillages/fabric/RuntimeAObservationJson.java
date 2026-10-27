@@ -6,7 +6,7 @@ import dev.aivillages.core.kernel.Jobs;
 import dev.aivillages.core.kernel.BootstrapController;
 import dev.aivillages.core.kernel.ResourceLeases;
 import java.io.IOException;
-import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -21,6 +21,20 @@ public final class RuntimeAObservationJson {
     private static int bytes;
     private static long hits,misses;
     private static volatile Map<JsonElement,String> rawLiterals=Collections.emptyMap();
+    private static final int RETAINED_BUFFER_CHARS=4*1024*1024;
+    private static final ThreadLocal<FrameBuffer> FRAME_BUFFERS=ThreadLocal.withInitial(FrameBuffer::new);
+    /** Writer-local scratch only; completed Strings never alias its mutable storage. */
+    private static final class FrameBuffer extends Writer {
+        private StringBuilder data=new StringBuilder(65536);
+        int length(){return data.length();}
+        String result(){return data.toString();}
+        void recycle(){if(data.capacity()>RETAINED_BUFFER_CHARS)data=new StringBuilder(65536);else data.setLength(0);}
+        @Override public void write(char[] value,int offset,int length){data.append(value,offset,length);}
+        @Override public void write(String value,int offset,int length){data.append(value,offset,offset+length);}
+        @Override public void write(int value){data.append((char)value);}
+        @Override public void flush() { }
+        @Override public void close() { }
+    }
     public record Encoded(String data,long time,long pid,List<RuntimeAObservationLog.Span> spans) {
         public Encoded {spans=List.copyOf(spans);}
     }
@@ -62,12 +76,13 @@ public final class RuntimeAObservationJson {
     /** Encode every field, reusing only exact strings of immutable captured children. */
     public static String frame(JsonObject frame) {return encode(frame).data();}
     public static Encoded encode(JsonObject frame) {
-        var output=new StringWriter();
+        FrameBuffer output=FRAME_BUFFERS.get();output.recycle();
         var spans=new ArrayList<RuntimeAObservationLog.Span>();
         try {var writer=JSON.newJsonWriter(output);writer.setHtmlSafe(true);writer.setSerializeNulls(false);
             write(frame,writer,rawLiterals,0,output,spans);writer.flush();
-            return new Encoded(output.toString(),frame.has("time")?frame.get("time").getAsLong():-1,frame.has("pid")?frame.get("pid").getAsLong():-1,spans);
+            return new Encoded(output.result(),frame.has("time")?frame.get("time").getAsLong():-1,frame.has("pid")?frame.get("pid").getAsLong():-1,spans);
         }catch(IOException impossible){throw new IllegalStateException("In-memory observation encoding",impossible);}
+        finally{output.recycle();}
     }
     // Modes: frame, player map, one player, jobs/runs map, leases array, ordinary value; -1 is a complete reference value.
     private static int mode(int parent,String field) {
@@ -78,20 +93,20 @@ public final class RuntimeAObservationJson {
         if(parent==3||parent==2&&field.equals("catalog"))return -1;
         return 5;
     }
-    private static void write(JsonElement value,JsonWriter writer,Map<JsonElement,String> literals,int mode,StringWriter output,List<RuntimeAObservationLog.Span> spans)throws IOException {
+    private static void write(JsonElement value,JsonWriter writer,Map<JsonElement,String> literals,int mode,FrameBuffer output,List<RuntimeAObservationLog.Span> spans)throws IOException {
         boolean selected=mode==-1;String raw=literals.get(value);int begin=-1;
         // The leases array still visits its rows to capture each complete literal.
-        if(raw!=null&&mode!=4){writer.jsonValue(raw);if(selected&&raw.length()>=256)spans.add(new RuntimeAObservationLog.Span(output.getBuffer().length()-raw.length(),output.getBuffer().length()));return;}
+        if(raw!=null&&mode!=4){writer.jsonValue(raw);if(selected&&raw.length()>=256)spans.add(new RuntimeAObservationLog.Span(output.length()-raw.length(),output.length()));return;}
         if(value!=null&&value.isJsonObject()){
-            writer.beginObject();begin=output.getBuffer().length()-1;
+            writer.beginObject();begin=output.length()-1;
             for(var field:value.getAsJsonObject().entrySet()){writer.name(field.getKey());write(field.getValue(),writer,literals,mode(mode,field.getKey()),output,spans);}writer.endObject();
         }else if(value!=null&&value.isJsonArray()){
-            writer.beginArray();begin=output.getBuffer().length()-1;
+            writer.beginArray();begin=output.length()-1;
             for(var item:value.getAsJsonArray())write(item,writer,literals,mode==4?-1:5,output,spans);writer.endArray();
         }else if(selected&&value!=null&&!value.isJsonNull()){
-            String literal=JSON.toJson(value);writer.jsonValue(literal);begin=output.getBuffer().length()-literal.length();
+            String literal=JSON.toJson(value);writer.jsonValue(literal);begin=output.length()-literal.length();
         }else com.google.gson.internal.Streams.write(value,writer);
-        int end=output.getBuffer().length();if(selected&&begin>=0&&end-begin>=256)spans.add(new RuntimeAObservationLog.Span(begin,end));
+        int end=output.length();if(selected&&begin>=0&&end-begin>=256)spans.add(new RuntimeAObservationLog.Span(begin,end));
     }
     public static void main(String[] args) {
         UUID id=UUID.randomUUID();Object first=Map.of("id",id,"revision",1,"request",Map.of("principal","one","escaped","<>& λ \\\" \\\\ ".repeat(40)),"rows",List.of("λ","escaped \\\""));
@@ -116,6 +131,11 @@ public final class RuntimeAObservationJson {
         for(int n=0;n<MAX_ROWS+2;n++){UUID next=UUID.randomUUID();cached(next,Map.of("id",next,"index",n));}
         if(CACHE.size()>MAX_ROWS||bytes>MAX_BYTES)throw new IllegalStateException("Metadata encoding cache quota");
         if(!frame(full).equals(JSON.toJson(full)))throw new IllegalStateException("An older full frame changed after cache eviction");
+        var growing=new JsonObject();growing.addProperty("text","<>& Unicode λ ".repeat(10000));
+        String large=frame(growing);if(!large.equals(JSON.toJson(growing)))throw new IllegalStateException("Reusable writer changed Unicode/escaped bytes");
+        if(!frame(full).equals(JSON.toJson(full))||!large.equals(JSON.toJson(growing)))throw new IllegalStateException("Reusable writer changed a completed String");
+        FrameBuffer buffer=new FrameBuffer();buffer.data.ensureCapacity(RETAINED_BUFFER_CHARS+1);buffer.recycle();
+        if(buffer.data.capacity()>RETAINED_BUFFER_CHARS||buffer.length()!=0)throw new IllegalStateException("Writer scratch retained over its finite quota");
         System.out.println("A04_OBSERVATION_JSON_SELF_TEST_PASS exact-full-frame-bytes immutable-captures replacement-origin principal-filtered-views bounded-cache");
     }
 }

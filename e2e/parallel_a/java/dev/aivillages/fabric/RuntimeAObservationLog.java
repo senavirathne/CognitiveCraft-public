@@ -109,25 +109,40 @@ public final class RuntimeAObservationLog {
     private static void append(Path path,String frame,List<Span> spans,long time,long pid)throws IOException {
         State state=STATES.get(path);if(state==null){state=new State(path);STATES.put(path,state);}
         if(TOKEN.matcher(frame).find())throw new IOException("Reserved evidence reference collision");
-        var references=new HashMap<String,String>();var template=new StringBuilder(frame.length());int end=0;
+        var references=new HashMap<String,String>();var template=new StringBuilder(Math.min(frame.length(),65536));int end=0;
         for(Span span:spans) {
             if(span.begin()<end||span.end()<=span.begin()||span.end()>frame.length())throw new IOException("Invalid encoded observation span");
             String literal=frame.substring(span.begin(),span.end()),digest=state.store.body(literal);
             String token="{\"$a04Raw\":\""+digest+"\"}";references.put(digest,literal);
             template.append(frame,end,span.begin()).append(token);end=span.end();
         }
-        template.append(frame,end,frame.length());var matcher=TOKEN.matcher(template);var restored=new StringBuilder(frame.length());end=0;
-        while(matcher.find()) {String literal=references.get(matcher.group(1));if(literal==null)throw new IOException("Unknown observation body");
-            restored.append(template,end,matcher.start()).append(literal);end=matcher.end();}
-        restored.append(template,end,template.length());
-        if(!restored.toString().equals(frame))throw new IOException("Observation reference round trip changed exact bytes");
-        var checked=JsonParser.parseString(template.toString()).getAsJsonObject();
+        template.append(frame,end,frame.length());String compact=template.toString();
+        verifyRoundTrip(frame,compact,references);
+        var checked=JsonParser.parseString(compact).getAsJsonObject();
         if(checked.get("time").getAsLong()!=time||checked.get("pid").getAsLong()!=pid)throw new IOException("Encoded frame attribution changed");
         var wrapper=new LinkedHashMap<String,Object>();wrapper.put("schema",1);wrapper.put("time",time);
-        wrapper.put("pid",pid);wrapper.put("originalSha256",sha256(frame.getBytes(StandardCharsets.UTF_8)));wrapper.put("template",template.toString());
+        wrapper.put("pid",pid);wrapper.put("originalSha256",sha256(frame.getBytes(StandardCharsets.UTF_8)));wrapper.put("template",compact);
         String line=JSON.toJson(wrapper)+"\n";long bytes=line.getBytes(StandardCharsets.UTF_8).length;
         if(bytes>SHARD_BYTES)throw new IOException("Observation frame quota");if(state.bytes+bytes>SHARD_BYTES)state.next();
         Files.writeString(state.path(),line,StandardOpenOption.APPEND);state.bytes+=bytes;
+    }
+    /** Compare the complete reconstructed character sequence, without allocating another full frame. */
+    private static void verifyRoundTrip(String frame,String template,Map<String,String> references)throws IOException {
+        var matcher=TOKEN.matcher(template);int end=0,offset=0;
+        while(matcher.find()) {
+            String literal=references.get(matcher.group(1));if(literal==null)throw new IOException("Unknown observation body");
+            int plain=matcher.start()-end;
+            if(!frame.regionMatches(offset,template,end,plain)||!frame.regionMatches(offset+plain,literal,0,literal.length()))
+                throw new IOException("Observation reference round trip changed exact bytes");
+            offset+=plain+literal.length();end=matcher.end();
+        }
+        int tail=template.length()-end;
+        if(offset+tail!=frame.length()||!frame.regionMatches(offset,template,end,tail))
+            throw new IOException("Observation reference round trip changed exact bytes");
+    }
+    private static void rejectChangedRoundTrip(String frame,String template,Map<String,String> references)throws IOException {
+        try{verifyRoundTrip(frame,template,references);}catch(IOException expected){return;}
+        throw new IOException("Changed observation round trip was accepted");
     }
     public static void main(String[] args)throws Exception {
         Path root=Path.of(args[0]);Files.createDirectories(root);Path path=root.resolve("observations.jsonl");
@@ -157,6 +172,12 @@ public final class RuntimeAObservationLog {
             matcher.appendTail(result);if(!sha256(result.toString().getBytes(StandardCharsets.UTF_8)).equals(row.get("originalSha256").getAsString()))throw new IOException("Self-test raw frame mismatch");checked++;
         }
         if(checked!=4)throw new IOException("Missing exact evidence self-test frames");
+        String id=sha256(job.getBytes(StandardCharsets.UTF_8)),token="{\"$a04Raw\":\""+id+"\"}",complete="prefix λ "+job+" suffix",template="prefix λ "+token+" suffix";
+        verifyRoundTrip(complete,template,Map.of(id,job));
+        rejectChangedRoundTrip(complete,template,Map.of(id,job+" "));
+        rejectChangedRoundTrip(complete,template.replace("prefix","changed"),Map.of(id,job));
+        rejectChangedRoundTrip(complete+" ",template,Map.of(id,job));
+        rejectChangedRoundTrip(complete,template,Map.of());
         System.out.println("A04_OBSERVATION_REFERENCE_SELF_TEST_PASS "+checked);
     }
 }
