@@ -54,7 +54,8 @@ jobs:
           python3 e2e/parallel_a/prepare.py
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
       - name: Actual continuous-world A04 Job history and witnessed crash gates
-        if: startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world')
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
         run: |
           python3 tools/needle/install.py build/needle
           python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
@@ -78,7 +79,8 @@ jobs:
             fabric/build/test-results/test/
             fabric/build/libs/ai-villages-0.1.0.jar
       - name: Retain every A04 native frame reference, whole-world cohort and failed attempt
-        if: always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world')
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a04-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
