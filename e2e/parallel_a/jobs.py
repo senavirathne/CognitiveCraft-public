@@ -15,6 +15,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent))
 from leases import LeaseHarness
 from baseline import interruption,native_process,same_native_alive,percentiles
 from persistence import LIMITS
+from performance_window import reached as window_reached
 from suite import ROOT,atomic,read,require,reconnect_players
 from generalization_support import LOG,DST,at,coord,Inconclusive
 from generalization import acquisition,receipts
@@ -64,18 +65,19 @@ class JobHarness(LeaseHarness):
         if expect_ready:self.stable()
         return {'before':before,'after':after,'sameClients':True}
     def window(self,mode):
-        self.quiet(100);begin=self.probe('begin-window');observer_tick=self.snapshot()['tick'];io=self.probe(mode+'-benchmark')
-        self.wait(lambda:self.snapshot()['tick']>=observer_tick+LIMITS['ticks'],'400 actual A04 cost-window ticks',65)
+        self.quiet(100);begin=self.probe('begin-window');io=self.probe(mode+'-benchmark')
+        self.wait(lambda:window_reached(self.snapshot(),begin,LIMITS['ticks']),'400 actual A04 cost-window game ticks after the marker',65)
         captures=self.probe('end-window')
         raw=self.wait(lambda:(v if (v:=read(self.root/'server/runtime-a-ticks.json')) and len([s for s in v['samples'] if s['time']>=begin['startMillis']])>=400 else None),
                       '400 retained event-bracketed samples',15)
         ticks=[s for s in raw['samples'] if s['time']>=begin['startMillis']][:400]
         cap=[s for s in captures['captures'] if s['time']>=begin['startMillis']][:400]
-        if len(ticks)!=400 or len(cap)!=400 or len(io['samplesNanos'])!=64:raise Inconclusive('Fixed A04 performance window missing')
+        process=native_process(self);raw_file=self.root/(mode+'-raw-window.json')
+        atomic(raw_file,{'tickSamples':ticks,'captures':cap,'ackNanos':io['samplesNanos'],'begin':begin,'process':process})
+        if len(ticks)!=400 or len(cap)!=400 or len(io['samplesNanos'])!=64:raise Inconclusive('Fixed A04 performance window missing: '+json.dumps({'ticks':len(ticks),'captures':len(cap),'acks':len(io['samplesNanos'])}))
         result={'configuration':mode,'tick':percentiles([s['nanos'] for s in ticks]),'capture':percentiles([s['nanos'] for s in cap]),
-                'ack':percentiles(io['samplesNanos']),'io':io,'begin':begin,'nativeProcess':native_process(self),'limits':LIMITS,
+                'ack':percentiles(io['samplesNanos']),'io':io,'begin':begin,'nativeProcess':process,'limits':LIMITS,
                 'metric':raw['metric'],'workload':'same frozen actual 64-Job metadata; candidate additionally verifies archive and acknowledges 16-row hot removal; fixture setup excluded; zero fixture native effects'}
-        raw_file=self.root/(mode+'-raw-window.json');atomic(raw_file,{'tickSamples':ticks,'captures':cap,'ackNanos':io['samplesNanos'],'begin':begin,'process':result['nativeProcess']})
         result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();atomic(self.root/(mode+'-performance.json'),result)
         for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
             require(result[field][percentile]<=LIMITS[limit],f'Frozen A04 {mode} {field}/{percentile} exceeded {LIMITS[limit]} ms: '+json.dumps(result[field]))
