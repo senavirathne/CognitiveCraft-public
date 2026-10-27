@@ -15,7 +15,7 @@ public final class RuntimeAObservationLog {
     private static final Map<Path,State> STATES=new HashMap<>();
     private static final Map<Path,Bodies> BODY_STORES=new HashMap<>();
     private static final java.util.regex.Pattern TOKEN=java.util.regex.Pattern.compile("\\{\\\"\\$a04Raw\\\":\\\"([0-9a-f]{64})\\\"\\}");
-    private record Span(int begin,int end) {}
+    public record Span(int begin,int end) {}
     /** Scan the exact serialized bytes once; never rewrite a whole frame per row. */
     private static final class Frame {
         final String raw;final List<Span> spans=new ArrayList<>();int at;long time=-1,pid=-1;
@@ -100,10 +100,18 @@ public final class RuntimeAObservationLog {
         }
     }
     public static synchronized void append(Path path,String frame)throws IOException {
+        Frame parsed=new Frame(frame);append(path,frame,parsed.spans,parsed.time,parsed.pid);
+    }
+    public static synchronized void append(Path path,RuntimeAObservationJson.Encoded frame)throws IOException {
+        if(frame.time()<0||frame.pid()<0)throw new IOException("Missing encoded frame attribution");
+        append(path,frame.data(),frame.spans(),frame.time(),frame.pid());
+    }
+    private static void append(Path path,String frame,List<Span> spans,long time,long pid)throws IOException {
         State state=STATES.get(path);if(state==null){state=new State(path);STATES.put(path,state);}
         if(TOKEN.matcher(frame).find())throw new IOException("Reserved evidence reference collision");
-        Frame parsed=new Frame(frame);var references=new HashMap<String,String>();var template=new StringBuilder(frame.length());int end=0;
-        for(Span span:parsed.spans) {
+        var references=new HashMap<String,String>();var template=new StringBuilder(frame.length());int end=0;
+        for(Span span:spans) {
+            if(span.begin()<end||span.end()<=span.begin()||span.end()>frame.length())throw new IOException("Invalid encoded observation span");
             String literal=frame.substring(span.begin(),span.end()),digest=state.store.body(literal);
             String token="{\"$a04Raw\":\""+digest+"\"}";references.put(digest,literal);
             template.append(frame,end,span.begin()).append(token);end=span.end();
@@ -113,8 +121,10 @@ public final class RuntimeAObservationLog {
             restored.append(template,end,matcher.start()).append(literal);end=matcher.end();}
         restored.append(template,end,template.length());
         if(!restored.toString().equals(frame))throw new IOException("Observation reference round trip changed exact bytes");
-        var wrapper=new LinkedHashMap<String,Object>();wrapper.put("schema",1);wrapper.put("time",parsed.time);
-        wrapper.put("pid",parsed.pid);wrapper.put("originalSha256",sha256(frame.getBytes(StandardCharsets.UTF_8)));wrapper.put("template",template.toString());
+        var checked=JsonParser.parseString(template.toString()).getAsJsonObject();
+        if(checked.get("time").getAsLong()!=time||checked.get("pid").getAsLong()!=pid)throw new IOException("Encoded frame attribution changed");
+        var wrapper=new LinkedHashMap<String,Object>();wrapper.put("schema",1);wrapper.put("time",time);
+        wrapper.put("pid",pid);wrapper.put("originalSha256",sha256(frame.getBytes(StandardCharsets.UTF_8)));wrapper.put("template",template.toString());
         String line=JSON.toJson(wrapper)+"\n";long bytes=line.getBytes(StandardCharsets.UTF_8).length;
         if(bytes>SHARD_BYTES)throw new IOException("Observation frame quota");if(state.bytes+bytes>SHARD_BYTES)state.next();
         Files.writeString(state.path(),line,StandardOpenOption.APPEND);state.bytes+=bytes;
@@ -129,7 +139,9 @@ public final class RuntimeAObservationLog {
         // The live players map aliases the authorized knownPlayers map in native
         // frames. Both serialized copies must be referenced, without changing either.
         var duplicate=JsonParser.parseString(many).getAsJsonObject();duplicate.add("players",duplicate.get("knownPlayers"));duplicate.addProperty("time",4);
-        String doubled=JSON.toJson(duplicate);append(path,doubled);
+        String doubled=JSON.toJson(duplicate);var encoded=RuntimeAObservationJson.encode(duplicate);
+        if(!encoded.data().equals(doubled)||!encoded.spans().equals(new Frame(doubled).spans))throw new IOException("Encoding positions differ from the independent full-frame scanner");
+        append(path,encoded);
         var compact=JsonParser.parseString(Files.readAllLines(STATES.get(path).path()).getLast()).getAsJsonObject().get("template").getAsString();
         if(compact.length()*2>=doubled.length()||compact.contains("actual-test-only-row"))throw new IOException("Both authorized player maps must use exact references");
         int checked=0;

@@ -43,7 +43,7 @@ public final class RuntimeAJobProbe implements ModInitializer {
                             "ready",view.ready(),"hot",view.jobs(),"hotLeases",view.leases()),null);return;
                 }
                 if(op.equals("begin-window")){captures.clear();measuring=true;reply(id,map("status","PASS","startMillis",System.currentTimeMillis(),"startTick",server.overworld().getGameTime()),null);return;}
-                if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captures",List.copyOf(captures)),null);return;}
+                if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captures",List.copyOf(captures),"encodingStats",RuntimeAObservationJson.stats()),null);return;}
                 if(op.equals("start-profile")) {
                     if(cpuProfile!=null)throw new IllegalStateException("Diagnostic already active");
                     cpuProfilePath=root.resolve("server/a04-profile-"+id+".jfr");

@@ -42,7 +42,7 @@ for original, replacement in replacements.items():
 log_original='''Files.writeString(root.resolve("server/observations.jsonl"), data + "\\n",
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
 log_replacement='''if ("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE")))
-                RuntimeAObservationLog.append(root.resolve("server/observations.jsonl"), data);
+                RuntimeAObservationLog.append(root.resolve("server/observations.jsonl"), encoded);
             else Files.writeString(root.resolve("server/observations.jsonl"), data + "\\n",
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
 assert adapted.count(log_original)==1
@@ -57,7 +57,8 @@ deferred={
         '            }',
     'var data = pending.getAndSet(null);\n        if (data == null) return;':
         'var captured = pending.getAndSet(null);\n        if (captured == null) return;\n'
-        '        String data = captured instanceof JsonObject frame ? RuntimeAObservationJson.frame(frame) : (String)captured;',
+        '        var encoded = captured instanceof JsonObject frame ? RuntimeAObservationJson.encode(frame) : null;\n'
+        '        String data = encoded != null ? encoded.data() : (String)captured;',
 }
 for original,replacement in deferred.items():
     assert adapted.count(original)==1,original
@@ -124,7 +125,7 @@ assert digest(release) == before
     'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
         'serialization': 'immutable JSON frame captured on the server thread; full string encoding on the existing observer writer; same cadence and fields',
-        'references': 'single scan of exact authorized row spans; one template expansion verifies original bytes; no whole-frame replacement per row',
+        'references': 'exact row positions recorded by encoder; compact template is parsed and full-frame bytes are reconstructed/checked; independent scanner cross-check in Java self-test; no second full-frame scan in native writer',
         'jobEncoding': 'original authorization/query/filter precedes encoding; exact immutable Job identity and complete immutable run/lease value equality; fresh outer fields; immutable child literals in writer; shared 128 rows/16 MiB; exact Gson frame bytes, same values and cadence',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))

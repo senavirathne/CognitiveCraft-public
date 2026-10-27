@@ -117,7 +117,9 @@ class JobHarness(LeaseHarness):
         result={'configuration':mode,'tick':percentiles([s['nanos'] for s in ticks]),'capture':percentiles([s['nanos'] for s in cap]),
                 'ack':percentiles(io['samplesNanos']),'io':io,'begin':begin,'nativeProcess':process,'limits':LIMITS,
                 'metric':raw['metric'],'workload':'same frozen actual 64-Job metadata; candidate additionally verifies archive and acknowledges 16-row hot removal; fixture setup excluded; zero fixture native effects'}
-        result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();atomic(self.root/(mode+'-performance.json'),result)
+        result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();result['encodingStats']=captures.get('encodingStats')
+        atomic(self.root/(mode+'-performance.json'),result)
+        print('A04_PERFORMANCE '+json.dumps({'configuration':mode,**{k:result[k] for k in ('tick','capture','ack','rawSha256','encodingStats')}}),flush=True)
         for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
             if result[field][percentile]>LIMITS[limit]:self.profile_failure(mode)
             require(result[field][percentile]<=LIMITS[limit],f'Frozen A04 {mode} {field}/{percentile} exceeded {LIMITS[limit]} ms: '+json.dumps(result[field]))

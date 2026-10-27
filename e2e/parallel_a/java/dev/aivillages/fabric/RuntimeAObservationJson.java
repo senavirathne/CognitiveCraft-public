@@ -19,7 +19,11 @@ public final class RuntimeAObservationJson {
     private record Entry(Object original,JsonElement tree,int bytes,Map<JsonElement,String> literals) {}
     private static final LinkedHashMap<Key,Entry> CACHE=new LinkedHashMap<>(128,.75f,true);
     private static int bytes;
+    private static long hits,misses;
     private static volatile Map<JsonElement,String> rawLiterals=Collections.emptyMap();
+    public record Encoded(String data,long time,long pid,List<RuntimeAObservationLog.Span> spans) {
+        public Encoded {spans=List.copyOf(spans);}
+    }
     public static JsonElement job(Jobs.Job job) {
         return ENABLED ? cached(job.id(),job) : JSON.toJsonTree(job);
     }
@@ -38,6 +42,7 @@ public final class RuntimeAObservationJson {
         // Jobs publishes immutable records. Any replacement object is encoded again,
         // even if a caller accidentally keeps an old revision or changes its origin.
         if(entry==null||entry.original()!=value&&(!immutableValueEquality||!entry.original().equals(value))) {
+            misses++;
             JsonElement tree=JSON.toJsonTree(value);int size=JSON.toJson(tree).getBytes(StandardCharsets.UTF_8).length;
             var literals=new IdentityHashMap<JsonElement,String>();
             if(tree.isJsonArray()){String raw=JSON.toJson(tree);if(raw.length()>=256){literals.put(tree,raw);size+=raw.getBytes(StandardCharsets.UTF_8).length;}}
@@ -50,23 +55,43 @@ public final class RuntimeAObservationJson {
             while(CACHE.size()>MAX_ROWS||bytes>MAX_BYTES){var iterator=CACHE.entrySet().iterator();var oldest=iterator.next();bytes-=oldest.getValue().bytes();iterator.remove();}
             var next=new IdentityHashMap<JsonElement,String>();for(Entry cached:CACHE.values())next.putAll(cached.literals());
             rawLiterals=Collections.unmodifiableMap(next);
-        }
+        }else hits++;
         return entry;
     }
+    public static synchronized Map<String,Long> stats(){return Map.of("hits",hits,"misses",misses,"entries",(long)CACHE.size(),"encodedBytes",(long)bytes,"literalCount",(long)rawLiterals.size());}
     /** Encode every field, reusing only exact strings of immutable captured children. */
-    public static String frame(JsonObject frame) {
+    public static String frame(JsonObject frame) {return encode(frame).data();}
+    public static Encoded encode(JsonObject frame) {
         var output=new StringWriter();
+        var spans=new ArrayList<RuntimeAObservationLog.Span>();
         try {var writer=JSON.newJsonWriter(output);writer.setHtmlSafe(true);writer.setSerializeNulls(false);
-            write(frame,writer,rawLiterals);writer.flush();return output.toString();
+            write(frame,writer,rawLiterals,0,output,spans);writer.flush();
+            return new Encoded(output.toString(),frame.has("time")?frame.get("time").getAsLong():-1,frame.has("pid")?frame.get("pid").getAsLong():-1,spans);
         }catch(IOException impossible){throw new IllegalStateException("In-memory observation encoding",impossible);}
     }
-    private static void write(JsonElement value,JsonWriter writer,Map<JsonElement,String> literals)throws IOException {
-        String raw=literals.get(value);if(raw!=null){writer.jsonValue(raw);return;}
+    // Modes: frame, player map, one player, jobs/runs map, leases array, ordinary value; -1 is a complete reference value.
+    private static int mode(int parent,String field) {
+        if(parent==0&&(field.equals("players")||field.equals("knownPlayers")))return 1;
+        if(parent==1)return 2;
+        if(parent==2&&(field.equals("jobs")||field.equals("runs")))return 3;
+        if(parent==2&&field.equals("leases"))return 4;
+        if(parent==3||parent==2&&field.equals("catalog"))return -1;
+        return 5;
+    }
+    private static void write(JsonElement value,JsonWriter writer,Map<JsonElement,String> literals,int mode,StringWriter output,List<RuntimeAObservationLog.Span> spans)throws IOException {
+        boolean selected=mode==-1;String raw=literals.get(value);int begin=-1;
+        // The leases array still visits its rows to capture each complete literal.
+        if(raw!=null&&mode!=4){writer.jsonValue(raw);if(selected&&raw.length()>=256)spans.add(new RuntimeAObservationLog.Span(output.getBuffer().length()-raw.length(),output.getBuffer().length()));return;}
         if(value!=null&&value.isJsonObject()){
-            writer.beginObject();for(var field:value.getAsJsonObject().entrySet()){writer.name(field.getKey());write(field.getValue(),writer,literals);}writer.endObject();
+            writer.beginObject();begin=output.getBuffer().length()-1;
+            for(var field:value.getAsJsonObject().entrySet()){writer.name(field.getKey());write(field.getValue(),writer,literals,mode(mode,field.getKey()),output,spans);}writer.endObject();
         }else if(value!=null&&value.isJsonArray()){
-            writer.beginArray();for(var item:value.getAsJsonArray())write(item,writer,literals);writer.endArray();
+            writer.beginArray();begin=output.getBuffer().length()-1;
+            for(var item:value.getAsJsonArray())write(item,writer,literals,mode==4?-1:5,output,spans);writer.endArray();
+        }else if(selected&&value!=null&&!value.isJsonNull()){
+            String literal=JSON.toJson(value);writer.jsonValue(literal);begin=output.getBuffer().length()-literal.length();
         }else com.google.gson.internal.Streams.write(value,writer);
+        int end=output.getBuffer().length();if(selected&&begin>=0&&end-begin>=256)spans.add(new RuntimeAObservationLog.Span(begin,end));
     }
     public static void main(String[] args) {
         UUID id=UUID.randomUUID();Object first=Map.of("id",id,"revision",1,"request",Map.of("principal","one","escaped","<>& λ \\\" \\\\ ".repeat(40)),"rows",List.of("λ","escaped \\\""));
