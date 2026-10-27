@@ -11,6 +11,13 @@ import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.sha25
 /** Test-only actual-metadata cost fixtures. Each copy has zero native effects and is never a gameplay Job. */
 public final class RuntimeAJobCost {
     private RuntimeAJobCost() { }
+    /** Diagnostic metadata-only CLI; never counts a fixture copy as native execution. */
+    public static void main(String[] args)throws IOException {
+        if(args.length!=1)throw new IllegalArgumentException("Exact extracted metadata root required");
+        Path target=Path.of(args[0]);var result=run(target,true);
+        Files.writeString(target.resolve("profile-result.json"),StrictJson.canonical(result));
+        System.out.println("A04_METADATA_PROFILE "+StrictJson.canonical(Map.of("fixture",true,"nativeEffects",0,"samples",64)));
+    }
     public static Map<String,Object> freeze(Path target,Path nativeWorld,KernelSession.RuntimeStorageView view)throws IOException {
         if(!view.ready() || view.jobs().jobs().size()!=64)throw new IOException("Freeze the actual quiescent old Job wall");
         Path template=target.resolve("template");Files.createDirectories(template.resolve(JobJournal.WORLD_RELATIVE_PATH));

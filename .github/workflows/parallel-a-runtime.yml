@@ -10,6 +10,7 @@ on:
       - '**/build.gradle'
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: cc-runtime-a-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
@@ -59,6 +60,14 @@ jobs:
         run: |
           python3 tools/needle/install.py build/needle
           python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
+      - name: Diagnostic CPU profile of exact retained A04 metadata
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 archive CPU profile') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/12729290176/zip > build/parallel-a/profile-source.zip
+          python3 e2e/parallel_a/profile_metadata.py --archive build/parallel-a/profile-source.zip --root build/parallel-a/cpu-profile
       - name: Retain contract results and exact built mod
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,6 +81,11 @@ jobs:
             build/parallel-a/observer-adaptation.json
             build/parallel-a/journal-probe/
             build/parallel-a/reference-log-self-test/
+            build/parallel-a/cpu-profile/input-provenance.json
+            build/parallel-a/cpu-profile/profile-result.json
+            build/parallel-a/cpu-profile/profile-process.log
+            build/parallel-a/cpu-profile/hot-stacks.json
+            build/parallel-a/cpu-profile/metadata.jfr
             build/e2e-sdk/integrity.json
             build/e2e-driver/*.jar
             core/build/test-results/test/
