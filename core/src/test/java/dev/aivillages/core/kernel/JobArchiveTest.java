@@ -115,7 +115,12 @@ final class JobArchiveTest {
             assertEquals(Reason.STALE_OBSERVATION,s.store.recordExecutionResult(old.id(),old.guard(),new Report(a.id(),a.generation(),a.effects()+1,a.usage(),a.receipts(),a.terminal()),s.owner).reason());
             assertEquals(Reason.REQUEST_INVALID,s.store.create(UUID.randomUUID(),old.submissionId(),old.request().request(),s.owner,
                     old.request().observation(),old.allowance(),List.of()).reason());assertEquals(before,s.store.snapshot());
-            Job fresh=s.assign(s.create(1));var b=fresh.current();var receipts=new ArrayList<>(JobLifecycleStoreTest.receipts(b,1));
+            Job ready=s.create(1);Snapshot admission=s.store.snapshot();
+            assertEquals(Reason.REQUEST_INVALID,s.store.assign(ready.id(),ready.guard(),a.id(),s.actor,JobLifecycleStoreTest.REF,List.of(JobLifecycleStoreTest.REF),ready.allowance(),s.owner).reason());
+            assertEquals(admission,s.store.snapshot());assertTrue(s.store.ready());
+            Job fresh=s.assign(ready);var b=fresh.current();
+            assertEquals(Reason.REQUEST_INVALID,s.store.pin(fresh.id(),fresh.guard(),a.executions().getFirst(),s.owner).reason());assertTrue(s.store.ready());
+            var receipts=new ArrayList<>(JobLifecycleStoreTest.receipts(b,1));
             var r=receipts.getFirst();receipts.set(0,new CropDelivery.CropReceipt(a.receipts().getFirst().receiptId(),r.runId(),r.batchId(),r.actor(),r.source(),r.destination(),r.stage(),r.wheat()));
             assertEquals(Reason.REQUEST_INVALID,s.store.recordExecutionResult(fresh.id(),fresh.guard(),new Report(b.id(),b.generation(),1,Map.of(),receipts,null),s.owner).reason());
         }

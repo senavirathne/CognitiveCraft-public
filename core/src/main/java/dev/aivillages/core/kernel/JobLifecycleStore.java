@@ -762,6 +762,7 @@ public final class JobLifecycleStore {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
+        if(history!=null && history.attemptOwner(attemptId)!=null)return reject(Reason.REQUEST_INVALID,work);
         try {
             if (!materialReady(job) || !ResourceDelivery.isDelivery(job.request().request().capability())
                     || (job.state() != State.READY && !(job.state() == State.WAITING && artifact == null))
@@ -803,6 +804,8 @@ public final class JobLifecycleStore {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
+        if(history!=null && history.executionOwner(reference.runId())!=null
+                && !history.executionOwner(reference.runId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
         Attempt a = job.current();
         if (job.state() != State.ACTIVE || a == null || !a.open()) return reject(Reason.REQUEST_INVALID, work);
         if (!reference.artifact().capability().equals(job.request().request().capability()))
@@ -1184,7 +1187,8 @@ public final class JobLifecycleStore {
             }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
                     List.copyOf(rows.values()), allocations);
-            if(history!=null)history.validateHot(next);
+            if(history!=null)try{history.validateHot(next);}
+            catch(IllegalArgumentException replay){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,inspectedEdges);}
             if (!retentionGuard.test(next)) return new Change(Code.REJECTED, null, Reason.STORAGE_UNAVAILABLE, inspectedEdges);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
             pending = next; afterWrite = after;

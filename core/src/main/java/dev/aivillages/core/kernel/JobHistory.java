@@ -34,14 +34,15 @@ public final class JobHistory {
         final long revision;
         final Map<UUID,Job> jobs,submissions;
         final Map<UUID,Allocation> allocations;
-        final Map<UUID,UUID> receipts,attempts;
+        final Map<UUID,UUID> receipts,attempts,executions;
         final Map<UUID,Snapshot> components;
         final Map<Contracts.TrustedContext,List<Job>> rootsByOrigin;
         final Roots roots;
         Index(long revision,Map<UUID,Job> jobs,Map<UUID,Job> submissions,Map<UUID,Allocation> allocations,
-              Map<UUID,UUID> receipts,Map<UUID,UUID> attempts,Map<UUID,Snapshot> components,Roots roots) {
+              Map<UUID,UUID> receipts,Map<UUID,UUID> attempts,Map<UUID,UUID> executions,Map<UUID,Snapshot> components,Roots roots) {
             this.revision=revision;this.jobs=Map.copyOf(jobs);this.submissions=Map.copyOf(submissions);
             this.allocations=Map.copyOf(allocations);this.receipts=Map.copyOf(receipts);this.attempts=Map.copyOf(attempts);
+            this.executions=Map.copyOf(executions);
             this.components=Map.copyOf(components);this.roots=roots;
             var groups=new HashMap<Contracts.TrustedContext,List<Job>>();
             for(Job job:jobs.values())if(job.parent()==null)groups.computeIfAbsent(job.origin(),ignored->new ArrayList<>()).add(job);
@@ -72,6 +73,8 @@ public final class JobHistory {
     public Job submission(UUID id){require();return index.submissions.get(id);}
     public Allocation allocation(UUID id){require();return index.allocations.get(id);}
     public UUID receiptOwner(UUID id){require();return index.receipts.get(id);}
+    UUID attemptOwner(UUID id){require();return index.attempts.get(id);}
+    UUID executionOwner(UUID id){require();return index.executions.get(id);}
     public Roots roots(){require();return index.roots;}
     public int size(){return index==null?0:index.jobs.size();}
     int allocationCount(){return index==null?0:index.allocations.size();}
@@ -102,19 +105,19 @@ public final class JobHistory {
                 for(Allocation allocation:component.allocations())exact(allocations,allocation.id(),allocation);
                 if(jobs.size()>JOBS || allocations.size()>ALLOCATIONS)throw new IllegalArgumentException("Job history index capacity");
             }
-            var submissions=new HashMap<UUID,Job>();var receipts=new HashMap<UUID,UUID>();var attempts=new HashMap<UUID,UUID>();
+            var submissions=new HashMap<UUID,Job>();var receipts=new HashMap<UUID,UUID>();var attempts=new HashMap<UUID,UUID>();var executions=new HashMap<UUID,UUID>();
             var artifacts=new HashSet<Contracts.ArtifactRef>();var runs=new HashSet<UUID>();
             for(Job job:jobs.values()) {
                 exact(submissions,job.submissionId(),job);receipts(job,receipts);
                 if(job.preparation()!=null && job.preparation().method()!=null)artifacts.add(job.preparation().method());
                 for(Attempt attempt:job.attempts()) {
                     exact(attempts,attempt.id(),job.id());runs.add(attempt.id());
-                    for(var execution:attempt.executions()){runs.add(execution.runId());artifacts.addAll(execution.pinned());}
+                    for(var execution:attempt.executions()){exact(executions,execution.runId(),job.id());runs.add(execution.runId());artifacts.addAll(execution.pinned());}
                 }
             }
             if(artifacts.size()>RetentionRoots.MAX_ROOTS)throw new IllegalArgumentException("History artifact roots capacity");
             Map<UUID,Snapshot> components=components(captured.worldId(),jobs.values(),allocations.values());
-            Index next=new Index(writer.snapshot().revision(),jobs,submissions,allocations,receipts,attempts,components,
+            Index next=new Index(writer.snapshot().revision(),jobs,submissions,allocations,receipts,attempts,executions,components,
                     new Roots(artifacts,runs,jobs.keySet(),true));
             validateHot(captured,next);index=next;
         }catch(StrictJson.Invalid | RuntimeException invalid){failed=true;throw new IOException("Invalid Job domain history",invalid);}
@@ -125,6 +128,7 @@ public final class JobHistory {
     void validateHot(Snapshot captured){require();validateHot(captured,index);}
     private static void validateHot(Snapshot hot,Index archived) {
         if(hot.jobs().size()+archived.jobs.size()>JOBS+64)throw new IllegalArgumentException("Bounded combined history");
+        var hotExecutions=new HashMap<UUID,UUID>();
         for(Job job:hot.jobs()) {
             Job prior=archived.jobs.get(job.id()),submission=archived.submissions.get(job.submissionId());
             if(prior!=null && !prior.equals(job) || submission!=null && !submission.id().equals(job.id()))
@@ -132,6 +136,10 @@ public final class JobHistory {
             for(Attempt attempt:job.attempts()) {
                 UUID owner=archived.attempts.get(attempt.id());
                 if(owner!=null && !owner.equals(job.id()))throw new IllegalArgumentException("Reused historical assignment");
+                for(var execution:attempt.executions()) {
+                    exact(hotExecutions,execution.runId(),job.id());UUID executionOwner=archived.executions.get(execution.runId());
+                    if(executionOwner!=null && !executionOwner.equals(job.id()))throw new IllegalArgumentException("Reused historical execution");
+                }
             }
             var receipts=new HashMap<UUID,UUID>();receipts(job,receipts);
             for(UUID receipt:receipts.keySet())if(archived.receipts.containsKey(receipt) && !archived.receipts.get(receipt).equals(job.id()))

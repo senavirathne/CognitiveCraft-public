@@ -22,8 +22,11 @@ public final class RuntimeAJobCost {
                 "sourceBytes",jobs.length,"sourceSha256",sha256(jobs),"hotJobs",64L,"fixture",true,"nativeEffects",0L);
         Files.writeString(target.resolve("frozen.json"),StrictJson.canonical(details));return details;
     }
-    public static Map<String,Object> run(Path target,boolean candidate)throws Exception {
-        var frozen=StrictJson.object(Files.readString(target.resolve("frozen.json")));UUID world=UUID.fromString((String)frozen.get("world"));
+    public static Map<String,Object> run(Path target,boolean candidate)throws IOException {
+        Map<String,Object> frozen;
+        try{frozen=StrictJson.object(Files.readString(target.resolve("frozen.json")));}
+        catch(StrictJson.Invalid invalid){throw new IOException("Invalid frozen metadata cost input",invalid);}
+        UUID world=UUID.fromString((String)frozen.get("world"));
         Snapshot source;try(var journal=JobJournal.open(target.resolve("template"),world)){source=journal.snapshot();}
         byte[] exact=JobJournal.encode(source);if(!sha256(exact).equals(frozen.get("sourceSha256")))throw new IOException("Benchmark source changed");
         var components=JobHistory.components(world,source.jobs(),source.allocations());var selected=new LinkedHashSet<UUID>();
