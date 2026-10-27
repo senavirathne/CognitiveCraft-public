@@ -67,6 +67,7 @@ public final class RuntimeAObservationLog {
             for(String field:List.of("jobs","runs")) {
                 var rows=data.getAsJsonObject(field);if(rows!=null)for(var row:rows.entrySet())literals.add(JSON.toJson(row.getValue()));
             }
+            var leases=data.getAsJsonArray("leases");if(leases!=null)for(var lease:leases)literals.add(JSON.toJson(lease));
             if(data.has("catalog"))literals.add(JSON.toJson(data.get("catalog")));
         }
         String template=frame;var references=new LinkedHashMap<String,String>();

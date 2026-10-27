@@ -197,9 +197,11 @@ def main():
         require(original['job'] in pinned,'Original uncertain native owner is absent')
         refusal=no_effect_refusal(h,'actual old 65th Job admission',('STORAGE_LIMIT_REACHED',));require(h.probe('status')['jobs']['hot']==64,'Old refusal created a Job')
         h.save_checkpoint();world=args.root/'server/game/world';shutil.copyfile(world/'data/cognitivecraft/jobs/v1/state.jsonl',args.root/'old-wall-native-jobs.jsonl')
-        frozen=h.wait(lambda:h.probe('freeze-benchmark'),'Actual old-wall metadata and archive frozen for cost fixtures',45);baseline=h.window('baseline')
-        result['cases'].append({'id':'actual-old-job-wall','status':'PASS','hot':before,'cycles':cycles,'refusal':refusal,'pinned':pinned,'frozen':frozen,'performance':baseline,
-                                'oldAuthorized':old_before,'foreignDenied':foreign_before})
+        frozen=h.wait(lambda:h.probe('freeze-benchmark'),'Actual old-wall metadata and archive frozen for cost fixtures',45)
+        old_wall={'id':'actual-old-job-wall','status':'PASS','hot':before,'cycles':cycles,'refusal':refusal,'pinned':pinned,'frozen':frozen,
+                  'oldAuthorized':old_before,'foreignDenied':foreign_before}
+        result['cases'].append(old_wall);atomic(args.root/'actual-old-job-wall.json',old_wall)
+        baseline=h.window('baseline');old_wall['performance']=baseline
         h.flags(True);restart=h.restart();enabled=h.stable();pinned_unchanged(enabled,pinned);candidate=h.window('candidate')
         require(baseline['io']['sourceSha256']==candidate['io']['sourceSha256'],'A04 metadata cost inputs changed')
         inventory=h.wait(lambda:h.probe('inventory'),'Acknowledged native Job archive',45)

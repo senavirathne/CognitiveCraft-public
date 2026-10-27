@@ -47,6 +47,21 @@ log_replacement='''if ("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
 assert adapted.count(log_original)==1
 adapted=adapted.replace(log_original,log_replacement)
+deferred={
+    'private final AtomicReference<String> pending = new AtomicReference<>();':
+        'private final AtomicReference<Object> pending = new AtomicReference<>();',
+    'if (++ticks % snapshotTicks == 0) pending.set(JSON.toJson(snapshot(server)));':
+        'if (++ticks % snapshotTicks == 0) {\n'
+        '                var captured = snapshot(server);\n'
+        '                pending.set("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE")) ? captured : JSON.toJson(captured));\n'
+        '            }',
+    'var data = pending.getAndSet(null);\n        if (data == null) return;':
+        'var captured = pending.getAndSet(null);\n        if (captured == null) return;\n'
+        '        String data = captured instanceof JsonObject frame ? JSON.toJson(frame) : (String)captured;',
+}
+for original,replacement in deferred.items():
+    assert adapted.count(original)==1,original
+    adapted=adapted.replace(original,replacement)
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)
@@ -98,7 +113,8 @@ assert digest(release) == before
     'observerSha256': digest(observer), 'claim': 'test-only existing chunk reads; unload gate still required',
     'replacements': replacements,
     'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
-        'format': 'exact UTF-8 templates with SHA-256 raw Job/run bodies; latest full snapshots unchanged',
+        'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
+        'serialization': 'immutable JSON frame captured on the server thread; full string encoding on the existing observer writer; same cadence and fields',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))
 probe = ROOT / 'build/parallel-a/journal-probe'
