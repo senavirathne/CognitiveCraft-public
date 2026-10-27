@@ -36,6 +36,10 @@ final class JobArchiveTest {
         byte[] unknown=StrictJson.canonical(envelope).getBytes(java.nio.charset.StandardCharsets.UTF_8);
         assertThrows(StrictJson.Invalid.class,()->JobHistoryCodec.decode(unknown,s.world));
         row.remove("unknownNestedField");
+        @SuppressWarnings("unchecked") var attempt=(Map<String,Object>)((List<?>)row.get("attempts")).getFirst();
+        @SuppressWarnings("unchecked") var request=(Map<String,Object>)attempt.get("request");request.put("unknownScopeField",1L);
+        byte[] unknownScope=StrictJson.canonical(envelope).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(StrictJson.Invalid.class,()->JobHistoryCodec.decode(unknownScope,s.world));request.remove("unknownScopeField");
         @SuppressWarnings("unchecked") var custody=(Map<String,Object>)((List<?>)envelope.get("custody")).getFirst();custody.put("disposition","NO_EFFECT");
         byte[] wrong=StrictJson.canonical(envelope).getBytes(java.nio.charset.StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class,()->JobHistoryCodec.decode(wrong,s.world));

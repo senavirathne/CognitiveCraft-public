@@ -13,10 +13,11 @@ final class JobCodec {
     }
     /** Shared structured row avoids encoding then reparsing the same immutable Job in an envelope. */
     static Map<String,Object> jobValue(Job job) {
+        var request=bound(job.request());
         var row = new LinkedHashMap<String,Object>();
         row.put("kind", "job"); row.put("schema", job.preparation()!=null ? 3L : resourceForm(job) ? 2L : (long)SCHEMA);
         row.put("id", job.id().toString()); row.put("submission", job.submissionId().toString());
-        row.put("revision", job.revision()); row.put("request", bound(job.request()));
+        row.put("revision", job.revision()); row.put("request", request);
         if (job.parent() != null) row.put("parent", job.parent().toString());
         row.put("dependencies", ids(job.dependencies())); row.put("children", ids(job.children()));
         row.put("state", job.state().name());
@@ -29,7 +30,7 @@ final class JobCodec {
             prepared.put("materials",job.preparation().materials().stream().map(m->Map.of("producer",m.producer().toString(),"item",m.item(),"quantity",m.quantity())).toList());
             row.put("preparation",prepared);
         }
-        row.put("attempts", job.attempts().stream().map(JobCodec::attempt).toList());
+        row.put("attempts", job.attempts().stream().map(a->attempt(a,a.bound().equals(job.request())?request:null)).toList());
         row.put("events", job.events().stream().map(e -> {
             var event = new LinkedHashMap<String,Object>();
             event.put("revision", e.revision()); event.put("kind", e.kind().name());
@@ -62,8 +63,9 @@ final class JobCodec {
             for(var v:list(p,"materials",8)){var m=map(v);exact(m,"producer","item","quantity");materials.add(new MaterialIntent(id(m,"producer"),string(m,"item","$"),number(m,"quantity","$")));}
             preparation=new Preparation(p.containsKey("method")?ref(object(p,"method","$")):null,materials);
         } else if(schema==3)throw new StrictJson.Invalid("$","PREPARATION_REQUIRED");
+        var requestRow=object(row,"request","$");var request=bound(requestRow);
         var attempts = new ArrayList<Attempt>();
-        for (Object value : list(row,"attempts",8)) attempts.add(attempt(map(value), schema));
+        for (Object value : list(row,"attempts",8)) attempts.add(attempt(map(value), schema,requestRow,request));
         var events = new ArrayList<Event>();
         for (Object value : list(row,"events",16)) {
             var event = map(value);
@@ -72,7 +74,7 @@ final class JobCodec {
                     optionalId(event,"attempt"), number(event,"generation","$")));
         }
         return new Job(id(row,"id"),id(row,"submission"),number(row,"revision","$"),
-                bound(object(row,"request","$")),optionalId(row,"parent"),uuidList(row,"dependencies",8),
+                request,optionalId(row,"parent"),uuidList(row,"dependencies",8),
                 uuidList(row,"children",8),State.valueOf(string(row,"state","$")),
                 row.containsKey("reason") ? Reason.valueOf(string(row,"reason","$")) : null,
                 row.containsKey("cancellationOutcome") ? State.valueOf(string(row,"cancellationOutcome","$")) : null,
@@ -86,10 +88,10 @@ final class JobCodec {
         return new Allocation(id(row,"id"),id(row,"producer"),id(row,"attempt"),id(row,"receipt"),
                 id(row,"demand"),number(row,"quantity","$"),row.containsKey("item")?string(row,"item","$"):"");
     }
-    private static Map<String,Object> attempt(Attempt attempt) {
+    private static Map<String,Object> attempt(Attempt attempt,Map<String,Object> sharedRequest) {
         var row = new LinkedHashMap<String,Object>();
         row.put("id",attempt.id().toString()); row.put("generation",attempt.generation());
-        row.put("worker",actor(attempt.worker())); row.put("request",bound(attempt.bound()));
+        row.put("worker",actor(attempt.worker())); row.put("request",sharedRequest==null?bound(attempt.bound()):sharedRequest);
         row.put("allowance",limits(attempt.allowance())); row.put("usage",usageMap(attempt.usage()));
         row.put("effects",attempt.effects()); row.put("credited",attempt.credited());
         row.put("uncertain",attempt.uncertain()); row.put("cancellationDeliveries",(long)attempt.cancellationDeliveries());
@@ -101,7 +103,7 @@ final class JobCodec {
         if (attempt.terminal() != null) row.put("terminal",strict(Outcomes.encode(attempt.terminal())));
         return row;
     }
-    private static Attempt attempt(Map<String,Object> row, long schema) throws StrictJson.Invalid {
+    private static Attempt attempt(Map<String,Object> row,long schema,Map<String,Object> requestRow,ValidatedRequest request) throws StrictJson.Invalid {
         fields(row,Set.of("id","generation","worker","request","allowance","usage","effects","credited",
                 "uncertain","cancellationDeliveries","executions","receipts"),
                 schema == 2 || schema == 3 ? Set.of("terminal","resourceReceipts") : Set.of("terminal"));
@@ -115,7 +117,8 @@ final class JobCodec {
         var receipts = new ArrayList<CropDelivery.CropReceipt>();
         for (Object value : list(row,"receipts",64)) receipts.add(receipt(map(value)));
         var resources = new ArrayList<ResourceDelivery.Receipt>();
-        var bound=bound(object(row,"request","$"));
+        var candidate=object(row,"request","$");
+        var bound=candidate.equals(requestRow)?request:bound(candidate);
         if(ResourceDelivery.resource(bound.request().capability()) && !row.containsKey("resourceReceipts"))
             throw new StrictJson.Invalid("$","RESOURCE_RECEIPTS_REQUIRED");
         if (row.containsKey("resourceReceipts"))
