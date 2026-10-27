@@ -14,6 +14,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.sha256;
+import jdk.jfr.Configuration;
+import jdk.jfr.Recording;
 
 /** A04 test observer only. Native effects still pass through the original production request/executor. */
 public final class RuntimeAJobProbe implements ModInitializer {
@@ -24,6 +26,7 @@ public final class RuntimeAJobProbe implements ModInitializer {
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private final AtomicBoolean busy=new AtomicBoolean();
     private final List<Map<String,Long>> captures=new ArrayList<>();
     private boolean readySent,measuring;private String seen="";
+    private Recording cpuProfile;private Path cpuProfilePath;
     public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE"))){mailbox.shutdown();baselineIo.shutdown();return;}
         mailbox.scheduleWithFixedDelay(this::poll,0,100,TimeUnit.MILLISECONDS);
@@ -41,6 +44,18 @@ public final class RuntimeAJobProbe implements ModInitializer {
                 }
                 if(op.equals("begin-window")){captures.clear();measuring=true;reply(id,map("status","PASS","startMillis",System.currentTimeMillis(),"startTick",server.overworld().getGameTime()),null);return;}
                 if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captures",List.copyOf(captures)),null);return;}
+                if(op.equals("start-profile")) {
+                    if(cpuProfile!=null)throw new IllegalStateException("Diagnostic already active");
+                    cpuProfilePath=root.resolve("server/a04-profile-"+id+".jfr");
+                    cpuProfile=new Recording(Configuration.getConfiguration("profile"));cpuProfile.setMaxSize(32L*1024*1024);cpuProfile.start();
+                    reply(id,map("status","PASS","startMillis",System.currentTimeMillis(),"startTick",server.overworld().getGameTime(),"recording",root.relativize(cpuProfilePath).toString()),null);return;
+                }
+                if(op.equals("stop-profile")) {
+                    if(cpuProfile==null)throw new IllegalStateException("No diagnostic active");
+                    Recording recording=cpuProfile;Path path=cpuProfilePath;cpuProfile=null;
+                    CompletableFuture.supplyAsync(()->{try(recording){recording.stop();recording.dump(path);return map("status","PASS","recording",root.relativize(path).toString(),"nativeEffects",0);}
+                        catch(IOException failure){throw new CompletionException(failure);}},baselineIo).whenComplete((value,error)->reply(id,value,error));return;
+                }
                 if(op.equals("lookup")) {
                     UUID principal=UUID.fromString(command.get("principal").getAsString()),jobId=UUID.fromString(command.get("job").getAsString());
                     var player=server.getPlayerList().getPlayer(principal);if(player==null)throw new IllegalArgumentException("Actual connected principal required");
@@ -80,10 +95,15 @@ public final class RuntimeAJobProbe implements ModInitializer {
                     CompletableFuture.supplyAsync(()->{try{return RuntimeAJobCost.run(root.resolve("job-cost"),false);}catch(Exception failure){throw new CompletionException(failure);}},baselineIo)
                             .whenComplete((value,error)->reply(id,value,error));return;
                 }
+                if(op.equals("baseline-profile-benchmark")) {
+                    CompletableFuture.supplyAsync(()->{try{return RuntimeAJobCost.diagnostic(root.resolve("job-cost"),false);}catch(IOException failure){throw new CompletionException(failure);}},baselineIo)
+                            .whenComplete((value,error)->reply(id,value,error));return;
+                }
                 Path nativeWorld=server.getWorldPath(LevelResource.ROOT);
                 var offered=kernel.runtimeHistory().offer(writer->{
                     if(op.equals("freeze-benchmark"))return map("status","PASS","frozen",RuntimeAJobCost.freeze(root.resolve("job-cost"),nativeWorld,view));
                     if(op.equals("candidate-benchmark"))return RuntimeAJobCost.run(root.resolve("job-cost"),true);
+                    if(op.equals("candidate-profile-benchmark"))return RuntimeAJobCost.diagnostic(root.resolve("job-cost"),true);
                     if(op.equals("inventory")) {
                         var rows=writer.historyView().rows(ArchiveFormat.Owner.JOBS,ArchiveFormat.Kind.HISTORY).stream()
                                 .map(r->map("id",r.id(),"sha256",sha256(r.payload()),"payload",new String(r.payload(),StandardCharsets.UTF_8))).toList();

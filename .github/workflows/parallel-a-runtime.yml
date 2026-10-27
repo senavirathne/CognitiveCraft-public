@@ -68,6 +68,10 @@ jobs:
         run: |
           gh api repos/${{ github.repository }}/actions/artifacts/12729290176/zip > build/parallel-a/profile-source.zip
           python3 e2e/parallel_a/profile_metadata.py --archive build/parallel-a/profile-source.zip --root build/parallel-a/cpu-profile
+      - name: Summarize separate post-failure native CPU recordings
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
+        run: python3 e2e/parallel_a/profile_native.py --root build/parallel-a/native
       - name: Retain contract results and exact built mod
         if: always()
         uses: actions/upload-artifact@v4

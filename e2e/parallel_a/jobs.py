@@ -55,15 +55,30 @@ class JobHarness(LeaseHarness):
     def lookup(self,job,foreign=False,**values):
         principal=self.snapshot()['knownPlayers']['PlayerB' if foreign else 'PlayerA']['uuid']
         return self.probe('lookup',job=job,principal=principal,**values)
-    def restart(self,expect_ready=True):
+    def restart(self,expect_ready=True,checkpoint=None):
         before=native_process(self);old=read(self.root/'server/job-ready.json')['process']
         clients={p:read(self.root/'clients'/p/'process.json') for p in self.players}
-        self.stop('server');self.start('server');reconnect_players(self,list(self.players))
+        self.stop('server')
+        if checkpoint is not None:shutil.copytree(self.root/'server/game/world',checkpoint,ignore=shutil.ignore_patterns('session.lock'))
+        self.start('server');reconnect_players(self,list(self.players))
         self.wait(lambda:(v if (v:=read(self.root/'server/job-ready.json')) and v['process']!=old else None),'Real A04 JVM replacement',75)
         after=native_process(self);require((before['hostJvmPid'],before['startTicks'])!=(after['hostJvmPid'],after['startTicks']),'Native JVM did not change')
         require(all(read(self.root/'clients'/p/'process.json')==v for p,v in clients.items()),'A04 replaced compatible clients')
         if expect_ready:self.stable()
         return {'before':before,'after':after,'sameClients':True}
+    def profile_failure(self,mode):
+        evidence={'diagnostic':True,'nativeEffects':0,'originalGate':'FAIL','configuration':mode};marker=None
+        try:
+            marker=self.probe('start-profile');evidence['begin']=marker
+            evidence['io']=self.probe(mode+'-profile-benchmark')
+            self.wait(lambda:window_reached(self.snapshot(),marker,LIMITS['ticks']),'Separate diagnostic window after the failed frozen gate',65)
+            evidence['collection']='PASS'
+        except Exception as error:evidence.update(collection='INCONCLUSIVE',reason=str(error))
+        finally:
+            if marker is not None:
+                try:evidence['end']=self.probe('stop-profile')
+                except Exception as error:evidence.update(collection='INCONCLUSIVE',stopReason=str(error))
+            atomic(self.root/(mode+'-cpu-profile.json'),evidence)
     def window(self,mode):
         self.quiet(100);begin=self.probe('begin-window');io=self.probe(mode+'-benchmark')
         self.wait(lambda:window_reached(self.snapshot(),begin,LIMITS['ticks']),'400 actual A04 cost-window game ticks after the marker',65)
@@ -80,6 +95,7 @@ class JobHarness(LeaseHarness):
                 'metric':raw['metric'],'workload':'same frozen actual 64-Job metadata; candidate additionally verifies archive and acknowledges 16-row hot removal; fixture setup excluded; zero fixture native effects'}
         result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();atomic(self.root/(mode+'-performance.json'),result)
         for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
+            if result[field][percentile]>LIMITS[limit]:self.profile_failure(mode)
             require(result[field][percentile]<=LIMITS[limit],f'Frozen A04 {mode} {field}/{percentile} exceeded {LIMITS[limit]} ms: '+json.dumps(result[field]))
         return result
 
@@ -204,7 +220,7 @@ def main():
                   'oldAuthorized':old_before,'foreignDenied':foreign_before}
         result['cases'].append(old_wall);atomic(args.root/'actual-old-job-wall.json',old_wall)
         baseline=h.window('baseline');old_wall['performance']=baseline
-        h.flags(True);restart=h.restart();enabled=h.stable();pinned_unchanged(enabled,pinned);candidate=h.window('candidate')
+        h.flags(True);restart=h.restart(checkpoint=args.root/'pre-archival-continuous-world');enabled=h.stable();pinned_unchanged(enabled,pinned);candidate=h.window('candidate')
         require(baseline['io']['sourceSha256']==candidate['io']['sourceSha256'],'A04 metadata cost inputs changed')
         inventory=h.wait(lambda:h.probe('inventory'),'Acknowledged native Job archive',45)
         hot_ids={j['id'] for j in enabled['hot']['jobs']};require(old_job not in hot_ids,'The pre-observed old known Job did not archive')

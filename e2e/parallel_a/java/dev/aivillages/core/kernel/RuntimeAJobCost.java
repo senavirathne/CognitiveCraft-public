@@ -18,6 +18,12 @@ public final class RuntimeAJobCost {
         Files.writeString(target.resolve("profile-result.json"),StrictJson.canonical(result));
         System.out.println("A04_METADATA_PROFILE "+StrictJson.canonical(Map.of("fixture",true,"nativeEffects",0,"samples",64)));
     }
+    public static Map<String,Object> diagnostic(Path target,boolean candidate)throws IOException {
+        Path separate=target.resolve("diagnostic-"+(candidate?"candidate":"baseline"));Files.createDirectory(separate);
+        Files.copy(target.resolve("frozen.json"),separate.resolve("frozen.json"));
+        copy(target.resolve("template"),separate.resolve("template"));
+        return run(separate,candidate);
+    }
     public static Map<String,Object> freeze(Path target,Path nativeWorld,KernelSession.RuntimeStorageView view)throws IOException {
         if(!view.ready() || view.jobs().jobs().size()!=64)throw new IOException("Freeze the actual quiescent old Job wall");
         Path template=target.resolve("template");Files.createDirectories(template.resolve(JobJournal.WORLD_RELATIVE_PATH));
