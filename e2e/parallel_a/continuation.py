@@ -25,6 +25,15 @@ def balance(frame,actor,destination):
     inventory=next(a['inventory'] for a in frame['actors'] if a['uuid']==actor)
     return frame['containers'].get(','.join(map(str,destination)),{}).get(LOG,0),inventory,calls(frame)
 
+def client_binding(frame,player,principal,selected=None):
+    data=(frame or {}).get('knownPlayers',{}).get(player)
+    if not data or data.get('uuid')!=principal:return None
+    rows=data.get('citizens',{}).get('citizens',[])
+    if not rows:return None
+    matches=[row['actor'] for row in rows if selected is None or row['actor']['citizenId']==selected]
+    assert len(matches)==1,'Continuation needs the same unambiguous owned citizen: '+player
+    return matches[0]
+
 def bind_port(path,port):
     original=path.read_bytes();match=re.search(rb'(?m)^server-port=([^\r\n]*)',original)
     assert match is not None
@@ -167,11 +176,25 @@ def start(h,archive):
     for name in ('models.json','independent-admissions.json'):shutil.copyfile(prior/name,h.root/name)
     h.companion=(previous['actor']['citizen'],previous['actor']['entity']);h.other_source=[326,208,66];h.other_destination=[333,208,72]
     h.compose('build','minecraft');h.start('server');h.start('PlayerA');h.start('PlayerB');h.companion_region();h.stable()
+    client_owners={}
+    for player,principal in h.players.items():
+        def observed_owner():
+            path=h.root/'server/snapshot.json'
+            if not path.exists():return None
+            raw=path.read_bytes();frame=json.loads(raw)
+            actor=client_binding(frame,player,principal,h.citizens.get(player))
+            return {'actor':actor,'frameTime':frame['time'],'frameSha256':hashlib.sha256(raw).hexdigest()} if actor else None
+        binding=h.wait(observed_owner,'Original owned citizen binding for connected '+player,45);actor=binding['actor']
+        require(h.entities.get(player,actor['entityId'])==actor['entityId'],'Continuation changed the selected native actor')
+        h.citizens[player]=actor['citizenId'];h.entities[player]=actor['entityId']
+        require(actor['citizenId'] in h.command(player,'/aivillage kernel citizens','citizens='),'Private native citizen query disagrees with the original binding')
+        client_owners[player]={'principal':principal,**binding}
+    atomic(h.root/'continuation-players.json',client_owners)
     ready=read(h.root/'server/job-ready.json');require(ready['world']==previous['world'],'Continuation created another world identity')
     current=(world/'data/cognitivecraft/jobs/v1/state.jsonl').read_bytes();header,payload=current.split(b'\n',1);header=json.loads(header)
     require(hashlib.sha256(payload).hexdigest()==header['sha256'] and [json.loads(line) for line in payload.splitlines()]==previous['originalRows'],'Continuation changed original Job bodies on startup')
     h.wait(lambda:(frame if (frame:=read(h.root/'server/secondary-snapshot.json')) and balance(frame,h.entities['PlayerA'],h.other_destination)[0]==len(previous['cycles']) else None),'Actual continued destination retains every original native delivery',40)
     evidence={k:previous[k] for k in ('world','worldHashes','sourceArchiveSha256','sourceArtifact','retainedIncompleteTails')}
     evidence.update(priorSource=previous['metadata']['sourceCommit'],productionJarSha256=PRODUCTION_SHA,retainedJobs=len(previous['originalRows']),retainedNativeDeliveries=len(previous['cycles']),
-                    newClientProcessesAtRunBoundary=True,sameClientsFromHere=True,newNativeProcess=native_process(h),originalSourceQualification='FAIL',configurationOverride=port)
+                    newClientProcessesAtRunBoundary=True,sameClientsFromHere=True,newNativeProcess=native_process(h),originalSourceQualification='FAIL',configurationOverride=port,clientOwners=client_owners)
     atomic(h.root/'continuation.json',evidence);return previous,evidence
