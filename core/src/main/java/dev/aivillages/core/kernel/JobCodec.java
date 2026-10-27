@@ -9,6 +9,10 @@ import static dev.aivillages.core.kernel.Outcomes.*;
 final class JobCodec {
     private JobCodec() { }
     static String job(Job job) {
+        return StrictJson.canonical(jobValue(job));
+    }
+    /** Shared structured row avoids encoding then reparsing the same immutable Job in an envelope. */
+    static Map<String,Object> jobValue(Job job) {
         var row = new LinkedHashMap<String,Object>();
         row.put("kind", "job"); row.put("schema", job.preparation()!=null ? 3L : resourceForm(job) ? 2L : (long)SCHEMA);
         row.put("id", job.id().toString()); row.put("submission", job.submissionId().toString());
@@ -33,13 +37,16 @@ final class JobCodec {
             if (e.attempt() != null) event.put("attempt", e.attempt().toString());
             return event;
         }).toList());
-        return StrictJson.canonical(row);
+        return row;
     }
     static String allocation(Allocation allocation) {
+        return StrictJson.canonical(allocationValue(allocation));
+    }
+    static Map<String,Object> allocationValue(Allocation allocation) {
         var row=new LinkedHashMap<String,Object>();row.put("kind","allocation");row.put("schema",allocation.material()?2L:(long)SCHEMA);
         row.put("id",allocation.id().toString());row.put("producer",allocation.producer().toString());row.put("attempt",allocation.attempt().toString());
         row.put("receipt",allocation.receipt().toString());row.put("demand",allocation.demand().toString());row.put("quantity",allocation.quantity());
-        if(allocation.material())row.put("item",allocation.item());return StrictJson.canonical(row);
+        if(allocation.material())row.put("item",allocation.item());return row;
     }
 
     static Job job(Map<String,Object> row) throws StrictJson.Invalid {

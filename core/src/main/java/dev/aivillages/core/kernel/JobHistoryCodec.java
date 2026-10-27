@@ -66,10 +66,10 @@ final class JobHistoryCodec {
             Custody disposition=custody(job,component);
             if(disposition==null)throw new IllegalArgumentException("Unsettled or unsupported residual custody");
             custody.add(Map.of("job",job.id().toString(),"disposition",disposition.name()));
-            jobs.add(json(JobCodec.job(job)));
+            jobs.add(JobCodec.jobValue(job));
         }
         component.allocations().stream().sorted(Comparator.comparing(a->a.id().toString()))
-                .forEach(a->allocations.add(json(JobCodec.allocation(a))));
+                .forEach(a->allocations.add(JobCodec.allocationValue(a)));
         return StrictJson.canonical(Map.of("schema",1L,"world",component.worldId().toString(),
                 "jobs",jobs,"allocations",allocations,"custody",custody)).getBytes(StandardCharsets.UTF_8);
     }
@@ -88,8 +88,10 @@ final class JobHistoryCodec {
         if(!Arrays.equals(payload,encode(component)))throw new IllegalArgumentException("Noncanonical Job history or custody disposition");
         return component;
     }
-    private static Map<String,Object> object(Object value)throws StrictJson.Invalid { return StrictJson.object(StrictJson.canonical(value)); }
-    private static Map<String,Object> json(String value) {
-        try{return StrictJson.object(value);}catch(StrictJson.Invalid impossible){throw new IllegalArgumentException(impossible);}
+    private static Map<String,Object> object(Object value)throws StrictJson.Invalid {
+        if(!(value instanceof Map<?,?> row) || row.keySet().stream().anyMatch(key->!(key instanceof String)))
+            throw new StrictJson.Invalid("$","OBJECT_REQUIRED");
+        @SuppressWarnings("unchecked") var typed=(Map<String,Object>)row;
+        return typed;
     }
 }

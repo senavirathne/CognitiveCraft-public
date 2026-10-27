@@ -26,6 +26,22 @@ final class JobArchiveTest {
         return new ClosureBundle(history,new JobArchive(s.store,history,writer,new ArchiveService(writer,background),PersistencePolicy.defaults()));
     }
     record ClosureBundle(JobHistory history,JobArchive archive) { }
+    @Test void structuredArchiveRowsKeepLegacyBytesAndRejectNestedUnknownsAndWrongCustody()throws Exception {
+        completed(3);Snapshot component=s.store.snapshot();byte[] original=JobHistoryCodec.encode(component);
+        var envelope=StrictJson.object(new String(original,java.nio.charset.StandardCharsets.UTF_8));
+        var rows=(List<?>)envelope.get("jobs");
+        for(int n=0;n<rows.size();n++)assertEquals(JobCodec.job(component.jobs().get(n)),StrictJson.canonical(rows.get(n)));
+        assertEquals(component.jobs(),JobHistoryCodec.decode(original,s.world).jobs());
+        @SuppressWarnings("unchecked") var row=(Map<String,Object>)rows.getFirst();row.put("unknownNestedField",1L);
+        byte[] unknown=StrictJson.canonical(envelope).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(StrictJson.Invalid.class,()->JobHistoryCodec.decode(unknown,s.world));
+        row.remove("unknownNestedField");
+        @SuppressWarnings("unchecked") var custody=(Map<String,Object>)((List<?>)envelope.get("custody")).getFirst();custody.put("disposition","NO_EFFECT");
+        byte[] wrong=StrictJson.canonical(envelope).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class,()->JobHistoryCodec.decode(wrong,s.world));
+        byte[] noncanonical=(" "+new String(original,java.nio.charset.StandardCharsets.UTF_8)).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class,()->JobHistoryCodec.decode(noncanonical,s.world));
+    }
     JobArchive.Closure closure(){return new JobArchive.Closure(s.store.snapshot().revision(),leaseRevision,references,pins,true);}
     void compact(JobArchive archive)throws Exception {
         archive.step(closure(),true);background.run();archive.step(closure(),true);
