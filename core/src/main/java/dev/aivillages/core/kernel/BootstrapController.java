@@ -546,9 +546,7 @@ public final class BootstrapController {
     }
     private boolean markerMayRetire(BootstrapJournal.RunMarker marker) {
         if(jobs==null)return true; // Preserve the legacy standalone bounded-summary contract.
-        return jobs.snapshot().jobs().stream().filter(j->j.submissionId().equals(marker.id())).anyMatch(j->
-                (j.state()==Jobs.State.SUCCEEDED || j.state()==Jobs.State.FAILED || j.state()==Jobs.State.CANCELLED)
-                        && j.attempts().stream().noneMatch(Jobs.Attempt::open));
+        return jobs.settledSubmission(marker.id());
     }
     private List<BootstrapJournal.RunMarker> withMarker(BootstrapJournal.RunMarker marker) {
         List<BootstrapJournal.RunMarker> entries = new ArrayList<>(persisted.runs());

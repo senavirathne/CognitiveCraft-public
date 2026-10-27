@@ -56,6 +56,8 @@ public final class JobLifecycleStore {
     private boolean fenced, readOnly;
     private Reason failure;
     private RecoveryEvidenceAuthority recoveryAuthority;
+    private JobHistory history;
+    private JobArchive archiving;
     private Snapshot indexed;
     private Map<TrustedContext, List<Job>> dispatchIndex = Map.of();
     private java.util.function.Predicate<Snapshot> retentionGuard = next -> true;
@@ -92,15 +94,34 @@ public final class JobLifecycleStore {
             if (changed) publish(rows, state.allocations(), null, null, 0);
         }
     }
-    public boolean ready() { thread(); return !readOnly && !fenced && pending == null; }
+    private boolean storageReady() { return !readOnly && !fenced && pending == null && (history==null || history.ready()); }
+    public boolean ready() { thread(); return storageReady() && archiving==null; }
     public Reason unavailableReason() {
-        thread(); return readOnly || fenced ? Reason.STORAGE_UNAVAILABLE
-                : pending != null ? Reason.BUDGET_EXHAUSTED : null;
+        thread(); return readOnly || fenced || history!=null && !history.ready() ? Reason.STORAGE_UNAVAILABLE
+                : pending != null || archiving!=null ? Reason.BUDGET_EXHAUSTED : null;
     }
     public Reason lastFailure() { thread(); return failure; }
     /** Trusted composition/retention seam, not an unscoped player query. */
     public Snapshot snapshot() { thread(); return state; }
     public Settings settings() { return settings; }
+    public void attachHistory(JobHistory history) {
+        thread();if(this.history!=null)throw new IllegalStateException("Job history already attached");
+        this.history=Objects.requireNonNull(history);
+    }
+    boolean beginArchive(JobArchive client,Snapshot expected) {
+        thread();if(!ready() || state!=expected)return false;archiving=Objects.requireNonNull(client);return true;
+    }
+    boolean archiveHeldBy(JobArchive client){thread();return archiving==client;}
+    void endArchive(JobArchive client) {
+        thread();if(archiving==client)archiving=null;else if(archiving!=null)throw new IllegalStateException("Job archive capture owner");
+    }
+    /** Only this owner's process-bound archive acknowledgement may remove a closed hot component. */
+    public boolean archive(JobArchive.Publication publication) {
+        thread();if(!storageReady() || publication==null || !publication.permits(this,state))return false;
+        Set<UUID> ids=publication.ids();var rows=rows();ids.forEach(rows::remove);
+        var allocations=state.allocations().stream().filter(a->!ids.contains(a.producer()) && !ids.contains(a.demand())).toList();
+        return publish(rows,allocations,null,null,0,true).code()==Code.PENDING;
+    }
 
     /** One process-local recovery client; Jobs remains the sole durable publisher. */
     public RecoveryEvidenceAuthority attachRecovery(TrustedStoppedSource source) {
@@ -164,7 +185,7 @@ public final class JobLifecycleStore {
     }
 
     public Job query(UUID id, TrustedContext caller) {
-        thread(); Job job = find(id);
+        thread(); Job job = historicalFind(id);
         if (job == null || !sameWorld(caller) || !policy.mayRead(caller, job))
             throw new SecurityException("Job unavailable in your scope");
         return job;
@@ -181,7 +202,7 @@ public final class JobLifecycleStore {
     }
     /** The scope owner revalidates current policy and original-owner consent before this host-only call. */
     public Job scopedQuery(UUID id, TrustedContext caller, NamedReadGrant grant) {
-        thread(); Job job = find(id);
+        thread(); Job job = historicalFind(id);
         if (job == null || caller == null || !sameWorld(caller) || grant == null
                 || !grant.jobId().equals(id) || !grant.origin().equals(job.origin())
                 || !policy.mayRead(caller, job) && !grant.readers().contains(caller))
@@ -206,8 +227,16 @@ public final class JobLifecycleStore {
     }
     public Optional<Job> bySubmission(UUID submission, TrustedContext caller) {
         thread();
-        return state.jobs().stream().filter(j -> j.submissionId().equals(submission)
-                && sameWorld(caller) && policy.mayRead(caller, j)).findFirst();
+        if(!sameWorld(caller))return Optional.empty();
+        Job job=state.jobs().stream().filter(j->j.submissionId().equals(submission)).findFirst().orElse(null);
+        if(job==null && history!=null)job=history.submission(submission);
+        return job!=null && policy.mayRead(caller,job)?Optional.of(job):Optional.empty();
+    }
+    /** Trusted bootstrap retention predicate. It exposes no Job, actor, outcome or foreign context. */
+    public boolean settledSubmission(UUID submission) {
+        thread();Job job=state.jobs().stream().filter(j->j.submissionId().equals(submission)).findFirst().orElse(null);
+        if(job==null && history!=null && history.ready())job=history.submission(submission);
+        return job!=null && job.state().terminal() && job.attempts().stream().noneMatch(Attempt::open);
     }
     public ReadyPage readyJobs(TrustedContext caller, int offset) {
         thread();
@@ -324,8 +353,9 @@ public final class JobLifecycleStore {
         if (!sameWorld(caller)) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
         try {
-            if (id == null || submission == null || find(id) != null
-                    || state.jobs().stream().anyMatch(j -> j.submissionId().equals(submission)))
+            if (id == null || submission == null || historicalFind(id) != null
+                    || state.jobs().stream().anyMatch(j -> j.submissionId().equals(submission))
+                    || history!=null && history.submission(submission)!=null)
                 return reject(Reason.REQUEST_INVALID, work);
             RequestValidator.Result validation = RequestValidator.validate(request, caller, observation,
                     capabilities, environment);
@@ -339,7 +369,8 @@ public final class JobLifecycleStore {
                 var billed=new Edit(job);billed.usage=Jobs.usage(Map.of(Budgets.Kind.INSTRUCTIONS,(long)initialInstructions,Budgets.Kind.OBSERVATIONS,(long)initialObservations));
                 job=billed.finish(EventKind.OBSERVED,settings.events());
             }
-            var rows = rows(); rows.put(id, job);
+            Snapshot base=withHistorical(dependencies);var rows = new LinkedHashMap<UUID,Job>();
+            base.jobs().forEach(j->rows.put(j.id(),j));rows.put(id, job);
             checkCapacity(rows);
             checkGraph(job.id(), rows, work);
             job = dependencyState(job, rows, false);
@@ -349,7 +380,7 @@ public final class JobLifecycleStore {
             for (UUID dependency : dependencies) if (rows.get(dependency).state() == State.CANCELLED
                     || rows.get(dependency).state() == State.FAILED) failed.add(dependency);
             propagate(rows, failed, work);
-            return publish(rows, state.allocations(), rows.get(id), null, work.edges);
+            return publish(rows, base.allocations(), rows.get(id), null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
         catch (IllegalArgumentException | NullPointerException | ArithmeticException invalid) {
             return reject(Reason.REQUEST_INVALID, work);
@@ -817,8 +848,26 @@ public final class JobLifecycleStore {
     private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
                            boolean reconciliation, boolean certain, boolean typedStopped) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
+        if(job==null && history!=null && history.ready() && sameWorld(caller)) {
+            Job archived=history.archived(id);
+            if(archived!=null && policy.mayControl(caller,archived)) {
+                Attempt attempt=archived.attempts().stream().filter(a->a.id().equals(report.attemptId())
+                        && a.generation()==report.generation()).findFirst().orElse(null);
+                return attempt!=null && archived.guard().equals(guard) && attempt.effects()==report.effects()
+                        && attempt.usage().equals(report.usage()) && attempt.receipts().equals(report.receipts())
+                        && attempt.resourceReceipts().equals(report.resourceReceipts()) && Objects.equals(attempt.terminal(),report.terminal())
+                        ?duplicate(archived,work):reject(Reason.STALE_OBSERVATION,work);
+            }
+        }
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
+        if(history!=null && history.archived(id)!=null) {
+            Attempt attempt=job.attempts().stream().filter(a->a.id().equals(report.attemptId()) && a.generation()==report.generation()).findFirst().orElse(null);
+            return attempt!=null && job.guard().equals(guard) && attempt.effects()==report.effects()
+                    && attempt.usage().equals(report.usage()) && attempt.receipts().equals(report.receipts())
+                    && attempt.resourceReceipts().equals(report.resourceReceipts()) && Objects.equals(attempt.terminal(),report.terminal())
+                    ?duplicate(job,work):reject(Reason.STALE_OBSERVATION,work);
+        }
         try {
             Attempt old = job.attempts().stream().filter(a -> a.id().equals(report.attemptId())
                     && a.generation() == report.generation()).findFirst().orElse(null);
@@ -830,6 +879,8 @@ public final class JobLifecycleStore {
             Map<UUID, CropDelivery.CropReceipt> receipts = new LinkedHashMap<>();
             old.receipts().forEach(r -> receipts.put(r.receiptId(), r));
             for (var receipt : report.receipts()) {
+                if(history!=null && history.receiptOwner(receipt.receiptId())!=null
+                        && !history.receiptOwner(receipt.receiptId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
                 validateReceipt(old, receipt);
                 var previous = receipts.putIfAbsent(receipt.receiptId(), receipt);
                 if (previous != null && !previous.equals(receipt)) return reject(Reason.REQUEST_INVALID, work);
@@ -841,6 +892,8 @@ public final class JobLifecycleStore {
             Map<UUID, ResourceDelivery.Receipt> resources = new LinkedHashMap<>();
             old.resourceReceipts().forEach(r -> resources.put(r.receiptId(),r));
             for (var receipt : report.resourceReceipts()) {
+                if(history!=null && history.receiptOwner(receipt.receiptId())!=null
+                        && !history.receiptOwner(receipt.receiptId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
                 validateReceipt(old,receipt);
                 var previous = resources.putIfAbsent(receipt.receiptId(),receipt);
                 if (previous != null && !previous.equals(receipt) || receipts.containsKey(receipt.receiptId()))
@@ -932,6 +985,10 @@ public final class JobLifecycleStore {
     }
     public Change cancel(UUID id, Guard guard, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
+        if(job==null && history!=null && history.ready() && sameWorld(caller)) {
+            Job archived=history.archived(id);
+            if(archived!=null && policy.mayControl(caller,archived))return duplicate(archived,work);
+        }
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         if(job.state()==State.SUCCEEDED && BlueprintMaterials.valid(job.request().request())) {
             Change denied=guard(job,guard,work);if(denied!=null)return denied;
@@ -1029,7 +1086,10 @@ public final class JobLifecycleStore {
                     for (var ref : a.executions()) { runs.add(ref.runId()); artifacts.addAll(ref.pinned()); }
                 }
             }
-        return new Roots(artifacts, runs, jobs, !readOnly && !fenced);
+        if(history!=null && history.ready()) {
+            Roots archived=history.roots();artifacts.addAll(archived.artifacts());runs.addAll(archived.runs());jobs.addAll(archived.jobs());
+        }
+        return new Roots(artifacts, runs, jobs, !readOnly && !fenced && (history==null || history.ready()));
     }
     /** One ack, or one durable notification preparation, per tick. */
     public void tick() {
@@ -1073,8 +1133,13 @@ public final class JobLifecycleStore {
     }
     private Change publish(Map<UUID, Job> rows, List<Allocation> allocations, Job changed,
                            Runnable after, int inspectedEdges) {
+        return publish(rows,allocations,changed,after,inspectedEdges,false);
+    }
+    private Change publish(Map<UUID, Job> rows, List<Allocation> allocations, Job changed,
+                           Runnable after, int inspectedEdges,boolean archival) {
         try {
-            if (!ready()) return new Change(Code.REJECTED, null, unavailableReason(), inspectedEdges);
+            if (!storageReady() || archiving!=null && !archival)
+                return new Change(Code.REJECTED, null, unavailableReason(), inspectedEdges);
             // Propagation can update accounting and state in the same transaction.
             // Publish one revision per changed job, including its bounded event summaries.
             for (Job prior : state.jobs()) {
@@ -1090,6 +1155,7 @@ public final class JobLifecycleStore {
             }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
                     List.copyOf(rows.values()), allocations);
+            if(history!=null)history.validateHot(next);
             if (!retentionGuard.test(next)) return new Change(Code.REJECTED, null, Reason.STORAGE_UNAVAILABLE, inspectedEdges);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
             pending = next; afterWrite = after;
@@ -1109,6 +1175,7 @@ public final class JobLifecycleStore {
     }
     private Change guard(Job job, Guard guard, Work work) {
         if (!ready()) return reject(unavailableReason(), work);
+        if(history!=null && history.archived(job.id())!=null)return reject(Reason.STALE_OBSERVATION,work);
         if (guard == null || !job.guard().equals(guard))
             return new Change(Code.CONFLICT, null, Reason.STALE_OBSERVATION, work.edges);
         return null;
@@ -1121,6 +1188,21 @@ public final class JobLifecycleStore {
         return caller != null && caller.scope().worldId().equals(state.worldId());
     }
     private Job find(UUID id) { return state.jobs().stream().filter(j -> j.id().equals(id)).findFirst().orElse(null); }
+    private Job historicalFind(UUID id) {
+        Job job=find(id);return job!=null || history==null?job:history.archived(id);
+    }
+    private Snapshot withHistorical(Collection<UUID> references) {
+        if(history==null)return state;
+        var jobs=rows();var allocations=new LinkedHashMap<UUID,Allocation>();state.allocations().forEach(a->allocations.put(a.id(),a));
+        for(UUID id:references)if(!jobs.containsKey(id)) {
+            Snapshot component=history.component(id);if(component==null)continue;
+            for(Job job:component.jobs())jobs.putIfAbsent(job.id(),job);
+            for(Allocation allocation:component.allocations())allocations.putIfAbsent(allocation.id(),allocation);
+        }
+        checkCapacity(jobs);
+        if(allocations.size()>settings.allocations())throw new Limited(Reason.STORAGE_LIMIT_REACHED);
+        return new Snapshot(state.worldId(),state.revision(),List.copyOf(jobs.values()),List.copyOf(allocations.values()));
+    }
     private LinkedHashMap<UUID, Job> rows() {
         var rows = new LinkedHashMap<UUID, Job>(); state.jobs().forEach(j -> rows.put(j.id(), j)); return rows;
     }

@@ -11,13 +11,23 @@ public final class KnowledgeAccessSource {
     private final Supplier<CitizenRegistry.Snapshot> identities;
     private final Supplier<Accomplishments.Snapshot> evidence;
     private final JobOutcomeSource outcomes;
+    private final JobHistory.Source history;
     private volatile CitizenRegistry.Snapshot currentCitizens;
     private volatile Jobs.Snapshot currentJobs;
     private volatile Set<Pair> present=Set.of();
     public KnowledgeAccessSource(Supplier<Jobs.Snapshot> jobs,Supplier<CitizenRegistry.Snapshot> identities,
                                  Supplier<Accomplishments.Snapshot> evidence){
+        this(jobs,identities,evidence,null);
+    }
+    private KnowledgeAccessSource(Supplier<Jobs.Snapshot> jobs,Supplier<CitizenRegistry.Snapshot> identities,
+                                 Supplier<Accomplishments.Snapshot> evidence,JobHistory.Source history){
         this.jobs=Objects.requireNonNull(jobs);this.identities=Objects.requireNonNull(identities);
-        this.evidence=Objects.requireNonNull(evidence);outcomes=new JobOutcomeSource(jobs,identities);
+        this.evidence=Objects.requireNonNull(evidence);this.history=history;
+        outcomes=history==null?new JobOutcomeSource(jobs,identities):JobOutcomeSource.withHistory(history,identities);
+    }
+    public static KnowledgeAccessSource withHistory(Supplier<Jobs.Snapshot> jobs,Supplier<CitizenRegistry.Snapshot> identities,
+                                 Supplier<Accomplishments.Snapshot> evidence,JobHistory.Source history){
+        return new KnowledgeAccessSource(jobs,identities,evidence,Objects.requireNonNull(history));
     }
     /** Host composition only. No Minecraft object, synchronous I/O or world change is retained. */
     public void observe(CitizenRegistry.Snapshot citizens,Jobs.Snapshot work,Set<Pair> presence){
@@ -32,15 +42,17 @@ public final class KnowledgeAccessSource {
     boolean controls(Enrollment actor){return actor!=null&&actor.equals(enrollment(actor.actor()));}
     boolean present(Enrollment teacher,Enrollment learner){return controls(teacher)&&controls(learner)
             &&present.contains(new Pair(teacher.actor(),learner.actor()));}
-    Jobs.Job job(UUID id){var state=jobs();return state==null?null:state.jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);}
+    Jobs.Job job(UUID id){var state=jobs();var hot=state==null?null:state.jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);
+        return hot!=null || history==null?hot:history.read().job(id);}
     boolean qualified(Enrollment teacher,ArtifactRef method){
         var state=evidence.get();if(state==null||!state.world().equals(teacher.owner().scope().worldId()))return false;
         return state.aggregates().stream().anyMatch(a->a.key().actor().equals(teacher.actor())&&a.key().origin().equals(teacher.owner())
                 &&a.key().method().equals(method)&&a.completedJobs()>=1&&a.quantity()>=2&&a.contributionSamples()>=1);
     }
     Jobs.Job verified(UUID id,JobOutcomeSource.Work work){
-        var state=jobs.get();if(state==null)throw new JobOutcomeSource.Invalid();
-        var job=state.jobs().stream().filter(j->j.id().equals(id)).findFirst().orElseThrow(JobOutcomeSource.Invalid::new);
+        Jobs.Job job;
+        try{job=history==null?job(id):history.read().job(id);}catch(IllegalStateException unavailable){throw new JobOutcomeSource.Invalid();}
+        if(job==null)throw new JobOutcomeSource.Invalid();
         return outcomes.readDelivery(Accomplishments.OutcomeRef.of(job),work).job();
     }
     /** Ledger progress and actual Jobs receipts must both support the exact successful run. */
