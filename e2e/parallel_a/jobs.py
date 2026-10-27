@@ -16,6 +16,7 @@ from leases import LeaseHarness
 from baseline import interruption,native_process,same_native_alive,percentiles
 from persistence import LIMITS
 from performance_window import reached as window_reached
+from continuation import terminal as frame_terminal,balance as frame_balance,start as continue_world
 from suite import ROOT,atomic,read,require,reconnect_players
 from generalization_support import LOG,DST,at,coord,Inconclusive
 from generalization import acquisition,receipts
@@ -51,7 +52,30 @@ class JobHarness(LeaseHarness):
                 and value['leases']['hot']<96 and (not self.writes or value['jobs']['hot']<48) else None
         return self.wait(status,'Acknowledged native Job/lease history under the original limits',70)
     def one(self):
-        self.stable();return super().one()
+        self.stable();self.actions_active=False;self.console(['setblock '+coord(self.other_source)+' minecraft:oak_log'])
+        def frame():
+            path=self.root/'server/secondary-snapshot.json';raw=path.read_bytes() if path.exists() else b''
+            if not raw:return None
+            value=json.loads(raw);return value,hashlib.sha256(raw).hexdigest()
+        before,before_hash=self.wait(lambda:(v if (v:=frame()) and LOG in v[0]['blocks'].get(','.join(map(str,self.other_source)),'') else None),
+                                      'Single secondary frame acknowledges the explicit source fixture',40)
+        stock,before_inventory,calls=frame_balance(before,self.entities['PlayerA'],self.other_destination)
+        require(not before_inventory,'Companion has unexplained custody before another task')
+        self.actions_active=True;run=self.submit(LOG,1,minimum=self.other_source,maximum=self.other_source,destination=self.other_destination);self.finish_run(run)
+        try:
+            after,after_hash=self.wait(lambda:(v if (v:=frame()) and v[0]['time']>=before['time'] and frame_terminal(v[0],run) else None),
+                                       'One complete secondary frame contains both terminal outcome and native custody',20)
+        except TimeoutError as missing:raise Inconclusive('Terminal secondary observation window missing') from missing
+        view=frame_terminal(after,run);actual,inventory,after_calls=frame_balance(after,self.entities['PlayerA'],self.other_destination)
+        evidence={'run':run,'view':view,'beforeDestination':stock,'afterDestination':actual,'modelCallsUnchanged':after_calls==calls,
+                  'modelCallsBefore':calls,'modelCallsAfter':after_calls,'brokerStats':after['brokerStats'],
+                  'beforeFrameTime':before['time'],'afterFrameTime':after['time'],'beforeFrameSha256':before_hash,'afterFrameSha256':after_hash}
+        valid=view.get('marker',{}).get('outcome')=='SUCCEEDED' and all(receipts(view,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')) \
+              and actual==stock+1 and not inventory and after_calls==calls
+        if not valid:
+            atomic(self.root/('conservation-failed-'+run+'.json'),{'before':before,'after':after,'inventory':inventory,'evidence':evidence})
+        require(valid,'Single-frame native delivery/custody/model contract failed: '+json.dumps({'run':run,'before':stock,'after':actual,'inventory':inventory,'callsBefore':calls,'callsAfter':after_calls}))
+        return evidence
     def lookup(self,job,foreign=False,**values):
         principal=self.snapshot()['knownPlayers']['PlayerB' if foreign else 'PlayerA']['uuid']
         return self.probe('lookup',job=job,principal=principal,**values)
@@ -194,13 +218,19 @@ def corrupt_required(h,backup,kind,old_job,pinned):
     atomic(case/'result.json',evidence);restore(h,world,backup,case);return evidence
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);args=parser.parse_args();args.root.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);parser.add_argument('--resume-archive',type=Path);args=parser.parse_args();args.root.mkdir(parents=True,exist_ok=True)
     result={'stage':'A04','status':'NOT_EXECUTED','cases':[]};h=None
     try:
-        h=JobHarness(args.root);h.flags(False);h.bootstrap([LOG]);h.family='A04-native-positive';control=acquisition(h,2,[at(6,2),at(9,2)])
-        result['cases'].append({'id':'native-positive-control','status':'PASS','evidence':control})
-        case=args.root/'pinned-original';case.mkdir();h.family='A04-native-original';original=interruption(h,True,case);h.stable();h.companion_region()
-        cycles=[]
+        h=JobHarness(args.root);h.flags(False)
+        if args.resume_archive:
+            previous,continuation=continue_world(h,args.resume_archive);result['continuation']=continuation
+            control=next(c['evidence'] for c in previous['priorResult']['cases'] if c['id']=='native-positive-control')
+            result['cases'].append({'id':'native-positive-control','status':'PASS','evidence':control,'sourceArtifact':12732465516})
+            original=previous['original'];cycles=previous['cycles']
+        else:
+            h.bootstrap([LOG]);h.family='A04-native-positive';control=acquisition(h,2,[at(6,2),at(9,2)])
+            result['cases'].append({'id':'native-positive-control','status':'PASS','evidence':control})
+            case=args.root/'pinned-original';case.mkdir();h.family='A04-native-original';original=interruption(h,True,case);h.stable();h.companion_region();cycles=[]
         for n in range(64):
             status=h.stable()
             if status['jobs']['hot']==64:break

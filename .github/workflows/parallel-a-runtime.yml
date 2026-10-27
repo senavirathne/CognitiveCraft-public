@@ -57,9 +57,18 @@ jobs:
       - name: Actual continuous-world A04 Job history and witnessed crash gates
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_A04: >-
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-4517') }}
         run: |
           python3 tools/needle/install.py build/needle
-          python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
+          if [ "$RESUME_A04" = true ]; then
+            gh api repos/${{ github.repository }}/actions/artifacts/12732465516/zip > build/parallel-a/prior-4517-native.zip
+            python3 e2e/parallel_a/jobs.py --root build/parallel-a/native --resume-archive build/parallel-a/prior-4517-native.zip
+          else
+            python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
+          fi
       - name: Diagnostic CPU profile of exact retained A04 metadata
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 archive CPU profile') }}
