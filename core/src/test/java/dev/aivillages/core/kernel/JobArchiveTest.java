@@ -29,7 +29,8 @@ final class JobArchiveTest {
     JobArchive.Closure closure(){return new JobArchive.Closure(s.store.snapshot().revision(),leaseRevision,references,pins,true);}
     void compact(JobArchive archive)throws Exception {
         archive.step(closure(),true);background.run();archive.step(closure(),true);
-        s.store.tick();archive.step(closure(),true);assertTrue(s.store.ready(),archive.status().toString());
+        if(!s.store.ready()){s.store.tick();archive.step(closure(),true);}
+        assertTrue(s.store.ready(),archive.status().toString());
     }
     @Test void realOldCapacityCheckPrecedesArchivalAndHotLimitsRemainUnchanged()throws Exception {
         completed(64);Snapshot full=s.store.snapshot();
