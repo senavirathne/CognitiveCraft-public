@@ -1,12 +1,14 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Jobs.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
 
 /** Strict schema-1 job records; existing request/outcome codecs retain their meanings. */
 final class JobCodec {
+    private static final Pattern UUID_TEXT=Pattern.compile("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}");
     private JobCodec() { }
     static String job(Job job) {
         return StrictJson.canonical(jobValue(job));
@@ -315,7 +317,7 @@ final class JobCodec {
     }
     private static UUID id(Map<String,Object> row,String key) throws StrictJson.Invalid {
         String value = string(row,key,"$");
-        if (!value.matches("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"))
+        if (!UUID_TEXT.matcher(value).matches())
             throw new StrictJson.Invalid("$."+key,"UUID");
         return UUID.fromString(value);
     }
