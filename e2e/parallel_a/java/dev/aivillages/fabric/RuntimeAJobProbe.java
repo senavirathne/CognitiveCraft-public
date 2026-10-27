@@ -133,7 +133,7 @@ public final class RuntimeAJobProbe implements ModInitializer {
     }
     private Map<String,Object> jvm() {
         var runtime=ManagementFactory.getRuntimeMXBean();var heap=ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
-        return map("pid",ProcessHandle.current().pid(),"startMillis",runtime.getStartTime(),"timeMillis",System.currentTimeMillis(),
+        return map("pid",ProcessHandle.current().pid(),"startMillis",runtime.getStartTime(),"timeMillis",System.currentTimeMillis(),"availableProcessors",Runtime.getRuntime().availableProcessors(),
                 "inputArguments",runtime.getInputArguments(),"heap",map("initBytes",heap.getInit(),"usedBytes",heap.getUsed(),"committedBytes",heap.getCommitted(),"maxBytes",heap.getMax()),
                 "collectors",ManagementFactory.getGarbageCollectorMXBeans().stream().map(gc->map("name",gc.getName(),"count",gc.getCollectionCount(),"millis",gc.getCollectionTime())).toList());
     }

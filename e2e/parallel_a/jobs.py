@@ -120,6 +120,8 @@ class JobHarness(LeaseHarness):
         result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();result['encodingStats']=captures.get('encodingStats');result['jvm']={'begin':begin.get('jvm'),'end':captures.get('jvm')}
         atomic(self.root/(mode+'-performance.json'),result)
         print('A04_PERFORMANCE '+json.dumps({'configuration':mode,**{k:result[k] for k in ('tick','capture','ack','rawSha256','encodingStats','jvm')}}),flush=True)
+        require(process['containerResources']=={'cpusetCpus':'0-1','memoryBytes':2*1024**3},'A04 server CPU/memory configuration differs from the predeclared allocation')
+        require(all(v and v['availableProcessors']==2 and {'-Xms256M','-Xmx1536M','-XX:G1HeapRegionSize=2M','-XX:MaxGCPauseMillis=10'}<=set(v['inputArguments']) for v in result['jvm'].values()),'A04 observed JVM differs from the predeclared same-cap CPU/GC configuration')
         for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
             if result[field][percentile]>LIMITS[limit]:self.profile_failure(mode)
             require(result[field][percentile]<=LIMITS[limit],f'Frozen A04 {mode} {field}/{percentile} exceeded {LIMITS[limit]} ms: '+json.dumps(result[field]))

@@ -1,8 +1,13 @@
 services:
   minecraft:
+    cpuset: '0-1'
     environment:
       COGNITIVECRAFT_RUNTIME_HISTORY: '${COGNITIVECRAFT_A04_RUNTIME_HISTORY:-true}'
       COGNITIVECRAFT_LEASE_HISTORY: '${COGNITIVECRAFT_A04_LEASE_HISTORY:-true}'
       COGNITIVECRAFT_JOB_HISTORY: '${COGNITIVECRAFT_A04_JOB_HISTORY:-false}'
       COGNITIVECRAFT_A04_PROBE: 'true'
-      JAVA_TOOL_OPTIONS: '-Xlog:gc*,safepoint:file=/evidence/server/a04-gc-%t-%p.log:time,uptime,level,tags:filecount=4,filesize=8M'
+      JAVA_TOOL_OPTIONS: '-XX:G1HeapRegionSize=2M -XX:MaxGCPauseMillis=10 -Xlog:gc*,safepoint:file=/evidence/server/a04-gc-%t-%p.log:time,uptime,level,tags:filecount=4,filesize=8M'
+  client-a:
+    cpuset: '2'
+  client-b:
+    cpuset: '3'

@@ -72,6 +72,7 @@ def native_process(h):
     pid=int(jvms[0][0]);stat=Path(f'/proc/{pid}/stat').read_text().split(') ',1)[1].split()
     return {'hostJvmPid':pid,'hostParentPid':int(jvms[0][1]),'startTicks':int(stat[19]),
             'containerId':info['Id'],'containerStartedAt':info['State']['StartedAt'],
+            'containerResources':{'cpusetCpus':info['HostConfig'].get('CpusetCpus',''),'memoryBytes':info['HostConfig'].get('Memory',0)},
             'namespaceProcess':read(h.root/'server/process.json')}
 
 
