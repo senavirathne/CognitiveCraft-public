@@ -115,6 +115,7 @@ assert digest(release) == before
     'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
         'serialization': 'immutable JSON frame captured on the server thread; full string encoding on the existing observer writer; same cadence and fields',
+        'references': 'single scan of exact authorized row spans; one template expansion verifies original bytes; no whole-frame replacement per row',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))
 probe = ROOT / 'build/parallel-a/journal-probe'

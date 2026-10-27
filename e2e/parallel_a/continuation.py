@@ -8,6 +8,7 @@ from zipfile import ZipFile
 from observation_refs import restore
 
 ARCHIVE_SHA='e2a8ec4206327e6ff7fe0dc7a3de427490d943c06032d39529257eea479f9881'
+CONTINUED_SHA='aabdaeb532c09c4bc6df602fa333648c2949fd6fe7f197418d7c53b3f5d6449a'
 PRODUCTION_SHA='668287bd6226e6a9e4b1edabcc7d2d91e115eb1e5605bbef29c8d451dd3ae66e'
 LOG='minecraft:oak_log'
 
@@ -32,6 +33,7 @@ def bind_port(path,port):
     return {'setting':'server-port','before':match[1].decode(),'after':port,'beforeSha256':hashlib.sha256(original).hexdigest(),'afterSha256':hashlib.sha256(changed).hexdigest()}
 
 def read_input(archive,target):
+    if sha(archive)==CONTINUED_SHA:return read_continued(archive,target)
     assert sha(archive)==ARCHIVE_SHA
     target=Path(target);target.mkdir(parents=True,exist_ok=False)
     with ZipFile(archive) as source:
@@ -102,6 +104,53 @@ def read_input(archive,target):
     return {'metadata':metadata,'priorResult':result,'cycles':cycles,'original':original,'actor':actor,'world':header['world'],
             'originalRows':rows,'worldHashes':world_hashes,'retainedIncompleteTails':tail,'sourceArchiveSha256':ARCHIVE_SHA,'sourceArtifact':12732465516}
 
+def read_continued(archive,target):
+    assert sha(archive)==CONTINUED_SHA
+    target=Path(target);target.mkdir(parents=True,exist_ok=False)
+    with ZipFile(archive) as source:
+        assert source.testzip() is None
+        chosen=[]
+        for entry in source.infolist():
+            name=entry.filename;parts=PurePosixPath(name);assert not parts.is_absolute() and '..' not in parts.parts
+            if entry.is_dir():continue
+            if (name.startswith('server/game/world/') or name.startswith('server/observation-bodies/')
+                or name.startswith('server/secondary-observations.refs-') or name in {
+                    'metadata.json','a04-results.json','actual-old-job-wall.json','continuation.json','continuation-input.zip',
+                    'independent-admissions.json','models.json','server/game/ops.json','server/game/usercache.json',
+                    'server/game/whitelist.json','server/game/banned-ips.json','server/game/banned-players.json','server/game/server.properties'}):chosen.append(entry)
+        assert len(chosen)<8192 and sum(e.file_size for e in chosen)<3*1024**3
+        for entry in chosen:source.extract(entry,target)
+    previous=read_input(target/'continuation-input.zip',target/'original-source')
+    read=lambda p:json.loads(p.read_text())
+    metadata=read(target/'metadata.json');result=read(target/'a04-results.json')
+    assert metadata['sourceCommit']=='3dde48b98af1030b90bc882f28aa13704b473312' and not metadata['dirty'] and metadata['releaseSha256']==PRODUCTION_SHA
+    assert result['status']=='FAIL' and result['reason'].startswith('Frozen A04 baseline tick/p95 exceeded 20 ms')
+    old=read(target/'actual-old-job-wall.json');assert old['id']=='actual-old-job-wall' and old['status']=='PASS'
+    cycles=old['cycles'];assert len(cycles)==61 and cycles[:52]==previous['cycles']
+    raw=(target/'server/game/world/data/cognitivecraft/jobs/v1/state.jsonl').read_bytes();header,payload=raw.split(b'\n',1);header=json.loads(header)
+    assert header['world']==previous['world'] and hashlib.sha256(payload).hexdigest()==header['sha256']
+    rows=[json.loads(line) for line in payload.splitlines()];assert header['records']==len(rows)==64
+    jobs={j['id']:j for j in rows};assert all(jobs[j['id']]==j for j in previous['originalRows'])
+    assert {j['id'] for j in rows if j['state']=='INTERRUPTED'}=={previous['original']['job']}
+    wanted={c[k] for c in cycles[52:] for k in ('beforeFrameSha256','afterFrameSha256')};frames={};tails=[]
+    for path in sorted((target/'server').glob('secondary-observations.refs-*.jsonl')):
+        for number,line in enumerate(path.open('rb'),1):
+            if not line.endswith(b'\n'):tails.append({'path':path.name,'line':number,'sha256':hashlib.sha256(line).hexdigest()});break
+            wrapper=json.loads(line)
+            if wrapper['originalSha256'] in wanted:frames[wrapper['originalSha256']]=json.loads(restore(wrapper,target/'server/observation-bodies'))
+    assert set(frames)==wanted
+    for n,cycle in enumerate(cycles[52:],53):
+        before=frames[cycle['beforeFrameSha256']];after=frames[cycle['afterFrameSha256']];view=terminal(after,cycle['run'])
+        assert view==cycle['view'] and view['marker']['outcome']=='SUCCEEDED' and jobs[view['responsibility']['id']]['state']=='SUCCEEDED'
+        stock,inventory,after_calls=balance(after,previous['actor']['entity'],[333,208,72]);before_stock,before_inventory,before_calls=balance(before,previous['actor']['entity'],[333,208,72])
+        assert before_stock==n-1 and stock==n and not inventory and not before_inventory and before_calls==after_calls
+        assert before['time']==cycle['beforeFrameTime']<cycle['afterFrameTime']==after['time'] and LOG in before['blocks']['326,208,66']
+        assert all(sum(r['quantity'] for r in view['resourceReceipts'] if r['stage']==s and r['item']['id']==LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT'))
+    world=target/'server/game/world';world_hashes={p.relative_to(world).as_posix():sha(p) for p in world.rglob('*') if p.is_file() and p.name!='session.lock'}
+    previous.update(metadata=metadata,priorResult=result,cycles=[dict(c,sourceArtifact=c.get('sourceArtifact',12735341658)) for c in cycles],
+                    originalRows=rows,worldHashes=world_hashes,retainedIncompleteTails=tails,sourceArchiveSha256=CONTINUED_SHA,sourceArtifact=12735341658)
+    return previous
+
 def start(h,archive):
     from suite import ROOT,read,atomic,require
     from baseline import native_process
@@ -111,7 +160,7 @@ def start(h,archive):
     prior=h.root.parent/('a04-prior-'+h.root.name);shutil.copytree(prior/'server/game',h.root/'server/game',ignore=shutil.ignore_patterns('session.lock'))
     world=h.root/'server/game/world';require({p.relative_to(world).as_posix():sha(p) for p in world.rglob('*') if p.is_file()}==previous['worldHashes'],'Whole-world continuation changed source bytes before boot')
     port=bind_port(h.root/'server/game/server.properties',h.port)
-    atomic(h.root/'continuation-import.json',{'sourceArtifact':12732465516,'sourceArchiveSha256':ARCHIVE_SHA,'world':previous['world'],
+    atomic(h.root/'continuation-import.json',{'sourceArtifact':previous['sourceArtifact'],'sourceArchiveSha256':previous['sourceArchiveSha256'],'world':previous['world'],
                                            'worldHashes':previous['worldHashes'],'productionJarSha256':PRODUCTION_SHA,'configurationOverride':port,'nativeEffects':0})
     shutil.copytree(ROOT/'build/needle',h.root/'needle');h.env.update(COGNITIVECRAFT_OLLAMA_MODEL='qwen3:4b-instruct-2507-q4_K_M',COGNITIVECRAFT_NEEDLE_DIR='/evidence/needle')
     h.hashes=read(prior/'independent-admissions.json')['artifacts'];h.admissions=read(prior/'independent-admissions.json')['admissions']
@@ -121,8 +170,8 @@ def start(h,archive):
     ready=read(h.root/'server/job-ready.json');require(ready['world']==previous['world'],'Continuation created another world identity')
     current=(world/'data/cognitivecraft/jobs/v1/state.jsonl').read_bytes();header,payload=current.split(b'\n',1);header=json.loads(header)
     require(hashlib.sha256(payload).hexdigest()==header['sha256'] and [json.loads(line) for line in payload.splitlines()]==previous['originalRows'],'Continuation changed original Job bodies on startup')
-    h.wait(lambda:(frame if (frame:=read(h.root/'server/secondary-snapshot.json')) and balance(frame,h.entities['PlayerA'],h.other_destination)[0]==52 else None),'Actual continued destination retains all 52 original native deliveries',40)
+    h.wait(lambda:(frame if (frame:=read(h.root/'server/secondary-snapshot.json')) and balance(frame,h.entities['PlayerA'],h.other_destination)[0]==len(previous['cycles']) else None),'Actual continued destination retains every original native delivery',40)
     evidence={k:previous[k] for k in ('world','worldHashes','sourceArchiveSha256','sourceArtifact','retainedIncompleteTails')}
-    evidence.update(priorSource=previous['metadata']['sourceCommit'],productionJarSha256=PRODUCTION_SHA,retainedJobs=55,retainedNativeDeliveries=52,
+    evidence.update(priorSource=previous['metadata']['sourceCommit'],productionJarSha256=PRODUCTION_SHA,retainedJobs=len(previous['originalRows']),retainedNativeDeliveries=len(previous['cycles']),
                     newClientProcessesAtRunBoundary=True,sameClientsFromHere=True,newNativeProcess=native_process(h),originalSourceQualification='FAIL',configurationOverride=port)
     atomic(h.root/'continuation.json',evidence);return previous,evidence

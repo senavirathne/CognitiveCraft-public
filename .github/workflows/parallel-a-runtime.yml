@@ -60,12 +60,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RESUME_A04: >-
-            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-4517') }}
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-') }}
+          RESUME_ARTIFACT: >-
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-3dde') && '12735341658' || '12732465516' }}
         run: |
           python3 tools/needle/install.py build/needle
           if [ "$RESUME_A04" = true ]; then
-            gh api repos/${{ github.repository }}/actions/artifacts/12732465516/zip > build/parallel-a/prior-4517-native.zip
-            python3 e2e/parallel_a/jobs.py --root build/parallel-a/native --resume-archive build/parallel-a/prior-4517-native.zip
+            gh api repos/${{ github.repository }}/actions/artifacts/$RESUME_ARTIFACT/zip > build/parallel-a/prior-a04-native.zip
+            python3 e2e/parallel_a/jobs.py --root build/parallel-a/native --resume-archive build/parallel-a/prior-a04-native.zip
           else
             python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
           fi

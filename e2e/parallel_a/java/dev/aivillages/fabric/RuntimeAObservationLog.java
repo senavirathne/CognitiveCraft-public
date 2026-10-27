@@ -14,6 +14,47 @@ public final class RuntimeAObservationLog {
     private static final int MAX_BODIES=32768, MAX_PARTS=128;
     private static final Map<Path,State> STATES=new HashMap<>();
     private static final Map<Path,Bodies> BODY_STORES=new HashMap<>();
+    private static final java.util.regex.Pattern TOKEN=java.util.regex.Pattern.compile("\\{\\\"\\$a04Raw\\\":\\\"([0-9a-f]{64})\\\"\\}");
+    private record Span(int begin,int end) {}
+    /** Scan the exact serialized bytes once; never rewrite a whole frame per row. */
+    private static final class Frame {
+        final String raw;final List<Span> spans=new ArrayList<>();int at;long time=-1,pid=-1;
+        Frame(String raw)throws IOException {this.raw=raw;object(0,0);space();if(at!=raw.length()||time<0||pid<0)throw new IOException("Invalid observation frame");}
+        void space(){while(at<raw.length()&&Character.isWhitespace(raw.charAt(at)))at++;}
+        boolean take(char c){space();if(at<raw.length()&&raw.charAt(at)==c){at++;return true;}return false;}
+        void need(char c)throws IOException {if(!take(c))throw new IOException("Invalid observation punctuation");}
+        void string()throws IOException {
+            need('"');boolean escaped=false;
+            while(at<raw.length()){char c=raw.charAt(at++);if(escaped)escaped=false;else if(c=='\\')escaped=true;else if(c=='"')return;}
+            throw new IOException("Incomplete observation string");
+        }
+        void value(int depth)throws IOException {
+            if(depth>128)throw new IOException("Observation nesting quota");space();if(at>=raw.length())throw new IOException("Missing observation value");
+            char c=raw.charAt(at);
+            if(c=='"'){string();return;}
+            if(c=='{'||c=='['){char close=c=='{'?'}':']';at++;if(take(close))return;
+                do{if(c=='{'){string();need(':');}value(depth+1);}while(take(','));need(close);return;}
+            int begin=at;while(at<raw.length()&&",}] \t\r\n".indexOf(raw.charAt(at))<0)at++;
+            if(begin==at)throw new IOException("Empty observation value");
+        }
+        void reference(int depth)throws IOException {space();int begin=at;value(depth);if(at-begin>=256)spans.add(new Span(begin,at));}
+        void array(int depth)throws IOException {need('[');if(take(']'))return;do{reference(depth+1);}while(take(','));need(']');}
+        // Modes: complete frame, knownPlayers, one authorized player, jobs/runs map.
+        void object(int mode,int depth)throws IOException {
+            if(depth>128)throw new IOException("Observation nesting quota");need('{');if(take('}'))return;
+            do{space();int begin=at;string();String name=JSON.fromJson(raw.substring(begin,at),String.class);need(':');space();begin=at;
+                if(mode==0&&name.equals("knownPlayers"))object(1,depth+1);
+                else if(mode==1)object(2,depth+1);
+                else if(mode==2&&(name.equals("jobs")||name.equals("runs")))object(3,depth+1);
+                else if(mode==2&&name.equals("leases"))array(depth+1);
+                else if(mode==3||(mode==2&&name.equals("catalog")))reference(depth+1);
+                else {value(depth+1);if(mode==0&&(name.equals("time")||name.equals("pid"))){
+                    long number;try{number=Long.parseLong(raw.substring(begin,at));}catch(NumberFormatException bad){throw new IOException("Invalid observation identity",bad);}
+                    if(name.equals("time"))time=number;else pid=number;
+                }}
+            }while(take(','));need('}');
+        }
+    }
     private static final class State {
         final Path root;final String name;final Bodies store;int part=-1;long bytes;
         State(Path path)throws IOException {
@@ -60,26 +101,20 @@ public final class RuntimeAObservationLog {
     }
     public static synchronized void append(Path path,String frame)throws IOException {
         State state=STATES.get(path);if(state==null){state=new State(path);STATES.put(path,state);}
-        var parsed=JsonParser.parseString(frame).getAsJsonObject();var literals=new LinkedHashSet<String>();
-        var players=parsed.getAsJsonObject("knownPlayers");
-        if(players!=null)for(var player:players.entrySet()) {
-            var data=player.getValue().getAsJsonObject();
-            for(String field:List.of("jobs","runs")) {
-                var rows=data.getAsJsonObject(field);if(rows!=null)for(var row:rows.entrySet())literals.add(JSON.toJson(row.getValue()));
-            }
-            var leases=data.getAsJsonArray("leases");if(leases!=null)for(var lease:leases)literals.add(JSON.toJson(lease));
-            if(data.has("catalog"))literals.add(JSON.toJson(data.get("catalog")));
+        if(TOKEN.matcher(frame).find())throw new IOException("Reserved evidence reference collision");
+        Frame parsed=new Frame(frame);var references=new HashMap<String,String>();var template=new StringBuilder(frame.length());int end=0;
+        for(Span span:parsed.spans) {
+            String literal=frame.substring(span.begin(),span.end()),digest=state.store.body(literal);
+            String token="{\"$a04Raw\":\""+digest+"\"}";references.put(digest,literal);
+            template.append(frame,end,span.begin()).append(token);end=span.end();
         }
-        String template=frame;var references=new LinkedHashMap<String,String>();
-        for(String literal:literals)if(literal.length()>=256 && template.contains(literal)) {
-            String digest=state.store.body(literal),token="{\"$a04Raw\":\""+digest+"\"}";
-            if(frame.contains(token))throw new IOException("Reserved evidence reference collision");
-            template=template.replace(literal,token);references.put(token,literal);
-        }
-        String restored=template;for(var reference:references.entrySet())restored=restored.replace(reference.getKey(),reference.getValue());
-        if(!restored.equals(frame))throw new IOException("Observation reference round trip changed exact bytes");
-        var wrapper=new LinkedHashMap<String,Object>();wrapper.put("schema",1);wrapper.put("time",parsed.get("time").getAsLong());
-        wrapper.put("pid",parsed.get("pid").getAsLong());wrapper.put("originalSha256",sha256(frame.getBytes(StandardCharsets.UTF_8)));wrapper.put("template",template);
+        template.append(frame,end,frame.length());var matcher=TOKEN.matcher(template);var restored=new StringBuilder(frame.length());end=0;
+        while(matcher.find()) {String literal=references.get(matcher.group(1));if(literal==null)throw new IOException("Unknown observation body");
+            restored.append(template,end,matcher.start()).append(literal);end=matcher.end();}
+        restored.append(template,end,template.length());
+        if(!restored.toString().equals(frame))throw new IOException("Observation reference round trip changed exact bytes");
+        var wrapper=new LinkedHashMap<String,Object>();wrapper.put("schema",1);wrapper.put("time",parsed.time);
+        wrapper.put("pid",parsed.pid);wrapper.put("originalSha256",sha256(frame.getBytes(StandardCharsets.UTF_8)));wrapper.put("template",template.toString());
         String line=JSON.toJson(wrapper)+"\n";long bytes=line.getBytes(StandardCharsets.UTF_8).length;
         if(bytes>SHARD_BYTES)throw new IOException("Observation frame quota");if(state.bytes+bytes>SHARD_BYTES)state.next();
         Files.writeString(state.path(),line,StandardOpenOption.APPEND);state.bytes+=bytes;
@@ -89,6 +124,8 @@ public final class RuntimeAObservationLog {
         String job="{\"id\":\"actual-test-only-row\",\"text\":\""+"<>& Unicode λ ".repeat(40)+"\",\"number\":0.000001}";
         String first=JSON.toJson(JsonParser.parseString("{\"time\":1,\"pid\":2,\"knownPlayers\":{\"PlayerA\":{\"jobs\":{\"one\":"+job+"},\"runs\":{}}},\"native\":\"unchanged\"}"));
         append(path,first);append(path,first.replace("\"time\":1","\"time\":2"));
+        String many="{\"time\":3,\"pid\":2,\"knownPlayers\":{\"PlayerA\":{\"jobs\":{\"a\":"+job+",\"b\":"+job+"},\"runs\":{\"r\":{\"responsibility\":"+job+"}},\"leases\":["+job+"],\"catalog\":"+job+"}},\"native\":{\"escaped\":\"quote \\\" brace } slash \\\\ unicode λ\"}}";
+        append(path,many);
         int checked=0;
         for(String line:Files.readAllLines(STATES.get(path).path())) {
             var row=JsonParser.parseString(line).getAsJsonObject();String raw=row.get("template").getAsString();
@@ -101,7 +138,7 @@ public final class RuntimeAObservationLog {
             }
             matcher.appendTail(result);if(!sha256(result.toString().getBytes(StandardCharsets.UTF_8)).equals(row.get("originalSha256").getAsString()))throw new IOException("Self-test raw frame mismatch");checked++;
         }
-        if(checked!=2)throw new IOException("Missing exact evidence self-test frames");
+        if(checked!=3)throw new IOException("Missing exact evidence self-test frames");
         System.out.println("A04_OBSERVATION_REFERENCE_SELF_TEST_PASS "+checked);
     }
 }
