@@ -7,7 +7,17 @@ import static dev.aivillages.core.kernel.Jobs.*;
 /** Separate archive envelope; the original Job/request/receipt codecs keep their meanings. */
 final class JobHistoryCodec {
     private JobHistoryCodec() { }
-    enum Custody { NO_EFFECT, BALANCED_DELIVERY, CLOSED_COMPOSITION }
+    enum Custody { NO_EFFECT, BALANCED_DELIVERY, CLOSED_COMPOSITION, CLOSED_ALLOCATIONS }
+    static Custody custody(Job job,Snapshot component) {
+        Custody disposition=custody(job);
+        if(disposition!=null)return disposition;
+        if(job.state()==State.SUCCEEDED && job.attempts().isEmpty() && job.preparation()==null
+                && !job.request().request().capability().equals(PlanningGoals.ID)
+                && !ResourceDelivery.resource(job.request().request().capability())
+                && component.allocations().stream().anyMatch(a->a.demand().equals(job.id()) && !a.material()))
+            return Custody.CLOSED_ALLOCATIONS;
+        return null;
+    }
 
     static Custody custody(Job job) {
         if(!job.state().terminal() || job.attempts().stream().anyMatch(Attempt::open)
@@ -53,7 +63,7 @@ final class JobHistoryCodec {
         JobLifecycleStore.validateSnapshot(component,Settings.defaults());
         var custody=new ArrayList<Object>();var jobs=new ArrayList<Object>();var allocations=new ArrayList<Object>();
         for(Job job:component.jobs()) {
-            Custody disposition=custody(job);
+            Custody disposition=custody(job,component);
             if(disposition==null)throw new IllegalArgumentException("Unsettled or unsupported residual custody");
             custody.add(Map.of("job",job.id().toString(),"disposition",disposition.name()));
             jobs.add(json(JobCodec.job(job)));

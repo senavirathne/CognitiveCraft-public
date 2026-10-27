@@ -698,10 +698,9 @@ public final class JobLifecycleStore {
     }
     /** Receipt lineage + current stock proof. Neither alone creates an input entitlement. */
     public Change allocateMaterial(Allocation allocation,Guard guard,Prerequisites.Supply stock,long currentTick,TrustedContext caller) {
-        thread();var work=new Work();Job demand=controlled(allocation.demand(),caller),producer=controlled(allocation.producer(),caller);
+        thread();var work=new Work();Change replay=allocationReplay(allocation,caller,work);if(replay!=null)return replay;
+        Job demand=controlled(allocation.demand(),caller),producer=controlled(allocation.producer(),caller);
         if(demand==null||producer==null||!producer.origin().equals(demand.origin()))return reject(Reason.AUTHORITY_DENIED,work);
-        var existing=state.allocations().stream().filter(a->a.id().equals(allocation.id())).findFirst();
-        if(existing.isPresent())return existing.get().equals(allocation)?duplicate(demand,work):reject(Reason.REQUEST_INVALID,work);
         var denied=guard(demand,guard,work);if(denied!=null)return denied;
         if(!allocation.material() || demand.state()!=State.READY || producer.state()!=State.SUCCEEDED)return reject(Reason.REQUEST_INVALID,work);
         if(stock.reason()==Reason.AUTHORITY_DENIED)return reject(Reason.AUTHORITY_DENIED,work);
@@ -1045,22 +1044,27 @@ public final class JobLifecycleStore {
     }
     /** IMP-018 bounds partial native deposit receipts by the proposed producer/demand unit total. */
     public Change allocate(Allocation allocation, Guard demandGuard, long pairMaximum, TrustedContext caller) {
-        thread(); var work = new Work(); Job demand = controlled(allocation.demand(), caller);
+        thread(); var work = new Work();
+        if(allocation.material())return reject(Reason.REQUEST_INVALID,work);
+        Change replay=allocationReplay(allocation,caller,work);if(replay!=null)return replay;
+        Job demand = controlled(allocation.demand(), caller);
         Job producer = controlled(allocation.producer(), caller);
-        if (allocation.material())return reject(Reason.REQUEST_INVALID,work);
+        if(producer==null && history!=null && history.ready() && sameWorld(caller)) {
+            var archived=history.archived(allocation.producer());
+            if(archived!=null && policy.mayControl(caller,archived))producer=archived;
+        }
         if (demand == null || producer == null || !producer.origin().equals(demand.origin()))
             return reject(Reason.AUTHORITY_DENIED, work);
         // A direct oak request promises newly acquired output from this invocation.
         // Historical production evidence is not a downstream material-demand contract.
         if (ResourceDelivery.resource(demand.request().request().capability()))
             return reject(Reason.REQUEST_INVALID, work);
-        var existing = state.allocations().stream().filter(a -> a.id().equals(allocation.id())).findFirst();
-        if (existing.isPresent()) return existing.get().equals(allocation) ? duplicate(demand, work)
-                : reject(Reason.REQUEST_INVALID, work);
         Change denied = guard(demand, demandGuard, work); if (denied != null) return denied;
         try {
-            if (state.allocations().size() == settings.allocations()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
-            if (demand.state() != State.READY || !dependenciesSucceeded(demand, rows(), work)
+            Snapshot base=withHistorical(List.of(producer.id()));
+            var rows=new LinkedHashMap<UUID,Job>();base.jobs().forEach(j->rows.put(j.id(),j));
+            if (base.allocations().size() == settings.allocations()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
+            if (demand.state() != State.READY || !dependenciesSucceeded(demand, rows, work)
                     || !sameBindings(producer.request(), demand.request()))
                 return reject(Reason.REQUEST_INVALID, work);
             Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt())).findFirst().orElseThrow();
@@ -1068,7 +1072,7 @@ public final class JobLifecycleStore {
             var receipt = credit(attempt,allocation.receipt()).filter(Credit::deposit).orElseThrow();
             if (pairMaximum < 1) return reject(Reason.REQUEST_INVALID, work);
             long receiptUse = 0, batchUse = 0, demandUse = 0, pairUse = 0;
-            for (Allocation used : state.allocations()) {
+            for (Allocation used : base.allocations()) {
                 if(used.material())continue;
                 if (used.demand().equals(demand.id())) demandUse = Math.addExact(demandUse, used.quantity());
                 if (used.demand().equals(demand.id()) && used.producer().equals(producer.id()))
@@ -1087,12 +1091,12 @@ public final class JobLifecycleStore {
                     || Math.addExact(batchUse, allocation.quantity()) > batch
                     || Math.addExact(demandUse, allocation.quantity()) > needed - demand.fulfilled())
                 return reject(Reason.RESOURCE_MISSING, work);
-            var allocations = new ArrayList<>(state.allocations()); allocations.add(allocation);
+            var allocations = new ArrayList<>(base.allocations()); allocations.add(allocation);
             var edit = new Edit(demand);
             if (demandUse + allocation.quantity() + demand.fulfilled() == needed) {
                 edit.state = State.SUCCEEDED; edit.reason = null;
             }
-            Job changed = edit.finish(EventKind.ALLOCATED, settings.events()); var rows = rows(); rows.put(demand.id(), changed);
+            Job changed = edit.finish(EventKind.ALLOCATED, settings.events()); rows.put(demand.id(), changed);
             propagate(rows, Set.of(demand.id()), work);
             return publish(rows, allocations, rows.get(demand.id()), null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
@@ -1235,6 +1239,15 @@ public final class JobLifecycleStore {
         return new Change(Code.REJECTED, null, Objects.requireNonNull(reason), Math.min(work.edges, settings.edges()));
     }
     private Change duplicate(Job job, Work work) { return new Change(Code.DUPLICATE, job, null, work.edges); }
+    private Change allocationReplay(Allocation allocation,TrustedContext caller,Work work) {
+        Allocation existing=state.allocations().stream().filter(a->a.id().equals(allocation.id())).findFirst().orElse(null);
+        if(existing==null && history!=null && history.ready())existing=history.allocation(allocation.id());
+        if(existing==null)return null;
+        if(!sameWorld(caller))return reject(Reason.AUTHORITY_DENIED,work);
+        Job demand=historicalFind(existing.demand());
+        if(demand==null || !policy.mayControl(caller,demand))return reject(Reason.AUTHORITY_DENIED,work);
+        return existing.equals(allocation)?duplicate(demand,work):reject(Reason.REQUEST_INVALID,work);
+    }
     private void checkCapacity(Map<UUID, Job> rows) {
         if (rows.size() > settings.total() || rows.values().stream().filter(j -> !j.state().terminal()).count() > settings.active())
             throw new Limited(Reason.STORAGE_LIMIT_REACHED);

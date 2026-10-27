@@ -34,7 +34,7 @@ public final class JobArchive {
                     || !owner.writer.authentic(acknowledgement,ArchiveFormat.Owner.JOBS,
                             new ArchiveFormat.Guard(actual.revision(),closure.retentionGeneration())))return false;
             for(Job job:actual.jobs())if(ids.contains(job.id()) && (closure.pinnedJobs().contains(job.id())
-                    || JobHistoryCodec.custody(job)==null || !job.equals(owner.history.archived(job.id()))))return false;
+                    || JobHistoryCodec.custody(job,actual)==null || !job.equals(owner.history.archived(job.id()))))return false;
             // Independently reconstruct the surviving hot closure before allowing the sole owner to publish it.
             try {
                 new Snapshot(actual.worldId(),actual.revision(),actual.jobs().stream().filter(j->!ids.contains(j.id())).toList(),
@@ -133,7 +133,7 @@ public final class JobArchive {
         for(int n=0;n<scanned;n++) {
             Job candidate=captured.jobs().get((start+n)%captured.jobs().size());Snapshot component=components.get(candidate.id());
             if(!visited.add(component) || component.jobs().size()+ids.size()>policy.scanRows()
-                    || component.jobs().stream().anyMatch(j->closure.pinnedJobs().contains(j.id()) || JobHistoryCodec.custody(j)==null))continue;
+                    || component.jobs().stream().anyMatch(j->closure.pinnedJobs().contains(j.id()) || JobHistoryCodec.custody(j,component)==null))continue;
             byte[] payload=JobHistoryCodec.encode(component);
             if(payload.length>PersistencePolicy.RECORD_BYTES || (long)bytes+21+payload.length>policy.scanBytes()
                     || history.size()+ids.stream().filter(id->history.archived(id)==null).count()

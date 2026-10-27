@@ -3,6 +3,8 @@ package dev.aivillages.core.kernel;
 import dev.aivillages.core.kernel.runtime.persistence.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
@@ -154,6 +156,69 @@ final class JobArchiveTest {
         try(var writer=ArchiveWriter.open(world,s.world,PersistencePolicy.defaults())) {
             var history=new JobHistory(()->s.memory.state,writer);assertThrows(IOException.class,()->history.refresh(s.memory.state));
             assertTrue(history.failed());assertThrows(IllegalStateException.class,()->history.archived(old.id()));assertEquals(before,s.memory.state);
+        }
+    }
+    @Test void partialUnresolvedAllocationKeepsBothProducerAndDemandHot()throws Exception {
+        Job producer=completed(),demand=s.create(2);var a=producer.current();
+        var receipt=a.receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).findFirst().orElseThrow();
+        var allocation=new Allocation(UUID.randomUUID(),producer.id(),a.id(),receipt.receiptId(),demand.id(),1);
+        assertEquals(Code.PENDING,s.store.allocate(allocation,demand.guard(),s.owner).code());s.settle();completed(46);
+        try(var writer=ArchiveWriter.open(world,s.world,PersistencePolicy.defaults())) {
+            var owners=attach(writer);compact(owners.archive());
+            assertNull(owners.history().archived(producer.id()));assertNull(owners.history().archived(demand.id()));
+            assertTrue(s.store.snapshot().allocations().contains(allocation));assertEquals(State.READY,s.store.query(demand.id(),s.owner).state());
+        }
+    }
+    @Test void closedAllocationClosureKeepsReplayAndTheOriginalUnspentReceiptBound()throws Exception {
+        Job producer=s.report(s.assign(s.create(2)),2,ExecutionStatus.SUCCEEDED),demand=s.create(1);var attempt=producer.current();
+        var receipt=attempt.receipts().stream().filter(r->r.stage()==CropDelivery.Stage.DEPOSIT).findFirst().orElseThrow();
+        var old=new Allocation(UUID.randomUUID(),producer.id(),attempt.id(),receipt.receiptId(),demand.id(),1);
+        assertEquals(Code.PENDING,s.store.allocate(old,demand.guard(),s.owner).code());s.settle();completed(46);
+        var pin=new HashSet<UUID>();for(Job job:s.store.snapshot().jobs())if(!job.id().equals(producer.id()) && !job.id().equals(demand.id()))pin.add(job.id());pins=Set.copyOf(pin);
+        try(var writer=ArchiveWriter.open(world,s.world,PersistencePolicy.defaults())) {
+            var owners=attach(writer);
+            for(int n=0;n<3 && owners.history().archived(producer.id())==null;n++)compact(owners.archive());
+            assertEquals(producer,owners.history().archived(producer.id()));assertEquals(old,owners.history().allocation(old.id()));
+            Snapshot before=s.store.snapshot();assertEquals(Code.DUPLICATE,s.store.allocate(old,demand.guard(),s.owner).code());assertEquals(before,s.store.snapshot());
+            Job next=s.create(1);var remaining=new Allocation(UUID.randomUUID(),producer.id(),attempt.id(),receipt.receiptId(),next.id(),1);
+            assertEquals(Reason.REQUEST_INVALID,s.store.allocate(new Allocation(old.id(),producer.id(),attempt.id(),receipt.receiptId(),next.id(),1),next.guard(),s.owner).reason());
+            assertTrue(s.store.ready());assertEquals(Code.PENDING,s.store.allocate(remaining,next.guard(),s.owner).code());s.settle();
+            assertEquals(State.SUCCEEDED,s.store.query(next.id(),s.owner).state());assertTrue(s.store.snapshot().allocations().containsAll(List.of(old,remaining)));
+            Job excess=s.create(1);assertEquals(Reason.RESOURCE_MISSING,s.store.allocate(new Allocation(UUID.randomUUID(),producer.id(),attempt.id(),receipt.receiptId(),excess.id(),1),excess.guard(),s.owner).reason());
+        }
+    }
+    @Test void finiteArchivePressurePreservesExactHistoryAndRefusesAtTheOriginalHotLimit()throws Exception {
+        completed(48);var d=PersistencePolicy.defaults();
+        var small=new PersistencePolicy(d.jobRows(),d.leaseRows(),d.jobBytes(),d.leaseBytes(),d.archiveBytes(),36,
+                d.scanRows(),d.scanBytes(),d.deleteFiles(),d.eligibleAgeMillis(),d.pressurePercent(),d.reservedBytes(),d.reservations());
+        try(var writer=ArchiveWriter.open(world,s.world,small)) {
+            var owners=attach(writer);compact(owners.archive());completed(16);compact(owners.archive());completed(16);
+            Snapshot before=s.store.snapshot();owners.archive().step(closure(),true);background.run();owners.archive().step(closure(),true);
+            assertEquals("BACKPRESSURE",owners.archive().status().pressure());assertEquals(before,s.store.snapshot());assertTrue(s.store.ready());
+            completed(16);assertEquals(64,s.store.snapshot().jobs().size());
+            assertEquals(Reason.STORAGE_LIMIT_REACHED,s.store.create(UUID.randomUUID(),UUID.randomUUID(),JobLifecycleStoreTest.request(s.actor,1),s.owner,
+                    JobLifecycleStoreTest.observation(),JobLifecycleStoreTest.limits(11_000),List.of()).reason());
+            assertEquals(32,owners.history().size());assertEquals(96,owners.history().read().jobs().size());
+        }
+    }
+    @ParameterizedTest @EnumSource(value=ArchiveWriter.Point.class,names={"BEFORE_CLEANUP","AFTER_CLEANUP"},mode=EnumSource.Mode.EXCLUDE)
+    void everyArchivePublicationFailureKeepsTheOriginalHotJobs(ArchiveWriter.Point point)throws Exception {
+        completed(48);Snapshot before=s.store.snapshot();
+        try(var writer=ArchiveWriter.open(world,s.world,PersistencePolicy.defaults(),p->{if(p==point)throw new IOException("fixture "+p);},java.time.Clock.systemUTC())) {
+            var owners=attach(writer);owners.archive().step(closure(),true);background.run();owners.archive().step(closure(),true);
+            assertEquals(before,s.store.snapshot());assertEquals(0,owners.archive().status().evicted());
+            assertTrue(owners.archive().readOnly());assertFalse(s.store.ready());
+            for(Job job:before.jobs())assertEquals(job,s.store.query(job.id(),s.owner));
+        }
+    }
+    @Test void genericChecksumSuccessCannotMakeUnknownJobSchemaReadable()throws Exception {
+        completed(48);Snapshot before=s.store.snapshot();
+        try(var writer=ArchiveWriter.open(world,s.world,PersistencePolicy.defaults())) {
+            byte[] payload="{\"schema\":99}".getBytes(java.nio.charset.StandardCharsets.UTF_8);var guard=new ArchiveFormat.Guard(before.revision(),1);
+            assertTrue(writer.append(writer.snapshot(),ArchiveFormat.Owner.JOBS,guard,
+                    List.of(new ArchiveFormat.Row(ArchiveFormat.Kind.HISTORY,JobHistoryCodec.id(payload),payload)),owner->guard).acknowledged());
+            assertFalse(writer.readOnly());var history=new JobHistory(()->s.memory.state,writer);
+            assertThrows(IOException.class,()->history.refresh(before));assertTrue(history.failed());assertEquals(before,s.store.snapshot());
         }
     }
 }

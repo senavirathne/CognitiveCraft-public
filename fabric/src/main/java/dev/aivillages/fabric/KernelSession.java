@@ -964,7 +964,8 @@ public final class KernelSession implements AutoCloseable {
     public record RuntimeHistoryStatus(boolean enabled,boolean readOnly,
             dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.Manifest manifest) { }
     public RuntimeHistoryStatus runtimeHistoryStatus() {
-        ready();return new RuntimeHistoryStatus(loaded.history()!=null,loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable),
+        ready();return new RuntimeHistoryStatus(loaded.history()!=null,loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
+                || jobArchive!=null && jobArchive.readOnly() || leaseArchive!=null && leaseArchive.readOnly()),
                 loaded.history()==null?null:loaded.history().snapshot());
     }
     /** Aggregate operator diagnostics only; no principal or historical resource identifiers. */
