@@ -2,6 +2,7 @@
 from pathlib import Path,PurePosixPath
 import hashlib
 import json
+import re
 import shutil
 from zipfile import ZipFile
 from observation_refs import restore
@@ -22,6 +23,13 @@ def terminal(frame,run):
 def balance(frame,actor,destination):
     inventory=next(a['inventory'] for a in frame['actors'] if a['uuid']==actor)
     return frame['containers'].get(','.join(map(str,destination)),{}).get(LOG,0),inventory,calls(frame)
+
+def bind_port(path,port):
+    original=path.read_bytes();match=re.search(rb'(?m)^server-port=([^\r\n]*)',original)
+    assert match is not None
+    changed,count=re.subn(rb'(?m)^server-port=[^\r\n]*',lambda _:b'server-port='+str(port).encode(),original)
+    assert count==1;path.write_bytes(changed)
+    return {'setting':'server-port','before':match[1].decode(),'after':port,'beforeSha256':hashlib.sha256(original).hexdigest(),'afterSha256':hashlib.sha256(changed).hexdigest()}
 
 def read_input(archive,target):
     assert sha(archive)==ARCHIVE_SHA
@@ -102,6 +110,9 @@ def start(h,archive):
     shutil.copyfile(archive,h.root/'continuation-input.zip')
     prior=h.root.parent/('a04-prior-'+h.root.name);shutil.copytree(prior/'server/game',h.root/'server/game',ignore=shutil.ignore_patterns('session.lock'))
     world=h.root/'server/game/world';require({p.relative_to(world).as_posix():sha(p) for p in world.rglob('*') if p.is_file()}==previous['worldHashes'],'Whole-world continuation changed source bytes before boot')
+    port=bind_port(h.root/'server/game/server.properties',h.port)
+    atomic(h.root/'continuation-import.json',{'sourceArtifact':12732465516,'sourceArchiveSha256':ARCHIVE_SHA,'world':previous['world'],
+                                           'worldHashes':previous['worldHashes'],'productionJarSha256':PRODUCTION_SHA,'configurationOverride':port,'nativeEffects':0})
     shutil.copytree(ROOT/'build/needle',h.root/'needle');h.env.update(COGNITIVECRAFT_OLLAMA_MODEL='qwen3:4b-instruct-2507-q4_K_M',COGNITIVECRAFT_NEEDLE_DIR='/evidence/needle')
     h.hashes=read(prior/'independent-admissions.json')['artifacts'];h.admissions=read(prior/'independent-admissions.json')['admissions']
     for name in ('models.json','independent-admissions.json'):shutil.copyfile(prior/name,h.root/name)
@@ -113,5 +124,5 @@ def start(h,archive):
     h.wait(lambda:(frame if (frame:=read(h.root/'server/secondary-snapshot.json')) and balance(frame,h.entities['PlayerA'],h.other_destination)[0]==52 else None),'Actual continued destination retains all 52 original native deliveries',40)
     evidence={k:previous[k] for k in ('world','worldHashes','sourceArchiveSha256','sourceArtifact','retainedIncompleteTails')}
     evidence.update(priorSource=previous['metadata']['sourceCommit'],productionJarSha256=PRODUCTION_SHA,retainedJobs=55,retainedNativeDeliveries=52,
-                    newClientProcessesAtRunBoundary=True,sameClientsFromHere=True,newNativeProcess=native_process(h),originalSourceQualification='FAIL')
+                    newClientProcessesAtRunBoundary=True,sameClientsFromHere=True,newNativeProcess=native_process(h),originalSourceQualification='FAIL',configurationOverride=port)
     atomic(h.root/'continuation.json',evidence);return previous,evidence
