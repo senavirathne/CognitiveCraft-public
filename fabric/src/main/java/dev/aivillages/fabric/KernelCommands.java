@@ -10,6 +10,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import dev.aivillages.core.kernel.BootstrapController;
+import dev.aivillages.core.kernel.JobHistory;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.permissions.Permissions;
@@ -52,7 +53,7 @@ final class KernelCommands {
         var kernel = literal("kernel");
         kernel.then(literal("activities").executes(c -> safe(c, (ctx, session) -> {
             tell(ctx, "activities=" + session.activities(ctx.getSource().getPlayerOrException(), 0, 4)); return 1;
-        })).then(argument("offset", IntegerArgumentType.integer(0,64)).executes(c -> safe(c, (ctx, session) -> {
+        })).then(argument("offset", IntegerArgumentType.integer(0,JobHistory.JOBS+64)).executes(c -> safe(c, (ctx, session) -> {
             tell(ctx, "activities=" + session.activities(ctx.getSource().getPlayerOrException(),
                     IntegerArgumentType.getInteger(ctx,"offset"), 4)); return 1;
         }))));

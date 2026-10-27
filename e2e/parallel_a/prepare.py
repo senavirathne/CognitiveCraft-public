@@ -39,6 +39,14 @@ replacements = {
 for original, replacement in replacements.items():
     assert adapted.count(original) == 1, original
     adapted = adapted.replace(original, replacement)
+log_original='''Files.writeString(root.resolve("server/observations.jsonl"), data + "\\n",
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
+log_replacement='''if ("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE")))
+                RuntimeAObservationLog.append(root.resolve("server/observations.jsonl"), data);
+            else Files.writeString(root.resolve("server/observations.jsonl"), data + "\\n",
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
+assert adapted.count(log_original)==1
+adapted=adapted.replace(log_original,log_replacement)
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)
@@ -51,7 +59,7 @@ assert secondary.count('private final int[] observationArea = observationArea();
 secondary = secondary.replace('private final int[] observationArea = observationArea();',
     'private final int[] observationArea = new int[]{319,208,63,340,78};')
 for name in ('snapshot.tmp', 'snapshot.json', 'observations.jsonl'):
-    assert secondary.count('server/' + name) == 1
+    assert secondary.count('server/' + name) == (2 if name=='observations.jsonl' else 1)
     secondary = secondary.replace('server/' + name, 'server/secondary-' + name)
 secondary_source = generated.with_name('RuntimeASecondaryObserver.java')
 secondary_source.write_text(secondary)
@@ -73,12 +81,13 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeASecondaryObserver')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAStorageProbe')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeALeaseProbe')
+            manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAJobProbe')
             data = json.dumps(manifest).encode()
         target.writestr(entry, data)
     for path in out.rglob('*.class'):
         target.write(path, path.relative_to(out).as_posix())
 with ZipFile(release) as packaged:
-    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'JournalCostProbe'))
+    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'JournalCostProbe'))
                    for n in packaged.namelist())
 assert digest(release) == before
 (ROOT / 'build/parallel-a/observer-adaptation.json').write_text(json.dumps({
@@ -87,8 +96,14 @@ assert digest(release) == before
     'adaptedSourceSha256': digest(generated), 'releaseSha256': before,
     'secondarySourceSha256': digest(secondary_source), 'secondaryArea': [319,208,63,340,78],
     'observerSha256': digest(observer), 'claim': 'test-only existing chunk reads; unload gate still required',
-    'replacements': replacements}, indent=2))
+    'replacements': replacements,
+    'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
+        'format': 'exact UTF-8 templates with SHA-256 raw Job/run bodies; latest full snapshots unchanged',
+        'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
+}, indent=2))
 probe = ROOT / 'build/parallel-a/journal-probe'
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.JournalCostProbe', str(probe)], check=True)
 print(json.dumps({'releaseSha256': before, 'observerSha256': digest(observer), 'instrumentation': 'test-only'}))
+subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
+                'dev.aivillages.fabric.RuntimeAObservationLog',str(ROOT/'build/parallel-a/reference-log-self-test')],check=True)

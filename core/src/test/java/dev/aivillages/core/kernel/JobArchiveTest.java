@@ -222,4 +222,16 @@ final class JobArchiveTest {
             assertThrows(IOException.class,()->history.refresh(before));assertTrue(history.failed());assertEquals(before,s.store.snapshot());
         }
     }
+    @Test void acknowledgedSharedKnowledgeNeedsNoInventedPerActorGrantButPersonalLearningStaysPinned() {
+        Job job=completed();var actor=new KnowledgeAccess.Enrollment(s.actor,s.owner);
+        var shared=new KnowledgeAccess.Snapshot(s.world,1,true,List.of(),List.of(JobLifecycleStoreTest.REF),List.of(),List.of(),List.of());
+        assertTrue(JobArchive.learningAcknowledged(job,shared));
+        var personal=new KnowledgeAccess.Snapshot(s.world,2,true,List.of(),shared.legacyMethods(),List.of(actor),List.of(),List.of());
+        assertFalse(JobArchive.learningAcknowledged(job,personal));
+        var attempt=job.current();var execution=attempt.executions().getFirst();
+        var grant=new KnowledgeAccess.Grant(actor,execution.artifact(),actor,KnowledgeAccess.Origin.ACQUISITION,job.id(),attempt.id(),attempt.generation(),execution.runId(),job.revision());
+        var learned=new KnowledgeAccess.Snapshot(s.world,3,true,List.of(),personal.legacyMethods(),List.of(actor),List.of(grant),List.of());
+        assertTrue(JobArchive.learningAcknowledged(job,learned));assertFalse(JobArchive.learningAcknowledged(job,KnowledgeAccess.Snapshot.empty(s.world)));
+        Job live=s.assign(s.create(1));assertFalse(JobArchive.learningAcknowledged(live,shared));
+    }
 }

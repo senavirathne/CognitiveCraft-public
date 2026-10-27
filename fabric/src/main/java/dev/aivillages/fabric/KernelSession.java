@@ -983,10 +983,7 @@ public final class KernelSession implements AutoCloseable {
             if(job.request().request().capability().equals(CropDelivery.ID) && !job.attempts().isEmpty()
                     && evidence.progress().stream().noneMatch(p->p.job().equals(job.id()) && p.revision()==job.revision()))pins.add(job.id());
             if(job.state()==Jobs.State.SUCCEEDED && job.current()!=null) {
-                var attempt=job.current();
-                boolean acknowledged=attempt.executions().stream().anyMatch(e->learning.grants().stream().anyMatch(g->g.learner().actor().equals(attempt.worker())
-                        && g.learner().owner().equals(job.origin()) && g.method().equals(e.artifact())));
-                if(!acknowledged)pins.add(job.id());
+                if(!JobArchive.learningAcknowledged(job,learning))pins.add(job.id());
             }
         }
         pins.retainAll(ids);return Set.copyOf(pins);
@@ -1565,6 +1562,7 @@ public final class KernelSession implements AutoCloseable {
     ResourceLeaseService leaseOwner() { return leases; }
     LeaseArchive leaseHistoryOwner() { return leaseArchive; }
     JobArchive jobHistoryOwner() { return jobArchive; }
+    JobLifecycleStore jobLifecycleOwner() { return jobs; }
     boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
             && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {

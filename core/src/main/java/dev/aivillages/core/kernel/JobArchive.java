@@ -147,6 +147,15 @@ public final class JobArchive {
         return new Selected(List.copyOf(records),Set.copyOf(ids),scanned);
     }
     public boolean capturing(){checkThread();return gated;}
+    /** Retention predicate over the learning owner's acknowledged policy, never a use/teaching grant. */
+    public static boolean learningAcknowledged(Job job,KnowledgeAccess.Snapshot learning) {
+        if(!learning.migrated() || !learning.world().equals(job.origin().scope().worldId()) || !job.state().terminal())return false;
+        if(job.state()!=State.SUCCEEDED || job.current()==null)return true;
+        Attempt attempt=job.current();var enrolled=new KnowledgeAccess.Enrollment(attempt.worker(),job.origin());
+        return attempt.executions().stream().anyMatch(e->ResourceDelivery.completed(attempt.bound(),e.runId(),attempt.receipts(),attempt.resourceReceipts())
+                && (!learning.personalCitizens().contains(enrolled) && learning.legacyMethods().contains(e.artifact())
+                    || learning.grants().stream().anyMatch(g->g.learner().equals(enrolled) && g.method().equals(e.artifact()))));
+    }
     public boolean readOnly(){return history.failed();}
     public boolean readReady(){return history.ready();}
     public Status status() {

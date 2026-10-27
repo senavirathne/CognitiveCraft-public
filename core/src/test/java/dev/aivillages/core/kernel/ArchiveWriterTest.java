@@ -19,6 +19,18 @@ final class ArchiveWriterTest {
     Row row(UUID id,String text){return new Row(Kind.HISTORY,id,text.getBytes(java.nio.charset.StandardCharsets.UTF_8));}
     Slot slot(){UUID attempt=UUID.randomUUID();return new Slot(attempt,Owner.JOBS,UUID.randomUUID(),attempt,1,65_536,65_536,Phase.RESERVED);}
     ArchiveWriter writer()throws IOException{return ArchiveWriter.open(world,worldId,policy);}
+    @Test void domainFilteredObserverCannotMistakeLeasePublicationForAJobCut()throws Exception {
+        try(var writer=writer()) {
+            var points=new ArrayList<ArchiveWriter.Point>();writer.observePublication(Owner.JOBS,points::add);
+            assertTrue(writer.append(writer.snapshot(),Owner.LEASES,guard,List.of(row(UUID.randomUUID(),"lease fixture")),fences).acknowledged());
+            assertTrue(points.isEmpty());
+            assertTrue(writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(row(UUID.randomUUID(),"Job fixture")),fences).acknowledged());
+            assertEquals(List.of(ArchiveWriter.Point.BEFORE_SEGMENT,ArchiveWriter.Point.AFTER_SEGMENT_ACK,
+                    ArchiveWriter.Point.BEFORE_MANIFEST_STAGE,ArchiveWriter.Point.AFTER_MANIFEST_STAGE,ArchiveWriter.Point.AFTER_BACKUP,
+                    ArchiveWriter.Point.AFTER_MANIFEST_REPLACE,ArchiveWriter.Point.AFTER_DIRECTORY_ACK),points);
+            assertThrows(IllegalStateException.class,()->writer.observePublication(Owner.LEASES,p->{}));
+        }
+    }
     @Test void forcedSegmentAndManifestReopenWithExactUuidAndOpaqueProcessAck()throws Exception {
         Row row=row(UUID.randomUUID(),"actual owner bytes");ArchiveWriter.Acknowledgement old;
         try(var writer=writer()) {

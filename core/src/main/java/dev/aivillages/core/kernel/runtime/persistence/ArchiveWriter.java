@@ -46,6 +46,7 @@ public final class ArchiveWriter implements AutoCloseable {
     private final Path world,root;private final UUID worldId;private final PersistencePolicy policy;
     private final FileChannel channel;private final FileLock lock;private final Faults faults;private final Clock clock;
     private volatile Faults observer=Faults.none();private boolean observing;
+    private Owner observedOwner,publishingOwner;
     private volatile ArchiveHistory history;private volatile boolean fenced,closed;private volatile long epoch;
     private volatile String currentDigest;
     private WorldRetentionManager.Owner accountingOwner;
@@ -79,7 +80,12 @@ public final class ArchiveWriter implements AutoCloseable {
         if(observing)throw new IllegalStateException("Publication observer already bound");
         this.observer=Objects.requireNonNull(observer);observing=true;
     }
-    private void at(Point point)throws IOException {faults.at(point);observer.at(point);}
+    public synchronized void observePublication(Owner owner,Faults observer) {
+        Objects.requireNonNull(owner);observePublication(observer);observedOwner=owner;
+    }
+    private void at(Point point)throws IOException {
+        faults.at(point);if(observedOwner==null || observedOwner==publishingOwner)observer.at(point);
+    }
     public boolean readOnly(){return fenced || closed;}
     public long retentionRevision(){return epoch;}
     public Optional<Row> lookup(Key key)throws IOException {if(readOnly())throw new IOException("Fenced archive");return history.lookup(key);}
@@ -193,6 +199,7 @@ public final class ArchiveWriter implements AutoCloseable {
         return new UUID(b.getLong(),b.getLong()).equals(slot.root()) && new UUID(b.getLong(),b.getLong()).equals(slot.attempt()) && b.getLong()==slot.generation();
     }
     private Result publish(Manifest expected,Owner owner,Guard guard,List<Row> rows,List<Slot> slots,List<Migration> migrations,Fences fences)throws IOException {
+        publishingOwner=owner;
         try {
             var refs=new ArrayList<>(expected.segments());byte[] segment=null;
             if(!rows.isEmpty()) {
@@ -224,6 +231,7 @@ public final class ArchiveWriter implements AutoCloseable {
             ArchiveHistory verified=ArchiveHistory.read(world,worldId,policy);if(verified.state()!=ArchiveHistory.State.READY || !verified.manifest().equals(next))throw new IOException("Published history validation");
             history=verified;currentDigest=sha256(bytes);epoch=Math.addExact(epoch,1);return result(Status.ACKNOWLEDGED,owner,guard);
         }catch(IOException | RuntimeException uncertain){fenced=true;throw uncertain;}
+        finally{publishingOwner=null;}
     }
     private void forceDirectory()throws IOException {try(var dir=FileChannel.open(root,StandardOpenOption.READ)){dir.force(true);}}
     private static void writeNew(Path path,byte[] bytes)throws IOException {
