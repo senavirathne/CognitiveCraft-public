@@ -66,6 +66,11 @@ for original,replacement in deferred.items():
 # resulting immutable Job record is memoized; dynamic dispatch fields stay fresh.
 assert adapted.count('JSON.toJsonTree(job)')==2
 adapted=adapted.replace('JSON.toJsonTree(job)','RuntimeAObservationJson.job(job)')
+lease_encoding='JSON.toJsonTree(kernel.leaseOwner().snapshot().leases().stream()'
+assert adapted.count(lease_encoding)==1
+adapted=adapted.replace(lease_encoding,'RuntimeAObservationJson.leases(player.getUUID(),kernel.leaseOwner().snapshot().leases().stream()')
+assert adapted.count('JSON.toJsonTree(view).getAsJsonObject()')==1
+adapted=adapted.replace('JSON.toJsonTree(view).getAsJsonObject()','RuntimeAObservationJson.run(player.getUUID(),id,view)')
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +125,7 @@ assert digest(release) == before
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
         'serialization': 'immutable JSON frame captured on the server thread; full string encoding on the existing observer writer; same cadence and fields',
         'references': 'single scan of exact authorized row spans; one template expansion verifies original bytes; no whole-frame replacement per row',
-        'jobEncoding': 'original authorization/query precedes encoding; exact immutable Job object identity; fresh outer fields; immutable child literals in the writer; tree and literal bytes share 128 rows/16 MiB; exact Gson frame bytes, same values and cadence',
+        'jobEncoding': 'original authorization/query/filter precedes encoding; exact immutable Job identity and complete immutable run/lease value equality; fresh outer fields; immutable child literals in writer; shared 128 rows/16 MiB; exact Gson frame bytes, same values and cadence',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))
 probe = ROOT / 'build/parallel-a/journal-probe'
