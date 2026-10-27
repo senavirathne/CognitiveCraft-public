@@ -112,14 +112,14 @@ class JobHarness(LeaseHarness):
         ticks=[s for s in raw['samples'] if s['time']>=begin['startMillis']][:400]
         cap=[s for s in captures['captures'] if s['time']>=begin['startMillis']][:400]
         process=native_process(self);raw_file=self.root/(mode+'-raw-window.json')
-        atomic(raw_file,{'tickSamples':ticks,'captures':cap,'ackNanos':io['samplesNanos'],'begin':begin,'process':process})
+        atomic(raw_file,{'tickSamples':ticks,'captures':cap,'ackNanos':io['samplesNanos'],'begin':begin,'process':process,'endJVM':captures.get('jvm')})
         if len(ticks)!=400 or len(cap)!=400 or len(io['samplesNanos'])!=64:raise Inconclusive('Fixed A04 performance window missing: '+json.dumps({'ticks':len(ticks),'captures':len(cap),'acks':len(io['samplesNanos'])}))
         result={'configuration':mode,'tick':percentiles([s['nanos'] for s in ticks]),'capture':percentiles([s['nanos'] for s in cap]),
                 'ack':percentiles(io['samplesNanos']),'io':io,'begin':begin,'nativeProcess':process,'limits':LIMITS,
                 'metric':raw['metric'],'workload':'same frozen actual 64-Job metadata; candidate additionally verifies archive and acknowledges 16-row hot removal; fixture setup excluded; zero fixture native effects'}
-        result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();result['encodingStats']=captures.get('encodingStats')
+        result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();result['encodingStats']=captures.get('encodingStats');result['jvm']={'begin':begin.get('jvm'),'end':captures.get('jvm')}
         atomic(self.root/(mode+'-performance.json'),result)
-        print('A04_PERFORMANCE '+json.dumps({'configuration':mode,**{k:result[k] for k in ('tick','capture','ack','rawSha256','encodingStats')}}),flush=True)
+        print('A04_PERFORMANCE '+json.dumps({'configuration':mode,**{k:result[k] for k in ('tick','capture','ack','rawSha256','encodingStats','jvm')}}),flush=True)
         for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
             if result[field][percentile]>LIMITS[limit]:self.profile_failure(mode)
             require(result[field][percentile]<=LIMITS[limit],f'Frozen A04 {mode} {field}/{percentile} exceeded {LIMITS[limit]} ms: '+json.dumps(result[field]))

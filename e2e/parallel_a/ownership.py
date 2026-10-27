@@ -7,6 +7,8 @@ allowed={
     'core/src/main/java/dev/aivillages/core/kernel/Jobs.java',
     'core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java',
     'core/src/main/java/dev/aivillages/core/kernel/JobCodec.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobJournal.java',
+    'core/src/test/java/dev/aivillages/core/kernel/JobJournalTest.java',
     'core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java',
     'core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java',
     'fabric/src/main/java/dev/aivillages/fabric/KernelSession.java',

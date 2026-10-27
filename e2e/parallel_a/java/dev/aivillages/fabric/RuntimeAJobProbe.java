@@ -7,6 +7,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
 import net.minecraft.world.level.storage.LevelResource;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
@@ -42,8 +43,8 @@ public final class RuntimeAJobProbe implements ModInitializer {
                     reply(id,map("status","PASS","storage",kernel.runtimeHistoryStatus(),"jobs",kernel.runtimeJobHistoryStatus(),"leases",kernel.runtimeLeaseHistoryStatus(),
                             "ready",view.ready(),"hot",view.jobs(),"hotLeases",view.leases()),null);return;
                 }
-                if(op.equals("begin-window")){captures.clear();measuring=true;reply(id,map("status","PASS","startMillis",System.currentTimeMillis(),"startTick",server.overworld().getGameTime()),null);return;}
-                if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captures",List.copyOf(captures),"encodingStats",RuntimeAObservationJson.stats()),null);return;}
+                if(op.equals("begin-window")){captures.clear();var jvm=jvm();measuring=true;reply(id,map("status","PASS","startMillis",System.currentTimeMillis(),"startTick",server.overworld().getGameTime(),"jvm",jvm),null);return;}
+                if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captures",List.copyOf(captures),"encodingStats",RuntimeAObservationJson.stats(),"jvm",jvm()),null);return;}
                 if(op.equals("start-profile")) {
                     if(cpuProfile!=null)throw new IllegalStateException("Diagnostic already active");
                     cpuProfilePath=root.resolve("server/a04-profile-"+id+".jfr");
@@ -129,6 +130,12 @@ public final class RuntimeAJobProbe implements ModInitializer {
             try{Thread.sleep(10);}catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IOException(stopped);}
         }
         throw new IOException("A04 intended witnessed crash did not occur");
+    }
+    private Map<String,Object> jvm() {
+        var runtime=ManagementFactory.getRuntimeMXBean();var heap=ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+        return map("pid",ProcessHandle.current().pid(),"startMillis",runtime.getStartTime(),"timeMillis",System.currentTimeMillis(),
+                "inputArguments",runtime.getInputArguments(),"heap",map("initBytes",heap.getInit(),"usedBytes",heap.getUsed(),"committedBytes",heap.getCommitted(),"maxBytes",heap.getMax()),
+                "collectors",ManagementFactory.getGarbageCollectorMXBeans().stream().map(gc->map("name",gc.getName(),"count",gc.getCollectionCount(),"millis",gc.getCollectionTime())).toList());
     }
     private void poll() {
         try {

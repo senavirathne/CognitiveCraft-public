@@ -5,3 +5,4 @@ services:
       COGNITIVECRAFT_LEASE_HISTORY: '${COGNITIVECRAFT_A04_LEASE_HISTORY:-true}'
       COGNITIVECRAFT_JOB_HISTORY: '${COGNITIVECRAFT_A04_JOB_HISTORY:-false}'
       COGNITIVECRAFT_A04_PROBE: 'true'
+      JAVA_TOOL_OPTIONS: '-Xlog:gc*,safepoint:file=/evidence/server/a04-gc-%t-%p.log:time,uptime,level,tags:filecount=4,filesize=8M'
