@@ -43,7 +43,7 @@ public final class RuntimeAObservationLog {
         void object(int mode,int depth)throws IOException {
             if(depth>128)throw new IOException("Observation nesting quota");need('{');if(take('}'))return;
             do{space();int begin=at;string();String name=JSON.fromJson(raw.substring(begin,at),String.class);need(':');space();begin=at;
-                if(mode==0&&name.equals("knownPlayers"))object(1,depth+1);
+                if(mode==0&&(name.equals("knownPlayers")||name.equals("players")))object(1,depth+1);
                 else if(mode==1)object(2,depth+1);
                 else if(mode==2&&(name.equals("jobs")||name.equals("runs")))object(3,depth+1);
                 else if(mode==2&&name.equals("leases"))array(depth+1);
@@ -126,6 +126,12 @@ public final class RuntimeAObservationLog {
         append(path,first);append(path,first.replace("\"time\":1","\"time\":2"));
         String many="{\"time\":3,\"pid\":2,\"knownPlayers\":{\"PlayerA\":{\"jobs\":{\"a\":"+job+",\"b\":"+job+"},\"runs\":{\"r\":{\"responsibility\":"+job+"}},\"leases\":["+job+"],\"catalog\":"+job+"}},\"native\":{\"escaped\":\"quote \\\" brace } slash \\\\ unicode λ\"}}";
         append(path,many);
+        // The live players map aliases the authorized knownPlayers map in native
+        // frames. Both serialized copies must be referenced, without changing either.
+        var duplicate=JsonParser.parseString(many).getAsJsonObject();duplicate.add("players",duplicate.get("knownPlayers"));duplicate.addProperty("time",4);
+        String doubled=JSON.toJson(duplicate);append(path,doubled);
+        var compact=JsonParser.parseString(Files.readAllLines(STATES.get(path).path()).getLast()).getAsJsonObject().get("template").getAsString();
+        if(compact.length()*2>=doubled.length()||compact.contains("actual-test-only-row"))throw new IOException("Both authorized player maps must use exact references");
         int checked=0;
         for(String line:Files.readAllLines(STATES.get(path).path())) {
             var row=JsonParser.parseString(line).getAsJsonObject();String raw=row.get("template").getAsString();
@@ -138,7 +144,7 @@ public final class RuntimeAObservationLog {
             }
             matcher.appendTail(result);if(!sha256(result.toString().getBytes(StandardCharsets.UTF_8)).equals(row.get("originalSha256").getAsString()))throw new IOException("Self-test raw frame mismatch");checked++;
         }
-        if(checked!=3)throw new IOException("Missing exact evidence self-test frames");
+        if(checked!=4)throw new IOException("Missing exact evidence self-test frames");
         System.out.println("A04_OBSERVATION_REFERENCE_SELF_TEST_PASS "+checked);
     }
 }

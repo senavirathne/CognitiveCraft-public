@@ -23,6 +23,9 @@ def main():
         report={'diagnostic':True,'nativeEffects':0,'nativeQualification':'NOT_EXECUTED','recording':path.name,'sha256':digest(path),
                 'threads':{name:{'samples':sum(counter.values()),'topFrames':counter.most_common(25),'inclusiveFrames':inclusive[name].most_common(35)} for name,counter in groups.items()}}
         path.with_suffix('.summary.json').write_text(json.dumps(report,indent=2)+'\n');reports.append({'recording':path.name,'sha256':report['sha256'],'threads':len(groups)})
+        print('A04_DIAGNOSTIC_CPU '+json.dumps({'diagnostic':True,'originalNativeGateUnchanged':True,'sha256':report['sha256'],
+              'threads':{name:{'samples':data['samples'],'topFrames':data['topFrames'][:6],'inclusiveFrames':data['inclusiveFrames'][:10]}
+                         for name,data in report['threads'].items() if name in ('Server thread','e2e-observation-writer') or name.startswith('pool-')}}),flush=True)
     (args.root/'cpu-profile-collection.json').write_text(json.dumps({'diagnostic':True,'nativeEffects':0,'collection':'PASS' if reports else 'NOT_EXECUTED','recordings':reports},indent=2)+'\n')
     print(json.dumps({'diagnostic':True,'recordings':len(reports),'originalNativeGateUnchanged':True}))
 

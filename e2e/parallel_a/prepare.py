@@ -62,6 +62,10 @@ deferred={
 for original,replacement in deferred.items():
     assert adapted.count(original)==1,original
     adapted=adapted.replace(original,replacement)
+# Preserve every native authorization and query. Only the serialization of the
+# resulting immutable Job record is memoized; dynamic dispatch fields stay fresh.
+assert adapted.count('JSON.toJsonTree(job)')==2
+adapted=adapted.replace('JSON.toJsonTree(job)','RuntimeAObservationJson.job(job)')
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)
@@ -102,7 +106,7 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
     for path in out.rglob('*.class'):
         target.write(path, path.relative_to(out).as_posix())
 with ZipFile(release) as packaged:
-    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'JournalCostProbe'))
+    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'JournalCostProbe'))
                    for n in packaged.namelist())
 assert digest(release) == before
 (ROOT / 'build/parallel-a/observer-adaptation.json').write_text(json.dumps({
@@ -116,6 +120,7 @@ assert digest(release) == before
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
         'serialization': 'immutable JSON frame captured on the server thread; full string encoding on the existing observer writer; same cadence and fields',
         'references': 'single scan of exact authorized row spans; one template expansion verifies original bytes; no whole-frame replacement per row',
+        'jobEncoding': 'original authorization/query precedes encoding; exact immutable Job object identity; fresh outer fields; 128 rows/16 MiB cache; same values and cadence',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))
 probe = ROOT / 'build/parallel-a/journal-probe'
@@ -124,3 +129,5 @@ subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
 print(json.dumps({'releaseSha256': before, 'observerSha256': digest(observer), 'instrumentation': 'test-only'}))
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.RuntimeAObservationLog',str(ROOT/'build/parallel-a/reference-log-self-test')],check=True)
+subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
+                'dev.aivillages.fabric.RuntimeAObservationJson'],check=True)
