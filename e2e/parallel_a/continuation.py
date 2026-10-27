@@ -10,7 +10,7 @@ from observation_refs import restore
 ARCHIVE_SHA='e2a8ec4206327e6ff7fe0dc7a3de427490d943c06032d39529257eea479f9881'
 CONTINUED_SHA='aabdaeb532c09c4bc6df602fa333648c2949fd6fe7f197418d7c53b3f5d6449a'
 PRODUCTION_SHA='668287bd6226e6a9e4b1edabcc7d2d91e115eb1e5605bbef29c8d451dd3ae66e'
-CURRENT_PRODUCTION_SHA='5defb969e226a7c40369348a2a1234426bc6bf8fc9e82e334e87de9844effe15'
+CURRENT_PRODUCTION_SHA='ae2b5ebacc45cc5b8bcaee65959990a8c02db132fe32f9fec7edd0d46c0a9b8d'
 LOG='minecraft:oak_log'
 
 def sha(path):
@@ -165,14 +165,14 @@ def start(h,archive):
     from suite import ROOT,read,atomic,require
     from baseline import native_process
     previous=read_input(archive,h.root.parent/('a04-prior-'+h.root.name))
-    require(sha(ROOT/'fabric/build/libs/ai-villages-0.1.0.jar')==CURRENT_PRODUCTION_SHA,'Continuation requires the exact tested UUID-codec JAR')
+    require(sha(ROOT/'fabric/build/libs/ai-villages-0.1.0.jar')==CURRENT_PRODUCTION_SHA,'Continuation requires the exact byte-compatible tested journal JAR')
     shutil.copyfile(archive,h.root/'continuation-input.zip')
     prior=h.root.parent/('a04-prior-'+h.root.name);shutil.copytree(prior/'server/game',h.root/'server/game',ignore=shutil.ignore_patterns('session.lock'))
     world=h.root/'server/game/world';require({p.relative_to(world).as_posix():sha(p) for p in world.rglob('*') if p.is_file()}==previous['worldHashes'],'Whole-world continuation changed source bytes before boot')
     port=bind_port(h.root/'server/game/server.properties',h.port)
     atomic(h.root/'continuation-import.json',{'sourceArtifact':previous['sourceArtifact'],'sourceArchiveSha256':previous['sourceArchiveSha256'],'world':previous['world'],
                                            'worldHashes':previous['worldHashes'],'productionJarSha256':CURRENT_PRODUCTION_SHA,'sourceProductionJarSha256':PRODUCTION_SHA,
-                                           'compatibleCodecSource':'1e3bcb8aef556f1521084b0b40f8c0c97c621951','configurationOverride':port,'nativeEffects':0})
+                                           'compatibleCodecSource':'0a440011664f7102dcd254f69ec5798dfcde6c12','configurationOverride':port,'nativeEffects':0})
     shutil.copytree(ROOT/'build/needle',h.root/'needle');h.env.update(COGNITIVECRAFT_OLLAMA_MODEL='qwen3:4b-instruct-2507-q4_K_M',COGNITIVECRAFT_NEEDLE_DIR='/evidence/needle')
     h.hashes=read(prior/'independent-admissions.json')['artifacts'];h.admissions=read(prior/'independent-admissions.json')['admissions']
     for name in ('models.json','independent-admissions.json'):shutil.copyfile(prior/name,h.root/name)
@@ -198,6 +198,6 @@ def start(h,archive):
     h.wait(lambda:(frame if (frame:=read(h.root/'server/secondary-snapshot.json')) and balance(frame,h.entities['PlayerA'],h.other_destination)[0]==len(previous['cycles']) else None),'Actual continued destination retains every original native delivery',40)
     evidence={k:previous[k] for k in ('world','worldHashes','sourceArchiveSha256','sourceArtifact','retainedIncompleteTails')}
     evidence.update(priorSource=previous['metadata']['sourceCommit'],productionJarSha256=CURRENT_PRODUCTION_SHA,sourceProductionJarSha256=PRODUCTION_SHA,
-                    compatibleCodecSource='1e3bcb8aef556f1521084b0b40f8c0c97c621951',retainedJobs=len(previous['originalRows']),retainedNativeDeliveries=len(previous['cycles']),
+                    compatibleCodecSource='0a440011664f7102dcd254f69ec5798dfcde6c12',retainedJobs=len(previous['originalRows']),retainedNativeDeliveries=len(previous['cycles']),
                     newClientProcessesAtRunBoundary=True,sameClientsFromHere=True,newNativeProcess=native_process(h),originalSourceQualification='FAIL',configurationOverride=port,clientOwners=client_owners)
     atomic(h.root/'continuation.json',evidence);return previous,evidence
