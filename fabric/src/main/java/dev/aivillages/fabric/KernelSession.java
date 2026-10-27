@@ -52,7 +52,7 @@ public final class KernelSession implements AutoCloseable {
                           OrganizationJournal organizations,
                           Organizations.Snapshot initialOrganizations, boolean organizationsReadOnly,
                           MandateJournal mandates, Mandates.Snapshot initialMandates, boolean mandatesReadOnly,
-                          dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history) { }
+                          dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history,JobHistory jobHistory) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -102,6 +102,9 @@ public final class KernelSession implements AutoCloseable {
     private dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveredOwners;
     private dev.aivillages.core.kernel.runtime.persistence.ArchiveService historyService;
     private LeaseArchive leaseArchive;
+    private JobArchive jobArchive;
+    private final boolean jobHistoryEnabled = "true".equalsIgnoreCase(
+            System.getenv().getOrDefault("COGNITIVECRAFT_JOB_HISTORY", "false"));
     private final boolean leaseHistoryEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_LEASE_HISTORY", "false"));
     private long historyReferenceBase;
@@ -192,6 +195,7 @@ public final class KernelSession implements AutoCloseable {
             OrganizationJournal organizations = null;
             MandateJournal mandates = null;
             dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history = null;
+            JobHistory jobHistory=null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -200,6 +204,14 @@ public final class KernelSession implements AutoCloseable {
                     throw new IllegalStateException("Bootstrap compatibility migration: " + migration.status());
                 jobs = JobJournal.open(world, journal.state().worldId());
                 leases = ResourceLeaseJournal.open(world, journal.state().worldId());
+                if(runtimeHistoryEnabled || leaseHistoryEnabled || jobHistoryEnabled
+                        || dev.aivillages.core.kernel.runtime.persistence.ArchiveRequirement.shouldRead(world)) {
+                    history=dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter.open(world,journal.state().worldId(),
+                            dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
+                    jobHistory=new JobHistory(jobs::snapshot,history);
+                    try{jobHistory.refresh(jobs.snapshot());}
+                    catch(java.io.IOException unavailable){AiVillages.LOG.error("Job history unavailable; world mutations remain fenced",unavailable);}
+                }
                 plans = PlanJournal.open(world,journal.state().worldId());
                 var guard = new ResearchAdmissionController.DecisionGuard();
                 repository = VersionedSkillRepository.open(world,
@@ -234,13 +246,15 @@ public final class KernelSession implements AutoCloseable {
                 final var accomplishmentJobs=jobs;
                 final var accomplishmentCitizens=identities;
                 accomplishments=AccomplishmentLedger.open(world,journal.state().worldId(),
-                        new JobOutcomeSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot),roots);
+                        jobHistory==null?new JobOutcomeSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot)
+                                :JobOutcomeSource.withHistory(jobHistory.source(),accomplishmentCitizens::snapshot),roots);
                 retention.register(accomplishments.retentionOwner());
                 accomplishments.capacity(amount->retention.assessReplacement("accomplishments",WorldRetentionManager.Category.EVIDENCE,amount)
                         .status()==WorldRetentionManager.Capacity.AVAILABLE);
                 final var learningEvidence=accomplishments;
                 access=KnowledgeAccessStore.openUnmigrated(world,journal.state().worldId(),
-                        new KnowledgeAccessSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot,learningEvidence::snapshot),
+                        jobHistory==null?new KnowledgeAccessSource(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot,learningEvidence::snapshot)
+                                :KnowledgeAccessSource.withHistory(accomplishmentJobs::snapshot,accomplishmentCitizens::snapshot,learningEvidence::snapshot,jobHistory.source()),
                         KnowledgeAccessStore.repositoryCatalog(repository),clock,roots);
                 retention.register(access.retentionOwner());
                 access.capacity(amount->retention.assessReplacement("knowledge-access",WorldRetentionManager.Category.EVIDENCE,amount)
@@ -265,11 +279,7 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16, 10_485_760));
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
-                if (runtimeHistoryEnabled) {
-                    history = dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter.open(world,journal.state().worldId(),
-                            dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
-                    retention.register(history.retentionOwner());
-                }
+                if(history!=null)retention.register(history.retentionOwner());
                 var accessMigration=access.migrateSharedAccess(()->false);
                 if(!access.readOnly()&&accessMigration.code()!=KnowledgeAccess.Code.APPLIED&&accessMigration.code()!=KnowledgeAccess.Code.DUPLICATE)
                     throw new IllegalStateException("Shared access migration unavailable: "+accessMigration);
@@ -285,7 +295,7 @@ public final class KernelSession implements AutoCloseable {
                         jobs, jobs.snapshot(), jobs.readOnly(), leases, leases.snapshot(), leases.readOnly(), evidence, roots, retention,
                         retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments,access,
                         organizations, organizations.snapshot(), organizations.readOnly(),
-                        mandates, mandates.snapshot(), mandates.readOnly(), history);
+                        mandates, mandates.snapshot(), mandates.readOnly(), history,jobHistory);
             } catch (Exception failure) {
                 if(history!=null)try{history.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(access!=null)try{access.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
@@ -336,8 +346,10 @@ public final class KernelSession implements AutoCloseable {
         }
         citizens.tick();
         refreshLearningPresence(null);
-        accomplishmentService.maintain(jobs.snapshot(),worker);
-        accessService.maintain(jobs.snapshot(),worker);
+        if(jobArchive==null || !jobArchive.capturing()) {
+            accomplishmentService.maintain(jobs.snapshot(),worker);
+            accessService.maintain(jobs.snapshot(),worker);
+        }
         organizations.tick();
         organizations.expire();
         mandates.maintain(server.overworld().getGameTime());
@@ -356,15 +368,25 @@ public final class KernelSession implements AutoCloseable {
         leases.tick();
         if(leaseArchive!=null) {
             var snapshot=jobs.snapshot();
-            var settled=snapshot.jobs().stream().filter(j->(j.state()==Jobs.State.SUCCEEDED
-                    || j.state()==Jobs.State.FAILED || j.state()==Jobs.State.CANCELLED)
-                    && j.attempts().stream().noneMatch(Jobs.Attempt::open)).map(Jobs.Job::id)
-                    .collect(java.util.stream.Collectors.toSet());
+            var settled=new java.util.HashSet<UUID>();var hot=new HashMap<UUID,Jobs.Job>();
+            snapshot.jobs().forEach(j->hot.put(j.id(),j));
+            for(var lease:leases.snapshot().leases()) {
+                var owner=hot.get(lease.owner().job());
+                if(owner==null && loaded.jobHistory()!=null && loaded.jobHistory().ready())owner=loaded.jobHistory().archived(lease.owner().job());
+                if(owner!=null && owner.state().terminal() && owner.attempts().stream().noneMatch(Jobs.Attempt::open))settled.add(owner.id());
+            }
             leaseArchive.step(new LeaseArchive.Closure(snapshot.revision(),leases.snapshot().revision(),historyGeneration(),settled,
                     jobs.ready() && loaded.roots().snapshot().complete() && !historyGenerationUnavailable
                     && snapshot.jobs().stream().noneMatch(j->controller.liveSubmission(j.submissionId())
-                            || dispatcher!=null && dispatcher.ownsAttempt(j))));
+                            || dispatcher!=null && dispatcher.ownsAttempt(j))),leaseHistoryEnabled);
         }
+        if(jobArchive!=null)jobArchive.step(new JobArchive.Closure(jobs.snapshot().revision(),leases.snapshot().revision(),historyGeneration(),
+                jobHistoryEnabled?jobArchivePins():Set.of(),(jobs.ready() || jobArchive.capturing()) && leases.ready()
+                        && !accomplishmentService.pending() && !accessService.pending()
+                        && !loaded.accomplishments().readOnly() && !loaded.access().readOnly()
+                        && jobs.snapshot().jobs().stream().noneMatch(j->controller.liveSubmission(j.submissionId())
+                            || dispatcher!=null && dispatcher.ownsAttempt(j))
+                        && loaded.roots().snapshot().complete() && !historyGenerationUnavailable),jobHistoryEnabled);
         leasedGateway.tick();
         broker.step();
         controller.tick();
@@ -457,8 +479,7 @@ public final class KernelSession implements AutoCloseable {
                 },
                 new FabricResourceLeaseWorld(server), ResourceLeases.Settings.production(),
                 () -> server.overworld().getGameTime(), clock, loaded.leasesReadOnly());
-        if(leaseHistoryEnabled) {
-            if(loaded.history()==null)throw new IllegalStateException("Lease history requires runtime history");
+        if(loaded.history()!=null) {
             leaseArchive=new LeaseArchive(leases,loaded.history(),historyService,
                     dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
         }
@@ -536,6 +557,8 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(control::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        if(loaded.jobHistory()!=null)jobArchive=new JobArchive(jobs,loaded.jobHistory(),loaded.history(),historyService,
+                dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
         organizations = new OrganizationRegistry(loaded.initialOrganizations(), (expected, next) ->
                 CompletableFuture.supplyAsync(() -> {
                     try { return loaded.organizations().replace(expected, next); }
@@ -709,7 +732,7 @@ public final class KernelSession implements AutoCloseable {
                     }
                 }, original -> Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof"), 4);
         worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
-                || leaseArchive!=null && leaseArchive.readOnly())
+                || leaseArchive!=null && !leaseArchive.readReady() || jobArchive!=null && !jobArchive.readReady())
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target));
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
@@ -946,6 +969,27 @@ public final class KernelSession implements AutoCloseable {
     }
     /** Aggregate operator diagnostics only; no principal or historical resource identifiers. */
     public LeaseArchive.Status runtimeLeaseHistoryStatus() { ready();return leaseArchive==null?null:leaseArchive.status(); }
+    public JobArchive.Status runtimeJobHistoryStatus() { ready();return jobArchive==null?null:jobArchive.status(); }
+    /** Exact acknowledged auxiliary owners or conservative pins, captured without a journal I/O monitor. */
+    private Set<UUID> jobArchivePins() {
+        var pins=new java.util.HashSet<UUID>();var evidence=loaded.accomplishments().snapshot();var learning=loaded.access().snapshot();
+        for(var lease:leases.snapshot().leases())if(lease.state()==ResourceLeases.State.ACTIVE)pins.add(lease.owner().job());
+        for(var practice:learning.practices())if(practice.stage()==KnowledgeAccess.Stage.PRACTICING)pins.add(practice.job());
+        for(var binding:mandates.snapshot().bindings())pins.add(binding.job());
+        var hot=jobs.snapshot().jobs();var ids=hot.stream().map(Jobs.Job::id).collect(java.util.stream.Collectors.toSet());
+        for(var job:hot) {
+            if(controller.liveSubmission(job.submissionId()) || dispatcher!=null && dispatcher.ownsAttempt(job))pins.add(job.id());
+            if(job.request().request().capability().equals(CropDelivery.ID) && !job.attempts().isEmpty()
+                    && evidence.progress().stream().noneMatch(p->p.job().equals(job.id()) && p.revision()==job.revision()))pins.add(job.id());
+            if(job.state()==Jobs.State.SUCCEEDED && job.current()!=null) {
+                var attempt=job.current();
+                boolean acknowledged=attempt.executions().stream().anyMatch(e->learning.grants().stream().anyMatch(g->g.learner().actor().equals(attempt.worker())
+                        && g.learner().owner().equals(job.origin()) && g.method().equals(e.artifact())));
+                if(!acknowledged)pins.add(job.id());
+            }
+        }
+        pins.retainAll(ids);return Set.copyOf(pins);
+    }
     /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
     /** Host-facing IMP-022 API. No player command/client feature is introduced by this data owner. */
     public KnowledgeAccess.Decision knowledgeEligibility(ActorRef actor,ArtifactRef method,TrustedContext caller){
@@ -1519,6 +1563,7 @@ public final class KernelSession implements AutoCloseable {
     boolean leasesReady() { return leases != null && leases.ready(); }
     ResourceLeaseService leaseOwner() { return leases; }
     LeaseArchive leaseHistoryOwner() { return leaseArchive; }
+    JobArchive jobHistoryOwner() { return jobArchive; }
     boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
             && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {

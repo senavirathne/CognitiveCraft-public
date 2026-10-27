@@ -41,14 +41,17 @@ public final class ArchiveHistory {
     }
     public static ArchiveHistory read(Path world,UUID worldId,PersistencePolicy policy)throws IOException {
         Objects.requireNonNull(world);Objects.requireNonNull(worldId);Objects.requireNonNull(policy);
+        var requirement=ArchiveRequirement.inspect(world,worldId);
         Path root=world.resolve(RELATIVE_PATH);safe(root);
         if(!Files.exists(root,LinkOption.NOFOLLOW_LINKS))
-            return new ArchiveHistory(State.READY,Manifest.empty(worldId),Map.of(),Set.of(),Set.of(),0,List.of());
+            return new ArchiveHistory(requirement.required()?State.FENCED:State.READY,Manifest.empty(worldId),Map.of(),Set.of(),Set.of(),
+                    requirement.bytes(),requirement.required()?List.of("REQUIRED_HISTORY_MISSING"):List.of());
         if(!Files.isDirectory(root,LinkOption.NOFOLLOW_LINKS))throw new IOException("Archive directory required");
-        var diagnostics=new ArrayList<String>();var inventory=new LinkedHashMap<String,Long>();long physical=0;int segmentFiles=0;
+        var diagnostics=new ArrayList<String>();var inventory=new LinkedHashMap<String,Long>();long physical=requirement.bytes();int segmentFiles=0;
+        if(!requirement.valid())diagnostic(diagnostics,"INVALID_HISTORY_REQUIREMENT");
         try(var stream=Files.newDirectoryStream(root)) {
             for(Path file:stream) {
-                if(inventory.size()>=policy.files())throw new IOException("Archive file quota");safe(file);
+                if(inventory.size()+requirement.files()>=policy.files())throw new IOException("Archive file quota");safe(file);
                 var attr=Files.readAttributes(file,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
                 if(!attr.isRegularFile())throw new IOException("Unexpected archive entry");
                 physical=Math.addExact(physical,attr.size());if(physical>policy.archiveBytes())throw new IOException("Archive byte quota");
@@ -68,6 +71,7 @@ public final class ArchiveHistory {
         if(manifests.containsKey(CURRENT))chosen=manifests.get(CURRENT);
         else if(manifests.containsKey(PREVIOUS)) {chosen=manifests.get(PREVIOUS);diagnostic(diagnostics,"BACKUP_INSPECTION_ONLY");}
         else if(inventory.size()>(inventory.containsKey("writer.lock")?1:0))diagnostic(diagnostics,"NO_CURRENT_MANIFEST");
+        if(requirement.required() && !manifests.containsKey(CURRENT))diagnostic(diagnostics,"REQUIRED_HISTORY_MISSING");
         if(inventory.containsKey(PENDING))diagnostic(diagnostics,"PENDING_PUBLICATION");
         if(manifests.containsKey(CURRENT) && manifests.containsKey(PREVIOUS)) {
             var previous=manifests.get(PREVIOUS);

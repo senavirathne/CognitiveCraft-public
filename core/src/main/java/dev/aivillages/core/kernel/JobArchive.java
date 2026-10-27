@@ -148,6 +148,7 @@ public final class JobArchive {
     }
     public boolean capturing(){checkThread();return gated;}
     public boolean readOnly(){return history.failed();}
+    public boolean readReady(){return history.ready();}
     public Status status() {
         checkThread();Snapshot snapshot=jobs.snapshot();return new Status(history.ready(),history.failed(),snapshot.jobs().size(),
                 (int)snapshot.jobs().stream().filter(j->!j.state().terminal()).count(),history.size(),hotBytes,measuredRevision,

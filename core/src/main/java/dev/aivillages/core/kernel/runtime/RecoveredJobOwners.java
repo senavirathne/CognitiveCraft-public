@@ -115,15 +115,10 @@ public final class RecoveredJobOwners implements AutoCloseable {
     }
     public Page page(TrustedContext caller, int offset, int maximum) {
         check();
-        if (caller == null || !caller.scope().worldId().equals(jobs.snapshot().worldId())
-                || offset < 0 || offset > jobs.settings().total() || maximum < 1 || maximum > 4)
-            throw new IllegalArgumentException("Private activity page bounds");
-        var own = jobs.snapshot().jobs().stream().filter(j -> j.parent() == null && j.origin().equals(caller))
-                .sorted(Comparator.comparing(j -> j.id().toString())).toList();
+        var own=jobs.historyRoots(caller,offset,maximum);
         var result = new ArrayList<View>();
-        int end = Math.min(own.size(), offset + maximum);
-        for (int at = offset; at < end; at++) result.add(view(own.get(at).id(), caller));
-        return new Page(result, offset, end, end < own.size());
+        for(var job:own.jobs())result.add(view(job.id(),caller));
+        return new Page(result,offset,own.nextOffset(),own.more());
     }
     /** Derived quarantine for unresolved old effects, including when scheduling leases expire. */
     public boolean fenced(ValidatedRequest incoming, Effect effect, SurvivalGateway.Cell target) {

@@ -43,7 +43,7 @@ public final class KnowledgeAccessSource {
     boolean present(Enrollment teacher,Enrollment learner){return controls(teacher)&&controls(learner)
             &&present.contains(new Pair(teacher.actor(),learner.actor()));}
     Jobs.Job job(UUID id){var state=jobs();var hot=state==null?null:state.jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);
-        return hot!=null || history==null?hot:history.read().job(id);}
+        return hot!=null || history==null?hot:history.archived(id);}
     boolean qualified(Enrollment teacher,ArtifactRef method){
         var state=evidence.get();if(state==null||!state.world().equals(teacher.owner().scope().worldId()))return false;
         return state.aggregates().stream().anyMatch(a->a.key().actor().equals(teacher.actor())&&a.key().origin().equals(teacher.owner())

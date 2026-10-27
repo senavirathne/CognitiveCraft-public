@@ -64,7 +64,11 @@ public final class ArchiveWriter implements AutoCloseable {
         try {
             try{lock=channel.tryLock();}catch(OverlappingFileLockException occupied){throw new IOException("Archive writer already open",occupied);}
             if(lock==null)throw new IOException("Archive writer already open");
-            return new ArchiveWriter(world,worldId,policy,channel,lock,faults,clock,ArchiveHistory.read(world,worldId,policy));
+            ArchiveHistory initial=ArchiveHistory.read(world,worldId,policy);
+            if(initial.state()==ArchiveHistory.State.READY && initial.manifest().revision()>0) {
+                ArchiveRequirement.ensure(world,worldId);initial=ArchiveHistory.read(world,worldId,policy);
+            }
+            return new ArchiveWriter(world,worldId,policy,channel,lock,faults,clock,initial);
         }catch(IOException | RuntimeException failure){if(lock!=null)lock.release();channel.close();throw failure;}
     }
     /** O(1), no I/O monitor. The manifest alone is never permission to evict a hot row. */
@@ -105,7 +109,7 @@ public final class ArchiveWriter implements AutoCloseable {
         }
         if(rows.isEmpty())return result(Status.DUPLICATE,owner,guard);
         byte[] bytes=encode(new Segment(worldId,owner,guard,rows));
-        int ordinarySegments=Math.min(policy.segments()*policy.pressurePercent()/100,policy.segments()-4*policy.reservations());
+        int ordinarySegments=Math.min(segmentCapacity()*policy.pressurePercent()/100,segmentCapacity()-4*policy.reservations());
         if(snapshot().segments().size()>=ordinarySegments || history.records()+rows.size()>DEFAULT_RECORD_QUOTA*policy.pressurePercent()/100
                 || history.bytes()+bytes.length+3L*MANIFEST_BYTES>policy.ordinaryBytes()
                 || !capacity(bytes.length,reserved(snapshot().slots()),1,futureFiles(snapshot().slots(),null,null)))return result(Status.BACKPRESSURE,owner,guard);
@@ -171,9 +175,11 @@ public final class ArchiveWriter implements AutoCloseable {
         return publish(expected,owner,guard,List.of(),snapshot().slots(),migrations,fences);
     }
     private boolean capacity(long nextBytes,long reserved,int newFiles,int futureFiles) {
-        return history.bytes()+nextBytes+reserved+SEGMENT_BYTES+3L*MANIFEST_BYTES<=policy.archiveBytes()
-                && snapshot().segments().size()+newFiles+futureFiles<=policy.segments();
+        return history.bytes()+nextBytes+reserved+SEGMENT_BYTES+3L*MANIFEST_BYTES+2L*ArchiveRequirement.MAX_BYTES<=policy.archiveBytes()
+                && snapshot().segments().size()+newFiles+futureFiles<=segmentCapacity();
     }
+    // Preserve the existing physical-file quota, including both requirement publication cuts.
+    private int segmentCapacity(){return Math.min(policy.segments(),policy.files()-6);}
     private int futureFiles(List<Slot> slots,UUID publishing,Kind kind)throws IOException {
         int total=0;for(var slot:slots)if(slot.phase()!=Phase.SETTLED)
             for(var phase:List.of(Kind.INTENT,Kind.RESULT,Kind.CANCELLATION,Kind.SETTLEMENT))
@@ -202,6 +208,7 @@ public final class ArchiveWriter implements AutoCloseable {
             var next=new Manifest(worldId,Math.addExact(expected.revision(),1),revisions,guard.retentionGeneration(),refs,slots,migrations);byte[] bytes=encode(next);
             if(!ArchiveFormat.manifest(bytes,worldId).equals(next))throw new IOException("Manifest validation");
             if(!Objects.equals(fences.current(owner),guard))throw new IOException("Owner or retention fence changed before publication");
+            ArchiveRequirement.ensure(world,worldId);
             at(Point.BEFORE_MANIFEST_STAGE);Path pending=root.resolve(ArchiveHistory.PENDING);
             writeNew(pending,bytes);at(Point.AFTER_MANIFEST_STAGE);
             Path current=root.resolve(ArchiveHistory.CURRENT),previous=root.resolve(ArchiveHistory.PREVIOUS);
@@ -261,7 +268,13 @@ public final class ArchiveWriter implements AutoCloseable {
                     public WorldRetentionManager.Page next(int maximum,int bytes)throws IOException {
                         var entries=new ArrayList<WorldRetentionManager.Entry>();int work=0;
                         if(done)return new WorldRetentionManager.Page(entries,true,captured==epoch,0,0);
-                        if(!started) {started=true;stream=Files.newDirectoryStream(root);paths=stream.iterator();
+                        if(!started) {started=true;stream=Files.newDirectoryStream(root);
+                            var metadata=new ArrayList<Path>();
+                            for(String name:List.of(ArchiveRequirement.PATH,ArchiveRequirement.PENDING)) {
+                                Path path=world.resolve(name);if(Files.exists(path,LinkOption.NOFOLLOW_LINKS))metadata.add(path);
+                            }
+                            paths=java.util.stream.Stream.concat(metadata.stream(),
+                                    java.util.stream.StreamSupport.stream(stream.spliterator(),false)).iterator();
                             entries.add(new WorldRetentionManager.Entry(new WorldRetentionManager.Key(id(),"records"),WorldRetentionManager.Category.JOBS,
                                     new WorldRetentionManager.Amount(0,view.records()),List.of(),true,false,Set.of(),""));work++;}
                         while(work<maximum && paths.hasNext()) {
@@ -269,7 +282,8 @@ public final class ArchiveWriter implements AutoCloseable {
                             var a=Files.readAttributes(path,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);if(!a.isRegularFile())throw new IOException("Archive inventory entry");
                             String name=path.getFileName().toString();boolean segment=name.matches("[0-9a-f]{64}\\.seg");String digest=segment?name.substring(0,64):"";
                             boolean safeCopy=segment && view.redundantSegments().contains(digest) && !view.protectedSegments().contains(digest) && !readOnly();
-                            var key=segment?CleanupCandidate.key(digest):new WorldRetentionManager.Key(id(),"file:"+name);
+                            var key=segment?CleanupCandidate.key(digest):new WorldRetentionManager.Key(id(),
+                                    (path.getParent().equals(root)?"file:":"requirement:")+name);
                             entries.add(new WorldRetentionManager.Entry(key,WorldRetentionManager.Category.JOBS,new WorldRetentionManager.Amount(a.size(),0),List.of(),
                                     !safeCopy,safeCopy && clock.millis()-a.lastModifiedTime().toMillis()>=policy.eligibleAgeMillis(),Set.of(),identity(a)));work++;
                         }

@@ -213,6 +213,10 @@ public final class Jobs {
     public record DispatchPage(List<Job> jobs, int total) {
         public DispatchPage { jobs = List.copyOf(jobs); }
     }
+    /** Private history projection, never an executable or expanded hot snapshot. */
+    public record HistoryPage(List<Job> jobs,int nextOffset,boolean more) {
+        public HistoryPage { jobs=List.copyOf(jobs);if(jobs.size()>4 || nextOffset<0)throw new IllegalArgumentException("History page"); }
+    }
     public record Roots(Set<ArtifactRef> artifacts, Set<UUID> runs, Set<UUID> jobs, boolean complete) {
         public Roots {
             artifacts = Set.copyOf(artifacts); runs = Set.copyOf(runs); jobs = Set.copyOf(jobs);

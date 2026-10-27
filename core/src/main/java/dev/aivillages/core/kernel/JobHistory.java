@@ -9,7 +9,10 @@ import static dev.aivillages.core.kernel.Jobs.*;
 /** Bounded immutable read model. It is neither a Job snapshot nor a lifecycle writer. */
 public final class JobHistory {
     public static final int JOBS=2048, ALLOCATIONS=4096;
-    @FunctionalInterface public interface Source { View read(); }
+    @FunctionalInterface public interface Source {
+        View read();
+        default Job archived(UUID id){return read().job(id);}
+    }
     public static final class View {
         private final UUID world;
         private final Map<UUID,Job> jobs;
@@ -33,12 +36,17 @@ public final class JobHistory {
         final Map<UUID,Allocation> allocations;
         final Map<UUID,UUID> receipts,attempts;
         final Map<UUID,Snapshot> components;
+        final Map<Contracts.TrustedContext,List<Job>> rootsByOrigin;
         final Roots roots;
         Index(long revision,Map<UUID,Job> jobs,Map<UUID,Job> submissions,Map<UUID,Allocation> allocations,
               Map<UUID,UUID> receipts,Map<UUID,UUID> attempts,Map<UUID,Snapshot> components,Roots roots) {
             this.revision=revision;this.jobs=Map.copyOf(jobs);this.submissions=Map.copyOf(submissions);
             this.allocations=Map.copyOf(allocations);this.receipts=Map.copyOf(receipts);this.attempts=Map.copyOf(attempts);
             this.components=Map.copyOf(components);this.roots=roots;
+            var groups=new HashMap<Contracts.TrustedContext,List<Job>>();
+            for(Job job:jobs.values())if(job.parent()==null)groups.computeIfAbsent(job.origin(),ignored->new ArrayList<>()).add(job);
+            groups.replaceAll((origin,values)->values.stream().sorted(Comparator.comparing(j->j.id().toString())).toList());
+            this.rootsByOrigin=Map.copyOf(groups);
         }
     }
     private final Supplier<Snapshot> hot;
@@ -52,6 +60,12 @@ public final class JobHistory {
         this.hot=Objects.requireNonNull(hot);this.writer=Objects.requireNonNull(writer);
     }
     public boolean ready(){return index!=null && !failed && !writer.readOnly();}
+    public Source source() {
+        return new Source() {
+            public View read(){return JobHistory.this.read();}
+            public Job archived(UUID id){return JobHistory.this.archived(id);}
+        };
+    }
     public boolean failed(){return failed || writer.readOnly();}
     void fence(){failed=true;}
     public Job archived(UUID id){require();return index.jobs.get(id);}
@@ -107,6 +121,7 @@ public final class JobHistory {
     }
     /** A caller importing an old dependency must import its complete original allocation/reference closure. */
     Snapshot component(UUID id){require();return index.components.get(id);}
+    List<Job> rootRows(Contracts.TrustedContext caller){require();return index.rootsByOrigin.getOrDefault(caller,List.of());}
     void validateHot(Snapshot captured){require();validateHot(captured,index);}
     private static void validateHot(Snapshot hot,Index archived) {
         if(hot.jobs().size()+archived.jobs.size()>JOBS+64)throw new IllegalArgumentException("Bounded combined history");

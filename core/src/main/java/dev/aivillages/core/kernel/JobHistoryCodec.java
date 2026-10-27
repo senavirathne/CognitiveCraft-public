@@ -11,7 +11,9 @@ final class JobHistoryCodec {
 
     static Custody custody(Job job) {
         if(!job.state().terminal() || job.attempts().stream().anyMatch(Attempt::open)
-                || BlueprintMaterials.valid(job.request().request()))return null;
+                || BlueprintMaterials.valid(job.request().request())
+                // The baseline plan owner still reads its complete live/previous linkage from the hot snapshot.
+                || job.request().request().capability().equals(PlanningGoals.ID))return null;
         if(job.attempts().isEmpty()) {
             if(!job.children().isEmpty() || !job.dependencies().isEmpty())return Custody.CLOSED_COMPOSITION;
             return job.state()==State.SUCCEEDED?null:Custody.NO_EFFECT;

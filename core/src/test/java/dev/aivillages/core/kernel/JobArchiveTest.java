@@ -40,6 +40,12 @@ final class JobArchiveTest {
             assertTrue(owners.archive().status().evicted()>=56);assertTrue(s.store.snapshot().jobs().size()<64);
             assertEquals(Settings.defaults(),s.store.settings());assertEquals(32,s.store.settings().active());
             assertEquals(104,owners.history().read().jobs().size());
+            var ids=new HashSet<UUID>();int offset=0;
+            for(int n=0;n<27;n++) {
+                var page=s.store.historyRoots(s.owner,offset,4);page.jobs().forEach(j->assertTrue(ids.add(j.id())));offset=page.nextOffset();
+                if(!page.more())break;
+            }
+            assertEquals(104,ids.size());assertTrue(s.store.historyRoots(s.foreign,0,4).jobs().isEmpty());
         }
     }
     @Test void archiveAcknowledgementPrecedesHotPublicationAndExactPrivateReadSurvives()throws Exception {
@@ -57,7 +63,7 @@ final class JobArchiveTest {
         }
     }
     @Test void unresolvedAttemptAndWholeLiveDependencyClosureRemainPinned()throws Exception {
-        Job uncertain=s.report(s.assign(s.create(2)),1,null);
+        Job uncertain=s.report(s.assign(s.create(2),JobLifecycleStoreTest.actor(),JobLifecycleStoreTest.limits(11_000)),1,null);
         Job producer=completed();Job child=s.create(1,List.of(producer.id()));completed(45);
         try(var writer=ArchiveWriter.open(world,s.world,PersistencePolicy.defaults())) {
             var owners=attach(writer);compact(owners.archive());

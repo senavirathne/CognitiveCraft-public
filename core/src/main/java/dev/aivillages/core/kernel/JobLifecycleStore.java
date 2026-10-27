@@ -238,6 +238,31 @@ public final class JobLifecycleStore {
         if(job==null && history!=null && history.ready())job=history.submission(submission);
         return job!=null && job.state().terminal() && job.attempts().stream().noneMatch(Attempt::open);
     }
+    /** At most four private roots; binary archive lookup plus the existing bounded hot set. */
+    public HistoryPage historyRoots(TrustedContext caller,int offset,int maximum) {
+        thread();int bound=history==null?settings.total():JobHistory.JOBS+settings.total();
+        if(!sameWorld(caller) || offset<0 || offset>bound || maximum<1 || maximum>4)
+            throw new IllegalArgumentException("Private activity page bounds");
+        List<Job> archived=history==null?List.of():history.rootRows(caller);
+        List<Job> extra=state.jobs().stream().filter(j->j.parent()==null && j.origin().equals(caller)
+                && (history==null || history.archived(j.id())==null)).toList();
+        int[] positions=new int[extra.size()];
+        for(int n=0;n<extra.size();n++) {
+            String id=extra.get(n).id().toString();int low=0,high=archived.size();
+            while(low<high){int middle=(low+high)>>>1;if(archived.get(middle).id().toString().compareTo(id)<0)low=middle+1;else high=middle;}
+            positions[n]=low+n;
+        }
+        int total=archived.size()+extra.size(),end=Math.min(total,offset+maximum);var result=new ArrayList<Job>();
+        for(int at=offset;at<end;at++) {
+            Job selected=null;int archiveAt=at;
+            for(int n=0;n<positions.length;n++) {
+                if(positions[n]==at){selected=extra.get(n);break;}if(positions[n]<at)archiveAt--;
+            }
+            if(selected==null)selected=archived.get(archiveAt);
+            if(policy.mayRead(caller,selected))result.add(selected);
+        }
+        return new HistoryPage(result,end,end<total);
+    }
     public ReadyPage readyJobs(TrustedContext caller, int offset) {
         thread();
         if (!sameWorld(caller) || offset < 0) throw new SecurityException("Job query unavailable");

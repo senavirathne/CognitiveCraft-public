@@ -6,6 +6,7 @@ allowed={
     '.github/workflows/parallel-a-runtime.yml',
     'core/src/main/java/dev/aivillages/core/kernel/Jobs.java',
     'core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java',
+    'core/src/main/java/dev/aivillages/core/kernel/Jobs.java',
     'core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java',
     'core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java',
     'fabric/src/main/java/dev/aivillages/fabric/KernelSession.java',
@@ -26,6 +27,7 @@ allowed={
     'core/src/main/java/dev/aivillages/core/kernel/JobOutcomeSource.java',
     'core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessSource.java',
     'core/src/test/java/dev/aivillages/core/kernel/JobArchiveTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveRequirementTest.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/')
 changed=subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()

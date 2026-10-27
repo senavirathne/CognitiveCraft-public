@@ -15,7 +15,7 @@ public final class LeaseArchive {
     @FunctionalInterface public interface Boundary { void at(Point point)throws IOException; }
     public record Closure(long jobsRevision,long leaseRevision,long retentionGeneration,Set<UUID> settledJobs,boolean complete) {
         public Closure {
-            if(jobsRevision<0 || leaseRevision<0 || retentionGeneration<0 || settledJobs.size()>64)throw new IllegalArgumentException("Reference closure");
+            if(jobsRevision<0 || leaseRevision<0 || retentionGeneration<0 || settledJobs.size()>128)throw new IllegalArgumentException("Reference closure");
             settledJobs=Set.copyOf(settledJobs);
         }
     }
@@ -85,6 +85,9 @@ public final class LeaseArchive {
     }
     /** One capture/offer per tick; all encoding, archive enumeration and file work use the existing worker. */
     public void step(Closure closure) {
+        step(closure,true);
+    }
+    public void step(Closure closure,boolean compact) {
         checkThread();current.set(Objects.requireNonNull(closure));lastScanned=0;
         if(!eviction.isEmpty()) {
             // Hot acknowledgement is observable while ordinary admission remains gated.
@@ -121,9 +124,11 @@ public final class LeaseArchive {
         if(reader.failed() || !closure.complete()){if(reader.failed())pressure="FENCED";return;}
         Snapshot captured=service.snapshot();
         if(captured.revision()!=closure.leaseRevision())return;
+        if(!compact && reader.index!=null && captured.revision()==measuredRevision
+                && reader.index.revision()==writer.snapshot().revision())return;
         if(reader.index!=null && (!service.ready() || captured.revision()==measuredRevision
                 && captured.leases().size()<policy.leaseRows() && hotBytes<policy.leaseBytes()))return;
-        boolean copy=reader.index!=null && (captured.leases().size()>=policy.leaseRows()
+        boolean copy=compact && reader.index!=null && (captured.leases().size()>=policy.leaseRows()
                 || captured.revision()==measuredRevision && hotBytes>=policy.leaseBytes());
         if(copy) {
             if(captured.leases().stream().anyMatch(l->l.state()==State.ACTIVE) || !service.beginArchive(this,captured))return;
@@ -201,6 +206,7 @@ public final class LeaseArchive {
                 reader.index==null?0:reader.index.ids().size(),hotBytes,measuredRevision,writer.historyView().bytes(),reserved,pending!=null || !eviction.isEmpty(),pressure,lastScanned,evicted);
     }
     public boolean readOnly(){return reader.failed();}
+    public boolean readReady(){return reader.ready();}
     private void endGate(){if(gated){service.endArchive(this);gated=false;}}
     private void checkThread(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Lease archive game thread");}
 }
