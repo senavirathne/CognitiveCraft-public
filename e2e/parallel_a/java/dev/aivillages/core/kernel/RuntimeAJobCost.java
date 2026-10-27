@@ -64,7 +64,7 @@ public final class RuntimeAJobCost {
             }
         }
         return map("status","PASS","mode",candidate?"archive-ack-domain-verify-and-hot-ack":"legacy-full-hot-snapshot-ack", "fixture",true,"nativeEffects",0,
-                "samplesNanos",samples,"sourceBytes",exact.length,"sourceSha256",sha256(exact),"logicalJobs",64,"selectedJobs",List.copyOf(selected),
+                "samplesNanos",samples,"sourceBytes",exact.length,"sourceSha256",sha256(exact),"logicalJobs",64,"selectedJobs",selected.stream().map(UUID::toString).toList(),
                 "archiveSegmentBytes",bytes,"hotAfter",candidate?48:64,"samples",64,"setupOutsideTimer",true);
     }
     private static void copy(Path source,Path destination)throws IOException {
