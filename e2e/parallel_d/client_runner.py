@@ -72,9 +72,9 @@ class DStorageObservationClient:
         for player in PLAYERS:self.request(player,'close-menu');self.request(player,'disconnect');self.request(player,'exit')
 
 def run(root,stage="D05"):
-    require(stage in ("D05","D06"),"unimplemented native client campaign")
-    world=WORLD if stage=="D05"else "d0600000-0000-4000-8000-000000000001"
-    entry="DStorageObservationServer"if stage=="D05"else "DComeServer"
+    require(stage in ("D05","D06","D07"),"unimplemented native client campaign")
+    world={"D05":WORLD,"D06":"d0600000-0000-4000-8000-000000000001","D07":"d0700000-0000-4000-8000-000000000001"}[stage]
+    entry={"D05":"DStorageObservationServer","D06":"DComeServer","D07":"DFollowServer"}[stage]
     root=root.resolve();require(not root.exists(),'do not overwrite a client campaign');root.mkdir(parents=True);identity=source_identity();fixture=REPO/'build/parallel-d-native/parallel-d-fixtures.jar';selected=root/'selected-client-fixture.jar';
     with ZipFile(fixture)as source,ZipFile(selected,'w',ZIP_DEFLATED)as target:
         for name in source.namelist():
@@ -87,7 +87,10 @@ def run(root,stage="D05"):
     properties='online-mode=false\nenforce-secure-profile=false\nwhite-list=false\nenforce-whitelist=false\nserver-ip=127.0.0.1\nserver-port=25661\nspawn-protection=0\nview-distance=4\nsimulation-distance=4\nlevel-type=minecraft:flat\ngenerate-structures=false\ndifficulty=peaceful\nsync-chunk-writes=true\nmax-players=4\nlevel-seed=20261027\n'
     (root/'server/game/server.properties').write_text(properties)
     env=os.environ.copy();env['CC_D_RUN_ROOT']=str(root);env['CC_D_SERVER_TEST_JAVA']='-Dcognitivecraft.parallelD.fixtureWorld='+world
-    if stage=='D06':
+    if stage=='D07':
+        from follow_client import DFollowClient
+        h=DFollowClient(root,env);write(root/'observation-area.json', {'minX':0,'footY':201,'minZ':0,'maxX':19,'maxZ':24})
+    elif stage=='D06':
         from come_client import DComeClient
         h=DComeClient(root,env);write(root/'observation-area.json',{'minX':0,'footY':201,'minZ':0,'maxX':19,'maxZ':24})
     else:h=DStorageObservationClient(root,env)

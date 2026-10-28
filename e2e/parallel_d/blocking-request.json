@@ -1,7 +1,7 @@
 {
-  "stage": "D06",
-  "campaign": "D06-MOBILITY",
+  "stage": "D07",
+  "campaign": "D07-FOLLOW",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d06-01",
-  "reason": "User-authorized consolidated D06 qualification: one existing workflow, one 90-minute job, one production build, all module suites and every affected D00-D05 case plus D06. Require 193 owned Java,75 Python,six native cases and two actual two-client campaigns. Reuse established Docker/SDK/SDL-offscreen native clients. Keep all frozen contracts, ownership, baseline performance/reload, ACL, resolution, storage GUI/packet/privacy and finite movement gates; no task or test omitted. D06 native raw frames are losslessly reconciled with exact native JVM stdout; physical arrival/last-progress, unloaded and bound-storage rename/replacement proofs are mandatory. Stop after D06; production A/J02 authority/charging/settlement remain deferred."
+  "nonce": "2026-10-29-d07-01",
+  "reason": "User-authorized sequential D07 qualification before D08: one existing Actions workflow, one 90-minute job and one production build. Include all module suites,216 owned Java cases,80 Python checks,seven native cases and three actual two-client campaigns. Preserve every affected D00-D06 case, frozen contract/ownership/baseline, raw evidence hashes, independent native/client oracle, finite follow session/stop/disconnect/ownership/dimension/death/unloaded controls. J02/J05 production integration remains deferred."
 }

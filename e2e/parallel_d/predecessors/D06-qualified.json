@@ -1,0 +1,115 @@
+{
+  "attempt": 1,
+  "base_sha": "12fb3af99e0c9496171b89d4dd2ffff3f5c7a824",
+  "blocked": [
+    "J01/J02/J04: production registration, runtime authority and selector admission are deferred; D06 production hooks remain disabled; test-only native markers are not A settlement"
+  ],
+  "client_e2e": {
+    "evidence": [
+      "clients-d05/identity.json",
+      "clients-d05/menu-observations.json",
+      "clients-d05/privacy-observations.json",
+      "clients-d05/server/d05-observations.jsonl",
+      "clients-d05/clients/PlayerD_A/events.jsonl",
+      "clients-d05/clients/PlayerD_B/events.jsonl",
+      "clients-d06/identity.json",
+      "clients-d06/movement-clients.json",
+      "clients-d06/server/d06/movement.jsonl",
+      "clients-d06/server/d06/terminal.json",
+      "clients-d06/clients/PlayerD_A/events.jsonl",
+      "clients-d06/clients/PlayerD_B/events.jsonl"
+    ],
+    "executed": 2,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 2,
+    "planned": 2,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "docs_sha": "eaf868453b4a28afd3bf27769d7889cff1ee0bf4",
+  "game_tests": {
+    "evidence": [
+      "native/baseline/native-results.xml",
+      "native/incarnation/native-results.xml",
+      "native/topology/native-results.xml",
+      "native/reload-write/native-results.xml",
+      "native/reload-read/native-results.xml",
+      "native/performance/native-results.xml",
+      "native/adapters/native-results.xml",
+      "native/come/native-results.xml",
+      "native/come/stdout.log",
+      "native/come/evidence/arena.json",
+      "native/come/evidence/movement.jsonl",
+      "native/come/evidence/storage-movement.jsonl",
+      "native/come/evidence/controls.json",
+      "native/come/evidence/storage-controls.json"
+    ],
+    "executed": 6,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 6,
+    "planned": 6,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "gate_status": "OWNED_GATES_PASS",
+  "jar_sha256": "8bd64a76c236e67b4556bfae6515ace9f9a08bd474c5684f48ba2ebe23a9bf96",
+  "native_evidence": [
+    "native/baseline/native-results.xml",
+    "native/incarnation/native-results.xml",
+    "native/topology/native-results.xml",
+    "native/reload-write/native-results.xml",
+    "native/reload-read/native-results.xml",
+    "native/performance/native-results.xml",
+    "native/adapters/native-results.xml",
+    "native/come/native-results.xml",
+    "native/come/stdout.log",
+    "native/come/evidence/arena.json",
+    "native/come/evidence/movement.jsonl",
+    "native/come/evidence/storage-movement.jsonl",
+    "native/come/evidence/controls.json",
+    "native/come/evidence/storage-controls.json"
+  ],
+  "owner": "D",
+  "python": {
+    "evidence": [
+      "python-results.xml"
+    ],
+    "executed": 75,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 75,
+    "planned": 75,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "regressions": [],
+  "source_sha": "7fa81a5ec84ed48a12c1f60104fe1d51d7b48bc2",
+  "stage": "D06",
+  "tree_sha": "46a75b2a89c8c77f096d1f9600308eb034f31228",
+  "unit": {
+    "evidence": [
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.contract.StorageCodecTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageRegistryTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageMetadataStoreTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageBindingRulesTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageAccessPolicyTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageVisibilityTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageAclLifecycleTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageResolverTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.logistics.RecipientResolverTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageEligibilityTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.logistics.MobilityPolicyTest.xml"
+    ],
+    "executed": 193,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 193,
+    "planned": 193,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "workflow_run": 40739264035
+}

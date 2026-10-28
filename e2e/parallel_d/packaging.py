@@ -4,7 +4,7 @@ from zipfile import ZipFile
 from common import HERE, REPO, BASE, git, require
 
 ENTRY = 'dev.aivillages.e2e.paralleld.DGameTests'
-ENTRIES = [ENTRY]+['dev.aivillages.e2e.paralleld.'+n for n in ('DStorageIncarnationGameTests','DStorageTopologyGameTests','DStorageTopologyReloadGameTests','DStorageLifecycleCostGameTests','DStorageBaselineGameTests','DStorageAdaptersGameTests','DComeGameTests')]
+ENTRIES = [ENTRY]+['dev.aivillages.e2e.paralleld.'+n for n in ('DStorageIncarnationGameTests','DStorageTopologyGameTests','DStorageTopologyReloadGameTests','DStorageLifecycleCostGameTests','DStorageBaselineGameTests','DStorageAdaptersGameTests','DComeGameTests','DFollowGameTests')]
 TEST_PREFIX = 'dev/aivillages/e2e/paralleld/'
 
 def fixture_descriptor(value):
