@@ -16,6 +16,7 @@ from leases import LeaseHarness
 from baseline import interruption,native_process,same_native_alive,percentiles
 from persistence import LIMITS
 from performance_window import reached as window_reached
+from cut_window import idle_before_cut
 from continuation import terminal as frame_terminal,balance as frame_balance,start as continue_world
 from suite import ROOT,atomic,read,require,reconnect_players
 from generalization_support import LOG,DST,at,coord,Inconclusive
@@ -162,6 +163,8 @@ def crash_cut(h,backup,point,old_job,pinned):
     produced=[]
     for n in range(20):
         if marker():break
+        h.wait(lambda:marker() or idle_before_cut(h.probe('status')),'Original cut or acknowledged intake below the fixed archive target',40)
+        if marker():break
         h.actions_active=False;h.console(['setblock '+coord(h.other_source)+' minecraft:oak_log']);h.wait(lambda:LOG in h.block(h.other_source),'Explicit cut-cohort source fixture')
         stock=h.container(h.other_destination,LOG);h.actions_active=True
         run=h.submit(LOG,1,minimum=h.other_source,maximum=h.other_source,destination=h.other_destination)
@@ -171,7 +174,7 @@ def crash_cut(h,backup,point,old_job,pinned):
         produced.append({'run':run,'view':view,'beforeDestination':stock})
         def cut_or_idle():
             if marker():return marker()
-            status=h.probe('status');return status if status and status['ready'] and not status['jobs']['pending'] and not status['leases']['pending'] else None
+            return idle_before_cut(h.probe('status'))
         h.wait(cut_or_idle,'Cut or acknowledged idle metadata before another legitimate trigger',40)
     reached=h.wait(marker,'Intended Job cut must actually be reached',35);save=h.save_checkpoint();physical=h.snapshot()
     require(produced and h.container(h.other_destination,LOG)==produced[-1]['beforeDestination']+1,'Cut lacks the last native deposit')
