@@ -1,7 +1,7 @@
 {
-  "stage": "D04",
-  "campaign": "D04-RESOLUTION",
+  "stage": "D05",
+  "campaign": "D05-ADAPTERS",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d04-01",
-  "reason": "Standing user authorization covers Actions and Docker for blocking dependencies/tests. Local diagnostics pass 159 cumulative owned Java and 61 Python checks, including 22 actual bounded resolver queries and the retained 100-transition ACL campaign. Full module/release/SDK and cumulative native Docker regressions require the established CI environment. Use one production build and unchanged D01 performance control; no new D04 native/client credit. Qualify this exact committed candidate."
+  "nonce": "2026-10-28-d05-01",
+  "reason": "Standing user authorization requires Actions/Docker for blocking full-module/SDK/client tests. Local diagnostics pass 177 cumulative owned Java and 68 Python checks plus the actual D05 native adapter case and bounded 54-slot read benchmark. The final source/JAR must repeat all five native cases and the genuine two-client synchronization/privacy case in the existing single 90-minute job, with one release build, exact D01 performance control and no model or settlement claim."
 }

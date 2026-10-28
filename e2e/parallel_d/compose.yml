@@ -24,7 +24,10 @@
       "ports": [
         "127.0.0.1:${CC_D_PORT:-25661}:25661"
       ],
-      "stop_grace_period": "40s"
+      "stop_grace_period": "40s",
+      "environment": {
+        "JAVA_TOOL_OPTIONS": "${CC_D_SERVER_TEST_JAVA:-}"
+      }
     },
     "client-a": {
       "image": "${CC_D_RUNTIME_IMAGE:?Set CC_D_RUNTIME_IMAGE}",
@@ -47,7 +50,11 @@
       "environment": {
         "SDL_VIDEO_DRIVER": "x11",
         "COGNITIVECRAFT_E2E_CACHE": "/repo/build/e2e-sdk"
-      }
+      },
+      "entrypoint": [
+        "python3",
+        "e2e/parallel_d/client_launch.py"
+      ]
     },
     "client-b": {
       "image": "${CC_D_RUNTIME_IMAGE:?Set CC_D_RUNTIME_IMAGE}",
@@ -70,7 +77,11 @@
       "environment": {
         "SDL_VIDEO_DRIVER": "x11",
         "COGNITIVECRAFT_E2E_CACHE": "/repo/build/e2e-sdk"
-      }
+      },
+      "entrypoint": [
+        "python3",
+        "e2e/parallel_d/client_launch.py"
+      ]
     },
     "tools": {
       "image": "${CC_D_TOOLS_IMAGE:?Set CC_D_TOOLS_IMAGE}",

@@ -1,0 +1,13 @@
+{
+  "stage": "D04",
+  "source_sha": "0ebc4f3ea08986fc024b775d77ef3bade134e5d9",
+  "tree_sha": "95048a3a7c6e39873bb3e10631f429638102c3c8",
+  "docs_sha": "b1965f33ca4125f7130abd0ba418d862a8f290a6",
+  "docs_tree_sha": "ddb4a0ea5d75e9501682251af1029aa6fd637a27",
+  "jar_sha256": "4fae10bcfdccbcf55ec95c9fa2f29fc387a28a5d7874842a54c0ce70bd137e4d",
+  "workflow_run": 40712423016,
+  "attempt": 1,
+  "qualified_sha256": "4dc070fe9d49a525b82a53c23a78680e2edd033527a8fe1f68977838dbc32d50",
+  "artifact_id": 12826433938,
+  "artifact_sha256": "4f2fb39102dcc0c3517a7faebab1d98a073732dfb87ee349a8f0f8747c8cc801"
+}

@@ -28,6 +28,7 @@ final class DNativeScene {
         this.h=h;this.level=h.getLevel();this.caseId=caseId;this.store=store;world=DTestAuthority.acquireTaggedWorld().world();caller=new StorageRegistry.Caller(world,PRINCIPAL);
         registry=new StorageRegistry(store,new StorageRegistry.Authority() {
             public boolean controls(StorageRegistry.Caller c,StorageRegistry.Owner o) { return allow.get() && c.equals(caller) && PRINCIPAL.equals(o.id()); }
+            public boolean mayGrant(StorageRegistry.Caller c,StorageRegistry.Record r,StorageRegistry.Grant g){return allow.get() && c.equals(caller) && Set.of(StorageRegistry.Permission.INSPECT,StorageRegistry.Permission.DEPOSIT,StorageRegistry.Permission.WITHDRAW).containsAll(g.permissions());}
             public boolean allows(StorageRegistry.Caller c,StorageRegistry.Action a,StorageRegistry.Record r) {
                 return allow.get() && c.equals(caller) && (a!=StorageRegistry.Action.COMMIT_BIND || attested.get()!=null && attested.get().storage().equals(r.id()) && attested.get().generation()==r.generation());
             }
@@ -49,6 +50,9 @@ final class DNativeScene {
     void ack(StorageMetadataStore.Ack ack) { h.assertTrue(ack.status()==StorageMetadataStore.Status.ACKNOWLEDGED,"journal acknowledgement: "+ack); }
     void register(BlockPos pos,String adapterId,String label,Consumer<UUID> next) {
         when(h,registry.registerMetadata(caller,registry.snapshot().revision(),new StorageRegistry.Owner(StorageRegistry.OwnerKind.PLAYER,PRINCIPAL),label,adapterId,Set.of(),List.of()),a->{ack(a);adapter.updateMetadata(registry.snapshot());next.accept(a.storage());});
+    }
+    void registerShared(BlockPos pos,String adapterId,String label,List<StorageRegistry.Grant> grants,Consumer<UUID> next){
+        when(h,registry.registerMetadata(caller,registry.snapshot().revision(),new StorageRegistry.Owner(StorageRegistry.OwnerKind.PLAYER,PRINCIPAL),label,adapterId,Set.of(),grants),a->{ack(a);adapter.updateMetadata(registry.snapshot());next.accept(a.storage());});
     }
     void bind(UUID id,BlockPos pos,boolean publish,Consumer<Binding> next) {
         var s=registry.snapshot();var row=s.records().get(id);long generation=s.bindings().containsKey(id)?row.generation()+1:row.generation();

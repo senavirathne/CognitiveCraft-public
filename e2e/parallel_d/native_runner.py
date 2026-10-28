@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Raw native host collection. Fixed D-only worlds, one release, two JVMs for cold reload."""
-import base64,json,os,shutil,socket,struct,subprocess,time
+import base64,errno,json,os,shutil,socket,struct,subprocess,time
 from pathlib import Path
 from zipfile import ZipFile,ZIP_DEFLATED
 from common import REPO,HERE,require,read,write,sha
@@ -8,7 +8,7 @@ from common import REPO,HERE,require,read,write,sha
 WORLD='d0200000-0000-4000-8000-000000000001'
 SCHEDULE=[('baseline','DStorageBaselineGameTests','BASELINE-D01'),('incarnation','DStorageIncarnationGameTests','D02-GT01'),('topology','DStorageTopologyGameTests','D02-GT02-TOPOLOGY'),('reload-write','DStorageTopologyReloadGameTests','D02-GT02-RELOAD'),('reload-read','DStorageTopologyReloadGameTests','D02-GT02-RELOAD'),('performance','DStorageLifecycleCostGameTests','D02-PERF')]
 
-def run(root,release,fixture,identity,baseline):
+def run(root,release,fixture,identity,baseline,stage="D02"):
     root=Path(root);root.mkdir(parents=True,exist_ok=False)
     sdk=REPO/'build/server-sdk';lock=read(REPO/'scripts/dependencies.json')
     with ZipFile(sdk/'server26.jar') as z:
@@ -17,10 +17,10 @@ def run(root,release,fixture,identity,baseline):
     require(sha(baseline)==read(HERE/'predecessors/D01-lock.json')['jar_sha256'],'wrong unchanged baseline JAR')
     metadata={'identity':identity,'release_sha256':sha(release),'fixture_sha256':sha(fixture),'world':WORLD,'seed':20261027,
               'runtime':[{'path':str(p.relative_to(REPO)),'sha256':sha(p)} for p in runtime],
-              'connected_clients':0,'phases':[]}
+              'stage':stage,'connected_clients':0,'phases':[]}
     write(root/'identity.json',metadata)
     subprocess.run(['javap','-classpath',str(sdk/'minecraft-server.jar'),'-p','-c',*['net.minecraft.world.level.block.entity.'+n for n in ('BlockEntity','BaseContainerBlockEntity','ChestBlockEntity','BarrelBlockEntity')]],stdout=(root/'api-bytecode.txt').open('w'),check=True)
-    for phase,entry,case in SCHEDULE:
+    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage=='D05'else[]):
         phase_release=baseline if phase=='baseline' else release
         target=root/phase;target.mkdir();game=root/'worlds'/('reload' if phase.startswith('reload') else phase);mods=game/'mods';mods.mkdir(parents=True,exist_ok=True)
         report=target/'native-results.xml';evidence=target/'evidence';evidence.mkdir()
@@ -50,6 +50,7 @@ def run(root,release,fixture,identity,baseline):
         with (target/'stdout.log').open('wb') as log:
             try:result=subprocess.run(command,cwd=game,stdout=log,stderr=subprocess.STDOUT,timeout=500);row['exit']=result.returncode
             except subprocess.TimeoutExpired:row['exit']='TIMEOUT'
+            log.flush();os.fsync(log.fileno())
         row['duration_seconds']=time.monotonic()-start
         # Preserve saved world bytes at the process boundary, before the second JVM opens them.
         saved=[]
@@ -71,5 +72,9 @@ def run(root,release,fixture,identity,baseline):
         print('NATIVE_PROCESS',phase,'exit',row['exit'],flush=True)
         if row['exit']!=0:break
     # Mutable world includes caches/session locks, not needed for independent observations; saved region bytes above are retained.
-    shutil.rmtree(root/'worlds')
+    for cleanup_attempt in range(3):
+        try:shutil.rmtree(root/'worlds');break
+        except OSError as error:
+            if error.errno!=errno.ENOTEMPTY or cleanup_attempt==2:raise
+            time.sleep(.2)
     return metadata
