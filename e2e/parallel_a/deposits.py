@@ -86,6 +86,7 @@ def positive(h,result):
     require(all(receipts(view,stage,LOG)==1 for stage in ('HARVEST','PICKUP','DEPOSIT')),'A05 lacks actual H/P/D chain')
     require(entry['result']['receipt'] in view['resourceReceipts'],'Protocol result does not retain the original gateway receipt')
     h.wait(lambda:actual_stock(h)['destination']==1 and not actual_stock(h)['actor']['inventory'],'Independent chest1 and empty actor custody',30)
+    connected_count=h.menu_count('PlayerA',DST,LOG);require(connected_count==1,'Connected native menu lacks the actual log')
     after=actual_stock(h);require(h.model_calls()==calls,'A05 reuse called the model')
     require(native['reconciliation'][token]=='UNPROVEN','Live observation was treated as a native saved witness')
     original=view['responsibility'];key=entry['intent']['key']
@@ -103,15 +104,18 @@ def positive(h,result):
     restart=h.restart(hard=True);again=h.wait(stable_entry,'Repeated positive adoption',45)
     require(again['journal']['entries'][0]==verified['journal']['entries'][0] and not again['protectedJobs'],'Repeated adoption changed durable proof')
     h.quiet(40);require(actual_stock(h)['destination']==1 and not actual_stock(h)['actor']['inventory'],'Repeated adoption changed actual custody')
+    repeated_count=h.menu_count('PlayerA',DST,LOG);require(repeated_count==1,'Repeated saved adoption changed connected client stock')
     metrics=native['metrics'];require(len(metrics['acknowledgementNanos'])==2,'Measure both real intent/result forced publications')
     measurement={'limits':LIMITS,'prepare':percentiles(metrics['beginNanos']),'poll':percentiles(metrics['pollNanos']),'ack':percentiles(metrics['acknowledgementNanos']),
                  'actualNativeDeposits':1,'warning':'Small actual sample; no 64-sample or universal latency claim'}
     atomic(h.root/'a05-live-cost.json',{'raw':metrics,'measurement':measurement})
     measurement['qualification']='NOT_QUALIFIED_SMALL_NATIVE_SAMPLE';measurement['captureTargetP99Ms']=LIMITS['captureP99Ms']
     require(measurement['ack']['max']<=LIMITS['ackMaxMs'],'A05 journal acknowledgement exceeds original bounded publication deadline')
-    record={'id':'saved-positive-repeated-adoption','status':'PASS','run':run,'job':original,'before':before,'after':after,'live':native,'save':saved,'restored':restored,'verify':verify,'verified':verified,'repeatedRestart':restart,'cost':measurement}
+    record={'id':'saved-positive-repeated-adoption','status':'PASS','run':run,'job':original,'before':before,'after':after,'live':native,'save':saved,'restored':restored,'verify':verify,'verified':verified,'repeatedRestart':restart,'cost':measurement,'connectedClientCounts':{'beforeSave':connected_count,'afterRepeatedRestart':repeated_count}}
     result['cases'].append(record);atomic(h.root/'a05-results.json',result)
-    return saved_game,entry,token
+    h.save_checkpoint();h.stop('server');verified_seed=h.root/'verified-positive-game'
+    shutil.copytree(h.root/'server/game',verified_seed,ignore=shutil.ignore_patterns('session.lock'))
+    return saved_game,verified_seed,entry,token
 
 
 def cut(h,seed,result,name,point,expected,**options):
@@ -165,6 +169,69 @@ def negative(h,saved_game,result,token,mode):
     atomic(h.root/'a05-results.json',result)
 
 
+
+def storage_controls(h,verified_seed,original_entry,result):
+    from deposit_fixture import pressure_journal
+    for mode in ('full-quota','corrupt-current'):
+        h.env['A05_DEPOSIT_ENABLED']='true';h.restore(verified_seed,'storage-'+mode);h.family='A05-storage-'+mode
+        original=h.wait(stable_entry,'Verified effect before isolated storage control',45)
+        require(original['journal']['entries'][0].get('verification') is not None and not original['protectedJobs'],'Storage control is confounded by an old unresolved effect')
+        h.logs([at(7,2)]);h.save_checkpoint();h.stop('server')
+        for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Storage-control disconnect '+p,45)
+        folder=h.root/('storage-'+mode);folder.mkdir();current=h.root/'server/game/world/data/cognitivecraft/deposit-evidence/v1/state.jsonl';previous=current.with_name('state.prev.jsonl')
+        before=current.read_bytes();(folder/'original-current.jsonl').write_bytes(before)
+        if mode=='full-quota':
+            changed,declaration=pressure_journal(before,original_entry['intent']);previous.write_bytes(before)
+        else:
+            changed=bytearray(before);changed[-3]^=1;changed=bytes(changed);declaration={'kind':'CORRUPT_CURRENT_NATIVE_REFUSAL','allWriterActivationDisabled':True}
+            h.env['A05_DEPOSIT_ENABLED']='false'
+        current.write_bytes(changed);frozen_hash=hashlib.sha256(changed).hexdigest()
+        atomic(folder/'fixture-declaration.json',{'mode':mode,'metadata':declaration,'originalSha256':hashlib.sha256(before).hexdigest(),'changedSha256':frozen_hash,
+            'nativeSourceAddition':at(7,2),'syntheticMetadataIsNotNativeProvenance':True})
+        h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
+        native=h.wait(h.evidence,'Required native journal reader under '+mode,60)
+        require(native['fenced']==(mode=='corrupt-current'),'Journal pressure/corruption boundary not actually isolated')
+        if mode=='full-quota':require(len(native['journal']['entries'])==64,'Native reader did not accept exact bounded synthetic pressure')
+        before_stock=actual_stock(h);calls=h.model_calls();request=h.request_run(LOG,1,minimum=at(7,2),maximum=at(7,2));run=request['run']
+        if mode=='full-quota':require(request['accepted'],'Quota control must reach the actual imminent deposit admission')
+        if request['accepted']:
+            h.actions_active=True;view=h.finish_run(run,success=False)
+        else:view={'actualIntakeRefusal':request,'resourceReceipts':[],'physicalExecution':'NOT_STARTED'}
+        h.quiet(20);after=actual_stock(h)
+        require(receipts(view,'DEPOSIT',LOG)==0 and before_stock['destination']==after['destination']==1,'Storage refusal changed native chest custody')
+        require(h.model_calls()==calls and hashlib.sha256(current.read_bytes()).hexdigest()==frozen_hash,'Storage refusal rewrote evidence or invoked a model')
+        if mode=='full-quota':
+            require(receipts(view,'HARVEST',LOG)==receipts(view,'PICKUP',LOG)==1 and after['actor']['inventory'].get(LOG,0)==1,'Quota refusal hid the pre-deposit actor custody')
+        else:
+            require(not after['actor']['inventory'] and LOG in h.block(at(7,2)) and not view['resourceReceipts'],'Corrupt required history allowed a physical primitive')
+        record={'id':'native-storage-'+mode,'status':'PASS','fixture':declaration,'reader':native,'beforeStock':before_stock,'afterStock':after,'run':run,'view':view,
+                'journalBytesUnchanged':True,'nativeProcess':native_process(h),'activationFlag':h.env['A05_DEPOSIT_ENABLED']}
+        atomic(folder/'result.json',record);result['cases'].append(record);atomic(h.root/'a05-results.json',result)
+    h.env['A05_DEPOSIT_ENABLED']='true'
+
+
+def cost_windows(h,verified_seed,result):
+    from deposit_fixture import tick_window
+    windows=[]
+    for mode,enabled in (('baseline',False),('candidate',True)):
+        h.env['A05_DEPOSIT_ENABLED']='true' if enabled else 'false';h.restore(verified_seed,'cost-'+mode);h.family='A05-cost-'+mode
+        h.quiet(100)
+        initial=h.wait(lambda:(v if (v:=read(h.root/'server/a05-tick-samples.json')) and v['time']>=h.activated else None),'Current independent A05 raw timer',30)
+        begin=h.rpc('window-marker');begin['observerProcess']=initial['process'];before=native_process(h)
+        h.wait(lambda:(v if (v:=h.evidence()) and v['gameTick']>=begin['gameTick']+LIMITS['ticks'] else None),'Complete400-tick A05 game-clock window',45)
+        def complete():
+            raw=read(h.root/'server/a05-tick-samples.json');selected=tick_window(raw,begin,LIMITS['ticks'])
+            return {'raw':raw,'selected':selected} if selected else None
+        value=h.wait(complete,'Every raw native A05 interval sample retained',15)
+        sample=percentiles([r['nanos'] for r in value['selected']]);record={'configuration':mode,'newEnvelopeActivation':enabled,'requiredReaderActive':True,'begin':begin,
+            'nativeProcess':before,'metric':value['raw']['metric'],'tick':sample,'limits':LIMITS,'rawSamples':value['selected'],'nativeEffects':0}
+        atomic(h.root/('a05-'+mode+'-raw-window.json'),record);windows.append(record)
+        require(sample['p95']<=LIMITS['tickP95Ms'] and sample['p99']<=LIMITS['tickP99Ms'],'Frozen A05 '+mode+' tick window failed: '+json.dumps(sample))
+    result['cases'].append({'id':'required-reader-baseline-and-envelope-candidate-400-tick-cost','status':'PASS','windows':windows,
+                           'actualPublicationCost':result['cases'][0]['cost'],'captureDistribution':'Small actual primitive sample reported separately; no synthetic native-effect or large-sample claim'})
+    atomic(h.root/'a05-results.json',result)
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);parser.add_argument('--seed-archive',type=Path);args=parser.parse_args();args.root=args.root.resolve();args.root.mkdir(parents=True,exist_ok=True)
     h=None;result={'stage':'A05','status':'NOT_EXECUTED','cases':[],'limits':LIMITS,'scope':'one actual default-component log from actual bound actor to ordinary single chest; no physical replay or original-owner settlement'}
@@ -181,7 +248,7 @@ def main():
             seed=args.root/'pre-effect-seed-game';shutil.copytree(h.root/'server/game',seed,ignore=shutil.ignore_patterns('session.lock'))
             h.env['A05_DEPOSIT_ENABLED']='true';h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
             h.wait(h.evidence,'Opt-in native evidence reader activated',60)
-        saved,entry,token=positive(h,result)
+        saved,verified_seed,entry,token=positive(h,result)
         for mode in ('equal-count-swap','components','replacement','unloaded'):
             negative(h,saved,result,token,mode)
         for name,point,expected,options in (
@@ -193,7 +260,9 @@ def main():
             ('actor-saved-chest-prepared','RESULT_ACKNOWLEDGED',{'TORN_PARTICIPANTS'},{'saveBeforeMutation':True,'saveParticipant':'ACTOR'}),
             ('chest-saved-actor-prepared','RESULT_ACKNOWLEDGED',{'TORN_PARTICIPANTS'},{'saveBeforeMutation':True,'saveParticipant':'CHEST'}),
         ):cut(h,seed,result,name,point,expected,**options)
-        result['status']='PASS_OWNED_MATRIX_ONLY';result['remaining']=['native quota and corruption controls','400-tick performance window and independent full artifact review']
+        storage_controls(h,verified_seed,entry,result)
+        cost_windows(h,verified_seed,result)
+        result['status']='PASS_NATIVE_GATES_PENDING_INDEPENDENT_REVIEW';result['remaining']=['independent full artifact, physical saved-participant and raw cost review']
     except Exception as error:
         result.update(status='FAIL',reason=str(error),trace=traceback.format_exc())
         if h is not None:result['lastEvidence']=h.evidence();result['lastSnapshot']=h.snapshot()

@@ -40,6 +40,7 @@ allowed={
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestRemovalMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositStackMutationMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChunkStorageLoadMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositEntityStorageLoadMixin.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/',

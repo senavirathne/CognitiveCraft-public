@@ -4,8 +4,23 @@ import copy,hashlib,json,uuid
 def canonical(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
 
+def tick_window(raw,begin,count):
+    if not raw or raw.get('process')!=begin['observerProcess'] or raw.get('time',0)<begin['time']:return None
+    selected=[s for s in raw['samples'] if begin['gameTick']<s['gameTick']<=begin['gameTick']+count]
+    if len(selected)<count:return None
+    if [s['gameTick'] for s in selected]!=list(range(begin['gameTick']+1,begin['gameTick']+count+1)):
+        raise ValueError('A05 raw game-clock interval is duplicated, missing or out of order')
+    return selected
+
 def pressure_journal(original_bytes,original_intent):
-    header=json.loads(original_bytes.split(b'\n',1)[0]);world=header['world']
+    head,payload=original_bytes.split(b'\n',1);header=json.loads(head);world=header['world']
+    if hashlib.sha256(payload).hexdigest()!=header['sha256']:raise ValueError('Original pressure journal checksum')
+    original_rows=[json.loads(line) for line in payload.splitlines()]
+    matches=[row['intent'] for row in original_rows if row['intent']['key']==original_intent['key']]
+    if len(matches)!=1:raise ValueError('Pressure fixture requires one exact original journal intent')
+    # The observer's record rendering differs from the strict disk codec. Clone the
+    # actual canonical native journal body; never infer that body from Gson fields.
+    original_intent=matches[0]
     if original_intent['key']['world']!=world:raise ValueError('Synthetic pressure must retain its exact world')
     namespace=uuid.UUID(header['epoch'])
     identity=lambda label:str(uuid.uuid5(namespace,'A05_SYNTHETIC_PRESSURE_ONLY/'+label))
