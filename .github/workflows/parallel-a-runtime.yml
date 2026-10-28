@@ -184,6 +184,17 @@ jobs:
           python3 tools/needle/install.py build/needle
           gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a06-prefix-seed.zip
           python3 e2e/parallel_a/receipt_prefix.py --root build/parallel-a/native-a06-prefix --seed-archive build/parallel-a/a06-prefix-seed.zip
+      - name: Independently review original and corrected A06 receipt-retention archives without native effects
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 receipt-prefix-review') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 e2e/parallel_a/review_receipt_prefix.py --run 40709069513 --source 402d92a673f87e38d0de7a9a6e80c7ae14dcd8f5 --expected-status FAIL --out build/parallel-a/a06-prefix-review-first
+          python3 e2e/parallel_a/review_receipt_prefix.py --run 40710834698 --source 94ddf6764917963b6e5d1836dfceb153f93c6e9f --expected-status PASS_RECEIPT_RETENTION_ONLY_PENDING_INDEPENDENT_REVIEW --out build/parallel-a/a06-prefix-review-retry
+          mkdir -p build/parallel-a/source-audit/a06-prefix-review
+          cp build/parallel-a/a06-prefix-review-first/review.json build/parallel-a/source-audit/a06-prefix-review/first.json
+          cp build/parallel-a/a06-prefix-review-retry/review.json build/parallel-a/source-audit/a06-prefix-review/retry.json
       - name: Diagnostic CPU profile of exact retained A04 metadata
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 archive CPU profile') }}
