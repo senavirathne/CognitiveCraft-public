@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "stage": "A04",
+  "inputSource": "1d43736e92907a2b718655e52ddd6384871fe496",
+  "inputArtifact": 12763321061,
+  "inputSha256": "6a103764ecc09b035523c8bd3440cf3dc4c85ea2a23fad1121d04fe99528b2f1",
+  "inputOriginalQualification": "FAIL",
+  "retainedNativeDeliveries": 69,
+  "retainedLogicalJobs": 72,
+  "preflightSource": "0446b18ce49a6e841f4a26ffe8c37c0366b2ebfc",
+  "preflightRun": 40634326273,
+  "preflightJob": 122637673186,
+  "preflightNativeEffects": 0,
+  "productionJarSha256": "ae2b5ebacc45cc5b8bcaee65959990a8c02db132fe32f9fec7edd0d46c0a9b8d",
+  "performanceSource": "1d43736e92907a2b718655e52ddd6384871fe496",
+  "performanceIsCarriedEvidence": true,
+  "remainingCases": ["BEFORE_HOT_PUBLICATION", "AFTER_HOT_ACKNOWLEDGEMENT", "segment-missing", "segment-corrupt", "version-missing"]
+}

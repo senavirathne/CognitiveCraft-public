@@ -19,6 +19,10 @@ def main():
     args.root.mkdir(parents=True,exist_ok=True);h=None;result={'stage':'A04','status':'NOT_EXECUTED','cases':[]}
     try:
         # Validate the original source cohort before creating a server or a client.
+        activation=read(Path(__file__).with_name('a04-qualified-continuation.json'))
+        require(activation['inputSource']==SOURCE and activation['inputArtifact']==ARTIFACT and activation['inputSha256']==ARCHIVE_SHA and activation['productionJarSha256']==CURRENT_PRODUCTION_SHA,'Qualified continuation provenance changed')
+        require(activation['inputOriginalQualification']=='FAIL' and activation['performanceIsCarriedEvidence'] and activation['performanceSource']==SOURCE,'Retained failure/performance attribution changed')
+        result['activation']=activation
         prior=args.root.parent/('a04-prior-'+args.root.name)
         prepared=read_checkpoint(args.resume_archive,prior)
         instrumentation=same_jar_entries(prior/'server/game/mods/observer.jar',ROOT/'build/e2e-driver/observer.jar')
