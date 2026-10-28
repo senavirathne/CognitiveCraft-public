@@ -252,7 +252,9 @@ public final class KernelSession implements AutoCloseable {
                         capabilities, CapabilityRetrievalIndex.Limits.defaults(), () -> System.nanoTime() / 1_000_000);
                 evidence = RetentionEvidenceStore.open(world, journal.state().worldId(), RetentionEvidenceStore.Limits.defaults(), clock, RetentionEvidenceStore.Faults.none());
                 var roots = new RetentionRoots();
-                var retention = new WorldRetentionManager(WorldRetentionManager.Policy.defaults(), roots, caller -> false);
+                var retentionPolicy=WorldRetentionManager.Policy.defaults();
+                if(harvests!=null)retentionPolicy=retentionPolicy.withHarvestEvidence();
+                var retention = new WorldRetentionManager(retentionPolicy, roots, caller -> false);
                 retention.register(repository.retentionOwner()); retention.register(evidence.retentionOwner());
                 final var observationIdentities = identities;
                 observations = ObservedWorldKnowledgeStore.open(world, journal.state().worldId(),

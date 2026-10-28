@@ -31,10 +31,15 @@ public final class WorldRetentionManager {
                          int links, int sliceRecords, int sliceBytes, int diagnostics) {
         public Policy {
             categories = Map.copyOf(categories); Objects.requireNonNull(total);
-            if (categories.size() != Category.values().length || owners < 1 || owners > 16
+            if (categories.size() != Category.values().length || owners < 1 || owners > 17
                     || nodes < 1 || nodes > 8192 || links < 1 || links > 65536
                     || sliceRecords < 1 || sliceRecords > 64 || sliceBytes < 65536 || sliceBytes > 1_048_576
                     || diagnostics < 0 || diagnostics > 32) throw new IllegalArgumentException("Finite retention policy");
+        }
+        /** One named A06 journal requires one additional owner; byte/record/work quotas stay fixed. */
+        public Policy withHarvestEvidence() {
+            if(owners!=16)throw new IllegalStateException("Harvest owner slot requires the legacy sixteen-owner policy");
+            return new Policy(categories,total,17,nodes,links,sliceRecords,sliceBytes,diagnostics);
         }
         public static Policy defaults() {
             var categories = new EnumMap<Category, Quota>(Category.class);
@@ -275,13 +280,16 @@ public final class WorldRetentionManager {
                         Math.addExact(cat.records - old.records, replacement.records));
                 var all = new Amount(Math.addExact(total.bytes - old.bytes, replacement.bytes),
                         Math.addExact(total.records - old.records, replacement.records));
+                var reservedCategories=new EnumMap<Category,Amount>(Category.class);reservedCategories.putAll(categories);
+                reservedCategories.put(category,projected);
                 for (Owner source : sources) if (!source.id().equals(owner) && source.admissionCeiling().isPresent()) {
                     Amount ceiling = source.admissionCeiling().orElseThrow(); Amount measured = ownerUsage.getOrDefault(source.id(), new Amount(0, 0));
                     var growth = new Amount(Math.max(0, ceiling.bytes - measured.bytes), Math.max(0, ceiling.records - measured.records));
                     all = all.plus(growth);
                     Category reservedCategory = ownerCategories.get(source.id());
                     if (reservedCategory == null) return new CapacityResult(Capacity.STORAGE_UNAVAILABLE, category, replacement, policy.categories.get(category), false);
-                    Amount reserved = categories.get(reservedCategory).plus(growth);
+                    Amount reserved = reservedCategories.get(reservedCategory).plus(growth);
+                    reservedCategories.put(reservedCategory,reserved);
                     Quota reservedQuota = policy.categories.get(reservedCategory);
                     if (!reservedQuota.allows(reserved)) return new CapacityResult(Capacity.STORAGE_LIMIT_REACHED, reservedCategory, reserved, reservedQuota, false);
                 }
