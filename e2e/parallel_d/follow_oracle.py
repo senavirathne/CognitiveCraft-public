@@ -59,10 +59,20 @@ def sessions(rows,case,world,principal=None):
     require(p(.99)<=50000000 and max(timings)<=250000000 and all(0<r['heap_used_bytes']<1100*1024*1024 for r in rows),'follow tick/heap regression')
     return details,{'samples':n,'p50_ns':p(.5),'p95_ns':p(.95),'p99_ns':p(.99),'max_ns':max(timings)}
 
+def tracked(frames):
+    before=next((r['state']for r in frames if r['player']=='PlayerD_A'and r['phase']=='BEFORE'),None)
+    stopped=next((r['state']for r in frames if r['player']=='PlayerD_A'and r['phase']=='STOPPED'),None)
+    require(before is not None and stopped is not None and math.dist(before['pos'],stopped['pos'])>=3,'requester did not actually walk after follow admission')
+    actor=next((e for e in stopped['entities']if e['uuid']==ACTOR),None)
+    require(actor is not None and math.dist(actor['pos'],stopped['pos'])<=4.5,'villager did not track changed player position')
+    return {'player_displacement':math.dist(before['pos'],stopped['pos']),'stopped_distance':math.dist(actor['pos'],stopped['pos'])}
+
 def native(root):
     rows=reconcile(root,root/'evidence');arena(root/'evidence/arena.json');groups,performance=sessions(rows,'D07-GT01','d0200000-0000-4000-8000-000000000001')
     require([g['reason']for g in groups]==['PAUSE_LIMIT','RESOURCE_RESERVED','DIMENSION_CHANGED','UNAUTHORIZED','DEAD','UNLOADED','CANCELLED'],'native follow required refusal controls missing')
     require(groups[0]['travel_blocks']>12 and groups[0]['crossed_obstacle'] and groups[0]['paused_ticks']==100 and len(rows)>580,'native finite follow observation window incomplete')
+    positive=[r for r in rows if r['state']['session']==rows[0]['state']['session']and r['connected']and r['event']=='STEP']
+    require(len({tuple(r['native_player'])for r in positive})>=2 and math.dist(positive[-1]['native_feet'],positive[-1]['native_player'])<=4.2,'native villager did not follow changed target')
     c=read(root/'evidence/controls.json');require(c=={'competing_owner':'RESOURCE_RESERVED','dimension':'DIMENSION_CHANGED','revocation':'UNAUTHORIZED','stop':'CANCELLED','pause_ticks':100,'native_class':'net.minecraft.world.entity.npc.villager.Villager','no_ai':False,'death':'DEAD','unloaded':'UNLOADED'},'native follow controls changed')
     return {'sessions':groups,'performance':performance,'evidence':['native/follow/stdout.log','native/follow/evidence/follow.jsonl','native/follow/evidence/controls.json']}
 
@@ -77,6 +87,7 @@ def client(root,identity,fixture):
     rows=reconcile(root/'server',root/'server/d07');arena(root/'server/d07/arena.json');groups,perf=sessions(rows,'D07-CL01',m['world'],offline('PlayerD_A'))
     require(len(groups)==2 and [s['reason']for s in groups]==['CANCELLED','PAUSE_LIMIT']and groups[0]['travel_blocks']>10 and groups[0]['crossed_obstacle']and groups[1]['paused_ticks']==100,'missing real follow/STOP/disconnect session')
     frames=read(root/'follow-clients.json');require(set(r['phase']for r in frames)>={'BEFORE','FOLLOWING','PLAYER_WALKING','STOPPED','BEFORE_DISCONNECT','DISCONNECTED','PAUSE_TERMINAL'},'follow client phases absent')
+    tracking=tracked(frames)
     for player in PLAYERS:
         box=root/'clients'/player;process=read(box/'process.json');events=lines(box/'events.jsonl');observed=lines(box/'observations.jsonl');require(process['kind']=='client' and process['releaseSha256']==identity['jar_sha256']and 'net.fabricmc.loader.impl.launch.knot.KnotClient'in process['command'],'follow real JVM missing')
         require(any(e['kind']=='driver'and e['data']['pid']==process['pid']for e in events) and any(e['kind']=='play'and e['data']['uuid']==offline(player)for e in events),'follow client authenticated play missing')
@@ -88,4 +99,4 @@ def client(root,identity,fixture):
             require(sum(e['kind']=='action'and e['data'].get('action')=='move'for e in events)==2,'follow ordinary real-player movement missing')
     process=read(root/'server/process.json');require(process['releaseSha256']==identity['jar_sha256']and any(x['sha256']==sha(selected)for x in process['mods']),'follow server process swapped')
     require(m['driver_sha256']==sha(REPO/'build/e2e-driver/client.jar')and m['observer_sha256']==sha(REPO/'build/e2e-driver/observer.jar'),'follow established drivers changed')
-    return [{'id':'D07-CL01','status':'PASS'}],{'sessions':groups,'performance':perf,'client_snapshots':len(frames),'evidence':['clients-d07/'+p for p in ('identity.json','follow-clients.json','server/d07/follow.jsonl','server/stdout.log','clients/PlayerD_A/events.jsonl','clients/PlayerD_B/events.jsonl')]}
+    return [{'id':'D07-CL01','status':'PASS'}],{'sessions':groups,'performance':perf,'tracking':tracking,'client_snapshots':len(frames),'evidence':['clients-d07/'+p for p in ('identity.json','follow-clients.json','server/d07/follow.jsonl','server/stdout.log','clients/PlayerD_A/events.jsonl','clients/PlayerD_B/events.jsonl')]}

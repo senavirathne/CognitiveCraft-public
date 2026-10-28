@@ -50,3 +50,12 @@ class FollowOracleTest(unittest.TestCase):
         with self.assertRaises(ValueError):self.verify(bad)
         bad=synthetic();x=copy.deepcopy(bad[-1]);x['tick']+=1;x['navigation_done']=False;bad.append(x)
         with self.assertRaises(ValueError):self.verify(bad)
+    def test_unchanged_player_or_stationary_actor_is_not_tracking(self):
+        from follow_oracle import tracked
+        frames=[{'phase':'BEFORE','player':'PlayerD_A','state':{'pos':[12,201,0],'entities':[]}},{'phase':'STOPPED','player':'PlayerD_A','state':{'pos':[12,201,10],'entities':[{'uuid':ACTOR,'pos':[12,201,7]}]}}]
+        tracked(frames)
+        for kind in ('player','actor'):
+            bad=copy.deepcopy(frames)
+            if kind=='player':bad[-1]['state']['pos']=[12,201,0]
+            else:bad[-1]['state']['entities'][0]['pos']=[12,201,0]
+            with self.assertRaises(ValueError):tracked(bad)

@@ -33,7 +33,7 @@ class DFollowClient(DStorageObservationClient):
             s=self.request(p,'snapshot');a=next(e for e in s['entities']if e['uuid']==ready['actor']);self.request(p,'look',pos=[int(a['pos'][0]),int(a['pos'][1])+1,int(a['pos'][2])]);shots.append({'player':p,'result':self.request(p,'screenshot',name='d07-follow-stopped')})
         write(self.root/'screenshots.json',shots)
         self.request('PlayerD_A','command',text='d-follow start');self.wait(lambda:(self.root/'server/d07/accepted-2.json').exists(),'D07 explicit new session')
-        self.request('PlayerD_A','move',yaw=0,ticks=35);time.sleep(.8);sample('BEFORE_DISCONNECT')
+        self.request('PlayerD_A','move',yaw=180,ticks=35);time.sleep(.8);sample('BEFORE_DISCONNECT')
         self.request('PlayerD_A','disconnect')
         while not (self.root/'server/d07/terminal-2.json').exists():
             sample('DISCONNECTED',('PlayerD_B',));require(time.monotonic()<self.deadline,'D07 finite disconnect');time.sleep(.2)
