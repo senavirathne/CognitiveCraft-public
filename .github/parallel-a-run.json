@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 3,
-  "parentSource": "a016f6630d1bdaae25f87f348fc3fd54df57f270",
+  "sequence": 4,
+  "parentSource": "cd30b4a7eed898284576a7f11c9b7fe7dfc44036",
   "stage": "A06",
   "scope": "first-native-harvest-original-cancellation-and-complete-required-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -14,11 +14,20 @@
   "omittedTasks": 0,
   "omittedTests": 0,
   "execution": "Docker real server and two connected native clients; native save-all flush and actual process kills",
-  "priorFailure": {
-    "run": 40751177875,
-    "source": "aa027e6c33ea405c181457f77407deb327aa088e",
-    "phase": "Fabric compilation",
-    "cause": "ChunkPos private fields corrected to verified x()/z() accessors",
-    "nativeCases": "NOT_EXECUTED"
-  }
+  "priorFailures": [
+    {
+      "run": 40751177875,
+      "source": "aa027e6c33ea405c181457f77407deb327aa088e",
+      "phase": "Fabric compilation",
+      "cause": "ChunkPos private fields corrected to verified x()/z() accessors",
+      "nativeCases": "NOT_EXECUTED"
+    },
+    {
+      "run": 40751539000,
+      "source": "b19ad8dd2e1226a757a353f7af043a55b639f4b4",
+      "phase": "new authority contract expectation",
+      "cause": "The existing authority guard correctly refuses AUTHORITY_DENIED before protocol polling; zero calls and mutations preserved",
+      "nativeCases": "NOT_EXECUTED"
+    }
+  ]
 }
