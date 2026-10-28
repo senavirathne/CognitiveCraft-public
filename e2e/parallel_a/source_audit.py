@@ -28,6 +28,7 @@ CLASSES=[
     'net.minecraft.world.level.chunk.storage.SerializableChunkData',
     'net.minecraft.world.level.chunk.LevelChunk', 'net.minecraft.world.level.chunk.ChunkAccess',
     'net.minecraft.world.level.chunk.ProtoChunk', 'net.minecraft.world.level.chunk.ImposterProtoChunk',
+    'net.minecraft.world.level.ChunkPos', 'net.minecraft.commands.Commands', 'net.minecraft.server.ServerTickRateManager',
     'net.minecraft.world.level.storage.SavedDataStorage', 'net.minecraft.server.commands.SaveAllCommand',
     'net.minecraft.world.level.block.entity.BaseContainerBlockEntity',
     'net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity',

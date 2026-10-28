@@ -32,8 +32,8 @@ public final class HarvestSourceState {
     private void thread(){if(gameThread==null)gameThread=Thread.currentThread();if(gameThread!=Thread.currentThread())throw new IllegalStateException("Native source game-thread owner");}
     private void bind(String dim,ChunkPos chunk) {
         if(dim==null || dim.isBlank())throw new IllegalArgumentException("Source dimension");
-        if(dimension==null){dimension=dim;chunkX=chunk.x;chunkZ=chunk.z;}
-        if(!dimension.equals(dim) || chunkX!=chunk.x || chunkZ!=chunk.z)throw new IllegalArgumentException("Native source chunk binding");
+        if(dimension==null){dimension=dim;chunkX=chunk.x();chunkZ=chunk.z();}
+        if(!dimension.equals(dim) || chunkX!=chunk.x() || chunkZ!=chunk.z())throw new IllegalArgumentException("Native source chunk binding");
     }
     private Position position(BlockPos pos) {
         if(dimension==null || (pos.getX()>>4)!=chunkX || (pos.getZ()>>4)!=chunkZ)throw new IllegalArgumentException("Native source position binding");
@@ -74,7 +74,7 @@ public final class HarvestSourceState {
             String text=metadata.getString(TAG).orElseThrow();if(text.length()>MAX_TEXT)throw new IllegalArgumentException("Native source metadata quota");
             Map<String,Object> root=StrictJson.object(text);
             if(!root.keySet().equals(Set.of("schema","dimension","chunkX","chunkZ","sources")) || !Long.valueOf(1).equals(root.get("schema"))
-                    || !dimension.equals(root.get("dimension")) || !Long.valueOf(chunk.x).equals(root.get("chunkX")) || !Long.valueOf(chunk.z).equals(root.get("chunkZ"))
+                    || !dimension.equals(root.get("dimension")) || !Long.valueOf(chunk.x()).equals(root.get("chunkX")) || !Long.valueOf(chunk.z()).equals(root.get("chunkZ"))
                     || !(root.get("sources") instanceof List<?> rows) || rows.isEmpty() || rows.size()>MAX_SOURCES)throw new IllegalArgumentException("Native source metadata envelope");
             for(Object value:rows) {
                 if(!(value instanceof Map<?,?> row))throw new IllegalArgumentException("Native source row");
