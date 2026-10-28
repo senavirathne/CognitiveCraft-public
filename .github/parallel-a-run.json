@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 4,
-  "parentSource": "cd30b4a7eed898284576a7f11c9b7fe7dfc44036",
+  "sequence": 5,
+  "parentSource": "326c1922a947eaa5fbf5e58bd8bb910febb299c1",
   "stage": "A06",
-  "scope": "first-native-harvest-original-cancellation-and-complete-required-regressions",
+  "scope": "native-harvest-registration-and-unacknowledged-cancellation-fixes-with-all-required-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -28,6 +28,23 @@
       "phase": "new authority contract expectation",
       "cause": "The existing authority guard correctly refuses AUTHORITY_DENIED before protocol polling; zero calls and mutations preserved",
       "nativeCases": "NOT_EXECUTED"
+    },
+    {
+      "run": 40751955638,
+      "source": "822144c82e891d77b263a3238630761ae067890c",
+      "moduleCases": 2409,
+      "moduleStatus": "PASS",
+      "nativeCases": "FAIL_STARTUP_BEFORE_HARVEST",
+      "cause": "Harvest journal was the seventeenth retention owner; legacy owner cap was sixteen",
+      "hostRegressions": {
+        "pass": 7,
+        "fail": 2,
+        "failed": [
+          "GP-19 known child deferred BUDGET_EXHAUSTED",
+          "GP-22 known wheat TARGET_UNAVAILABLE work2 effects1"
+        ],
+        "causes": "UNRESOLVED"
+      }
     }
   ]
 }
