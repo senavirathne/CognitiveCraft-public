@@ -12,6 +12,8 @@ def materialize(root):
     command('init','-q')
     for expected,raw in snapshot['trees'].items():
         require(command('hash-object','-w','-t','tree','--stdin',data=bytes.fromhex(raw))==expected,'docs tree bytes changed')
+    for pin,raw in snapshot.get('commits',{}).items():
+        require(command('hash-object','-w','-t','commit','--stdin',data=raw.encode())==pin,'docs ancestor commit bytes changed')
     for key,pin in [('base_commit',DOCS_BASE),('candidate_commit',snapshot['candidate_sha'])]:
         require(command('hash-object','-w','-t','commit','--stdin',data=snapshot[key].encode())==pin,'docs commit bytes changed')
     (root/'.git/shallow').write_text(DOCS_BASE+'\n')
@@ -28,7 +30,7 @@ def materialize(root):
             expected=command('ls-tree','HEAD',str(p.relative_to(root))).split()[2]
             require(blob==expected,'docs owned blob mismatch: '+str(p))
     command('read-tree','HEAD')
-    protected=[row.split('\t')[1] for row in command('ls-tree','-r','HEAD').splitlines() if not row.split('\t')[1].startswith('docs/implementation/parallel-d/')]
+    protected=[row.split('\t')[1] for row in command('ls-tree','-r','HEAD').splitlines() if not (root/row.split('\t')[1]).is_file()]
     command('update-index','--skip-worktree','--stdin',data=('\n'.join(protected)+'\n').encode())
     require(not command('status','--porcelain'),'docs snapshot working bytes mismatch')
     command('merge-base','--is-ancestor',DOCS_BASE,'HEAD')

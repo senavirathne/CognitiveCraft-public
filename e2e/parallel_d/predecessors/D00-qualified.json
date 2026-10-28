@@ -1,0 +1,62 @@
+{
+  "attempt": 2,
+  "base_sha": "12fb3af99e0c9496171b89d4dd2ffff3f5c7a824",
+  "blocked": [
+    "J01/J02: production registration and runtime authority are deferred; D00 contains no physical implementation"
+  ],
+  "client_e2e": {
+    "evidence": [],
+    "executed": 0,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 0,
+    "planned": 0,
+    "refused_expected": 0,
+    "status": "NOT_EXECUTED"
+  },
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "docs_sha": "0ef49dacd059e5883d436d824ab460fd42171819",
+  "game_tests": {
+    "evidence": [],
+    "executed": 0,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 0,
+    "planned": 0,
+    "refused_expected": 0,
+    "status": "NOT_EXECUTED"
+  },
+  "gate_status": "OWNED_GATES_PASS",
+  "jar_sha256": "b826e92b94f9e66baeb3f567b622d27603f5c7f87f5b83db5b5ea16979e88bc8",
+  "native_evidence": [],
+  "owner": "D",
+  "python": {
+    "evidence": [
+      "python-results.xml"
+    ],
+    "executed": 26,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 26,
+    "planned": 26,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "regressions": [],
+  "source_sha": "313f32b80f6b4c1c6e8182982f40c85d417d38ba",
+  "stage": "D00",
+  "tree_sha": "d982a45726e1f8ae5c586c60fe9489b88850417e",
+  "unit": {
+    "evidence": [
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.contract.StorageCodecTest.xml"
+    ],
+    "executed": 59,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 59,
+    "planned": 59,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "workflow_run": 40645634832
+}

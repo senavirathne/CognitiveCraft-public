@@ -9,8 +9,15 @@ def ids(suite):
 
 def run(stage, output):
     suite=unittest.defaultTestLoader.discover(str(HERE),pattern='test_*.py')
-    expected=registry(stage)['python_cases']; actual=list(ids(suite))
-    require(len(actual)==len(set(actual)) and set(actual)==set(expected),'Python registry mismatch')
+    expected=registry(stage)['python_cases']; discovered=list(ids(suite))
+    known={case for spec in __import__('common').read(HERE/'case-registry.json').values() for case in spec['python_cases']}
+    require(len(discovered)==len(set(discovered)) and set(discovered)<=known and set(expected)<=set(discovered),'Python registry mismatch')
+    def leaves(value):
+        for test in value:
+            if isinstance(test,unittest.TestSuite):yield from leaves(test)
+            else:yield test
+    suite=unittest.TestSuite(test for test in leaves(suite) if test.id() in expected)
+    actual=list(ids(suite))
     root=ET.Element('testsuite',name='parallel_d',tests=str(len(actual)))
     class Result(unittest.TextTestResult):
         def startTest(self,test):

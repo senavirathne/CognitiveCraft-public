@@ -12,10 +12,12 @@ def check(root, stage='D00'):
         for target in re.findall(r'\[[^\]]*\]\(([^)]+)\)',p.read_text()):
             if '://' in target or target.startswith('#'):continue
             target=target.split('#')[0];require((p.parent/target).is_file(),'broken owned link: '+str(p)+' -> '+target)
-    manifest=read(owned/'stage-manifest.json')
+    current=read(owned/'stage-manifest.json')
+    manifest=current if current['stage']==stage else read(owned/(stage+'.stage-manifest.json'))
     require(manifest['owner']=='D' and manifest['stage']==stage,'wrong doc stage owner')
-    require(manifest['gate_status']!='BRANCH_READY','D00 cannot claim branch readiness')
-    progress=read(owned/'progress.json');require(progress['next_stage']=='D01','unexpected advancement')
+    require(manifest['gate_status']!='BRANCH_READY','early stage cannot claim branch readiness')
+    progress=read(owned/'progress.json') if current['stage']==stage else read(owned/(stage+'.progress.json'))
+    require(progress['next_stage']=={'D00':'D01','D01':'D02'}[stage],'unexpected advancement')
     fragments=read(owned/'manifest-fragment.json')
     require(fragments['integration_owner']=='J06' and fragments['destinations']==['AGENT_DOCUMENTATION_INDEX.md','blueprint-manifest.yaml'],'shared documentation destinations unfrozen')
     return {'stage':stage,'scope':'OWNED_DOCUMENTATION_ONLY','files':len(list(owned.rglob('*'))),'gate_status':manifest['gate_status']}

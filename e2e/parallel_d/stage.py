@@ -5,6 +5,7 @@ import argparse, os, shutil, subprocess, sys, uuid
 from common import *
 from packaging import inspect_fixture, inspect_release
 from ownership import audit
+from prerequisites import verify as predecessor
 
 def run(stage, root, built):
     spec=registry(stage);require(built,'stage consumes an already-built release; --built required')
@@ -25,7 +26,7 @@ def run(stage, root, built):
               'dependencies':[{'path':str(p.relative_to(REPO)),'sha256':sha(p)} for p in dependencies],
               'java':subprocess.run(['java','-version'],capture_output=True,text=True,check=True).stderr,
               'integration':{'root_id':None,'owner_id':None,'effect_id':None,'save_proof':None,'blocker':'J01/J02: registration and A authority adapters deferred'},
-              'docs_sha':read(HERE/'docs-snapshot.json')['candidate_sha']}
+              'docs_sha':read(HERE/'docs-snapshot.json')['candidate_sha'],'predecessor':predecessor(stage)}
     write(root/'metadata.json',metadata)
     write(root/'ownership.json',audit(require_built=True))
     for module in ('core','providers','fabric'):
@@ -33,9 +34,11 @@ def run(stage, root, built):
         require(paths,'missing measured JUnit XML for '+module)
         for path in paths:
             target=root/'junit'/module/path.name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
-    subprocess.run([sys.executable,str(HERE/'test_runner.py'),'--stage',stage,'--output',str(root/'python-results.xml')],check=True)
+    subprocess.run([sys.executable,str(HERE/'test_runner.py'),'--stage',stage,'--output',str(root/'python-results.xml')],check=False)
+    if spec.get('metadata_cases'):
+        shutil.copytree(REPO/'build/parallel-d-metadata',root/'metadata')
     write(root/'native-plan.json',{'game_tests':spec['game_tests'],'client_e2e':spec['client_e2e'],
-              'status':'NOT_EXECUTED','reason':'D00 adds no physical implementation; no native/client credit',
+              'status':'NOT_EXECUTED','reason':stage+' adds no physical implementation; no native/client credit',
               'configured_players':[{'name':name,'anticipated_offline_uuid':str(uuid.UUID(bytes=__import__('hashlib').md5(('OfflinePlayer:'+name).encode()).digest(),version=3))} for name in ('PlayerD_A','PlayerD_B')]})
     require(not spec['game_tests'] and not spec['client_e2e'],'native schedules require a later-stage runner; never fabricate frames')
     files=[{'path':str(p.relative_to(root)),'sha256':sha(p),'bytes':p.stat().st_size} for p in sorted(root.rglob('*')) if p.is_file() and p.name not in ('manifest.json','qualified.json','oracle-details.json')]

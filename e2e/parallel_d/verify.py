@@ -5,6 +5,8 @@ import argparse, collections, re, xml.etree.ElementTree as ET
 from common import *
 from ownership import audit
 from packaging import inspect_release,inspect_fixture
+from prerequisites import verify as predecessor
+from recovery_oracle import verify as recovery_verify
 
 def xml_cases(path):
     tree=ET.parse(path).getroot();rows=[]
@@ -56,6 +58,7 @@ def verify(stage,root,source,tree,jar):
         require(m[key]==current[key] and raw['identity'][key]==current[key],'candidate identity changed: '+key)
     require(m['stage']==stage and m['registry_sha256']==sha(HERE/'case-registry.json'),'stage/registry changed')
     require(m['contract_sha256']==CONTRACT,'wrong contract pin')
+    require(m.get('predecessor')==predecessor(stage),'changed/missing predecessor qualification')
     require(all(v is None for k,v in m['integration'].items() if k!='blocker'),'fabricated integrated authority/settlement')
     require(m['docs_sha']==read(HERE/'docs-snapshot.json')['candidate_sha'],'swapped docs principal/pin')
     for row in m['dependencies']:require(sha(REPO/row['path'])==row['sha256'],'runtime/client dependency changed')
@@ -69,12 +72,16 @@ def verify(stage,root,source,tree,jar):
         module_rows=[]
         for p in paths:
             rows,text=xml_cases(p);module_rows.extend(rows)
-            if p.name=='TEST-dev.aivillages.core.kernel.storage.contract.StorageCodecTest.xml':owned.extend(rows);output+='\n'+text
+            if any(r['class'] in spec['unit_suites'] for r in rows):owned.extend(r for r in rows if r['class'] in spec['unit_suites'])
+            if p.name=='TEST-dev.aivillages.core.kernel.storage.contract.StorageCodecTest.xml':output+='\n'+text
         unique(module_rows);require(module_rows and all(r['status']=='PASS' for r in module_rows),'module regression failed/skipped: '+module)
         regression.append({'module':module,'executed':len(module_rows),'passed':len(module_rows)})
-    unique(owned);require(len(owned)==spec['unit_planned'],'D00 JUnit denominator mismatch')
+    unique(owned);require(len(owned)==spec['unit_planned'],'owned JUnit denominator mismatch')
+    expected_ids={name+'/'+case for name,cases in spec['unit_suites'].items() for case in cases}
+    require({r['id']for r in owned}==expected_ids,'missing/unregistered owned JUnit case')
     for method in spec['unit_guard_methods']:require(any(method in r['name'] for r in owned),'missing Java negative control: '+method)
     observations=fixture_observations(output)
+    recoveries=recovery_verify(root/'metadata',spec['metadata_cases']) if spec.get('metadata_cases') else []
     python_rows,_=xml_cases(root/'python-results.xml');unique(python_rows)
     require({r['name'] for r in python_rows}==set(spec['python_cases']),'missing/unregistered Python XML cases')
     require(all(r['status']=='PASS' for r in python_rows),'Python assertion failed/skipped')
@@ -82,10 +89,10 @@ def verify(stage,root,source,tree,jar):
     require(native['game_tests']==[] and native['client_e2e']==[] and native['status']=='NOT_EXECUTED','unearned native/client credit')
     identities=native['configured_players'];require(len(identities)==2 and len({p['name'] for p in identities})==2 and len({p['anticipated_offline_uuid'] for p in identities})==2,'duplicate configured principals')
     result={**current,'stage':stage,'owner':'D','base_sha':BASE,'docs_sha':m['docs_sha'],'contract_sha256':CONTRACT,
-            'unit':metric(spec['unit_planned'],owned,['junit/core/TEST-dev.aivillages.core.kernel.storage.contract.StorageCodecTest.xml']),
+            'unit':metric(spec['unit_planned'],owned,['junit/core/TEST-'+name+'.xml' for name in spec['unit_suites']]),
             'python':metric(len(spec['python_cases']),python_rows,['python-results.xml']),
             'game_tests':metric(0,[],[]),'client_e2e':metric(0,[],[]),'native_evidence':[],
-            'blocked':['J01/J02: production registration and runtime authority are deferred; D00 contains no physical implementation'],
+            'blocked':['J01/J02: production registration and runtime authority are deferred; '+stage+' contains no physical implementation'],
             'regressions':[],'gate_status':'OWNED_GATES_PASS'}
     # Apply the external frozen schema and counter semantics, not our own JSON pass flag.
     import importlib.util
@@ -93,7 +100,7 @@ def verify(stage,root,source,tree,jar):
     contract=importlib.util.module_from_spec(loader);loader.loader.exec_module(contract)
     schema=read(HERE/'contracts/contract.schema.json')
     contract.shape({'schema':'cc.cd/1.0.0','kind':'StageManifest','body':result},schema,schema);contract.semantics('StageManifest',result)
-    details={'scope':'D00_ONLY','fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
+    details={'scope':stage+'_ONLY','metadata_recovery_observations':recoveries,'metadata_observations_are_existing_unit_cases':True,'fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
              'regression_modules':regression,'duplicates':[],'native_executions':0,'connected_clients_observed':0,
              'docs_pin_is_prequalification':True,'final_docs_pin':'external handoff after report commit'}
     return result,details

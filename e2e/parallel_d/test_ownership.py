@@ -30,7 +30,7 @@ class OwnershipTest(unittest.TestCase):
             with self.assertRaises(ValueError):check_compose(value)
     def test_unknown_or_future_stage_rejected(self):
         registry('D00')
-        for stage in ('D01','D11','C00','unknown','../D00'):
+        for stage in ('D02','D11','C00','unknown','../D00'):
             with self.assertRaisesRegex(ValueError,'unknown'):registry(stage)
     def test_core_native_import_rejected(self):
         with tempfile.TemporaryDirectory() as d:

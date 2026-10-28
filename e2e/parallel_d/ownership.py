@@ -72,8 +72,10 @@ def core_boundary(root=REPO,require_classes=False):
 
 def docs_parity(root):
     contract_check()
-    for p in (HERE/'contracts').rglob('*'):
-        if p.is_file(): require((root/'docs/implementation/parallel-d/contracts'/p.relative_to(HERE/'contracts')).read_bytes() == p.read_bytes(),'source/docs contract bytes differ')
+    source=HERE/'contracts';docs=root/'docs/implementation/parallel-d/contracts'
+    require({str(p.relative_to(source)) for p in source.rglob('*') if p.is_file()}=={str(p.relative_to(docs)) for p in docs.rglob('*') if p.is_file()},'source/docs contract file sets differ')
+    for p in source.rglob('*'):
+        if p.is_file(): require((docs/p.relative_to(source)).read_bytes() == p.read_bytes(),'source/docs contract bytes differ')
 
 def audit(base=BASE,docs_base=DOCS_BASE,docs_root=None,require_built=False):
     require(base == BASE and docs_base == DOCS_BASE,'floating or unknown baseline')
@@ -107,7 +109,7 @@ def audit(base=BASE,docs_base=DOCS_BASE,docs_root=None,require_built=False):
         require(all(after.get(p)==v for p,v in before.items()),'protected documentation changed')
         require(all(p.startswith('docs/implementation/parallel-d/') for p in after.keys()-before.keys()),'unowned new docs')
         docs_parity(docs_root);docs_pin=git('rev-parse','HEAD',root=docs_root)
-    return {'scope':'D00_OWNERSHIP','protected_files':len(baseline),'core_class_files':classes,'docs_sha':docs_pin,'contract_sha256':CONTRACT}
+    return {'scope':'D_OWNERSHIP','protected_files':len(baseline),'core_class_files':classes,'docs_sha':docs_pin,'contract_sha256':CONTRACT}
 
 if __name__ == '__main__':
     p=argparse.ArgumentParser();p.add_argument('--base',default=BASE);p.add_argument('--docs-base',default=DOCS_BASE)

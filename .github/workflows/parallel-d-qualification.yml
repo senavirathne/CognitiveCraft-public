@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      D_ROOT: build/e2e/parallel-d/D00
+      D_ROOT: build/e2e/parallel-d/blocked
       CC_D_REQUIRE_BUILT: '1'
       CC_D_BASE_IMAGE: eclipse-temurin@sha256:a9c5ddd386f629518bd500ecfabf7d1e5d32d7ffed735d5c3b1604ae92c830f4
     steps:
@@ -27,12 +27,12 @@ jobs:
       - name: Validate intentional request and immutable inputs
         id: request
         run: |
-          mkdir -p "$D_ROOT"
           python3 e2e/parallel_d/request.py
           python3 e2e/parallel_d/contracts/verify_contract.py --contract e2e/parallel_d/contracts
           python3 e2e/parallel_d/materialize_docs.py --root ../CognitiveCraft-Documentation-D
+          python3 e2e/parallel_d/prerequisites.py --stage "$(python3 -c 'import json;print(json.load(open("e2e/parallel_d/blocking-request.json"))["stage"])')" --docs-root ../CognitiveCraft-Documentation-D
           python3 e2e/parallel_d/ownership.py --docs-root ../CognitiveCraft-Documentation-D
-          python3 e2e/parallel_d/docs_check.py --docs-root ../CognitiveCraft-Documentation-D --stage D00
+          python3 e2e/parallel_d/docs_check.py --docs-root ../CognitiveCraft-Documentation-D --stage "$(python3 -c 'import json;print(json.load(open("e2e/parallel_d/blocking-request.json"))["stage"])')"
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
         with:
           distribution: temurin
@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash gradlew --no-daemon --no-build-cache --stacktrace -I e2e/parallel_d/native/fixture.init.gradle :core:test :providers:test :fabric:test :fabric:build :fabric:gameTestJar :fabric:parallelDNativeJar 2>&1 | tee "$D_ROOT/gradle.log"
+          python3 e2e/parallel_d/build.py --root "$D_ROOT"
           sha256sum fabric/build/libs/ai-villages-0.1.0.jar > "$D_ROOT/release-before.sha256"
       - name: Reuse integrity-checked established server and real-client SDKs
         shell: bash
@@ -91,13 +91,13 @@ jobs:
         run: |
           set -euo pipefail
           docker compose -f e2e/parallel_d/compose.yml config > "$D_ROOT/resolved-compose.yml"
-          docker compose -f e2e/parallel_d/compose.yml run --rm -e CC_D_EXECUTOR=docker-compose -e CC_D_REQUIRE_BUILT=1 tools e2e/parallel_d/stage.py run --stage D00 --built --root /evidence
+          docker compose -f e2e/parallel_d/compose.yml run --rm -e CC_D_EXECUTOR=docker-compose -e CC_D_REQUIRE_BUILT=1 tools e2e/parallel_d/stage.py run --stage "$D_STAGE" --built --root /evidence
       - name: Independent exact-candidate oracle and final ownership/parity audit
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          python3 e2e/parallel_d/verify.py --stage D00 --root "$D_ROOT" --source "$GITHUB_SHA" --tree "$(git rev-parse HEAD^{tree})" --jar fabric/build/libs/ai-villages-0.1.0.jar --output "$D_ROOT/qualified.json"
+          python3 e2e/parallel_d/verify.py --stage "$D_STAGE" --root "$D_ROOT" --source "$GITHUB_SHA" --tree "$(git rev-parse HEAD^{tree})" --jar fabric/build/libs/ai-villages-0.1.0.jar --output "$D_ROOT/qualified.json"
           python3 e2e/parallel_d/ownership.py --docs-root ../CognitiveCraft-Documentation-D --require-built
           sha256sum --check "$D_ROOT/release-before.sha256"
       - name: Remove only this D Compose project's containers and network
@@ -109,12 +109,13 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: parallel-d-D00-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: parallel-d-${{ steps.request.outputs.stage }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 30
           path: |
-            build/e2e/parallel-d/D00/
+            build/e2e/parallel-d/
+            build/parallel-d-metadata/
             core/build/test-results/test/
             providers/build/test-results/test/
             fabric/build/test-results/test/

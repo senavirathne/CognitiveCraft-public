@@ -1,7 +1,7 @@
 {
-  "stage": "D00",
-  "campaign": "D00-BOOTSTRAP",
+  "stage": "D01",
+  "campaign": "D01-METADATA",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d00-03",
-  "reason": "Run 40644705499 attempt 2 passed all module and Docker tests but its oracle rejected colliding inherited parameterized-test display names. Include method names via the owned Gradle init script; preserve duplicate rejection and all baseline assertions."
+  "nonce": "2026-10-28-d01-01",
+  "reason": "Standing user instruction authorizes Actions/Docker for blocking dependencies/tests. D01 focused Java 25 checks pass locally (90/90); full module/release/SDK and actual Docker packaging/file gates require the existing CI environment. Repeat all cumulative cases on this frozen candidate."
 }

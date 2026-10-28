@@ -29,3 +29,9 @@ class NativePackagingTest(unittest.TestCase):
             if os.getenv('CC_D_REQUIRE_BUILT')=='1':self.fail('mandatory release build missing')
             self.skipTest('local Java 25/SDK blocker; required without skips in Actions')
         inspect_release(RELEASE);inspect_fixture(REPO/'build/parallel-d-native/parallel-d-fixtures.jar')
+
+    def test_metadata_test_entrypoint_cannot_enter_the_release(self):
+        with tempfile.TemporaryDirectory() as d:
+            jar=Path(d)/'release.jar'
+            with ZipFile(jar,'w') as z:z.writestr('dev/aivillages/core/kernel/storage/StorageMetadataProbe.class',b'fixture:test-only-entrypoint')
+            with self.assertRaisesRegex(ValueError,'test authority'):inspect_release(jar)
