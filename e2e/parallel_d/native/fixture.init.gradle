@@ -1,0 +1,21 @@
+// Owner-local tasks; the established Loom gameTest classpath supplies the verified 26.3 API.
+gradle.projectsEvaluated {
+    def fabric = gradle.rootProject.project(':fabric')
+    def root = gradle.rootProject.projectDir
+    def compiled = fabric.tasks.register('compileParallelDNative', JavaCompile) {
+        source = fileTree(new File(root, 'e2e/parallel_d/native/java')) { include '**/*.java' }
+        classpath = fabric.sourceSets.gameTest.compileClasspath
+        destinationDirectory = new File(root, 'build/parallel-d-native/classes')
+        options.release = 25
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-proc:none']
+        dependsOn fabric.tasks.named('classes')
+    }
+    fabric.tasks.register('parallelDNativeJar', Jar) {
+        dependsOn compiled
+        archiveFileName = 'parallel-d-fixtures.jar'
+        destinationDirectory = new File(root, 'build/parallel-d-native')
+        from compiled.flatMap { it.destinationDirectory }
+        from new File(root, 'e2e/parallel_d/native/resources')
+    }
+}

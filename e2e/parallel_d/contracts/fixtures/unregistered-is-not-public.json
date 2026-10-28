@@ -1,0 +1,1 @@
+{"context":{"eligible_registered_count":0,"unregistered_visible_count":1},"expected":"REFUSED_EXPECTED","id":"unregistered-is-not-public","message":{"body":{"anchor":"CALLER","container_type":"ANY_MVP","kind":"NEAREST_PUBLIC"},"kind":"StorageSelector","schema":"cc.cd/1.0.0"},"tier":"SYNTHETIC_CONTRACT"}

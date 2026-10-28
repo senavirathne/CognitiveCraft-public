@@ -1,0 +1,1 @@
+{"context":{},"expected":"INVALID_SCHEMA","id":"reply-is-not-proof","message":{"body":{"dialogue_revision":1,"inventory_verified":true,"question_id":"00000000-0000-4000-8000-000000000016","reply":"CHECK_AGAIN","selection":null,"text":"I put it in."},"kind":"PlayerReplyIntent","schema":"cc.cd/1.0.0"},"tier":"SYNTHETIC_CONTRACT"}

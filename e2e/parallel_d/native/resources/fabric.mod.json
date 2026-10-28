@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"cognitivecraft_parallel_d_tests","version":"0.1.0","name":"CognitiveCraft isolated D fixtures","environment":"server","entrypoints":{"fabric-gametest":["dev.aivillages.e2e.paralleld.DGameTests"]},"mixins":["parallel-d.mixins.json"],"depends":{"ai_villages":"*","fabric-gametest-api-v1":"*","minecraft":"26.3","java":">=25"}}

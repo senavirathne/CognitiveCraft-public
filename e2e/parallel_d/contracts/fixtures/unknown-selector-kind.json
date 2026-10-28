@@ -1,0 +1,1 @@
+{"context":{},"expected":"INVALID_SCHEMA","id":"unknown-selector-kind","message":{"body":{"kind":"ANY_CHEST_AT_COORDINATES","x":8},"kind":"StorageSelector","schema":"cc.cd/1.0.0"},"tier":"SYNTHETIC_CONTRACT"}

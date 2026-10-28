@@ -5,6 +5,10 @@ on:
   pull_request:
     paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
   push:
+    branches-ignore:
+      - 'feature/player-assisted-dialogue'
+      - 'feature/storage-mobility-logistics'
+      - 'integration/qualified-ab-conversation-logistics'
     paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
 
 permissions:

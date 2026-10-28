@@ -1,0 +1,112 @@
+{
+  "name": "cc-d-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}",
+  "services": {
+    "minecraft": {
+      "image": "${CC_D_RUNTIME_IMAGE:?Set CC_D_RUNTIME_IMAGE}",
+      "init": true,
+      "user": "${E2E_UID:-1000}:${E2E_GID:-1000}",
+      "working_dir": "/repo",
+      "mem_limit": "2g",
+      "command": [
+        "server",
+        "--root",
+        "/evidence",
+        "--port",
+        "25661"
+      ],
+      "networks": [
+        "d-only"
+      ],
+      "volumes": [
+        "${CC_D_REPO:?Set CC_D_REPO}:/repo:ro",
+        "${CC_D_RUN_ROOT:?Set CC_D_RUN_ROOT}/server:/evidence/server:rw"
+      ],
+      "ports": [
+        "127.0.0.1:${CC_D_PORT:-25661}:25661"
+      ],
+      "stop_grace_period": "40s"
+    },
+    "client-a": {
+      "image": "${CC_D_RUNTIME_IMAGE:?Set CC_D_RUNTIME_IMAGE}",
+      "init": true,
+      "user": "${E2E_UID:-1000}:${E2E_GID:-1000}",
+      "working_dir": "/repo",
+      "mem_limit": "2g",
+      "command": [
+        "client",
+        "--root",
+        "/evidence",
+        "--player",
+        "PlayerD_A"
+      ],
+      "network_mode": "service:minecraft",
+      "volumes": [
+        "${CC_D_REPO:?Set CC_D_REPO}:/repo:ro",
+        "${CC_D_RUN_ROOT:?Set CC_D_RUN_ROOT}/clients/PlayerD_A:/evidence/clients/PlayerD_A:rw"
+      ],
+      "environment": {
+        "SDL_VIDEO_DRIVER": "x11",
+        "COGNITIVECRAFT_E2E_CACHE": "/repo/build/e2e-sdk"
+      }
+    },
+    "client-b": {
+      "image": "${CC_D_RUNTIME_IMAGE:?Set CC_D_RUNTIME_IMAGE}",
+      "init": true,
+      "user": "${E2E_UID:-1000}:${E2E_GID:-1000}",
+      "working_dir": "/repo",
+      "mem_limit": "2g",
+      "command": [
+        "client",
+        "--root",
+        "/evidence",
+        "--player",
+        "PlayerD_B"
+      ],
+      "network_mode": "service:minecraft",
+      "volumes": [
+        "${CC_D_REPO:?Set CC_D_REPO}:/repo:ro",
+        "${CC_D_RUN_ROOT:?Set CC_D_RUN_ROOT}/clients/PlayerD_B:/evidence/clients/PlayerD_B:rw"
+      ],
+      "environment": {
+        "SDL_VIDEO_DRIVER": "x11",
+        "COGNITIVECRAFT_E2E_CACHE": "/repo/build/e2e-sdk"
+      }
+    },
+    "tools": {
+      "image": "${CC_D_TOOLS_IMAGE:?Set CC_D_TOOLS_IMAGE}",
+      "init": true,
+      "user": "${E2E_UID:-1000}:${E2E_GID:-1000}",
+      "working_dir": "/repo",
+      "mem_limit": "2g",
+      "entrypoint": [
+        "python3"
+      ],
+      "command": [
+        "e2e/parallel_d/stage.py",
+        "run",
+        "--stage",
+        "D00",
+        "--built",
+        "--root",
+        "/evidence"
+      ],
+      "networks": [
+        "d-only"
+      ],
+      "volumes": [
+        "${CC_D_REPO:?Set CC_D_REPO}:/repo:ro",
+        "${CC_D_RUN_ROOT:?Set CC_D_RUN_ROOT}:/evidence:rw"
+      ],
+      "environment": {
+        "GITHUB_SHA": "${GITHUB_SHA:-}",
+        "GITHUB_RUN_ID": "${GITHUB_RUN_ID:-}",
+        "GITHUB_RUN_ATTEMPT": "${GITHUB_RUN_ATTEMPT:-}"
+      }
+    }
+  },
+  "networks": {
+    "d-only": {
+      "internal": true
+    }
+  }
+}

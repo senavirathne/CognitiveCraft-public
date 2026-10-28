@@ -1,0 +1,1 @@
+{"context":{},"expected":"VALID","id":"forget-only-own-context","message":{"body":{"action":"FORGET","actor":{"kind":"NAMED","label":"Ada"},"destination":null,"items":[],"label":null,"requested_access":null,"role":null,"source":null,"utterance":"Forget our conversation."},"kind":"DialogueIntent","schema":"cc.cd/1.0.0"},"tier":"SYNTHETIC_CONTRACT"}

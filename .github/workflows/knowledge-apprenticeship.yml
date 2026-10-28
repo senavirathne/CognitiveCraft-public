@@ -5,6 +5,10 @@ on:
   pull_request:
     paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/knowledge-apprenticeship.yml']
   push:
+    branches-ignore:
+      - 'feature/player-assisted-dialogue'
+      - 'feature/storage-mobility-logistics'
+      - 'integration/qualified-ab-conversation-logistics'
     paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/knowledge-apprenticeship.yml']
 
 permissions:

@@ -1,0 +1,7 @@
+{
+  "stage": "D00",
+  "campaign": "D00-BOOTSTRAP",
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "nonce": "2026-10-28-d00-01",
+  "reason": "User explicitly requested GitHub Actions and Docker for blocking tests/dependencies; local host has Java 17 and no Docker or prepared 26.3 SDK."
+}

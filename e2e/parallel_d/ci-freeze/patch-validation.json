@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "claim": "DESIGN_CI_PATCH_VALIDATION_ONLY",
+  "baseline_git_blob_checks": 10,
+  "git_apply_check": "PASS",
+  "semantic_yaml_comparisons": 10,
+  "only_change": "push.branches-ignore for exact C/D/J names",
+  "production_repository_writes": 0,
+  "actions_started": 0
+}

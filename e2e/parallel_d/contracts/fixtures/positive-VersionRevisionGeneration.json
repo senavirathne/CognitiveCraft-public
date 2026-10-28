@@ -1,0 +1,1 @@
+{"context":{},"expected":"VALID","id":"positive-VersionRevisionGeneration","message":{"body":{"generation":1,"revision":2,"schema_version":1},"kind":"VersionRevisionGeneration","schema":"cc.cd/1.0.0"},"tier":"SYNTHETIC_CONTRACT"}

@@ -1,0 +1,1 @@
+{"context":{},"expected":"INVALID_SEMANTICS","id":"public-is-not-a-default-beneficiary","message":{"body":{"beneficiary":{"kind":"PUBLIC"},"revision":1,"role":"DEFAULT","storage_generation":1,"storage_id":"00000000-0000-4000-8000-000000000009","world_id":"00000000-0000-4000-8000-000000000001"},"kind":"StorageRoleAssignment","schema":"cc.cd/1.0.0"},"tier":"SYNTHETIC_CONTRACT"}

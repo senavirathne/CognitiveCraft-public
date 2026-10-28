@@ -1,0 +1,47 @@
+{
+  "D00": {
+    "seed": 20261027,
+    "mandatory_gates": [
+      "D00-U01",
+      "D00-P01",
+      "D00-P02"
+    ],
+    "unit_planned": 59,
+    "unit_guard_methods": [
+      "malformedAndUnknownInputFailsClosed",
+      "decodedProjectionIsDeeplyImmutableAndGrantsNothing"
+    ],
+    "fixture_count": 57,
+    "python_cases": [
+      "test_native_packaging.NativePackagingTest.test_actual_built_release_and_fixture_are_separate",
+      "test_native_packaging.NativePackagingTest.test_descriptor_names_only_d_tests",
+      "test_native_packaging.NativePackagingTest.test_new_automatic_production_registration_rejected",
+      "test_native_packaging.NativePackagingTest.test_peer_or_main_entrypoint_rejected",
+      "test_native_packaging.NativePackagingTest.test_test_authority_in_release_rejected",
+      "test_ownership.OwnershipTest.test_compose_isolated_positive_control",
+      "test_ownership.OwnershipTest.test_core_bytecode_native_descriptor_rejected",
+      "test_ownership.OwnershipTest.test_core_native_import_rejected",
+      "test_ownership.OwnershipTest.test_extra_shared_volume_rejected",
+      "test_ownership.OwnershipTest.test_host_or_external_network_rejected",
+      "test_ownership.OwnershipTest.test_missing_compiled_core_rejected_when_required",
+      "test_ownership.OwnershipTest.test_owned_new_path_and_peer_path_differ",
+      "test_ownership.OwnershipTest.test_protected_deletion_rejected",
+      "test_ownership.OwnershipTest.test_protected_mode_edit_rejected_even_for_ci",
+      "test_ownership.OwnershipTest.test_protected_source_edit_rejected",
+      "test_ownership.OwnershipTest.test_unknown_or_future_stage_rejected",
+      "test_verify.EvidenceVerifierTest.test_artifact_path_escape_rejected",
+      "test_verify.EvidenceVerifierTest.test_claimed_pass_cannot_replace_frozen_disposition",
+      "test_verify.EvidenceVerifierTest.test_duplicate_case_ids_and_inflated_counts_rejected",
+      "test_verify.EvidenceVerifierTest.test_duplicate_manifest_path_rejected",
+      "test_verify.EvidenceVerifierTest.test_frozen_contract_and_manifest_hash",
+      "test_verify.EvidenceVerifierTest.test_missing_or_duplicate_fixture_id_rejected",
+      "test_verify.EvidenceVerifierTest.test_missing_raw_snapshot_rejected",
+      "test_verify.EvidenceVerifierTest.test_mutated_jar_hash_rejected",
+      "test_verify.EvidenceVerifierTest.test_unmanifested_frame_rejected",
+      "test_verify.EvidenceVerifierTest.test_xml_failures_and_skips_are_not_passes"
+    ],
+    "game_tests": [],
+    "client_e2e": [],
+    "scope": "SYNTHETIC_CONTRACT_AND_PACKAGING_ONLY_NO_PHYSICAL_IMPLEMENTATION"
+  }
+}
