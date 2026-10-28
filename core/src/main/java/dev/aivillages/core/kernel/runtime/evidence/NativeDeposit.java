@@ -221,10 +221,10 @@ public final class NativeDeposit {
             if(!markerJson(marker).equals(json))throw new IllegalArgumentException("Noncanonical native marker");return marker;
         }catch(StrictJson.Invalid invalid){throw new IllegalArgumentException("Invalid native marker",invalid);}
     }
-    private static Map<String,Object> key(Key key) {return Map.of("world",key.world.toString(),"root",key.root.toString(),"step",key.step.toString(),"attempt",key.attempt.toString(),"generation",key.generation,"ordinal",key.ordinal);}
-    private static Key key(Map<String,Object> row) {keys(row,Set.of("world","root","step","attempt","generation","ordinal"));return new Key(id(row,"world"),id(row,"root"),id(row,"step"),id(row,"attempt"),number(row,"generation"),integer(row,"ordinal"));}
-    private static Map<String,Object> participant(Participant p) {return Map.of("kind",p.kind.name(),"dimension",p.dimension,"address",p.address,"incarnation",p.incarnation.toString(),"revision",p.revision,"slots",p.slots.stream().map(s->Map.of("item",s.item,"count",s.count)).toList());}
-    private static Participant participant(Map<String,Object> row) {
+    static Map<String,Object> key(Key key) {return Map.of("world",key.world.toString(),"root",key.root.toString(),"step",key.step.toString(),"attempt",key.attempt.toString(),"generation",key.generation,"ordinal",key.ordinal);}
+    static Key key(Map<String,Object> row) {keys(row,Set.of("world","root","step","attempt","generation","ordinal"));return new Key(id(row,"world"),id(row,"root"),id(row,"step"),id(row,"attempt"),number(row,"generation"),integer(row,"ordinal"));}
+    static Map<String,Object> participant(Participant p) {return Map.of("kind",p.kind.name(),"dimension",p.dimension,"address",p.address,"incarnation",p.incarnation.toString(),"revision",p.revision,"slots",p.slots.stream().map(s->Map.of("item",s.item,"count",s.count)).toList());}
+    static Participant participant(Map<String,Object> row) {
         keys(row,Set.of("kind","dimension","address","incarnation","revision","slots"));Object raw=row.get("slots");
         if(!(raw instanceof List<?> values) || values.size()>27)throw new IllegalArgumentException("Deposit slots");
         var slots=new ArrayList<Slot>();for(Object value:values) {var slot=object(value);keys(slot,Set.of("item","count"));slots.add(new Slot(string(slot,"item"),integer(slot,"count")));}
@@ -248,10 +248,10 @@ public final class NativeDeposit {
         return new Intent(key,new TrustedContext(new PrincipalRef(id(row,"principal")),new ScopeRef(key.world,id(row,"domain"))),id(row,"run"),id(row,"operation"),
                 participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"),conditions(object(row,"conditions")),prefix);
     }
-    private static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"actionDeadline",c.actionDeadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
+    static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"actionDeadline",c.actionDeadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
             "maximumReachMilli",c.maximumReachMilli,"observedReachMilli",c.observedReachMilli,"claims",c.claims.stream().map(r->Map.of("id",r.id.toString(),"epoch",r.epoch.toString(),"group",r.group.toString(),"generation",r.generation)).toList(),
             "usage",c.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));}
-    private static Conditions conditions(Map<String,Object> row) {
+    static Conditions conditions(Map<String,Object> row) {
         keys(row,Set.of("citizen","jobRevision","deadline","actionDeadline","effectsRemaining","tick","maximumReachMilli","observedReachMilli","claims","usage"));
         if(!(row.get("claims") instanceof List<?> values) || values.size()>4)throw new IllegalArgumentException("Deposit claim bound");
         var claims=new ArrayList<Claim>();for(Object value:values){var claim=object(value);keys(claim,Set.of("id","epoch","group","generation"));claims.add(new Claim(id(claim,"id"),id(claim,"epoch"),id(claim,"group"),number(claim,"generation")));}
