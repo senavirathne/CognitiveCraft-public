@@ -76,7 +76,8 @@ public final class DepositJournal implements AutoCloseable {
                 || next.revision!=Math.addExact(state.revision,1) || next.entries.size()<state.entries.size())throw new IOException("Stale/fenced deposit publication");
         for(int n=0;n<state.entries.size();n++) {
             Entry before=state.entries.get(n),after=next.entries.get(n);
-            if(!before.intent().equals(after.intent()) || before.result()!=null && !before.result().equals(after.result()))
+            if(!before.intent().equals(after.intent()) || before.result()!=null && !before.result().equals(after.result())
+                    || before.verification()!=null && !before.verification().equals(after.verification()))
                 throw new IOException("Changed or removed original deposit evidence");
         }
         // Reserve the maximum complete result for every row before PREPARED can acknowledge.

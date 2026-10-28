@@ -73,7 +73,7 @@ final class DepositJournalTest {
             assertTrue(Files.size(world.resolve(DepositJournal.PATH+"/state.jsonl"))<DepositJournal.MAX_BYTES);
         }
         Intent i=intent();Key key=new Key(i.key().world(),i.key().root(),UUID.randomUUID(),i.key().attempt(),i.key().generation(),i.key().ordinal());
-        Intent sameOrdinal=new Intent(key,i.origin(),UUID.randomUUID(),UUID.randomUUID(),i.actor(),i.chest(),i.item(),i.actorSlot(),i.chestSlot(),i.capacity());
+        Intent sameOrdinal=new Intent(key,i.origin(),UUID.randomUUID(),UUID.randomUUID(),i.actor(),i.chest(),i.item(),i.actorSlot(),i.chestSlot(),i.capacity(),i.conditions());
         assertThrows(IllegalArgumentException.class,()->new DepositJournal.Snapshot(WORLD,UUID.randomUUID(),0,List.of(new Entry(i,null),new Entry(sameOrdinal,null))));
     }
 }

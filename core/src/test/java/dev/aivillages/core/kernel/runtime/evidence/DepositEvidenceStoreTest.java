@@ -63,9 +63,27 @@ final class DepositEvidenceStoreTest {
     }
     @Test void existingRecordCollisionAndAnUnavailableWriterCannotBecomePrepared() {
         var scene=new Scene();Intent intent=intent();scene.prepare(intent);
-        Intent conflict=new Intent(intent.key(),intent.origin(),intent.run(),intent.operation(),actor(2,7),intent.chest(),intent.item(),0,0,64);
+        Intent conflict=new Intent(intent.key(),intent.origin(),intent.run(),intent.operation(),actor(2,7),intent.chest(),intent.item(),0,0,64,intent.conditions());
         assertEquals(DepositEvidenceStore.Code.STALE,scene.store.prepare(conflict).code());assertEquals(0,scene.port.calls);
         var failed=new Scene();failed.store.prepare(intent);failed.write.completeExceptionally(new IllegalStateException("fixture storage failure"));failed.store.tick();
         assertTrue(failed.store.fenced());assertEquals(0,failed.port.calls);assertTrue(failed.store.protectedJobs().contains(intent.key().root()));
+    }
+    @Test void savedReconciliationMustAcknowledgeBeforeASecondEffectCanUseTheParticipants() {
+        Entry entry=completed(intent());var scene=new Scene(new DepositJournal.Snapshot(WORLD,UUID.randomUUID(),1,List.of(entry)));
+        Marker marker=marker(entry,MarkerPhase.RESULT);scene.port.actor=new Witness(entry.result().actor(),marker,true);scene.port.chest=new Witness(entry.result().chest(),marker,true);
+        Intent next=intent();assertEquals(DepositEvidenceStore.Code.RECOVERY_REQUIRED,scene.store.prepare(next).code());
+        var proof=scene.store.reconcile(entry.intent().key());assertEquals(Reconciliation.SAVED_COMPLETE,proof.result());
+        assertEquals(DepositEvidenceStore.Code.PENDING,scene.store.verify(proof));assertTrue(scene.store.excludes(entry.intent().actor(),UUID.randomUUID()));
+        scene.ack();assertFalse(scene.store.excludes(entry.intent().actor(),UUID.randomUUID()));assertTrue(scene.store.protectedJobs().isEmpty());
+        assertEquals(DepositEvidenceStore.Code.RESOLVED,scene.store.verify(proof));assertNull(scene.write);
+        var restored=new Scene(scene.store.snapshot());assertEquals(DepositEvidenceStore.Code.RESOLVED,restored.store.prepare(entry.intent()).code());
+        assertEquals(Reconciliation.SAVED_COMPLETE,restored.store.reconcile(entry.intent().key()).result());assertEquals(0,restored.port.calls);
+        assertEquals(DepositEvidenceStore.Code.PENDING,restored.store.prepare(next).code());assertEquals(0,restored.port.calls);
+    }
+    @Test void changedParticipantBetweenCaptureAndVerificationCannotCloseAnExclusion() {
+        Entry entry=completed(intent());var scene=new Scene(new DepositJournal.Snapshot(WORLD,UUID.randomUUID(),1,List.of(entry)));
+        Marker marker=marker(entry,MarkerPhase.RESULT);scene.port.actor=new Witness(entry.result().actor(),marker,true);scene.port.chest=new Witness(entry.result().chest(),marker,true);
+        var proof=scene.store.reconcile(entry.intent().key());scene.port.chest=new Witness(chest(6,13),marker,true);
+        assertEquals(DepositEvidenceStore.Code.STALE,scene.store.verify(proof));assertNull(scene.write);assertFalse(scene.store.protectedJobs().isEmpty());assertEquals(0,scene.port.calls);
     }
 }

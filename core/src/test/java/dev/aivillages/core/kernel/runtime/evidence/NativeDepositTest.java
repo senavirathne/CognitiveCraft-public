@@ -21,7 +21,8 @@ final class NativeDepositTest {
         var slots=new ArrayList<>(Collections.nCopies(27,new Slot("minecraft:air",0)));slots.set(0,new Slot(count==0?"minecraft:air":LOG,count));
         return new Participant(Kind.CHEST,"minecraft:overworld","10,64,10",UUID.fromString("40000000-0000-0000-0000-000000000001"),revision,slots);
     }
-    static Intent intent() {return new Intent(new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,1),OWNER,UUID.randomUUID(),UUID.randomUUID(),actor(1,7),chest(5,11),LOG,0,0,64);}
+    static Conditions conditions() {return new Conditions(UUID.randomUUID(),5,10_000,8,100,2500,1000,List.of(new Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1)));}
+    static Intent intent() {return new Intent(new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,1),OWNER,UUID.randomUUID(),UUID.randomUUID(),actor(1,7),chest(5,11),LOG,0,0,64,conditions());}
     static Entry completed(Intent intent) {return new Entry(intent,observed(intent,actor(0,8),chest(6,12),""));}
     static Marker marker(Entry entry,MarkerPhase phase) {return new Marker(entry.token(),entry.intent().digest(),phase,phase==MarkerPhase.RESULT?entry.result().digest():"");}
 
@@ -76,8 +77,15 @@ final class NativeDepositTest {
         assertThrows(IllegalArgumentException.class,()->decode((" "+new String(raw,StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8)));
         byte[] broken=raw.clone();broken[1]=(byte)0xc3;broken[2]=0x28;assertThrows(IllegalArgumentException.class,()->decode(broken));
         Intent i=entry.intent();Key wrong=new Key(UUID.randomUUID(),i.key().root(),i.key().step(),i.key().attempt(),1,1);
-        assertThrows(IllegalArgumentException.class,()->new Intent(wrong,i.origin(),i.run(),i.operation(),i.actor(),i.chest(),LOG,0,0,64));
+        assertThrows(IllegalArgumentException.class,()->new Intent(wrong,i.origin(),i.run(),i.operation(),i.actor(),i.chest(),LOG,0,0,64,i.conditions()));
         assertThrows(IllegalArgumentException.class,()->new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),0,1));
         assertThrows(IllegalArgumentException.class,()->new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,65));
+    }
+    @Test void savedVerificationPersistsBothActualWitnessesAndCannotPromoteTornData() {
+        Entry original=completed(intent());Marker marker=marker(original,MarkerPhase.RESULT);
+        var proof=new Verification(Reconciliation.SAVED_COMPLETE,original.result().actor(),original.result().chest(),marker,marker,UUID.randomUUID(),100);
+        Entry verified=new Entry(original.intent(),original.result(),proof);assertEquals(verified,decode(encode(verified)));
+        var torn=new Verification(Reconciliation.SAVED_COMPLETE,original.intent().actor(),original.intent().chest(),marker,marker,UUID.randomUUID(),100);
+        assertThrows(IllegalArgumentException.class,()->new Entry(original.intent(),original.result(),torn));
     }
 }

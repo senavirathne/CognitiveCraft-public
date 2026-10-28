@@ -28,6 +28,11 @@ CLASSES=[
     'net.minecraft.world.level.chunk.storage.SerializableChunkData',
     'net.minecraft.world.level.chunk.LevelChunk',
     'net.minecraft.world.level.storage.SavedDataStorage', 'net.minecraft.server.commands.SaveAllCommand',
+    'net.minecraft.world.level.block.entity.BaseContainerBlockEntity',
+    'net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity',
+    'net.minecraft.world.level.storage.ValueInput', 'net.minecraft.world.level.storage.ValueOutput',
+    'net.minecraft.world.level.block.Block', 'net.minecraft.world.level.block.entity.BlockEntityType',
+    'net.minecraft.nbt.CompoundTag', 'net.minecraft.nbt.NbtOps',
 ]
 
 

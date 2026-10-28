@@ -49,11 +49,24 @@ public final class NativeDeposit {
                     && incarnation.equals(other.incarnation);
         }
     }
+    public record Claim(UUID id,UUID epoch,UUID group,long generation) {
+        public Claim {Objects.requireNonNull(id);Objects.requireNonNull(epoch);Objects.requireNonNull(group);if(generation<1)throw new IllegalArgumentException("Deposit claim generation");}
+    }
+    public record Conditions(UUID citizen,long jobRevision,long deadlineEpochMillis,long effectsRemaining,long observedTick,
+                             int maximumReachMilli,int observedReachMilli,List<Claim> claims) {
+        public Conditions {
+            Objects.requireNonNull(citizen);claims=List.copyOf(claims);
+            if(jobRevision<0 || deadlineEpochMillis<0 || effectsRemaining<1 || effectsRemaining>4096 || observedTick<0
+                    || maximumReachMilli!=2500 || observedReachMilli<0 || observedReachMilli>maximumReachMilli
+                    || claims.isEmpty() || claims.size()>4 || claims.stream().map(Claim::id).distinct().count()!=claims.size()
+                    || claims.stream().map(Claim::group).distinct().count()!=1)throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
+        }
+    }
     public record Intent(Key key,TrustedContext origin,UUID run,UUID operation,Participant actor,Participant chest,
-                         String item,int actorSlot,int chestSlot,int capacity) {
+                         String item,int actorSlot,int chestSlot,int capacity,Conditions conditions) {
         public Intent {
             Objects.requireNonNull(key);Objects.requireNonNull(origin);Objects.requireNonNull(run);Objects.requireNonNull(operation);
-            Objects.requireNonNull(actor);Objects.requireNonNull(chest);
+            Objects.requireNonNull(actor);Objects.requireNonNull(chest);Objects.requireNonNull(conditions);
             if(!key.world.equals(origin.scope().worldId()) || actor.kind!=Kind.ACTOR || chest.kind!=Kind.CHEST
                     || !actor.dimension.equals(chest.dimension) || !Set.of("minecraft:oak_log","minecraft:birch_log").contains(item)
                     || actorSlot<0 || actorSlot>=actor.slots.size() || chestSlot<0 || chestSlot>=chest.slots.size()
@@ -72,13 +85,23 @@ public final class NativeDeposit {
         }
         public String digest(){return sha(StrictJson.canonical(result(this)));}
     }
-    public record Entry(Intent intent,Result result) {
+    public record Verification(Reconciliation outcome,Participant actor,Participant chest,Marker actorMarker,Marker chestMarker,UUID process,long observedAt) {
+        public Verification {
+            Objects.requireNonNull(outcome);Objects.requireNonNull(actor);Objects.requireNonNull(chest);Objects.requireNonNull(actorMarker);Objects.requireNonNull(chestMarker);Objects.requireNonNull(process);
+            if(observedAt<0 || !Set.of(Reconciliation.PREPARED_NO_EFFECT,Reconciliation.SAVED_COMPLETE,Reconciliation.SAVED_NO_EFFECT).contains(outcome))
+                throw new IllegalArgumentException("Only complete saved evidence can close a deposit exclusion");
+        }
+    }
+    public record Entry(Intent intent,Result result,Verification verification) {
+        public Entry(Intent intent,Result result){this(intent,result,null);}
         public Entry {
             Objects.requireNonNull(intent);
             if(result!=null && (!result.intent.equals(intent.digest()) || !intent.actor.sameIdentity(result.actor)
                     || !intent.chest.sameIdentity(result.chest) || result.actor.revision<intent.actor.revision
                     || result.chest.revision<intent.chest.revision || result.live!=delta(intent,result.actor,result.chest)))
                 throw new IllegalArgumentException("Deposit result identity/delta");
+            if(verification!=null && classify(new Entry(intent,result,null),new Witness(verification.actor,verification.actorMarker,true),
+                    new Witness(verification.chest,verification.chestMarker,true))!=verification.outcome)throw new IllegalArgumentException("Deposit verification does not prove its own outcome");
         }
         public String token(){return intent.key.token();}
     }
@@ -122,6 +145,7 @@ public final class NativeDeposit {
     public static byte[] encode(Entry entry) {
         var value=new LinkedHashMap<String,Object>();value.put("schema",1L);value.put("intent",intent(entry.intent));
         if(entry.result!=null)value.put("result",result(entry.result));
+        if(entry.verification!=null)value.put("verification",verification(entry.verification));
         byte[] raw=StrictJson.canonical(value).getBytes(StandardCharsets.UTF_8);
         if(raw.length>MAX_RECORD_BYTES)throw new IllegalArgumentException("Deposit record quota");return raw;
     }
@@ -130,9 +154,10 @@ public final class NativeDeposit {
         try {
             var decoder=StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
             Map<String,Object> row=StrictJson.object(decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString());
-            keys(row,row.containsKey("result")?Set.of("schema","intent","result"):Set.of("schema","intent"));
+            var fields=new HashSet<>(Set.of("schema","intent"));if(row.containsKey("result"))fields.add("result");if(row.containsKey("verification"))fields.add("verification");keys(row,fields);
             if(number(row,"schema")!=1)throw new IllegalArgumentException("Unknown deposit record schema");
-            Entry entry=new Entry(intent(object(row,"intent")),row.containsKey("result")?result(object(row,"result")):null);
+            Entry entry=new Entry(intent(object(row,"intent")),row.containsKey("result")?result(object(row,"result")):null,
+                    row.containsKey("verification")?verification(object(row,"verification")):null);
             if(!Arrays.equals(encode(entry),bytes))throw new IllegalArgumentException("Noncanonical deposit record");return entry;
         }catch(StrictJson.Invalid|java.nio.charset.CharacterCodingException invalid){throw new IllegalArgumentException("Invalid deposit record",invalid);}
     }
@@ -159,13 +184,23 @@ public final class NativeDeposit {
     private static Map<String,Object> intent(Intent i) {
         var row=new LinkedHashMap<String,Object>();row.put("key",key(i.key));row.put("principal",i.origin.principal().id().toString());row.put("domain",i.origin.scope().domainId().toString());
         row.put("run",i.run.toString());row.put("operation",i.operation.toString());row.put("actor",participant(i.actor));row.put("chest",participant(i.chest));
-        row.put("item",i.item);row.put("actorSlot",i.actorSlot);row.put("chestSlot",i.chestSlot);row.put("capacity",i.capacity);return row;
+        row.put("item",i.item);row.put("actorSlot",i.actorSlot);row.put("chestSlot",i.chestSlot);row.put("capacity",i.capacity);row.put("conditions",conditions(i.conditions));return row;
     }
     private static Intent intent(Map<String,Object> row) {
-        keys(row,Set.of("key","principal","domain","run","operation","actor","chest","item","actorSlot","chestSlot","capacity"));Key key=key(object(row,"key"));
+        keys(row,Set.of("key","principal","domain","run","operation","actor","chest","item","actorSlot","chestSlot","capacity","conditions"));Key key=key(object(row,"key"));
         return new Intent(key,new TrustedContext(new PrincipalRef(id(row,"principal")),new ScopeRef(key.world,id(row,"domain"))),id(row,"run"),id(row,"operation"),
-                participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"));
+                participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"),conditions(object(row,"conditions")));
     }
+    private static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
+            "maximumReachMilli",c.maximumReachMilli,"observedReachMilli",c.observedReachMilli,"claims",c.claims.stream().map(r->Map.of("id",r.id.toString(),"epoch",r.epoch.toString(),"group",r.group.toString(),"generation",r.generation)).toList());}
+    private static Conditions conditions(Map<String,Object> row) {
+        keys(row,Set.of("citizen","jobRevision","deadline","effectsRemaining","tick","maximumReachMilli","observedReachMilli","claims"));
+        if(!(row.get("claims") instanceof List<?> values) || values.size()>4)throw new IllegalArgumentException("Deposit claim bound");
+        var claims=new ArrayList<Claim>();for(Object value:values){var claim=object(value);keys(claim,Set.of("id","epoch","group","generation"));claims.add(new Claim(id(claim,"id"),id(claim,"epoch"),id(claim,"group"),number(claim,"generation")));}
+        return new Conditions(id(row,"citizen"),number(row,"jobRevision"),number(row,"deadline"),number(row,"effectsRemaining"),number(row,"tick"),integer(row,"maximumReachMilli"),integer(row,"observedReachMilli"),claims);
+    }
+    private static Map<String,Object> verification(Verification v) {return Map.of("outcome",v.outcome.name(),"actor",participant(v.actor),"chest",participant(v.chest),"actorMarker",markerJson(v.actorMarker),"chestMarker",markerJson(v.chestMarker),"process",v.process.toString(),"observedAt",v.observedAt);}
+    private static Verification verification(Map<String,Object> row) {keys(row,Set.of("outcome","actor","chest","actorMarker","chestMarker","process","observedAt"));return new Verification(Reconciliation.valueOf(string(row,"outcome")),participant(object(row,"actor")),participant(object(row,"chest")),markerJson(string(row,"actorMarker")),markerJson(string(row,"chestMarker")),id(row,"process"),number(row,"observedAt"));}
     private static Map<String,Object> result(Result r) {return Map.of("intent",r.intent,"live",r.live.name(),"actor",participant(r.actor),"chest",participant(r.chest),"failure",r.failure);}
     private static Result result(Map<String,Object> row) {keys(row,Set.of("intent","live","actor","chest","failure"));return new Result(string(row,"intent"),Live.valueOf(string(row,"live")),participant(object(row,"actor")),participant(object(row,"chest")),string(row,"failure"));}
     static Map<String,Object> object(Object value) {
