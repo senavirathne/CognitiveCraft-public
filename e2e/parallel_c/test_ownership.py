@@ -54,3 +54,9 @@ class OwnershipTests(unittest.TestCase):
         data = b"\xca\xfe\xba\xbe" + struct.pack(">HHH", 0, 69, 2) + b"\x01" + struct.pack(">H", len(descriptor)) + descriptor
         with self.assertRaisesRegex(EvidenceError, "bytecode dependency"):
             constant_pool(data)
+
+    def test_core_peer_dependency_is_rejected(self):
+        descriptor = b"Ldev/aivillages/core/kernel/storage/StorageRegistry;"
+        data = b"\xca\xfe\xba\xbe" + struct.pack(">HHH", 0, 69, 2) + b"\x01" + struct.pack(">H", len(descriptor)) + descriptor
+        with self.assertRaisesRegex(EvidenceError, "bytecode dependency"):
+            constant_pool(data)

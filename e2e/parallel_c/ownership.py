@@ -18,7 +18,9 @@ PREFIXES = ("core/src/main/java/dev/aivillages/core/kernel/interaction/",
             "providers/src/main/java/dev/aivillages/providers/interaction/",
             "providers/src/test/java/dev/aivillages/providers/interaction/", "e2e/parallel_c/")
 DOC_PREFIX = "docs/implementation/parallel-c/"
-FORBIDDEN = (b"net/minecraft/", b"net/fabricmc/", b"dev/aivillages/fabric/")
+FORBIDDEN = (b"net/minecraft/", b"net/fabricmc/", b"dev/aivillages/fabric/",
+             b"dev/aivillages/core/kernel/storage/", b"dev/aivillages/core/kernel/logistics/",
+             b"dev/aivillages/core/kernel/mobility/")
 PEER_BRANCHES = ("storage-mobility-logistics", "activity-runtime-recovery", "qualified-ab-conversation-logistics")
 
 

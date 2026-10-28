@@ -61,6 +61,7 @@
     "test_evidence.EvidenceTests#test_xml_entities_are_rejected",
     "test_ownership.OwnershipTests#test_allowed_addition_preserves_baseline",
     "test_ownership.OwnershipTests#test_core_constant_pool_dependency_is_rejected",
+    "test_ownership.OwnershipTests#test_core_peer_dependency_is_rejected",
     "test_ownership.OwnershipTests#test_imported_peer_commit_is_rejected",
     "test_ownership.OwnershipTests#test_one_byte_protected_edit_is_rejected",
     "test_ownership.OwnershipTests#test_protected_mode_edit_is_rejected",
