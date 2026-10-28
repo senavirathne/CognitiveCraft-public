@@ -28,6 +28,13 @@ final class RecoveredJobOwnersTest {
                 c.original().usage(),List.of(),new Execution(ExecutionStatus.INTERRUPTED,Reason.INTERRUPTED,0,null)),
                 "fixture: trusted stopped no-effect host witness; not gameplay");
     }
+    /** Synthetic authority-contract data only; not a physical effect or native saved proof. */
+    static StoppedObservation cancelledPartial(StoppedContext c) {
+        return new StoppedObservation(StoppedKind.PARTIAL,new Report(c.attempt(),c.generation(),1,
+                Map.of(Budgets.Kind.CALLS,1L,Budgets.Kind.ATTEMPTED_EFFECTS,1L,Budgets.Kind.COMMITTED_EFFECTS,1L),
+                JobLifecycleStoreTest.receipts(c.original(),1),new Execution(ExecutionStatus.CANCELLED,Reason.CANCELLED,1,null)),
+                "fixture: synthetic stopped partial report; not native save evidence");
+    }
     static RecoveredJobOwners owners(JobLifecycleStore store, Live live) {
         return new RecoveredJobOwners(store,live,c -> StoppedObservation.ambiguous("fixture: no durable native proof"),4);
     }
@@ -92,6 +99,41 @@ final class RecoveredJobOwnersTest {
         Job job=store.query(old.id(),s.owner); var proof=authority.capture(StoppedContext.of(job));
         assertFalse(store.reconcileStopped(job.id(),job.guard(),proof,s.owner).accepted()); assertTrue(store.query(job.id(),s.owner).current().open());
         assertFalse(store.reconcileStopped(job.id(),job.guard(),null,s.owner).accepted());
+    }
+    @Test void typedStoppedPartialCancellationPreservesOriginalCreditBudgetAndExactRetry() {
+        var s=new JobLifecycleStoreTest.Scene();Job old=s.assign(s.create(2));var store=reopen(s);
+        var authority=store.attachRecovery(RecoveredJobOwnersTest::cancelledPartial);
+        Job interrupted=store.query(old.id(),s.owner);assertTrue(store.cancel(old.id(),interrupted.guard(),s.owner).accepted());store.tick();
+        Job cancelling=store.query(old.id(),s.owner);var proof=authority.capture(StoppedContext.of(cancelling));
+        s.clock.now=old.allowance().deadlineEpochMillis()+1;
+        assertTrue(store.reconcileStopped(old.id(),cancelling.guard(),proof,s.owner).accepted());store.tick();
+        Job settled=store.query(old.id(),s.owner);assertEquals(State.CANCELLED,settled.state());assertFalse(settled.current().open());
+        assertEquals(old.current().id(),settled.current().id());assertEquals(old.generation(),settled.generation());
+        assertEquals(1,settled.fulfilled());assertEquals(1,settled.current().effects());assertEquals(old.allowance(),settled.allowance());
+        assertEquals(1L,settled.usage().get(Budgets.Kind.COMMITTED_EFFECTS));
+        var snapshot=store.snapshot();int writes=s.memory.writes;
+        assertEquals(Code.DUPLICATE,store.reconcileStopped(old.id(),cancelling.guard(),proof,s.owner).code());
+        assertSame(snapshot,store.snapshot());assertEquals(writes,s.memory.writes);
+        assertEquals(settled,reopen(s).query(old.id(),s.owner));
+    }
+    @Test void partialCustodyCannotAuthorizeFreshWorkOrUseTheLegacyCertaintyBoolean() {
+        var s=new JobLifecycleStoreTest.Scene();Job old=s.assign(s.create(2));var store=reopen(s);
+        var authority=store.attachRecovery(RecoveredJobOwnersTest::cancelledPartial);Job interrupted=store.query(old.id(),s.owner);
+        var proof=authority.capture(StoppedContext.of(interrupted));var before=store.snapshot();
+        assertFalse(store.reconcileStopped(old.id(),interrupted.guard(),proof,s.owner).accepted());assertSame(before,store.snapshot());
+        assertEquals(State.INTERRUPTED,store.query(old.id(),s.owner).state());assertTrue(store.query(old.id(),s.owner).current().open());
+        assertTrue(store.cancel(old.id(),interrupted.guard(),s.owner).accepted());store.tick();Job cancelling=store.query(old.id(),s.owner);
+        before=store.snapshot();
+        assertFalse(store.reconcile(old.id(),cancelling.guard(),cancelledPartial(StoppedContext.of(cancelling)).report(),true,s.owner).accepted());
+        assertSame(before,store.snapshot());assertTrue(store.query(old.id(),s.owner).current().open());
+    }
+    @Test void partialRecoveryWaitsForTheActualLiveOwnerToStop() {
+        var s=new JobLifecycleStoreTest.Scene();Job old=s.assign(s.create(2));var store=reopen(s);var live=new Live();
+        Job interrupted=store.query(old.id(),s.owner);assertTrue(store.cancel(old.id(),interrupted.guard(),s.owner).accepted());store.tick();
+        int[] captures={0};var recovery=new RecoveredJobOwners(store,live,c->{captures[0]++;return cancelledPartial(c);},4);
+        live.bootstrap=true;recovery.step();assertEquals(0,captures[0]);assertTrue(store.query(old.id(),s.owner).current().open());
+        live.bootstrap=false;recovery.step();store.tick();assertEquals(1,captures[0]);
+        assertEquals(State.CANCELLED,store.query(old.id(),s.owner).state());recovery.step();assertEquals(1,captures[0]);
     }
     @Test void foreignStaleAndOtherProcessProofsRefuse() {
         var s = new JobLifecycleStoreTest.Scene(); Job old = s.assign(s.create(2)); var first=reopen(s);

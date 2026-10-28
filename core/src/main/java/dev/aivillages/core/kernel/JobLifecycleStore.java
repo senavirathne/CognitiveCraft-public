@@ -856,13 +856,21 @@ public final class JobLifecycleStore {
                 || !context.origin().equals(job.origin()) || !context.attempt().equals(current.id())
                 || context.generation() != job.generation() || !context.guard().equals(guard))
             return reject(Reason.STALE_OBSERVATION, work);
-        // Stopped alone is not no-effect; partial custody needs the later native evidence protocol.
-        if (observation.kind() != StoppedKind.NO_EFFECT && observation.kind() != StoppedKind.EFFECT_COMPLETE)
-            return reject(Reason.INTERRUPTED, work);
         Report report = observation.report();
+        // A registered native source may account for known partial custody once
+        // the original execution is stopped and cancellation forbids further work.
+        // This path never returns an interrupted partial-custody Job to READY.
+        boolean cancelledPartial = observation.kind() == StoppedKind.PARTIAL && report != null
+                && report.terminal() != null && report.terminal().status() == ExecutionStatus.CANCELLED
+                && report.effects() > 0 && (!report.receipts().isEmpty() || !report.resourceReceipts().isEmpty());
+        if (observation.kind() != StoppedKind.NO_EFFECT && observation.kind() != StoppedKind.EFFECT_COMPLETE
+                && !cancelledPartial)
+            return reject(Reason.INTERRUPTED, work);
         if (!current.open() && current.effects() == report.effects() && current.usage().equals(report.usage())
                 && current.receipts().equals(report.receipts()) && current.resourceReceipts().equals(report.resourceReceipts())
                 && Objects.equals(current.terminal(), report.terminal())) return duplicate(job, work);
+        if (cancelledPartial && job.state() != State.CANCELLING)
+            return reject(Reason.INTERRUPTED, work);
         if (!job.guard().equals(guard) || !context.original().equals(current)
                 || observation.kind() == StoppedKind.NO_EFFECT && (current.effects() != 0 || current.receiptCount() != 0))
             return reject(Reason.STALE_OBSERVATION, work);

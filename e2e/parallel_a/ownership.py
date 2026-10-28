@@ -1,4 +1,4 @@
-"""Fail closed on edits outside the A00–A05 owned source boundary."""
+"""Fail closed on edits outside the A00–A06 owned source boundary."""
 import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'

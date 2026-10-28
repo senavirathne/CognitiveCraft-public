@@ -1,0 +1,434 @@
+{
+  "schema": 1,
+  "purpose": "Frozen original scenario denominator for candidate recreation; this file grants no native evidence or mutation authority. Historical worlds stay ambiguous and are not retrofitted.",
+  "originalAudit": "https://github.com/senavirathne/CognitiveCraft-Documentation/blob/ba2d9f8b53f5c4ca86adbbe092043a5004b4f90d/docs/e2e/generalization-world-ninth-native-audit.json",
+  "originalAuditTextSha256": "5c074e6e56d1d5dbf7793c24259b4a680d677155f75f0ac80e964cd2b5cc376c",
+  "originalRun": 40122923252,
+  "originalArtifact": 12573594766,
+  "historicalOwnerSettlements": 0,
+  "historicalCustodyNoReplay": 12,
+  "candidateNative": "NOT_EXECUTED",
+  "requiredCutScope": "actually reached original HARVEST/PICKUP/DEPOSIT boundary, preserve each original requested quantity and geometry, tick freeze, acknowledged save-all flush, actual kill, same-world restart, original public cancellation and exact original owner settlement; separate two-unit demand controls do not replace these12 cases",
+  "cases": [
+    {
+      "id": "W6-002",
+      "checkpoint": "HARVEST",
+      "item": "minecraft:birch_log",
+      "heldout": false,
+      "requested": 2,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 73,
+        "minY": 208,
+        "minZ": 73,
+        "maxX": 80,
+        "maxY": 209,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 72
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_birch_logs",
+        "version": 1
+      },
+      "historicalJob": "902089c1-6d99-4483-9935-b51facdf7b36",
+      "historicalAttempt": "d9c27f0c-601c-4ce3-b94c-34cb63d58adf",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "W6-003",
+      "checkpoint": "PICKUP",
+      "item": "minecraft:oak_log",
+      "heldout": false,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 73,
+        "minY": 208,
+        "minZ": 71,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 73
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_oak_logs",
+        "version": 1
+      },
+      "historicalJob": "3ef3b70c-7f55-4fe5-aa35-fbc67357a263",
+      "historicalAttempt": "2f2b3099-e102-4934-9f7f-026466a71c7e",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "W6-004",
+      "checkpoint": "DEPOSIT",
+      "item": "minecraft:birch_log",
+      "heldout": false,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 71,
+        "minY": 208,
+        "minZ": 72,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 74
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_birch_logs",
+        "version": 1
+      },
+      "historicalJob": "fca15012-38a2-4b26-9fd8-34ce2ad0c97a",
+      "historicalAttempt": "6f4d0fe7-56f3-42c7-8dc5-add8b0d272f3",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "W6-008",
+      "checkpoint": "HARVEST",
+      "item": "minecraft:wheat",
+      "heldout": false,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 71,
+        "minY": 208,
+        "minZ": 71,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 73
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_wheat",
+        "version": 1
+      },
+      "historicalJob": "b5d156fc-c8fe-472b-94bf-fdb122feccd0",
+      "historicalAttempt": "c3b7035f-57ef-4573-b9bd-b744d61fc184",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "W6-009",
+      "checkpoint": "PICKUP",
+      "item": "minecraft:oak_log",
+      "heldout": false,
+      "requested": 1,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 72,
+        "minY": 208,
+        "minZ": 72,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 74
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_oak_logs",
+        "version": 1
+      },
+      "historicalJob": "452be06a-2549-4302-a510-3840212fff39",
+      "historicalAttempt": "b5ca97fb-7172-4944-a8a1-59018b6dfa14",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "W6-010",
+      "checkpoint": "DEPOSIT",
+      "item": "minecraft:birch_log",
+      "heldout": false,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 71,
+        "minY": 208,
+        "minZ": 72,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 70
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_birch_logs",
+        "version": 1
+      },
+      "historicalJob": "7fb987ba-4fc5-4a08-a3c5-65639ba80b6c",
+      "historicalAttempt": "335673db-9570-4b8a-ae5a-d51ba7107afd",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "heldout-W6-002",
+      "checkpoint": "HARVEST",
+      "item": "minecraft:oak_log",
+      "heldout": true,
+      "requested": 2,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 73,
+        "minY": 208,
+        "minZ": 71,
+        "maxX": 80,
+        "maxY": 209,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 72
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_oak_logs",
+        "version": 1
+      },
+      "historicalJob": "c1d047cb-a449-429e-852e-6bdcb95eb508",
+      "historicalAttempt": "44f484ab-4599-40fb-b07d-806fccdca696",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "heldout-W6-003",
+      "checkpoint": "PICKUP",
+      "item": "minecraft:birch_log",
+      "heldout": true,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 72,
+        "minY": 208,
+        "minZ": 71,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 73
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_birch_logs",
+        "version": 1
+      },
+      "historicalJob": "149fb576-77be-450f-b07f-46023ca2a818",
+      "historicalAttempt": "2ef37e17-0002-428d-b41a-7b2ac3b767ba",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "heldout-W6-004",
+      "checkpoint": "DEPOSIT",
+      "item": "minecraft:birch_log",
+      "heldout": true,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 71,
+        "minY": 208,
+        "minZ": 72,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 74
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_birch_logs",
+        "version": 1
+      },
+      "historicalJob": "1dfdaf5f-1232-4da0-8cec-3b0a3b817b49",
+      "historicalAttempt": "46a8ceee-7ad6-41ea-a407-b769dfed93ca",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "heldout-W6-008",
+      "checkpoint": "HARVEST",
+      "item": "minecraft:oak_log",
+      "heldout": true,
+      "requested": 3,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 70,
+        "minY": 208,
+        "minZ": 73,
+        "maxX": 80,
+        "maxY": 210,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 73
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_oak_logs",
+        "version": 1
+      },
+      "historicalJob": "295830b0-4a3a-4b24-990c-104f66cd2ed3",
+      "historicalAttempt": "b337f02d-50af-465b-b81f-04bbb066cd8f",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "heldout-W6-009",
+      "checkpoint": "PICKUP",
+      "item": "minecraft:oak_log",
+      "heldout": true,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 73,
+        "minY": 208,
+        "minZ": 73,
+        "maxX": 80,
+        "maxY": 211,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 74
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_oak_logs",
+        "version": 1
+      },
+      "historicalJob": "d962edf2-7fc5-4955-99c5-a72a264974fc",
+      "historicalAttempt": "aeda361c-6b3b-4f7e-a182-78210a470d85",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    },
+    {
+      "id": "heldout-W6-010",
+      "checkpoint": "DEPOSIT",
+      "item": "minecraft:birch_log",
+      "heldout": true,
+      "requested": 4,
+      "source": {
+        "dimension": "minecraft:overworld",
+        "minX": 71,
+        "minY": 208,
+        "minZ": 72,
+        "maxX": 80,
+        "maxY": 208,
+        "maxZ": 76
+      },
+      "destination": {
+        "dimension": "minecraft:overworld",
+        "x": 81,
+        "y": 208,
+        "z": 70
+      },
+      "capability": {
+        "name": "cognitivecraft:deliver_birch_logs",
+        "version": 1
+      },
+      "historicalJob": "8d906caa-0150-4577-9763-08052b3a8977",
+      "historicalAttempt": "de370e0f-3973-403e-93a5-e3f8a52380b4",
+      "historicalGeneration": 1,
+      "historicalLiveAtKill": true,
+      "historicalPreKillPhase": "EXECUTING",
+      "historicalVerifiedWorldFiles": 70,
+      "historicalPublicCancellationAcknowledged": true,
+      "historicalFinalState": "CANCELLING",
+      "historicalOriginalOwnerSettled": false
+    }
+  ]
+}
