@@ -47,9 +47,12 @@ def chunk(region,x,z):
     if len(raw)<8192:raise ValueError('Native region header missing')
     offset=int.from_bytes(raw[index:index+3],'big')*4096;sectors=raw[index+3]
     if not offset:return None
-    if offset<8192 or offset+sectors*4096>len(raw):raise ValueError('Native region allocation bound')
+    if offset<8192 or sectors==0 or offset+5>len(raw):raise ValueError('Native region allocation bound')
     size=int.from_bytes(raw[offset:offset+4],'big');kind=raw[offset+4]
     if size<1 or size+4>sectors*4096 or kind&128:raise ValueError('Unsupported/external native chunk')
+    # A native RegionFile may end immediately after its last payload. The
+    # allocation's unused sector tail need not have been written to disk.
+    if offset+4+size>len(raw):raise ValueError('Truncated native chunk payload')
     payload=raw[offset+5:offset+4+size]
     if kind==1:data=gzip.decompress(payload)
     elif kind==2:data=zlib.decompress(payload)

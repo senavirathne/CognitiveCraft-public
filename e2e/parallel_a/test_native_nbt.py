@@ -16,5 +16,12 @@ class NativeNbtOracleTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'r.0.0.mca';data=bytearray(8192);data[:4]=bytes.fromhex('00000301');p.write_bytes(data)
             with self.assertRaises(ValueError):chunk(p,0,0)
+    def test_final_native_sector_requires_payload_but_not_unused_padding(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'r.0.0.mca';data=bytearray(8192);data[:4]=bytes.fromhex('00000201')
+            data+=bytes.fromhex('00000005030a000000');p.write_bytes(data)
+            self.assertEqual({},chunk(p,0,0))
+            p.write_bytes(data[:-1])
+            with self.assertRaises(ValueError):chunk(p,0,0)
 
 if __name__=='__main__':unittest.main()
