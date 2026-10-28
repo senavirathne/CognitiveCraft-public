@@ -51,7 +51,14 @@ public final class KnowledgeAccessSource {
     }
     Jobs.Job verified(UUID id,JobOutcomeSource.Work work){
         Jobs.Job job;
-        try{job=history==null?job(id):history.read().job(id);}catch(IllegalStateException unavailable){throw new JobOutcomeSource.Invalid();}
+        // Presence is captured before jobs.tick() may acknowledge a completion. Historical
+        // outcome validation must read the acknowledged owner, not that earlier tick's view.
+        try {
+            if(history==null) {
+                var acknowledged=jobs.get();
+                job=acknowledged==null?null:acknowledged.jobs().stream().filter(j->j.id().equals(id)).findFirst().orElse(null);
+            }else job=history.read().job(id);
+        }catch(IllegalStateException unavailable){throw new JobOutcomeSource.Invalid();}
         if(job==null)throw new JobOutcomeSource.Invalid();
         return outcomes.readDelivery(Accomplishments.OutcomeRef.of(job),work).job();
     }

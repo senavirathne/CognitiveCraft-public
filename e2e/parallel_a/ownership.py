@@ -17,6 +17,7 @@ allowed={
     'fabric/src/main/java/dev/aivillages/fabric/KernelCommands.java',
     'core/src/test/java/dev/aivillages/core/kernel/RecoveredJobOwnersTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/DepositGatewayTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/KnowledgeAccessAcknowledgedSourceTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveHistoryReaderTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveWriterTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveServiceTest.java',

@@ -45,6 +45,34 @@ jobs:
           python3 -m compileall -q e2e/parallel_a
           python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py' -v
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
+      - name: Reproduce the acknowledged-owner race against the original reader
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world acknowledged-reader') }}
+        run: |
+          owner=core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessSource.java
+          evidence=build/parallel-a/source-audit/a05-reader-race
+          mkdir -p "$evidence"
+          cp "$owner" "$evidence/candidate.java"
+          trap 'cp "$evidence/candidate.java" "$owner"' EXIT
+          git show e529671069bf8177e718419ea4dabad0b535d4db:"$owner" > "$owner"
+          set +e
+          bash gradlew --no-daemon :core:test --tests dev.aivillages.core.kernel.KnowledgeAccessAcknowledgedSourceTest > "$evidence/original-reader.log" 2>&1
+          original_status=$?
+          set -e
+          cp core/build/test-results/test/TEST-dev.aivillages.core.kernel.KnowledgeAccessAcknowledgedSourceTest.xml "$evidence/original-reader.xml"
+          cp "$evidence/candidate.java" "$owner"
+          test "$original_status" -ne 0
+          python3 - <<'PYCODE'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('build/parallel-a/source-audit/a05-reader-race/original-reader.xml')
+          t=ET.parse(p).getroot()
+          assert int(t.attrib['tests'])==3
+          assert int(t.attrib['errors'])+int(t.attrib['failures'])>=2
+          assert 'JobOutcomeSource$Stale' in p.read_text()
+          print('A05_ORIGINAL_ACKNOWLEDGED_READER_RACE_REPRODUCED')
+          PYCODE
+          git diff --exit-code -- "$owner"
       - name: A04 closed-set history contracts and existing owner regressions
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
