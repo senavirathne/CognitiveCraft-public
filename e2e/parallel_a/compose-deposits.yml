@@ -1,0 +1,11 @@
+services:
+  minecraft:
+    cpuset: '0-1'
+    environment:
+      COGNITIVECRAFT_DEPOSIT_EVIDENCE: '${A05_DEPOSIT_ENABLED:-false}'
+      COGNITIVECRAFT_ACTIVITY_VIEW: 'true'
+      COGNITIVECRAFT_A05_PROBE: 'true'
+  client-a:
+    cpuset: '2'
+  client-b:
+    cpuset: '3'

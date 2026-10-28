@@ -28,12 +28,13 @@ public final class DepositEvidenceStore {
         public Entry entry(){return entry;}public Reconciliation result(){return result;}
         public UUID process(){return owner.process;}
     }
-    private record Written(Snapshot snapshot,Throwable failure,long at) { }
+    private record Written(Snapshot snapshot,Throwable failure,long at,long elapsedNanos) { }
     private final Thread thread=Thread.currentThread();
     private final UUID process=UUID.randomUUID();
     private final Storage storage;private final NativePort nativePort;private final Clock clock;private final long timeoutMillis;
     private final ConcurrentLinkedQueue<Written> completed=new ConcurrentLinkedQueue<>();
     private final Map<String,Prepared> created=new HashMap<>();private final Set<String> started=new HashSet<>();
+    private final java.util.ArrayDeque<Long> acknowledgementNanos=new java.util.ArrayDeque<>();
     private Snapshot state,pending;private long deadline;private boolean fenced;
     public DepositEvidenceStore(Snapshot initial,Storage storage,NativePort nativePort,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.storage=Objects.requireNonNull(storage);this.nativePort=Objects.requireNonNull(nativePort);this.clock=Objects.requireNonNull(clock);
@@ -45,11 +46,13 @@ public final class DepositEvidenceStore {
     public boolean fenced(){thread();return fenced;}
     public boolean pending(){thread();return pending!=null;}
     public UUID process(){return process;}
+    public List<Long> acknowledgementNanos(){thread();return List.copyOf(acknowledgementNanos);}
     public void tick() {
         thread();Written value;
         while((value=completed.poll())!=null) {
             if(pending==null || value.failure!=null || value.snapshot!=pending || value.at>deadline){fenced=true;continue;}
-            if(!fenced){state=value.snapshot;pending=null;}
+            if(!fenced){state=value.snapshot;pending=null;
+                if(acknowledgementNanos.size()==192)acknowledgementNanos.removeFirst();acknowledgementNanos.addLast(value.elapsedNanos);}
         }
         if(pending!=null && clock.millis()>deadline)fenced=true;
     }
@@ -145,7 +148,8 @@ public final class DepositEvidenceStore {
     private void publish(Snapshot next) {
         if(pending!=null || fenced)throw new IllegalStateException("Deposit publication already in flight");
         Snapshot expected=state;pending=next;deadline=Math.addExact(clock.millis(),timeoutMillis);
-        try{storage.replace(expected,next).whenComplete((written,error)->completed.add(new Written(written,error,clock.millis())));}
+        long startedNanos=System.nanoTime();
+        try{storage.replace(expected,next).whenComplete((written,error)->completed.add(new Written(written,error,clock.millis(),System.nanoTime()-startedNanos)) );}
         catch(RuntimeException unavailable){fenced=true;throw unavailable;}
     }
 }

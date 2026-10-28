@@ -97,6 +97,12 @@ jobs:
           else
             python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
           fi
+      - name: Actual A05 deposit evidence and independent native participant cuts
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world') }}
+        run: |
+          python3 tools/needle/install.py build/needle
+          python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05
       - name: Diagnostic CPU profile of exact retained A04 metadata
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 archive CPU profile') }}
@@ -144,3 +150,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: build/parallel-a/native/
+      - name: Retain every A05 native frame and independent crash cohort
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a05-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/native-a05/

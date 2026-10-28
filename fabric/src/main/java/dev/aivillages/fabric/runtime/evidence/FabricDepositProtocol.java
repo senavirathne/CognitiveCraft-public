@@ -35,6 +35,10 @@ public final class FabricDepositProtocol implements DepositProtocol {
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private Consumer<Point> observer=point->{ };
     private boolean closed;
+    private final ArrayDeque<Long> beginNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
+    public record Metrics(List<Long> beginNanos,List<Long> pollNanos,List<Long> acknowledgementNanos) { }
+    public Metrics metrics(){check();return new Metrics(List.copyOf(beginNanos),List.copyOf(pollNanos),store.acknowledgementNanos());}
+    private void measured(ArrayDeque<Long> values,long began){if(values.size()==128)values.removeFirst();values.addLast(System.nanoTime()-began);}
 
     private final class NativeTicket implements Ticket {
         final Request request;
@@ -70,6 +74,9 @@ public final class FabricDepositProtocol implements DepositProtocol {
     public void close(){check();closed=true;for(var ticket:tickets)ticket.forgotten=true;tickets.clear();}
 
     @Override public Ticket begin(Request request,Action original) {
+        check();long began=System.nanoTime();try{return beginNative(request,original);}finally{measured(beginNanos,began);}
+    }
+    private Ticket beginNative(Request request,Action original) {
         check();Objects.requireNonNull(request);Objects.requireNonNull(original);
         NativeTicket ticket;
         try {
@@ -115,6 +122,9 @@ public final class FabricDepositProtocol implements DepositProtocol {
         tickets.add(ticket);return ticket;
     }
     @Override public Progress poll(Ticket value) {
+        check();long began=System.nanoTime();try{return pollNative(value);}finally{measured(pollNanos,began);}
+    }
+    private Progress pollNative(Ticket value) {
         check();if(!(value instanceof FabricDepositProtocol.NativeTicket ticket) || ticket.forgotten)return failed(Reason.INTERRUPTED);
         if(ticket.failure!=null)return failed(ticket.failure);
         if(!tickets.contains(ticket) || closed)return failed(Reason.INTERRUPTED);
