@@ -25,9 +25,15 @@ class DepositHarness(ActivityHarness):
         value=read(self.root/'server/deposit-snapshot.json')
         return value if value and value['time']>=self.activated else None
 
+    def stable_entry(self):
+        value=self.evidence()
+        return value if value and not value['pending'] and len(value['journal']['entries'])==1 else None
+
     def rpc(self,op,**values):
-        ready=self.wait(lambda:(v if (v:=read(self.root/'server/deposit-ready.json')) and v['process']==self.evidence()['process'] else None),
-            'Current native A05 observer',45)
+        def current_ready():
+            ready=read(self.root/'server/deposit-ready.json');evidence=self.evidence()
+            return ready if ready and evidence and ready['process']==evidence['process'] and ready['world']==evidence['journal']['world'] else None
+        ready=self.wait(current_ready,'Current native A05 observer',45)
         request={'id':str(uuid.uuid4()),'process':ready['process'],'op':op,**values}
         atomic(self.root/'server/deposit-request.json',request)
         response=self.wait(lambda:(v if (v:=read(self.root/'server/deposit-response.json')) and v['id']==request['id'] else None),'A05 '+op+' native reply',45)
@@ -73,15 +79,10 @@ def actual_stock(h):
             'snapshotTime':state['time'],'gameTick':state['gameTick']}
 
 
-def stable_entry(h):
-    value=h.evidence()
-    return value if value and not value['pending'] and len(value['journal']['entries'])==1 else None
-
-
 def positive(h,result):
     h.family='A05-live-deposit';before=actual_stock(h);calls=h.model_calls()
     run=h.submit(LOG,1,minimum=at(6,2),maximum=at(6,2));view=h.finish_run(run)
-    native=h.wait(lambda:(v if (v:=stable_entry(h)) and v['journal']['entries'][0].get('result') else None),'Exact actual deposit result acknowledged',45)
+    native=h.wait(lambda:(v if (v:=h.stable_entry()) and v['journal']['entries'][0].get('result') else None),'Exact actual deposit result acknowledged',45)
     entry=native['journal']['entries'][0];token=next(iter(native['reconciliation']))
     require(all(receipts(view,stage,LOG)==1 for stage in ('HARVEST','PICKUP','DEPOSIT')),'A05 lacks actual H/P/D chain')
     require(entry['result']['receipt'] in view['resourceReceipts'],'Protocol result does not retain the original gateway receipt')
@@ -99,16 +100,16 @@ def positive(h,result):
     saved_game=h.root/'positive-saved-game';shutil.copytree(h.root/'server/game',saved_game,ignore=shutil.ignore_patterns('session.lock'))
     for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Saved positive disconnect '+p,45)
     h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
-    restored=h.wait(lambda:(v if (v:=stable_entry(h)) and v['reconciliation'].get(token)=='SAVED_COMPLETE' else None),'Positive actual independently saved participants agree',60)
+    restored=h.wait(lambda:(v if (v:=h.stable_entry()) and v['reconciliation'].get(token)=='SAVED_COMPLETE' else None),'Positive actual independently saved participants agree',60)
     first_restart=native_process(h)
     require((first_restart['hostJvmPid'],first_restart['startTicks'])!=(before_kill['hostJvmPid'],before_kill['startTicks']),'Saved positive did not replace actual JVM')
     require(all(read(h.root/'clients'/p/'process.json')==old for p,old in clients_before.items()),'Saved positive replaced its connected clients')
     atomic(h.root/'positive-restored-evidence.json',{'evidence':restored,'nativeBefore':before_kill,'nativeAfter':first_restart,'stock':actual_stock(h)})
     require(restored['journal']['entries'][0]['intent']==entry['intent'] and restored['journal']['entries'][0]['result']==entry['result'],'Restart changed native original intent/result')
     verify=h.rpc('verify',token=token)
-    verified=h.wait(lambda:(v if (v:=stable_entry(h)) and v['journal']['entries'][0].get('verification') else None),'Saved positive verification durably acknowledged',45)
+    verified=h.wait(lambda:(v if (v:=h.stable_entry()) and v['journal']['entries'][0].get('verification') else None),'Saved positive verification durably acknowledged',45)
     require(not verified['protectedJobs'] and verify['classification']=='SAVED_COMPLETE','Unacknowledged or ambiguous evidence released exclusion')
-    restart=h.restart(hard=True);again=h.wait(stable_entry,'Repeated positive adoption',45)
+    restart=h.restart(hard=True);again=h.wait(h.stable_entry,'Repeated positive adoption',45)
     require(again['journal']['entries'][0]==verified['journal']['entries'][0] and not again['protectedJobs'],'Repeated adoption changed durable proof')
     h.quiet(40);require(actual_stock(h)['destination']==1 and not actual_stock(h)['actor']['inventory'],'Repeated adoption changed actual custody')
     repeated_count=h.menu_count('PlayerA',DST,LOG);require(repeated_count==1,'Repeated saved adoption changed connected client stock')
@@ -138,7 +139,7 @@ def cut(h,seed,result,name,point,expected,**options):
     killed=manifest(folder/'killed-world')
     for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Cut native disconnect '+p,45)
     h.actions_active=False;h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
-    value=h.wait(stable_entry,'Preserved native intent after actual cut',60);token=next(iter(value['reconciliation']))
+    value=h.wait(h.stable_entry,'Preserved native intent after actual cut',60);token=next(iter(value['reconciliation']))
     require(value['reconciliation'][token] in expected,'Unexpected native classification at '+name+': '+json.dumps(value))
     require(all(read(h.root/'clients'/p/'process.json')==old for p,old in clients.items()),'Crash cut replaced the observer clients')
     calls=h.model_calls();physical=actual_stock(h);h.quiet(40);later=actual_stock(h)
@@ -151,7 +152,7 @@ def cut(h,seed,result,name,point,expected,**options):
 
 def negative(h,saved_game,result,token,mode):
     h.restore(saved_game,'negative-'+mode);h.family='A05-negative-'+mode
-    before=h.wait(stable_entry,'Saved positive evidence before adversarial control',45)
+    before=h.wait(h.stable_entry,'Saved positive evidence before adversarial control',45)
     require(before['reconciliation'][token]=='SAVED_COMPLETE' and not before['journal']['entries'][0].get('verification'),'Negative fixture must retain unverified saved evidence')
     if mode=='components':
         mutation=h.rpc('component-roundtrip');require(mutation['count']==1 and mutation['componentsRestored'],'Native component/count round trip did not happen')
@@ -165,11 +166,11 @@ def negative(h,saved_game,result,token,mode):
     else:
         for p in h.players:
             h.command(p,'/gamemode spectator','Spectator|spectator');h.command(p,'/tp 10000.5 220 10000.5','Teleported')
-        absent=h.wait(lambda:(v if (v:=stable_entry(h)) and v['reconciliation'][token]=='WAIT_WORLD' else None),'Actual actor/chest native unload',130)
+        absent=h.wait(lambda:(v if (v:=h.stable_entry()) and v['reconciliation'][token]=='WAIT_WORLD' else None),'Actual actor/chest native unload',130)
         result['cases'].append({'id':'unloaded-participants','status':'PASS','before':before,'after':absent});atomic(h.root/'a05-results.json',result);return
-    h.wait(lambda:(v if (v:=stable_entry(h)) and v['reconciliation'][token]=='UNPROVEN' else None),'Changed native participant refuses old proof',45)
+    h.wait(lambda:(v if (v:=h.stable_entry()) and v['reconciliation'][token]=='UNPROVEN' else None),'Changed native participant refuses old proof',45)
     h.save_checkpoint();restart=h.restart(hard=True)
-    after=h.wait(stable_entry,'Changed saved participant after restart',45)
+    after=h.wait(h.stable_entry,'Changed saved participant after restart',45)
     require(after['reconciliation'][token]=='UNPROVEN' and after['protectedJobs'],'Equal counts or changed incarnation regained old authority')
     refusal=h.rpc('verify',token=token);require(refusal['code']=='STALE','Invalid participant evidence closed an exclusion')
     result['cases'].append({'id':'negative-'+mode,'status':'PASS','before':before,'mutation':mutation,'restart':restart,'after':after,'verify':refusal})
@@ -181,7 +182,7 @@ def storage_controls(h,verified_seed,original_entry,result):
     from deposit_fixture import pressure_journal
     for mode in ('full-quota','corrupt-current'):
         h.env['A05_DEPOSIT_ENABLED']='true';h.restore(verified_seed,'storage-'+mode);h.family='A05-storage-'+mode
-        original=h.wait(stable_entry,'Verified effect before isolated storage control',45)
+        original=h.wait(h.stable_entry,'Verified effect before isolated storage control',45)
         require(original['journal']['entries'][0].get('verification') is not None and not original['protectedJobs'],'Storage control is confounded by an old unresolved effect')
         h.logs([at(7,2)]);h.save_checkpoint();h.stop('server')
         for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Storage-control disconnect '+p,45)
