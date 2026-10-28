@@ -54,7 +54,7 @@ final class HarvestGatewayTest {
     }
     @Test void authorityRevocationWhileIntentIsPendingPreventsTheOriginalHostCall() {
         var p=new Protocol();var pending=pending(p);var s=pending.scene();s.world.authorized=false;p.prepared=true;s.world.tick++;
-        assertEquals(Outcomes.Reason.INTERRUPTED,s.gateway.poll(pending.handle()).reason());assertEquals(0,s.world.harvests);assertEquals(0,p.calls);
+        assertEquals(Outcomes.Reason.AUTHORITY_DENIED,s.gateway.poll(pending.handle()).reason());assertEquals(0,s.world.harvests);assertEquals(0,p.calls);
     }
     @Test void refusedIntentCannotFallBackToAnUnjournaledHarvest() {
         var p=new Protocol();var pending=pending(p);p.fail=true;pending.scene().world.tick++;
