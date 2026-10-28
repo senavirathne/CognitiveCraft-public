@@ -16,7 +16,7 @@ def inspect_release(path):
     with ZipFile(path) as archive:
         names = archive.namelist(); require(len(names) == len(set(names)),'duplicate release ZIP entries')
         for name in names:
-            require(not any(x in name.lower() for x in ('e2e','gametest','testauthority','parallel-d.mixins','storagemetadataprobe','storagetestsupport')),'test authority in release: '+name)
+            require(not any(x in name.lower() for x in ('e2e','gametest','testauthority','parallel-d.mixins','storagemetadataprobe','storagetestsupport','storageaclsequenceprobe','storagepolicytestsupport')),'test authority in release: '+name)
         expected = git('show',BASE+':fabric/src/main/resources/fabric.mod.json').replace('${version}','0.1.0')
         require(archive.read('fabric.mod.json').decode().strip() == expected.strip(),'production entrypoints/descriptor changed')
         require(archive.read('ai-villages.mixins.json').decode().strip() == git('show',BASE+':fabric/src/main/resources/ai-villages.mixins.json').strip(),'production mixins changed')

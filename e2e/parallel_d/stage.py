@@ -34,7 +34,9 @@ def run(stage, root, built):
         require(paths,'missing measured JUnit XML for '+module)
         for path in paths:
             target=root/'junit'/module/path.name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
-    subprocess.run([sys.executable,str(HERE/'test_runner.py'),'--stage',stage,'--output',str(root/'python-results.xml')],check=False)
+    python_env=os.environ.copy()
+    if spec.get('acl_cases'):python_env['CC_D_ACL_EVIDENCE']=str(root/'acl')
+    subprocess.run([sys.executable,str(HERE/'test_runner.py'),'--stage',stage,'--output',str(root/'python-results.xml')],env=python_env,check=False)
     if spec.get('metadata_cases'):
         shutil.copytree(REPO/'build/parallel-d-metadata',root/'metadata')
     write(root/'native-plan.json',{'game_tests':spec['game_tests'],'client_e2e':spec['client_e2e'],

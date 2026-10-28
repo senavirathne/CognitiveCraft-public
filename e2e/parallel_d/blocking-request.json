@@ -1,7 +1,7 @@
 {
-  "stage": "D02",
-  "campaign": "D02-INCARNATION",
+  "stage": "D03",
+  "campaign": "D03-ACL",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d02-01",
-  "reason": "Standing user authorization covers GitHub Actions and Docker for blocking dependencies/tests. D02 requires the established Docker executor, full module/build regressions and exact-candidate native XML/NBT qualification. Local pinned-SDK diagnostics exercise 100 cumulative owned Java, 50 Python and four native cases with a separate unchanged qualified D01 JAR performance control; these diagnostics are not relabeled as candidate qualification. Run one release build and the complete frozen cumulative schedule on this commit."
+  "nonce": "2026-10-28-d03-01",
+  "reason": "Standing user authorization covers Actions and Docker for blocking dependencies/tests. Local D03 diagnostics pass 133 cumulative owned Java and 56 Python checks, including the actual 100-transition Java metadata/ACL probe. Full module/release/SDK and cumulative real native Docker regressions require the existing CI environment. One production build, unchanged frozen baseline control, no new-stage native/client credit; qualify this exact committed candidate."
 }

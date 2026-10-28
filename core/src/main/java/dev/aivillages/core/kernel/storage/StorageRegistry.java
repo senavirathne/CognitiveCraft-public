@@ -11,7 +11,7 @@ public final class StorageRegistry {
     public enum Role { DEFAULT, FOOD, MATERIALS, OUTPUT }
     public enum Permission { INSPECT, DEPOSIT, WITHDRAW, ASSIGN, RENAME, GRANT, REVOKE }
     public enum State { PENDING_BIND, ACTIVE, UNVERIFIED, TOPOLOGY_CHANGED, TOMBSTONED }
-    public enum Action { REGISTER, READ, RENAME, ASSIGN, GRANT, REVOKE, TOMBSTONE, BIND, COMMIT_BIND }
+    public enum Action { REGISTER, READ, RENAME, ASSIGN, GRANT, REVOKE, TOMBSTONE, BIND, COMMIT_BIND, TRANSFER }
     public record Owner(OwnerKind kind, UUID id) {
         public Owner { Objects.requireNonNull(kind); if ((kind == OwnerKind.PUBLIC) != (id == null)) throw new IllegalArgumentException("owner identity"); }
     }
@@ -32,6 +32,7 @@ public final class StorageRegistry {
         public Record {
             Objects.requireNonNull(world); Objects.requireNonNull(id); Objects.requireNonNull(owner); Objects.requireNonNull(state);
             label = StorageRegistry.label(label); purposes = Set.copyOf(purposes); acl = List.copyOf(acl);
+            var subjects=new HashSet<Owner>();for(var grant:acl)if(!subjects.add(grant.subject()))throw new IllegalArgumentException("duplicate ACL subject");
             if (acl.size() > StorageRegistryLimits.MAX_GRANTS || purposes.size() > StorageRegistryLimits.MAX_ROLES
                     || revision < 0 || revision > StorageRegistryLimits.MAX_INTEGER || generation < 1 || generation > StorageRegistryLimits.MAX_INTEGER
                     || aclRevision < 0 || aclRevision > StorageRegistryLimits.MAX_INTEGER
@@ -91,6 +92,10 @@ public final class StorageRegistry {
     public interface Authority {
         boolean controls(Caller caller, Owner subject);
         boolean allows(Caller caller, Action action, Record record);
+        /** Explicit operation/subject delegation ceiling. Absence never supplies grant authority. */
+        default boolean mayGrant(Caller caller,Record record,Grant grant) { return false; }
+        /** J01 supplies current target acceptance/policy in addition to old-owner control. */
+        default boolean mayTransfer(Caller caller,Record record,Owner target) { return false; }
     }
     static final class Refused extends RuntimeException {
         final StorageMetadataStore.Status status;
@@ -108,8 +113,9 @@ public final class StorageRegistry {
             require(snapshot.records().size() < store.limits().records(),StorageMetadataStore.Status.LIMIT,"record limit includes tombstones");
             UUID id; do { id = UUID.randomUUID(); } while (snapshot.records().containsKey(id));
             Record record = new Record(snapshot.world(),id,normalized,owner,roles,grants,0,1,0,State.PENDING_BIND,adapterId);
+            require(grants.stream().allMatch(g -> authority.mayGrant(caller,record,g)),StorageMetadataStore.Status.DENIED,"registration grant ceiling denied");
             require(authority.allows(caller,Action.REGISTER,record),StorageMetadataStore.Status.DENIED,"registration metadata denied");
-            return new StorageMetadataStore.Change(snapshot.replace(record),id,() -> authority.controls(caller,owner) && authority.allows(caller,Action.REGISTER,record));
+            return new StorageMetadataStore.Change(snapshot.replace(record),id,() -> authority.controls(caller,owner) && authority.allows(caller,Action.REGISTER,record) && grants.stream().allMatch(g -> authority.mayGrant(caller,record,g)));
         });
     }
     public CompletionStage<StorageMetadataStore.Ack> rename(Caller caller, long expectedRevision, UUID storage, long recordRevision, String label) {
@@ -123,8 +129,44 @@ public final class StorageRegistry {
         var next = List.copyOf(grants);
         return store.transact(expectedRevision,snapshot -> {
             Record old = record(caller,snapshot,storage,recordRevision,Action.GRANT);
-            require(authority.allows(caller,Action.REVOKE,old),StorageMetadataStore.Status.DENIED,"ACL replacement also requires revoke authority");
-            return new StorageMetadataStore.Change(snapshot.replace(old.acl(next)),storage,() -> authority.allows(caller,Action.GRANT,old) && authority.allows(caller,Action.REVOKE,old));
+            require(authority.controls(caller,old.owner()) && authority.allows(caller,Action.REVOKE,old) && next.stream().allMatch(g -> authority.mayGrant(caller,old,g)),StorageMetadataStore.Status.DENIED,"current administration, revoke and grant ceiling required");
+            return new StorageMetadataStore.Change(snapshot.replace(old.acl(next)),storage,() -> authority.controls(caller,old.owner()) && authority.allows(caller,Action.GRANT,old) && authority.allows(caller,Action.REVOKE,old) && next.stream().allMatch(g -> authority.mayGrant(caller,old,g)));
+        });
+    }
+    public CompletionStage<StorageMetadataStore.Ack> grant(Caller caller,long expectedRevision,UUID storage,long recordRevision,Grant grant) {
+        Objects.requireNonNull(grant);
+        return store.transact(expectedRevision,snapshot -> {
+            Record old=record(caller,snapshot,storage,recordRevision,Action.GRANT);
+            require(authority.controls(caller,old.owner()) && authority.mayGrant(caller,old,grant),StorageMetadataStore.Status.DENIED,"current administrator and grant ceiling required");
+            var grants=new ArrayList<Grant>();var permissions=EnumSet.copyOf(grant.permissions());
+            for(var existing:old.acl())if(existing.subject().equals(grant.subject()))permissions.addAll(existing.permissions());else grants.add(existing);
+            var combined=new Grant(grant.subject(),permissions);grants.add(combined);
+            require(grants.size()<=StorageRegistryLimits.MAX_GRANTS,StorageMetadataStore.Status.LIMIT,"ACL grant bound");
+            return new StorageMetadataStore.Change(snapshot.replace(old.acl(grants)),storage,() -> authority.controls(caller,old.owner()) && authority.allows(caller,Action.GRANT,old) && authority.mayGrant(caller,old,grant));
+        });
+    }
+    public CompletionStage<StorageMetadataStore.Ack> revoke(Caller caller,long expectedRevision,UUID storage,long recordRevision,Owner subject,Set<Permission> permissions) {
+        Objects.requireNonNull(subject);var removed=Set.copyOf(permissions);if(removed.isEmpty())throw new IllegalArgumentException("empty revoke");
+        return store.transact(expectedRevision,snapshot -> {
+            Record old=record(caller,snapshot,storage,recordRevision,Action.REVOKE);
+            require(authority.controls(caller,old.owner()),StorageMetadataStore.Status.DENIED,"current administrator required");
+            var grants=new ArrayList<Grant>();boolean found=false;
+            for(var grant:old.acl())if(grant.subject().equals(subject)) {
+                var kept=EnumSet.copyOf(grant.permissions());found=!Collections.disjoint(kept,removed);kept.removeAll(removed);if(!kept.isEmpty())grants.add(new Grant(subject,kept));
+            }else grants.add(grant);
+            require(found,StorageMetadataStore.Status.INVALID,"missing granted operation");
+            return new StorageMetadataStore.Change(snapshot.replace(old.acl(grants)),storage,() -> authority.controls(caller,old.owner()) && authority.allows(caller,Action.REVOKE,old));
+        });
+    }
+    public CompletionStage<StorageMetadataStore.Ack> transferOwnership(Caller caller,long expectedRevision,UUID storage,long recordRevision,Owner target) {
+        Objects.requireNonNull(target);
+        return store.transact(expectedRevision,snapshot -> {
+            Record old=record(caller,snapshot,storage,recordRevision,Action.TRANSFER);
+            require(!old.owner().equals(target),StorageMetadataStore.Status.INVALID,"same owner");
+            require(authority.controls(caller,old.owner()) && authority.mayTransfer(caller,old,target),StorageMetadataStore.Status.DENIED,"current administrator and target policy required");
+            var updated=new Record(old.world(),old.id(),old.label(),target,old.purposes(),List.of(),next(old.revision()),next(old.generation()),next(old.aclRevision()),State.UNVERIFIED,old.adapterId());
+            var rows=new HashMap<>(snapshot.records());rows.put(storage,updated);var refs=new HashMap<>(snapshot.bindings());refs.remove(storage);
+            return new StorageMetadataStore.Change(new Snapshot(snapshot.world(),next(snapshot.revision()),rows,snapshot.assignments(),refs),storage,() -> authority.controls(caller,old.owner()) && authority.allows(caller,Action.TRANSFER,old) && authority.mayTransfer(caller,old,target));
         });
     }
     public CompletionStage<StorageMetadataStore.Ack> tombstone(Caller caller, long expectedRevision, UUID storage, long recordRevision) {

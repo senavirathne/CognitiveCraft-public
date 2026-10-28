@@ -1,0 +1,12 @@
+{
+  "stage": "D02",
+  "source_sha": "ffcd3f5f3d37fc0d590dacca0a88471bb7e5eee9",
+  "tree_sha": "a51dc4711641afe9e85139cbfe756a282ff3e132",
+  "jar_sha256": "ff505ffabd76d61f46aeb0569b0afeb6274aa1443a4276d554208129593e1ed1",
+  "workflow_run": 40672315339,
+  "attempt": 1,
+  "docs_sha": "b4294e84e602b929d61dcc9c4b03c9e224b71182",
+  "artifact_id": 12809500782,
+  "artifact_sha256": "db46f4890cf9d68d8054e0ed0e857909b94ef02cf464a4c7e31bb9c3fcb981e5",
+  "qualified_sha256": "793a14cb1444a4b44c43a4b1766542e52779023c9ff22450140c385d6f255bde"
+}

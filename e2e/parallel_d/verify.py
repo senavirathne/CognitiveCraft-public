@@ -82,6 +82,10 @@ def verify(stage,root,source,tree,jar):
     for method in spec['unit_guard_methods']:require(any(method in r['name'] for r in owned),'missing Java negative control: '+method)
     observations=fixture_observations(output)
     recoveries=recovery_verify(root/'metadata',spec['metadata_cases']) if spec.get('metadata_cases') else []
+    acl_details={}
+    if spec.get('acl_cases'):
+        from acl_oracle import verify as acl_verify
+        acl_details=acl_verify(root/'acl');require(acl_details['transitions']==len(spec['acl_cases']),'ACL transition reconciliation')
     python_rows,_=xml_cases(root/'python-results.xml');unique(python_rows)
     require({r['name'] for r in python_rows}==set(spec['python_cases']),'missing/unregistered Python XML cases')
     require(all(r['status']=='PASS' for r in python_rows),'Python assertion failed/skipped')
@@ -107,7 +111,7 @@ def verify(stage,root,source,tree,jar):
     contract=importlib.util.module_from_spec(loader);loader.loader.exec_module(contract)
     schema=read(HERE/'contracts/contract.schema.json')
     contract.shape({'schema':'cc.cd/1.0.0','kind':'StageManifest','body':result},schema,schema);contract.semantics('StageManifest',result)
-    details={'scope':stage+'_ONLY','metadata_recovery_observations':recoveries,'metadata_observations_are_existing_unit_cases':True,'fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
+    details={'scope':stage+'_ONLY','acl_sequence_observations':acl_details,'acl_transitions_are_python_case_observations':True,'metadata_recovery_observations':recoveries,'metadata_observations_are_existing_unit_cases':True,'fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
              'regression_modules':regression,'duplicates':[],'native_executions':len(native_rows),'native_details':native_details,'connected_clients_observed':0,
              'docs_pin_is_prequalification':True,'final_docs_pin':'external handoff after report commit'}
     return result,details

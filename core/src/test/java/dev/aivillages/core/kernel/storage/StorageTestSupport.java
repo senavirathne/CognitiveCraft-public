@@ -20,6 +20,7 @@ final class StorageTestSupport {
         final AtomicBoolean allow = new AtomicBoolean(true);
         public boolean controls(Caller caller, Owner subject) { return allow.get() && caller.principal().equals(PRINCIPAL); }
         public boolean allows(Caller caller, Action action, StorageRegistry.Record record) { return allow.get() && caller.principal().equals(PRINCIPAL); }
+        public boolean mayGrant(Caller caller,StorageRegistry.Record record,Grant grant) { return allow.get() && caller.principal().equals(PRINCIPAL) && grant.permissions().stream().allMatch(p -> p==Permission.DEPOSIT || p==Permission.INSPECT); }
     }
     static StorageMetadataStore create(Path path) { return create(path,StorageRegistryLimits.defaults(),cut -> {},p -> Long.MAX_VALUE); }
     static StorageMetadataStore create(Path path, StorageRegistryLimits limits, StorageMetadataStore.Faults faults, StorageMetadataStore.Capacity capacity) {

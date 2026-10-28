@@ -35,3 +35,10 @@ class NativePackagingTest(unittest.TestCase):
             jar=Path(d)/'release.jar'
             with ZipFile(jar,'w') as z:z.writestr('dev/aivillages/core/kernel/storage/StorageMetadataProbe.class',b'fixture:test-only-entrypoint')
             with self.assertRaisesRegex(ValueError,'test authority'):inspect_release(jar)
+
+    def test_acl_probe_and_synthetic_policy_support_cannot_ship(self):
+        for name in ('StorageAclSequenceProbe','StoragePolicyTestSupport'):
+            with tempfile.TemporaryDirectory() as d:
+                jar=Path(d)/'release.jar'
+                with ZipFile(jar,'w') as z:z.writestr('dev/aivillages/core/kernel/storage/'+name+'.class',b'test-only:synthetic-acl')
+                with self.assertRaisesRegex(ValueError,'test authority'):inspect_release(jar)
