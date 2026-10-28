@@ -58,7 +58,7 @@ jobs:
           python3 e2e/runtime.py prepare 2>&1 | tee "$D_ROOT/sdk-prepare.log"
           python3 e2e/runtime.py compile 2>&1 | tee "$D_ROOT/driver-compile.log"
       - name: Restore exact qualified D01 JAR for the unchanged native performance baseline
-        if: steps.request.outputs.stage == 'D02' || steps.request.outputs.stage == 'D03'
+        if: steps.request.outputs.stage == 'D02' || steps.request.outputs.stage == 'D03' || steps.request.outputs.stage == 'D04'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

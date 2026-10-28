@@ -31,3 +31,12 @@ class PredecessorTest(unittest.TestCase):
             with self.assertRaises(ValueError):measured_d02(bad)
         bad=copy.deepcopy(good);bad['game_tests']['executed']=3
         with self.assertRaises(ValueError):measured_d02(bad)
+
+    def test_d03_exact_acl_handoff_and_counters_required(self):
+        from prerequisites import measured_d03
+        good=read(HERE/'predecessors/D03-qualified.json');measured_d03(good)
+        for field,value in [('source_sha','0'*40),('gate_status','INCONCLUSIVE'),('attempt',2)]:
+            bad=copy.deepcopy(good);bad[field]=value
+            with self.assertRaises(ValueError):measured_d03(bad)
+        bad=copy.deepcopy(good);bad['python']['executed']=55
+        with self.assertRaises(ValueError):measured_d03(bad)

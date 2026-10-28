@@ -35,6 +35,7 @@ def run(stage, root, built):
         for path in paths:
             target=root/'junit'/module/path.name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
     python_env=os.environ.copy()
+    if spec.get('resolution_cases'):python_env['CC_D_RESOLUTION_EVIDENCE']=str(root/'resolution')
     if spec.get('acl_cases'):python_env['CC_D_ACL_EVIDENCE']=str(root/'acl')
     subprocess.run([sys.executable,str(HERE/'test_runner.py'),'--stage',stage,'--output',str(root/'python-results.xml')],env=python_env,check=False)
     if spec.get('metadata_cases'):

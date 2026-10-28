@@ -86,6 +86,10 @@ def verify(stage,root,source,tree,jar):
     if spec.get('acl_cases'):
         from acl_oracle import verify as acl_verify
         acl_details=acl_verify(root/'acl');require(acl_details['transitions']==len(spec['acl_cases']),'ACL transition reconciliation')
+    resolution_details={}
+    if spec.get('resolution_cases'):
+        from resolution_oracle import verify as resolution_verify
+        resolution_details=resolution_verify(root/'resolution');require(resolution_details['queries']==len(spec['resolution_cases']),'resolution reconciliation')
     python_rows,_=xml_cases(root/'python-results.xml');unique(python_rows)
     require({r['name'] for r in python_rows}==set(spec['python_cases']),'missing/unregistered Python XML cases')
     require(all(r['status']=='PASS' for r in python_rows),'Python assertion failed/skipped')
@@ -103,7 +107,7 @@ def verify(stage,root,source,tree,jar):
             'unit':metric(spec['unit_planned'],owned,['junit/core/TEST-'+name+'.xml' for name in spec['unit_suites']]),
             'python':metric(len(spec['python_cases']),python_rows,['python-results.xml']),
             'game_tests':metric(len(spec['game_tests']),native_rows,native_details.get('evidence',[])),'client_e2e':metric(0,[],[]),'native_evidence':native_details.get('evidence',[]),
-            'blocked':['J01/J02: production registration and runtime authority are deferred; '+stage+' production hooks remain disabled; test-only native markers are not A settlement'],
+            'blocked':['J01/J02/J04: production registration, runtime authority and selector admission are deferred; '+stage+' production hooks remain disabled; test-only native markers are not A settlement'],
             'regressions':[],'gate_status':'OWNED_GATES_PASS'}
     # Apply the external frozen schema and counter semantics, not our own JSON pass flag.
     import importlib.util
@@ -111,7 +115,7 @@ def verify(stage,root,source,tree,jar):
     contract=importlib.util.module_from_spec(loader);loader.loader.exec_module(contract)
     schema=read(HERE/'contracts/contract.schema.json')
     contract.shape({'schema':'cc.cd/1.0.0','kind':'StageManifest','body':result},schema,schema);contract.semantics('StageManifest',result)
-    details={'scope':stage+'_ONLY','acl_sequence_observations':acl_details,'acl_transitions_are_python_case_observations':True,'metadata_recovery_observations':recoveries,'metadata_observations_are_existing_unit_cases':True,'fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
+    details={'scope':stage+'_ONLY','resolution_observations':resolution_details,'resolution_queries_are_python_case_observations':True,'acl_sequence_observations':acl_details,'acl_transitions_are_python_case_observations':True,'metadata_recovery_observations':recoveries,'metadata_observations_are_existing_unit_cases':True,'fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
              'regression_modules':regression,'duplicates':[],'native_executions':len(native_rows),'native_details':native_details,'connected_clients_observed':0,
              'docs_pin_is_prequalification':True,'final_docs_pin':'external handoff after report commit'}
     return result,details

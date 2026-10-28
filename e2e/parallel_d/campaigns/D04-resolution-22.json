@@ -1,0 +1,169 @@
+{
+  "seed": 20261027,
+  "tier": "PURE_RESOLUTION_PORTS",
+  "cases": [
+    {
+      "id": "D04-ORDER-000",
+      "seed": 20261027,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "x"
+    },
+    {
+      "id": "D04-ORDER-001",
+      "seed": 20261028,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "y"
+    },
+    {
+      "id": "D04-ORDER-002",
+      "seed": 20261029,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "z"
+    },
+    {
+      "id": "D04-ORDER-003",
+      "seed": 20261030,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "uuid"
+    },
+    {
+      "id": "D04-ORDER-004",
+      "seed": 20261031,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "x"
+    },
+    {
+      "id": "D04-ORDER-005",
+      "seed": 20261032,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "y"
+    },
+    {
+      "id": "D04-ORDER-006",
+      "seed": 20261033,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "z"
+    },
+    {
+      "id": "D04-ORDER-007",
+      "seed": 20261034,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "uuid"
+    },
+    {
+      "id": "D04-ORDER-008",
+      "seed": 20261035,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "x"
+    },
+    {
+      "id": "D04-ORDER-009",
+      "seed": 20261036,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "y"
+    },
+    {
+      "id": "D04-ORDER-010",
+      "seed": 20261037,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "z"
+    },
+    {
+      "id": "D04-ORDER-011",
+      "seed": 20261038,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "uuid"
+    },
+    {
+      "id": "D04-ORDER-012",
+      "seed": 20261039,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "x"
+    },
+    {
+      "id": "D04-ORDER-013",
+      "seed": 20261040,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "y"
+    },
+    {
+      "id": "D04-ORDER-014",
+      "seed": 20261041,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "z"
+    },
+    {
+      "id": "D04-ORDER-015",
+      "seed": 20261042,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "uuid"
+    },
+    {
+      "id": "D04-ORDER-016",
+      "seed": 20261043,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "x"
+    },
+    {
+      "id": "D04-ORDER-017",
+      "seed": 20261044,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "y"
+    },
+    {
+      "id": "D04-ORDER-018",
+      "seed": 20261045,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "z"
+    },
+    {
+      "id": "D04-ORDER-019",
+      "seed": 20261046,
+      "rows": 128,
+      "expected": "RESOLVED",
+      "tie": "uuid"
+    },
+    {
+      "id": "D04-LIMIT-129",
+      "seed": 20261047,
+      "rows": 129,
+      "expected": "UNKNOWN",
+      "tie": "x"
+    },
+    {
+      "id": "D04-LIMIT-257",
+      "seed": 20261048,
+      "rows": 257,
+      "expected": "UNKNOWN",
+      "tie": "y"
+    }
+  ],
+  "limits": {
+    "candidates": 128,
+    "metadata": 256,
+    "records_per_tick": 16,
+    "horizontal_milliblocks": 16000,
+    "vertical_milliblocks": 4000,
+    "scheduled_tick_tasks": 0,
+    "new_native_cases": 0
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "stage": "D03",
-  "campaign": "D03-ACL",
+  "stage": "D04",
+  "campaign": "D04-RESOLUTION",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d03-01",
-  "reason": "Standing user authorization covers Actions and Docker for blocking dependencies/tests. Local D03 diagnostics pass 133 cumulative owned Java and 56 Python checks, including the actual 100-transition Java metadata/ACL probe. Full module/release/SDK and cumulative real native Docker regressions require the existing CI environment. One production build, unchanged frozen baseline control, no new-stage native/client credit; qualify this exact committed candidate."
+  "nonce": "2026-10-28-d04-01",
+  "reason": "Standing user authorization covers Actions and Docker for blocking dependencies/tests. Local diagnostics pass 159 cumulative owned Java and 61 Python checks, including 22 actual bounded resolver queries and the retained 100-transition ACL campaign. Full module/release/SDK and cumulative native Docker regressions require the established CI environment. Use one production build and unchanged D01 performance control; no new D04 native/client credit. Qualify this exact committed candidate."
 }
