@@ -37,8 +37,11 @@ public final class FabricDepositProtocol implements DepositProtocol {
     private Consumer<Point> observer=point->{ };
     private boolean closed;
     private final ArrayDeque<Long> beginNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
-    public record Metrics(List<Long> beginNanos,List<Long> pollNanos,List<Long> acknowledgementNanos) { }
-    public Metrics metrics(){check();return new Metrics(List.copyOf(beginNanos),List.copyOf(pollNanos),store.acknowledgementNanos());}
+    public static final List<String> PREPARATION_PHASES=List.of("authority","owner","participants","claims","conditions","intent","exclusion");
+    private final ArrayDeque<PreparationProfile> preparations=new ArrayDeque<>();
+    public record PreparationProfile(List<Long> completedAtNanos,long bodyNanos) {public PreparationProfile{completedAtNanos=List.copyOf(completedAtNanos);}}
+    public record Metrics(List<Long> beginNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<PreparationProfile> preparations) { }
+    public Metrics metrics(){check();return new Metrics(List.copyOf(beginNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(preparations));}
     private void measured(ArrayDeque<Long> values,long began){if(values.size()==128)values.removeFirst();values.addLast(System.nanoTime()-began);}
 
     private final class NativeTicket implements Ticket {
@@ -75,9 +78,15 @@ public final class FabricDepositProtocol implements DepositProtocol {
     public void close(){check();closed=true;for(var ticket:tickets)ticket.forgotten=true;tickets.clear();}
 
     @Override public Ticket begin(Request request,Action original) {
-        check();long began=System.nanoTime();try{return beginNative(request,original);}finally{measured(beginNanos,began);}
+        check();long began=System.nanoTime();long[] phases=new long[7];
+        try{return beginNative(request,original,phases);}finally{
+            long finished=System.nanoTime();var elapsed=new ArrayList<Long>(7);
+            for(long value:phases)elapsed.add(value==0?0:value-began);
+            if(preparations.size()==128)preparations.removeFirst();preparations.addLast(new PreparationProfile(elapsed,finished-began));
+            measured(beginNanos,began);
+        }
     }
-    private Ticket beginNative(Request request,Action original) {
+    private Ticket beginNative(Request request,Action original,long[] phases) {
         check();Objects.requireNonNull(request);Objects.requireNonNull(original);
         NativeTicket ticket;
         try {
@@ -85,11 +94,14 @@ public final class FabricDepositProtocol implements DepositProtocol {
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=MAX_TICKETS)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
             if(!original.current())throw new Refused(Reason.INTERRUPTED);
+            phases[0]=System.nanoTime();
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new Refused(Reason.INTERRUPTED);
+            phases[1]=System.nanoTime();
             Pair pair=pair(request.actor(),request.destination(),true);
             if(pair==null)throw new Refused(Reason.TARGET_UNAVAILABLE);
+            phases[2]=System.nanoTime();
             var claims=leases.snapshot().leases().stream().filter(l->l.owner().equals(owner) && l.origin().equals(job.origin())
                     && l.state()==ResourceLeases.State.ACTIVE && l.expires()>level.getGameTime()).toList();
             if(claims.isEmpty() || claims.size()>4 || claims.stream().map(ResourceLeases.Lease::group).distinct().count()!=1
@@ -98,6 +110,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
             int source=sourceSlot(pair.actorSnapshot,request.item().id()),target=targetSlot(pair,source,request.item().id());
             if(source<0)throw new Refused(Reason.RESOURCE_MISSING);
             if(target<0)throw new Refused(Reason.TARGET_UNAVAILABLE);
+            phases[3]=System.nanoTime();
             UUID root=job.id();var ancestor=job;
             for(int n=0;ancestor.parent()!=null;n++) {
                 if(n>=8)throw new Refused(Reason.REQUEST_INVALID);
@@ -114,10 +127,13 @@ public final class FabricDepositProtocol implements DepositProtocol {
             int reach=(int)Math.ceil(Math.sqrt(pair.actor.distanceToSqr(Vec3.atCenterOf(pair.chest.getBlockPos())))*1000);
             var conditions=new Conditions(request.actor().citizenId(),job.revision(),deadline,request.deadline(),request.effectsRemaining(),
                     level.getGameTime(),2500,reach,references,request.usage());
+            phases[4]=System.nanoTime();
             var intent=new Intent(new Key(job.origin().scope().worldId(),root,job.id(),attempt.id(),attempt.generation(),ordinal),job.origin(),request.correlation().runId(),request.operation(),
                     pair.actorSnapshot,pair.chestSnapshot,request.item().id(),source,target,capacity(pair,source,target),conditions);
+            phases[5]=System.nanoTime();
             ticket=new NativeTicket(request,original,intent,null);
             if(store.conflicts(Kind.ACTOR,intent.actor().dimension(),intent.actor().address(),"") || store.conflicts(Kind.CHEST,intent.chest().dimension(),intent.chest().address(),""))throw new Refused(Reason.INTERRUPTED);
+            phases[6]=System.nanoTime();
         }catch(Refused refused){return new NativeTicket(request,original,null,refused.reason);}
         catch(RuntimeException unsupported){return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
         tickets.add(ticket);return ticket;

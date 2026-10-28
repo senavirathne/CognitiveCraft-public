@@ -127,16 +127,20 @@ jobs:
           fi
       - name: Actual A05 deposit evidence and independent native participant cuts
         if: >-
-          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world') }}
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world') || startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}
         env:
           GH_TOKEN: ${{ github.token }}
           RESUME_A05_SEED: >-
-            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world resume-reader-') }}
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world resume-reader-') || startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}
+          A05_PREPARATION_PROFILE: >-
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}
         run: |
           python3 tools/needle/install.py build/needle
+          diagnostic_args=()
+          if [ "$A05_PREPARATION_PROFILE" = true ]; then diagnostic_args+=(--profile-only); fi
           if [ "$RESUME_A05_SEED" = true ]; then
             gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a05-prior-native.zip
-            python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05 --seed-archive build/parallel-a/a05-prior-native.zip
+            python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05 --seed-archive build/parallel-a/a05-prior-native.zip "${diagnostic_args[@]}"
           else
             python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05
           fi
@@ -193,6 +197,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a05-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/native-a05/
+      - name: Retain separate A05 preparation diagnostics without an acceptance claim
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a05-preparation-profile-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
