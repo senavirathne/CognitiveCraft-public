@@ -1,5 +1,12 @@
 // Owner-local tasks; the established Loom gameTest classpath supplies the verified 26.3 API.
 gradle.projectsEvaluated {
+    // JUnit's argument-only default collides across methods in ten inherited suites.
+    // Add method display names to IDs without changing assertions or duplicate rejection.
+    gradle.rootProject.allprojects { project ->
+        project.tasks.withType(Test).configureEach {
+            systemProperty 'junit.jupiter.params.displayname.default', '{displayName} [{index}] {argumentsWithNames}'
+        }
+    }
     def fabric = gradle.rootProject.project(':fabric')
     def root = gradle.rootProject.projectDir
     def compiled = fabric.tasks.register('compileParallelDNative', JavaCompile) {
