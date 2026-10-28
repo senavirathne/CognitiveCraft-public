@@ -14,6 +14,33 @@ import static org.junit.jupiter.api.Assertions.*;
 final class DepositJournalTest {
     @TempDir Path world;
     static DepositJournal.Snapshot next(DepositJournal.Snapshot before,List<Entry> entries){return new DepositJournal.Snapshot(before.world(),before.epoch(),before.revision()+1,entries);}
+    @Test void globalCapacityRefusalPreservesTheExactCurrentAndRequirementBytes()throws Exception {
+        try(var journal=DepositJournal.open(world,WORLD)) {
+            var current=world.resolve(DepositJournal.PATH+"/state.jsonl");byte[] before=Files.readAllBytes(current);
+            var required=world.resolve(DepositJournal.REQUIRED);byte[] requirement=Files.readAllBytes(required);
+            journal.capacity(amount->false);
+            assertThrows(IOException.class,()->journal.replace(journal.snapshot(),next(journal.snapshot(),List.of(new Entry(intent(),null)))));
+            assertTrue(journal.snapshot().entries().isEmpty());assertArrayEquals(before,Files.readAllBytes(current));assertArrayEquals(requirement,Files.readAllBytes(required));
+            assertFalse(Files.exists(world.resolve(DepositJournal.PATH+"/state.next.jsonl")));
+        }
+    }
+    @Test void boundedRetentionAccountsRequirementsAndPinsEveryPhysicalFile()throws Exception {
+        try(var journal=DepositJournal.open(world,WORLD)) {
+            var owner=journal.retentionOwner();assertTrue(owner.admissionCeiling().isPresent());
+            var cursor=owner.open();var rows=new ArrayList<dev.aivillages.core.kernel.WorldRetentionManager.Entry>();
+            boolean complete=false;
+            for(int n=0;n<5 && !complete;n++) {
+                var page=cursor.next(2,65536);assertTrue(page.valid());assertTrue(page.inspected()<=2);rows.addAll(page.entries());complete=page.complete();
+            }
+            assertTrue(complete);assertEquals(5,rows.size()); // record summary, two requirements, current, lock
+            long total=rows.stream().mapToLong(e->e.usage().bytes()).sum();long expected;
+            try(var paths=Files.walk(world)){expected=paths.filter(Files::isRegularFile).mapToLong(p->{try{return Files.size(p);}catch(IOException e){throw new java.io.UncheckedIOException(e);}}).sum();}
+            assertEquals(expected,total);
+            for(var row:rows)assertEquals(dev.aivillages.core.kernel.WorldRetentionManager.OwnerStatus.PROTECTED,owner.collect(row,owner.revision(),()->false).status());
+            var old=owner.open();journal.replace(journal.snapshot(),next(journal.snapshot(),List.of(new Entry(intent(),null))));
+            assertFalse(old.next(2,65536).valid());
+        }
+    }
     @Test void acknowledgedIntentAndResultRetainExactIdentityAcrossARealFileReopen()throws Exception {
         Entry prepared=new Entry(intent(),null);DepositJournal.Snapshot complete;
         try(var journal=DepositJournal.open(world,WORLD)) {

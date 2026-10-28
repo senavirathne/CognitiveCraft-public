@@ -124,7 +124,7 @@ public final class DepositEvidenceStore {
     /** Includes unacknowledged snapshots; neither timeout nor lease expiry erases an exclusion. */
     public Set<UUID> protectedJobs() {
         thread();var ids=new HashSet<UUID>();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))
-            snapshot.entries().stream().filter(e->e.verification()==null).forEach(e->ids.add(e.intent().key().root()));return Set.copyOf(ids);
+            snapshot.entries().stream().filter(e->e.verification()==null).forEach(e->{ids.add(e.intent().key().root());ids.add(e.intent().key().step());});return Set.copyOf(ids);
     }
     public boolean excludes(Participant participant,UUID run) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries())

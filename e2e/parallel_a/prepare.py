@@ -17,6 +17,11 @@ before = digest(release)
 cp = [release, SDK / 'minecraft-client.jar', *sorted((SDK / 'libraries').rglob('*.jar')),
       *sorted((ROOT / 'build/server-sdk/libs').glob('*.jar'))]
 sources = sorted((ROOT / 'e2e/parallel_a/java').rglob('*.java'))
+# Preserve exact native mutation signatures for A05's component-hook review.
+api = ROOT / 'build/parallel-a/source-audit/a05-ItemStack-api.txt'
+api.parent.mkdir(parents=True, exist_ok=True)
+api.write_text(subprocess.check_output([java('javap'), '-p', '-cp', os.pathsep.join(map(str,cp)),
+    'net.minecraft.world.item.ItemStack'], text=True))
 # Level.getBlockState can request a chunk and refresh its UNKNOWN ticket even
 # after hasChunkAt succeeds. Keep A's unload observations off that loading path.
 # Adapt the reviewed frozen observer under a distinct test-only class, without

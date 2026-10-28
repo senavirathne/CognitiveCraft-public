@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel.runtime.evidence;
 
 import dev.aivillages.core.kernel.StrictJson;
+import dev.aivillages.core.kernel.WorldRetentionManager;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
@@ -36,6 +37,8 @@ public final class DepositJournal implements AutoCloseable {
     private final Faults faults;
     private Snapshot state;
     private boolean readOnly;
+    private volatile long retentionRevision;
+    private java.util.function.Predicate<WorldRetentionManager.Amount> capacity=amount->true;
     private DepositJournal(Path world,FileChannel channel,FileLock lock,Snapshot state,boolean readOnly,Faults faults) {
         directory=world.resolve(PATH);base=world.resolve(BASE);lockChannel=channel;this.lock=lock;this.state=state;this.readOnly=readOnly;this.faults=faults;
     }
@@ -82,6 +85,8 @@ public final class DepositJournal implements AutoCloseable {
     }
     public synchronized Snapshot snapshot(){return state;}
     public synchronized boolean readOnly(){return readOnly;}
+    /** Worker-owned storage quota gate; the game-thread protocol never invokes it. */
+    public synchronized void capacity(java.util.function.Predicate<WorldRetentionManager.Amount> capacity){this.capacity=Objects.requireNonNull(capacity);}
     public synchronized Snapshot replace(Snapshot expected,Snapshot next)throws IOException {
         if(readOnly || state!=expected || !state.world.equals(next.world) || !state.epoch.equals(next.epoch)
                 || next.revision!=Math.addExact(state.revision,1) || next.entries.size()<state.entries.size())throw new IOException("Stale/fenced deposit publication");
@@ -93,7 +98,10 @@ public final class DepositJournal implements AutoCloseable {
         }
         // Reserve the maximum complete result for every row before PREPARED can acknowledge.
         if(1024L+next.entries.size()*(MAX_RECORD_BYTES+1L)>MAX_BYTES)throw new IOException("Deposit result reservation quota");
+        long reserved=3L*(1024L+next.entries.size()*(MAX_RECORD_BYTES+1L))+4096;
+        if(!capacity.test(new WorldRetentionManager.Amount(reserved,next.entries.size())))throw new IOException("World deposit evidence capacity unavailable");
         byte[] raw=encode(next);Path pending=directory.resolve("state.next.jsonl");
+        retentionRevision++;
         try {
             if(!layout(base,directory) || !Arrays.equals(bytes(base.resolve("required.json"),1024),requirement(state))
                     || !Arrays.equals(bytes(base.getParent().resolve("deposit-evidence-required.json"),1024),requirement(state))
@@ -105,6 +113,46 @@ public final class DepositJournal implements AutoCloseable {
             faults.at(Point.AFTER_BACKUP);Files.move(pending,directory.resolve("state.jsonl"),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             faults.at(Point.AFTER_REPLACE);force(directory);faults.at(Point.AFTER_FORCE);state=next;return next;
         }catch(IOException failure){readOnly=true;throw failure;}
+        finally{retentionRevision++;}
+    }
+    /** Bounded accounting for every current/previous/pending and required file; none is collectible. */
+    public WorldRetentionManager.Owner retentionOwner() {
+        var owner=this;
+        var paths=List.of(base.resolve("required.json"),base.resolve("required.next.json"),
+                directory.resolve("state.jsonl"),directory.resolve("state.prev.jsonl"),directory.resolve("state.next.jsonl"),directory.resolve("writer.lock"),
+                base.getParent().resolve("deposit-evidence-required.json"),base.getParent().resolve("deposit-evidence-required.json.next"));
+        return new WorldRetentionManager.Owner() {
+            public String id(){return "deposits";}
+            public long revision(){return retentionRevision;}
+            public Optional<WorldRetentionManager.Amount> admissionCeiling(){return Optional.of(new WorldRetentionManager.Amount(3L*MAX_BYTES+4096,MAX_ENTRIES));}
+            public WorldRetentionManager.Cursor open() {
+                long captured=revision();
+                return new WorldRetentionManager.Cursor() {
+                    int cursor;boolean first=true;
+                    public long revision(){return captured;}
+                    public WorldRetentionManager.Page next(int maximum,int bytes)throws IOException {
+                        var entries=new ArrayList<WorldRetentionManager.Entry>();int inspected=0;
+                        if(first && maximum>0) {
+                            first=false;inspected++;
+                            entries.add(new WorldRetentionManager.Entry(new WorldRetentionManager.Key(id(),"records"),WorldRetentionManager.Category.EVIDENCE,
+                                    new WorldRetentionManager.Amount(0,owner.snapshot().entries().size()),List.of(),true,false,Set.of(),""));
+                        }
+                        while(inspected<maximum && cursor<paths.size()) {
+                            int n=cursor++;Path path=paths.get(n);inspected++;safe(path);
+                            if(!Files.exists(path,LinkOption.NOFOLLOW_LINKS))continue;
+                            if(!Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS))throw new IOException("Invalid deposit accounting file");
+                            long size=Files.size(path);if(size>MAX_BYTES)throw new IOException("Oversized deposit accounting file");
+                            entries.add(new WorldRetentionManager.Entry(new WorldRetentionManager.Key(id(),"file:"+n),WorldRetentionManager.Category.EVIDENCE,
+                                    new WorldRetentionManager.Amount(size,0),List.of(),true,false,Set.of(),Long.toString(size)));
+                        }
+                        return new WorldRetentionManager.Page(entries,!first && cursor==paths.size(),captured==retentionRevision && (captured&1)==0,inspected,0);
+                    }
+                };
+            }
+            public WorldRetentionManager.OwnerResult collect(WorldRetentionManager.Entry entry,long expectedRevision,java.util.function.BooleanSupplier cancel) {
+                return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.PROTECTED);
+            }
+        };
     }
     public static byte[] encode(Snapshot state)throws IOException {
         var output=new ByteArrayOutputStream();for(Entry entry:state.entries){output.write(NativeDeposit.encode(entry));output.write('\n');}

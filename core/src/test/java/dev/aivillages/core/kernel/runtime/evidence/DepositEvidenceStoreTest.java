@@ -44,7 +44,7 @@ final class DepositEvidenceStoreTest {
     }
     @Test void deadlineAndLateAcknowledgementCannotAuthorizeAnEffectOrDropAnExclusion() {
         var scene=new Scene();Intent intent=intent();scene.store.prepare(intent);scene.clock.millis=11;scene.store.tick();
-        assertTrue(scene.store.fenced());assertEquals(Set.of(intent.key().root()),scene.store.protectedJobs());
+        assertTrue(scene.store.fenced());assertEquals(Set.of(intent.key().root(),intent.key().step()),scene.store.protectedJobs());
         scene.ack();assertTrue(scene.store.fenced());assertEquals(DepositEvidenceStore.Code.FENCED,scene.store.prepare(intent).code());assertEquals(0,scene.port.calls);
         assertTrue(scene.store.excludes(intent.actor(),UUID.randomUUID()));
     }
