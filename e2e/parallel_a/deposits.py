@@ -54,7 +54,9 @@ class DepositHarness(ActivityHarness):
         game=self.root/'server/game';saved=self.root/('retained-before-'+name)
         game.rename(saved);shutil.copytree(seed,game,ignore=shutil.ignore_patterns('session.lock'))
         source=manifest(seed/'world');require(manifest(game/'world')==source,'A05 whole-world cohort restoration changed bytes')
-        self.event('a05-independent-whole-world-cohort',{'id':name,'input':str(seed.relative_to(self.root)),'files':source})
+        from continuation import bind_port
+        port_override=bind_port(game/'server.properties',self.port)
+        self.event('a05-independent-whole-world-cohort',{'id':name,'input':str(seed.relative_to(self.root)),'files':source,'configurationOverride':port_override})
         self.activated=int(time.time()*1000);self.start('server');reconnect_players(self,list(self.players))
         self.console(['tick unfreeze','tick rate 20'],lifecycle=True)
         self.wait(self.evidence,'A05 restored native cohort reader',60)
@@ -164,15 +166,21 @@ def negative(h,saved_game,result,token,mode):
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);args=parser.parse_args();args.root=args.root.resolve();args.root.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);parser.add_argument('--seed-archive',type=Path);args=parser.parse_args();args.root=args.root.resolve();args.root.mkdir(parents=True,exist_ok=True)
     h=None;result={'stage':'A05','status':'NOT_EXECUTED','cases':[],'limits':LIMITS,'scope':'one actual default-component log from actual bound actor to ordinary single chest; no physical replay or original-owner settlement'}
     try:
-        h=DepositHarness(args.root);h.env['A05_DEPOSIT_ENABLED']='false';h.activated=0;h.bootstrap([LOG])
-        require('cognitivecraft:deliver_oak_logs' in h.hashes,'Real baseline method admission required before activating the new envelope')
-        h.family='A05-before-activation';h.reset({},table=False);h.logs([at(6,2)]);h.save_checkpoint();h.stop('server')
-        seed=args.root/'pre-effect-seed-game';shutil.copytree(h.root/'server/game',seed,ignore=shutil.ignore_patterns('session.lock'))
-        h.env['A05_DEPOSIT_ENABLED']='true';h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
-        h.wait(h.evidence,'Opt-in native evidence reader activated',60)
+        h=DepositHarness(args.root);h.activated=0
+        if args.seed_archive:
+            from deposit_seed import start
+            seed,result['seedContinuation']=start(h,args.seed_archive.resolve())
+        else:
+            h.env['A05_DEPOSIT_ENABLED']='false';h.bootstrap([LOG])
+            require('cognitivecraft:deliver_oak_logs' in h.hashes,'Real baseline method admission required before activating the new envelope')
+            h.family='A05-before-activation';h.reset({},table=False);h.logs([at(6,2)]);h.save_checkpoint();h.stop('server')
+            for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Initial activation disconnect '+p,45)
+            seed=args.root/'pre-effect-seed-game';shutil.copytree(h.root/'server/game',seed,ignore=shutil.ignore_patterns('session.lock'))
+            h.env['A05_DEPOSIT_ENABLED']='true';h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
+            h.wait(h.evidence,'Opt-in native evidence reader activated',60)
         saved,entry,token=positive(h,result)
         for mode in ('equal-count-swap','components','replacement','unloaded'):
             negative(h,saved,result,token,mode)

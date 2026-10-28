@@ -498,11 +498,6 @@ public final class KernelSession implements AutoCloseable {
             leaseArchive=new LeaseArchive(leases,loaded.history(),historyService,
                     dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
         }
-        if(loaded.deposits()!=null) {
-            depositProtocol=new FabricDepositProtocol(server.overworld(),jobs,leases,loaded.deposits(),loaded.initialDeposits(),
-                    loaded.depositsReadOnly(),worker,clock,depositEvidenceEnabled);
-            gateway.depositProtocol(depositProtocol);
-        }
         leasedGateway = new LeasedGateway(gateway, leases,
                 (request, run) -> LogAcquisition.is(request.request().capability())
                         ? LeasedGateway.cropWorkspaces(new JobLeaseOwners(jobs,clock),request,run)
@@ -577,6 +572,11 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(control::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        if(loaded.deposits()!=null) {
+            depositProtocol=new FabricDepositProtocol(server.overworld(),jobs,leases,loaded.deposits(),loaded.initialDeposits(),
+                    loaded.depositsReadOnly(),worker,clock,depositEvidenceEnabled);
+            gateway.depositProtocol(depositProtocol);
+        }
         if(loaded.jobHistory()!=null)jobArchive=new JobArchive(jobs,loaded.jobHistory(),loaded.history(),historyService,
                 dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
         organizations = new OrganizationRegistry(loaded.initialOrganizations(), (expected, next) ->

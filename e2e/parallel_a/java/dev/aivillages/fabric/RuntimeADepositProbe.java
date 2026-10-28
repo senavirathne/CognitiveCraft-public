@@ -35,6 +35,7 @@ public final class RuntimeADepositProbe implements ModInitializer {
                         "journal",evidence.snapshot(),"pending",evidence.pending(),"fenced",evidence.fenced(),"reconciliation",classified,"protectedJobs",evidence.protectedJobs(),"metrics",protocol.metrics()));
                 var command=request.getAndSet(null);if(command==null)return;active=command;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
+                if(op.equals("window-marker")){reply(id,Map.of("status","PASS","gameTick",server.overworld().getGameTime(),"time",System.currentTimeMillis()),null);return;}
                 if(op.equals("verify")) {
                     String token=command.get("token").getAsString();var entry=evidence.snapshot().entries().stream().filter(e->e.token().equals(token)).findFirst().orElseThrow();
                     var proof=protocol.reconcile(entry.intent().key());var code=protocol.verify(proof);

@@ -128,9 +128,18 @@ jobs:
       - name: Actual A05 deposit evidence and independent native participant cuts
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_A05_SEED: >-
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world resume-reader-') }}
         run: |
           python3 tools/needle/install.py build/needle
-          python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05
+          if [ "$RESUME_A05_SEED" = true ]; then
+            gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a05-prior-native.zip
+            python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05 --seed-archive build/parallel-a/a05-prior-native.zip
+          else
+            python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05
+          fi
       - name: Diagnostic CPU profile of exact retained A04 metadata
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 archive CPU profile') }}
