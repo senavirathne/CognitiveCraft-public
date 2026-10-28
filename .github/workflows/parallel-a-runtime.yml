@@ -102,7 +102,7 @@ jobs:
           git diff --exit-code -- "$owner"
       - name: A04 closed-set history contracts and existing owner regressions
         run: |
-          bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          bash gradlew --no-daemon --continue --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
       - name: Compile exact native client and isolated A04 observers before activation
         run: |
