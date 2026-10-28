@@ -1,4 +1,4 @@
-"""Fail closed on edits outside the current A04 owned source boundary."""
+"""Fail closed on edits outside the A00–A05 owned source boundary."""
 import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
@@ -31,7 +31,8 @@ allowed={
     'core/src/test/java/dev/aivillages/core/kernel/JobArchiveTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveRequirementTest.java',
 }
-prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/')
+prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/',
+          'core/src/test/java/dev/aivillages/core/kernel/runtime/evidence/')
 changed=sorted(set(subprocess.check_output(['git','diff','--name-only',base],text=True).splitlines())
                |set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines()))
 bad=[p for p in changed if p not in allowed and not p.startswith(prefixes)]
