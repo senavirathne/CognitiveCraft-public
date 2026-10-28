@@ -1,0 +1,58 @@
+{
+  "baseline_module_cases": 2307,
+  "capabilities": {
+    "client_oracle_implemented": false,
+    "fabric_api": "0.161.0+26.3",
+    "fixture_compile_required": false,
+    "loader": "0.19.5",
+    "minecraft": "26.3",
+    "native_oracle_implemented": false,
+    "target_java": 25
+  },
+  "client_cases": [],
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "deferred": [
+    "J00: production composition-root adaptation and full C/D parity",
+    "J01: authenticated server selection and storage identity",
+    "J02: A-owned activity effects, leases and native storage/mobility",
+    "J03: A-owned original-root persistence, reobservation and save-qualified terminal projection"
+  ],
+  "implementation": "NOT_EXECUTED",
+  "limits": {
+    "compose_port": 25651,
+    "input_bytes": 262144,
+    "json_depth": 64,
+    "json_nodes": 32768,
+    "qualification_job_minutes": 90
+  },
+  "mandatory": {
+    "C04-P01": {
+      "assertion": "Enumerate at least 100 seeded 20-event transition sequences and assert no root/owner/budget mutation.",
+      "name": "test_dialogue_sequences.py",
+      "stage": "C04",
+      "tier": "PYTHON"
+    },
+    "C04-U01": {
+      "assertion": "Player says done with unchanged chest -> REOBSERVE_REQUESTED, then pending same root with zero credit.",
+      "name": "AssistanceDialogueTest",
+      "stage": "C04",
+      "tier": "UNIT"
+    },
+    "C04-U02": {
+      "assertion": "Duplicate reply, old generation, cross-player reply and expiry cannot emit a second resume signal.",
+      "name": "DialogueSnapshotTest",
+      "stage": "C04",
+      "tier": "UNIT"
+    }
+  },
+  "native_cases": [],
+  "python_cases": [],
+  "schedule": {
+    "client_executions_at_C00": 0,
+    "native_executions_at_C00": 0,
+    "seed_rule": "20261027 plus frozen case ordinal"
+  },
+  "seed": 20261027,
+  "stage": "C04",
+  "unit_cases": []
+}

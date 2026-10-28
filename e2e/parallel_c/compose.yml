@@ -1,0 +1,44 @@
+name: cc-c-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}
+x-runtime: &runtime
+  image: ${COGNITIVECRAFT_C_RUNTIME_IMAGE:?Set the verified existing runtime image at its sha256 digest}
+  init: true
+  user: "${E2E_UID:-1000}:${E2E_GID:-1000}"
+  environment: &environment
+    COGNITIVECRAFT_E2E_CACHE: /sdk
+    COGNITIVECRAFT_C_FIXTURE_ALLOWED: chat-only
+  networks: [isolated]
+services:
+  minecraft:
+    <<: *runtime
+    command: [server, --root, /evidence, --port, '25651']
+    volumes:
+      - ../..:/repo:ro
+      - ${COGNITIVECRAFT_E2E_CACHE:?Verified existing SDK cache}:/sdk:ro
+      - ${E2E_RUN_DIR:?Dedicated C evidence root}:/evidence:rw
+      - server-world:/evidence/server/game
+    mem_limit: 2g
+    stop_grace_period: 40s
+  client-a:
+    <<: *runtime
+    command: [client, --root, /evidence, --player, CPlayerA]
+    volumes:
+      - ../..:/repo:ro
+      - ${COGNITIVECRAFT_E2E_CACHE:?Verified existing SDK cache}:/sdk:ro
+      - ${E2E_RUN_DIR:?Dedicated C evidence root}:/evidence:rw
+      - client-a-world:/evidence/clients/CPlayerA/game
+    mem_limit: 2g
+  client-b:
+    <<: *runtime
+    command: [client, --root, /evidence, --player, CPlayerB]
+    volumes:
+      - ../..:/repo:ro
+      - ${COGNITIVECRAFT_E2E_CACHE:?Verified existing SDK cache}:/sdk:ro
+      - ${E2E_RUN_DIR:?Dedicated C evidence root}:/evidence:rw
+      - client-b-world:/evidence/clients/CPlayerB/game
+    mem_limit: 2g
+networks:
+  isolated: {internal: true}
+volumes:
+  server-world: {}
+  client-a-world: {}
+  client-b-world: {}

@@ -1,0 +1,58 @@
+{
+  "baseline_module_cases": 2307,
+  "capabilities": {
+    "client_oracle_implemented": false,
+    "fabric_api": "0.161.0+26.3",
+    "fixture_compile_required": false,
+    "loader": "0.19.5",
+    "minecraft": "26.3",
+    "native_oracle_implemented": false,
+    "target_java": 25
+  },
+  "client_cases": [],
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "deferred": [
+    "J00: production composition-root adaptation and full C/D parity",
+    "J01: authenticated server selection and storage identity",
+    "J02: A-owned activity effects, leases and native storage/mobility",
+    "J03: A-owned original-root persistence, reobservation and save-qualified terminal projection"
+  ],
+  "implementation": "NOT_EXECUTED",
+  "limits": {
+    "compose_port": 25651,
+    "input_bytes": 262144,
+    "json_depth": 64,
+    "json_nodes": 32768,
+    "qualification_job_minutes": 90
+  },
+  "mandatory": {
+    "C01-P01": {
+      "assertion": "0, -1, 65, overflowing quantities and inserted principal/root/coordinates are rejected.",
+      "name": "test_intents.py",
+      "stage": "C01",
+      "tier": "PYTHON"
+    },
+    "C01-U01": {
+      "assertion": "'come here' -> COME, 'follow me' -> FOLLOW, greeting -> CHAT, same actor stable context; zero world calls.",
+      "name": "IntentParserTest",
+      "stage": "C01",
+      "tier": "UNIT"
+    },
+    "C01-U02": {
+      "assertion": "Two principals speaking to Ada cannot access each other's last 8 turns; expired or ninth turn bounded.",
+      "name": "ConversationContextTest",
+      "stage": "C01",
+      "tier": "UNIT"
+    }
+  },
+  "native_cases": [],
+  "python_cases": [],
+  "schedule": {
+    "client_executions_at_C00": 0,
+    "native_executions_at_C00": 0,
+    "seed_rule": "20261027 plus frozen case ordinal"
+  },
+  "seed": 20261027,
+  "stage": "C01",
+  "unit_cases": []
+}

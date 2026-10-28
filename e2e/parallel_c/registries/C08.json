@@ -1,0 +1,58 @@
+{
+  "baseline_module_cases": 2307,
+  "capabilities": {
+    "client_oracle_implemented": false,
+    "fabric_api": "0.161.0+26.3",
+    "fixture_compile_required": false,
+    "loader": "0.19.5",
+    "minecraft": "26.3",
+    "native_oracle_implemented": false,
+    "target_java": 25
+  },
+  "client_cases": [],
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "deferred": [
+    "J00: production composition-root adaptation and full C/D parity",
+    "J01: authenticated server selection and storage identity",
+    "J02: A-owned activity effects, leases and native storage/mobility",
+    "J03: A-owned original-root persistence, reobservation and save-qualified terminal projection"
+  ],
+  "implementation": "NOT_EXECUTED",
+  "limits": {
+    "compose_port": 25651,
+    "input_bytes": 262144,
+    "json_depth": 64,
+    "json_nodes": 32768,
+    "qualification_job_minutes": 90
+  },
+  "mandatory": {
+    "C08-CL01": {
+      "assertion": "Re-execute C06/C07 owned real-client transport cases on the final C JAR.",
+      "name": "CFinalClientReplay",
+      "stage": "C08",
+      "tier": "CLIENT_COMPONENT"
+    },
+    "C08-P01": {
+      "assertion": "Missing case, mismatched JAR, false A settlement and invalid contract hash block BRANCH_READY.",
+      "name": "test_qualification.py",
+      "stage": "C08",
+      "tier": "PYTHON"
+    },
+    "C08-U01": {
+      "assertion": "All cumulative C module/provider cases plus existing module baseline pass.",
+      "name": "CCompleteRegressionSuite",
+      "stage": "C08",
+      "tier": "UNIT"
+    }
+  },
+  "native_cases": [],
+  "python_cases": [],
+  "schedule": {
+    "client_executions_at_C00": 0,
+    "native_executions_at_C00": 0,
+    "seed_rule": "20261027 plus frozen case ordinal"
+  },
+  "seed": 20261027,
+  "stage": "C08",
+  "unit_cases": []
+}

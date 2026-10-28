@@ -5,6 +5,10 @@ on:
   pull_request:
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/prerequisites.yml', '.github/implementation/IMP-018*']
   push:
+    branches-ignore:
+      - 'feature/player-assisted-dialogue'
+      - 'feature/storage-mobility-logistics'
+      - 'integration/qualified-ab-conversation-logistics'
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/prerequisites.yml', '.github/implementation/IMP-018*']
 
 permissions:

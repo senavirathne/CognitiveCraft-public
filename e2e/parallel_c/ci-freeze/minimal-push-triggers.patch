@@ -1,0 +1,130 @@
+--- a/.github/workflows/accomplishment-evidence.yml
++++ b/.github/workflows/accomplishment-evidence.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/accomplishment-evidence.yml', '.github/implementation/IMP-021*']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/accomplishment-evidence.yml', '.github/implementation/IMP-021*']
+ 
+ permissions:
+--- a/.github/workflows/blueprint-boundary.yml
++++ b/.github/workflows/blueprint-boundary.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
+ 
+ permissions:
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -2,6 +2,10 @@
+ 
+ on:
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+   pull_request:
+   workflow_dispatch:
+ 
+--- a/.github/workflows/goal-planning.yml
++++ b/.github/workflows/goal-planning.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/goal-planning.yml', '.github/implementation/IMP-019*']
+ 
+ permissions:
+--- a/.github/workflows/knowledge-apprenticeship.yml
++++ b/.github/workflows/knowledge-apprenticeship.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/knowledge-apprenticeship.yml']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['core/**', 'providers/**', 'fabric/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/knowledge-apprenticeship.yml']
+ 
+ permissions:
+--- a/.github/workflows/observed-knowledge.yml
++++ b/.github/workflows/observed-knowledge.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/observed-knowledge.yml', '.github/implementation/IMP-017*']
+ 
+ permissions:
+--- a/.github/workflows/prerequisites.yml
++++ b/.github/workflows/prerequisites.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/prerequisites.yml', '.github/implementation/IMP-018*']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/prerequisites.yml', '.github/implementation/IMP-018*']
+ 
+ permissions:
+--- a/.github/workflows/primitive-diagnostics.yml
++++ b/.github/workflows/primitive-diagnostics.yml
+@@ -10,6 +10,10 @@
+       - 'fabric/**'
+       - '.github/workflows/primitive-diagnostics.yml'
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths:
+       - 'e2e/**'
+       - 'core/**'
+--- a/.github/workflows/save-compatibility.yml
++++ b/.github/workflows/save-compatibility.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/save-compatibility.yml']
+ 
+ permissions:
+--- a/.github/workflows/world-retention.yml
++++ b/.github/workflows/world-retention.yml
+@@ -5,6 +5,10 @@
+   pull_request:
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/world-retention.yml']
+   push:
++    branches-ignore:
++      - 'feature/player-assisted-dialogue'
++      - 'feature/storage-mobility-logistics'
++      - 'integration/qualified-ab-conversation-logistics'
+     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/world-retention.yml']
+ 
+ permissions:

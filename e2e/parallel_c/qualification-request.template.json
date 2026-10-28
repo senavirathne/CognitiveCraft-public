@@ -1,0 +1,7 @@
+{
+  "stage": "C08",
+  "campaign": "parallel-c-final-cumulative-v1",
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "docs_candidate_sha": "REPLACE_WITH_FROZEN_DOCS_COMMIT_AT_C08",
+  "nonce": "REPLACE_WITH_NEW_CANDIDATE_NONCE_AT_C08"
+}
