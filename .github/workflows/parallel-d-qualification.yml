@@ -17,6 +17,7 @@ jobs:
     env:
       D_ROOT: build/e2e/parallel-d/D00
       CC_D_REQUIRE_BUILT: '1'
+      CC_D_BASE_IMAGE: eclipse-temurin@sha256:a9c5ddd386f629518bd500ecfabf7d1e5d32d7ffed735d5c3b1604ae92c830f4
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -61,11 +62,13 @@ jobs:
           set -euo pipefail
           docker version
           docker compose version
+          docker pull "$CC_D_BASE_IMAGE"
+          docker tag "$CC_D_BASE_IMAGE" eclipse-temurin:25-jdk-noble
           docker build --build-arg E2E_UID="$(id -u)" --build-arg E2E_GID="$(id -g)" -t cognitivecraft-e2e:java25 -f e2e/Dockerfile . 2>&1 | tee "$D_ROOT/docker-runtime-build.log"
           docker build -t "cognitivecraft-d-tools:$GITHUB_SHA" -f e2e/parallel_d/Dockerfile . 2>&1 | tee "$D_ROOT/docker-tools-build.log"
           docker image inspect cognitivecraft-e2e:java25 > "$D_ROOT/runtime-image.json"
           docker image inspect "cognitivecraft-d-tools:$GITHUB_SHA" > "$D_ROOT/tools-image.json"
-          docker image inspect eclipse-temurin:25-jdk-noble > "$D_ROOT/base-image.json"
+          docker image inspect "$CC_D_BASE_IMAGE" > "$D_ROOT/base-image.json"
           python3 - <<'PY'
           import json,os,pathlib
           root=pathlib.Path(os.environ['D_ROOT'])

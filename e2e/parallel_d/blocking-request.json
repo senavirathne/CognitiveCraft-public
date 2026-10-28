@@ -2,6 +2,6 @@
   "stage": "D00",
   "campaign": "D00-BOOTSTRAP",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d00-01",
-  "reason": "User explicitly requested GitHub Actions and Docker for blocking tests/dependencies; local host has Java 17 and no Docker or prepared 26.3 SDK."
+  "nonce": "2026-10-28-d00-02",
+  "reason": "Correct the measured Docker/BuildKit base-tag inspection failure in run 40644263781. Explicitly pull/tag the exact base digest resolved in that run; retain its failure and repeat all gates on the new candidate."
 }
