@@ -43,6 +43,13 @@ allowed={
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestStorageLoadMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChunkStorageLoadMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositEntityStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestSourceMutationMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkStorageMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestDropParticipantMixin.java',
+    'core/src/test/java/dev/aivillages/core/kernel/HarvestGatewayTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/HarvestStoppedSourceTest.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/',
           'core/src/test/java/dev/aivillages/core/kernel/runtime/evidence/')

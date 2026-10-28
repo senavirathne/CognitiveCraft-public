@@ -114,12 +114,13 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAJobProbe')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeADepositProbe')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeADepositTiming')
+            manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAHarvestProbe')
             data = json.dumps(manifest).encode()
         target.writestr(entry, data)
     for path in out.rglob('*.class'):
         target.write(path, path.relative_to(out).as_posix())
 with ZipFile(release) as packaged:
-    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeADepositProbe', 'RuntimeADepositTiming', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'JournalCostProbe'))
+    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeADepositProbe', 'RuntimeADepositTiming', 'RuntimeAHarvestProbe', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'JournalCostProbe'))
                    for n in packaged.namelist())
 assert digest(release) == before
 (ROOT / 'build/parallel-a/observer-adaptation.json').write_text(json.dumps({
