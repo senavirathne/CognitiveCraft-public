@@ -52,10 +52,12 @@ def ancestry(root, base, docs=False, exceptions=None):
         if any(part in ref for part in PEER_BRANCHES):
             peer = set(git(root, "rev-list", ref, "^" + base).split())
             check(not commits.intersection(peer), "imported peer/A commit: " + ref)
+    frozen = tree(root, base)
     for commit in sorted(commits):
-        parent = git(root, "rev-parse", commit + "^")
-        before, after = tree(root, parent), tree(root, commit)
-        audit_trees(before, after, docs, exceptions or {})
+        # Protect the actual frozen baseline at every intermediate commit. Files added by
+        # C remain editable by C; treating each preceding C commit as a new freeze rejects
+        # valid owned corrections and would also break later-stage cumulative work.
+        audit_trees(frozen, tree(root, commit), docs, exceptions or {}, root=root)
     return len(commits)
 
 
@@ -124,7 +126,7 @@ def audit(root=ROOT, docs_root=None, static_only=False):
     subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", BASE, "HEAD"], check=True)
     for row in git(root, "rev-list", "--parents", BASE + "..HEAD").splitlines():
         parts = row.split(); check(len(parts) == 2, "peer/A merge after frozen base")
-        audit_trees(tree(root, parts[1]), tree(root, parts[0]), exceptions=exceptions, root=root)
+        audit_trees(base, tree(root, parts[0]), exceptions=exceptions, root=root)
     audit_trees(base, head, exceptions=exceptions, root=root)
     # Catch imported peer history even when that commit changes only an allowed path.
     new = set(git(root, "rev-list", BASE + "..HEAD").split())

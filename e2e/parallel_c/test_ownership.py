@@ -60,3 +60,20 @@ class OwnershipTests(unittest.TestCase):
         data = b"\xca\xfe\xba\xbe" + struct.pack(">HHH", 0, 69, 2) + b"\x01" + struct.pack(">H", len(descriptor)) + descriptor
         with self.assertRaisesRegex(EvidenceError, "bytecode dependency"):
             constant_pool(data)
+
+    def test_owned_correction_keeps_original_baseline_frozen(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.check_output(["git", "-C", temp, *args], stderr=subprocess.DEVNULL, text=True).strip()
+            git("init", "-q"); git("config", "user.name", "C owned correction control")
+            git("config", "user.email", "c-test@example.invalid")
+            (root / "baseline").write_text("frozen\n"); git("add", "."); git("commit", "-qm", "base")
+            base = git("rev-parse", "HEAD")
+            p = root / "e2e/parallel_c/owned.txt"; p.parent.mkdir(parents=True); p.write_text("initial\n")
+            git("add", "."); git("commit", "-qm", "owned implementation")
+            p.write_text("corrected\n"); git("add", "."); git("commit", "-qm", "owned correction")
+            self.assertEqual(2, ancestry(root, base))
+            (root / "baseline").write_text("mutated\n"); git("add", "."); git("commit", "-qm", "forbidden baseline edit")
+            with self.assertRaisesRegex(EvidenceError, "protected baseline"):
+                ancestry(root, base)

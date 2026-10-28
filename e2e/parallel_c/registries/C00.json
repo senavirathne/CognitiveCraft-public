@@ -64,6 +64,7 @@
     "test_ownership.OwnershipTests#test_core_peer_dependency_is_rejected",
     "test_ownership.OwnershipTests#test_imported_peer_commit_is_rejected",
     "test_ownership.OwnershipTests#test_one_byte_protected_edit_is_rejected",
+    "test_ownership.OwnershipTests#test_owned_correction_keeps_original_baseline_frozen",
     "test_ownership.OwnershipTests#test_protected_mode_edit_is_rejected",
     "test_ownership.OwnershipTests#test_unowned_addition_is_rejected"
   ],
