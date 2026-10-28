@@ -16,6 +16,8 @@ def private_replay(value,prior):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);parser.add_argument('--resume-archive',required=True,type=Path);args=parser.parse_args()
+    # Harness roots are absolute; bind both sides to the same filesystem identity.
+    args.root=args.root.resolve();args.resume_archive=args.resume_archive.resolve()
     args.root.mkdir(parents=True,exist_ok=True);h=None;result={'stage':'A04','status':'NOT_EXECUTED','cases':[]}
     try:
         # Validate the original source cohort before creating a server or a client.
