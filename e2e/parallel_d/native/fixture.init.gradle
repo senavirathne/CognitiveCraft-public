@@ -10,7 +10,7 @@ gradle.projectsEvaluated {
     def fabric = gradle.rootProject.project(':fabric')
     def root = gradle.rootProject.projectDir
     def compiled = fabric.tasks.register('compileParallelDNative', JavaCompile) {
-        source = fileTree(new File(root, 'e2e/parallel_d/native/java')) { include '**/*.java' }
+        source = files(fileTree(new File(root, 'e2e/parallel_d/native/java')) { include '**/*.java' }, fileTree(new File(root, 'e2e/parallel_d/native/storage')) { include '**/*.java' })
         classpath = fabric.sourceSets.gameTest.compileClasspath
         destinationDirectory = new File(root, 'build/parallel-d-native/classes')
         options.release = 25

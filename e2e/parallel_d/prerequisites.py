@@ -17,10 +17,18 @@ def measured(manifest):
                 and row['failed']==row['inconclusive']==row['refused_expected']==0,'predecessor incomplete counters: '+tier)
     require(not manifest['regressions'],'predecessor regression')
 
+def measured_d01(q):
+    require(q['stage']=='D01' and q['owner']=='D' and q['gate_status']=='OWNED_GATES_PASS','D01 predecessor unqualified')
+    require(q['source_sha']=='ea1ff7ec9ab1fd16782c32130207aa7e5230442a' and q['tree_sha']=='4890dae733de13eb74fa1c9827e50215d4fa2cce','D01 source changed')
+    require(q['workflow_run']==40662229204 and q['attempt']==1 and q['jar_sha256']=='8aaea7d9a69874c1a975d31acade6110c3f9bfa7b35e46125eaa4c699f772cc0','D01 execution changed')
+    for tier,n in [('unit',90),('python',42),('game_tests',0),('client_e2e',0)]:
+        r=q[tier];require(r['planned']==r['executed']==r['passed']==n and r['failed']==r['inconclusive']==r['refused_expected']==0,'D01 incomplete counters')
+    require(not q['regressions'],'D01 regression')
+
 def verify(stage,docs_root=None):
     spec=registry(stage)
     if not spec.get('predecessor'):return None
-    require(spec['predecessor']=='D00','unknown predecessor')
+    require(spec['predecessor'] in ('D00','D01'),'unknown predecessor')
     raw=HERE/'predecessors/D00-qualified.json';require(sha(raw)==D00_QUALIFIED,'predecessor evidence bytes changed')
     qualified=read(raw);measured(qualified);lock=read(HERE/'predecessors/D00-lock.json')
     for key in ('source_sha','tree_sha','jar_sha256','workflow_run','attempt'):require(lock[key]==qualified[key],'predecessor pin mismatch: '+key)
@@ -28,6 +36,14 @@ def verify(stage,docs_root=None):
     require(lock['source_sha']==D00_SOURCE and lock['docs_sha']==D00_DOCS and lock['qualified_sha256']==D00_QUALIFIED,'predecessor handoff changed')
     git('merge-base','--is-ancestor',D00_SOURCE,'HEAD')
     if docs_root:git('merge-base','--is-ancestor',D00_DOCS,'HEAD',root=docs_root)
+    if spec['predecessor']=='D01':
+        raw=HERE/'predecessors/D01-qualified.json'
+        require(sha(raw)=='673945a9830a347bdefbe96fb6ca95e98bcfbb3a57f5438ec1351b7163fca17f','D01 predecessor evidence changed')
+        q=read(raw);lock=read(HERE/'predecessors/D01-lock.json');measured_d01(q)
+        for key in ('source_sha','tree_sha','jar_sha256','workflow_run','attempt'):require(q[key]==lock[key],'D01 handoff pin mismatch')
+        require(lock['docs_sha']=='3fd622e0d7b4c24762da3b6cd12ab85b6380db83' and lock['artifact_sha256']=='70845ef686d99bee9b8b6b981b5b76cd7ac1a0a652b216ea1143f603da8743a5','D01 docs/artifact changed')
+        git('merge-base','--is-ancestor',lock['source_sha'],'HEAD')
+        if docs_root:git('merge-base','--is-ancestor',lock['docs_sha'],'HEAD',root=docs_root)
     return lock
 
 if __name__=='__main__':

@@ -4,11 +4,12 @@ from zipfile import ZipFile
 from common import HERE, REPO, BASE, git, require
 
 ENTRY = 'dev.aivillages.e2e.paralleld.DGameTests'
+ENTRIES = [ENTRY]+['dev.aivillages.e2e.paralleld.'+n for n in ('DStorageIncarnationGameTests','DStorageTopologyGameTests','DStorageTopologyReloadGameTests','DStorageLifecycleCostGameTests','DStorageBaselineGameTests')]
 TEST_PREFIX = 'dev/aivillages/e2e/paralleld/'
 
 def fixture_descriptor(value):
     require(value['id'] == 'cognitivecraft_parallel_d_tests','wrong fixture mod identity')
-    require(value.get('entrypoints') == {'fabric-gametest':[ENTRY]},'non-D or automatic fixture entrypoint')
+    require(value.get('entrypoints') == {'fabric-gametest':ENTRIES},'non-D or automatic fixture entrypoint')
     require(value.get('mixins') == ['parallel-d.mixins.json'],'wrong fixture mixins')
 
 def inspect_release(path):
@@ -26,6 +27,7 @@ def inspect_fixture(path):
         names = archive.namelist(); require(len(names) == len(set(names)),'duplicate fixture entries')
         fixture_descriptor(json.loads(archive.read('fabric.mod.json')))
         require(TEST_PREFIX+'DGameTests.class' in names and TEST_PREFIX+'DTestAuthority.class' in names,'fixture classes missing')
+        require(all(TEST_PREFIX+entry.rsplit('.',1)[1]+'.class' in names for entry in ENTRIES),'physical fixture classes missing')
         require(all(not n.endswith('.class') or n.startswith(TEST_PREFIX) for n in names),'peer or production classes in fixture mod')
         mixin = json.loads(archive.read('parallel-d.mixins.json'))
-        require(mixin['package'] == 'dev.aivillages.e2e.paralleld.mixin' and mixin['mixins'] == [],'unowned mixin registration')
+        require(mixin['package'] == 'dev.aivillages.fabric.storage.mixin' and mixin['mixins'] == ['StorageMarkerMixin'],'unowned mixin registration')

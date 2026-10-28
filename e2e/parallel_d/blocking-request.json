@@ -1,7 +1,7 @@
 {
-  "stage": "D01",
-  "campaign": "D01-METADATA",
+  "stage": "D02",
+  "campaign": "D02-INCARNATION",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d01-01",
-  "reason": "Standing user instruction authorizes Actions/Docker for blocking dependencies/tests. D01 focused Java 25 checks pass locally (90/90); full module/release/SDK and actual Docker packaging/file gates require the existing CI environment. Repeat all cumulative cases on this frozen candidate."
+  "nonce": "2026-10-28-d02-01",
+  "reason": "Standing user authorization covers GitHub Actions and Docker for blocking dependencies/tests. D02 requires the established Docker executor, full module/build regressions and exact-candidate native XML/NBT qualification. Local pinned-SDK diagnostics exercise 100 cumulative owned Java, 50 Python and four native cases with a separate unchanged qualified D01 JAR performance control; these diagnostics are not relabeled as candidate qualification. Run one release build and the complete frozen cumulative schedule on this commit."
 }

@@ -40,7 +40,12 @@ def run(stage, root, built):
     write(root/'native-plan.json',{'game_tests':spec['game_tests'],'client_e2e':spec['client_e2e'],
               'status':'NOT_EXECUTED','reason':stage+' adds no physical implementation; no native/client credit',
               'configured_players':[{'name':name,'anticipated_offline_uuid':str(uuid.UUID(bytes=__import__('hashlib').md5(('OfflinePlayer:'+name).encode()).digest(),version=3))} for name in ('PlayerD_A','PlayerD_B')]})
-    require(not spec['game_tests'] and not spec['client_e2e'],'native schedules require a later-stage runner; never fabricate frames')
+    if spec['game_tests']:
+        from native_runner import run as native_run
+        native_run(root/'native',RELEASE,fixture,identity,REPO/'build/d02-baseline/ai-villages-0.1.0.jar')
+        write(root/'native-plan.json',{'game_tests':spec['game_tests'],'client_e2e':[], 'status':'COLLECTED_RAW',
+              'configured_players':[{'name':name,'anticipated_offline_uuid':str(uuid.UUID(bytes=__import__('hashlib').md5(('OfflinePlayer:'+name).encode()).digest(),version=3))} for name in ('PlayerD_A','PlayerD_B')]})
+    require(not spec['client_e2e'],'connected clients require their actual later-stage runner')
     files=[{'path':str(p.relative_to(root)),'sha256':sha(p),'bytes':p.stat().st_size} for p in sorted(root.rglob('*')) if p.is_file() and p.name not in ('manifest.json','qualified.json','oracle-details.json')]
     write(root/'manifest.json',{'identity':identity,'files':files})
     print(json.dumps({'stage':stage,'operation':'RAW_EVIDENCE_COLLECTED','files':len(files),'native_executions':0},sort_keys=True))

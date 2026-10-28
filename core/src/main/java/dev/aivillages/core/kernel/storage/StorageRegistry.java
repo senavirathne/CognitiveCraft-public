@@ -11,7 +11,7 @@ public final class StorageRegistry {
     public enum Role { DEFAULT, FOOD, MATERIALS, OUTPUT }
     public enum Permission { INSPECT, DEPOSIT, WITHDRAW, ASSIGN, RENAME, GRANT, REVOKE }
     public enum State { PENDING_BIND, ACTIVE, UNVERIFIED, TOPOLOGY_CHANGED, TOMBSTONED }
-    public enum Action { REGISTER, READ, RENAME, ASSIGN, GRANT, REVOKE, TOMBSTONE }
+    public enum Action { REGISTER, READ, RENAME, ASSIGN, GRANT, REVOKE, TOMBSTONE, BIND, COMMIT_BIND }
     public record Owner(OwnerKind kind, UUID id) {
         public Owner { Objects.requireNonNull(kind); if ((kind == OwnerKind.PUBLIC) != (id == null)) throw new IllegalArgumentException("owner identity"); }
     }
@@ -146,6 +146,34 @@ public final class StorageRegistry {
             require(old != null || snapshot.assignments().size() < store.limits().assignments(),StorageMetadataStore.Status.LIMIT,"assignment limit");
             Assignment next = new Assignment(snapshot.world(),key,storage,target.generation(),old == null ? 0 : next(old.revision()));
             return new StorageMetadataStore.Change(snapshot.assign(next),storage,() -> authority.controls(caller,beneficiary) && authority.allows(caller,Action.ASSIGN,target));
+        });
+    }
+    /** Durable intent before any native write. BIND policy must be provided by the server owner. */
+    public CompletionStage<StorageMetadataStore.Ack> prepareBinding(Caller caller,long expectedRevision,UUID storage,long recordRevision,StorageWire.Message proposal) {
+        var intent=StorageBindingRules.Binding.from(proposal);
+        return store.transact(expectedRevision,snapshot -> {
+            Record old=record(caller,snapshot,storage,recordRevision,Action.BIND);
+            long generation=snapshot.bindings().containsKey(storage)?next(old.generation()):old.generation();
+            require(intent.storage().equals(storage) && intent.topology().world().equals(snapshot.world()) && intent.generation()==generation
+                    && intent.status().equals("UNKNOWN"),StorageMetadataStore.Status.INVALID,"binding intent identity/generation/status");
+            var updated=new Record(old.world(),old.id(),old.label(),old.owner(),old.purposes(),old.acl(),next(old.revision()),generation,old.aclRevision(),
+                    snapshot.bindings().containsKey(storage)?State.UNVERIFIED:State.PENDING_BIND,intent.topology().adapter());
+            var rows=new HashMap<>(snapshot.records());rows.put(storage,updated);var refs=new HashMap<>(snapshot.bindings());refs.put(storage,proposal);
+            return new StorageMetadataStore.Change(new Snapshot(snapshot.world(),next(snapshot.revision()),rows,snapshot.assignments(),refs),storage,() -> authority.allows(caller,Action.BIND,old));
+        });
+    }
+    /** Native owner attests a fresh observation via COMMIT_BIND policy; this is journal acknowledgement, not a participant save. */
+    public CompletionStage<StorageMetadataStore.Ack> acknowledgeBinding(Caller caller,long expectedRevision,UUID storage,long recordRevision,StorageWire.Message observation) {
+        var live=StorageBindingRules.Binding.from(observation);
+        return store.transact(expectedRevision,snapshot -> {
+            Record old=record(caller,snapshot,storage,recordRevision,Action.COMMIT_BIND);
+            var raw=snapshot.bindings().get(storage);require(raw!=null,StorageMetadataStore.Status.INVALID,"missing binding intent");
+            var intent=StorageBindingRules.Binding.from(raw);
+            require(intent.status().equals("UNKNOWN") && live.status().equals("VERIFIED_LIVE") && intent.epoch().equals(live.epoch())
+                    && StorageBindingRules.sameIdentity(intent,live),StorageMetadataStore.Status.INVALID,"observation differs from durable intent");
+            var updated=new Record(old.world(),old.id(),old.label(),old.owner(),old.purposes(),old.acl(),next(old.revision()),old.generation(),old.aclRevision(),State.ACTIVE,old.adapterId());
+            var rows=new HashMap<>(snapshot.records());rows.put(storage,updated);var refs=new HashMap<>(snapshot.bindings());refs.put(storage,observation);
+            return new StorageMetadataStore.Change(new Snapshot(snapshot.world(),next(snapshot.revision()),rows,snapshot.assignments(),refs),storage,() -> authority.allows(caller,Action.COMMIT_BIND,old));
         });
     }
     public List<Record> queryVisible(Caller caller, String label) {

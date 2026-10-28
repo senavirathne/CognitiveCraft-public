@@ -7,6 +7,7 @@ on:
       - e2e/parallel_d/qualification-request.json
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: cc-d-${{ github.ref }}
   cancel-in-progress: false
@@ -56,6 +57,16 @@ jobs:
           set -euo pipefail
           python3 e2e/runtime.py prepare 2>&1 | tee "$D_ROOT/sdk-prepare.log"
           python3 e2e/runtime.py compile 2>&1 | tee "$D_ROOT/driver-compile.log"
+      - name: Restore exact qualified D01 JAR for the unchanged native performance baseline
+        if: steps.request.outputs.stage == 'D02'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/d02-baseline
+          gh api repos/senavirathne/CognitiveCraft-public/actions/artifacts/12804582507/zip > build/d02-baseline/qualified-d01.zip
+          python3 e2e/parallel_d/baseline.py --archive build/d02-baseline/qualified-d01.zip
       - name: Prepare established Docker runtime and record immutable image identities
         shell: bash
         run: |
