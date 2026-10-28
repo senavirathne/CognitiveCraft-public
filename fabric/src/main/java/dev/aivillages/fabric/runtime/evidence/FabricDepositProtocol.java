@@ -25,6 +25,7 @@ import net.minecraft.world.phys.Vec3;
 public final class FabricDepositProtocol implements DepositProtocol {
     public enum Point { PREPARED_MARKED, BEFORE_MUTATION, AFTER_MUTATION, RESULT_ACKNOWLEDGED, VERIFICATION_ACKNOWLEDGED }
     private static final int MAX_TICKETS=8;
+    private static final Slot EMPTY_SLOT=new Slot("minecraft:air",0);
     private final Thread thread=Thread.currentThread();
     private final ServerLevel level;
     private final JobLifecycleStore jobs;
@@ -234,7 +235,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
         var slots=new ArrayList<Slot>();var stacks=new ArrayList<ItemStack>();
         for(int n=0;n<inventory.getContainerSize();n++) {
             ItemStack stack=inventory.getItem(n);stacks.add(stack);
-            if(stack.isEmpty()){slots.add(new Slot("minecraft:air",0));continue;}
+            if(stack.isEmpty()){slots.add(EMPTY_SLOT);continue;}
             if(!ItemStack.isSameItemSameComponents(stack,new ItemStack(stack.getItem())))throw new IllegalArgumentException("Native deposit component envelope");
             slots.add(new Slot(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),stack.getCount()));
         }

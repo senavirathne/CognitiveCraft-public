@@ -7,10 +7,13 @@ import dev.aivillages.core.kernel.StrictJson;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** Bounded deposit data and pure classification. Data constructors grant no native authority. */
 public final class NativeDeposit {
     public static final int SCHEMA=1, MAX_ENTRIES=64, MAX_RECORD_BYTES=32_768;
+    private static final Pattern IDENTIFIER=Pattern.compile("[a-z0-9_.-]+:[a-z0-9_/.-]+");
+    private static final Pattern SHA256=Pattern.compile("[0-9a-f]{64}");
     private NativeDeposit() { }
     public enum Kind { ACTOR, CHEST }
     public enum MarkerPhase { PREPARED, MUTATING, RESULT }
@@ -28,14 +31,14 @@ public final class NativeDeposit {
     /** Only unchanged default-component stacks are in this first native envelope. */
     public record Slot(String item,int count) {
         public Slot {
-            if(item==null || item.length()>128 || !item.matches("[a-z0-9_.-]+:[a-z0-9_/.-]+") || count<0 || count>64
+            if(item==null || item.length()>128 || !IDENTIFIER.matcher(item).matches() || count<0 || count>64
                     || (count==0)!=item.equals("minecraft:air"))throw new IllegalArgumentException("Deposit slot/components envelope");
         }
     }
     public record Participant(Kind kind,String dimension,String address,UUID incarnation,long revision,List<Slot> slots) {
         public Participant {
             Objects.requireNonNull(kind);Objects.requireNonNull(incarnation);slots=List.copyOf(slots);
-            if(dimension==null || dimension.length()>128 || !dimension.matches("[a-z0-9_.-]+:[a-z0-9_/.-]+")
+            if(dimension==null || dimension.length()>128 || !IDENTIFIER.matcher(dimension).matches()
                     || address==null || address.length()>96 || revision<0 || slots.isEmpty() || slots.size()>(kind==Kind.ACTOR?8:27))
                 throw new IllegalArgumentException("Deposit participant envelope");
             if(kind==Kind.ACTOR)uuid(address);
@@ -249,7 +252,7 @@ public final class NativeDeposit {
     static String string(Map<String,Object> row,String key){if(!(row.get(key) instanceof String value))throw new IllegalArgumentException("Deposit string");return value;}
     static UUID id(Map<String,Object> row,String key){return uuid(string(row,key));}
     private static UUID uuid(String value){UUID id=UUID.fromString(value);if(!id.toString().equals(value))throw new IllegalArgumentException("Canonical deposit UUID");return id;}
-    static void hash(String value){if(value==null || !value.matches("[0-9a-f]{64}"))throw new IllegalArgumentException("Deposit SHA-256");}
+    static void hash(String value){if(value==null || !SHA256.matcher(value).matches())throw new IllegalArgumentException("Deposit SHA-256");}
     public static String sha(String value){return sha(value.getBytes(StandardCharsets.UTF_8));}
     public static String sha(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}
 }

@@ -1,6 +1,20 @@
 """Explicit synthetic metadata pressure, never saved native effect evidence or a capability."""
 import copy,hashlib,json,uuid
 
+PREPARATION_COHORTS=('saved-positive-repeated-adoption','unsaved-before-mutation','unsaved-after-mutation','unsaved-after-journal',
+    'saved-prepared-no-effect','journal-ahead-saved-prepared','actor-saved-chest-prepared','chest-saved-actor-prepared','native-storage-full-quota')
+
+def preparation_window(records):
+    if len(records)!=len(PREPARATION_COHORTS) or {r['id'] for r in records}!=set(PREPARATION_COHORTS):
+        raise ValueError('Every actual native preparation cohort is required exactly once')
+    if len({r['process'] for r in records})!=len(records):raise ValueError('Each preparation must retain its independent native process')
+    samples=[]
+    for r in records:
+        values=r['metrics']['beginNanos']
+        if len(values)!=1 or type(values[0]) is not int or values[0]<=0:raise ValueError('Exactly one positive raw actual preparation per native cohort')
+        samples.append({'id':r['id'],'process':r['process'],'nanos':values[0]})
+    return samples
+
 def canonical(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
 

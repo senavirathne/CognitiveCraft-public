@@ -1,5 +1,5 @@
-import hashlib,json,unittest
-from deposit_fixture import canonical,pressure_journal,tick_window
+import copy,hashlib,json,unittest
+from deposit_fixture import canonical,pressure_journal,tick_window,preparation_window,PREPARATION_COHORTS
 
 class SyntheticPressureTest(unittest.TestCase):
     def test_full_quota_cannot_copy_a_result_verification_or_executable_identity(self):
@@ -32,5 +32,21 @@ class SyntheticPressureTest(unittest.TestCase):
     def test_duplicate_sample_cannot_replace_a_missing_native_tick(self):
         raw={'process':'current','time':2000,'samples':[{'gameTick':n} for n in (101,102,102,104)]}
         with self.assertRaises(ValueError):tick_window(raw,{'observerProcess':'current','time':1000,'gameTick':100},4)
+
+class ActualPreparationWindowTest(unittest.TestCase):
+    def records(self):
+        return [{'id':name,'process':'process-'+str(n),'metrics':{'beginNanos':[1000+n]}} for n,name in enumerate(PREPARATION_COHORTS)]
+    def test_all_nine_actual_requests_preserve_every_original_raw_measurement(self):
+        records=self.records();before=copy.deepcopy(records);samples=preparation_window(records)
+        self.assertEqual(list(range(1000,1009)),[s['nanos'] for s in samples]);self.assertEqual(before,records)
+    def test_missing_cohort_or_reused_process_cannot_qualify_the_window(self):
+        records=self.records()
+        with self.assertRaises(ValueError):preparation_window(records[:-1])
+        records[-1]['process']=records[0]['process']
+        with self.assertRaises(ValueError):preparation_window(records)
+    def test_no_cherry_picking_or_missing_zero_duration_capture(self):
+        for invalid in ([],[1000,2000],[0],[-1],[True]):
+            records=self.records();records[-1]['metrics']['beginNanos']=invalid
+            with self.subTest(invalid=invalid),self.assertRaises(ValueError):preparation_window(records)
 
 if __name__=='__main__':unittest.main()

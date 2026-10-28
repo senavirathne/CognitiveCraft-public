@@ -212,14 +212,14 @@ def storage_controls(h,verified_seed,original_entry,result):
             require(receipts(view,'HARVEST',LOG)==receipts(view,'PICKUP',LOG)==1 and after['actor']['inventory'].get(LOG,0)==1,'Quota refusal hid the pre-deposit actor custody')
         else:
             require(not after['actor']['inventory'] and LOG in h.block(at(7,2)) and not view['resourceReceipts'],'Corrupt required history allowed a physical primitive')
-        record={'id':'native-storage-'+mode,'status':'PASS','fixture':declaration,'reader':native,'beforeStock':before_stock,'afterStock':after,'run':run,'view':view,
+        record={'id':'native-storage-'+mode,'status':'PASS','fixture':declaration,'reader':native,'afterEvidence':h.evidence(),'beforeStock':before_stock,'afterStock':after,'run':run,'view':view,
                 'journalBytesUnchanged':True,'nativeProcess':native_process(h),'activationFlag':h.env['A05_DEPOSIT_ENABLED']}
         atomic(folder/'result.json',record);result['cases'].append(record);atomic(h.root/'a05-results.json',result)
     h.env['A05_DEPOSIT_ENABLED']='true'
 
 
 def cost_windows(h,verified_seed,result):
-    from deposit_fixture import tick_window
+    from deposit_fixture import tick_window,preparation_window
     windows=[]
     for mode,enabled in (('baseline',False),('candidate',True)):
         h.env['A05_DEPOSIT_ENABLED']='true' if enabled else 'false';h.restore(verified_seed,'cost-'+mode);h.family='A05-cost-'+mode
@@ -235,8 +235,23 @@ def cost_windows(h,verified_seed,result):
             'nativeProcess':before,'metric':value['raw']['metric'],'tick':sample,'limits':LIMITS,'rawSamples':value['selected'],'nativeEffects':0}
         atomic(h.root/('a05-'+mode+'-raw-window.json'),record);windows.append(record)
         require(sample['p95']<=LIMITS['tickP95Ms'] and sample['p99']<=LIMITS['tickP99Ms'],'Frozen A05 '+mode+' tick window failed: '+json.dumps(sample))
+    preparations=[]
+    for record in result['cases']:
+        if record['id']=='saved-positive-repeated-adoption':native=record['live'];metrics=native['metrics']
+        elif 'actuallyWitnessed' in record:native=record['actuallyWitnessed'];metrics=native['protocolMetrics']
+        elif record['id']=='native-storage-full-quota':native=record['afterEvidence'];metrics=native['metrics']
+        else:continue
+        preparations.append({'id':record['id'],'process':native['process'],'metrics':metrics})
+    captured=preparation_window(preparations);capture_cost=percentiles([r['nanos'] for r in captured])
+    acknowledgements=[n for record in preparations for n in record['metrics']['acknowledgementNanos']]
+    require(len(acknowledgements)==13,'Every real completed intent/result acknowledgement must be retained across the native cuts')
+    ack_cost=percentiles(acknowledgements)
+    capture={'rawSamples':captured,'allNativeRawMetrics':preparations,'preparation':capture_cost,'acknowledgement':ack_cost,'limits':LIMITS,'scope':'All nine actual native preparation requests and13 completed intent/result acknowledgements: eight effect-intent cohorts and one64-entry quota refusal; no synthetic effect or universal latency distribution claim'}
+    atomic(h.root/'a05-preparation-window.json',capture)
+    require(capture_cost['p99']<=LIMITS['captureP99Ms'],'Frozen A05 actual preparation capture target failed: '+json.dumps(capture_cost))
+    require(ack_cost['max']<=LIMITS['ackMaxMs'],'Frozen A05 actual acknowledgement target failed: '+json.dumps(ack_cost))
     result['cases'].append({'id':'required-reader-baseline-and-envelope-candidate-400-tick-cost','status':'PASS','windows':windows,
-                           'actualPublicationCost':result['cases'][0]['cost'],'captureDistribution':'Small actual primitive sample reported separately; no synthetic native-effect or large-sample claim'})
+                           'actualPublicationCost':result['cases'][0]['cost'],'actualPreparationWindow':capture,'captureDistribution':'Nine actual independent-process preparations; finite observed campaign bound only'})
     atomic(h.root/'a05-results.json',result)
 
 

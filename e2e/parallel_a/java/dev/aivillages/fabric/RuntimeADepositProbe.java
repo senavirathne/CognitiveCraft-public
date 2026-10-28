@@ -64,7 +64,7 @@ public final class RuntimeADepositProbe implements ModInitializer {
                                 var field=net.minecraft.server.level.ServerLevel.class.getDeclaredField("entityManager");field.setAccessible(true);
                                 ((net.minecraft.world.level.entity.PersistentEntitySectionManager<?>)field.get(server.overworld())).saveAll();
                             }catch(ReflectiveOperationException error){throw new IllegalStateException("Unknown native actor save hook",error);}
-                            barrier(actual,token,savePrepared,saveBeforeMutation,saveParticipant);
+                            barrier(actual,token,savePrepared,saveBeforeMutation,saveParticipant,protocol.metrics());
                         }
                     });
                     reply(id,Map.of("status","PASS","point",point,"token",token),null);return;
@@ -75,9 +75,9 @@ public final class RuntimeADepositProbe implements ModInitializer {
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server->{writer.shutdown();flush();});
     }
-    private void barrier(FabricDepositProtocol.Point point,String token,boolean saved,boolean savedBefore,String participant) {
+    private void barrier(FabricDepositProtocol.Point point,String token,boolean saved,boolean savedBefore,String participant,FabricDepositProtocol.Metrics metrics) {
         write("deposit-cut-reached.json",Map.of("process",process,"pid",ProcessHandle.current().pid(),"point",point,"token",token,"time",System.currentTimeMillis(),
-                "nativeSaveExplicitlyRequested",saved,"preparedSaveExplicitlyRequested",savedBefore,"onlyParticipantSaveExplicitlyRequested",participant,"thread",Thread.currentThread().getName()));
+                "nativeSaveExplicitlyRequested",saved,"preparedSaveExplicitlyRequested",savedBefore,"onlyParticipantSaveExplicitlyRequested",participant,"thread",Thread.currentThread().getName(),"protocolMetrics",metrics));
         long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(60);
         while(System.nanoTime()<until)try{Thread.sleep(10);}catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IllegalStateException(stopped);}
         throw new IllegalStateException("Intended A05 process interruption was not witnessed");
