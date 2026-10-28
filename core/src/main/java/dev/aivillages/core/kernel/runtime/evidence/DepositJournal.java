@@ -65,6 +65,11 @@ public final class DepositJournal implements AutoCloseable {
                 catch(IOException invalid){fenced=true;}
                 if(Files.exists(base.resolve("required.next.json"),LinkOption.NOFOLLOW_LINKS)
                         || Files.exists(directory.resolve("state.next.jsonl"),LinkOption.NOFOLLOW_LINKS))fenced=true;
+                if(!layout(base,directory))fenced=true;
+                Path previous=directory.resolve("state.prev.jsonl");
+                if(Files.exists(previous,LinkOption.NOFOLLOW_LINKS))try {
+                    Snapshot old=read(previous,id);if(!old.epoch.equals(loaded.epoch) || old.revision>loaded.revision || loaded.revision-old.revision>1)fenced=true;
+                }catch(IOException invalid){fenced=true;}
             }
             return new DepositJournal(world,channel,lock,loaded,fenced,faults);
         }catch(IOException|RuntimeException failure){if(lock!=null)lock.release();channel.close();throw failure;}
@@ -84,9 +89,11 @@ public final class DepositJournal implements AutoCloseable {
         if(1024L+next.entries.size()*(MAX_RECORD_BYTES+1L)>MAX_BYTES)throw new IOException("Deposit result reservation quota");
         byte[] raw=encode(next);Path pending=directory.resolve("state.next.jsonl");
         try {
+            if(!layout(base,directory) || !Arrays.equals(bytes(base.resolve("required.json"),1024),requirement(state))
+                    || !Arrays.equals(bytes(directory.resolve("state.jsonl"),MAX_BYTES),encode(state))
+                    || Files.exists(pending,LinkOption.NOFOLLOW_LINKS))throw new IOException("Deposit disk authority changed before publication");
             faults.at(Point.BEFORE_STAGE);write(pending,raw);faults.at(Point.AFTER_STAGE);
-            Files.copy(directory.resolve("state.jsonl"),directory.resolve("state.prev.jsonl"),StandardCopyOption.REPLACE_EXISTING);
-            try(var backup=FileChannel.open(directory.resolve("state.prev.jsonl"),StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS)){backup.force(true);}
+            write(directory.resolve("state.prev.jsonl"),encode(state));
             faults.at(Point.AFTER_BACKUP);Files.move(pending,directory.resolve("state.jsonl"),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             faults.at(Point.AFTER_REPLACE);force(directory);faults.at(Point.AFTER_FORCE);state=next;return next;
         }catch(IOException failure){readOnly=true;throw failure;}
@@ -117,6 +124,24 @@ public final class DepositJournal implements AutoCloseable {
         }catch(StrictJson.Invalid|RuntimeException|CharacterCodingException invalid){throw new IOException("Invalid deposit journal",invalid);}
     }
     private static byte[] requirement(Snapshot state){return StrictJson.canonical(Map.of("schema",1L,"world",state.world.toString(),"epoch",state.epoch.toString())).getBytes(StandardCharsets.UTF_8);}
+    private static boolean layout(Path base,Path directory)throws IOException {
+        try(var entries=Files.newDirectoryStream(base)) {
+            for(Path path:entries) {
+                safe(path);String name=path.getFileName().toString();
+                if(name.equals("v1")){if(!Files.isDirectory(path,LinkOption.NOFOLLOW_LINKS))return false;}
+                else if(!Set.of("required.json","required.next.json").contains(name) || !Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS) || Files.size(path)>1024)return false;
+            }
+        }
+        try(var entries=Files.newDirectoryStream(directory)) {
+            int files=0;long total=0;
+            for(Path path:entries) {
+                safe(path);String name=path.getFileName().toString();
+                if(!Set.of("state.jsonl","state.prev.jsonl","state.next.jsonl","writer.lock").contains(name) || !Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS))return false;
+                long size=Files.size(path);if(size>(name.equals("writer.lock")?0:MAX_BYTES))return false;total=Math.addExact(total,size);files++;
+            }
+            return files<=4 && total<=3L*MAX_BYTES;
+        }
+    }
     private static void safe(Path path)throws IOException {if(Files.isSymbolicLink(path))throw new IOException("Symbolic deposit path");}
     private static byte[] bytes(Path path,int maximum)throws IOException {
         safe(path);if(!Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS) || Files.size(path)>maximum)throw new IOException("Deposit regular file/byte limit");

@@ -21,7 +21,7 @@ final class NativeDepositTest {
         var slots=new ArrayList<>(Collections.nCopies(27,new Slot("minecraft:air",0)));slots.set(0,new Slot(count==0?"minecraft:air":LOG,count));
         return new Participant(Kind.CHEST,"minecraft:overworld","10,64,10",UUID.fromString("40000000-0000-0000-0000-000000000001"),revision,slots);
     }
-    static Conditions conditions() {return new Conditions(UUID.randomUUID(),5,10_000,8,100,2500,1000,List.of(new Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1)));}
+    static Conditions conditions() {return new Conditions(UUID.randomUUID(),5,10_000,8,100,2500,1000,List.of(new Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1)),Map.of(dev.aivillages.core.kernel.Budgets.Kind.COMMITTED_EFFECTS,2L));}
     static Intent intent() {return new Intent(new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,1),OWNER,UUID.randomUUID(),UUID.randomUUID(),actor(1,7),chest(5,11),LOG,0,0,64,conditions());}
     static Entry completed(Intent intent) {return new Entry(intent,observed(intent,actor(0,8),chest(6,12),""));}
     static Marker marker(Entry entry,MarkerPhase phase) {return new Marker(entry.token(),entry.intent().digest(),phase,phase==MarkerPhase.RESULT?entry.result().digest():"");}

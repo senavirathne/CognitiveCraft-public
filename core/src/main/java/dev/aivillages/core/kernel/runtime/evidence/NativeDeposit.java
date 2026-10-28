@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel.runtime.evidence;
 
 import dev.aivillages.core.kernel.Contracts.*;
+import dev.aivillages.core.kernel.Budgets;
 import dev.aivillages.core.kernel.StrictJson;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -53,13 +54,13 @@ public final class NativeDeposit {
         public Claim {Objects.requireNonNull(id);Objects.requireNonNull(epoch);Objects.requireNonNull(group);if(generation<1)throw new IllegalArgumentException("Deposit claim generation");}
     }
     public record Conditions(UUID citizen,long jobRevision,long deadlineEpochMillis,long effectsRemaining,long observedTick,
-                             int maximumReachMilli,int observedReachMilli,List<Claim> claims) {
+                             int maximumReachMilli,int observedReachMilli,List<Claim> claims,Map<Budgets.Kind,Long> usage) {
         public Conditions {
-            Objects.requireNonNull(citizen);claims=List.copyOf(claims);
+            Objects.requireNonNull(citizen);claims=List.copyOf(claims);usage=Map.copyOf(usage);
             if(jobRevision<0 || deadlineEpochMillis<0 || effectsRemaining<1 || effectsRemaining>4096 || observedTick<0
                     || maximumReachMilli!=2500 || observedReachMilli<0 || observedReachMilli>maximumReachMilli
                     || claims.isEmpty() || claims.size()>4 || claims.stream().map(Claim::id).distinct().count()!=claims.size()
-                    || claims.stream().map(Claim::group).distinct().count()!=1)throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
+                    || claims.stream().map(Claim::group).distinct().count()!=1 || usage.values().stream().anyMatch(n->n<0))throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
         }
     }
     public record Intent(Key key,TrustedContext origin,UUID run,UUID operation,Participant actor,Participant chest,
@@ -192,12 +193,14 @@ public final class NativeDeposit {
                 participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"),conditions(object(row,"conditions")));
     }
     private static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
-            "maximumReachMilli",c.maximumReachMilli,"observedReachMilli",c.observedReachMilli,"claims",c.claims.stream().map(r->Map.of("id",r.id.toString(),"epoch",r.epoch.toString(),"group",r.group.toString(),"generation",r.generation)).toList());}
+            "maximumReachMilli",c.maximumReachMilli,"observedReachMilli",c.observedReachMilli,"claims",c.claims.stream().map(r->Map.of("id",r.id.toString(),"epoch",r.epoch.toString(),"group",r.group.toString(),"generation",r.generation)).toList(),
+            "usage",c.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));}
     private static Conditions conditions(Map<String,Object> row) {
-        keys(row,Set.of("citizen","jobRevision","deadline","effectsRemaining","tick","maximumReachMilli","observedReachMilli","claims"));
+        keys(row,Set.of("citizen","jobRevision","deadline","effectsRemaining","tick","maximumReachMilli","observedReachMilli","claims","usage"));
         if(!(row.get("claims") instanceof List<?> values) || values.size()>4)throw new IllegalArgumentException("Deposit claim bound");
         var claims=new ArrayList<Claim>();for(Object value:values){var claim=object(value);keys(claim,Set.of("id","epoch","group","generation"));claims.add(new Claim(id(claim,"id"),id(claim,"epoch"),id(claim,"group"),number(claim,"generation")));}
-        return new Conditions(id(row,"citizen"),number(row,"jobRevision"),number(row,"deadline"),number(row,"effectsRemaining"),number(row,"tick"),integer(row,"maximumReachMilli"),integer(row,"observedReachMilli"),claims);
+        var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);var original=object(row,"usage");for(String kind:original.keySet())usage.put(Budgets.Kind.valueOf(kind),number(original,kind));
+        return new Conditions(id(row,"citizen"),number(row,"jobRevision"),number(row,"deadline"),number(row,"effectsRemaining"),number(row,"tick"),integer(row,"maximumReachMilli"),integer(row,"observedReachMilli"),claims,usage);
     }
     private static Map<String,Object> verification(Verification v) {return Map.of("outcome",v.outcome.name(),"actor",participant(v.actor),"chest",participant(v.chest),"actorMarker",markerJson(v.actorMarker),"chestMarker",markerJson(v.chestMarker),"process",v.process.toString(),"observedAt",v.observedAt);}
     private static Verification verification(Map<String,Object> row) {keys(row,Set.of("outcome","actor","chest","actorMarker","chestMarker","process","observedAt"));return new Verification(Reconciliation.valueOf(string(row,"outcome")),participant(object(row,"actor")),participant(object(row,"chest")),markerJson(string(row,"actorMarker")),markerJson(string(row,"chestMarker")),id(row,"process"),number(row,"observedAt"));}

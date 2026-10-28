@@ -64,6 +64,7 @@ public final class DepositEvidenceStore {
             return status(existing.result()!=null?Code.RESULT_ACKNOWLEDGED:Code.PREPARED,prepared);
         }
         if(pending!=null)return status(Code.PENDING,null);
+        if(clock.millis()>intent.conditions().deadlineEpochMillis())return status(Code.STALE,null);
         for(Entry prior:state.entries())if(prior.verification()==null && (sameAddress(prior.intent().actor(),intent.actor()) || sameAddress(prior.intent().chest(),intent.chest())))
             return status(Code.RECOVERY_REQUIRED,null);
         if(state.entries().size()==MAX_ENTRIES)return status(Code.FULL,null);
@@ -84,6 +85,7 @@ public final class DepositEvidenceStore {
         if(entry.verification()!=null)return status(Code.RESOLVED,null);
         if(entry.result()!=null)return status(Code.RESULT_ACKNOWLEDGED,prepared);
         if(pending!=null || started.contains(entry.token()))return status(Code.PENDING,prepared);
+        if(clock.millis()>entry.intent().conditions().deadlineEpochMillis())return status(Code.STALE,prepared);
         if(!nativePort.current(entry.intent()))return status(Code.STALE,prepared);
         started.add(entry.token());
         try {

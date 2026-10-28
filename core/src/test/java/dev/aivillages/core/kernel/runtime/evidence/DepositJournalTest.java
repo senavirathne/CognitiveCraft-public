@@ -76,4 +76,14 @@ final class DepositJournalTest {
         Intent sameOrdinal=new Intent(key,i.origin(),UUID.randomUUID(),UUID.randomUUID(),i.actor(),i.chest(),i.item(),i.actorSlot(),i.chestSlot(),i.capacity(),i.conditions());
         assertThrows(IllegalArgumentException.class,()->new DepositJournal.Snapshot(WORLD,UUID.randomUUID(),0,List.of(new Entry(i,null),new Entry(sameOrdinal,null))));
     }
+    @Test void externalCurrentCorruptionAndUnknownFilesAreNeverOverwrittenByAnOpenWriter()throws Exception {
+        try(var journal=DepositJournal.open(world,WORLD)) {
+            Path path=world.resolve(DepositJournal.PATH+"/state.jsonl");byte[] corrupt="corrupt current".getBytes();Files.write(path,corrupt);
+            assertThrows(IOException.class,()->journal.replace(journal.snapshot(),next(journal.snapshot(),List.of(new Entry(intent(),null)))));
+            assertTrue(journal.readOnly());assertArrayEquals(corrupt,Files.readAllBytes(path));
+        }
+        Path extra=world.resolve(DepositJournal.PATH+"/unknown-future-format");Files.writeString(extra,"preserve");
+        try(var journal=DepositJournal.open(world,WORLD)){assertTrue(journal.readOnly());}
+        assertEquals("preserve",Files.readString(extra));
+    }
 }

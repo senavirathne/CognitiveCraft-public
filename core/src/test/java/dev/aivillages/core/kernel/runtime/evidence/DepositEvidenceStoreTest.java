@@ -86,4 +86,9 @@ final class DepositEvidenceStoreTest {
         var proof=scene.store.reconcile(entry.intent().key());scene.port.chest=new Witness(chest(6,13),marker,true);
         assertEquals(DepositEvidenceStore.Code.STALE,scene.store.verify(proof));assertNull(scene.write);assertFalse(scene.store.protectedJobs().isEmpty());assertEquals(0,scene.port.calls);
     }
+    @Test void preparedAcknowledgementCannotExtendTheOriginalPhysicalDeadline() {
+        var scene=new Scene();var prepared=scene.prepare(intent());scene.clock.millis=10_001;
+        assertEquals(DepositEvidenceStore.Code.STALE,scene.store.perform(prepared).code());assertEquals(0,scene.port.calls);
+        assertFalse(scene.store.protectedJobs().isEmpty());
+    }
 }
