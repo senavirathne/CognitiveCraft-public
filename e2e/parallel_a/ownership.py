@@ -4,6 +4,7 @@ import subprocess
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
 allowed={
     '.github/workflows/parallel-a-runtime.yml',
+    '.github/parallel-a-run.json',
     'core/src/main/java/dev/aivillages/core/kernel/Jobs.java',
     'core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java',
     'core/src/main/java/dev/aivillages/core/kernel/JobCodec.java',

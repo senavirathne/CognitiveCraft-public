@@ -12,13 +12,15 @@ def read(path):return json.loads(Path(path).read_text())
 def api(path):return json.loads(subprocess.check_output(['gh','api','repos/'+REPO+'/'+path]))
 def download(a,path):
     with path.open('wb') as target:subprocess.run(['gh','api','repos/'+REPO+'/actions/artifacts/'+str(a['id'])+'/zip'],stdout=target,check=True)
+    return checked_archive(a,path,path.with_suffix(''))
+def checked_archive(a,path,target):
     digest=sha(path.read_bytes());assert path.stat().st_size==a['size_in_bytes'] and a['digest']=='sha256:'+digest
     with zipfile.ZipFile(path) as z:
         names=z.namelist();assert len(names)==len(set(names)) and len(names)<20000 and z.testzip() is None
         assert sum(n.file_size for n in z.infolist())<2*1024**3
         for n in z.infolist():
             p=Path(n.filename);assert not p.is_absolute() and '..' not in p.parts and (n.external_attr>>16)&0o170000!=0o120000
-        z.extractall(path.with_suffix(''))
+        z.extractall(target)
     return {'id':a['id'],'bytes':path.stat().st_size,'sha256':digest,'entries':len(names),'crcPathsDuplicates':'PASS'}
 def journal(path):
     head,payload=Path(path).read_bytes().split(b'\n',1);h=json.loads(head)
@@ -34,8 +36,13 @@ def raw_receipt(r,stage=True):
     assert r['item']['components']=='default'
     if stage:row['stage']=r['stage']
     return row
+def dimension_root(world):
+    candidates=[world/'dimensions/minecraft/overworld',world]
+    available=[p for p in candidates if (p/'region').is_dir() and (p/'entities').is_dir()]
+    assert len(available)==1,('Missing or ambiguous native overworld storage layout',str(world))
+    return available[0]
 def regions(world,folder):
-    for region in sorted((world/folder).glob('r.*.*.mca')):
+    for region in sorted((dimension_root(world)/folder).glob('r.*.*.mca')):
         _,rx,rz,_=region.name.split('.');rx,rz=int(rx),int(rz);raw=region.read_bytes()
         assert len(raw)>=8192
         for n in range(1024):
@@ -49,13 +56,17 @@ def entity_uuid(row):
 def item(row):
     return (int(row.get('Slot',0)),row['id'],int(row.get('count',row.get('Count',1))),row.get('components',{}))
 def block_name(world,pos):
-    x,y,z=pos;region=world/'region'/('r.'+str(x//512)+'.'+str(z//512)+'.mca')
+    x,y,z=pos;region=dimension_root(world)/'region'/('r.'+str(x//512)+'.'+str(z//512)+'.mca')
     data=chunk(region,x//16,z//16);assert data is not None
     section=next(s for s in data['sections'] if s['Y']==y//16);states=section['block_states'];palette=states['palette']
-    if len(palette)==1:return palette[0]['Name']
+    def name(value):
+        if isinstance(value,str):return value
+        assert isinstance(value,dict) and isinstance(value.get('Name'),str)
+        return value['Name']
+    if len(palette)==1:return name(palette[0])
     bits=max(4,(len(palette)-1).bit_length());per=64//bits;index=((y&15)<<8)|((z&15)<<4)|(x&15)
     value=(states['data'][index//per]&((1<<64)-1))>>((index%per)*bits)&((1<<bits)-1)
-    return palette[value]['Name']
+    return name(palette[value])
 def saved_native(world,entry):
     intent=entry['intent'];result=entry['result'];entities=[e for c in regions(world,'entities') for e in c.get('Entities',[])]
     actors=[e for e in entities if entity_uuid(e)==intent['actor']['address']];assert len(actors)==1 and actors[0]['id']=='minecraft:villager'
@@ -66,7 +77,7 @@ def saved_native(world,entry):
     for name,tag in (('actor',actors[0]),('chest',chests[0])):
         metadata=json.loads(tag[TAG]);marker=json.loads(metadata['marker']);snapshot=result[name]
         assert metadata['schema']==1 and metadata['incarnation']==snapshot['incarnation'] and metadata['revision']==snapshot['revision']
-        assert marker=={'effect':sha(canonical(intent['key'])),'intent':sha(canonical(intent)),'phase':'RESULT','result':sha(canonical(result))}
+        assert marker=={'schema':1,'effect':sha(canonical(intent['key'])),'intent':sha(canonical(intent)),'phase':'RESULT','result':sha(canonical(result))}
         marker_rows[name]={'incarnation':metadata['incarnation'],'revision':metadata['revision'],'marker':marker}
     actor_items=actors[0].get('Inventory',[]);chest_items=chests[0].get('Items',[])
     assert actor_items==[] and [item(r) for r in chest_items]==[(0,'minecraft:oak_log',1,{})]
@@ -129,17 +140,31 @@ def verify(root,contract,source,expected_status,run):
                            'uncertain':attempt['uncertain'],'recordedEffects':attempt['effects'],'recordedCredit':attempt['credited'],'children':job['children']},
             'sameNativeCustodyAfterCancellationRestart':True,'finalNativeCustody':final_native,'originalTwelveCaseSettlements':0,'nativeSourceDropLineageQualified':False,'stageA06Qualified':False,'performanceQualified':False,'runtimeMetadataSha256':sha((root/'metadata.json').read_bytes()),'runtimeMetadata':metadata}
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run',required=True,type=int);p.add_argument('--source',required=True);p.add_argument('--expected-status',required=True);p.add_argument('--out',required=True,type=Path);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run',required=True,type=int);p.add_argument('--source',required=True);p.add_argument('--expected-status',required=True);p.add_argument('--out',required=True,type=Path)
+    p.add_argument('--prepare-only',action='store_true');p.add_argument('--input-manifest',type=Path);a=p.parse_args()
     a.out.mkdir(parents=True,exist_ok=True)
-    for attempt in range(30):
-        r=api('actions/runs/'+str(a.run));assert r['head_sha']==a.source
-        if r['status']=='completed':break
-        time.sleep(5)
-    else:raise TimeoutError('Original exact-source run has not completed its artifact publication')
-    artifacts=api('actions/runs/'+str(a.run)+'/artifacts')['artifacts']
-    selected=[next(x for x in artifacts if x['name'].startswith(prefix)) for prefix in ('cc-runtime-a-a06-prefix-native-','cc-runtime-a-a04-contracts-')]
-    assert all(a.source in x['name'] and not x['expired'] for x in selected)
-    reports=[download(v,a.out/(name+'.zip')) for name,v in zip(('native','contracts'),selected)]
+    if a.input_manifest:
+        assert not a.prepare_only
+        manifest=read(a.input_manifest)
+        assert (manifest['run'],manifest['source'],manifest['expectedStatus'])==(a.run,a.source,a.expected_status)
+        selected=manifest['artifacts'];assert len(selected)==2
+        assert all(a.source in x['name'] for x in selected)
+        reports=[checked_archive(v,a.input_manifest.parent/(name+'.zip'),a.out/name) for name,v in zip(('native','contracts'),selected)]
+    else:
+        for attempt in range(30):
+            r=api('actions/runs/'+str(a.run));assert r['head_sha']==a.source
+            if r['status']=='completed':break
+            time.sleep(5)
+        else:raise TimeoutError('Original exact-source run has not completed its artifact publication')
+        artifacts=api('actions/runs/'+str(a.run)+'/artifacts')['artifacts']
+        selected=[next(x for x in artifacts if x['name'].startswith(prefix)) for prefix in ('cc-runtime-a-a06-prefix-native-','cc-runtime-a-a04-contracts-')]
+        assert all(a.source in x['name'] and not x['expired'] for x in selected)
+        if a.prepare_only:
+            for name,v in zip(('native','contracts'),selected):
+                with (a.out/(name+'.zip')).open('wb') as target:subprocess.run(['gh','api','repos/'+REPO+'/actions/artifacts/'+str(v['id'])+'/zip'],stdout=target,check=True)
+            (a.out/'inputs.json').write_text(json.dumps({'run':a.run,'source':a.source,'expectedStatus':a.expected_status,'artifacts':selected},indent=2)+'\n')
+            return
+        reports=[download(v,a.out/(name+'.zip')) for name,v in zip(('native','contracts'),selected)]
     result=verify(a.out/'native',a.out/'contracts',a.source,a.expected_status,a.run);result['archives']=reports
     (a.out/'review.json').write_text(json.dumps(result,indent=2)+'\n')
     print('A06_PREFIX_INDEPENDENT_REVIEW '+json.dumps(result),flush=True)
