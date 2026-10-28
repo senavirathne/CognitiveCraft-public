@@ -42,6 +42,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
           git merge-base --is-ancestor ea7de8000b2b484b885576c34ed5358274936ce9 HEAD
           python3 e2e/parallel_a/ownership.py
+          python3 -m compileall -q e2e/parallel_a
           python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py' -v
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
       - name: A04 closed-set history contracts and existing owner regressions
@@ -54,6 +55,25 @@ jobs:
           python3 e2e/runtime.py compile
           python3 e2e/parallel_a/prepare.py
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
+      - name: Validate exact retained72-Job input without native effects
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 retained-world input') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/12763321061/zip > build/parallel-a/retained-native.zip
+          python3 - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'e2e/parallel_a')
+          from qualified_checkpoint import read_checkpoint
+          from finish_jobs import same_jar_entries
+          value=read_checkpoint(Path('build/parallel-a/retained-native.zip'),Path('build/parallel-a/retained-input'))
+          same_jar_entries(Path('build/parallel-a/retained-input/server/game/mods/observer.jar'),Path('build/e2e-driver/observer.jar'))
+          result={'status':'PASS','nativeEffects':0,'retainedNativeDeliveries':len(value['cycles']),'retainedLogicalJobs':value['retainedLogicalJobs'],'retainedHotJobs':len(value['originalRows']),'worldFiles':len(value['worldHashes'])}
+          Path('build/parallel-a/checkpoint-input-review.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('A04_RETAINED_CHECKPOINT_READ '+json.dumps(result))
+          PY
       - name: Actual continuous-world A04 Job history and witnessed crash gates
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
@@ -61,13 +81,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RESUME_A04: >-
             ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-') }}
+          FINISH_QUALIFIED: >-
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-qualified-1d437') }}
           RESUME_ARTIFACT: >-
-            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-3dde') && '12735341658' || '12732465516' }}
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-qualified-1d437') && '12763321061' || startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world resume-3dde') && '12735341658' || '12732465516' }}
         run: |
           python3 tools/needle/install.py build/needle
           if [ "$RESUME_A04" = true ]; then
             gh api repos/${{ github.repository }}/actions/artifacts/$RESUME_ARTIFACT/zip > build/parallel-a/prior-a04-native.zip
-            python3 e2e/parallel_a/jobs.py --root build/parallel-a/native --resume-archive build/parallel-a/prior-a04-native.zip
+            if [ "$FINISH_QUALIFIED" = true ]; then
+              python3 e2e/parallel_a/finish_jobs.py --root build/parallel-a/native --resume-archive build/parallel-a/prior-a04-native.zip
+            else
+              python3 e2e/parallel_a/jobs.py --root build/parallel-a/native --resume-archive build/parallel-a/prior-a04-native.zip
+            fi
           else
             python3 e2e/parallel_a/jobs.py --root build/parallel-a/native
           fi
@@ -93,6 +119,7 @@ jobs:
           retention-days: 30
           path: |
             build/parallel-a/source-audit/
+            build/parallel-a/checkpoint-input-review.json
             build/parallel-a/observer-adaptation.json
             build/parallel-a/journal-probe/
             build/parallel-a/reference-log-self-test/
