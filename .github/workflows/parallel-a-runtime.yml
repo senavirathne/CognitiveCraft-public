@@ -69,8 +69,8 @@ jobs:
           from qualified_checkpoint import read_checkpoint
           from finish_jobs import same_jar_entries
           value=read_checkpoint(Path('build/parallel-a/retained-native.zip'),Path('build/parallel-a/retained-input'))
-          same_jar_entries(Path('build/parallel-a/retained-input/server/game/mods/observer.jar'),Path('build/e2e-driver/observer.jar'))
-          result={'status':'PASS','nativeEffects':0,'retainedNativeDeliveries':len(value['cycles']),'retainedLogicalJobs':value['retainedLogicalJobs'],'retainedHotJobs':len(value['originalRows']),'worldFiles':len(value['worldHashes'])}
+          instrumentation=same_jar_entries(Path('build/parallel-a/retained-input/server/game/mods/observer.jar'),Path('build/e2e-driver/observer.jar'))
+          result={'status':'PASS','nativeEffects':0,'retainedNativeDeliveries':len(value['cycles']),'retainedLogicalJobs':value['retainedLogicalJobs'],'retainedHotJobs':len(value['originalRows']),'worldFiles':len(value['worldHashes']),'instrumentationIdentity':instrumentation}
           Path('build/parallel-a/checkpoint-input-review.json').write_text(json.dumps(result,indent=2)+'\n')
           print('A04_RETAINED_CHECKPOINT_READ '+json.dumps(result))
           PY

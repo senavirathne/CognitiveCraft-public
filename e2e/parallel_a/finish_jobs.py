@@ -1,19 +1,13 @@
 """Finish A04's five outstanding native checks from its exact saved72-Job cohort."""
 from pathlib import Path
 import argparse,hashlib,json,shutil,sys,traceback
-from zipfile import ZipFile
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from jobs import JobHarness,crash_cut,corrupt_required,pinned_unchanged
 from continuation import start as continue_world,CURRENT_PRODUCTION_SHA
 from qualified_checkpoint import read_checkpoint,SOURCE,ARTIFACT,ARCHIVE_SHA
 from suite import ROOT,atomic,read,require,reconnect_players
 from baseline import native_process
-
-def same_jar_entries(before,after):
-    with ZipFile(before) as old,ZipFile(after) as current:
-        names=[n for n in old.namelist() if not n.endswith('/')]
-        require(set(names)=={n for n in current.namelist() if not n.endswith('/')},'Retained performance requires identical instrumentation entries')
-        require(all(old.read(n)==current.read(n) for n in names),'Retained performance requires identical instrumentation bytes; ZIP timestamps grant no equivalence')
+from instrumentation_identity import same_jar_entries
 
 def private_replay(value,prior):
     require(value['status']=='PASS' and not value['hot'] and value['hotUnchanged'],'Old native outcome is not stable archived history')
@@ -27,7 +21,7 @@ def main():
         # Validate the original source cohort before creating a server or a client.
         prior=args.root.parent/('a04-prior-'+args.root.name)
         prepared=read_checkpoint(args.resume_archive,prior)
-        same_jar_entries(prior/'server/game/mods/observer.jar',ROOT/'build/e2e-driver/observer.jar')
+        instrumentation=same_jar_entries(prior/'server/game/mods/observer.jar',ROOT/'build/e2e-driver/observer.jar')
         require(hashlib.file_digest((ROOT/'fabric/build/libs/ai-villages-0.1.0.jar').open('rb'),'sha256').hexdigest()==CURRENT_PRODUCTION_SHA,'Byte-identical production JAR required')
         # The general continuation reader accepts this explicit, already checked input.
         def prepared_reader(archive,target):
@@ -53,7 +47,7 @@ def main():
         end=h.probe('end-window');process=native_process(h);old_cpu=read(prior/'candidate-performance.json')['jvm']['begin']
         require(process['containerResources']=={'cpusetCpus':'0-1','memoryBytes':2*1024**3},'Native CPU/memory allocation differs from the frozen prefix')
         require(end['jvm']['inputArguments']==old_cpu['inputArguments'] and end['jvm']['availableProcessors']==2 and end['jvm']['heap']['maxBytes']==old_cpu['heap']['maxBytes'],'JVM configuration differs from the frozen performance source')
-        result['resumeChecks']={'inventory':inventory,'lookup':lookup,'foreign':denied,'nativeProcess':process,'jvm':end['jvm'],'sameInstrumentationEntryBytes':True,'nativeEffects':0,'hotJobs':40,'archivedJobs':32}
+        result['resumeChecks']={'inventory':inventory,'lookup':lookup,'foreign':denied,'nativeProcess':process,'jvm':end['jvm'],'instrumentationIdentity':instrumentation,'nativeEffects':0,'hotJobs':40,'archivedJobs':32}
         h.save_checkpoint();h.stop('server');world=args.root/'server/game/world';backup=args.root/'qualified-continuous-world';shutil.copytree(world,backup,ignore=shutil.ignore_patterns('session.lock'))
         h.start('server');reconnect_players(h,list(h.players));h.stable()
         for point in ('BEFORE_HOT_PUBLICATION','AFTER_HOT_ACKNOWLEDGEMENT'):
