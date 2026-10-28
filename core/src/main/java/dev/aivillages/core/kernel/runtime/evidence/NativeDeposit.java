@@ -15,6 +15,11 @@ public final class NativeDeposit {
     private static final Pattern IDENTIFIER=Pattern.compile("[a-z0-9_.-]+:[a-z0-9_/.-]+");
     private static final Pattern SHA256=Pattern.compile("[0-9a-f]{64}");
     private NativeDeposit() { }
+    /** Link the immutable snapshot schema during service setup, before an effect is admitted. */
+    public static void initializeParticipantSchema() {
+        try{Class.forName(Participant.class.getName(),true,Participant.class.getClassLoader());}
+        catch(ClassNotFoundException impossible){throw new IllegalStateException("Compiled deposit participant schema unavailable",impossible);}
+    }
     public enum Kind { ACTOR, CHEST }
     public enum MarkerPhase { PREPARED, MUTATING, RESULT }
     public enum Live { NO_EFFECT, COMPLETE, PARTIAL, UNRECEIPTED_EFFECT }

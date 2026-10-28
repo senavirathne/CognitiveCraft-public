@@ -10,6 +10,8 @@ public final class DepositStackOwners {
     private static final IdentityHashMap<ItemStack,WeakReference<DepositParticipantState>> OWNERS=new IdentityHashMap<>();
     private static volatile boolean active;
     private DepositStackOwners() { }
+    /** Initialize the association table and its iterator without activating or binding a participant. */
+    static synchronized void initialize(){OWNERS.entrySet().iterator();}
     public static synchronized void bind(DepositParticipantState owner,List<ItemStack> slots) {
         int previous=0;
         for(var entries=OWNERS.entrySet().iterator();entries.hasNext();) {
