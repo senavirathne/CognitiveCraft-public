@@ -20,7 +20,7 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
               'stage':stage,'connected_clients':0,'phases':[]}
     write(root/'identity.json',metadata)
     subprocess.run(['javap','-classpath',str(sdk/'minecraft-server.jar'),'-p','-c',*['net.minecraft.world.level.block.entity.'+n for n in ('BlockEntity','BaseContainerBlockEntity','ChestBlockEntity','BarrelBlockEntity')]],stdout=(root/'api-bytecode.txt').open('w'),check=True)
-    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage=='D05'else[]):
+    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage in ('D05','D06')else[])+([('come','DComeGameTests','D06-GT01')]if stage=='D06'else[]):
         phase_release=baseline if phase=='baseline' else release
         target=root/phase;target.mkdir();game=root/'worlds'/('reload' if phase.startswith('reload') else phase);mods=game/'mods';mods.mkdir(parents=True,exist_ok=True)
         report=target/'native-results.xml';evidence=target/'evidence';evidence.mkdir()
@@ -51,6 +51,9 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
             try:result=subprocess.run(command,cwd=game,stdout=log,stderr=subprocess.STDOUT,timeout=500);row['exit']=result.returncode
             except subprocess.TimeoutExpired:row['exit']='TIMEOUT'
             log.flush();os.fsync(log.fileno())
+        if phase=='come':
+            from mobility_frames import collect
+            collect(target/'stdout.log',evidence)
         row['duration_seconds']=time.monotonic()-start
         # Preserve saved world bytes at the process boundary, before the second JVM opens them.
         saved=[]

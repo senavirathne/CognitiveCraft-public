@@ -71,20 +71,27 @@ class DStorageObservationClient:
         for player in PLAYERS:self.open(player,'double');self.capture(player,'double','SPLIT',1,27)
         for player in PLAYERS:self.request(player,'close-menu');self.request(player,'disconnect');self.request(player,'exit')
 
-def run(root):
+def run(root,stage="D05"):
+    require(stage in ("D05","D06"),"unimplemented native client campaign")
+    world=WORLD if stage=="D05"else "d0600000-0000-4000-8000-000000000001"
+    entry="DStorageObservationServer"if stage=="D05"else "DComeServer"
     root=root.resolve();require(not root.exists(),'do not overwrite a client campaign');root.mkdir(parents=True);identity=source_identity();fixture=REPO/'build/parallel-d-native/parallel-d-fixtures.jar';selected=root/'selected-client-fixture.jar';
     with ZipFile(fixture)as source,ZipFile(selected,'w',ZIP_DEFLATED)as target:
         for name in source.namelist():
             data=source.read(name)
             if name=='fabric.mod.json':
-                d=json.loads(data);d['id']='cognitivecraft_parallel_d_clients';d['entrypoints']={'main':['dev.aivillages.e2e.paralleld.DStorageObservationServer']};data=json.dumps(d,separators=(',',':')).encode()+b'\n'
+                d=json.loads(data);d['id']='cognitivecraft_parallel_d_clients';d['entrypoints']={'main':['dev.aivillages.e2e.paralleld.'+entry]};data=json.dumps(d,separators=(',',':')).encode()+b'\n'
             target.writestr(name,data)
     for player in PLAYERS:(root/'clients'/player).mkdir(parents=True)
     mods=root/'server/game/mods';mods.mkdir(parents=True);shutil.copy2(selected,mods/'parallel-d-client-fixture.jar');shutil.copy2(REPO/'build/server-sdk/gametest.jar',mods/'gametest.jar')
     properties='online-mode=false\nenforce-secure-profile=false\nwhite-list=false\nenforce-whitelist=false\nserver-ip=127.0.0.1\nserver-port=25661\nspawn-protection=0\nview-distance=4\nsimulation-distance=4\nlevel-type=minecraft:flat\ngenerate-structures=false\ndifficulty=peaceful\nsync-chunk-writes=true\nmax-players=4\nlevel-seed=20261027\n'
     (root/'server/game/server.properties').write_text(properties)
-    env=os.environ.copy();env['CC_D_RUN_ROOT']=str(root);env['CC_D_SERVER_TEST_JAVA']='-Dcognitivecraft.parallelD.fixtureWorld='+WORLD
-    h=DStorageObservationClient(root,env);plan={'identity':identity,'world':WORLD,'case':'D05-CL01','players':list(PLAYERS),'seed':20261027,'render_backend':'ESTABLISHED_SDL_OFFSCREEN','fixture_sha256':sha(fixture),'selected_fixture_sha256':sha(selected),'driver_sha256':sha(REPO/'build/e2e-driver/client.jar'),'observer_sha256':sha(REPO/'build/e2e-driver/observer.jar'),'phase':'COLLECTING_RAW','integration_root':None,'save_proof':None};write(root/'identity.json',plan)
+    env=os.environ.copy();env['CC_D_RUN_ROOT']=str(root);env['CC_D_SERVER_TEST_JAVA']='-Dcognitivecraft.parallelD.fixtureWorld='+world
+    if stage=='D06':
+        from come_client import DComeClient
+        h=DComeClient(root,env);write(root/'observation-area.json',{'minX':0,'footY':201,'minZ':0,'maxX':19,'maxZ':24})
+    else:h=DStorageObservationClient(root,env)
+    plan={'identity':identity,'world':world,'case':stage+'-CL01','players':list(PLAYERS),'seed':20261027,'render_backend':'ESTABLISHED_SDL_OFFSCREEN','fixture_sha256':sha(fixture),'selected_fixture_sha256':sha(selected),'driver_sha256':sha(REPO/'build/e2e-driver/client.jar'),'observer_sha256':sha(REPO/'build/e2e-driver/observer.jar'),'phase':'COLLECTING_RAW','integration_root':None,'save_proof':None};write(root/'identity.json',plan)
     try:
         result=h.compose('config');(root/'resolved-compose.yml').write_text(result.stdout);h.compose('up','-d','minecraft','client-a','client-b');(root/'containers.jsonl').write_text(h.compose('ps','-a','--format','json').stdout);h.run();plan['phase']='COLLECTED_RAW'
     finally:
@@ -92,8 +99,11 @@ def run(root):
         props=root/'server/game/server.properties'
         if props.exists():
             value=dict(line.split('=',1)for line in props.read_text().splitlines()if line and not line.startswith('#')and '='in line);write(root/'server-properties.json',{'sha256':sha(props),'level-seed':value.get('level-seed'),'server-port':value.get('server-port'),'level-type':value.get('level-type')})
+        if stage=='D06' and (root/'server/stdout.log').exists():
+            from mobility_frames import collect
+            collect(root/'server/stdout.log',root/'server/d06')
         for directory in [root/'server/game',*(root/'clients'/p/'game'for p in PLAYERS)]:
             if directory.exists():shutil.rmtree(directory)
         write(root/'identity.json',plan)
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);run(p.parse_args().root)
+    p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);p.add_argument('--stage',default='D05');a=p.parse_args();run(a.root,a.stage)

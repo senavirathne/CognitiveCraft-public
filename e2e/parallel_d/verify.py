@@ -105,7 +105,11 @@ def verify(stage,root,source,tree,jar):
     client_rows=[];client_details={}
     if spec['client_e2e']:
         from client_oracle import verify as client_verify
-        client_rows,client_details=client_verify(root/'clients-d05',current,fixture);require({r['id']for r in client_rows}==set(spec['client_e2e']),'client case reconciliation')
+        client_rows,client_details=client_verify(root/'clients-d05',current,fixture)
+        if stage=='D06':
+            from mobility_oracle import client as come_verify
+            added,come_details=come_verify(root/'clients-d06',current,fixture);client_rows+=added;client_details['mobility']=come_details;client_details['evidence']+=come_details['evidence']
+        require({r['id']for r in client_rows}==set(spec['client_e2e']),'client case reconciliation')
     identities=native['configured_players'];require(len(identities)==2 and len({p['name'] for p in identities})==2 and len({p['anticipated_offline_uuid'] for p in identities})==2,'duplicate configured principals')
     result={**current,'stage':stage,'owner':'D','base_sha':BASE,'docs_sha':m['docs_sha'],'contract_sha256':CONTRACT,
             'unit':metric(spec['unit_planned'],owned,['junit/core/TEST-'+name+'.xml' for name in spec['unit_suites']]),

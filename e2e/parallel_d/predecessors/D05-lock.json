@@ -1,0 +1,13 @@
+{
+  "stage": "D05",
+  "source_sha": "45c959474515d785817b8924fa2ca2b2c8a592ba",
+  "tree_sha": "2bac80cb90a9c8cc983cbfd3b86bd06528c87ab2",
+  "jar_sha256": "10c2894e23c8f931be1e0c9ba003b874788b69648444651b75df1843e90a4aa7",
+  "workflow_run": 40730533503,
+  "attempt": 1,
+  "docs_sha": "abbbae8f2c63790f512d72c91a4a89e5b33f862e",
+  "docs_tree_sha": "4de8d543883ec340fca0fafe2d3cbe84c3ca96d3",
+  "qualified_sha256": "eb8479f3a5948bbf1e80ca43c3c024520bc10b063bb12dc3d3f7a10d0b873ddd",
+  "artifact_id": 12835167206,
+  "artifact_sha256": "a7f4632e08323817e42118046781b8db1b901571780a53f947c81d6a925e536b"
+}

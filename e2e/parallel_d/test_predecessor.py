@@ -3,6 +3,15 @@ from common import HERE,read
 from prerequisites import measured
 
 class PredecessorTest(unittest.TestCase):
+    def test_d05_exact_native_two_client_handoff_required(self):
+        from prerequisites import measured_d05
+        good=read(HERE/'predecessors/D05-qualified.json');measured_d05(good)
+        for field,value in [('source_sha','0'*40),('gate_status','INCONCLUSIVE'),('attempt',2)]:
+            bad=copy.deepcopy(good);bad[field]=value
+            with self.assertRaises(ValueError):measured_d05(bad)
+        for tier in ('unit','python','game_tests','client_e2e'):
+            bad=copy.deepcopy(good);bad[tier]['passed']-=1
+            with self.assertRaises(ValueError):measured_d05(bad)
     def test_wrong_source_or_unqualified_predecessor_refused(self):
         good=read(HERE/'predecessors/D00-qualified.json');measured(good)
         for field,value in [('source_sha','0'*40),('gate_status','INCONCLUSIVE'),('attempt',1)]:

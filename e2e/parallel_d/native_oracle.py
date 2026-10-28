@@ -55,7 +55,7 @@ def coherent(frame):
 def xml(path,phase):
     rows=list(ET.parse(path).getroot().iter('testcase'));names=[r.get('name')for r in rows]
     require(len(names)==len(set(names)),'duplicate native XML case IDs')
-    require(set(names)=={'minecraft:always_pass',PREFIX+({'adapters':'dstorage_adapters_game_tests_native_single_double_barrel_capacity_and_fail_closed_eligibility',**METHODS}[phase])},'missing/unregistered actual native XML test')
+    require(set(names)=={'minecraft:always_pass',PREFIX+({'come':'dcome_game_tests_captured_location_around_obstacle_without_teleport_or_chunk_loads','adapters':'dstorage_adapters_game_tests_native_single_double_barrel_capacity_and_fail_closed_eligibility',**METHODS}[phase])},'missing/unregistered actual native XML test')
     require(all(not any(c.find(tag) is not None for tag in ('failure','error','skipped'))for c in rows),'native XML failed/skipped')
 
 def performance(baseline,candidate):
@@ -94,12 +94,12 @@ def verify(root,identity,fixture,stage="D02"):
     native=read(root/'identity.json');require(native['identity']==identity,'native source/JAR/run identity changed')
     require(native['release_sha256']==identity['jar_sha256'] and native['fixture_sha256']==sha(fixture),'native release/fixture changed')
     require(native['world']==WORLD and native['seed']==20261027 and native['connected_clients']==0,'native context/false client claim')
-    phases=native['phases'];require([r['phase']for r in phases]==list(METHODS)+(['adapters']if stage=='D05'else[]),'missing/duplicate native JVM schedule')
+    phases=native['phases'];require([r['phase']for r in phases]==list(METHODS)+(['adapters']if stage in ('D05','D06')else[])+(['come']if stage=='D06'else[]),'missing/duplicate native JVM schedule')
     for dep in native['runtime']:require(sha(REPO/dep['path'])==dep['sha256'],'native dependency changed')
     frames={}
     for row in phases:
         phase=row['phase'];require(row['exit']==0,'actual native JVM failed')
-        expected_entry={'baseline':'DStorageBaselineGameTests','incarnation':'DStorageIncarnationGameTests','topology':'DStorageTopologyGameTests','reload-write':'DStorageTopologyReloadGameTests','reload-read':'DStorageTopologyReloadGameTests','performance':'DStorageLifecycleCostGameTests','adapters':'DStorageAdaptersGameTests'}[phase]
+        expected_entry={'baseline':'DStorageBaselineGameTests','incarnation':'DStorageIncarnationGameTests','topology':'DStorageTopologyGameTests','reload-write':'DStorageTopologyReloadGameTests','reload-read':'DStorageTopologyReloadGameTests','performance':'DStorageLifecycleCostGameTests','adapters':'DStorageAdaptersGameTests','come':'DComeGameTests'}[phase]
         require(row['entrypoint']=='dev.aivillages.e2e.paralleld.'+expected_entry,'swapped native entrypoint')
         require(row['world_path']=='worlds/'+('reload' if phase.startswith('reload') else phase),'unowned/reset native world')
         expected_jar=read(HERE/'predecessors/D01-lock.json')['jar_sha256'] if phase=='baseline' else identity['jar_sha256']
@@ -113,7 +113,7 @@ def verify(root,identity,fixture,stage="D02"):
             desc=json.loads(original.read('fabric.mod.json'));desc['entrypoints']['fabric-gametest']=[row['entrypoint']]
             if phase=='baseline':desc['mixins']=[]
             require(json.loads(observed.read('fabric.mod.json'))==desc,'unrequested selected fixture registration')
-        if phase not in ('baseline','adapters'):
+        if phase not in ('baseline','adapters','come'):
             rows=[json.loads(line,object_pairs_hook=no_duplicates)for line in (root/phase/'evidence/observations.jsonl').read_text().splitlines()]
             require([r['event']for r in rows]==EVENTS[phase],'missing/duplicate native observation events')
             require(all(r['case']==row['case'] for r in rows),'swapped native stable case ID')
@@ -125,11 +125,16 @@ def verify(root,identity,fixture,stage="D02"):
             n=frame['native'][0];saved=lookup[(n['x'],n['y'],n['z'])]['cognitivecraft_storage_v1']
             require(saved['version']==1 and saved['incarnation']==n['incarnation'] and saved['generation']==n['marker_generation'],'actual saved NBT differs from observed/reloaded marker')
     adapter_details={}
-    if stage=='D05':
+    if stage in ('D05','D06'):
         from adapters_oracle import verify as adapters_verify
         adapter_details=adapters_verify(root/'adapters')
-    evidence=[str((root/p/'native-results.xml').relative_to(root.parent))for p in list(METHODS)+(['adapters']if stage=='D05'else[])]
-    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage=='D05'else[])],{
-        'native_jvms':len(phases),'owned_cases':4+(stage=='D05'),'xml_observations':5+(stage=='D05'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
-        'adapter_details':adapter_details,'frames':sum(len(v)for v in frames.values())+adapter_details.get('events',0),'evidence':evidence,
+    mobility_details={}
+    if stage=='D06':
+        from mobility_oracle import native as mobility_verify
+        mobility_details=mobility_verify(root/'come')
+    evidence=[str((root/p/'native-results.xml').relative_to(root.parent))for p in list(METHODS)+(['adapters']if stage in ('D05','D06')else[])+(['come']if stage=='D06'else[])]
+    if stage=='D06':evidence += ['native/come/'+p for p in ('stdout.log','evidence/arena.json','evidence/movement.jsonl','evidence/storage-movement.jsonl','evidence/controls.json','evidence/storage-controls.json')]
+    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06')else[])+(['D06-GT01']if stage=='D06'else[])],{
+        'native_jvms':len(phases),'owned_cases':4+(stage in ('D05','D06'))+(stage=='D06'),'xml_observations':5+(stage in ('D05','D06'))+(stage=='D06'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
+        'mobility_details':mobility_details,'adapter_details':adapter_details,'frames':sum(len(v)for v in frames.values())+adapter_details.get('events',0)+sum(d.get('frames',0)for d in mobility_details.values()if isinstance(d,dict)),'evidence':evidence,
         'performance':performance(read(root/'baseline/evidence/performance.json'),read(root/'performance/evidence/performance.json'))}

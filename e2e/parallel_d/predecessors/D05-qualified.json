@@ -1,0 +1,94 @@
+{
+  "attempt": 1,
+  "base_sha": "12fb3af99e0c9496171b89d4dd2ffff3f5c7a824",
+  "blocked": [
+    "J01/J02/J04: production registration, runtime authority and selector admission are deferred; D05 production hooks remain disabled; test-only native markers are not A settlement"
+  ],
+  "client_e2e": {
+    "evidence": [
+      "clients-d05/identity.json",
+      "clients-d05/menu-observations.json",
+      "clients-d05/privacy-observations.json",
+      "clients-d05/server/d05-observations.jsonl",
+      "clients-d05/clients/PlayerD_A/events.jsonl",
+      "clients-d05/clients/PlayerD_B/events.jsonl"
+    ],
+    "executed": 1,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 1,
+    "planned": 1,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
+  "docs_sha": "bb684b48ad2c40af9e6810c46fa5a55b6f4b2a0e",
+  "game_tests": {
+    "evidence": [
+      "native/baseline/native-results.xml",
+      "native/incarnation/native-results.xml",
+      "native/topology/native-results.xml",
+      "native/reload-write/native-results.xml",
+      "native/reload-read/native-results.xml",
+      "native/performance/native-results.xml",
+      "native/adapters/native-results.xml"
+    ],
+    "executed": 5,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 5,
+    "planned": 5,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "gate_status": "OWNED_GATES_PASS",
+  "jar_sha256": "10c2894e23c8f931be1e0c9ba003b874788b69648444651b75df1843e90a4aa7",
+  "native_evidence": [
+    "native/baseline/native-results.xml",
+    "native/incarnation/native-results.xml",
+    "native/topology/native-results.xml",
+    "native/reload-write/native-results.xml",
+    "native/reload-read/native-results.xml",
+    "native/performance/native-results.xml",
+    "native/adapters/native-results.xml"
+  ],
+  "owner": "D",
+  "python": {
+    "evidence": [
+      "python-results.xml"
+    ],
+    "executed": 68,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 68,
+    "planned": 68,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "regressions": [],
+  "source_sha": "45c959474515d785817b8924fa2ca2b2c8a592ba",
+  "stage": "D05",
+  "tree_sha": "2bac80cb90a9c8cc983cbfd3b86bd06528c87ab2",
+  "unit": {
+    "evidence": [
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.contract.StorageCodecTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageRegistryTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageMetadataStoreTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageBindingRulesTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageAccessPolicyTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageVisibilityTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageAclLifecycleTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageResolverTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.logistics.RecipientResolverTest.xml",
+      "junit/core/TEST-dev.aivillages.core.kernel.storage.StorageEligibilityTest.xml"
+    ],
+    "executed": 177,
+    "failed": 0,
+    "inconclusive": 0,
+    "passed": 177,
+    "planned": 177,
+    "refused_expected": 0,
+    "status": "PASS"
+  },
+  "workflow_run": 40730533503
+}
