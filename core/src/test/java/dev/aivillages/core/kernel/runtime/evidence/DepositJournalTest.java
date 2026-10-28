@@ -86,4 +86,20 @@ final class DepositJournalTest {
         try(var journal=DepositJournal.open(world,WORLD)){assertTrue(journal.readOnly());}
         assertEquals("preserve",Files.readString(extra));
     }
+    @Test void missingWholeEvidenceDirectoryStillRequiresTheOriginalReader()throws Exception {
+        try(var journal=DepositJournal.open(world,WORLD)){journal.replace(journal.snapshot(),next(journal.snapshot(),List.of(new Entry(intent(),null))));}
+        Files.move(world.resolve(DepositJournal.BASE),world.resolve("preserved-all-deposit-evidence"));assertTrue(DepositJournal.exists(world));
+        try(var journal=DepositJournal.open(world,WORLD)){assertTrue(journal.readOnly());assertThrows(IOException.class,()->journal.replace(journal.snapshot(),next(journal.snapshot(),List.of())));}
+        assertTrue(Files.exists(world.resolve("preserved-all-deposit-evidence/v1/state.jsonl")));
+    }
+    @Test void conflictingActualReceiptBodyCannotReplaceTheAcknowledgedResult()throws Exception {
+        Entry complete=completed(intent());var r=complete.result().receipt();
+        var changed=new dev.aivillages.core.kernel.ResourceDelivery.Receipt(UUID.randomUUID(),r.origin(),r.runId(),r.operationId(),r.batchId(),r.actor(),r.source(),r.destination(),r.item(),r.stage(),r.quantity(),r.sourceBlock(),r.dropIds());
+        Result different=new Result(complete.result().intent(),complete.result().live(),complete.result().actor(),complete.result().chest(),complete.result().failure(),changed,complete.result().usage());
+        try(var journal=DepositJournal.open(world,WORLD)) {
+            var state=journal.replace(journal.snapshot(),next(journal.snapshot(),List.of(complete)));byte[] bytes=Files.readAllBytes(world.resolve(DepositJournal.PATH+"/state.jsonl"));
+            assertThrows(IOException.class,()->journal.replace(state,next(state,List.of(new Entry(complete.intent(),different)))));
+            assertArrayEquals(bytes,Files.readAllBytes(world.resolve(DepositJournal.PATH+"/state.jsonl")));
+        }
+    }
 }

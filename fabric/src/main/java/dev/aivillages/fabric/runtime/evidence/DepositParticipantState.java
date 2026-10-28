@@ -36,6 +36,11 @@ public final class DepositParticipantState {
         if(!active){incarnation=UUID.randomUUID();revision=0;active=true;restored=false;}
     }
     public void track(List<ItemStack> slots){activate();DepositStackOwners.bind(this,slots);}
+    /** Initial deserialization may use its native worker; do not bind the future game thread here. */
+    public void trackLoaded(List<ItemStack> slots) {
+        if(!active || !valid)return;
+        try{DepositStackOwners.bind(this,slots);}catch(RuntimeException unsupported){valid=false;quarantined=true;restored=false;}
+    }
     public void mutation() {
         if(!active || metadataDepth!=0)return;
         if(gameThread==null)gameThread=Thread.currentThread();

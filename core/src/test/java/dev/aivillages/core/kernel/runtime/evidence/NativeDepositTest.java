@@ -2,6 +2,8 @@ package dev.aivillages.core.kernel.runtime.evidence;
 
 import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.StrictJson;
+import dev.aivillages.core.kernel.ResourceDelivery;
+import dev.aivillages.core.kernel.Budgets;
 import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -21,9 +23,17 @@ final class NativeDepositTest {
         var slots=new ArrayList<>(Collections.nCopies(27,new Slot("minecraft:air",0)));slots.set(0,new Slot(count==0?"minecraft:air":LOG,count));
         return new Participant(Kind.CHEST,"minecraft:overworld","10,64,10",UUID.fromString("40000000-0000-0000-0000-000000000001"),revision,slots);
     }
-    static Conditions conditions() {return new Conditions(UUID.randomUUID(),5,10_000,8,100,2500,1000,List.of(new Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1)),Map.of(dev.aivillages.core.kernel.Budgets.Kind.COMMITTED_EFFECTS,2L));}
+    static Conditions conditions() {return new Conditions(UUID.randomUUID(),5,10_000,9_000,8,100,2500,1000,List.of(new Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1)),Map.of(dev.aivillages.core.kernel.Budgets.Kind.COMMITTED_EFFECTS,2L));}
     static Intent intent() {return new Intent(new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,1),OWNER,UUID.randomUUID(),UUID.randomUUID(),actor(1,7),chest(5,11),LOG,0,0,64,conditions());}
-    static Entry completed(Intent intent) {return new Entry(intent,observed(intent,actor(0,8),chest(6,12),""));}
+    static UUID fixtureId(Intent intent,String suffix){return UUID.nameUUIDFromBytes(("fixture:deposit/"+intent.key().token()+"/"+suffix).getBytes(StandardCharsets.UTF_8));}
+    static Map<Budgets.Kind,Long> fixtureUsage(Intent intent,boolean complete){var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);usage.putAll(intent.conditions().usage());usage.merge(Budgets.Kind.ATTEMPTED_EFFECTS,1L,Math::addExact);if(complete)usage.merge(Budgets.Kind.COMMITTED_EFFECTS,1L,Math::addExact);return usage;}
+    static Result observed(Intent intent,Participant actor,Participant chest,String failure){return NativeDeposit.observed(intent,actor,chest,failure,null,fixtureUsage(intent,false));}
+    static Entry completed(Intent intent) {
+        var receipt=new ResourceDelivery.Receipt(fixtureId(intent,"receipt"),intent.origin(),intent.run(),intent.operation(),fixtureId(intent,"batch"),new ActorRef(intent.conditions().citizen(),UUID.fromString(intent.actor().address()),intent.actor().dimension()),
+                new Cuboid("minecraft:overworld",2,64,2,2,64,2),new ContainerRef("minecraft:overworld",10,64,10),new ResourceDelivery.ItemIdentity(LOG,"default"),ResourceDelivery.Stage.DEPOSIT,1,
+                new ResourceDelivery.BlockPosition("minecraft:overworld",2,64,2),List.of(fixtureId(intent,"drop")));
+        return new Entry(intent,NativeDeposit.observed(intent,actor(0,8),chest(6,12),"",receipt,fixtureUsage(intent,true)));
+    }
     static Marker marker(Entry entry,MarkerPhase phase) {return new Marker(entry.token(),entry.intent().digest(),phase,phase==MarkerPhase.RESULT?entry.result().digest():"");}
 
     @Test void exactOriginalIdentityAndClosedCanonicalRecordRoundTrip() {
@@ -87,5 +97,13 @@ final class NativeDepositTest {
         Entry verified=new Entry(original.intent(),original.result(),proof);assertEquals(verified,decode(encode(verified)));
         var torn=new Verification(Reconciliation.SAVED_COMPLETE,original.intent().actor(),original.intent().chest(),marker,marker,UUID.randomUUID(),100);
         assertThrows(IllegalArgumentException.class,()->new Entry(original.intent(),original.result(),torn));
+    }
+    @Test void actualReceiptCannotBeReboundAndCapturedUsageCannotBeReduced() {
+        Entry complete=completed(intent());var r=complete.result().receipt();
+        var foreign=new ResourceDelivery.Receipt(r.receiptId(),r.origin(),UUID.randomUUID(),r.operationId(),r.batchId(),r.actor(),r.source(),r.destination(),r.item(),r.stage(),r.quantity(),r.sourceBlock(),r.dropIds());
+        Result wrong=new Result(complete.result().intent(),Live.COMPLETE,complete.result().actor(),complete.result().chest(),"",foreign,complete.result().usage());
+        assertThrows(IllegalArgumentException.class,()->new Entry(complete.intent(),wrong));
+        Result lowered=new Result(complete.result().intent(),Live.COMPLETE,complete.result().actor(),complete.result().chest(),"",r,Map.of(Budgets.Kind.COMMITTED_EFFECTS,1L));
+        assertThrows(IllegalArgumentException.class,()->new Entry(complete.intent(),lowered));
     }
 }

@@ -2,6 +2,7 @@ package dev.aivillages.core.kernel.runtime.evidence;
 
 import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.Budgets;
+import dev.aivillages.core.kernel.ResourceDelivery;
 import dev.aivillages.core.kernel.StrictJson;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -53,14 +54,15 @@ public final class NativeDeposit {
     public record Claim(UUID id,UUID epoch,UUID group,long generation) {
         public Claim {Objects.requireNonNull(id);Objects.requireNonNull(epoch);Objects.requireNonNull(group);if(generation<1)throw new IllegalArgumentException("Deposit claim generation");}
     }
-    public record Conditions(UUID citizen,long jobRevision,long deadlineEpochMillis,long effectsRemaining,long observedTick,
+    public record Conditions(UUID citizen,long jobRevision,long deadlineEpochMillis,long actionDeadlineEpochMillis,long effectsRemaining,long observedTick,
                              int maximumReachMilli,int observedReachMilli,List<Claim> claims,Map<Budgets.Kind,Long> usage) {
         public Conditions {
             Objects.requireNonNull(citizen);claims=List.copyOf(claims);usage=Map.copyOf(usage);
-            if(jobRevision<0 || deadlineEpochMillis<0 || effectsRemaining<1 || effectsRemaining>4096 || observedTick<0
+            if(jobRevision<0 || deadlineEpochMillis<0 || actionDeadlineEpochMillis<0 || actionDeadlineEpochMillis>deadlineEpochMillis || effectsRemaining<1 || effectsRemaining>4096 || observedTick<0
                     || maximumReachMilli!=2500 || observedReachMilli<0 || observedReachMilli>maximumReachMilli
                     || claims.isEmpty() || claims.size()>4 || claims.stream().map(Claim::id).distinct().count()!=claims.size()
-                    || claims.stream().map(Claim::group).distinct().count()!=1 || usage.values().stream().anyMatch(n->n<0))throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
+                    || claims.stream().map(Claim::group).distinct().count()!=1 || usage.values().stream().anyMatch(n->n<0)
+                    || usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)>Long.MAX_VALUE-effectsRemaining)throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
         }
     }
     public record Intent(Key key,TrustedContext origin,UUID run,UUID operation,Participant actor,Participant chest,
@@ -78,11 +80,14 @@ public final class NativeDeposit {
         }
         public String digest(){return sha(StrictJson.canonical(intent(this)));}
     }
-    public record Result(String intent,Live live,Participant actor,Participant chest,String failure) {
+    public record Result(String intent,Live live,Participant actor,Participant chest,String failure,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage) {
+        public Result(String intent,Live live,Participant actor,Participant chest,String failure){this(intent,live,actor,chest,failure,null,Map.of());}
         public Result {
-            hash(intent);Objects.requireNonNull(live);Objects.requireNonNull(actor);Objects.requireNonNull(chest);
-            if(actor.kind!=Kind.ACTOR || chest.kind!=Kind.CHEST || failure==null || failure.length()>256)
+            hash(intent);Objects.requireNonNull(live);Objects.requireNonNull(actor);Objects.requireNonNull(chest);usage=Map.copyOf(usage);
+            if(actor.kind!=Kind.ACTOR || chest.kind!=Kind.CHEST || failure==null || failure.length()>256 || usage.values().stream().anyMatch(n->n<0)
+                    || live==Live.COMPLETE && receipt==null || live==Live.NO_EFFECT && receipt!=null)
                 throw new IllegalArgumentException("Deposit observed result");
+            if(receipt!=null)DepositReceiptCodec.encode(receipt);
         }
         public String digest(){return sha(StrictJson.canonical(result(this)));}
     }
@@ -101,6 +106,22 @@ public final class NativeDeposit {
                     || !intent.chest.sameIdentity(result.chest) || result.actor.revision<intent.actor.revision
                     || result.chest.revision<intent.chest.revision || result.live!=delta(intent,result.actor,result.chest)))
                 throw new IllegalArgumentException("Deposit result identity/delta");
+            if(result!=null) {
+                for(var before:intent.conditions.usage.entrySet())if(result.usage.getOrDefault(before.getKey(),0L)<before.getValue())throw new IllegalArgumentException("Deposit usage decreased");
+                long committed=result.usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)-intent.conditions.usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L);
+                long attempted=result.usage.getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)-intent.conditions.usage.getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L);
+                if(committed<0 || committed>1 || result.live==Live.COMPLETE && committed!=1 || result.live==Live.NO_EFFECT && committed!=0)
+                    throw new IllegalArgumentException("Deposit committed allowance");
+                if(attempted<0 || attempted>1 || result.live==Live.COMPLETE && attempted!=1)throw new IllegalArgumentException("Deposit attempted allowance");
+                if(result.receipt!=null) {
+                    var r=result.receipt;
+                    if(!r.origin().equals(intent.origin) || !r.runId().equals(intent.run) || !r.operationId().equals(intent.operation)
+                            || !r.actor().citizenId().equals(intent.conditions.citizen) || !r.actor().entityId().toString().equals(intent.actor.address)
+                            || !r.actor().dimension().equals(intent.actor.dimension) || !r.destination().dimension().equals(intent.chest.dimension)
+                            || !(r.destination().x()+","+r.destination().y()+","+r.destination().z()).equals(intent.chest.address) || !r.item().id().equals(intent.item))
+                        throw new IllegalArgumentException("Actual gateway receipt changed its original intent binding");
+                }
+            }
             if(verification!=null && classify(new Entry(intent,result,null),new Witness(verification.actor,verification.actorMarker,true),
                     new Witness(verification.chest,verification.chestMarker,true))!=verification.outcome)throw new IllegalArgumentException("Deposit verification does not prove its own outcome");
         }
@@ -116,8 +137,8 @@ public final class NativeDeposit {
     public record Witness(Participant participant,Marker marker,boolean restoredFromNativeSave) {
         public Witness {Objects.requireNonNull(participant);}
     }
-    public static Result observed(Intent intent,Participant actor,Participant chest,String failure) {
-        return new Result(intent.digest(),delta(intent,actor,chest),actor,chest,failure);
+    public static Result observed(Intent intent,Participant actor,Participant chest,String failure,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage) {
+        return new Result(intent.digest(),delta(intent,actor,chest),actor,chest,failure,receipt,usage);
     }
     private static Live delta(Intent intent,Participant actor,Participant chest) {
         if(!intent.actor.sameIdentity(actor) || !intent.chest.sameIdentity(chest))throw new IllegalArgumentException("Participant replaced during deposit");
@@ -192,20 +213,27 @@ public final class NativeDeposit {
         return new Intent(key,new TrustedContext(new PrincipalRef(id(row,"principal")),new ScopeRef(key.world,id(row,"domain"))),id(row,"run"),id(row,"operation"),
                 participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"),conditions(object(row,"conditions")));
     }
-    private static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
+    private static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"actionDeadline",c.actionDeadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
             "maximumReachMilli",c.maximumReachMilli,"observedReachMilli",c.observedReachMilli,"claims",c.claims.stream().map(r->Map.of("id",r.id.toString(),"epoch",r.epoch.toString(),"group",r.group.toString(),"generation",r.generation)).toList(),
             "usage",c.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));}
     private static Conditions conditions(Map<String,Object> row) {
-        keys(row,Set.of("citizen","jobRevision","deadline","effectsRemaining","tick","maximumReachMilli","observedReachMilli","claims","usage"));
+        keys(row,Set.of("citizen","jobRevision","deadline","actionDeadline","effectsRemaining","tick","maximumReachMilli","observedReachMilli","claims","usage"));
         if(!(row.get("claims") instanceof List<?> values) || values.size()>4)throw new IllegalArgumentException("Deposit claim bound");
         var claims=new ArrayList<Claim>();for(Object value:values){var claim=object(value);keys(claim,Set.of("id","epoch","group","generation"));claims.add(new Claim(id(claim,"id"),id(claim,"epoch"),id(claim,"group"),number(claim,"generation")));}
         var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);var original=object(row,"usage");for(String kind:original.keySet())usage.put(Budgets.Kind.valueOf(kind),number(original,kind));
-        return new Conditions(id(row,"citizen"),number(row,"jobRevision"),number(row,"deadline"),number(row,"effectsRemaining"),number(row,"tick"),integer(row,"maximumReachMilli"),integer(row,"observedReachMilli"),claims,usage);
+        return new Conditions(id(row,"citizen"),number(row,"jobRevision"),number(row,"deadline"),number(row,"actionDeadline"),number(row,"effectsRemaining"),number(row,"tick"),integer(row,"maximumReachMilli"),integer(row,"observedReachMilli"),claims,usage);
     }
     private static Map<String,Object> verification(Verification v) {return Map.of("outcome",v.outcome.name(),"actor",participant(v.actor),"chest",participant(v.chest),"actorMarker",markerJson(v.actorMarker),"chestMarker",markerJson(v.chestMarker),"process",v.process.toString(),"observedAt",v.observedAt);}
     private static Verification verification(Map<String,Object> row) {keys(row,Set.of("outcome","actor","chest","actorMarker","chestMarker","process","observedAt"));return new Verification(Reconciliation.valueOf(string(row,"outcome")),participant(object(row,"actor")),participant(object(row,"chest")),markerJson(string(row,"actorMarker")),markerJson(string(row,"chestMarker")),id(row,"process"),number(row,"observedAt"));}
-    private static Map<String,Object> result(Result r) {return Map.of("intent",r.intent,"live",r.live.name(),"actor",participant(r.actor),"chest",participant(r.chest),"failure",r.failure);}
-    private static Result result(Map<String,Object> row) {keys(row,Set.of("intent","live","actor","chest","failure"));return new Result(string(row,"intent"),Live.valueOf(string(row,"live")),participant(object(row,"actor")),participant(object(row,"chest")),string(row,"failure"));}
+    private static Map<String,Object> result(Result r) {
+        var row=new LinkedHashMap<String,Object>();row.put("intent",r.intent);row.put("live",r.live.name());row.put("actor",participant(r.actor));row.put("chest",participant(r.chest));row.put("failure",r.failure);
+        row.put("usage",r.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));if(r.receipt!=null)row.put("receipt",DepositReceiptCodec.encode(r.receipt));return row;
+    }
+    private static Result result(Map<String,Object> row) {
+        var fields=new HashSet<>(Set.of("intent","live","actor","chest","failure","usage"));if(row.containsKey("receipt"))fields.add("receipt");keys(row,fields);
+        var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);var values=object(row,"usage");for(String kind:values.keySet())usage.put(Budgets.Kind.valueOf(kind),number(values,kind));
+        return new Result(string(row,"intent"),Live.valueOf(string(row,"live")),participant(object(row,"actor")),participant(object(row,"chest")),string(row,"failure"),row.containsKey("receipt")?DepositReceiptCodec.decode(object(row,"receipt")):null,usage);
+    }
     static Map<String,Object> object(Object value) {
         if(!(value instanceof Map<?,?> row) || !row.keySet().stream().allMatch(k->k instanceof String))throw new IllegalArgumentException("Deposit object");
         @SuppressWarnings("unchecked")var result=(Map<String,Object>)row;return result;

@@ -12,6 +12,7 @@ import static dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 /** Single off-thread writer. Invalid current/pending/required bytes are preserved and fenced. */
 public final class DepositJournal implements AutoCloseable {
     public static final String BASE="data/cognitivecraft/deposit-evidence", PATH=BASE+"/v1";
+    public static final String REQUIRED="data/cognitivecraft/deposit-evidence-required.json";
     public static final int MAX_BYTES=4_194_304;
     public enum Point { BEFORE_STAGE, AFTER_STAGE, AFTER_BACKUP, AFTER_REPLACE, AFTER_FORCE }
     @FunctionalInterface public interface Faults {void at(Point point)throws IOException;}
@@ -38,11 +39,13 @@ public final class DepositJournal implements AutoCloseable {
     private DepositJournal(Path world,FileChannel channel,FileLock lock,Snapshot state,boolean readOnly,Faults faults) {
         directory=world.resolve(PATH);base=world.resolve(BASE);lockChannel=channel;this.lock=lock;this.state=state;this.readOnly=readOnly;this.faults=faults;
     }
-    public static boolean exists(Path world) {return Files.exists(world.resolve(BASE),LinkOption.NOFOLLOW_LINKS);}
+    public static boolean exists(Path world) {return Files.exists(world.resolve(BASE),LinkOption.NOFOLLOW_LINKS)
+            || Files.exists(world.resolve(REQUIRED),LinkOption.NOFOLLOW_LINKS) || Files.exists(world.resolve(REQUIRED+".next"),LinkOption.NOFOLLOW_LINKS);}
     public static DepositJournal open(Path world,UUID id)throws IOException{return open(world,id,point->{});}
     public static DepositJournal open(Path world,UUID id,Faults faults)throws IOException {
         Objects.requireNonNull(world);Objects.requireNonNull(id);Objects.requireNonNull(faults);
-        Path base=world.resolve(BASE),directory=world.resolve(PATH);boolean fresh=!Files.exists(base,LinkOption.NOFOLLOW_LINKS);
+        Path base=world.resolve(BASE),directory=world.resolve(PATH);boolean fresh=!exists(world);
+        safe(world.resolve(REQUIRED));safe(world.resolve(REQUIRED+".next"));
         for(Path p=directory;p!=null && p.startsWith(world);p=p.getParent())safe(p);
         for(String file:List.of("required.json","required.next.json","v1/state.jsonl","v1/state.prev.jsonl","v1/state.next.jsonl","v1/writer.lock"))safe(base.resolve(file));
         Files.createDirectories(directory);FileChannel channel=FileChannel.open(directory.resolve("writer.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS);FileLock lock=null;
@@ -54,6 +57,7 @@ public final class DepositJournal implements AutoCloseable {
                 loaded=new Snapshot(id,UUID.randomUUID(),0,List.of());write(directory.resolve("state.jsonl"),encode(loaded));force(directory);
                 write(base.resolve("required.next.json"),requirement(loaded));Files.move(base.resolve("required.next.json"),base.resolve("required.json"),StandardCopyOption.ATOMIC_MOVE);
                 force(base);force(base.getParent());
+                Path required=world.resolve(REQUIRED),staged=world.resolve(REQUIRED+".next");write(staged,requirement(loaded));Files.move(staged,required,StandardCopyOption.ATOMIC_MOVE);force(required.getParent());
             }else {
                 try{loaded=read(directory.resolve("state.jsonl"),id);}
                 catch(IOException invalid) {
@@ -63,8 +67,10 @@ public final class DepositJournal implements AutoCloseable {
                 }
                 try{if(!Arrays.equals(bytes(base.resolve("required.json"),1024),requirement(loaded)))fenced=true;}
                 catch(IOException invalid){fenced=true;}
+                try{if(!Arrays.equals(bytes(world.resolve(REQUIRED),1024),requirement(loaded)))fenced=true;}catch(IOException invalid){fenced=true;}
                 if(Files.exists(base.resolve("required.next.json"),LinkOption.NOFOLLOW_LINKS)
-                        || Files.exists(directory.resolve("state.next.jsonl"),LinkOption.NOFOLLOW_LINKS))fenced=true;
+                        || Files.exists(directory.resolve("state.next.jsonl"),LinkOption.NOFOLLOW_LINKS)
+                        || Files.exists(world.resolve(REQUIRED+".next"),LinkOption.NOFOLLOW_LINKS))fenced=true;
                 if(!layout(base,directory))fenced=true;
                 Path previous=directory.resolve("state.prev.jsonl");
                 if(Files.exists(previous,LinkOption.NOFOLLOW_LINKS))try {
@@ -90,6 +96,8 @@ public final class DepositJournal implements AutoCloseable {
         byte[] raw=encode(next);Path pending=directory.resolve("state.next.jsonl");
         try {
             if(!layout(base,directory) || !Arrays.equals(bytes(base.resolve("required.json"),1024),requirement(state))
+                    || !Arrays.equals(bytes(base.getParent().resolve("deposit-evidence-required.json"),1024),requirement(state))
+                    || Files.exists(base.getParent().resolve("deposit-evidence-required.json.next"),LinkOption.NOFOLLOW_LINKS)
                     || !Arrays.equals(bytes(directory.resolve("state.jsonl"),MAX_BYTES),encode(state))
                     || Files.exists(pending,LinkOption.NOFOLLOW_LINKS))throw new IOException("Deposit disk authority changed before publication");
             faults.at(Point.BEFORE_STAGE);write(pending,raw);faults.at(Point.AFTER_STAGE);
