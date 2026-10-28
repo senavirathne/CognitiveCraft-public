@@ -102,11 +102,21 @@ public final class FabricDepositProtocol implements DepositProtocol {
             Pair pair=pair(request.actor(),request.destination(),true);
             if(pair==null)throw new Refused(Reason.TARGET_UNAVAILABLE);
             phases[2]=System.nanoTime();
-            var claims=leases.snapshot().leases().stream().filter(l->l.owner().equals(owner) && l.origin().equals(job.origin())
-                    && l.state()==ResourceLeases.State.ACTIVE && l.expires()>level.getGameTime()).toList();
-            if(claims.isEmpty() || claims.size()>4 || claims.stream().map(ResourceLeases.Lease::group).distinct().count()!=1
-                    || claims.stream().noneMatch(l->l.resource().equals(ResourceLeases.Resource.facility(job.origin().scope().worldId(),request.destination()))))throw new Refused(Reason.TARGET_UNAVAILABLE);
-            var references=claims.stream().map(l->new Claim(l.id(),l.epoch(),l.group(),l.generation())).toList();
+            var claims=new ArrayList<ResourceLeases.Lease>(4);
+            for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin())
+                    && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime()) {
+                if(claims.size()==4)throw new Refused(Reason.TARGET_UNAVAILABLE);claims.add(claim);
+            }
+            if(claims.isEmpty())throw new Refused(Reason.TARGET_UNAVAILABLE);
+            var group=claims.getFirst().group();boolean facilityPresent=false;
+            var facility=ResourceLeases.Resource.facility(job.origin().scope().worldId(),request.destination());
+            var references=new ArrayList<Claim>(claims.size());
+            for(var claim:claims) {
+                if(!claim.group().equals(group))throw new Refused(Reason.TARGET_UNAVAILABLE);
+                if(claim.resource().equals(facility))facilityPresent=true;
+                references.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
+            }
+            if(!facilityPresent)throw new Refused(Reason.TARGET_UNAVAILABLE);
             int source=sourceSlot(pair.actorSnapshot,request.item().id()),target=targetSlot(pair,source,request.item().id());
             if(source<0)throw new Refused(Reason.RESOURCE_MISSING);
             if(target<0)throw new Refused(Reason.TARGET_UNAVAILABLE);
@@ -116,10 +126,11 @@ public final class FabricDepositProtocol implements DepositProtocol {
                 if(n>=8)throw new Refused(Reason.REQUEST_INVALID);
                 ancestor=jobs.query(ancestor.parent(),job.origin());root=ancestor.id();
             }
-            UUID rootId=root;
-            int ordinal=store.snapshot().entries().stream().map(Entry::intent).map(Intent::key)
-                    .filter(k->k.root().equals(rootId) && k.attempt().equals(attempt.id()) && k.generation()==attempt.generation())
-                    .mapToInt(Key::ordinal).max().orElse(0)+1;
+            int ordinal=1;
+            for(var entry:store.snapshot().entries()) {
+                var key=entry.intent().key();
+                if(key.root().equals(root) && key.attempt().equals(attempt.id()) && key.generation()==attempt.generation())ordinal=Math.max(ordinal,key.ordinal()+1);
+            }
             long deadline=Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis());
             if(request.deadline()>deadline)throw new Refused(Reason.REQUEST_INVALID);
             long remaining=attempt.allowance().maximum(Budgets.Kind.COMMITTED_EFFECTS)-request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L);

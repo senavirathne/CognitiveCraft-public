@@ -134,10 +134,13 @@ jobs:
             ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world resume-reader-') || startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}
           A05_PREPARATION_PROFILE: >-
             ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}
+          A05_PROFILE_FIRST: >-
+            ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world resume-reader-b222 profile-first') }}
         run: |
           python3 tools/needle/install.py build/needle
           diagnostic_args=()
           if [ "$A05_PREPARATION_PROFILE" = true ]; then diagnostic_args+=(--profile-only); fi
+          if [ "$A05_PROFILE_FIRST" = true ]; then diagnostic_args+=(--profile-first); fi
           if [ "$RESUME_A05_SEED" = true ]; then
             gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a05-prior-native.zip
             python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05 --seed-archive build/parallel-a/a05-prior-native.zip "${diagnostic_args[@]}"

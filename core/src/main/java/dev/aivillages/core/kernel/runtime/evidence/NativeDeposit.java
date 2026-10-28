@@ -61,10 +61,16 @@ public final class NativeDeposit {
                              int maximumReachMilli,int observedReachMilli,List<Claim> claims,Map<Budgets.Kind,Long> usage) {
         public Conditions {
             Objects.requireNonNull(citizen);claims=List.copyOf(claims);usage=Map.copyOf(usage);
+            if(claims.isEmpty() || claims.size()>4)throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
+            boolean claimGroupValid=true,usageValid=true;
+            for(int n=0;n<claims.size();n++) {
+                if(!claims.get(n).group.equals(claims.getFirst().group))claimGroupValid=false;
+                for(int prior=0;prior<n;prior++)if(claims.get(n).id.equals(claims.get(prior).id))claimGroupValid=false;
+            }
+            for(long value:usage.values())if(value<0)usageValid=false;
             if(jobRevision<0 || deadlineEpochMillis<0 || actionDeadlineEpochMillis<0 || actionDeadlineEpochMillis>deadlineEpochMillis || effectsRemaining<1 || effectsRemaining>4096 || observedTick<0
                     || maximumReachMilli!=2500 || observedReachMilli<0 || observedReachMilli>maximumReachMilli
-                    || claims.isEmpty() || claims.size()>4 || claims.stream().map(Claim::id).distinct().count()!=claims.size()
-                    || claims.stream().map(Claim::group).distinct().count()!=1 || usage.values().stream().anyMatch(n->n<0)
+                    || !claimGroupValid || !usageValid
                     || usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)>Long.MAX_VALUE-effectsRemaining)throw new IllegalArgumentException("Deposit authority/reach/claim envelope");
         }
     }

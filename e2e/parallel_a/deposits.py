@@ -256,7 +256,7 @@ def cost_windows(h,verified_seed,result):
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);parser.add_argument('--seed-archive',type=Path);parser.add_argument('--profile-only',action='store_true');args=parser.parse_args();args.root=args.root.resolve();args.root.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);parser.add_argument('--seed-archive',type=Path);parser.add_argument('--profile-only',action='store_true');parser.add_argument('--profile-first',action='store_true');args=parser.parse_args();args.root=args.root.resolve();args.root.mkdir(parents=True,exist_ok=True)
     h=None;result={'stage':'A05','status':'NOT_EXECUTED','cases':[],'limits':LIMITS,'scope':'one actual default-component log from actual bound actor to ordinary single chest; no physical replay or original-owner settlement'}
     try:
         h=DepositHarness(args.root);h.activated=0
@@ -275,6 +275,15 @@ def main():
             for index in range(3):cut(h,seed,result,'profile-cold-preparation-'+str(index),'BEFORE_MUTATION',{'UNPROVEN','TORN_PARTICIPANTS'})
             result['status']='DIAGNOSTIC_ONLY';result['scope']='Three actual cold native preparations and pre-mutation kills, phase timings only; full A05 acceptance NOT_EXECUTED'
             return
+        if args.profile_first:
+            diagnostic={'stage':'A05_PREPARATION_DIAGNOSTIC','status':'IN_PROGRESS','cases':[],'limits':LIMITS};result['preparationDiagnostic']=diagnostic
+            for index in range(3):cut(h,seed,diagnostic,'profile-first-preparation-'+str(index),'BEFORE_MUTATION',{'UNPROVEN','TORN_PARTICIPANTS'})
+            values=[case['actuallyWitnessed']['protocolMetrics']['beginNanos'] for case in diagnostic['cases']]
+            require(len(values)==3 and all(len(row)==1 for row in values),'All three actual preliminary preparation samples must be retained')
+            diagnostic['preparation']=percentiles([row[0] for row in values]);diagnostic['status']='PASS_DIAGNOSTIC_SCOPE_ONLY' if diagnostic['preparation']['p99']<=LIMITS['captureP99Ms'] else 'FAIL'
+            atomic(h.root/'a05-preparation-diagnostic.json',diagnostic)
+            require(diagnostic['status']=='PASS_DIAGNOSTIC_SCOPE_ONLY','Frozen A05 preliminary actual preparation target failed: '+json.dumps(diagnostic['preparation']))
+            h.restore(seed,'full-qualification-after-profile')
         saved,verified_seed,entry,token=positive(h,result)
         for mode in ('equal-count-swap','components','replacement','unloaded'):
             negative(h,saved,result,token,mode)

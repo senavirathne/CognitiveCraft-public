@@ -41,6 +41,18 @@ final class NativeDepositTest {
         assertEquals(entry.token(),decode(encode(entry)).intent().key().token());
         Marker marker=marker(entry,MarkerPhase.RESULT);assertEquals(marker,markerJson(markerJson(marker)));
     }
+    @Test void boundedImmediateClaimsStillRequireUniqueIdsOneGroupAndNonnegativeUsage() {
+        Conditions original=conditions();UUID group=UUID.randomUUID(),epoch=UUID.randomUUID();var claims=new ArrayList<Claim>();
+        for(int n=0;n<4;n++)claims.add(new Claim(UUID.randomUUID(),epoch,group,1));
+        java.util.function.Function<List<Claim>,Conditions> bind=rows->new Conditions(original.citizen(),5,10_000,9_000,8,100,2500,1000,rows,original.usage());
+        assertEquals(claims,bind.apply(claims).claims());
+        assertThrows(IllegalArgumentException.class,()->bind.apply(List.of()));
+        assertThrows(IllegalArgumentException.class,()->bind.apply(List.of(claims.getFirst(),claims.getFirst())));
+        assertThrows(IllegalArgumentException.class,()->bind.apply(List.of(claims.getFirst(),new Claim(UUID.randomUUID(),epoch,UUID.randomUUID(),1))));
+        var excessive=new ArrayList<>(claims);excessive.add(new Claim(UUID.randomUUID(),epoch,group,1));
+        assertThrows(IllegalArgumentException.class,()->bind.apply(excessive));
+        assertThrows(IllegalArgumentException.class,()->new Conditions(original.citizen(),5,10_000,9_000,8,100,2500,1000,claims,Map.of(Budgets.Kind.CALLS,-1L)));
+    }
     @Test void liveMutationAndJournalDataNeverSupplySavedEvidence() {
         Entry entry=completed(intent());Marker marker=marker(entry,MarkerPhase.RESULT);
         assertEquals(Reconciliation.UNPROVEN,classify(entry,new Witness(entry.result().actor(),marker,false),new Witness(entry.result().chest(),marker,false)));
