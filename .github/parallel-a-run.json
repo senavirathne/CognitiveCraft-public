@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 2,
-  "parentSource": "9266e141e501ef3d4d0dc92e421f23f23501227a",
+  "sequence": 3,
+  "parentSource": "a016f6630d1bdaae25f87f348fc3fd54df57f270",
   "stage": "A06",
   "scope": "first-native-harvest-original-cancellation-and-complete-required-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -13,5 +13,12 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "Docker real server and two connected native clients; native save-all flush and actual process kills"
+  "execution": "Docker real server and two connected native clients; native save-all flush and actual process kills",
+  "priorFailure": {
+    "run": 40751177875,
+    "source": "aa027e6c33ea405c181457f77407deb327aa088e",
+    "phase": "Fabric compilation",
+    "cause": "ChunkPos private fields corrected to verified x()/z() accessors",
+    "nativeCases": "NOT_EXECUTED"
+  }
 }
