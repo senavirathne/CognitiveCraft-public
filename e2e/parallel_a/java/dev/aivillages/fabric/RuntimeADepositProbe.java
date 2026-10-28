@@ -27,8 +27,8 @@ public final class RuntimeADepositProbe implements ModInitializer {
             try {
                 var kernel=AiVillages.kernel();if(kernel==null)return;
                 var protocol=kernel.depositEvidenceOwner();if(protocol==null)return;
-                if(!ready){ready=true;writer.execute(()->write("deposit-ready.json",Map.of("process",process,"pid",ProcessHandle.current().pid(),"world",protocol.evidence().snapshot().world())));}
                 var evidence=protocol.evidence();
+                if(!ready){ready=true;var body=Map.of("process",process,"pid",ProcessHandle.current().pid(),"world",evidence.snapshot().world());writer.execute(()->write("deposit-ready.json",body));}
                 var classified=new LinkedHashMap<String,String>();
                 for(var entry:evidence.snapshot().entries())classified.put(entry.token(),protocol.reconcile(entry.intent().key()).result().name());
                 pending.set(Map.of("process",process,"pid",ProcessHandle.current().pid(),"time",System.currentTimeMillis(),"gameTick",server.overworld().getGameTime(),

@@ -91,12 +91,19 @@ def positive(h,result):
     require(native['reconciliation'][token]=='UNPROVEN','Live observation was treated as a native saved witness')
     original=view['responsibility'];key=entry['intent']['key']
     require(key['step']==original['id'] and key['attempt']==original['attempts'][-1]['id'] and key['generation']==original['generation'],'Native intent changed its original Jobs owner')
+    atomic(h.root/'positive-live-result.json',{'view':view,'protocol':native,'stock':after,'connectedMenuCount':connected_count})
     saved=h.save_checkpoint();before_kill=native_process(h)
+    clients_before={p:read(h.root/'clients'/p/'process.json') for p in h.players}
+    atomic(h.root/'positive-before-kill.json',{'nativeProcess':before_kill,'clients':clients_before,'checkpoint':saved,'protocol':native,'stock':actual_stock(h)})
     h.stop('server',hard=True);h.wait(lambda:not same_native_alive(before_kill),'Positive saved actual JVM kill',25)
     saved_game=h.root/'positive-saved-game';shutil.copytree(h.root/'server/game',saved_game,ignore=shutil.ignore_patterns('session.lock'))
     for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Saved positive disconnect '+p,45)
     h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
     restored=h.wait(lambda:(v if (v:=stable_entry(h)) and v['reconciliation'].get(token)=='SAVED_COMPLETE' else None),'Positive actual independently saved participants agree',60)
+    first_restart=native_process(h)
+    require((first_restart['hostJvmPid'],first_restart['startTicks'])!=(before_kill['hostJvmPid'],before_kill['startTicks']),'Saved positive did not replace actual JVM')
+    require(all(read(h.root/'clients'/p/'process.json')==old for p,old in clients_before.items()),'Saved positive replaced its connected clients')
+    atomic(h.root/'positive-restored-evidence.json',{'evidence':restored,'nativeBefore':before_kill,'nativeAfter':first_restart,'stock':actual_stock(h)})
     require(restored['journal']['entries'][0]['intent']==entry['intent'] and restored['journal']['entries'][0]['result']==entry['result'],'Restart changed native original intent/result')
     verify=h.rpc('verify',token=token)
     verified=h.wait(lambda:(v if (v:=stable_entry(h)) and v['journal']['entries'][0].get('verification') else None),'Saved positive verification durably acknowledged',45)
@@ -111,7 +118,7 @@ def positive(h,result):
     atomic(h.root/'a05-live-cost.json',{'raw':metrics,'measurement':measurement})
     measurement['qualification']='NOT_QUALIFIED_SMALL_NATIVE_SAMPLE';measurement['captureTargetP99Ms']=LIMITS['captureP99Ms']
     require(measurement['ack']['max']<=LIMITS['ackMaxMs'],'A05 journal acknowledgement exceeds original bounded publication deadline')
-    record={'id':'saved-positive-repeated-adoption','status':'PASS','run':run,'job':original,'before':before,'after':after,'live':native,'save':saved,'restored':restored,'verify':verify,'verified':verified,'repeatedRestart':restart,'cost':measurement,'connectedClientCounts':{'beforeSave':connected_count,'afterRepeatedRestart':repeated_count}}
+    record={'id':'saved-positive-repeated-adoption','status':'PASS','run':run,'job':original,'nativeBeforeFirstKill':before_kill,'nativeAfterFirstRestart':first_restart,'before':before,'after':after,'live':native,'save':saved,'restored':restored,'verify':verify,'verified':verified,'repeatedRestart':restart,'cost':measurement,'connectedClientCounts':{'beforeSave':connected_count,'afterRepeatedRestart':repeated_count}}
     result['cases'].append(record);atomic(h.root/'a05-results.json',result)
     h.save_checkpoint();h.stop('server');verified_seed=h.root/'verified-positive-game'
     shutil.copytree(h.root/'server/game',verified_seed,ignore=shutil.ignore_patterns('session.lock'))

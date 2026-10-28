@@ -81,6 +81,14 @@ final class NativeDepositTest {
         assertEquals(Live.NO_EFFECT,entry.result().live());Marker marker=marker(entry,MarkerPhase.RESULT);
         assertEquals(Reconciliation.SAVED_NO_EFFECT,classify(entry,new Witness(intent.actor(),marker,true),new Witness(intent.chest(),marker,true)));
     }
+    @Test void exceptionAfterBothWritesRetainsTheActualDeltaWithoutInventingAGatewayReceipt() {
+        Intent intent=intent();Result result=observed(intent,actor(0,8),chest(6,12),"host exception before returning the transfer");
+        Entry entry=new Entry(intent,result);assertEquals(Live.UNRECEIPTED_EFFECT,result.live());assertNull(result.receipt());
+        assertEquals(entry,decode(encode(entry)));Marker marker=marker(entry,MarkerPhase.RESULT);
+        assertEquals(Reconciliation.PARTIAL_UNRESOLVED,classify(entry,new Witness(result.actor(),marker,true),new Witness(result.chest(),marker,true)));
+        var invalid=new Verification(Reconciliation.SAVED_COMPLETE,result.actor(),result.chest(),marker,marker,UUID.randomUUID(),100);
+        assertThrows(IllegalArgumentException.class,()->new Entry(intent,result,invalid));
+    }
     @Test void boundedSchemaRejectsExtraFieldsWrongWorldNoncanonicalAndMalformedUtf8() throws Exception {
         Entry entry=completed(intent());byte[] raw=encode(entry);var row=StrictJson.object(new String(raw,StandardCharsets.UTF_8));row.put("trusted",true);
         assertThrows(IllegalArgumentException.class,()->decode(StrictJson.canonical(row).getBytes(StandardCharsets.UTF_8)));

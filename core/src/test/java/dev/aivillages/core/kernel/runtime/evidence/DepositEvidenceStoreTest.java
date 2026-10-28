@@ -15,9 +15,9 @@ final class DepositEvidenceStoreTest {
         public long millis(){return millis;}public Instant instant(){return Instant.ofEpochMilli(millis);}
     }
     static final class Port implements DepositEvidenceStore.NativePort {
-        int calls;boolean current=true;Witness actor,chest;
+        int calls;boolean current=true;Witness actor,chest;Result answer;
         public boolean current(Intent intent){return current;}
-        public Result execute(Intent intent){calls++;return completed(intent).result();}
+        public Result execute(Intent intent){calls++;return answer==null?completed(intent).result():answer;}
         public Witness restored(Participant participant){return participant.kind()==Kind.ACTOR?actor:chest;}
     }
     static final class Scene {
@@ -90,5 +90,15 @@ final class DepositEvidenceStoreTest {
         var scene=new Scene();var prepared=scene.prepare(intent());scene.clock.millis=10_001;
         assertEquals(DepositEvidenceStore.Code.STALE,scene.store.perform(prepared).code());assertEquals(0,scene.port.calls);
         assertFalse(scene.store.protectedJobs().isEmpty());
+    }
+    @Test void unreceiptedCompleteDeltaAcknowledgesButCannotReleaseOrInvokeAgain() {
+        var scene=new Scene();Intent intent=intent();var prepared=scene.prepare(intent);
+        scene.port.answer=observed(intent,actor(0,8),chest(6,12),"native host exception after both inventory writes");
+        assertEquals(DepositEvidenceStore.Code.PENDING,scene.store.perform(prepared).code());scene.ack();
+        assertEquals(DepositEvidenceStore.Code.RESULT_ACKNOWLEDGED,scene.store.perform(prepared).code());assertEquals(1,scene.port.calls);
+        Entry entry=scene.store.snapshot().entries().getFirst();Marker marker=marker(entry,MarkerPhase.RESULT);
+        scene.port.actor=new Witness(entry.result().actor(),marker,true);scene.port.chest=new Witness(entry.result().chest(),marker,true);
+        var proof=scene.store.reconcile(intent.key());assertEquals(Reconciliation.PARTIAL_UNRESOLVED,proof.result());
+        assertEquals(DepositEvidenceStore.Code.STALE,scene.store.verify(proof));assertFalse(scene.store.protectedJobs().isEmpty());assertNull(scene.write);
     }
 }

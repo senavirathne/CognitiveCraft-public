@@ -14,7 +14,7 @@ public final class NativeDeposit {
     private NativeDeposit() { }
     public enum Kind { ACTOR, CHEST }
     public enum MarkerPhase { PREPARED, MUTATING, RESULT }
-    public enum Live { NO_EFFECT, COMPLETE, PARTIAL }
+    public enum Live { NO_EFFECT, COMPLETE, PARTIAL, UNRECEIPTED_EFFECT }
     public enum Reconciliation { WAIT_WORLD, UNPROVEN, PREPARED_NO_EFFECT, SAVED_COMPLETE,
         SAVED_NO_EFFECT, TORN_PARTICIPANTS, JOURNAL_AHEAD_OF_PARTICIPANTS, PARTIAL_UNRESOLVED }
 
@@ -85,7 +85,7 @@ public final class NativeDeposit {
         public Result {
             hash(intent);Objects.requireNonNull(live);Objects.requireNonNull(actor);Objects.requireNonNull(chest);usage=Map.copyOf(usage);
             if(actor.kind!=Kind.ACTOR || chest.kind!=Kind.CHEST || failure==null || failure.length()>256 || usage.values().stream().anyMatch(n->n<0)
-                    || live==Live.COMPLETE && receipt==null || live==Live.NO_EFFECT && receipt!=null)
+                    || live==Live.COMPLETE && receipt==null || (live==Live.NO_EFFECT || live==Live.UNRECEIPTED_EFFECT) && receipt!=null)
                 throw new IllegalArgumentException("Deposit observed result");
             if(receipt!=null)DepositReceiptCodec.encode(receipt);
         }
@@ -104,7 +104,9 @@ public final class NativeDeposit {
             Objects.requireNonNull(intent);
             if(result!=null && (!result.intent.equals(intent.digest()) || !intent.actor.sameIdentity(result.actor)
                     || !intent.chest.sameIdentity(result.chest) || result.actor.revision<intent.actor.revision
-                    || result.chest.revision<intent.chest.revision || result.live!=delta(intent,result.actor,result.chest)))
+                    || result.chest.revision<intent.chest.revision
+                    || !(result.live==delta(intent,result.actor,result.chest)
+                            || result.live==Live.UNRECEIPTED_EFFECT && delta(intent,result.actor,result.chest)==Live.COMPLETE && result.receipt==null)))
                 throw new IllegalArgumentException("Deposit result identity/delta");
             if(result!=null) {
                 for(var before:intent.conditions.usage.entrySet())if(result.usage.getOrDefault(before.getKey(),0L)<before.getValue())throw new IllegalArgumentException("Deposit usage decreased");
@@ -112,7 +114,7 @@ public final class NativeDeposit {
                 long attempted=result.usage.getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)-intent.conditions.usage.getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L);
                 if(committed<0 || committed>1 || result.live==Live.COMPLETE && committed!=1 || result.live==Live.NO_EFFECT && committed!=0)
                     throw new IllegalArgumentException("Deposit committed allowance");
-                if(attempted<0 || attempted>1 || result.live==Live.COMPLETE && attempted!=1)throw new IllegalArgumentException("Deposit attempted allowance");
+                if(attempted<0 || attempted>1 || (result.live==Live.COMPLETE || result.live==Live.UNRECEIPTED_EFFECT) && attempted!=1)throw new IllegalArgumentException("Deposit attempted allowance");
                 if(result.receipt!=null) {
                     var r=result.receipt;
                     if(!r.origin().equals(intent.origin) || !r.runId().equals(intent.run) || !r.operationId().equals(intent.operation)
@@ -138,7 +140,9 @@ public final class NativeDeposit {
         public Witness {Objects.requireNonNull(participant);}
     }
     public static Result observed(Intent intent,Participant actor,Participant chest,String failure,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage) {
-        return new Result(intent.digest(),delta(intent,actor,chest),actor,chest,failure,receipt,usage);
+        Live live=delta(intent,actor,chest);
+        if(live==Live.COMPLETE && receipt==null)live=Live.UNRECEIPTED_EFFECT;
+        return new Result(intent.digest(),live,actor,chest,failure,receipt,usage);
     }
     private static Live delta(Intent intent,Participant actor,Participant chest) {
         if(!intent.actor.sameIdentity(actor) || !intent.chest.sameIdentity(chest))throw new IllegalArgumentException("Participant replaced during deposit");
@@ -162,7 +166,7 @@ public final class NativeDeposit {
         if(entry.result==null || actor.marker.phase!=MarkerPhase.RESULT
                 || !actor.marker.result.equals(entry.result.digest()) || !chest.marker.result.equals(entry.result.digest())
                 || !actor.participant.equals(entry.result.actor) || !chest.participant.equals(entry.result.chest))return Reconciliation.UNPROVEN;
-        return switch(entry.result.live) {case COMPLETE->Reconciliation.SAVED_COMPLETE;case NO_EFFECT->Reconciliation.SAVED_NO_EFFECT;case PARTIAL->Reconciliation.PARTIAL_UNRESOLVED;};
+        return switch(entry.result.live) {case COMPLETE->Reconciliation.SAVED_COMPLETE;case NO_EFFECT->Reconciliation.SAVED_NO_EFFECT;case PARTIAL,UNRECEIPTED_EFFECT->Reconciliation.PARTIAL_UNRESOLVED;};
     }
     public static byte[] encode(Entry entry) {
         var value=new LinkedHashMap<String,Object>();value.put("schema",1L);value.put("intent",intent(entry.intent));
