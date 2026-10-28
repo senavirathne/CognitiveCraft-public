@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "sequence": 1,
+  "parentSource": "67a653c0502c9a5ca8dc0aa11896af30fba008e4",
+  "stage": "A06",
+  "scope": "harvest-readers-and-complete-required-regressions",
+  "nativeHarvestProducer": "INACTIVE",
+  "requiredRegressionWorkflows": 9,
+  "requiredRegressionJobs": 12,
+  "requiredRegressionSteps": 140,
+  "omittedTasks": 0,
+  "omittedTests": 0,
+  "independentArchiveReview": "Docker, no network during decoding"
+}
