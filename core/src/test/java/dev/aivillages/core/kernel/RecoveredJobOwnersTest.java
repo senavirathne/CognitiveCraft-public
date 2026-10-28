@@ -135,6 +135,26 @@ final class RecoveredJobOwnersTest {
         live.bootstrap=false;recovery.step();store.tick();assertEquals(1,captures[0]);
         assertEquals(State.CANCELLED,store.query(old.id(),s.owner).state());recovery.step();assertEquals(1,captures[0]);
     }
+    @Test void stoppedPartialAccountingUsesDurableCancellationAfterAnotherRestart() {
+        var s=new JobLifecycleStoreTest.Scene();Job old=s.assign(s.create(2));var first=reopen(s);
+        Job interrupted=first.query(old.id(),s.owner);
+        assertTrue(first.cancel(old.id(),interrupted.guard(),s.owner).accepted());first.tick();
+        assertEquals(State.CANCELLING,first.query(old.id(),s.owner).state());
+        var restored=reopen(s);Job pending=restored.query(old.id(),s.owner);
+        assertEquals(State.INTERRUPTED,pending.state());assertEquals(State.CANCELLED,pending.cancellationOutcome());
+        assertEquals(old.current().id(),pending.current().id());assertTrue(pending.current().uncertain());
+        var authority=restored.attachRecovery(RecoveredJobOwnersTest::cancelledPartial);
+        var proof=authority.capture(StoppedContext.of(pending));s.clock.now=old.allowance().deadlineEpochMillis()+1;
+        assertTrue(restored.reconcileStopped(old.id(),pending.guard(),proof,s.owner).accepted());restored.tick();
+        Job settled=restored.query(old.id(),s.owner);assertEquals(State.CANCELLED,settled.state());
+        assertEquals(old.current().id(),settled.current().id());assertEquals(old.generation(),settled.generation());
+        assertEquals(old.allowance(),settled.allowance());assertEquals(1,settled.fulfilled());
+        assertFalse(settled.current().uncertain());assertFalse(settled.current().open());
+        var snapshot=restored.snapshot();int writes=s.memory.writes;
+        assertEquals(Code.DUPLICATE,restored.reconcileStopped(old.id(),pending.guard(),proof,s.owner).code());
+        assertSame(snapshot,restored.snapshot());assertEquals(writes,s.memory.writes);
+        assertEquals(settled,reopen(s).query(old.id(),s.owner));
+    }
     @Test void foreignStaleAndOtherProcessProofsRefuse() {
         var s = new JobLifecycleStoreTest.Scene(); Job old = s.assign(s.create(2)); var first=reopen(s);
         var a=first.attachRecovery(RecoveredJobOwnersTest::noEffect); Job original=first.query(old.id(),s.owner);

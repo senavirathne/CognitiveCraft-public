@@ -29,11 +29,14 @@ def main():
         require(job['attempts'][-1]['id']==key['attempt'] and job['generation']==key['generation'],'Prefix retention changed original attempt/generation')
         case['originalJobAfterRestart']=job
         case['publicCancellation']=h.command('PlayerA','/aivillage kernel job-cancel '+job['id'],'job='+job['id']+' cancellation=true')
-        def cancelling():
-            view=h.run_view('PlayerA',run)
-            return view['responsibility'] if view and view.get('responsibility',{}).get('state')=='CANCELLING' else None
-        before=h.wait(cancelling,'Original public cancellation durably pending',35);physical=actual_stock(h)
-        h.save_checkpoint();case['cancellationRestart']=h.restart(hard=True);after=h.wait(cancelling,'Original unproved owner stays cancelling after another real kill',45)
+        def cancellation_intent():
+            view=h.run_view('PlayerA',run);job=view.get('responsibility') if view else None
+            return job if job and job.get('cancellationOutcome')=='CANCELLED' and job['attempts'][-1]['uncertain'] else None
+        before=h.wait(cancellation_intent,'Original public cancellation durably pending',35);physical=actual_stock(h)
+        require(before['state']=='CANCELLING','Public cancellation did not enter original CANCELLING state')
+        h.save_checkpoint();case['cancellationRestart']=h.restart(hard=True)
+        after=h.wait(cancellation_intent,'Original durable cancellation intent after another real kill',45)
+        require(after['state']=='INTERRUPTED','Restart must retain its existing INTERRUPTED state with the original cancellation outcome')
         again=h.wait(h.stable_entry,'Exact receipt prefix after cancellation restart',45)
         require(again['journal']['entries'][0]==entry,'Repeated restart changed retained original evidence')
         require(after['attempts'][-1]['id']==key['attempt'] and after['attempts'][-1]['uncertain'],'Original attempt was replaced or falsely certain')

@@ -73,6 +73,34 @@ jobs:
           print('A05_ORIGINAL_ACKNOWLEDGED_READER_RACE_REPRODUCED')
           PYCODE
           git diff --exit-code -- "$owner"
+      - name: Reproduce stopped partial cancellation after restart against the original guard
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 receipt-prefix-native cancellation-restart') }}
+        run: |
+          owner=core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java
+          evidence=build/parallel-a/source-audit/a06-cancellation-restart
+          mkdir -p "$evidence"
+          cp "$owner" "$evidence/candidate.java"
+          trap 'cp "$evidence/candidate.java" "$owner"' EXIT
+          git show 402d92a673f87e38d0de7a9a6e80c7ae14dcd8f5:"$owner" > "$owner"
+          set +e
+          bash gradlew --no-daemon :core:test --tests dev.aivillages.core.kernel.RecoveredJobOwnersTest.stoppedPartialAccountingUsesDurableCancellationAfterAnotherRestart > "$evidence/original-guard.log" 2>&1
+          original_status=$?
+          set -e
+          cp core/build/test-results/test/TEST-dev.aivillages.core.kernel.RecoveredJobOwnersTest.xml "$evidence/original-guard.xml"
+          cp "$evidence/candidate.java" "$owner"
+          test "$original_status" -ne 0
+          python3 - <<'PYCODE'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('build/parallel-a/source-audit/a06-cancellation-restart/original-guard.xml')
+          t=ET.parse(p).getroot()
+          assert int(t.attrib['tests'])==1
+          assert int(t.attrib['failures'])==1 and int(t.attrib['errors'])==0
+          assert 'stoppedPartialAccountingUsesDurableCancellationAfterAnotherRestart' in p.read_text()
+          print('A06_ORIGINAL_CANCELLATION_RESTART_GUARD_FAILURE_REPRODUCED')
+          PYCODE
+          git diff --exit-code -- "$owner"
       - name: A04 closed-set history contracts and existing owner regressions
         run: |
           bash gradlew --no-daemon --stacktrace :core:test :providers:test :fabric:test :fabric:build

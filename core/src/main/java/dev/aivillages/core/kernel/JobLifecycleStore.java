@@ -869,7 +869,7 @@ public final class JobLifecycleStore {
         if (!current.open() && current.effects() == report.effects() && current.usage().equals(report.usage())
                 && current.receipts().equals(report.receipts()) && current.resourceReceipts().equals(report.resourceReceipts())
                 && Objects.equals(current.terminal(), report.terminal())) return duplicate(job, work);
-        if (cancelledPartial && job.state() != State.CANCELLING)
+        if (cancelledPartial && job.state() != State.CANCELLING && job.cancellationOutcome() == null)
             return reject(Reason.INTERRUPTED, work);
         if (!job.guard().equals(guard) || !context.original().equals(current)
                 || observation.kind() == StoppedKind.NO_EFFECT && (current.effects() != 0 || current.receiptCount() != 0))
