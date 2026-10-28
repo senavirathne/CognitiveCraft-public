@@ -48,7 +48,7 @@
         "${CC_D_RUN_ROOT:?Set CC_D_RUN_ROOT}/clients/PlayerD_A:/evidence/clients/PlayerD_A:rw"
       ],
       "environment": {
-        "SDL_VIDEO_DRIVER": "x11",
+        "SDL_VIDEO_DRIVER": "offscreen",
         "COGNITIVECRAFT_E2E_CACHE": "/repo/build/e2e-sdk"
       },
       "entrypoint": [
@@ -75,7 +75,7 @@
         "${CC_D_RUN_ROOT:?Set CC_D_RUN_ROOT}/clients/PlayerD_B:/evidence/clients/PlayerD_B:rw"
       ],
       "environment": {
-        "SDL_VIDEO_DRIVER": "x11",
+        "SDL_VIDEO_DRIVER": "offscreen",
         "COGNITIVECRAFT_E2E_CACHE": "/repo/build/e2e-sdk"
       },
       "entrypoint": [

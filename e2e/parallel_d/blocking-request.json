@@ -2,6 +2,6 @@
   "stage": "D05",
   "campaign": "D05-ADAPTERS",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d05-02",
-  "reason": "Corrected D05 candidate after run 40722961638 failed client fixture startup: retain only the fresh fixture arena chunks during async registration, precreate client bind directories under the runner owner, preserve and independently verify actual container GUIs and screenshots, and retain driver binaries. A real regular-server smoke test now binds all five containers. Repeat the unchanged 177 owned Java / 68 Python / five native / one genuine two-client gates on this exact source/JAR; no prior result is relabeled and no expectation or bound is weakened."
+  "nonce": "2026-10-28-d05-03",
+  "reason": "Corrected D05 candidate after run40727225335 failed native X11/GLX startup before multiplayer play. Reuse the established SDL offscreen software renderer with two distinct genuine Minecraft process/container namespaces; require actual container GUIs, incoming slot packets and rendered screenshots. Pin and natively observe world seed20261027. Keep all 177 owned Java,68 Python,five native and one two-client gates, unchanged limits and one production build; prior failed raw results are retained separately and do not advance D06."
 }
