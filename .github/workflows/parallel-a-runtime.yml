@@ -147,6 +147,15 @@ jobs:
           else
             python3 e2e/parallel_a/deposits.py --root build/parallel-a/native-a05
           fi
+      - name: A06 preliminary actual receipt retention and no false original-owner settlement
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 receipt-prefix-native') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/needle/install.py build/needle
+          gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a06-prefix-seed.zip
+          python3 e2e/parallel_a/receipt_prefix.py --root build/parallel-a/native-a06-prefix --seed-archive build/parallel-a/a06-prefix-seed.zip
       - name: Diagnostic CPU profile of exact retained A04 metadata
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 archive CPU profile') }}
@@ -204,6 +213,16 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: build/parallel-a/native-a05/
+      - name: Retain A06 preliminary native receipt retention, original owners and all failed evidence
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 receipt-prefix-native') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-prefix-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/native-a06-prefix/
       - name: Retain separate A05 preparation diagnostics without an acceptance claim
         if: >-
           ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A05 preparation-profile') }}

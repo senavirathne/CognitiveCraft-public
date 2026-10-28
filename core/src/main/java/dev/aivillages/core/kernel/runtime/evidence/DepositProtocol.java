@@ -11,10 +11,16 @@ import java.util.*;
 public interface DepositProtocol {
     record Request(ValidatedRequest bound,RunCorrelation correlation,UUID action,UUID operation,
                    ActorRef actor,ContainerRef destination,ResourceDelivery.ItemIdentity item,long deadline,
-                   long effectsRemaining,Map<Budgets.Kind,Long> usage) {
+                   long effectsRemaining,Map<Budgets.Kind,Long> usage,List<ResourceDelivery.Receipt> receiptPrefix) {
+        public Request(ValidatedRequest bound,RunCorrelation correlation,UUID action,UUID operation,
+                       ActorRef actor,ContainerRef destination,ResourceDelivery.ItemIdentity item,long deadline,
+                       long effectsRemaining,Map<Budgets.Kind,Long> usage) {
+            this(bound,correlation,action,operation,actor,destination,item,deadline,effectsRemaining,usage,List.of());
+        }
         public Request {
             Objects.requireNonNull(bound);Objects.requireNonNull(correlation);Objects.requireNonNull(action);Objects.requireNonNull(operation);
-            Objects.requireNonNull(actor);Objects.requireNonNull(destination);Objects.requireNonNull(item);usage=Map.copyOf(usage);
+            Objects.requireNonNull(actor);Objects.requireNonNull(destination);Objects.requireNonNull(item);usage=Map.copyOf(usage);receiptPrefix=List.copyOf(receiptPrefix);
+            if(receiptPrefix.size()>63)throw new IllegalArgumentException("Original native deposit receipt prefix quota");
             if(deadline<0 || effectsRemaining<1)throw new IllegalArgumentException("Original native deposit allowance");
         }
     }

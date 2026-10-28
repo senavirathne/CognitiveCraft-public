@@ -31,7 +31,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
     private final JobLifecycleStore jobs;
     private final ResourceLeaseService leases;
     private final Clock clock;
-    private final boolean enabled;
+    private final boolean enabled,retainReceiptPrefix;
     private final DepositEvidenceStore store;
     private final long participantInitializationNanos;
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
@@ -60,8 +60,13 @@ public final class FabricDepositProtocol implements DepositProtocol {
     public FabricDepositProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,
                                  DepositJournal journal,DepositJournal.Snapshot initial,boolean readOnly,
                                  Executor worker,Clock clock,boolean enabled) {
+        this(level,jobs,leases,journal,initial,readOnly,worker,clock,enabled,false);
+    }
+    public FabricDepositProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,
+                                 DepositJournal journal,DepositJournal.Snapshot initial,boolean readOnly,
+                                 Executor worker,Clock clock,boolean enabled,boolean retainReceiptPrefix) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
-        this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
+        this.clock=Objects.requireNonNull(clock);this.enabled=enabled;this.retainReceiptPrefix=retainReceiptPrefix;
         long initialized=System.nanoTime();NativeDeposit.initializeParticipantSchema();DepositStackOwners.initialize();
         participantInitializationNanos=System.nanoTime()-initialized;
         store=new DepositEvidenceStore(initial,(expected,next)->CompletableFuture.supplyAsync(()->{
@@ -143,7 +148,8 @@ public final class FabricDepositProtocol implements DepositProtocol {
                     level.getGameTime(),2500,reach,references,request.usage());
             phases[4]=System.nanoTime();
             var intent=new Intent(new Key(job.origin().scope().worldId(),root,job.id(),attempt.id(),attempt.generation(),ordinal),job.origin(),request.correlation().runId(),request.operation(),
-                    pair.actorSnapshot,pair.chestSnapshot,request.item().id(),source,target,capacity(pair,source,target),conditions);
+                    pair.actorSnapshot,pair.chestSnapshot,request.item().id(),source,target,capacity(pair,source,target),conditions,
+                    retainReceiptPrefix?new ResourceReceiptPrefix(request.receiptPrefix()):null);
             phases[5]=System.nanoTime();
             ticket=new NativeTicket(request,original,intent,null);
             if(store.conflicts(Kind.ACTOR,intent.actor().dimension(),intent.actor().address(),"") || store.conflicts(Kind.CHEST,intent.chest().dimension(),intent.chest().address(),""))throw new Refused(Reason.INTERRUPTED);

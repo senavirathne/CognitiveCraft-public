@@ -59,4 +59,18 @@ final class DepositGatewayTest {
         var result=s.action(TRANSFER_OAK_LOGS);assertEquals(Outcomes.Reason.INTERRUPTED,result.reason());
         assertEquals(0,s.world.transfers);assertEquals(0,p.calls);assertEquals(1,s.world.actorLogs);assertEquals(0,s.world.chestLogs);
     }
+    @Test void actualGatewayPrefixIsFrozenBeforeTheCurrentMutationAndUsesTheOriginalBudget() {
+        var p=new Protocol();var s=ready(p);var before=java.util.List.copyOf(s.receipts);
+        var h=s.start(TRANSFER_OAK_LOGS);s.gateway.poll(h);
+        assertEquals(before,p.request.receiptPrefix());assertEquals(2,before.size());
+        assertEquals(java.util.List.of(ResourceDelivery.Stage.HARVEST,ResourceDelivery.Stage.PICKUP),before.stream().map(ResourceDelivery.Receipt::stage).toList());
+        assertEquals(2L,p.request.usage().get(Budgets.Kind.COMMITTED_EFFECTS));
+        assertThrows(UnsupportedOperationException.class,()->p.request.receiptPrefix().clear());
+        p.prepared=true;s.world.tick++;s.gateway.poll(h);
+        assertEquals(before,p.request.receiptPrefix());assertNotNull(p.observed.receipt());
+        assertFalse(p.request.receiptPrefix().contains(p.observed.receipt()));
+        assertEquals(3L,p.observed.usage().get(Budgets.Kind.COMMITTED_EFFECTS));
+        assertEquals(p.request.operation(),p.observed.receipt().operationId());
+        assertEquals(before.getFirst().dropIds(),p.observed.receipt().dropIds());
+    }
 }

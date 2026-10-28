@@ -3,6 +3,7 @@ services:
     cpuset: '0-1'
     environment:
       COGNITIVECRAFT_DEPOSIT_EVIDENCE: '${A05_DEPOSIT_ENABLED:-false}'
+      COGNITIVECRAFT_RESOURCE_RECEIPT_PREFIX: '${A06_RECEIPT_PREFIX_ENABLED:-false}'
       COGNITIVECRAFT_ACTIVITY_VIEW: 'true'
       COGNITIVECRAFT_A05_PROBE: 'true'
   client-a:

@@ -109,6 +109,8 @@ public final class KernelSession implements AutoCloseable {
     private FabricDepositProtocol depositProtocol;
     private final boolean depositEvidenceEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_DEPOSIT_EVIDENCE", "false"));
+    private final boolean resourceReceiptPrefixEnabled = "true".equalsIgnoreCase(
+            System.getenv().getOrDefault("COGNITIVECRAFT_RESOURCE_RECEIPT_PREFIX", "false"));
     private final boolean jobHistoryEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_JOB_HISTORY", "false"));
     private final boolean leaseHistoryEnabled = "true".equalsIgnoreCase(
@@ -574,7 +576,7 @@ public final class KernelSession implements AutoCloseable {
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
         if(loaded.deposits()!=null) {
             depositProtocol=new FabricDepositProtocol(server.overworld(),jobs,leases,loaded.deposits(),loaded.initialDeposits(),
-                    loaded.depositsReadOnly(),worker,clock,depositEvidenceEnabled);
+                    loaded.depositsReadOnly(),worker,clock,depositEvidenceEnabled,resourceReceiptPrefixEnabled);
             gateway.depositProtocol(depositProtocol);
         }
         if(loaded.jobHistory()!=null)jobArchive=new JobArchive(jobs,loaded.jobHistory(),loaded.history(),historyService,

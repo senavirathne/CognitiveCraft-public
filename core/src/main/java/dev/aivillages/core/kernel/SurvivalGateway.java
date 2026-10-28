@@ -1088,7 +1088,7 @@ public final class SurvivalGateway implements GatewayPort {
             if(batch==null || !effectAllowance(action))return;
             UUID operation=UUID.nameUUIDFromBytes((action.handle.id()+"/"+(action.effects+1)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             var request=new dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Request(run.request,run.correlation,action.handle.id(),operation,run.actor,destination(run.request),run.item,
-                    Math.min(action.deadlineMillis,action.usage.deadline()),action.usage.remaining(Kind.COMMITTED_EFFECTS),action.usage.snapshot());
+                    Math.min(action.deadlineMillis,action.usage.deadline()),action.usage.remaining(Kind.COMMITTED_EFFECTS),action.usage.snapshot(),run.resourceReceipts);
             action.depositReceiptStart=action.resourceReceipts.size();
             action.depositTicket=protocol.begin(request,new dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Action() {
                 public boolean current(){return !action.current.terminal() && clock.millis()<=action.deadlineMillis && clock.millis()<=action.usage.deadline()
