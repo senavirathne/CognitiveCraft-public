@@ -14,7 +14,7 @@ def menu_observations(frames,ready):
     require([(r['phase'],r['target'],r['player'])for r in frames]==expected,'missing/duplicate real-client menu observations')
     for r in frames:
         phase,target,player=r['phase'],r['target'],r['player'];state=r['state'];require(state['play']is True and state['singleplayer']is False and state['uuid']==offline(player),'simulated/disconnected/swapped client principal')
-        slots=[s for s in state['slots']if not s['playerInventory']];denominator=54 if target=='double'and phase!='SPLIT'else 27;require(len(slots)==denominator,'wrong client native menu slot count')
+        require(any(k in state.get('screen','')for k in ('Container','Chest','Barrel')),'native container GUI is not visible');slots=[s for s in state['slots']if not s['playerInventory']];denominator=54 if target=='double'and phase!='SPLIT'else 27;require(len(slots)==denominator,'wrong client native menu slot count')
         expected_count=1 if phase=='SPLIT'else BEFORE[target]if phase=='BEFORE'else AFTER[target];require(counts(slots).get('minecraft:oak_planks',0)==expected_count,'native client contents changed or fabricated')
         payload=r['observer']['payload']
         if phase=='SPLIT':require(payload=='UNAVAILABLE'and 'type=single'in state['blocks']['10,201,8']and 'minecraft:air'in state['blocks']['11,201,8'],'topology update/stale registered pair not synchronized');continue
@@ -40,7 +40,7 @@ def verify(root,identity,fixture):
     require(m['driver_sha256']==sha(REPO/'build/e2e-driver/client.jar')and m['observer_sha256']==sha(REPO/'build/e2e-driver/observer.jar'),'established real driver identity changed')
     containers=lines(root/'containers.jsonl');containers=containers[0]if len(containers)==1 and isinstance(containers[0],list)else containers;require({r['Service']for r in containers}=={'minecraft','client-a','client-b'}and len({r['ID']for r in containers})==3,'independent real container identities missing')
     process=read(root/'server/process.json');require(process['releaseSha256']==identity['jar_sha256']and any(r['sha256']==sha(selected)for r in process['mods']),'server used different release/fixture')
-    displays=set()
+    screenshots=read(root/'screenshots.json');require([s['player']for s in screenshots]==list(PLAYERS) and all(any(k in s['result'].get('screen','')for k in ('Container','Chest','Barrel'))for s in screenshots),'screenshots did not show actual native container screens');displays=set()
     for player in PLAYERS:
         box=root/'clients'/player;p=read(box/'process.json');events=lines(box/'events.jsonl');observed=lines(box/'observations.jsonl');require(p['kind']=='client'and p['releaseSha256']==identity['jar_sha256']and 'net.fabricmc.loader.impl.launch.knot.KnotClient'in p['command']and p['command'][p['command'].index('--username')+1]==player,'wrong actual client process/release');require(any(e['kind']=='play'and e['data']['uuid']==offline(player)for e in events),'no authenticated native multiplayer play');displays.add(p['renderEnvironment']['DISPLAY'])
         for row in [r for r in frames if r['player']==player]:require(any(s['state']==row['state']for s in observed)and row['observer']['event']in events,'menu/feedback not from actual client driver')

@@ -10,7 +10,7 @@ def synthetic():
                 total=1 if phase=='SPLIT'else BEFORE[target]if phase=='BEFORE'else AFTER[target];size=54 if target=='double'and phase!='SPLIT'else 27;slots=[]
                 for i in range(size):
                     n=min(64,total);total-=n;slots.append({'slot':i,'item':'minecraft:oak_planks'if n else'minecraft:air','count':n,'playerInventory':False})
-                projected=[{'item':{'registryId':s['item']}if s['count']else None,'count':s['count']}for s in slots];state={'play':True,'singleplayer':False,'uuid':offline(player),'menu':1,'slots':slots,'blocks':{'10,201,8':'minecraft:chest[type=single]','11,201,8':'minecraft:air'}};payload='UNAVAILABLE'if phase=='SPLIT'else json.dumps({'world':READY['world'],'storage':READY['ids'][target],'slots':projected});frames.append({'phase':phase,'target':target,'player':player,'state':state,'observer':{'payload':payload}})
+                projected=[{'item':{'registryId':s['item']}if s['count']else None,'count':s['count']}for s in slots];state={'screen':'ContainerScreen','play':True,'singleplayer':False,'uuid':offline(player),'menu':1,'slots':slots,'blocks':{'10,201,8':'minecraft:chest[type=single]','11,201,8':'minecraft:air'}};payload='UNAVAILABLE'if phase=='SPLIT'else json.dumps({'world':READY['world'],'storage':READY['ids'][target],'slots':projected});frames.append({'phase':phase,'target':target,'player':player,'state':state,'observer':{'payload':payload}})
     return frames
 def private():
     return [{'player':'PlayerD_A','target':'private','payload':json.dumps({'storage':READY['ids']['private'],'slots':[{'item':{'registryId':'minecraft:diamond'},'count':7}]})},*({'player':p,'target':t,'payload':'UNAVAILABLE'}for p,t in [('PlayerD_B','private'),('PlayerD_B','missing'),('PlayerD_A','deposit')])]
@@ -20,7 +20,7 @@ class ClientOracleTest(unittest.TestCase):
         rows=synthetic()
         for bad in (rows[:-1],rows+[rows[0]]):
             with self.assertRaises(ValueError):menu_observations(bad,READY)
-        for key,value in [('uuid',offline('PlayerD_B')),('singleplayer',True),('play',False)]:
+        for key,value in [('uuid',offline('PlayerD_B')),('singleplayer',True),('play',False),('screen','none')]:
             bad=copy.deepcopy(rows);bad[0]['state'][key]=value
             with self.assertRaises(ValueError):menu_observations(bad,READY)
     def test_changed_slots_reopened_update_and_private_disclosure_rejected(self):

@@ -141,4 +141,5 @@ jobs:
             fabric/build/libs/ai-villages-0.1.0.jar
             fabric/build/libs/ai-villages-0.1.0-gametest.jar
             build/parallel-d-native/
+            build/e2e-driver/
             build/e2e-sdk/integrity.json

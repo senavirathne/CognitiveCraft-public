@@ -2,6 +2,6 @@
   "stage": "D05",
   "campaign": "D05-ADAPTERS",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "2026-10-28-d05-01",
-  "reason": "Standing user authorization requires Actions/Docker for blocking full-module/SDK/client tests. Local diagnostics pass 177 cumulative owned Java and 68 Python checks plus the actual D05 native adapter case and bounded 54-slot read benchmark. The final source/JAR must repeat all five native cases and the genuine two-client synchronization/privacy case in the existing single 90-minute job, with one release build, exact D01 performance control and no model or settlement claim."
+  "nonce": "2026-10-28-d05-02",
+  "reason": "Corrected D05 candidate after run 40722961638 failed client fixture startup: retain only the fresh fixture arena chunks during async registration, precreate client bind directories under the runner owner, preserve and independently verify actual container GUIs and screenshots, and retain driver binaries. A real regular-server smoke test now binds all five containers. Repeat the unchanged 177 owned Java / 68 Python / five native / one genuine two-client gates on this exact source/JAR; no prior result is relabeled and no expectation or bound is weakened."
 }

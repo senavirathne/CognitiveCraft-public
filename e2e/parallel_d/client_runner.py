@@ -10,7 +10,7 @@ def lines(path):
     if not path.exists():return []
     data=path.read_text();return [json.loads(s)for s in data.splitlines()if s]if data.endswith('\n')else [json.loads(s)for s in data.rsplit('\n',1)[0].splitlines()if s]
 class DStorageObservationClient:
-    def __init__(self,root,env):self.root=root;self.env=env;self.requests=0;self.frames=[];self.deadline=time.monotonic()+registry("D05")["adapter_limits"]["client_total_timeout_seconds"]
+    def __init__(self,root,env):self.root=root;self.env=env;self.requests=0;self.frames=[];self.screenshots=[];self.deadline=time.monotonic()+registry("D05")["adapter_limits"]["client_total_timeout_seconds"]
     def compose(self,*args,check=True):return subprocess.run(['docker','compose','-f',str(HERE/'compose.yml'),*args],env=self.env,capture_output=True,text=True,check=check,timeout=120)
     def wait(self,condition,description,timeout=120):
         end=min(time.monotonic()+timeout,self.deadline)
@@ -38,25 +38,31 @@ class DStorageObservationClient:
             rows=[r for r in lines(self.root/'clients'/player/'events.jsonl')if r['kind']=='feedback'and r['data']['text'].startswith('D05_REPLY '+nonce+' ')]
             return rows[-1]if rows else None
         event=self.wait(feedback,'actual private observer response');payload=event['data']['text'].split(' ',2)[2];return {'event':event,'payload':payload}
-    def capture(self,player,target,phase,quantity,slots):
+    def capture(self,player,target,phase,quantity,slots,observer=None):
         def snapshot():
             s=self.request(player,'snapshot');rows=[r for r in s.get('slots',[])if not r['playerInventory']]
-            return s if s.get('play')and not s.get('singleplayer')and len(rows)==slots and sum(r['count']for r in rows if r['item']=='minecraft:oak_planks')==quantity else None
-        state=self.wait(snapshot,'actual '+player+' '+phase+' '+target+' container slots');view=self.view(player,target);row={'phase':phase,'target':target,'player':player,'state':state,'observer':view};self.frames.append(row);write(self.root/'menu-observations.json',self.frames);return state
+            return s if s.get('play')and not s.get('singleplayer')and any(k in s.get('screen','')for k in ('Container','Chest','Barrel'))and len(rows)==slots and sum(r['count']for r in rows if r['item']=='minecraft:oak_planks')==quantity else None
+        state=self.wait(snapshot,'actual '+player+' '+phase+' '+target+' container slots');view=observer if observer is not None else self.view(player,target);row={'phase':phase,'target':target,'player':player,'state':state,'observer':view};self.frames.append(row);write(self.root/'menu-observations.json',self.frames);return state
     def open(self,player,target):
         self.request(player,'close-menu');p=POSITIONS[target];self.console(['tp '+player+f' {p[0]+.5} 201 {p[2]-1.5} 0 0']);self.wait(lambda:((s:=self.request(player,'snapshot')).get('play') and sum((s['pos'][i]-[p[0]+.5,201,p[2]-1.5][i])**2 for i in range(3))<2),'actual server-to-client position synchronization');self.request(player,'look',pos=p);self.request(player,'open',pos=p)
     def run(self):
-        self.wait(lambda:(self.root/'server/d05-ready.json').exists(),'actual registered client scene',180)
+        def scene_ready():
+            error=self.root/'server/d05-error.json'
+            if error.exists():raise RuntimeError('Native fixture setup failed: '+str(read(error)))
+            return (self.root/'server/d05-ready.json').exists()
+        self.wait(scene_ready,'actual registered client scene',180)
         for player in PLAYERS:
             self.wait(lambda:bool(lines(self.root/'clients'/player/'events.jsonl')),'client driver startup',180);self.request(player,'connect',address='127.0.0.1:25661');self.wait(lambda:any(r['kind']=='play'for r in lines(self.root/'clients'/player/'events.jsonl')),'authenticated multiplayer play '+player,180)
         for target in ('single','double','barrel'):
-            for player in PLAYERS:self.open(player,target);self.capture(player,target,'BEFORE',BEFORE[target],54 if target=='double'else 27)
+            for player in PLAYERS:
+                self.request(player,'close-menu');observer=self.view(player,target);self.open(player,target);self.capture(player,target,'BEFORE',BEFORE[target],54 if target=='double'else 27,observer)
         self.console(['d-storage mutate']);self.wait(lambda:(self.root/'server/d05-mutated.json').exists(),'actual native content mutation')
         for target in ('barrel','single','double'):
             for player in PLAYERS:
                 if target!='barrel':self.open(player,target)
                 self.capture(player,target,'AFTER',AFTER[target],54 if target=='double'else 27)
-                if target=='single':self.request(player,'screenshot',name='d05-single-after')
+                if target=='single':
+                    self.open(player,target);self.wait(lambda:any(k in self.request(player,'snapshot').get('screen','')for k in ('Container','Chest','Barrel')),'native container screenshot ready');self.screenshots.append({'player':player,'target':target,'result':self.request(player,'screenshot',name='d05-single-after')});write(self.root/'screenshots.json',self.screenshots)
         privacy=[]
         for player,target in [('PlayerD_A','private'),('PlayerD_B','private'),('PlayerD_B','missing'),('PlayerD_A','deposit')]:privacy.append({'player':player,'target':target,**self.view(player,target)})
         write(self.root/'privacy-observations.json',privacy)
@@ -73,6 +79,7 @@ def run(root):
             if name=='fabric.mod.json':
                 d=json.loads(data);d['id']='cognitivecraft_parallel_d_clients';d['entrypoints']={'main':['dev.aivillages.e2e.paralleld.DStorageObservationServer']};data=json.dumps(d,separators=(',',':')).encode()+b'\n'
             target.writestr(name,data)
+    for player in PLAYERS:(root/'clients'/player).mkdir(parents=True)
     mods=root/'server/game/mods';mods.mkdir(parents=True);shutil.copy2(selected,mods/'parallel-d-client-fixture.jar');shutil.copy2(REPO/'build/server-sdk/gametest.jar',mods/'gametest.jar')
     env=os.environ.copy();env['CC_D_RUN_ROOT']=str(root);env['CC_D_SERVER_TEST_JAVA']='-Dcognitivecraft.parallelD.fixtureWorld='+WORLD
     h=DStorageObservationClient(root,env);plan={'identity':identity,'world':WORLD,'case':'D05-CL01','players':list(PLAYERS),'fixture_sha256':sha(fixture),'selected_fixture_sha256':sha(selected),'driver_sha256':sha(REPO/'build/e2e-driver/client.jar'),'observer_sha256':sha(REPO/'build/e2e-driver/observer.jar'),'phase':'COLLECTING_RAW','integration_root':None,'save_proof':None};write(root/'identity.json',plan)

@@ -46,6 +46,9 @@ public final class DStorageObservationServer implements ModInitializer {
             public boolean allows(Caller c,Action a,StorageRegistry.Record r){return c.world().equals(world) && c.principal().equals(ADMIN) && (a!=Action.COMMIT_BIND || attested!=null && attested.storage().equals(r.id()) && attested.generation()==r.generation());}
             public boolean mayGrant(Caller c,StorageRegistry.Record r,Grant g){return controls(c,r.owner()) && Set.of(Permission.INSPECT,Permission.DEPOSIT,Permission.WITHDRAW).containsAll(g.permissions());}
         });identities=new StorageIncarnationAdapter(level,world,(a,w,id,pos)->world.equals(w));identities.updateMetadata(registry.snapshot());var policy=DStorageAdaptersGameTests.policy(level,registry,identities,()->true);reader=new MinecraftStorageAdapter(level,identities,registry::snapshot,policy,(scope,id,op,pos)->scope.world().equals(world));
+            // Fixture construction explicitly retains only its two fresh arena chunks across metadata IO.
+            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"forceload add 0 0 21 14");
+            frame("ARENA_PREPARED",Map.of("min_chunk",List.of(0,0),"max_chunk",List.of(1,0),"purpose","TEST_FIXTURE_CONSTRUCTION"));
             for(int x=0;x<=21;x++)for(int z=0;z<=14;z++){level.setBlockAndUpdate(new BlockPos(x,200,z),Blocks.STONE.defaultBlockState());for(int y=201;y<205;y++)level.setBlockAndUpdate(new BlockPos(x,y,z),Blocks.AIR.defaultBlockState());}
             for(var e:points.entrySet())level.setBlockAndUpdate(e.getValue(),e.getKey().equals("barrel")?Blocks.BARREL.defaultBlockState():Blocks.CHEST.defaultBlockState());
             BlockPos pair=points.get("double");var state=Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING,Direction.NORTH);level.setBlock(pair.east(),state.setValue(ChestBlock.TYPE,ChestType.RIGHT),2);level.setBlock(pair,state.setValue(ChestBlock.TYPE,ChestType.LEFT),2);
@@ -62,7 +65,7 @@ public final class DStorageObservationServer implements ModInitializer {
     private BaseContainerBlockEntity container(String name){return (BaseContainerBlockEntity)level.getBlockEntity(points.get(name));}
     private StorageAccessPolicy.Scope scope(UUID principal){return new StorageAccessPolicy.Scope(world,DOMAIN,principal,null);}
     private static void ack(StorageMetadataStore.Ack a){if(a.status()!=StorageMetadataStore.Status.ACKNOWLEDGED)throw new IllegalStateException("fixture metadata ack "+a);}
-    private <T> void when(CompletionStage<T> future,Consumer<T> next){future.whenComplete((value,error)->server.execute(()->{if(error!=null)throw new CompletionException(error);next.accept(value);}));}
+    private <T> void when(CompletionStage<T> future,Consumer<T> next){future.whenComplete((value,error)->server.execute(()->{try{if(error!=null)throw new CompletionException(error);next.accept(value);}catch(RuntimeException failure){write(root.resolve("d05-error.json"),Map.of("error",failure.toString(),"phase","TEST_FIXTURE_SETUP"));throw failure;}}));}
     private void frame(String event,Object value){writeLine(root.resolve("d05-observations.jsonl"),Map.of("case","D05-CL01","event",event,"tick",level.getGameTime(),"data",value));}
     private static void write(Path path,Object value){try{Files.createDirectories(path.getParent());Files.writeString(path,JSON.toJson(value)+"\n");}catch(Exception e){throw new RuntimeException(e);}}
     private static void writeLine(Path path,Object value){try{Files.createDirectories(path.getParent());Files.writeString(path,JSON.toJson(value)+"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);}catch(Exception e){throw new RuntimeException(e);}}
