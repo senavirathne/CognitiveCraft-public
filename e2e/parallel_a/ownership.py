@@ -30,9 +30,19 @@ allowed={
     'core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessSource.java',
     'core/src/test/java/dev/aivillages/core/kernel/JobArchiveTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/ArchiveRequirementTest.java',
+    'fabric/src/main/resources/ai-villages.mixins.json',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositVillagerParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositInventoryMutationMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestRemovalMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositStackMutationMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositEntityStorageLoadMixin.java',
 }
 prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/',
           'core/src/test/java/dev/aivillages/core/kernel/runtime/evidence/')
+prefixes+=('fabric/src/main/java/dev/aivillages/fabric/runtime/evidence/',
+           'fabric/src/test/java/dev/aivillages/fabric/runtime/evidence/')
 changed=sorted(set(subprocess.check_output(['git','diff','--name-only',base],text=True).splitlines())
                |set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines()))
 bad=[p for p in changed if p not in allowed and not p.startswith(prefixes)]
