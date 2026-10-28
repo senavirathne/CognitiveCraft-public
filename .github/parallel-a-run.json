@@ -1,14 +1,17 @@
 {
   "schema": 1,
-  "sequence": 1,
-  "parentSource": "67a653c0502c9a5ca8dc0aa11896af30fba008e4",
+  "sequence": 2,
+  "parentSource": "9266e141e501ef3d4d0dc92e421f23f23501227a",
   "stage": "A06",
-  "scope": "harvest-readers-and-complete-required-regressions",
-  "nativeHarvestProducer": "INACTIVE",
+  "scope": "first-native-harvest-original-cancellation-and-complete-required-regressions",
+  "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
+  "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
+  "originalCase": "heldout-W6-002",
+  "originalQuantity": 2,
   "requiredRegressionWorkflows": 9,
   "requiredRegressionJobs": 12,
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "independentArchiveReview": "Docker, no network during decoding"
+  "execution": "Docker real server and two connected native clients; native save-all flush and actual process kills"
 }
