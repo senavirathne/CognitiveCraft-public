@@ -998,7 +998,8 @@ public final class SurvivalGateway implements GatewayPort {
         }
         protocol.forget(action.harvestTicket);action.harvestTicket=null;
         if(action.current.terminal())return;
-        if(progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.FAILED){finish(action,progress.reason(),null,null);return;}
+        if(progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.FAILED
+                || progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.UNRESOLVED){finish(action,progress.reason(),null,null);return;}
         if(action.harvestOutcome==null){finish(action,Reason.STALE_OBSERVATION,null,null);return;}
         action.pendingReceiptStart=-1;finishHarvest(action,action.harvestOutcome);action.harvestOutcome=null;
     }
@@ -1211,6 +1212,10 @@ public final class SurvivalGateway implements GatewayPort {
     private void finish(Active action, Reason reason, Value result, ObservationSnapshot snapshot) {
         if (action.current.terminal()) return;
         if(action.depositTicket!=null && depositProtocol!=null){depositProtocol.forget(action.depositTicket);action.depositTicket=null;}
+        // An already-started physical harvest cannot become a certain cancellation/timeout
+        // while its actual result is withheld. Jobs retains the original cancellation intent.
+        if(action.harvestTicket!=null && action.harvestOutcome!=null && action.harvestOutcome.harvest().removed()
+                && action.pendingReceiptStart>=0)reason=Reason.INTERRUPTED;
         if(action.harvestTicket!=null && harvestProtocol!=null){harvestProtocol.forget(action.harvestTicket);action.harvestTicket=null;}
         if (result != null && action.operation != null
                 && result.type() != action.operation.signature().resultType())

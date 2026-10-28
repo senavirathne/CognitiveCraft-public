@@ -117,12 +117,16 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         if(!tickets.contains(ticket))return failed(Reason.INTERRUPTED);
         store.tick();HarvestEvidenceStore.Status status;
         try{status=store.prepare(ticket.intent);if(status.code()==HarvestEvidenceStore.Code.PREPARED)status=store.perform(status.prepared());}
-        catch(RuntimeException unknown){return failed(Reason.STORAGE_UNAVAILABLE);}
+        catch(RuntimeException unknown){return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);}
         return switch(status.code()) {
             case PENDING,PREPARED->new Progress(Code.PENDING,null);
-            case RESULT_ACKNOWLEDGED->{if(!ticket.acknowledged){ticket.acknowledged=true;observer.accept(Point.RESULT_ACKNOWLEDGED);}yield new Progress(Code.ACKNOWLEDGED,null);}
+            case RESULT_ACKNOWLEDGED->{
+                var entry=store.snapshot().entries().stream().filter(e->e.intent().equals(ticket.intent)).findFirst().orElseThrow();
+                if(entry.result().live()==NativeHarvest.Live.PARTIAL || entry.result().live()==NativeHarvest.Live.UNRECEIPTED_EFFECT)yield new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);
+                if(!ticket.acknowledged){ticket.acknowledged=true;observer.accept(Point.RESULT_ACKNOWLEDGED);}yield new Progress(Code.ACKNOWLEDGED,null);
+            }
             case FULL->failed(Reason.STORAGE_LIMIT_REACHED);
-            case FENCED->failed(Reason.STORAGE_UNAVAILABLE);
+            case FENCED->new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);
             default->failed(Reason.INTERRUPTED);
         };
     }

@@ -28,9 +28,9 @@ public interface HarvestProtocol {
         Map<Budgets.Kind,Long> usage();
     }
     interface Ticket { }
-    enum Code { PENDING,ACKNOWLEDGED,FAILED }
+    enum Code { PENDING,ACKNOWLEDGED,FAILED,UNRESOLVED }
     record Progress(Code code,Reason reason) {
-        public Progress {Objects.requireNonNull(code);if((code==Code.FAILED)!=(reason!=null))throw new IllegalArgumentException("Harvest protocol progress");}
+        public Progress {Objects.requireNonNull(code);if(((code==Code.FAILED || code==Code.UNRESOLVED)!=(reason!=null) || code==Code.UNRESOLVED && reason!=Reason.INTERRUPTED))throw new IllegalArgumentException("Harvest protocol progress");}
     }
     Ticket begin(Request request,Action original);
     Progress poll(Ticket ticket);

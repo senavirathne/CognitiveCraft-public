@@ -11,12 +11,13 @@ import static org.junit.jupiter.api.Assertions.*;
 final class HarvestGatewayTest {
     static final class Protocol implements HarvestProtocol {
         final Ticket ticket=new Ticket() { };Request request;Action action;Observed observed;
-        boolean prepared,acknowledged,forgotten,fail;int calls;
+        boolean prepared,acknowledged,forgotten,fail,unresolved;int calls;
         public Ticket begin(Request request,Action action){assertNull(this.action);this.request=request;this.action=action;return ticket;}
         public Progress poll(Ticket ticket) {
             assertSame(this.ticket,ticket);
             if(fail || forgotten || observed==null && !action.current())return new Progress(Code.FAILED,Outcomes.Reason.INTERRUPTED);
             if(prepared && observed==null){calls++;observed=action.execute();}
+            if(unresolved)return new Progress(Code.UNRESOLVED,Outcomes.Reason.INTERRUPTED);
             return new Progress(observed!=null && acknowledged?Code.ACKNOWLEDGED:Code.PENDING,null);
         }
         public void forget(Ticket ticket){assertSame(this.ticket,ticket);forgotten=true;}
@@ -48,9 +49,20 @@ final class HarvestGatewayTest {
     }
     @Test void cancellationAfterMutationKeepsItsDebitWithoutPublishingAnUnacknowledgedReceipt() {
         var p=new Protocol();var pending=pending(p);var s=pending.scene();p.prepared=true;s.world.tick++;s.gateway.poll(pending.handle());
-        var cancelled=s.gateway.cancel(pending.handle());assertEquals(Outcomes.Reason.CANCELLED,cancelled.reason());assertEquals(1,cancelled.committedEffects());
+        var cancelled=s.gateway.cancel(pending.handle());assertEquals(Outcomes.Reason.INTERRUPTED,cancelled.reason());assertEquals(1,cancelled.committedEffects());
         assertTrue(cancelled.resourceReceipts().isEmpty());assertNotNull(p.observed.receipt());
         p.acknowledged=true;s.world.tick++;assertEquals(cancelled,s.gateway.poll(pending.handle()));assertEquals(1,s.world.harvests);assertEquals(0,s.world.pickups);
+    }
+    @Test void timeoutAfterMutationCannotCloseAnUnacknowledgedHarvestAsCertainFailure() {
+        var p=new Protocol();var pending=pending(p);var s=pending.scene();p.prepared=true;s.world.tick++;s.gateway.poll(pending.handle());
+        s.world.tick+=300;var result=s.gateway.poll(pending.handle());
+        assertEquals(Outcomes.Reason.INTERRUPTED,result.reason());assertEquals(1,result.committedEffects());assertTrue(result.resourceReceipts().isEmpty());
+        p.acknowledged=true;s.world.tick++;assertEquals(result,s.gateway.poll(pending.handle()));assertEquals(1,p.calls);
+    }
+    @Test void journalUncertaintyNeverFallsBackToTheOriginalHostOrPublishesAReceipt() {
+        var p=new Protocol();var pending=pending(p);var s=pending.scene();p.unresolved=true;s.world.tick++;
+        var result=s.gateway.poll(pending.handle());assertEquals(Outcomes.Reason.INTERRUPTED,result.reason());assertTrue(result.resourceReceipts().isEmpty());
+        assertEquals(0,p.calls);assertEquals(0,s.world.harvests);assertTrue(p.forgotten);
     }
     @Test void authorityRevocationWhileIntentIsPendingPreventsTheOriginalHostCall() {
         var p=new Protocol();var pending=pending(p);var s=pending.scene();s.world.authorized=false;p.prepared=true;s.world.tick++;
