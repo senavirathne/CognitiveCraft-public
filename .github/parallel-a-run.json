@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 17,
-  "parentSource": "d9b741869627db5e2021e67b654de31152707cb6",
+  "sequence": 18,
+  "parentSource": "3f765b5ae38d549ad2661e4182d36f380ca798a1",
   "stage": "A06",
   "scope": "pickup-durable-evidence-owner-shared-retention-family-and-actual-harvest-birth-lineage-with-complete-native-and-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -184,6 +184,43 @@
       },
       "nativeCases": "NOT_EXECUTED_REQUIRED_MODULE_PREREQUISITE_FAILED",
       "correctedBy": "231f4718e5bf5b35ab40570da344e6d066fc1f41",
+      "testsRemoved": 0
+    },
+    {
+      "source": "e97178a1867d1bd0225e9c997f8d43412f4a4373",
+      "run": 40850407936,
+      "job": 123368167968,
+      "phase": "Oversized-intent test fixture",
+      "cause": "Fixture used123-character path after the colon, beyond the existing96-character dimension-path grammar. Corrected to31-character namespace plus96-character path, still128 total characters, so the test reaches the pickup size-admission guard.",
+      "core": {
+        "tests": 2300,
+        "failures": 1,
+        "otherCoreTests": "PASS"
+      },
+      "python": {
+        "aOwned": 60,
+        "baseline": 72,
+        "status": "PASS"
+      },
+      "nativeCases": "NOT_EXECUTED_MODULE_PREREQUISITE_FAILED",
+      "mainVerification": {
+        "run": 40850408012,
+        "job": 123368167781,
+        "status": "FAIL_SAME_FIXTURE"
+      },
+      "artifacts": [
+        {
+          "id": 12887345250,
+          "bytes": 403,
+          "sha256": "0efcc6bf085fafced299fd3fc3db0106534a1f15688cba0cf7cf0c4f05f5240d"
+        },
+        {
+          "id": 12886627497,
+          "bytes": 2921684,
+          "sha256": "69fcd91aa3513eddbaf9898cabb15ca3d639ecefc6ad6e4ee665b1fa907ec806"
+        }
+      ],
+      "correctedBy": "3f765b5ae38d549ad2661e4182d36f380ca798a1",
       "testsRemoved": 0
     }
   ],
@@ -403,7 +440,7 @@
     }
   },
   "pickupCausalStorage": {
-    "source": "d9b741869627db5e2021e67b654de31152707cb6",
+    "source": "3f765b5ae38d549ad2661e4182d36f380ca798a1",
     "status": "PENDING_CURRENT_VALIDATION_NOT_RUNTIME_SELECTED",
     "nativePickupProducer": "INACTIVE",
     "components": [
