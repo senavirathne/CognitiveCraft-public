@@ -20,10 +20,15 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
               'stage':stage,'connected_clients':0,'phases':[]}
     write(root/'identity.json',metadata)
     subprocess.run(['javap','-classpath',str(sdk/'minecraft-server.jar'),'-p','-c',*['net.minecraft.world.level.block.entity.'+n for n in ('BlockEntity','BaseContainerBlockEntity','ChestBlockEntity','BarrelBlockEntity')]],stdout=(root/'api-bytecode.txt').open('w'),check=True)
-    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage in ('D05','D06','D07','D08')else[])+([('come','DComeGameTests','D06-GT01')]if stage in ('D06','D07','D08')else[])+([('follow','DFollowGameTests','D07-GT01')]if stage in ('D07','D08')else[])+([('courier','DChestCourierGameTests','D08-GT01'),('courier-crash-write','DChestCourierCrashGameTests','D08-GT01'),('courier-crash-read','DChestCourierCrashGameTests','D08-GT01')]if stage=='D08'else[]):
+    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage in ('D05','D06','D07','D08','D09')else[])+([('come','DComeGameTests','D06-GT01')]if stage in ('D06','D07','D08','D09')else[])+([('follow','DFollowGameTests','D07-GT01')]if stage in ('D07','D08','D09')else[])+([('courier','DChestCourierGameTests','D08-GT01'),('courier-crash-write','DChestCourierCrashGameTests','D08-GT01'),('courier-crash-read','DChestCourierCrashGameTests','D08-GT01')]if stage in ('D08','D09')else[])+([('handoff','DVillagerHandoffGameTests','D09-GT01')]if stage=='D09'else[]):
         phase_release=baseline if phase=='baseline' else release
         target=root/phase;target.mkdir();game=root/'worlds'/('courier-crash'if phase.startswith('courier-crash')else'reload' if phase.startswith('reload') else phase);mods=game/'mods';mods.mkdir(parents=True,exist_ok=True)
         report=target/'native-results.xml';evidence=target/'evidence';evidence.mkdir()
+        if phase=='handoff':
+            subprocess.run(['javap','-classpath',str(sdk/'minecraft-server.jar'),'-p','-c','net.minecraft.world.SimpleContainer','net.minecraft.core.NonNullList','net.minecraft.world.entity.npc.villager.AbstractVillager','java.util.Arrays$ArrayList'],stdout=(target/'handoff-api-bytecode.txt').open('w'),check=True)
+            lock=read(HERE/'handoff-primitive-lock.json');require(sha(sdk/'minecraft-server.jar')==lock['minecraft_server_sha256'],'handoff primitive SDK changed')
+            with ZipFile(sdk/'minecraft-server.jar')as z:require({name:__import__('hashlib').sha256(z.read(name)).hexdigest()for name in lock['classes']}==lock['classes'],'handoff primitive native class changed')
+            write(target/'primitive-classes.json',lock)
         with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         properties='online-mode=false\nserver-ip=127.0.0.1\nserver-port='+str(port)+'\nlevel-name=d-isolated\nlevel-seed=20261027\n'
         (game/'server.properties').write_text(properties);(game/'eula.txt').write_text('eula=true\n')

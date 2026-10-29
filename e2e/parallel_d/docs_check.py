@@ -17,7 +17,7 @@ def check(root, stage='D00'):
     require(manifest['owner']=='D' and manifest['stage']==stage,'wrong doc stage owner')
     require(manifest['gate_status']!='BRANCH_READY','early stage cannot claim branch readiness')
     progress=read(owned/'progress.json') if current['stage']==stage else read(owned/(stage+'.progress.json'))
-    require(progress['next_stage']=={'D00':'D01','D01':'D02','D02':'D03','D03':'D04','D04':'D05','D05':'D06','D06':'D07','D07':'D08','D08':'D09'}[stage],'unexpected advancement')
+    require(progress['next_stage']=={'D00':'D01','D01':'D02','D02':'D03','D03':'D04','D04':'D05','D05':'D06','D06':'D07','D07':'D08','D08':'D09','D09':'D10'}[stage],'unexpected advancement')
     fragments=read(owned/'manifest-fragment.json')
     require(fragments['integration_owner']=='J06' and fragments['destinations']==['AGENT_DOCUMENTATION_INDEX.md','blueprint-manifest.yaml'],'shared documentation destinations unfrozen')
     return {'stage':stage,'scope':'OWNED_DOCUMENTATION_ONLY','files':len(list(owned.rglob('*'))),'gate_status':manifest['gate_status']}

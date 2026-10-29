@@ -1,0 +1,5469 @@
+{
+  "kind": "SYNTHETIC_MODEL_ONLY",
+  "physical_executions": 0,
+  "explanation": "Frozen native-shaped observations for independent verifier tamper controls. These test inputs are never native/client execution evidence.",
+  "existing": [
+    {
+      "batches": 0,
+      "campaign": "EXISTING_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 1,
+        "interactionLimit": 2.5
+      },
+      "delivered": 0,
+      "detail": null,
+      "event": "BEFORE",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 1,
+          "policyRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "EXISTING_CARRIER",
+        "sourceCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "storageSource": null,
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 369140648,
+      "in_flight": 0,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 0,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "READY",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 1,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 792883702,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580390.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+        "generation": 1,
+        "policyRevision": 2,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+        "tick": 21,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": null,
+      "sender": [
+        {
+          "count": 9,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1922747963,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 10,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 21,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "EXISTING_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 1,
+        "interactionLimit": 2.5
+      },
+      "delivered": 0,
+      "detail": null,
+      "event": "ADMITTED",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 1,
+          "policyRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "EXISTING_CARRIER",
+        "sourceCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "storageSource": null,
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 372847352,
+      "in_flight": 4,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 8390139,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "IN_FLIGHT",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 1,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 792883702,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580390.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+        "generation": 1,
+        "policyRevision": 2,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+        "tick": 21,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": {
+        "observed_tick": 21,
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "sender": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "slots": [
+          {
+            "slot": 0,
+            "quantity": 4,
+            "item": {
+              "registryId": "minecraft:oak_planks",
+              "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+              "maxStack": 64,
+              "defaultComponents": true,
+              "containerItem": false
+            },
+            "native_count": 9,
+            "native_object": 1922747963
+          }
+        ],
+        "principal": "20409da1-8631-4f5b-8da4-dda0a889519b"
+      },
+      "sender": [
+        {
+          "count": 9,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1922747963,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 10,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 21,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "EXISTING_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 1,
+        "interactionLimit": 2.5
+      },
+      "delivered": 0,
+      "detail": null,
+      "event": "BEFORE_HANDOFF",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 1,
+          "policyRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "EXISTING_CARRIER",
+        "sourceCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "storageSource": null,
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 373295704,
+      "in_flight": 4,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 8390139,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "IN_FLIGHT",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 1,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 792883702,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580390.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+        "generation": 1,
+        "policyRevision": 2,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+        "tick": 21,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": {
+        "observed_tick": 21,
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "sender": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "slots": [
+          {
+            "slot": 0,
+            "quantity": 4,
+            "item": {
+              "registryId": "minecraft:oak_planks",
+              "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+              "maxStack": 64,
+              "defaultComponents": true,
+              "containerItem": false
+            },
+            "native_count": 9,
+            "native_object": 1922747963
+          }
+        ],
+        "principal": "20409da1-8631-4f5b-8da4-dda0a889519b"
+      },
+      "sender": [
+        {
+          "count": 9,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1922747963,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 10,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 21,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "EXISTING_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 1,
+        "interactionLimit": 2.5
+      },
+      "delivered": 4,
+      "detail": {
+        "status": "LIVE_DEPOSITED",
+        "reason": "NONE",
+        "quantity": 4,
+        "before": {
+          "source": 0,
+          "carrier": 9,
+          "destination": 1
+        },
+        "after": {
+          "source": 0,
+          "carrier": 5,
+          "destination": 5
+        },
+        "location": "authorized recipient inventory; live observation only"
+      },
+      "event": "HANDOFF",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 1,
+          "policyRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "EXISTING_CARRIER",
+        "sourceCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "storageSource": null,
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 374551352,
+      "in_flight": 0,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 5174910,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "DELIVERED_LIVE",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 5,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1344537828,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580390.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+        "generation": 1,
+        "policyRevision": 2,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "ee0da0bb0ddc17347276e2ea20faba8a79eac3ee65e6f2d231d75739e804c830",
+        "tick": 21,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": {
+        "observed_tick": 21,
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "sender": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "slots": [
+          {
+            "slot": 0,
+            "quantity": 4,
+            "item": {
+              "registryId": "minecraft:oak_planks",
+              "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+              "maxStack": 64,
+              "defaultComponents": true,
+              "containerItem": false
+            },
+            "native_count": 9,
+            "native_object": 1922747963
+          }
+        ],
+        "principal": "20409da1-8631-4f5b-8da4-dda0a889519b"
+      },
+      "sender": [
+        {
+          "count": 5,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 590307559,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 10,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 21,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "EXISTING_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 1,
+        "interactionLimit": 2.5
+      },
+      "delivered": 4,
+      "detail": {
+        "status": "REFUSED",
+        "reason": "UNKNOWN_CUSTODY",
+        "quantity": 0,
+        "before": null,
+        "after": null,
+        "location": "handoff unavailable; owner revalidation required"
+      },
+      "event": "REPLAY_REFUSED",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 1,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 1,
+          "policyRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "EXISTING_CARRIER",
+        "sourceCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "storageSource": null,
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 375222008,
+      "in_flight": 0,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 5174910,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "DELIVERED_LIVE",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 5,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1344537828,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580390.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "738f9744-38b9-3843-84d0-0d2d3ed77506",
+        "generation": 1,
+        "policyRevision": 2,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "ee0da0bb0ddc17347276e2ea20faba8a79eac3ee65e6f2d231d75739e804c830",
+        "tick": 21,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": {
+        "observed_tick": 21,
+        "request": "5ec1564a-4ea8-3b2c-aaca-ae4001a4cede",
+        "sender": "57491f40-8aac-38d8-a408-01a8463f73b9",
+        "slots": [
+          {
+            "slot": 0,
+            "quantity": 4,
+            "item": {
+              "registryId": "minecraft:oak_planks",
+              "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+              "maxStack": 64,
+              "defaultComponents": true,
+              "containerItem": false
+            },
+            "native_count": 9,
+            "native_object": 1922747963
+          }
+        ],
+        "principal": "20409da1-8631-4f5b-8da4-dda0a889519b"
+      },
+      "sender": [
+        {
+          "count": 5,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 590307559,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 10,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 21,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    }
+  ],
+  "storage": [
+    {
+      "batches": 0,
+      "campaign": "STORAGE_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 19,
+        "interactionLimit": 2.5
+      },
+      "delivered": 0,
+      "detail": null,
+      "event": "BEFORE",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "c83906af-c7be-35c3-883b-c4f1f61ac8ac",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 20,
+          "policyRevision": 21,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "STORAGE",
+        "sourceCitizen": null,
+        "storageSource": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "storage": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+          "dimension": "minecraft:overworld",
+          "participants": [
+            "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d"
+          ]
+        },
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 365902368,
+      "in_flight": 0,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 926165,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "READY",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 1,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1365501819,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580379.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+        "generation": 20,
+        "policyRevision": 21,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+        "tick": 56,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": null,
+      "sender": [
+        {
+          "count": 3,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 855685435,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 10,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 56,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "STORAGE_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 19,
+        "interactionLimit": 2.5
+      },
+      "delivered": 0,
+      "detail": {
+        "status": "LIVE_WITHDRAWN",
+        "reason": "NONE",
+        "quantity": 4,
+        "before": {
+          "source": 10,
+          "carrier": 3,
+          "destination": 1
+        },
+        "after": {
+          "source": 6,
+          "carrier": 7,
+          "destination": 1
+        },
+        "location": "authorized carrier slot"
+      },
+      "event": "WITHDRAWN",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "c83906af-c7be-35c3-883b-c4f1f61ac8ac",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 20,
+          "policyRevision": 21,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "STORAGE",
+        "sourceCitizen": null,
+        "storageSource": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "storage": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+          "dimension": "minecraft:overworld",
+          "participants": [
+            "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d"
+          ]
+        },
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 366950944,
+      "in_flight": 4,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 9864435,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "IN_FLIGHT",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 1,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1365501819,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580379.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+        "generation": 20,
+        "policyRevision": 21,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+        "tick": 56,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": null,
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": null,
+      "sender": [
+        {
+          "count": 3,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 855685435,
+          "slot": 0
+        },
+        {
+          "count": 4,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 868850349,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 6,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:6,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 56,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "STORAGE_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 0,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 19,
+        "interactionLimit": 2.5
+      },
+      "delivered": 0,
+      "detail": null,
+      "event": "TRAVEL_ACCEPTED",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "c83906af-c7be-35c3-883b-c4f1f61ac8ac",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 20,
+          "policyRevision": 21,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "STORAGE",
+        "sourceCitizen": null,
+        "storageSource": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "storage": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+          "dimension": "minecraft:overworld",
+          "participants": [
+            "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d"
+          ]
+        },
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 368523808,
+      "in_flight": 4,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 9864435,
+      "path_length": 0.0,
+      "path_nodes": 0,
+      "phase": "IN_FLIGHT",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 1,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1365501819,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+      "recipient_entity_ticks": 0,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": false,
+      "recipient_pos": [
+        -13580379.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+        "generation": 20,
+        "policyRevision": 21,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+        "tick": 56,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": {
+        "mode": "GO_RECIPIENT",
+        "actor": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "endpoint": {
+          "dimension": "minecraft:overworld",
+          "x": -13580379.5,
+          "y": 8.0,
+          "z": 5346158.5
+        },
+        "standing": [
+          {
+            "dimension": "minecraft:overworld",
+            "x": -13580379.5,
+            "y": 8.0,
+            "z": 5346158.5
+          }
+        ],
+        "acceptedTick": 56,
+        "deadline": 656,
+        "limits": {
+          "maxTicks": 600,
+          "maxTravel": 64.0,
+          "arrivalRadius": 1.5,
+          "maxCandidates": 8,
+          "repathTicks": 10
+        }
+      },
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": null,
+      "sender": [
+        {
+          "count": 3,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 855685435,
+          "slot": 0
+        },
+        {
+          "count": 4,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 868850349,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580392.5,
+        8.0,
+        5346158.5
+      ],
+      "source": [
+        {
+          "count": 6,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:6,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 56,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    },
+    {
+      "batches": 1,
+      "campaign": "STORAGE_SUCCESS",
+      "case": "SYNTHETIC_D09",
+      "checked_chunks": 6,
+      "control": {
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "controlled": true,
+        "exclusiveSender": true,
+        "exclusiveRecipient": true,
+        "existingSourceAuthorized": true,
+        "protectionAllowed": true,
+        "custodyRevision": 19,
+        "interactionLimit": 2.5
+      },
+      "delivered": 4,
+      "detail": {
+        "status": "LIVE_DEPOSITED",
+        "reason": "NONE",
+        "quantity": 4,
+        "before": {
+          "source": 6,
+          "carrier": 7,
+          "destination": 1
+        },
+        "after": {
+          "source": 6,
+          "carrier": 3,
+          "destination": 5
+        },
+        "location": "authorized recipient inventory; live observation only"
+      },
+      "event": "HANDOFF",
+      "forced_chunks": 7,
+      "goal": {
+        "request": "c83906af-c7be-35c3-883b-c4f1f61ac8ac",
+        "carrier": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "recipient": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "citizen": "8e1931d3-b105-3892-8653-02514827d6b9",
+          "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+          "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+          "generation": 20,
+          "policyRevision": 21,
+          "dimension": "minecraft:overworld"
+        },
+        "source": "STORAGE",
+        "sourceCitizen": null,
+        "storageSource": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "storage": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+          "dimension": "minecraft:overworld",
+          "participants": [
+            "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d"
+          ]
+        },
+        "item": {
+          "registryId": "minecraft:oak_planks",
+          "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+          "maxStack": 64,
+          "defaultComponents": true,
+          "containerItem": false
+        },
+        "quantity": 4
+      },
+      "heap_used_bytes": 389435272,
+      "in_flight": 0,
+      "integration_root": null,
+      "item_entities": [],
+      "namesake": null,
+      "native_recipient_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "native_sender_class": "net.minecraft.world.entity.npc.villager.Villager",
+      "operation_ns": 1847814,
+      "path_length": 16.313708498984763,
+      "path_nodes": 14,
+      "phase": "DELIVERED_LIVE",
+      "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+      "recipient": [
+        {
+          "count": 5,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 1653522631,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "recipient_alive": true,
+      "recipient_entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+      "recipient_entity_ticks": 294,
+      "recipient_inventory_class": "net.minecraft.world.SimpleContainer",
+      "recipient_label": "Receiver",
+      "recipient_loaded": true,
+      "recipient_move_accepted": false,
+      "recipient_navigation_done": true,
+      "recipient_on_ground": true,
+      "recipient_pos": [
+        -13580379.5,
+        8.0,
+        5346158.5
+      ],
+      "recipient_projection": {
+        "scope": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "domain": "d0800000-0000-4000-8000-000000000002",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "actorCitizen": "57491f40-8aac-38d8-a408-01a8463f73b9"
+        },
+        "epoch": "0d04b226-5e60-427f-b6d1-a463b89e3dfe",
+        "id": "8e1931d3-b105-3892-8653-02514827d6b9",
+        "entity": "27f62349-162b-3474-b7a8-7aa84d740c90",
+        "generation": 20,
+        "policyRevision": 21,
+        "label": "Receiver",
+        "dimension": "minecraft:overworld",
+        "inventoryRevision": "ee0da0bb0ddc17347276e2ea20faba8a79eac3ee65e6f2d231d75739e804c830",
+        "tick": 350,
+        "visible": true,
+        "controlled": false,
+        "loaded": true,
+        "permitted": [
+          "DEPOSIT"
+        ]
+      },
+      "recipient_removed": false,
+      "route": {
+        "mode": "GO_RECIPIENT",
+        "actor": {
+          "world": "d0200000-0000-4000-8000-000000000001",
+          "principal": "20409da1-8631-4f5b-8da4-dda0a889519b",
+          "citizen": "57491f40-8aac-38d8-a408-01a8463f73b9",
+          "entity": "2789076e-e289-3c30-b33f-a9e63d0e64ef",
+          "generation": 1,
+          "controlRevision": 2,
+          "dimension": "minecraft:overworld"
+        },
+        "endpoint": {
+          "dimension": "minecraft:overworld",
+          "x": -13580379.5,
+          "y": 8.0,
+          "z": 5346158.5
+        },
+        "standing": [
+          {
+            "dimension": "minecraft:overworld",
+            "x": -13580379.5,
+            "y": 8.0,
+            "z": 5346158.5
+          }
+        ],
+        "acceptedTick": 56,
+        "deadline": 656,
+        "limits": {
+          "maxTicks": 600,
+          "maxTravel": 64.0,
+          "arrivalRadius": 1.5,
+          "maxCandidates": 8,
+          "repathTicks": 10
+        }
+      },
+      "save_proof": null,
+      "seed": 0,
+      "selected_source": null,
+      "sender": [
+        {
+          "count": 3,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "native_object": 855685435,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "native_object": 1844528156,
+          "slot": 7
+        }
+      ],
+      "sender_inventory_class": "net.minecraft.world.SimpleContainer",
+      "sender_loaded": true,
+      "sender_navigation_done": true,
+      "sender_pos": [
+        -13580380.949950906,
+        8.0,
+        5346158.844385786
+      ],
+      "source": [
+        {
+          "count": 6,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+          "native_default": true,
+          "native_item_id": "minecraft:oak_planks",
+          "native_max_stack": 64,
+          "slot": 0
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 1
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 2
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 3
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 4
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 5
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 6
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 7
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 8
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 9
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 10
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 11
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 12
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 13
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 14
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 15
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 16
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 17
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 18
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 19
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 20
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 21
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 22
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 23
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 24
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 25
+        },
+        {
+          "count": 0,
+          "item": null,
+          "native_codec": null,
+          "native_default": true,
+          "native_item_id": null,
+          "native_max_stack": 1,
+          "slot": 26
+        }
+      ],
+      "source_binding": {
+        "adapter_id": "minecraft:chest_single/v1",
+        "binding_generation": 1,
+        "dimension": "minecraft:overworld",
+        "facing": "NORTH",
+        "lifecycle_epoch": "e0649e86-3397-47d9-8479-e57c62595090",
+        "members": [
+          {
+            "incarnation_id": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+            "marker_generation": 1,
+            "x": -13580394,
+            "y": 8,
+            "z": 5346158
+          }
+        ],
+        "observed_tick": 6,
+        "status": "VERIFIED_LIVE",
+        "storage_id": "1d42ecec-829d-49e7-b478-f85c10e66a9b",
+        "topology_sha256": "39db4fca4f54a46ddfa39353997eaa6987ef1d84a0fcbb2c06025367a1e0a323",
+        "world_id": "d0200000-0000-4000-8000-000000000001"
+      },
+      "source_native": {
+        "block": "minecraft:chest",
+        "marker": {
+          "incarnation": "0ad7e3b5-aee2-483f-851d-9e728aeb1d4d",
+          "generation": 1
+        },
+        "saved_nbt": "{Items:[{Slot:0b,count:6,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"0ad7e3b5-aee2-483f-851d-9e728aeb1d4d\",version:1},components:{},id:\"minecraft:chest\",x:-13580394,y:8,z:5346158}"
+      },
+      "tick": 350,
+      "world": "d0200000-0000-4000-8000-000000000001"
+    }
+  ]
+}

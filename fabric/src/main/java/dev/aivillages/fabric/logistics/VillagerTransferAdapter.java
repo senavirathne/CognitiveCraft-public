@@ -94,9 +94,10 @@ public final class VillagerTransferAdapter {
         if(left!=0)return decline(session,Reason.CAPACITY);
         Control fresh=authority.observe(goal,order(goal,cargo.source));Villager freshTarget=recipient(goal,cargo.recipient);Reason freshSource=cargo.source==null?Reason.NONE:sourceGuard(cargo.source,cargo.probe);
         if(!control.equals(fresh) || !authorized(fresh,goal) || !fresh.exclusiveRecipient || freshTarget!=target || freshSource!=Reason.NONE || !current(inventory,cargo.accepted) || !current(destination,receiverBefore) || !reach(target,fresh))return decline(session,Reason.INTERFERENCE);
+        NonNullList<ItemStack> from=inventory.getItems(),to=destination.getItems();
         // Exact qualified vanilla primitive: fixed Arrays-backed list, valid indices and non-null prebuilt values.
         // No callbacks, allocation, inventory getters, policy calls or yields in this write section.
-        NonNullList<ItemStack> from=inventory.getItems(),to=destination.getItems();for(int i=0;i<8;i++){from.set(i,senderAfter[i]);to.set(i,recipientAfter[i]);}
+        for(int i=0;i<8;i++){from.set(i,senderAfter[i]);to.set(i,recipientAfter[i]);}
         Counts after=counts(cargo.source,target,cargo.probe);TransferObservation result=DeliveryPolicy.deposit(before,after,cargo.quantity)?new TransferObservation(Status.LIVE_DEPOSITED,Reason.NONE,cargo.quantity,before,after,"authorized recipient inventory; live observation only"):new TransferObservation(Status.UNCERTAIN,Reason.UNCERTAIN_EFFECT,cargo.quantity,before,after,"native participants; owner reconciliation required");session.observe(result);return result;
     }
     private Reason admission(Session session,Source expected){if(!session.goal().carrier().equals(identity) || session.goal().source()!=expected)return Reason.UNAUTHORIZED;Reason reason=RecipientDeliveryPolicy.admit(session.goal());if(reason!=Reason.NONE)return reason;if(session.phase()!=Phase.READY)return Reason.WRONG_PHASE;return session.batches()<8?Reason.NONE:Reason.BATCH_LIMIT;}
