@@ -1,5 +1,5 @@
 """Read-only Docker review of the failed first-harvest trial; never native qualification."""
-import argparse,hashlib,json,xml.etree.ElementTree as ET
+import argparse,hashlib,json,tempfile,xml.etree.ElementTree as ET
 from pathlib import Path
 from review_receipt_prefix import checked_archive,journal,regions,entity_uuid,block_name
 
@@ -11,8 +11,11 @@ def read(path):return json.loads(path.read_text())
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def review(native_archive,contracts_archive,out):
     out.mkdir(parents=True,exist_ok=True)
-    archive_reviews={name:checked_archive(ARTIFACTS[name],path,out/name) for name,path in [('native',native_archive),('contracts',contracts_archive)]}
-    native,contracts=out/'native',out/'contracts'
+    with tempfile.TemporaryDirectory(prefix='a06-harvest-review-') as directory:
+        return inspect(native_archive,contracts_archive,out,Path(directory))
+def inspect(native_archive,contracts_archive,out,work):
+    archive_reviews={name:checked_archive(ARTIFACTS[name],path,work/name) for name,path in [('native',native_archive),('contracts',contracts_archive)]}
+    native,contracts=work/'native',work/'contracts'
     result=read(native/'a06-harvest-results.json');metadata=read(native/'metadata.json')
     assert metadata.get('reviewedHeadCommit',metadata['sourceCommit'])==SOURCE and metadata['dirty'] is False
     assert result['status']=='FAIL' and result['reason']=='Actually reached saved original H boundary; last=None'
@@ -27,22 +30,29 @@ def review(native_archive,contracts_archive,out):
         assert sha(base/'mods/ai-villages-0.1.0.jar')==release
     assert sha(native/'server/game/mods/observer.jar')==observer
     world=native/'server/game/world';header,rows=journal(world/'data/cognitivecraft/harvest-evidence/v1/state.jsonl')
-    assert len(rows)==1 and rows[0]['schema']==1 and 'result' not in rows[0] and 'verification' not in rows[0]
-    intent=rows[0]['intent'];source=intent['source'];block=block_name(world,[source[k] for k in ('x','y','z')])
-    assert block=='minecraft:oak_log'
-    actors=[e for c in regions(world,'entities') for e in c.get('Entities',[]) if entity_uuid(e)==intent['actor']['entity']]
-    assert len(actors)==1 and actors[0]['id']=='minecraft:villager' and not actors[0].get('Inventory',[])
+    assert len(rows)<=64 and all(r['schema']==1 and isinstance(r.get('intent'),dict) for r in rows)
     snapshot=read(native/'server/harvest-snapshot.json')
-    assert snapshot['pending'] is False and len(snapshot['journal']['entries'])==1 and not snapshot['journal']['entries'][0].get('result')
+    assert isinstance(snapshot['pending'],bool) and isinstance(snapshot['fenced'],bool)
+    assert isinstance(snapshot['journal']['entries'],list)
+    positions=[[73,208,73],[76,208,74]]
+    blocks={','.join(map(str,pos)):block_name(world,pos) for pos in positions}
+    jobs=snapshot.get('runtime',{}).get('jobs',{}).get('jobs',[])
+    selected=[j for j in jobs if j['request']['request']['arguments'].get('amount',{}).get('value')==2]
+    assert len(selected)==1
+    job=selected[0];attempt=job.get('attempts',[])[-1] if job.get('attempts') else None
+    if attempt:
+        actors=[e for c in regions(world,'entities') for e in c.get('Entities',[]) if entity_uuid(e)==attempt['worker']['entityId']]
+        assert len(actors)<=1 and all(e['id']=='minecraft:villager' for e in actors)
+    else:actors=[]
     cases=[]
     for module in ('core','fabric'):
         for path in sorted((contracts/module/'build/test-results/test').glob('*Harvest*Test.xml')):
-            row=ET.parse(path).getroot();cases.append({'suite':row['name'] if isinstance(row,dict) else row.attrib['name'],'tests':int(row.attrib['tests']),'failures':int(row.attrib['failures']),'errors':int(row.attrib['errors'])})
+            row=ET.parse(path).getroot();cases.append({'suite':row.attrib['name'],'tests':int(row.attrib['tests']),'failures':int(row.attrib['failures']),'errors':int(row.attrib['errors'])})
     value={'schema':1,'status':'PASS_FAILURE_EVIDENCE_REVIEW_ONLY','source':SOURCE,'run':40754098206,
            'originalOwnerSettlements':0,'nativeHarvestBoundary':'NOT_REACHED','nativeCompletion':'NOT_PROVED',
-           'observedFailure':result['reason'],'journal':'One acknowledged PREPARED intent; no native result or verification',
-           'sourceAtOriginalAddress':block,'actorNativeInventory':actors[0].get('Inventory',[]),
-           'diagnosis':'Own destination-permission query intersects the pending harvest exclusion (source analysis); scoped read-query fix requires a new native trial.',
+           'observedFailure':result['reason'],'journal':{'records':len(rows),'preparedOnly':sum('result' not in r for r in rows),'resultRecords':sum('result' in r for r in rows),'verificationRecords':sum('verification' in r for r in rows),'header':header,'entries':rows},
+           'sourceBlocks':blocks,'actorNativeInventory':actors[0].get('Inventory',[]) if actors else None,'originalJob':job,'lastMetrics':snapshot.get('metrics'),'lastPublication':{'pending':snapshot['pending'],'fenced':snapshot['fenced']},
+           'diagnosis':'Exact retained failure state is reported without assuming whether harvest started. Source analysis identifies a possible own-exclusion preflight path; the correction requires native testing. No intended boundary or original-owner pass is inferred from rows or custody.',
            'moduleCases':sum(v[0] for v in counts.values()),'modules':counts,'harvestSuites':cases,
            'releaseSha256':release,'observerSha256':observer,'archives':archive_reviews,
            'claim':'Failure preservation and module/archive integrity only. No saved harvest or original-owner settlement pass.'}

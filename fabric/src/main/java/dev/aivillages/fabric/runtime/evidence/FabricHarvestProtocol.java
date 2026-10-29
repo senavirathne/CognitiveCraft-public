@@ -31,8 +31,11 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private Consumer<Point> observer=point->{ };
     private boolean closed;
     private final ArrayDeque<Long> preparationNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
-    public record Metrics(List<Long> preparationNanos,List<Long> pollNanos,List<Long> acknowledgementNanos) { }
-    public Metrics metrics(){check();return new Metrics(List.copyOf(preparationNanos),List.copyOf(pollNanos),store.acknowledgementNanos());}
+    private final ArrayDeque<Refusal> refusals=new ArrayDeque<>();
+    public record Refusal(String phase,String reason,String detail) { }
+    private void refused(String phase,String reason,String detail){if(refusals.size()==32)refusals.removeFirst();refusals.addLast(new Refusal(phase,reason,detail==null?"":detail.substring(0,Math.min(128,detail.length()))));}
+    public record Metrics(List<Long> preparationNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<Refusal> refusals) { }
+    public Metrics metrics(){check();return new Metrics(List.copyOf(preparationNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(refusals));}
     private void measured(ArrayDeque<Long> values,long began){if(values.size()==128)values.removeFirst();values.addLast(System.nanoTime()-began);}
     private final class NativeTicket implements Ticket {
         final Request request;final Action original;final NativeHarvest.Intent intent;final Reason failure;
@@ -67,16 +70,20 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         finally{measured(preparationNanos,began);}
     }
     private Ticket beginNative(Request request,Action original) {
+        String phase="authority";
         try {
             if(closed || !enabled)throw new Refused(Reason.UNSUPPORTED_PRIMITIVE);
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=8)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
             if(!original.current())throw new Refused(Reason.INTERRUPTED);
+            phase="owner";
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new Refused(Reason.INTERRUPTED);
+            phase="participants";
             Pair pair=pair(request,true);if(pair==null)throw new Refused(Reason.TARGET_UNAVAILABLE);
             if(!BuiltInRegistries.BLOCK.getKey(pair.chunk.getBlockState(pos(request.source())).getBlock()).toString().equals(request.item().id()))throw new Refused(Reason.TARGET_INVALID);
+            phase="claims";
             var claims=new ArrayList<ResourceLeases.Lease>(4);
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin()) && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime()) {
                 if(claims.size()==4)throw new Refused(Reason.TARGET_UNAVAILABLE);claims.add(claim);
@@ -91,6 +98,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
                 references.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
             }
             if(!source || !facility)throw new Refused(Reason.TARGET_UNAVAILABLE);
+            phase="allowance";
             UUID root=job.id();var ancestor=job;
             for(int n=0;ancestor.parent()!=null;n++) {
                 if(n>=8)throw new Refused(Reason.REQUEST_INVALID);ancestor=jobs.query(ancestor.parent(),job.origin());root=ancestor.id();
@@ -102,12 +110,14 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             int reach=(int)Math.ceil(Math.sqrt(pair.actor.distanceToSqr(Vec3.atCenterOf(pos(request.source()))))*1000);
             var conditions=new Conditions(request.actor().citizenId(),job.revision(),deadline,request.deadline(),request.effectsRemaining(),level.getGameTime(),2500,reach,references,request.usage());
             int ordinal=Math.toIntExact(Math.addExact(request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L),1));
+            phase="intent";
             var intent=new NativeHarvest.Intent(new Key(job.origin().scope().worldId(),root,job.id(),attempt.id(),attempt.generation(),ordinal),job.origin(),request.correlation().runId(),request.operation(),
                     request.actor(),request.area(),request.destination(),request.item().id(),pair.source,conditions,pair.actorSnapshot);
+            phase="exclusion";
             if(store.conflicts(request.actor(),request.source().dimension(),request.source().x(),request.source().y(),request.source().z(),""))throw new Refused(Reason.INTERRUPTED);
             var ticket=new NativeTicket(request,original,intent,null);tickets.add(ticket);return ticket;
-        }catch(Refused refused){return new NativeTicket(request,original,null,refused.reason);}
-        catch(RuntimeException invalid){return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
+        }catch(Refused refused){refused(phase,refused.reason.name(),"");return new NativeTicket(request,original,null,refused.reason);}
+        catch(RuntimeException invalid){refused(phase,invalid.getClass().getSimpleName(),invalid.getMessage());return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
     }
     @Override public Progress poll(Ticket value) {
         check();long began=System.nanoTime();try{return pollNative(value);}finally{measured(pollNanos,began);}
@@ -118,7 +128,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         if(!tickets.contains(ticket))return failed(Reason.INTERRUPTED);
         store.tick();HarvestEvidenceStore.Status status;
         try{status=store.prepare(ticket.intent);if(status.code()==HarvestEvidenceStore.Code.PREPARED)status=store.perform(status.prepared());}
-        catch(RuntimeException unknown){return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);}
+        catch(RuntimeException unknown){refused("publication",unknown.getClass().getSimpleName(),unknown.getMessage());return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);}
         return switch(status.code()) {
             case PENDING,PREPARED->new Progress(Code.PENDING,null);
             case RESULT_ACKNOWLEDGED->{
@@ -128,7 +138,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             }
             case FULL->failed(Reason.STORAGE_LIMIT_REACHED);
             case FENCED->new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);
-            default->failed(Reason.INTERRUPTED);
+            default->{refused("journal",status.code().name(),"");yield failed(Reason.INTERRUPTED);}
         };
     }
     private Progress failed(Reason reason){return new Progress(Code.FAILED,reason);}

@@ -101,10 +101,12 @@ jobs:
           PYCODE
           git diff --exit-code -- "$owner"
       - name: A04 closed-set history contracts and existing owner regressions
+        id: a06_modules
         run: |
           bash gradlew --no-daemon --continue --stacktrace :core:test :providers:test :fabric:test :fabric:build
           python3 -m unittest discover -s e2e -p 'test_*.py'
       - name: Compile exact native client and isolated A04 observers before activation
+        id: a06_prepare
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
@@ -199,7 +201,7 @@ jobs:
           docker image inspect --format '{{.Id}}' python:3.12-slim > "$root/python-image-id.txt"
       - name: A06 first native original-owner harvest and equal-state replacement refusal
         if: >-
-          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 harvest-native') }}
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 harvest-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
