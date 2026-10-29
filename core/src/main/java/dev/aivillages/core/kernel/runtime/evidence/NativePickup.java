@@ -8,7 +8,7 @@ import static dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 /** First-pickup data and classification only; neither data nor a classifier grants effect/Jobs authority. */
 public final class NativePickup {
     private NativePickup() { }
-    public static final int MAX_RECORD_BYTES=32_768,MAX_TRAIL_CHUNKS=8;
+    public static final int MAX_ENTRIES=64,MAX_RECORD_BYTES=32_768,MAX_TRAIL_CHUNKS=8;
     public enum Live { NO_EFFECT,COMPLETE,PARTIAL,UNRECEIPTED_EFFECT }
     public enum Reconciliation { WAIT_WORLD,UNPROVEN,TORN_SAVED_COHORT,SAVED_COMPLETE,SAVED_NO_EFFECT,PARTIAL_UNRESOLVED }
     public enum Role { ACTOR,DROP }
