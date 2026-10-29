@@ -5,7 +5,8 @@ from deposits import DepositHarness,manifest
 from deposit_seed import start
 from baseline import native_process,same_native_alive
 from suite import ROOT,atomic,read,require,reconnect_players
-from generalization_support import LOG,coord
+from generalization_support import LOG,BIRCH,DST,coord
+from harvest_cases import LOG_H_CASE_IDS,select_case,fixture_positions
 from harvest_fixture import saved_harvest
 
 class HarvestHarness(DepositHarness):
@@ -27,23 +28,40 @@ def custody(h,case):
     dst=[case['destination'][k] for k in ('x','y','z')]
     return {'actorInventory':actor['inventory'],'destination':h.container(dst,case['item']),
             'drops':sorted((d['uuid'],d['count']) for d in value['drops'] if d['item']==case['item']),
-            'blocks':{coord(p):h.block(p) for p in ([73,208,73],[76,208,74])}}
+            'blocks':{coord(p):h.block(p) for p in fixture_positions(case)}}
+
+def initialize_case(h,case,archive):
+    if case['item']!=BIRCH:return start(h,archive)
+    # Learn/demonstrate the actual birch method before selecting any experimental evidence owner.
+    h.env['A06_HARVEST_ENABLED']='false';h.env['A05_DEPOSIT_ENABLED']='false'
+    h.bootstrap([BIRCH])
+    admission=next((a for a in h.admissions if a.get('item')==BIRCH and a.get('status')=='PASS'),None)
+    require(admission is not None and 'cognitivecraft:deliver_birch_logs' in h.hashes,'Genuine native birch admission required')
+    view=admission['view'];require(view['responsibility']['state']=='SUCCEEDED','Birch admission original Job did not succeed')
+    require(all(sum(r['quantity'] for r in view.get('resourceReceipts',[]) if r['stage']==stage and r['item']['id']==BIRCH)==1 for stage in ('HARVEST','PICKUP','DEPOSIT')),'Birch admission lacks genuine physical H/P/D receipts')
+    h.stock_fixture({},source=DST);h.save_checkpoint()
+    h.env['A06_HARVEST_ENABLED']='true';h.env['A05_DEPOSIT_ENABLED']='true'
+    restarted=h.restart(hard=True);require(restarted['reader']['journal']['entries']==[],'Original H starts with a fresh experimental journal')
+    value={'kind':'FRESH_GENUINE_BIRCH_ADMISSION','admissionRun':admission['run'],'artifactSha256':h.hashes['cognitivecraft:deliver_birch_logs'],
+           'activationRestart':restarted,'admission':admission,'nativeAdmissionEffectsCountedAsA06':0}
+    atomic(h.root/'birch-admission-continuation.json',value);return None,value
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);p.add_argument('--seed-archive',type=Path,required=True);args=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);p.add_argument('--seed-archive',type=Path,required=True);p.add_argument('--case-id',choices=LOG_H_CASE_IDS,default='heldout-W6-002');args=p.parse_args()
     root=args.root.resolve();root.mkdir(parents=True,exist_ok=True);h=None
-    case=next(c for c in read(ROOT/'e2e/parallel_a/a06_original_cases.json')['cases'] if c['id']=='heldout-W6-002')
+    case=select_case(read(ROOT/'e2e/parallel_a/a06_original_cases.json'),args.case_id)
     result={'stage':'A06_FIRST_NATIVE_H','status':'NOT_EXECUTED','originalCase':case,'originalTwelveSettlements':0,
             'remainingOriginalVariants':'NOT_EXECUTED_REQUIRED','nativePickupProducer':'INACTIVE','automaticContinuation':'INACTIVE','costQualification':'NOT_QUALIFIED_SMALL_SAMPLE'}
     try:
         h=HarvestHarness(root);h.activated=0;h.env['A06_HARVEST_ENABLED']='true'
-        seed,result['seedContinuation']=start(h,args.seed_archive.resolve())
+        seed,result['seedContinuation']=initialize_case(h,case,args.seed_archive.resolve())
         result['nativeStorageMechanics']=h.rpc('storage-contracts')
         require(result['nativeStorageMechanics']['status']=='PASS_NATIVE_STORAGE_MECHANICS_ONLY','Native entity storage/movement controls failed')
         atomic(root/'a06-storage-mechanics.json',result['nativeStorageMechanics'])
         dst=[case['destination'][k] for k in ('x','y','z')]
-        h.reset({},destination=dst,table=False);h.logs([[73,208,73],[76,208,74]])
-        require(case['requested']==2 and case['item']==LOG,'Frozen original first H envelope changed')
+        h.reset({},destination=dst,table=False);positions=fixture_positions(case);h.logs(positions,item=case['item'])
+        result['fixturePositions']=positions
+        require(not custody(h,case)['actorInventory'] and custody(h,case)['destination']==0 and not custody(h,case)['drops'],'Original H starts with empty custody and no foreign drops')
         token=str(uuid.uuid4());result['arm']=h.rpc('arm',point='RESULT_ACKNOWLEDGED',token=token,save=True)
         result['initialCustody']=custody(h,case);calls=h.model_calls();src=case['source']
         run=h.submit(case['item'],case['requested'],minimum=[src[k] for k in ('minX','minY','minZ')],maximum=[src[k] for k in ('maxX','maxY','maxZ')],destination=dst)
@@ -53,6 +71,7 @@ def main():
         entry=marker['journal']['entries'][0];key=entry['intent']['key'];original=next(j for j in marker['runtime']['jobs']['jobs'] if j['id']==key['step'])
         require(original['state']=='ACTIVE' and original['attempts'][-1].get('terminal') is None,'Original H owner was not live at the actual saved cut')
         require(original['request']['request']['arguments']['amount']['value']==case['requested'],'Original H quantity changed')
+        require(original['attempts'][-1]['executions'][0]['artifact']['sha256']==h.hashes[case['capability']['name']],'Original H did not use its genuinely admitted method')
         result['originalAtCut']=original;before=native_process(h);clients={p:read(root/'clients'/p/'process.json') for p in h.players}
         h.stop('server',hard=True);h.wait(lambda:not same_native_alive(before),'Real saved H JVM killed',25)
         killed=root/'saved-harvest-killed-world';shutil.copytree(root/'server/game/world',killed,ignore=shutil.ignore_patterns('session.lock'))
@@ -80,7 +99,7 @@ def main():
         # Separate same-coordinate/equal-state negative cohort; no receipt is added to the old world.
         h.restore(saved_game,'source-replacement-negative');h.actions_active=False
         source=entry['result']['source'];position=[source[k] for k in ('x','y','z')]
-        h.console(['setblock '+coord(position)+' minecraft:oak_log','setblock '+coord(position)+' minecraft:air'])
+        h.console(['setblock '+coord(position)+' '+case['item'],'setblock '+coord(position)+' minecraft:air'])
         h.save_checkpoint();negative_restart=h.restart(hard=True)
         negative=h.wait(lambda:(v if (v:=h.stable_entry()) and list(v['reconciliation'].values())==['TORN_SAVED_COHORT'] else None),'Equal-state source replacement refuses old saved proof',45)
         require(not negative['journal']['entries'][0].get('verification'),'Changed source unexpectedly became verified')
