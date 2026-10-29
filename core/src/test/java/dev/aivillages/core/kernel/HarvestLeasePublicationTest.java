@@ -127,7 +127,9 @@ final class HarvestLeasePublicationTest {
     @Test void publicationWaitDoesNotSkipTheDestinationClaim() {
         var s=new Scene(2);s.mutate();s.facility=false;var answer=s.poll(s.handle);
         assertTrue(answer.terminal());assertEquals(Outcomes.Reason.INTERRUPTED,answer.reason());
-        assertTrue(s.leases.snapshot().leases().stream().anyMatch(l->l.state()==State.REVOKED));
+        assertFalse(s.leases.ready(),"Revocation must not be visible before its storage acknowledgement");
+        s.tick();assertTrue(s.leases.ready());
+        assertTrue(s.leases.snapshot().leases().stream().allMatch(l->l.state()==State.REVOKED));
         assertEquals(1,s.physical.world.harvests);assertEquals(0,s.physical.world.transfers);
     }
     @Test void anotherActionCannotUseThePendingHarvestToSkipItsOwnStockValidation() {

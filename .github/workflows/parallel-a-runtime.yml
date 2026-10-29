@@ -210,6 +210,10 @@ jobs:
           root="$PWD/build/parallel-a/source-audit/a06-harvest-b075-review"
           mkdir -p "$root"
           docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_failure.py --cohort source-b075 --native-archive build/parallel-a/harvest-failure-inputs/b075-native.zip --contracts-archive build/parallel-a/harvest-failure-inputs/b075-contracts.zip --out "$root"
+          gh api repos/${{ github.repository }}/actions/artifacts/12872265094/zip > build/parallel-a/harvest-failure-inputs/ed5-contracts.zip
+          root="$PWD/build/parallel-a/source-audit/a06-harvest-ed5-contract-review"
+          mkdir -p "$root"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_failure.py --contracts-only-ed5 --contracts-archive build/parallel-a/harvest-failure-inputs/ed5-contracts.zip --out "$root"
       - name: A06 first native original-owner harvest and equal-state replacement refusal
         id: a06_native_harvest
         if: >-
@@ -220,6 +224,20 @@ jobs:
           python3 tools/needle/install.py build/needle
           gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a06-harvest-seed.zip
           python3 e2e/parallel_a/harvest_native.py --root build/parallel-a/native-a06-harvest --seed-archive build/parallel-a/a06-harvest-seed.zip
+      - name: Preserve unmet native prerequisites without claiming native execution
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 harvest-native') && steps.a06_native_harvest.outcome == 'skipped' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('build/parallel-a/native-a06-harvest');root.mkdir(parents=True,exist_ok=True)
+          value={'status':'NOT_EXECUTED','source':'${{ github.sha }}','originalOwnerSettlements':0,
+                 'prerequisites':{'modules':'${{ steps.a06_modules.outcome }}','nativePreparation':'${{ steps.a06_prepare.outcome }}'},
+                 'claim':'Required current module/native preparation did not pass. All native cases remain required.'}
+          (root/'a06-native-unmet-prerequisites.json').write_text(json.dumps(value,indent=2)+'\n')
+          print('A06_NATIVE_NOT_EXECUTED '+json.dumps(value))
+          PY
       - name: Independently inspect current native H and complete module evidence in Docker
         if: >-
           ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 harvest-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' && steps.a06_native_harvest.outcome != 'skipped' }}

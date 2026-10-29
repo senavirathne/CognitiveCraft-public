@@ -68,7 +68,35 @@ def inspect(native_archive,contracts_archive,out,work,cohort):
     (out/'review.json').write_text(json.dumps(value,indent=2)+'\n')
     print('A06_HARVEST_FAILURE_REVIEW '+json.dumps({k:value[k] for k in ('status','moduleCases','originalOwnerSettlements','nativeHarvestBoundary')}))
     return value
+def review_contract_failure(contracts_archive,out):
+    artifact={'id':12872265094,'size_in_bytes':2805224,'digest':'sha256:fb5d9e2326c42d31a373dbd46bf163ca8b3576df782f17dda5745928d5b4368d'}
+    out.mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='a06-test-failure-review-') as directory:
+        contracts=Path(directory)/'contracts';archive=checked_archive(artifact,contracts_archive,contracts)
+        counts={};failed=[]
+        for path in contracts.glob('*/build/test-results/test/TEST-*.xml'):
+            row=ET.parse(path).getroot();v=counts.setdefault(path.parts[-5],[0,0,0,0])
+            for n,key in enumerate(('tests','failures','errors','skipped')):v[n]+=int(row.get(key,0))
+            for case in row.findall('testcase'):
+                for problem in case:
+                    if problem.tag in ('failure','error','skipped'):
+                        failed.append({'suite':row.get('name'),'case':case.get('name'),'kind':problem.tag,'message':problem.get('message'),'trace':problem.text})
+        assert counts=={'core':[2243,1,0,0],'providers':[131,0,0,0],'fabric':[58,0,0,0]},counts
+        assert len(failed)==1 and failed[0]['suite']=='dev.aivillages.core.kernel.HarvestLeasePublicationTest'
+        assert failed[0]['case']=='publicationWaitDoesNotSkipTheDestinationClaim()' and failed[0]['kind']=='failure'
+        assert 'HarvestLeasePublicationTest.java:130' in failed[0]['trace']
+        value={'schema':1,'status':'PASS_PRESERVED_TEST_TIMING_FAILURE','source':'ed5a32ccef54164ba98e578dbfbacdbf31820b5d',
+               'run':40814496199,'moduleCases':sum(v[0] for v in counts.values()),'modules':counts,'failure':failed[0],'archive':archive,
+               'nativeTrial':'NOT_EXECUTED_REQUIRED_MODULE_PREREQUISITE_FAILED','originalOwnerSettlements':0,
+               'claim':'The new destination-refusal case inspected revocation before storage acknowledgement. The terminal interrupted effect checks had passed; the corrected test waits for the original acknowledgement. No test or native failure is relabeled as a pass.'}
+        (out/'review.json').write_text(json.dumps(value,indent=2)+'\n')
+        print('A06_TEST_TIMING_FAILURE_REVIEW '+json.dumps({k:value[k] for k in ('status','moduleCases','nativeTrial','originalOwnerSettlements')}))
+        return value
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--native-archive',type=Path,required=True);p.add_argument('--contracts-archive',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--cohort',choices=COHORTS,default='source-543');a=p.parse_args()
-    review(a.native_archive,a.contracts_archive,a.out,a.cohort)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--native-archive',type=Path);p.add_argument('--contracts-archive',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
+    p.add_argument('--cohort',choices=COHORTS,default='source-543');p.add_argument('--contracts-only-ed5',action='store_true');a=p.parse_args()
+    if a.contracts_only_ed5:review_contract_failure(a.contracts_archive,a.out)
+    else:
+        if a.native_archive is None:p.error('--native-archive is required for native archive review')
+        review(a.native_archive,a.contracts_archive,a.out,a.cohort)
 if __name__=='__main__':main()
