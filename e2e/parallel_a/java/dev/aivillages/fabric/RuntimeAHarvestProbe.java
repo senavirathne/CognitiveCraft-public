@@ -33,6 +33,7 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
                         "journal",evidence.snapshot(),"pending",evidence.pending(),"fenced",evidence.fenced(),"reconciliation",classified,"protectedJobs",evidence.protectedJobs(),"metrics",protocol.metrics()));
                 var command=request.getAndSet(null);if(command==null)return;active=command;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
+                if(op.equals("storage-contracts")){reply(id,RuntimeAEntityStorageChecks.run(server,root),null);return;}
                 if(op.equals("arm")) {
                     var point=FabricHarvestProtocol.Point.valueOf(command.get("point").getAsString());String token=UUID.fromString(command.get("token").getAsString()).toString();
                     boolean save=command.get("save").getAsBoolean();

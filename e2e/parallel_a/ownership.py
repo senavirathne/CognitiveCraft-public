@@ -50,6 +50,8 @@ allowed={
     'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkStorageMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkStorageLoadMixin.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestDropParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/EntityStorageEvidenceMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/EntityMembershipMixin.java',
     'core/src/test/java/dev/aivillages/core/kernel/HarvestGatewayTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/HarvestStoppedSourceTest.java',
 }

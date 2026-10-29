@@ -38,6 +38,9 @@ def main():
     try:
         h=HarvestHarness(root);h.activated=0;h.env['A06_HARVEST_ENABLED']='true'
         seed,result['seedContinuation']=start(h,args.seed_archive.resolve())
+        result['nativeStorageMechanics']=h.rpc('storage-contracts')
+        require(result['nativeStorageMechanics']['status']=='PASS_NATIVE_STORAGE_MECHANICS_ONLY','Native entity storage/movement controls failed')
+        atomic(root/'a06-storage-mechanics.json',result['nativeStorageMechanics'])
         dst=[case['destination'][k] for k in ('x','y','z')]
         h.reset({},destination=dst,table=False);h.logs([[73,208,73],[76,208,74]])
         require(case['requested']==2 and case['item']==LOG,'Frozen original first H envelope changed')

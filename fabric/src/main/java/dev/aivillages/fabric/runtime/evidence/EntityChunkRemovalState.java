@@ -10,8 +10,9 @@ import net.minecraft.world.level.ChunkPos;
 
 /**
  * Bounded data for a removed participant in its own native entity-chunk record.
- * Not attached to EntityStorage yet. Neither a live declaration nor bare absence is saved proof;
- * a future producer must bind every departure chunk and the real pickup result.
+ * Native EntityStorage retains this metadata through empty saves. Neither a live declaration
+ * nor bare absence is saved proof; the still-inactive producer must bind every real departure
+ * chunk, original authority, and actual pickup result.
  */
 public final class EntityChunkRemovalState {
     public static final String TAG="cognitivecraft_entity_removals";
