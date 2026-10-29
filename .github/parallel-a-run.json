@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 6,
-  "parentSource": "2058281c8a6d327a004ae9cff4b598864b2b4d22",
+  "sequence": 7,
+  "parentSource": "0e7885db12c3ecddb2d927b832f2011cf37b8672",
   "stage": "A06",
-  "scope": "scoped-original-preflight-and-first-native-harvest-with-complete-required-regressions-and-Docker-archive-review",
+  "scope": "actual-failure-Docker-review-independent-native-harvest-trial-and-all-required-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -63,7 +63,23 @@
         ],
         "causes": "UNRESOLVED"
       }
+    },
+    {
+      "run": 40808981403,
+      "source": "096e287b0e7da617aad6a9111dc7d9da07ae25fb",
+      "phase": "historical archive checker",
+      "cause": "Checker assumed exactly one prepared-only row; actual retained state must be reported without that assumption",
+      "moduleStatus": "PASS_CI",
+      "requiredHosts": "ALL_NINE_PASS",
+      "nativeCases": "NOT_EXECUTED_AFTER_REVIEW_FAILURE",
+      "failedReviewPreserved": true
     }
   ],
-  "independentArchiveReview": "Docker python:3.12-slim, no network; immutable source543 native and contract archives"
+  "independentArchiveReview": "Docker python:3.12-slim, no network; immutable source543 native and contract archives",
+  "nativePrerequisites": [
+    "Current module contracts PASS",
+    "Current production/native observer preparation PASS",
+    "No cancellation of the workflow"
+  ],
+  "historicalArchiveReview": "Independent diagnostic; failure remains fatal to workflow, without preventing current native trial after its authorizing prerequisites pass"
 }
