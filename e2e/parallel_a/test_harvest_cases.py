@@ -1,11 +1,17 @@
 """Guard the original denominator and reject relabelled, repeated or unsettled native claims."""
-import copy,json,unittest
+import copy,json,subprocess,sys,tempfile,unittest
 from pathlib import Path
 from harvest_cases import LOG_H_CASE_IDS,select_case,fixture_positions,summarize
 
 class OriginalHarvestCasesTest(unittest.TestCase):
     def setUp(self):
         self.manifest=json.loads((Path(__file__).parent/'a06_original_cases.json').read_text())
+    def test_native_and_review_cli_imports_resolve_outside_repository_cwd(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ('harvest_native.py','harvest_scenarios.py','review_harvest_scenarios.py'):
+                result=subprocess.run([sys.executable,str(Path(__file__).resolve().parent/name),'--help'],cwd=directory,capture_output=True,text=True,timeout=30)
+                self.assertEqual(0,result.returncode,name+' CLI import failed: '+result.stderr)
+                self.assertIn('--root',result.stdout)
     def reviews(self):
         rows=[]
         for case_id in LOG_H_CASE_IDS:

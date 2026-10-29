@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 19,
-  "parentSource": "ae5fe7f9d2c95c764d9905ba4692e6ca311aef28",
+  "sequence": 20,
+  "parentSource": "eb985b626ac3095fe9412ba77e24d29f9a03eee9",
   "stage": "A06",
   "scope": "execute-three-distinct-frozen-original-log-H-cases-with-real-save-kill-restart-public-original-cancellation-and-independent-review",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -221,6 +221,40 @@
         }
       ],
       "correctedBy": "3f765b5ae38d549ad2661e4182d36f380ca798a1",
+      "testsRemoved": 0
+    },
+    {
+      "source": "eb985b626ac3095fe9412ba77e24d29f9a03eee9",
+      "run": 40858238139,
+      "job": 123394571436,
+      "phase": "Batched original-scenario CLI import",
+      "cause": "New runner imported suite before adding the e2e directory to sys.path; native scenarios did not execute. Explicit import path and external-cwd CLI regression added; all existing tests retained.",
+      "moduleCases": 2541,
+      "python": {
+        "aOwned": 73,
+        "baseline": 72,
+        "status": "PASS"
+      },
+      "nativeCases": "NOT_EXECUTED_RUNNER_IMPORT_FAILED",
+      "contractsArtifact": {
+        "id": 12891045189,
+        "bytes": 3559842,
+        "sha256": "fb083568d34ff1b662b2eca2d42bade1fad6a0017289ed0410e900df525b1f7d"
+      },
+      "requiredHosts": {
+        "pass": 7,
+        "fail": 2,
+        "failed": [
+          "GP-14.1 known saved method BUDGET_EXHAUSTED usage elapsed598 calls30",
+          "GP-19 known second child TARGET_UNAVAILABLE effects1"
+        ],
+        "causes": "UNRESOLVED_EXACT_TESTS_RETAINED"
+      },
+      "mainVerification": {
+        "run": 40858238270,
+        "job": 123394571027,
+        "status": "PASS"
+      },
       "testsRemoved": 0
     }
   ],
@@ -516,10 +550,10 @@
       "total": 2541
     },
     "expectedPython": {
-      "aOwned": 73,
+      "aOwned": 74,
       "baseline": 72
     },
-    "newOracleCases": 13,
+    "newOracleCases": 14,
     "nativePickupProducer": "INACTIVE",
     "remainingCases": "Wheat H, all four P and all four D remain mandatory, plus representative cost and other A06 gates"
   }

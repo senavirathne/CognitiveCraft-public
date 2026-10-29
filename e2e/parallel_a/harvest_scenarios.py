@@ -2,6 +2,8 @@
 import argparse,json,subprocess,sys
 from pathlib import Path
 from harvest_cases import LOG_H_CASE_IDS
+
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from suite import ROOT,atomic,read
 
 def case_root(root,case_id):
