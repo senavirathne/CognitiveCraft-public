@@ -26,6 +26,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private final ServerLevel level;private final JobLifecycleStore jobs;private final ResourceLeaseService leases;private final Clock clock;
     private final boolean enabled;
     private final HarvestEvidenceStore store;
+    private final HarvestPreflightScope preflight=new HarvestPreflightScope();
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private Consumer<Point> observer=point->{ };
     private boolean closed;
@@ -135,7 +136,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private NativeTicket ticket(NativeHarvest.Intent intent){return tickets.stream().filter(t->t.intent==intent && !t.forgotten).findFirst().orElse(null);}
     private boolean nativeCurrent(NativeHarvest.Intent intent) {
         NativeTicket ticket=ticket(intent);
-        if(closed || !enabled || ticket==null || !ticket.original.current() || !jobs.ready() || !leases.ready())return false;
+        if(closed || !enabled || ticket==null || !preflight.test(ticket.request,ticket.original::current) || !jobs.ready() || !leases.ready())return false;
         var job=jobs.query(intent.key().step(),intent.origin());var attempt=job.current();
         if(job.revision()!=intent.conditions().jobRevision() || attempt==null || !attempt.id().equals(intent.key().attempt()) || attempt.generation()!=intent.key().generation()
                 || jobs.stopPending(job.id(),job.generation(),job.origin()) || Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis())!=intent.conditions().deadlineEpochMillis())return false;
@@ -174,7 +175,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
         String allowed="";
-        for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming) && effect==Effect.HARVEST && target.equals(ticket.request.source())){allowed=ticket.intent.key().token();break;}
+        for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming) && (effect==Effect.HARVEST && target.equals(ticket.request.source()) || preflight.destination(ticket.request,incoming,effect,target))){allowed=ticket.intent.key().token();break;}
         var value=incoming.request().arguments().get("actor");
         return value instanceof ActorValue actor && store.conflicts(actor.value(),target.dimension(),target.x(),target.y(),target.z(),allowed);
     }
