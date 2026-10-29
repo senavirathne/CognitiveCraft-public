@@ -77,6 +77,8 @@ public final class MinecraftStorageAdapter {
     private void thread(){if(!level.getServer().isSameThread())throw new IllegalStateException("authorized server thread required");}
     /** Native item descriptor only; no inventory or stock access is implied. */
     public Item describeItem(ItemStack stack){thread();return item(stack);}
+    /** Server-only identity guard for an already admitted binding; grants no access and reads no slots. */
+    public boolean currentEndpoint(Binding binding){thread();return binding!=null && identities.validates(binding);}
     private Item item(ItemStack stack){
         if(stack==null || stack.isEmpty())throw new IllegalArgumentException("explicit nonempty native probe required");var key=BuiltInRegistries.ITEM.getKey(stack.getItem());if(key==null)throw new IllegalArgumentException("unregistered item");
         boolean defaultComponents=stack.getComponentsPatch().isEmpty();boolean container=stack.has(DataComponents.CONTAINER) || stack.has(DataComponents.BUNDLE_CONTENTS) || stack.has(DataComponents.CHARGED_PROJECTILES) || stack.getItem() instanceof BlockItem b && b.getBlock() instanceof EntityBlock;
