@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 11,
-  "parentSource": "b0a6b7b05a7cab6ec330f0f6ede144778d419a6d",
+  "sequence": 12,
+  "parentSource": "192edb7045485fb21084b4c8b3b68386b1fe791c",
   "stage": "A06",
   "scope": "native-pickup-removal-data-foundation-sixteen-new-contracts-first-H-archive-review-and-complete-native-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -138,6 +138,38 @@
         "bytes": 2805224,
         "sha256": "fb5d9e2326c42d31a373dbd46bf163ca8b3576df782f17dda5745928d5b4368d"
       }
+    },
+    {
+      "source": "66a0f9059aabd9fbde77909c1934195a2042232a",
+      "run": 40817032411,
+      "job": 123260411820,
+      "phase": "new removal-state test compilation",
+      "failure": "EntityChunkRemovalStateTest.java:95 inferred ArrayList capture-of-wildcard from List<?>; adding the duplicate row required explicit ArrayList<Object>",
+      "productionCompilation": "PASS",
+      "coreAndProviderExecution": "PASS_CI",
+      "fabricTests": "NOT_EXECUTED_TEST_COMPILATION_FAILED",
+      "nativeCases": "NOT_EXECUTED_REQUIRED_MODULE_PREREQUISITE_FAILED",
+      "python": {
+        "aOwned": 49,
+        "baseline": 72,
+        "status": "PASS"
+      },
+      "mainVerification": {
+        "run": 40817032427,
+        "status": "FAIL_SAME_TEST_COMPILATION"
+      },
+      "contractArtifact": {
+        "id": 12872991515,
+        "bytes": 2800220,
+        "sha256": "86efa325d4e3fbb04f3d7e23792b91b3e54f4028caf21780c2a3348b4f01045c"
+      },
+      "unmetNativePrerequisitesArtifact": {
+        "id": 12871889996,
+        "bytes": 402,
+        "sha256": "192b7089c92dc8a08b4dcaeeb7b2999561f068f82f3e2605bc558eab240fa4aa"
+      },
+      "correctedBy": "192edb7045485fb21084b4c8b3b68386b1fe791c",
+      "testsRemoved": 0
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -214,6 +246,7 @@
       "metadataCharacters": 60000
     },
     "status": "PENDING_CURRENT_VALIDATION",
-    "nextRequired": "Actual removal/migration hooks, native empty entity-chunk persistence, all departure membership witnesses, original pickup receipt/journal integration and native original-owner trials"
+    "nextRequired": "Actual removal/migration hooks, native empty entity-chunk persistence, all departure membership witnesses, original pickup receipt/journal integration and native original-owner trials",
+    "testCompilationCorrection": "192edb7045485fb21084b4c8b3b68386b1fe791c"
   }
 }
