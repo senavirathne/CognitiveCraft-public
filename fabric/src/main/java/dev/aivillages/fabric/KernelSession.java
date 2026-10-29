@@ -304,11 +304,11 @@ public final class KernelSession implements AutoCloseable {
                         () -> 0, () -> 0, 16));
                 if(history!=null)retention.register(history.retentionOwner());
                 if(deposits!=null) {
-                    retention.register(deposits.retentionOwner());
+                    retention.register(harvests==null?deposits.retentionOwner():deposits.retentionOwnerForCurrentWriter());
                     deposits.capacity(amount->retention.assessReplacement("deposits",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 }
                 if(harvests!=null) {
-                    retention.register(harvests.retentionOwner());
+                    retention.register(harvests.retentionOwnerForCurrentWriter());
                     harvests.capacity(amount->retention.assessReplacement("harvests",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 }
                 var accessMigration=access.migrateSharedAccess(()->false);

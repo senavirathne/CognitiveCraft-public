@@ -82,6 +82,8 @@ public final class WorldRetentionManager {
         default void bindPolicy(WorldRetentionManager manager) { }
         /** Concurrent independent writers reserve their hard ceiling in admission assessments. */
         default Optional<Amount> admissionCeiling() { return Optional.empty(); }
+        /** Reduced journal reservations are valid only for one shared, enforced writer thread. */
+        default Optional<Thread> serializedWriter() { return Optional.empty(); }
         OwnerResult collect(Entry entry, long expectedRevision, BooleanSupplier cancel);
     }
     public enum State { INVENTORY, ROOTS, REACHABILITY, ELIGIBILITY, READY, INVALID, CANCELLED }
@@ -110,6 +112,11 @@ public final class WorldRetentionManager {
     public void register(Owner owner) {
         Objects.requireNonNull(owner);
         if (owners.size() >= policy.owners || owners.containsKey(owner.id())) throw new IllegalArgumentException("Owner registration");
+        if(owner.serializedWriter().isPresent()) {
+            Thread writer=owner.serializedWriter().orElseThrow();
+            for(Owner existing:owners.values())if(existing.serializedWriter().isPresent() && existing.serializedWriter().orElseThrow()!=writer)
+                throw new IllegalArgumentException("Evidence journals require one shared serialized writer");
+        }
         owners.put(owner.id(), owner);
         ownerEpoch = Math.addExact(ownerEpoch, 1);
         owner.bindPolicy(this);

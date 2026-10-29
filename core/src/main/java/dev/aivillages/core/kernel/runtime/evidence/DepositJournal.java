@@ -39,6 +39,7 @@ public final class DepositJournal implements AutoCloseable {
     private boolean readOnly;
     private volatile long retentionRevision;
     private java.util.function.Predicate<WorldRetentionManager.Amount> capacity=amount->true;
+    private volatile Thread serializedWriter;
     private DepositJournal(Path world,FileChannel channel,FileLock lock,Snapshot state,boolean readOnly,Faults faults) {
         directory=world.resolve(PATH);base=world.resolve(BASE);lockChannel=channel;this.lock=lock;this.state=state;this.readOnly=readOnly;this.faults=faults;
     }
@@ -88,6 +89,7 @@ public final class DepositJournal implements AutoCloseable {
     /** Worker-owned storage quota gate; the game-thread protocol never invokes it. */
     public synchronized void capacity(java.util.function.Predicate<WorldRetentionManager.Amount> capacity){this.capacity=Objects.requireNonNull(capacity);}
     public synchronized Snapshot replace(Snapshot expected,Snapshot next)throws IOException {
+        if(serializedWriter!=null && Thread.currentThread()!=serializedWriter)throw new IOException("Deposit journal requires its bound serialized writer");
         if(readOnly || state!=expected || !state.world.equals(next.world) || !state.epoch.equals(next.epoch)
                 || next.revision!=Math.addExact(state.revision,1) || next.entries.size()<state.entries.size())throw new IOException("Stale/fenced deposit publication");
         for(int n=0;n<state.entries.size();n++) {
@@ -116,7 +118,14 @@ public final class DepositJournal implements AutoCloseable {
         finally{retentionRevision++;}
     }
     /** Bounded accounting for every current/previous/pending and required file; none is collectible. */
-    public WorldRetentionManager.Owner retentionOwner() {
+    public WorldRetentionManager.Owner retentionOwner() {return retentionOwner(null);}
+    /** Select only for journals sharing the exact same serialized storage thread. */
+    public synchronized WorldRetentionManager.Owner retentionOwnerForCurrentWriter() {
+        Thread current=Thread.currentThread();
+        if(serializedWriter!=null && serializedWriter!=current)throw new IllegalStateException("Deposit serialized writer already bound");
+        serializedWriter=current;return retentionOwner(current);
+    }
+    private WorldRetentionManager.Owner retentionOwner(Thread writer) {
         var owner=this;
         var paths=List.of(base.resolve("required.json"),base.resolve("required.next.json"),
                 directory.resolve("state.jsonl"),directory.resolve("state.prev.jsonl"),directory.resolve("state.next.jsonl"),directory.resolve("writer.lock"),
@@ -124,7 +133,14 @@ public final class DepositJournal implements AutoCloseable {
         return new WorldRetentionManager.Owner() {
             public String id(){return "deposits";}
             public long revision(){return retentionRevision;}
-            public Optional<WorldRetentionManager.Amount> admissionCeiling(){return Optional.of(new WorldRetentionManager.Amount(3L*MAX_BYTES+4096,MAX_ENTRIES));}
+            public Optional<Thread> serializedWriter(){return Optional.ofNullable(writer);}
+            public Optional<WorldRetentionManager.Amount> admissionCeiling(){
+                int rows=writer==null?MAX_ENTRIES:owner.snapshot().entries().size();
+                // Every acknowledged PREPARED row already reserves its complete maximum result.
+                // A bound single writer admits any additional row before exposing its capability.
+                long reserved=writer==null?3L*MAX_BYTES+4096:3L*(1024L+rows*(MAX_RECORD_BYTES+1L))+4096;
+                return Optional.of(new WorldRetentionManager.Amount(reserved,rows));
+            }
             public WorldRetentionManager.Cursor open() {
                 long captured=revision();
                 return new WorldRetentionManager.Cursor() {
