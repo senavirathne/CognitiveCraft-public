@@ -28,6 +28,12 @@ public final class HarvestEvidenceStore {
         private Prepared(HarvestEvidenceStore owner,Intent intent){this.owner=owner;process=owner.process;this.intent=intent;}
         public Intent intent(){return intent;}
     }
+    /** Original in-process H linkage only; not a permission to execute pickup or resume after recovery. */
+    public static final class Acknowledged {
+        private final HarvestEvidenceStore owner;private final UUID process;private final Entry entry;
+        private Acknowledged(HarvestEvidenceStore owner,Entry entry){this.owner=owner;process=owner.process;this.entry=entry;}
+        public Entry entry(){return entry;}
+    }
     public static final class Reconciled {
         private final HarvestEvidenceStore owner;private final Entry entry;private final Reconciliation result;private final Witness actor;private final SourceWitness source;private final List<DropWitness> drops;
         private Reconciled(HarvestEvidenceStore owner,Entry entry,Reconciliation result,Witness actor,SourceWitness source,List<DropWitness> drops){this.owner=owner;this.entry=entry;this.result=result;this.actor=actor;this.source=source;this.drops=drops;}
@@ -39,6 +45,7 @@ public final class HarvestEvidenceStore {
     private final UUID process=UUID.randomUUID();
     private final Storage storage;private final NativePort nativePort;private final Clock clock;private final long timeoutMillis;
     private final ConcurrentLinkedQueue<Written> completed=new ConcurrentLinkedQueue<>();
+    private final Map<String,Acknowledged> acknowledged=new HashMap<>();
     private final Map<String,Prepared> created=new HashMap<>();private final Set<String> started=new HashSet<>();
     private final java.util.ArrayDeque<Long> acknowledgementNanos=new java.util.ArrayDeque<>();
     private Snapshot state,pending;private long deadline;private boolean fenced;
@@ -61,6 +68,22 @@ public final class HarvestEvidenceStore {
                 if(acknowledgementNanos.size()==192)acknowledgementNanos.removeFirst();acknowledgementNanos.addLast(value.elapsedNanos);}
         }
         if(pending!=null && clock.millis()>deadline)fenced=true;
+    }
+    /** Historical/restored rows cannot mint a live continuation capability. */
+    public Acknowledged acknowledged(Key key) {
+        thread();Objects.requireNonNull(key);if(fenced || pending!=null)return null;
+        Entry entry=find(state,key.token());
+        if(entry==null || !entry.intent().key().equals(key) || entry.verification()!=null || entry.result()==null
+                || entry.result().live()!=Live.COMPLETE || entry.result().receipt()==null || !created.containsKey(entry.token()))return null;
+        return acknowledged.computeIfAbsent(entry.token(),ignored->new Acknowledged(this,entry));
+    }
+    public boolean owns(Acknowledged proof) {
+        thread();return proof!=null && proof.owner==this && proof.process.equals(process) && !fenced && pending==null
+                && proof.entry.verification()==null && find(state,proof.entry.token())==proof.entry
+                && created.containsKey(proof.entry.token());
+    }
+    public boolean links(Acknowledged proof,NativePickup.Intent pickup) {
+        thread();return owns(proof) && pickup!=null && pickup.harvest().equals(proof.entry);
     }
     public Status prepare(Intent intent) {
         thread();Objects.requireNonNull(intent);if(fenced)return status(Code.FENCED,null);

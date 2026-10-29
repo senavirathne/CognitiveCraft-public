@@ -118,6 +118,7 @@ jobs:
           python3 e2e/runtime.py compile
           python3 e2e/parallel_a/prepare.py
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit --native
+          python3 e2e/parallel_a/storage_hook_audit.py --root build/parallel-a/source-audit
       - name: Validate exact retained72-Job input without native effects
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A04 retained-world input') }}

@@ -34,7 +34,10 @@ CLASSES=[
     'net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity',
     'net.minecraft.world.level.storage.ValueInput', 'net.minecraft.world.level.storage.ValueOutput',
     'net.minecraft.world.level.block.Block', 'net.minecraft.world.level.block.entity.BlockEntityType',
-    'net.minecraft.nbt.CompoundTag', 'net.minecraft.nbt.NbtOps',
+    'net.minecraft.nbt.CompoundTag', 'net.minecraft.nbt.NbtOps', 'net.minecraft.nbt.NbtUtils',
+    'net.minecraft.world.level.entity.ChunkEntities', 'net.minecraft.world.level.entity.EntityInLevelCallback',
+    'net.minecraft.world.level.entity.PersistentEntitySectionManager$Callback',
+    'net.minecraft.core.UUIDUtil',
 ]
 
 

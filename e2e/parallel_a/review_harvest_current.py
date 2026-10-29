@@ -18,12 +18,18 @@ def modules(repo,expected=None,removal_cases=16):
             row=ET.parse(path).getroot()
             for n,key in enumerate(('tests','failures','errors','skipped')):count[n]+=int(row.get(key,0))
         counts[name]=count
-    assert counts==(expected or {'core':[2243,0,0,0],'providers':[131,0,0,0],'fabric':[74,0,0,0]}),counts
+    assert counts==(expected or {'core':[2268,0,0,0],'providers':[131,0,0,0],'fabric':[82,0,0,0]}),counts
     suite=ET.parse(repo/'core/build/test-results/test/TEST-dev.aivillages.core.kernel.HarvestLeasePublicationTest.xml').getroot()
     assert len(suite.findall('testcase'))==10 and not suite.findall('.//failure') and not suite.findall('.//error') and not suite.findall('.//skipped')
     if removal_cases:
         removal=ET.parse(repo/'fabric/build/test-results/test/TEST-dev.aivillages.fabric.runtime.evidence.EntityChunkRemovalStateTest.xml').getroot()
         assert len(removal.findall('testcase'))==removal_cases and not removal.findall('.//failure') and not removal.findall('.//error') and not removal.findall('.//skipped')
+    if expected is None:
+        for module,suite,number in [('core','dev.aivillages.core.kernel.runtime.evidence.NativePickupTest',20),
+                                    ('core','dev.aivillages.core.kernel.runtime.evidence.HarvestContinuationTest',5),
+                                    ('fabric','dev.aivillages.fabric.runtime.evidence.EntityMembershipTrailTest',8)]:
+            scoped=ET.parse(repo/module/'build/test-results/test'/('TEST-'+suite+'.xml')).getroot()
+            assert len(scoped.findall('testcase'))==number and not scoped.findall('.//failure') and not scoped.findall('.//error') and not scoped.findall('.//skipped')
     return counts
 def participants(world,source):
     x,y,z=source['x'],source['y'],source['z']
