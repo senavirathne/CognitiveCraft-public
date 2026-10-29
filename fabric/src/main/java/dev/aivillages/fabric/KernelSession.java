@@ -6,6 +6,10 @@ import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.runtime.evidence.DepositJournal;
 import dev.aivillages.core.kernel.runtime.evidence.HarvestJournal;
 import dev.aivillages.core.kernel.runtime.evidence.HarvestStoppedSource;
+import dev.aivillages.core.kernel.runtime.evidence.PickupJournal;
+import dev.aivillages.core.kernel.runtime.evidence.PickupStoppedSource;
+import dev.aivillages.core.kernel.runtime.evidence.HarvestPickupRetention;
+import dev.aivillages.fabric.runtime.evidence.FabricPickupProtocol;
 import dev.aivillages.fabric.runtime.evidence.FabricHarvestProtocol;
 import dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol;
 import dev.aivillages.providers.LocalGenerationAdapter;
@@ -59,7 +63,8 @@ public final class KernelSession implements AutoCloseable {
                           MandateJournal mandates, Mandates.Snapshot initialMandates, boolean mandatesReadOnly,
                           dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history,JobHistory jobHistory,
                           DepositJournal deposits,DepositJournal.Snapshot initialDeposits,boolean depositsReadOnly,
-                          HarvestJournal harvests,HarvestJournal.Snapshot initialHarvests,boolean harvestsReadOnly) { }
+                          HarvestJournal harvests,HarvestJournal.Snapshot initialHarvests,boolean harvestsReadOnly,
+                          PickupJournal pickups,PickupJournal.Snapshot initialPickups,boolean pickupsReadOnly) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -112,6 +117,9 @@ public final class KernelSession implements AutoCloseable {
     private JobArchive jobArchive;
     private FabricDepositProtocol depositProtocol;
     private FabricHarvestProtocol harvestProtocol;
+    private FabricPickupProtocol pickupProtocol;
+    private final boolean pickupEvidenceEnabled = "true".equalsIgnoreCase(
+            System.getenv().getOrDefault("COGNITIVECRAFT_PICKUP_EVIDENCE", "false"));
     private final boolean harvestEvidenceEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_HARVEST_EVIDENCE", "false"));
     private final boolean depositEvidenceEnabled = "true".equalsIgnoreCase(
@@ -213,6 +221,7 @@ public final class KernelSession implements AutoCloseable {
             JobHistory jobHistory=null;
             DepositJournal deposits=null;
             HarvestJournal harvests=null;
+            PickupJournal pickups=null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -223,8 +232,10 @@ public final class KernelSession implements AutoCloseable {
                 leases = ResourceLeaseJournal.open(world, journal.state().worldId());
                 if(depositEvidenceEnabled || DepositJournal.exists(world))
                     deposits=DepositJournal.open(world,journal.state().worldId());
-                if(harvestEvidenceEnabled || HarvestJournal.exists(world))
+                if(harvestEvidenceEnabled || pickupEvidenceEnabled || PickupJournal.exists(world) || HarvestJournal.exists(world))
                     harvests=HarvestJournal.open(world,journal.state().worldId());
+                if(pickupEvidenceEnabled || PickupJournal.exists(world))
+                    pickups=PickupJournal.open(world,journal.state().worldId());
                 if(runtimeHistoryEnabled || leaseHistoryEnabled || jobHistoryEnabled
                         || dev.aivillages.core.kernel.runtime.persistence.ArchiveRequirement.shouldRead(world)) {
                     history=dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter.open(world,journal.state().worldId(),
@@ -307,7 +318,9 @@ public final class KernelSession implements AutoCloseable {
                     retention.register(harvests==null?deposits.retentionOwner():deposits.retentionOwnerForCurrentWriter());
                     deposits.capacity(amount->retention.assessReplacement("deposits",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 }
-                if(harvests!=null) {
+                if(pickups!=null) {
+                    var family=HarvestPickupRetention.bind(harvests,pickups);retention.register(family);family.bindPolicy(retention);
+                } else if(harvests!=null) {
                     retention.register(harvests.retentionOwnerForCurrentWriter());
                     harvests.capacity(amount->retention.assessReplacement("harvests",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 }
@@ -327,8 +340,10 @@ public final class KernelSession implements AutoCloseable {
                         retentionService, observations, knowledgeService, plans, plans.snapshot(),blueprints,accomplishments,access,
                         organizations, organizations.snapshot(), organizations.readOnly(),
                         mandates, mandates.snapshot(), mandates.readOnly(), history,jobHistory, deposits,deposits==null?null:deposits.snapshot(),deposits!=null && deposits.readOnly(),
-                        harvests,harvests==null?null:harvests.snapshot(),harvests!=null && harvests.readOnly());
+                        harvests,harvests==null?null:harvests.snapshot(),harvests!=null && harvests.readOnly(),
+                        pickups,pickups==null?null:pickups.snapshot(),pickups!=null && pickups.readOnly());
             } catch (Exception failure) {
+                if(pickups!=null)try{pickups.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(harvests!=null)try{harvests.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(deposits!=null)try{deposits.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(history!=null)try{history.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
@@ -400,6 +415,7 @@ public final class KernelSession implements AutoCloseable {
         if (!language.pending()) interpretingPlayer = null;
         if(depositProtocol!=null)depositProtocol.tick();
         if(harvestProtocol!=null)harvestProtocol.tick();
+        if(pickupProtocol!=null)pickupProtocol.tick();
         gateway.tick();
         leases.tick();
         if(leaseArchive!=null) {
@@ -603,6 +619,11 @@ public final class KernelSession implements AutoCloseable {
                     loaded.harvestsReadOnly(),worker,clock,harvestEvidenceEnabled);
             gateway.harvestProtocol(harvestProtocol);
         }
+        if(loaded.pickups()!=null) {
+            pickupProtocol=new FabricPickupProtocol(server.overworld(),jobs,leases,harvestProtocol,loaded.pickups(),loaded.initialPickups(),
+                    loaded.pickupsReadOnly(),worker,clock,pickupEvidenceEnabled);
+            gateway.pickupProtocol(pickupProtocol);
+        }
         if(loaded.jobHistory()!=null)jobArchive=new JobArchive(jobs,loaded.jobHistory(),loaded.history(),historyService,
                 dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
         organizations = new OrganizationRegistry(loaded.initialOrganizations(), (expected, next) ->
@@ -776,16 +797,24 @@ public final class KernelSession implements AutoCloseable {
                         }
                         return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
                     }
-                }, original -> harvestProtocol==null?Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof")
+                }, original -> {
+                    if(pickupProtocol!=null && pickupProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
+                            && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
+                        return new PickupStoppedSource(jobs,new PickupStoppedSource.Evidence() {
+                            public dev.aivillages.core.kernel.runtime.evidence.PickupEvidenceStore store(){return pickupProtocol.evidence();}
+                            public dev.aivillages.core.kernel.runtime.evidence.PickupEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.PickupEvidenceStore.Reconciled proof){return pickupProtocol.verify(proof);}
+                        }).observe(original);
+                    return harvestProtocol==null?Jobs.StoppedObservation.ambiguous("legacy: no save-confirmed original effect proof")
                         :new HarvestStoppedSource(jobs,new HarvestStoppedSource.Evidence() {
                             public dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore store(){return harvestProtocol.evidence();}
                             public dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore.Reconciled proof){return harvestProtocol.verify(proof);}
-                        }).observe(original), 4);
+                        }).observe(original);}, 4);
         worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
                 || leaseArchive!=null && !leaseArchive.readReady() || jobArchive!=null && !jobArchive.readReady())
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target)
                 || depositProtocol!=null && depositProtocol.blocked(request,effect,target)
-                || harvestProtocol!=null && harvestProtocol.blocked(request,effect,target));
+                || harvestProtocol!=null && harvestProtocol.blocked(request,effect,target)
+                || pickupProtocol!=null && pickupProtocol.blocked(request,effect,target));
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
             // Notify both owners; short-circuiting would leave the second owner's work running.
@@ -1040,6 +1069,7 @@ public final class KernelSession implements AutoCloseable {
         }
         if(depositProtocol!=null)pins.addAll(depositProtocol.evidence().protectedJobs());
         if(harvestProtocol!=null)pins.addAll(harvestProtocol.evidence().protectedJobs());
+        if(pickupProtocol!=null)pins.addAll(pickupProtocol.evidence().protectedJobs());
         pins.retainAll(ids);return Set.copyOf(pins);
     }
     /** Private, bounded historical evidence. This view grants no dispatch preference or authority. */
@@ -1619,6 +1649,7 @@ public final class KernelSession implements AutoCloseable {
     JobLifecycleStore jobLifecycleOwner() { return jobs; }
     FabricDepositProtocol depositEvidenceOwner() { return depositProtocol; }
     FabricHarvestProtocol harvestEvidenceOwner() { return harvestProtocol; }
+    FabricPickupProtocol pickupEvidenceOwner() { return pickupProtocol; }
     boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
             && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }
     CitizenRegistry.Citizen citizen(ServerPlayer player, UUID citizenId) {
@@ -1669,6 +1700,7 @@ public final class KernelSession implements AutoCloseable {
         if(dispatcher!=null)dispatcher.close();
         if(recoveredOwners!=null)recoveredOwners.close();
         if(depositProtocol!=null)depositProtocol.close();
+        if(pickupProtocol!=null)pickupProtocol.close();
         if(harvestProtocol!=null)harvestProtocol.close();
         if(historyService!=null)historyService.stopAdmissions();
         if(planner!=null)planner.close();
@@ -1697,6 +1729,10 @@ public final class KernelSession implements AutoCloseable {
                             if (failedClose == null) failedClose = closeFailure;
                             else failedClose.addSuppressed(closeFailure);
                         }
+                    }
+                    if(opened.pickups()!=null)try{opened.pickups().close();}catch(Exception closeFailure){
+                        AiVillages.LOG.error("Pickup evidence close failed",closeFailure);
+                        if(failedClose==null)failedClose=closeFailure;else failedClose.addSuppressed(closeFailure);
                     }
                     if(opened.harvests()!=null)try{opened.harvests().close();}catch(Exception closeFailure){
                         AiVillages.LOG.error("Harvest evidence close failed",closeFailure);

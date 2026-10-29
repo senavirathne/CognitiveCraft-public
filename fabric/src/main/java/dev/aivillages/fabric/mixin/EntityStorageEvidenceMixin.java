@@ -24,8 +24,10 @@ public abstract class EntityStorageEvidenceMixin implements EntityStorageEvidenc
         if(cognitivecraft$evidence==null)cognitivecraft$evidence=new EntityStorageEvidence(new EntityStorageEvidence.Access() {
             public CompletableFuture<Optional<CompoundTag>> read(ChunkPos pos){return simpleRegionStorage.read(pos);}
             public CompletableFuture<Void> write(ChunkPos pos,CompoundTag root){return simpleRegionStorage.write(pos,root);}
-        },level.dimension().identifier().toString());return cognitivecraft$evidence;
+        },level.dimension().identifier().toString());NativeEntityStorage.register(level,cognitivecraft$evidence);return cognitivecraft$evidence;
     }
+    @Inject(method="<init>",at=@At("RETURN"))
+    private void cognitivecraft$registerLevelStorage(CallbackInfo ci){cognitivecraft$entityEvidence();}
     @Inject(method="loadEntities",at=@At("HEAD"))
     private void cognitivecraft$readRetainedEmptyFrame(ChunkPos pos,CallbackInfoReturnable<?> ci){if(cognitivecraft$entityEvidence().needsRetention(pos))emptyChunks.remove(pos.pack());}
     @Inject(method="storeEntities",at=@At("HEAD"))

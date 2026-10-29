@@ -327,6 +327,8 @@ public final class SurvivalGateway implements GatewayPort {
         ItemTransfer depositOutcome;
         dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Ticket harvestTicket;
         HarvestOutcome harvestOutcome;
+        dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Ticket pickupTicket;
+        PickupOutcome pickupOutcome;
         int pendingReceiptStart = -1;
         Active(ActionHandle handle, Run run, Operation operation, Map<String, Value> arguments,
                Budgets.Ledger usage, long tick, long startedMillis, long deadlineMillis) {
@@ -347,6 +349,7 @@ public final class SurvivalGateway implements GatewayPort {
     private java.util.function.Consumer<ObservedEvidence> observationSink = evidence -> { };
     private dev.aivillages.core.kernel.runtime.evidence.DepositProtocol depositProtocol;
     private dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol harvestProtocol;
+    private dev.aivillages.core.kernel.runtime.evidence.PickupProtocol pickupProtocol;
     private final Map<UUID, Run> runs = new HashMap<>();
     private final Map<UUID, Active> handles = new LinkedHashMap<>();
 
@@ -361,6 +364,9 @@ public final class SurvivalGateway implements GatewayPort {
     /** One trusted composition-owned protocol; the original host remains the only physical caller. */
     public void depositProtocol(dev.aivillages.core.kernel.runtime.evidence.DepositProtocol protocol) {
         thread();if(depositProtocol!=null)throw new IllegalStateException("Deposit protocol already attached");depositProtocol=Objects.requireNonNull(protocol);
+    }
+    public void pickupProtocol(dev.aivillages.core.kernel.runtime.evidence.PickupProtocol protocol) {
+        thread();if(pickupProtocol!=null)throw new IllegalStateException("Pickup protocol already attached");pickupProtocol=Objects.requireNonNull(protocol);
     }
     public void harvestProtocol(dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol protocol) {
         thread();if(harvestProtocol!=null)throw new IllegalStateException("Harvest protocol already attached");harvestProtocol=Objects.requireNonNull(protocol);
@@ -480,6 +486,13 @@ public final class SurvivalGateway implements GatewayPort {
                 && action.harvestOutcome!=null && action.harvestOutcome.harvest().removed();
     }
 
+    boolean nativeResultPending(ActionHandle handle){thread();return nativeResultPending(get(handle));}
+    private boolean nativeResultPending(Active a) {
+        return a.pendingReceiptStart>=0 && (a.harvestTicket!=null && a.harvestOutcome!=null && a.harvestOutcome.harvest().removed()
+                || a.pickupTicket!=null && a.pickupOutcome!=null && a.pickupOutcome.pickup().collected()>0
+                || a.depositTicket!=null && a.depositOutcome!=null && a.depositOutcome.deposited()>0);
+    }
+
     @Override public ActionReceipt cancel(ActionHandle handle) {
         thread();
         Active action = get(handle);
@@ -552,7 +565,8 @@ public final class SurvivalGateway implements GatewayPort {
             return;
         }
         Cell target = target(action);
-        Reason permission = world.permit(run.request, effect, target);
+        if(action.pickupTicket!=null){pollPickup(action);run.lastTick=world.tick();return;}
+        Reason permission = effect==Effect.PICKUP && pickupProtocol!=null && LogAcquisition.log(run.item) ? null : world.permit(run.request, effect, target);
         if (permission != null) { finish(action, permission, null, null); return; }
         switch (op) {
             case OBSERVE_SOURCE, OBSERVE_OAK_SOURCE -> observeSource(action);
@@ -1072,9 +1086,15 @@ public final class SurvivalGateway implements GatewayPort {
         }
         // The crop's source was verified at harvest. A dropped entity may drift afterward:
         // its current loaded cell, not its old crop cell, must pass the effect-time hook.
+        if(pickupProtocol!=null && LogAcquisition.log(run.item)){durablePickup(action,target,batch,drop);return;}
         Reason pickupPermission = world.permit(run.request, Effect.PICKUP, target);
         if (pickupPermission != null) { finish(action, pickupPermission, null, null); return; }
         if (!effectAllowance(action)) return;
+        finishPickup(action,performPickup(action,batch,drop));
+    }
+    private record PickupOutcome(ItemPickup pickup,Reason failure) { }
+    private PickupOutcome performPickup(Active action,Batch batch,Map.Entry<UUID,Integer> drop) {
+        Run run=action.run;
         action.usage.debit(Kind.ATTEMPTED_EFFECTS, 1);
         ItemPickup result = world.resourcePickup(run.actor, drop.getKey(), drop.getValue(),run.item);
         if (result.collected() > 0) {
@@ -1083,7 +1103,7 @@ public final class SurvivalGateway implements GatewayPort {
             if (result.collected() > drop.getValue()
                     || result.remaining() != drop.getValue() - result.collected()
                     || inventoryQuantity(run) != expected) {
-                finish(action, Reason.STALE_OBSERVATION, null, null); return;
+                return new PickupOutcome(result,Reason.STALE_OBSERVATION);
             }
             run.expectedItems = expected;
             if (LogAcquisition.log(run.item)) run.inventoryFingerprint=world.resourceInventory(run.actor,run.item).fingerprint();
@@ -1091,8 +1111,52 @@ public final class SurvivalGateway implements GatewayPort {
             if (result.remaining() == 0) batch.drops.remove(drop.getKey());
             else batch.drops.put(drop.getKey(), result.remaining());
             receipt(action, batch.id, CropDelivery.Stage.PICKUP, result.collected());
-            finish(action, result.reason(), new IntValue(result.collected()), null);
-        } else finish(action, result.reason() == null ? Reason.TARGET_UNAVAILABLE : result.reason(), null, null);
+            return new PickupOutcome(result,result.reason());
+        }
+        return new PickupOutcome(result,result.reason()==null?Reason.TARGET_UNAVAILABLE:result.reason());
+    }
+    private void finishPickup(Active action,PickupOutcome outcome) {
+        finish(action,outcome.failure(),outcome.pickup().collected()>0?new IntValue(outcome.pickup().collected()):null,null);
+    }
+    private void durablePickup(Active action,Cell target,Batch batch,Map.Entry<UUID,Integer> selected) {
+        if(!effectAllowance(action))return;
+        Run run=action.run;var drop=Map.entry(selected.getKey(),selected.getValue());
+        UUID operation=UUID.nameUUIDFromBytes((action.handle.id()+"/"+(action.effects+1)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var request=new dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Request(run.request,run.correlation,action.handle.id(),operation,
+                run.actor,target,drop.getKey(),drop.getValue(),run.item,Math.min(action.deadlineMillis,action.usage.deadline()),
+                action.usage.remaining(Kind.COMMITTED_EFFECTS),action.usage.snapshot());
+        action.pendingReceiptStart=action.resourceReceipts.size();
+        action.pickupTicket=pickupProtocol.begin(request,new dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Action() {
+            public boolean current() {
+                var actual=world.resourceDrop(drop.getKey(),run.item);
+                return !action.current.terminal() && clock.millis()<=action.deadlineMillis && clock.millis()<=action.usage.deadline()
+                        && world.holds(run.actor,run.id) && allows(action,Effect.PICKUP,target)
+                        && inventoryCurrent(run,world.resourceInventory(run.actor,run.item))
+                        && actual.status()==ObservationStatus.PRESENT && actual.quantity()==drop.getValue() && target.equals(actual.cell())
+                        && Objects.equals(batch.drops.get(drop.getKey()),drop.getValue())
+                        && world.permit(run.request,Effect.PICKUP,target)==null
+                        && action.usage.canDebit(Kind.ATTEMPTED_EFFECTS,1) && action.usage.canDebit(Kind.COMMITTED_EFFECTS,1)
+                        && run.receipts.size()+run.resourceReceipts.size()<limits.maxReceiptsPerRun();
+            }
+            public dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Observed execute() {
+                int before=action.resourceReceipts.size();action.pickupOutcome=performPickup(action,batch,drop);
+                return new dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Observed(action.pickupOutcome.pickup(),
+                        action.resourceReceipts.size()>before?action.resourceReceipts.getLast():null,action.usage.snapshot());
+            }
+            public Map<Kind,Long> usage(){return action.usage.snapshot();}
+        });
+        pollPickup(action);
+    }
+    private void pollPickup(Active action) {
+        var progress=pickupProtocol.poll(action.pickupTicket);
+        if(progress.code()==dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Code.PENDING){
+            if(!action.current.terminal())action.current=current(action,false,null,null,null);return;
+        }
+        pickupProtocol.forget(action.pickupTicket);action.pickupTicket=null;
+        if(action.current.terminal())return;
+        if(progress.code()!=dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Code.ACKNOWLEDGED){finish(action,progress.reason(),null,null);return;}
+        if(action.pickupOutcome==null){finish(action,Reason.INTERRUPTED,null,null);return;}
+        action.pendingReceiptStart=-1;finishPickup(action,action.pickupOutcome);action.pickupOutcome=null;
     }
     private void transfer(Active action, Cell target) {
         if(depositProtocol!=null && LogAcquisition.log(action.run.item)){durableTransfer(action,target);return;}
@@ -1218,6 +1282,8 @@ public final class SurvivalGateway implements GatewayPort {
     }
     private void finish(Active action, Reason reason, Value result, ObservationSnapshot snapshot) {
         if (action.current.terminal()) return;
+        if(nativeResultPending(action))reason=Reason.INTERRUPTED;
+        if(action.pickupTicket!=null && pickupProtocol!=null){pickupProtocol.forget(action.pickupTicket);action.pickupTicket=null;}
         if(action.depositTicket!=null && depositProtocol!=null){depositProtocol.forget(action.depositTicket);action.depositTicket=null;}
         // An already-started physical harvest cannot become a certain cancellation/timeout
         // while its actual result is withheld. Jobs retains the original cancellation intent.

@@ -316,7 +316,7 @@ public final class LeasedGateway implements GatewayPort {
     }
     @Override public ActionReceipt cancel(ActionHandle handle) {
         checkThread();Action a=get(handle);if(a.current.terminal())return a.current;
-        boolean harvestPending=a.nativeHandle!=null && delegate.harvestResultPending(a.nativeHandle);
+        boolean harvestPending=a.nativeHandle!=null && delegate.nativeResultPending(a.nativeHandle);
         ActionReceipt receipt=a.nativeHandle==null?a.current:delegate.cancel(a.nativeHandle);
         a.current=map(receipt,handle,true,harvestPending || receipt.reason()==Reason.INTERRUPTED?Reason.INTERRUPTED:Reason.CANCELLED);releaseRun(handle.runId());return a.current;
     }
@@ -364,7 +364,7 @@ public final class LeasedGateway implements GatewayPort {
                     .map(l->l.resource().kind()+":"+l.resource().item()+" remaining="+l.remaining()+" expires="+l.expires()
                             +" renewed="+l.renewed()+" renewals="+l.renewals()+" state="+l.state()+" reason="+l.reason()).toList());
         ActionReceipt evidence=a.current;
-        boolean harvestPending=a.nativeHandle!=null && delegate.harvestResultPending(a.nativeHandle);
+        boolean harvestPending=a.nativeHandle!=null && delegate.nativeResultPending(a.nativeHandle);
         if(a.nativeHandle!=null) {
             ActionReceipt stopped=delegate.cancel(a.nativeHandle);
             if(stopped.committedEffects()>=evidence.committedEffects())evidence=stopped;

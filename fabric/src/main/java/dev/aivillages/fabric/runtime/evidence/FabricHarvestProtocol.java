@@ -30,6 +30,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private Consumer<Point> observer=point->{ };
     private boolean closed;
+    private String descendant="";
     private final Map<String,NativeBirth> membershipBirths=new HashMap<>();
     private final ArrayDeque<Long> preparationNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
     private final ArrayDeque<Refusal> refusals=new ArrayDeque<>();
@@ -62,6 +63,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         private PickupLineage(FabricHarvestProtocol owner,NativeBirth birth,HarvestEvidenceStore.Acknowledged original,NativePickup.Trail actor,NativePickup.Trail drop){this.owner=owner;this.birth=birth;this.original=original;this.actor=actor;this.drop=drop;}
         public NativePickup.Trail actorTrail(){return actor;}public NativePickup.Trail dropTrail(){return drop;}
         public NativeHarvest.Entry harvest(){return original.entry();}
+        HarvestEvidenceStore.Acknowledged acknowledged(){return original;}
     }
     private NativeBirth beginMembershipBirth(NativeHarvest.Intent intent,Villager actor) {
         if(intent.key().ordinal()!=1||!intent.key().root().equals(intent.key().step())||intent.actorBefore().slots().stream().anyMatch(slot->slot.count()!=0))return null;
@@ -96,6 +98,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public boolean currentPickupLineage(PickupLineage lineage) {
         check();if(lineage==null||lineage.owner!=this||membershipBirths.get(lineage.birth.intent.key().token())!=lineage.birth)return false;
         var current=capturePickupLineage(lineage.original);return current!=null&&current.actor.equals(lineage.actor)&&current.drop.equals(lineage.drop);
+    }
+    boolean pickupTrailsCurrent(PickupLineage lineage) {
+        check();if(closed || lineage==null || lineage.owner!=this || !store.owns(lineage.original))return false;
+        try {
+            var drop=lineage.birth.drops.get(lineage.drop.entity());
+            return lineage.birth.actor.capture().equals(lineage.actor) && drop!=null && drop.trail().capture().equals(lineage.drop);
+        }catch(RuntimeException gap){return false;}
+    }
+    <T> T pickupScope(PickupLineage lineage,java.util.function.Supplier<T> action) {
+        check();if(!pickupTrailsCurrent(lineage) || !descendant.isEmpty())throw new IllegalStateException("Original H/P scope");
+        descendant=lineage.harvest().token();try{return action.get();}finally{descendant="";}
     }
     public List<MembershipBirth> membershipBirths() {
         check();var views=new ArrayList<MembershipBirth>();
@@ -256,7 +269,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     }
     public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
-        String allowed="";
+        String allowed=descendant;
         for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming) && (effect==Effect.HARVEST && target.equals(ticket.request.source()) || preflight.destination(ticket.request,incoming,effect,target))){allowed=ticket.intent.key().token();break;}
         var value=incoming.request().arguments().get("actor");
         return value instanceof ActorValue actor && store.conflicts(actor.value(),target.dimension(),target.x(),target.y(),target.z(),allowed);
@@ -276,7 +289,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         Source source=source(chunk,pos,activate);if(source==null)return null;
         return new Pair(actor,chunk,actorSnapshot(actor,activate),source);
     }
-    private Participant actorSnapshot(Villager actor,boolean activate) {
+    Participant actorSnapshot(Villager actor,boolean activate) {
         var state=((DepositParticipant)actor).cognitivecraft$depositParticipant();if(activate)state.activate();
         if(!state.active() || !state.valid())throw new IllegalStateException("Invalid native harvest actor");
         var slots=new ArrayList<Slot>();var stacks=new ArrayList<ItemStack>();var inventory=actor.getInventory();
@@ -290,7 +303,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         }
         if(activate)state.track(stacks);return new Participant(Kind.ACTOR,dimension(),actor.getUUID().toString(),state.incarnation(),state.revision(),slots);
     }
-    private Drop dropSnapshot(ItemEntity drop,boolean activate) {
+    Drop dropSnapshot(ItemEntity drop,boolean activate) {
         var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();if(activate)state.activate();
         ItemStack stack=drop.getItem();if(!state.active() || !state.valid() || stack.isEmpty() || !ItemStack.isSameItemSameComponents(stack,new ItemStack(stack.getItem())))throw new IllegalArgumentException("Native harvest drop components");
         if(activate)state.track(List.of(stack));return new Drop(dimension(),drop.getUUID(),state.incarnation(),state.revision(),BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),stack.getCount());
@@ -299,19 +312,19 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         ((DepositParticipant)pair.actor).cognitivecraft$depositParticipant().mark(marker,pair.actor.getInventory()::setChanged);
         ((HarvestSourceParticipant)pair.chunk).cognitivecraft$harvestSources().mark(pos(pair.source),marker,pair.chunk::markUnsaved);
     }
-    private Witness actorWitness(Participant expected) {
+    Witness actorWitness(Participant expected) {
         if(!expected.dimension().equals(dimension()))return null;var entity=level.getEntity(UUID.fromString(expected.address()));
         if(!(entity instanceof Villager actor) || !actor.isAlive() || level.getChunkSource().getChunkNow(actor.blockPosition().getX()>>4,actor.blockPosition().getZ()>>4)==null)return null;
         var state=((DepositParticipant)actor).cognitivecraft$depositParticipant();
         try{return new Witness(actorSnapshot(actor,false),state.marker(),state.restored());}catch(RuntimeException invalid){return new Witness(expected,null,false);}
     }
-    private SourceWitness sourceWitness(Source expected) {
+    SourceWitness sourceWitness(Source expected) {
         if(!expected.dimension().equals(dimension()))return null;BlockPos pos=pos(expected);var chunk=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);if(chunk==null)return null;
         var state=((HarvestSourceParticipant)chunk).cognitivecraft$harvestSources();
         try{Source actual=source(chunk,pos,false);return actual==null?new SourceWitness(expected,null,false):new SourceWitness(actual,state.marker(pos),state.restored(pos));}
         catch(RuntimeException invalid){return new SourceWitness(expected,null,false);}
     }
-    private List<DropWitness> dropWitnesses(List<Drop> expected) {
+    List<DropWitness> dropWitnesses(List<Drop> expected) {
         var witnesses=new ArrayList<DropWitness>();
         for(Drop ref:expected) {
             if(!ref.dimension().equals(dimension()))return null;var entity=level.getEntity(ref.entity());
