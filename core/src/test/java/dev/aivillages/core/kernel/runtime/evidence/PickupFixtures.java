@@ -11,9 +11,10 @@ final class PickupFixtures {
         var origin=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(world,UUID.randomUUID()));
         var slots=new ArrayList<NativeDeposit.Slot>();for(int n=0;n<8;n++)slots.add(new NativeDeposit.Slot("minecraft:air",0));
         var participant=new NativeDeposit.Participant(NativeDeposit.Kind.ACTOR,dimension,actor.entityId().toString(),UUID.randomUUID(),0,slots);
-        UUID group=UUID.randomUUID();var claims=new ArrayList<NativeDeposit.Claim>();
-        for(int n=0;n<4;n++)claims.add(new NativeDeposit.Claim(UUID.randomUUID(),UUID.randomUUID(),group,1));
-        var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);for(var kind:Budgets.Kind.values())usage.put(kind,0L);
+        boolean wide=dimension.length()>64;UUID group=UUID.randomUUID();var claims=new ArrayList<NativeDeposit.Claim>();
+        for(int n=0;n<(wide?4:1);n++)claims.add(new NativeDeposit.Claim(UUID.randomUUID(),UUID.randomUUID(),group,1));
+        var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+        for(Budgets.Kind kind:wide?Arrays.asList(Budgets.Kind.values()):List.of(Budgets.Kind.OBSERVATIONS,Budgets.Kind.INSTRUCTIONS,Budgets.Kind.CALLS,Budgets.Kind.ELAPSED_TICKS,Budgets.Kind.TRAVEL_BLOCKS,Budgets.Kind.ATTEMPTED_EFFECTS,Budgets.Kind.COMMITTED_EFFECTS))usage.put(kind,0L);
         var c=new NativeDeposit.Conditions(actor.citizenId(),0,100_000,10_000,64,10,2500,1000,claims,usage);
         var before=new NativeHarvest.Source(dimension,2,64,2,UUID.randomUUID(),0,"minecraft:oak_log[axis=y]");
         var h=new NativeHarvest.Intent(new NativeDeposit.Key(world,root,root,UUID.randomUUID(),1,1),origin,UUID.randomUUID(),UUID.randomUUID(),
@@ -24,7 +25,7 @@ final class PickupFixtures {
                 new ResourceDelivery.ItemIdentity(h.item(),"default"),ResourceDelivery.Stage.HARVEST,1,new ResourceDelivery.BlockPosition(dimension,2,64,2),List.of(drop.entity()));
         usage.put(Budgets.Kind.COMMITTED_EFFECTS,1L);usage.put(Budgets.Kind.ATTEMPTED_EFFECTS,1L);
         var entry=new NativeHarvest.Entry(h,NativeHarvest.observed(h,after,List.of(drop),receipt,usage,"",participant));
-        var chunks=new ArrayList<NativePickup.Chunk>();for(int x=0;x<8;x++)chunks.add(new NativePickup.Chunk(dimension,x,0));
+        var chunks=new ArrayList<NativePickup.Chunk>();for(int x=0;x<(wide?8:2);x++)chunks.add(new NativePickup.Chunk(dimension,x,0));
         var p=new NativeDeposit.Conditions(actor.citizenId(),1,100_000,12_000,63,20,2500,1000,claims,usage);
         var key=h.key();return new NativePickup.Intent(new NativeDeposit.Key(world,root,root,key.attempt(),1,2),entry,UUID.randomUUID(),requested,p,
                 new NativePickup.Trail(actor.entityId(),participant.incarnation(),chunks,chunks.getLast()),

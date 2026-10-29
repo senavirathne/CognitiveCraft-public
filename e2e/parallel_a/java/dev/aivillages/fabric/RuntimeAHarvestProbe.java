@@ -29,8 +29,8 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
                 var evidence=protocol.evidence();
                 if(!ready){ready=true;var body=Map.of("process",process,"pid",ProcessHandle.current().pid(),"world",evidence.snapshot().world());writer.execute(()->write("harvest-ready.json",body));}
                 var classified=new LinkedHashMap<String,String>();for(var entry:evidence.snapshot().entries())classified.put(entry.token(),protocol.reconcile(entry.intent().key()).result().name());
-                pending.set(Map.of("process",process,"runtime",kernel.runtimeStorageView(),"time",System.currentTimeMillis(),"gameTick",server.overworld().getGameTime(),
-                        "journal",evidence.snapshot(),"pending",evidence.pending(),"fenced",evidence.fenced(),"reconciliation",classified,"protectedJobs",evidence.protectedJobs(),"metrics",protocol.metrics()));
+                pending.set(Map.ofEntries(Map.entry("process",process),Map.entry("runtime",kernel.runtimeStorageView()),Map.entry("time",System.currentTimeMillis()),Map.entry("gameTick",server.overworld().getGameTime()),
+                        Map.entry("journal",evidence.snapshot()),Map.entry("pending",evidence.pending()),Map.entry("fenced",evidence.fenced()),Map.entry("reconciliation",classified),Map.entry("protectedJobs",evidence.protectedJobs()),Map.entry("metrics",protocol.metrics()),Map.entry("membershipBirths",protocol.membershipBirths())));
                 var command=request.getAndSet(null);if(command==null)return;active=command;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
                 if(op.equals("storage-contracts")){reply(id,RuntimeAEntityStorageChecks.run(server,root),null);return;}
@@ -58,7 +58,7 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
         }catch(com.mojang.brigadier.exceptions.CommandSyntaxException failure){throw new IllegalStateException("Native harvest cut command refused",failure);}
         // Save completion and the exact original Job state are recorded before the driver kills this JVM.
         write("harvest-cut-reached.json",Map.of("process",process,"pid",ProcessHandle.current().pid(),"point",point,"token",token,"time",System.currentTimeMillis(),
-                "commands",commands,"journal",protocol.evidence().snapshot(),"runtime",AiVillages.kernel().runtimeStorageView(),"metrics",protocol.metrics()));
+                "commands",commands,"journal",protocol.evidence().snapshot(),"runtime",AiVillages.kernel().runtimeStorageView(),"metrics",protocol.metrics(),"membershipBirths",protocol.membershipBirths()));
         long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(60);
         while(System.nanoTime()<until)try{Thread.sleep(10);}catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IllegalStateException(stopped);}
         throw new IllegalStateException("Intended harvest process kill was not witnessed");
