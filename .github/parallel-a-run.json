@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 10,
-  "parentSource": "87750a5038d19546208f8e671930aa1171c7b572",
+  "sequence": 11,
+  "parentSource": "b0a6b7b05a7cab6ec330f0f6ede144778d419a6d",
   "stage": "A06",
-  "scope": "acknowledged-original-lease-accounting-complete-native-and-regression-batch-with-all-retained-failure-reviews",
+  "scope": "native-pickup-removal-data-foundation-sixteen-new-contracts-first-H-archive-review-and-complete-native-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -140,7 +140,7 @@
       }
     }
   ],
-  "independentArchiveReview": "Same offline Docker job reviews immutable source543 and sourceb075 native/contracts, sourceed5 failed contract XML, and the current raw native world and complete module XML",
+  "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
   "nativePrerequisites": [
     "Current module contracts PASS",
     "Current production/native observer preparation PASS",
@@ -159,7 +159,61 @@
     "scope": "Only the matching original source claim avoids fresh stock admission while accounting is pending. Group owner/epoch/expiry/state and other claims remain checked; no renewal.",
     "cancellation": "Unpublished started effect remains INTERRUPTED through decorator cancellation/refusal and raw release",
     "testsAdded": 10,
-    "expectedModuleCases": 2432,
-    "status": "PENDING_CURRENT_CI_AND_NATIVE_TRIAL"
+    "expectedModuleCases": 2448,
+    "status": "PASS_FIRST_NATIVE_H_AND_TEN_CONTRACTS_AT_119C"
+  },
+  "firstPositiveNativeH": {
+    "source": "119c5d6242ee0a3a5176cb2ffd9a911261ce0faa",
+    "tree": "b41241348defa646f4b1f0ac0e44b44d32bbe762",
+    "run": 40814989837,
+    "job": 123253852101,
+    "status": "PASS_FIRST_H_REVIEWED_ONLY",
+    "originalCase": "heldout-W6-002",
+    "requested": 2,
+    "originalOwnerSettlements": 1,
+    "requiredOriginalCases": 12,
+    "a06Qualified": false,
+    "moduleCases": 2432,
+    "python": {
+      "aOwned": 49,
+      "baseline": 72
+    },
+    "requiredHosts": "ALL_NINE_PASS",
+    "mainVerification": {
+      "run": 40814989946,
+      "status": "PASS"
+    },
+    "releaseSha256": "b7e11611c24eaf3bc8323347fbab9ad13d47069234d223b44be9bffad76bf805",
+    "observerSha256": "6833b14290dbb5b53f166e2e54a6e874941fc761755c6ceb86170d922ef7257a",
+    "nativeArtifact": {
+      "id": 12872212591,
+      "bytes": 65579612,
+      "sha256": "348e8c36a80364becbe20ab9b9280fe35ac3a16872640ddab499d6d5fe085295"
+    },
+    "contractsArtifact": {
+      "id": 12872441805,
+      "bytes": 3393247,
+      "sha256": "947b9b0349788bc74905513692a451604a1d3c53ec3708000a29819d9c38dcbd"
+    },
+    "reviewScope": "Independent raw saved-world and complete XML review passed in the same job; immutable whole-ZIP review is included in this batch."
+  },
+  "pickupRemovalFoundation": {
+    "checkpoint": "b0a6b7b05a7cab6ec330f0f6ede144778d419a6d",
+    "nativeStorageHook": "NOT_ATTACHED",
+    "nativePickupProducer": "INACTIVE",
+    "testsAdded": 16,
+    "expectedModules": {
+      "core": 2243,
+      "providers": 131,
+      "fabric": 74,
+      "total": 2448
+    },
+    "meaning": "Exact entity/incarnation/revision/result metadata in its own entity-chunk record; live absence or serialization never grants saved proof",
+    "preservedLimits": {
+      "rows": 64,
+      "metadataCharacters": 60000
+    },
+    "status": "PENDING_CURRENT_VALIDATION",
+    "nextRequired": "Actual removal/migration hooks, native empty entity-chunk persistence, all departure membership witnesses, original pickup receipt/journal integration and native original-owner trials"
   }
 }
