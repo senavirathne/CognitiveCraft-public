@@ -105,7 +105,7 @@ final class PickupEvidenceStoreTest {
         assertEquals(PickupEvidenceStore.Code.STALE,other.verify(proof));assertFalse(other.owns(linkage));assertNull(other.acknowledged(s.intent.key()));assertEquals(1,s.port.calls);
     }
     @Test void oversizedAncestorRefusesBeforeAnyPublicationOrPhysicalCall() {
-        var s=new Scene(PickupFixtures.intent(UUID.randomUUID(),"test:"+"a".repeat(123),4));
+        var s=new Scene(PickupFixtures.intent(UUID.randomUUID(),"a".repeat(31)+":"+"a".repeat(96),4));
         assertTrue(NativePickup.encode(new Entry(s.intent,null)).length>PickupEvidenceStore.MAX_INTENT_BYTES);
         assertEquals(PickupEvidenceStore.Code.FULL,s.store.prepare(s.intent,s.ancestor).code());assertTrue(s.writes.isEmpty());assertEquals(0,s.port.calls);
     }
