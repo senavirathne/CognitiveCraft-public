@@ -473,6 +473,13 @@ public final class SurvivalGateway implements GatewayPort {
         return action.current;
     }
 
+    /** Exact live action state for accounting an already removed, still unpublished harvest. */
+    boolean harvestResultPending(ActionHandle handle) {
+        thread();Active action=get(handle);
+        return !action.current.terminal() && action.harvestTicket!=null && action.pendingReceiptStart>=0
+                && action.harvestOutcome!=null && action.harvestOutcome.harvest().removed();
+    }
+
     @Override public ActionReceipt cancel(ActionHandle handle) {
         thread();
         Active action = get(handle);

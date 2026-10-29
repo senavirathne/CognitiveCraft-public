@@ -13,6 +13,8 @@ allowed={
     'core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java',
     'core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java',
     'core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java',
+    'core/src/main/java/dev/aivillages/core/kernel/LeasedGateway.java',
+    'core/src/test/java/dev/aivillages/core/kernel/HarvestLeasePublicationTest.java',
     'fabric/src/main/java/dev/aivillages/fabric/KernelSession.java',
     'fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java',
     'fabric/src/main/java/dev/aivillages/fabric/KernelCommands.java',

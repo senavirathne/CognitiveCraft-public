@@ -9,22 +9,31 @@ ARTIFACTS={
  'contracts':{'id':12844749324,'size_in_bytes':3373181,'digest':'sha256:c9fcbc98eafcc1b33fc3d9bceeb5e487d5e349ec4d670aca548ef01e573d914b'}}
 def read(path):return json.loads(path.read_text())
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
-def review(native_archive,contracts_archive,out):
+COHORTS={
+ 'source-543':{'source':SOURCE,'run':40754098206,'artifacts':ARTIFACTS,
+               'counts':{'core':[2229,0,0,0],'providers':[131,0,0,0],'fabric':[55,0,0,0]}},
+ 'source-b075':{'source':'b0759b69cc799bc071542b063ac886a4da74d47b','run':40811904558,
+                'artifacts':{
+                  'native':{'id':12871296042,'size_in_bytes':61997018,'digest':'sha256:adcc1cf8920a8c1655f82368121109dd4f8a986a1f6d811ca2249c6a8d941b1a'},
+                  'contracts':{'id':12871610049,'size_in_bytes':3382091,'digest':'sha256:d3ea72a73c90eccaa8f11d72d0193036fce1eb17b34077c585ee16ce6e81f3f2'}},
+                'counts':{'core':[2233,0,0,0],'providers':[131,0,0,0],'fabric':[58,0,0,0]}}
+}
+def review(native_archive,contracts_archive,out,cohort='source-543'):
     out.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='a06-harvest-review-') as directory:
-        return inspect(native_archive,contracts_archive,out,Path(directory))
-def inspect(native_archive,contracts_archive,out,work):
-    archive_reviews={name:checked_archive(ARTIFACTS[name],path,work/name) for name,path in [('native',native_archive),('contracts',contracts_archive)]}
+        return inspect(native_archive,contracts_archive,out,Path(directory),COHORTS[cohort])
+def inspect(native_archive,contracts_archive,out,work,cohort):
+    archive_reviews={name:checked_archive(cohort['artifacts'][name],path,work/name) for name,path in [('native',native_archive),('contracts',contracts_archive)]}
     native,contracts=work/'native',work/'contracts'
     result=read(native/'a06-harvest-results.json');metadata=read(native/'metadata.json')
-    assert metadata.get('reviewedHeadCommit',metadata['sourceCommit'])==SOURCE and metadata['dirty'] is False
+    assert metadata.get('reviewedHeadCommit',metadata['sourceCommit'])==cohort['source'] and metadata['dirty'] is False
     assert result['status']=='FAIL' and result['reason']=='Actually reached saved original H boundary; last=None'
     assert result['originalTwelveSettlements']==0
     counts={}
     for path in contracts.glob('*/build/test-results/test/TEST-*.xml'):
         row=ET.parse(path).getroot();v=counts.setdefault(path.parts[-5],[0,0,0,0])
         for n,key in enumerate(('tests','failures','errors','skipped')):v[n]+=int(row.get(key,0))
-    assert counts=={'core':[2229,0,0,0],'providers':[131,0,0,0],'fabric':[55,0,0,0]},counts
+    assert counts==cohort['counts'],counts
     release=sha(contracts/'fabric/build/libs/ai-villages-0.1.0.jar');observer=sha(contracts/'build/e2e-driver/observer.jar')
     for base in [native/'server/game',*[native/'clients'/p/'game' for p in ('PlayerA','PlayerB')]]:
         assert sha(base/'mods/ai-villages-0.1.0.jar')==release
@@ -52,7 +61,7 @@ def inspect(native_archive,contracts_archive,out,work):
            'originalOwnerSettlements':0,'nativeHarvestBoundary':'NOT_REACHED','nativeCompletion':'NOT_PROVED',
            'observedFailure':result['reason'],'journal':{'records':len(rows),'preparedOnly':sum('result' not in r for r in rows),'resultRecords':sum('result' in r for r in rows),'verificationRecords':sum('verification' in r for r in rows),'header':header,'entries':rows},
            'sourceBlocks':blocks,'actorNativeInventory':actors[0].get('Inventory',[]) if actors else None,'originalJob':job,'lastMetrics':snapshot.get('metrics'),'lastPublication':{'pending':snapshot['pending'],'fenced':snapshot['fenced']},
-           'diagnosis':'Exact retained failure state is reported without assuming whether harvest started. Source analysis identifies a possible own-exclusion preflight path; the correction requires native testing. No intended boundary or original-owner pass is inferred from rows or custody.',
+           'diagnosis':'Exact retained failure state is reported without assuming whether harvest started. Source analysis identifies the own-exclusion query and the post-mutation lease-stock check as separate paths; each correction requires native testing. No intended boundary or original-owner pass is inferred from rows or custody.',
            'moduleCases':sum(v[0] for v in counts.values()),'modules':counts,'harvestSuites':cases,
            'releaseSha256':release,'observerSha256':observer,'archives':archive_reviews,
            'claim':'Failure preservation and module/archive integrity only. No saved harvest or original-owner settlement pass.'}
@@ -60,6 +69,6 @@ def inspect(native_archive,contracts_archive,out,work):
     print('A06_HARVEST_FAILURE_REVIEW '+json.dumps({k:value[k] for k in ('status','moduleCases','originalOwnerSettlements','nativeHarvestBoundary')}))
     return value
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--native-archive',type=Path,required=True);p.add_argument('--contracts-archive',type=Path,required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args()
-    review(a.native_archive,a.contracts_archive,a.out)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--native-archive',type=Path,required=True);p.add_argument('--contracts-archive',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--cohort',choices=COHORTS,default='source-543');a=p.parse_args()
+    review(a.native_archive,a.contracts_archive,a.out,a.cohort)
 if __name__=='__main__':main()

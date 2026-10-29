@@ -103,8 +103,14 @@ jobs:
       - name: A04 closed-set history contracts and existing owner regressions
         id: a06_modules
         run: |
+          set +e
           bash gradlew --no-daemon --continue --stacktrace :core:test :providers:test :fabric:test :fabric:build
+          module_status=$?
           python3 -m unittest discover -s e2e -p 'test_*.py'
+          baseline_status=$?
+          set -e
+          test "$module_status" -eq 0
+          test "$baseline_status" -eq 0
       - name: Compile exact native client and isolated A04 observers before activation
         id: a06_prepare
         run: |
@@ -199,7 +205,13 @@ jobs:
           mkdir -p "$root"
           docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_failure.py --native-archive build/parallel-a/harvest-failure-inputs/native.zip --contracts-archive build/parallel-a/harvest-failure-inputs/contracts.zip --out "$root"
           docker image inspect --format '{{.Id}}' python:3.12-slim > "$root/python-image-id.txt"
+          gh api repos/${{ github.repository }}/actions/artifacts/12871296042/zip > build/parallel-a/harvest-failure-inputs/b075-native.zip
+          gh api repos/${{ github.repository }}/actions/artifacts/12871610049/zip > build/parallel-a/harvest-failure-inputs/b075-contracts.zip
+          root="$PWD/build/parallel-a/source-audit/a06-harvest-b075-review"
+          mkdir -p "$root"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_failure.py --cohort source-b075 --native-archive build/parallel-a/harvest-failure-inputs/b075-native.zip --contracts-archive build/parallel-a/harvest-failure-inputs/b075-contracts.zip --out "$root"
       - name: A06 first native original-owner harvest and equal-state replacement refusal
+        id: a06_native_harvest
         if: >-
           ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 harvest-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
         env:
@@ -208,6 +220,13 @@ jobs:
           python3 tools/needle/install.py build/needle
           gh api repos/${{ github.repository }}/actions/artifacts/12808600136/zip > build/parallel-a/a06-harvest-seed.zip
           python3 e2e/parallel_a/harvest_native.py --root build/parallel-a/native-a06-harvest --seed-archive build/parallel-a/a06-harvest-seed.zip
+      - name: Independently inspect current native H and complete module evidence in Docker
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 harvest-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' && steps.a06_native_harvest.outcome != 'skipped' }}
+        run: |
+          root="$PWD/build/parallel-a/source-audit/a06-current-harvest-review"
+          mkdir -p "$root"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_current.py --root build/parallel-a/native-a06-harvest --repo "$PWD" --source "${{ github.sha }}" --out "$root"
       - name: Independently review original and corrected A06 receipt-retention archives without native effects
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 receipt-prefix-review') }}
