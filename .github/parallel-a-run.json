@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 8,
-  "parentSource": "85aa9057178f82efada6bc7e3311071a82611ab9",
+  "sequence": 9,
+  "parentSource": "702760e9564167e44392ac9d9e5b091db89ac86d",
   "stage": "A06",
-  "scope": "shared-writer-full-result-reservations-original-native-harvest-trial-and-all-required-regressions",
+  "scope": "original-started-harvest-lease-accounting-with-ten-new-contracts-native-cuts-offline-current-and-prior-review-and-all-required-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -50,9 +50,9 @@
       "run": 40754098206,
       "source": "543cd78493bd619e05dce073d95db42f8bb94b9f",
       "moduleCases": 2415,
-      "moduleStatus": "PASS_CI_PENDING_INDEPENDENT_XML_REVIEW",
+      "moduleStatus": "PASS_INDEPENDENT_XML_REVIEW_2415_CASES",
       "nativeCases": "FAIL_BOUNDARY_NOT_REACHED",
-      "observed": "One prepared intent; original harvest boundary was never observed",
+      "observed": "Intended saved harvest boundary never observed; Docker review reports actual retained journal and custody without a prepared-only or zero-effect assumption",
       "diagnosis": "Source analysis identifies own destination-permission query intersecting harvest exclusion; new native trial required",
       "requiredHosts": {
         "pass": 7,
@@ -90,9 +90,39 @@
       "diagnosis": "Independent hard ceilings for deposit/accomplishments/access total18 MiB before current harvest replacement, exceeding unchanged16 MiB category quota",
       "historicalDockerReview": "PASS_FAILURE_EVIDENCE_REVIEW_ONLY",
       "requiredHosts": "ALL_NINE_PASS"
+    },
+    {
+      "run": 40811904558,
+      "source": "b0759b69cc799bc071542b063ac886a4da74d47b",
+      "phase": "original lease validation between actual harvest and result acknowledgement",
+      "observed": {
+        "journalRecords": 1,
+        "result": "COMPLETE",
+        "pending": false,
+        "fenced": false,
+        "originalEffects": 1,
+        "originalCredit": 0,
+        "originalState": "WAITING",
+        "reason": "RESOURCE_MISSING",
+        "uncertain": false,
+        "visibleResourceReceipts": 0,
+        "savedBoundary": "NOT_REACHED"
+      },
+      "diagnosis": "Lease validation re-observes the removed original block before the deferred native result can acknowledge. Decorator also overwrites raw interruption during refusal/cancellation. Both paths corrected; native trial still required.",
+      "moduleStatus": "PASS_CI_2422_PENDING_INDEPENDENT_XML_REVIEW",
+      "mainVerification": "PASS",
+      "requiredHosts": {
+        "pass": 8,
+        "fail": 1,
+        "failed": [
+          "GP-22 warm work5 STALE_OBSERVATION effects4 with original tracked drop absent"
+        ],
+        "cause": "UNRESOLVED"
+      },
+      "originalOwnerSettlements": 0
     }
   ],
-  "independentArchiveReview": "Docker python:3.12-slim, no network; immutable source543 native and contract archives",
+  "independentArchiveReview": "Same offline Docker job checks immutable source543 and sourceb075 archives and independently inspects the current raw world/module evidence",
   "nativePrerequisites": [
     "Current module contracts PASS",
     "Current production/native observer preparation PASS",
@@ -105,5 +135,13 @@
     "newRows": "Capacity rechecked before acknowledgement",
     "quotasWidened": false,
     "schemasChanged": false
+  },
+  "pendingHarvestAccounting": {
+    "authority": "Exact live original gateway action after its real native removal; no receipt is exposed before result acknowledgement",
+    "scope": "Only the matching original source claim avoids fresh stock admission while accounting is pending. Group owner/epoch/expiry/state and other claims remain checked; no renewal.",
+    "cancellation": "Unpublished started effect remains INTERRUPTED through decorator cancellation/refusal and raw release",
+    "testsAdded": 10,
+    "expectedModuleCases": 2432,
+    "status": "PENDING_CURRENT_CI_AND_NATIVE_TRIAL"
   }
 }
