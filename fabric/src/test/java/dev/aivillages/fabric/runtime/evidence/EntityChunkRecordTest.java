@@ -4,7 +4,8 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.*;
 import net.minecraft.world.level.ChunkPos;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import static dev.aivillages.fabric.runtime.evidence.EntityChunkRemovalStateTest.*;
 import static org.junit.jupiter.api.Assertions.*;
 
