@@ -3104,6 +3104,8 @@
       "test_adapter_oracle.AdapterOracleTest.test_wrong_capacity_duplicate_half_and_unknown_content_leak_are_rejected",
       "test_build_retry.BuildRetryTest.test_only_pre_task_dependency_failures_can_retry",
       "test_build_retry.BuildRetryTest.test_started_tasks_or_test_failures_are_never_retried",
+      "test_client_launch.ClientLaunchTest.test_mounted_box_overlay_preserves_mailbox_and_bounded_native_observation",
+      "test_client_launch.ClientLaunchTest.test_oversized_or_foreign_client_configuration_refused",
       "test_client_oracle.ClientOracleTest.test_changed_slots_reopened_update_and_private_disclosure_rejected",
       "test_client_oracle.ClientOracleTest.test_missing_duplicate_disconnected_or_swapped_client_rejected",
       "test_client_oracle.ClientOracleTest.test_synthetic_model_control_is_separate_from_actual_client_credit",
