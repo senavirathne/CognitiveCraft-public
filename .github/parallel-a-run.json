@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 7,
-  "parentSource": "0e7885db12c3ecddb2d927b832f2011cf37b8672",
+  "sequence": 8,
+  "parentSource": "85aa9057178f82efada6bc7e3311071a82611ab9",
   "stage": "A06",
-  "scope": "actual-failure-Docker-review-independent-native-harvest-trial-and-all-required-regressions",
+  "scope": "shared-writer-full-result-reservations-original-native-harvest-trial-and-all-required-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -73,6 +73,23 @@
       "requiredHosts": "ALL_NINE_PASS",
       "nativeCases": "NOT_EXECUTED_AFTER_REVIEW_FAILURE",
       "failedReviewPreserved": true
+    },
+    {
+      "run": 40810143343,
+      "source": "941d531482749a1500aaa1cb16fdae8c3de82212",
+      "phase": "native harvest publication before mutation",
+      "observed": {
+        "journalRecords": 0,
+        "pending": true,
+        "fenced": true,
+        "originalEffects": 0,
+        "originalCredit": 0,
+        "originalState": "INTERRUPTED",
+        "uncertain": true
+      },
+      "diagnosis": "Independent hard ceilings for deposit/accomplishments/access total18 MiB before current harvest replacement, exceeding unchanged16 MiB category quota",
+      "historicalDockerReview": "PASS_FAILURE_EVIDENCE_REVIEW_ONLY",
+      "requiredHosts": "ALL_NINE_PASS"
     }
   ],
   "independentArchiveReview": "Docker python:3.12-slim, no network; immutable source543 native and contract archives",
@@ -81,5 +98,12 @@
     "Current production/native observer preparation PASS",
     "No cancellation of the workflow"
   ],
-  "historicalArchiveReview": "Independent diagnostic; failure remains fatal to workflow, without preventing current native trial after its authorizing prerequisites pass"
+  "historicalArchiveReview": "Independent diagnostic; failure remains fatal to workflow, without preventing current native trial after its authorizing prerequisites pass",
+  "writerReservations": {
+    "serializedDomain": "Exact bound storage thread; distinct domains refuse registration",
+    "admittedRows": "Each already reserves its complete maximum result and all native journal files",
+    "newRows": "Capacity rechecked before acknowledgement",
+    "quotasWidened": false,
+    "schemasChanged": false
+  }
 }
