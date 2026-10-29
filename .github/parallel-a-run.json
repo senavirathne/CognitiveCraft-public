@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 12,
-  "parentSource": "192edb7045485fb21084b4c8b3b68386b1fe791c",
+  "sequence": 13,
+  "parentSource": "5829e2c68ae7bd06159050538f7ecea6282a798f",
   "stage": "A06",
-  "scope": "native-pickup-removal-data-foundation-sixteen-new-contracts-first-H-archive-review-and-complete-native-regression-batch",
+  "scope": "persistent-contradiction-quarantine-sixteen-pickup-foundation-contracts-complete-archive-native-and-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -227,7 +227,7 @@
       "bytes": 3393247,
       "sha256": "947b9b0349788bc74905513692a451604a1d3c53ec3708000a29819d9c38dcbd"
     },
-    "reviewScope": "Independent raw saved-world and complete XML review passed in the same job; immutable whole-ZIP review is included in this batch."
+    "reviewScope": "Independent raw native/XML review passed at119c; whole immutable archive and frozen oracle review passed in grouped run40817380126"
   },
   "pickupRemovalFoundation": {
     "checkpoint": "b0a6b7b05a7cab6ec330f0f6ede144778d419a6d",
@@ -247,6 +247,19 @@
     },
     "status": "PENDING_CURRENT_VALIDATION",
     "nextRequired": "Actual removal/migration hooks, native empty entity-chunk persistence, all departure membership witnesses, original pickup receipt/journal integration and native original-owner trials",
-    "testCompilationCorrection": "192edb7045485fb21084b4c8b3b68386b1fe791c"
+    "testCompilationCorrection": "192edb7045485fb21084b4c8b3b68386b1fe791c",
+    "contradictorySavedMembership": {
+      "correction": "5829e2c68ae7bd06159050538f7ecea6282a798f",
+      "invariant": "An entity present in its alleged saved removal record permanently quarantines that declaration; later unrelated absence cannot turn it into saved proof",
+      "test": "Existing native membership contradiction case strengthened; all sixteen cases remain"
+    },
+    "priorValidation": {
+      "source": "12078d3f6533fbb4cd8f45a1eab516d71b6efefb",
+      "run": 40817380126,
+      "modules": "PASS_CI_2448",
+      "newRemovalCases": 16,
+      "immutableFirstHArchive": "PASS_INDEPENDENT_DIGEST_SIZE_CRC_PATH_ORACLE_AND_NATIVE_REVIEW",
+      "currentNativeH": "IN_PROGRESS_AT_REQUEST"
+    }
   }
 }
