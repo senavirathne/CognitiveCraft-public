@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 14,
-  "parentSource": "8ddd2e6508798147e35b5c5180414168a5902ae0",
+  "sequence": 15,
+  "parentSource": "bee5a3dd50544cb285b4ef63195be28b44453821",
   "stage": "A06",
-  "scope": "first-pickup-causal-receipt-native-membership-and-private-harvest-link-contracts-with-exact-storage-hook-inventory-and-all-regressions",
+  "scope": "native-entity-storage-empty-cache-persistence-ordered-bounded-writes-real-save-reopen-movement-controls-and-complete-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -231,7 +231,7 @@
   },
   "pickupRemovalFoundation": {
     "checkpoint": "b0a6b7b05a7cab6ec330f0f6ede144778d419a6d",
-    "nativeStorageHook": "NOT_ATTACHED",
+    "nativeStorageHook": "ATTACHED_IN_CURRENT_CHECKPOINT_PENDING_VALIDATION",
     "nativePickupProducer": "INACTIVE",
     "testsAdded": 16,
     "expectedModules": {
@@ -263,16 +263,17 @@
     }
   },
   "latestValidatedCheckpoint": {
-    "source": "dfbf0a71305d225162f55194212ac2e651633c55",
-    "run": 40817762507,
-    "modules": 2448,
+    "source": "ee85bcb04299766b138fa61bd6c71f1a4ac82952",
+    "run": 40823885728,
+    "job": 123282358654,
+    "modules": 2481,
     "python": {
       "aOwned": 49,
       "baseline": 72
     },
     "requiredHosts": 9,
     "mainVerification": {
-      "run": 40817762499,
+      "run": 40823885725,
       "status": "PASS"
     },
     "uniqueOriginalCases": 1,
@@ -281,7 +282,7 @@
   },
   "pickupCausalContracts": {
     "source": "8ddd2e6508798147e35b5c5180414168a5902ae0",
-    "status": "PENDING_CURRENT_VALIDATION",
+    "status": "PASS_2481_MODULES_ALL_HOSTS_NATIVE_H_AND_MAIN_AT_EE85",
     "schema": "Separate bounded first-P data; existing H/D formats unchanged",
     "newCases": {
       "pickupData": 20,
@@ -305,12 +306,47 @@
       "recordBytes": 32768
     },
     "nativePickupProducer": "INACTIVE",
-    "nativeStorageHooks": "NOT_ATTACHED"
+    "nativeStorageHooks": "ATTACHED_IN_CURRENT_CHECKPOINT_PENDING_VALIDATION"
   },
   "storageHookInventory": {
     "mode": "READ_ONLY_NO_NATIVE_EFFECTS",
     "server": "Exact installed Minecraft26.3 SDK and official server SHA",
     "purpose": "Read exact entity storage empty-chunk/write/load and position callback bytecode before native hook implementation",
     "sameBatch": true
+  },
+  "nativeEntityStorage": {
+    "source": "bee5a3dd50544cb285b4ef63195be28b44453821",
+    "status": "PENDING_CURRENT_VALIDATION",
+    "newJavaCases": 24,
+    "newPythonOracleCases": 5,
+    "expectedModules": {
+      "core": 2268,
+      "providers": 131,
+      "fabric": 106,
+      "total": 2505
+    },
+    "expectedPython": {
+      "aOwned": 54,
+      "baseline": 72
+    },
+    "mechanicsOnly": true,
+    "nativePickupProducer": "INACTIVE",
+    "originalOwnerSettlements": 0,
+    "scope": "Native EntityStorage read and both write branches; own metadata retained in actual empty records and cache; native flush/close waits ordered metadata writes; every setPosRaw chunk change while live tracking attached",
+    "limits": {
+      "chunks": 128,
+      "rows": 512,
+      "pendingWrites": 16,
+      "rowsPerChunk": 64,
+      "nativeRootBytes": 262144
+    },
+    "controls": [
+      "Isolated real native item save, removal, empty save, close/reopen and two repeated empty-cache saves",
+      "Unknown native metadata preserved exactly through delete and reopen",
+      "Actual saved UUID contradiction permanently quarantined through later empty save and reopen",
+      "Same-tick cross/cross/return records every visited chunk; changed UUID gaps tracking",
+      "Independent offline raw Anvil/NBT review, no original P pass inferred"
+    ],
+    "remaining": "Actual first-P birth attachment, original gateway/receipt/journal authority, live migration facts and original P/D owner trials remain required"
   }
 }
