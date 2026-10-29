@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 15,
-  "parentSource": "bee5a3dd50544cb285b4ef63195be28b44453821",
+  "sequence": 16,
+  "parentSource": "231f4718e5bf5b35ab40570da344e6d066fc1f41",
   "stage": "A06",
   "scope": "native-entity-storage-empty-cache-persistence-ordered-bounded-writes-real-save-reopen-movement-controls-and-complete-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -170,6 +170,21 @@
       },
       "correctedBy": "192edb7045485fb21084b4c8b3b68386b1fe791c",
       "testsRemoved": 0
+    },
+    {
+      "source": "da7ab5191f976c2a52c06dc606114335fd656d96",
+      "run": 40840092370,
+      "job": 123334083854,
+      "phase": "New Fabric storage test compilation",
+      "cause": "Wildcard JUnit/NBT imports made Tag ambiguous in EntityChunkRecordTest. Production compiled; explicit BeforeAll/Test imports preserve all24 new Java tests.",
+      "mainVerification": {
+        "run": 40840092565,
+        "job": 123334083669,
+        "status": "FAIL_SAME_TEST_COMPILATION"
+      },
+      "nativeCases": "NOT_EXECUTED_REQUIRED_MODULE_PREREQUISITE_FAILED",
+      "correctedBy": "231f4718e5bf5b35ab40570da344e6d066fc1f41",
+      "testsRemoved": 0
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -315,7 +330,7 @@
     "sameBatch": true
   },
   "nativeEntityStorage": {
-    "source": "bee5a3dd50544cb285b4ef63195be28b44453821",
+    "source": "231f4718e5bf5b35ab40570da344e6d066fc1f41",
     "status": "PENDING_CURRENT_VALIDATION",
     "newJavaCases": 24,
     "newPythonOracleCases": 5,
