@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 13,
-  "parentSource": "5829e2c68ae7bd06159050538f7ecea6282a798f",
+  "sequence": 14,
+  "parentSource": "8ddd2e6508798147e35b5c5180414168a5902ae0",
   "stage": "A06",
-  "scope": "persistent-contradiction-quarantine-sixteen-pickup-foundation-contracts-complete-archive-native-and-regression-batch",
+  "scope": "first-pickup-causal-receipt-native-membership-and-private-harvest-link-contracts-with-exact-storage-hook-inventory-and-all-regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -261,5 +261,56 @@
       "immutableFirstHArchive": "PASS_INDEPENDENT_DIGEST_SIZE_CRC_PATH_ORACLE_AND_NATIVE_REVIEW",
       "currentNativeH": "IN_PROGRESS_AT_REQUEST"
     }
+  },
+  "latestValidatedCheckpoint": {
+    "source": "dfbf0a71305d225162f55194212ac2e651633c55",
+    "run": 40817762507,
+    "modules": 2448,
+    "python": {
+      "aOwned": 49,
+      "baseline": 72
+    },
+    "requiredHosts": 9,
+    "mainVerification": {
+      "run": 40817762499,
+      "status": "PASS"
+    },
+    "uniqueOriginalCases": 1,
+    "requiredOriginalCases": 12,
+    "a06Qualified": false
+  },
+  "pickupCausalContracts": {
+    "source": "8ddd2e6508798147e35b5c5180414168a5902ae0",
+    "status": "PENDING_CURRENT_VALIDATION",
+    "schema": "Separate bounded first-P data; existing H/D formats unchanged",
+    "newCases": {
+      "pickupData": 20,
+      "harvestLiveLink": 5,
+      "membershipTrail": 8,
+      "total": 33
+    },
+    "expectedModules": {
+      "core": 2268,
+      "providers": 131,
+      "fabric": 82,
+      "total": 2481
+    },
+    "firstPEnvelope": "Original childless first H/P only; authentic H ancestor, empty pre-H actor, one original drop, original quantities preserved",
+    "quantitiesAndSpecies": "Synthetic oak/birch data matrix at quantities1/2/3/4; not native qualification",
+    "authority": "Private current-process H link after actual result acknowledgement; restored bytes cannot mint it; it grants no execution permission",
+    "nativeMembership": "Every captured actor/drop chunk, exact saved/current membership, result marker and coherent per-chunk frame digest; no absence/count-only proof",
+    "postCaptureMigration": "Refused in this initial first-P data envelope; missing/unobserved history remains unknown",
+    "limits": {
+      "trailChunksPerParticipant": 8,
+      "recordBytes": 32768
+    },
+    "nativePickupProducer": "INACTIVE",
+    "nativeStorageHooks": "NOT_ATTACHED"
+  },
+  "storageHookInventory": {
+    "mode": "READ_ONLY_NO_NATIVE_EFFECTS",
+    "server": "Exact installed Minecraft26.3 SDK and official server SHA",
+    "purpose": "Read exact entity storage empty-chunk/write/load and position callback bytecode before native hook implementation",
+    "sameBatch": true
   }
 }
