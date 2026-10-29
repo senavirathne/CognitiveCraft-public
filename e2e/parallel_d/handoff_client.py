@@ -62,6 +62,9 @@ class DVillagerHandoffClient(DStorageObservationClient):
             while not (self.root/'server/d09'/('terminal-'+mode+'.json')).exists():
                 healthy();require(time.monotonic()<self.deadline,'D09 finite real-client campaign');time.sleep(.15)
             sample(mode,'AFTER',ready,mode not in ('DEATH','UNLOAD'))
+            # The established command action closes its native screen before sending.
+            # Reopen the actual inventories for visible AFTER menus and rendered evidence.
+            inspect('PlayerD_A','sender');inspect('PlayerD_B','recipient')
             capture_menu('PlayerD_A',mode,'AFTER',3 if mode=='STORAGE'else 5 if mode=='EXISTING'else 9)
             capture_menu('PlayerD_B',mode,'AFTER',5 if mode in ('EXISTING','STORAGE')else 0 if mode=='FULL'else 1)
             if mode in ('EXISTING','STORAGE'):
