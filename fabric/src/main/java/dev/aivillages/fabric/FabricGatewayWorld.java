@@ -756,6 +756,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             // stock and other batches merging into this entity; manual gateway pickup keeps
             // the exact stack. The tick mixin clears the target when actor control is lost.
             if(defaultLog(stack,item)) entity.setTarget(entity.getUUID());
+            dev.aivillages.fabric.runtime.evidence.HarvestBirthScope.spawned(entity);
             if(!level.addFreshEntity(entity)) { failed=true; continue; }
             if(defaultLog(stack,item)) tracked.add(new ItemDrop(entity.getUUID(),stack.getCount()));
         }

@@ -106,6 +106,7 @@ public final class PickupEvidenceStore {
         if(fenced)return new Status(Code.FENCED,null);
         Entry entry=find(state,prepared.intent.key().token());
         if(entry==null||!entry.intent().equals(prepared.intent)||created.get(entry.token())!=prepared)return new Status(Code.STALE,null);
+        if(!ancestry(entry))return new Status(Code.RECOVERY_REQUIRED,null);
         if(entry.verification()!=null)return new Status(Code.RESOLVED,null);
         if(entry.result()!=null)return new Status(Code.RESULT_ACKNOWLEDGED,prepared);
         if(pending!=null||started.contains(entry.token()))return new Status(Code.PENDING,prepared);

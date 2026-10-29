@@ -30,6 +30,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private Consumer<Point> observer=point->{ };
     private boolean closed;
+    private final Map<String,NativeBirth> membershipBirths=new HashMap<>();
     private final ArrayDeque<Long> preparationNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
     private final ArrayDeque<Refusal> refusals=new ArrayDeque<>();
     public record Refusal(String phase,String reason,String detail) { }
@@ -43,6 +44,73 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         NativeTicket(Request request,Action original,NativeHarvest.Intent intent,Reason failure){this.request=request;this.original=original;this.intent=intent;this.failure=failure;}
     }
     private record Pair(Villager actor,LevelChunk chunk,Participant actorSnapshot,Source source) { }
+    private static NativePickup.Chunk membershipChunk(net.minecraft.world.entity.Entity entity) {
+        var chunk=entity.chunkPosition();return new NativePickup.Chunk(entity.level().dimension().identifier().toString(),chunk.x(),chunk.z());
+    }
+    private final class NativeBirth {
+        final NativeHarvest.Intent intent;final EntityMembershipTrail actor;final NativePickup.Chunk actorBirth;
+        final Map<UUID,BornDrop> drops=new LinkedHashMap<>();boolean complete=true,finished;
+        NativeBirth(NativeHarvest.Intent intent,Villager actor){this.intent=intent;actorBirth=membershipChunk(actor);this.actor=((EntityMembershipParticipant)actor).cognitivecraft$beginMembership(intent.actorBefore().incarnation());}
+    }
+    private record BornDrop(UUID incarnation,NativePickup.Chunk birth,EntityMembershipTrail trail,boolean beforeNativeAdd){}
+    public record DropBirth(UUID entity,UUID incarnation,NativePickup.Chunk birth,NativePickup.Trail trail,boolean beforeNativeAdd){}
+    public record MembershipBirth(String token,Key key,NativePickup.Chunk actorBirth,NativePickup.Trail actorTrail,List<DropBirth> drops,boolean complete,boolean pickupLineageAvailable){}
+    /** Private live H lifetime link; immutable captures do not authorize any pickup effect. */
+    public static final class PickupLineage {
+        private final FabricHarvestProtocol owner;private final NativeBirth birth;private final HarvestEvidenceStore.Acknowledged original;
+        private final NativePickup.Trail actor,drop;
+        private PickupLineage(FabricHarvestProtocol owner,NativeBirth birth,HarvestEvidenceStore.Acknowledged original,NativePickup.Trail actor,NativePickup.Trail drop){this.owner=owner;this.birth=birth;this.original=original;this.actor=actor;this.drop=drop;}
+        public NativePickup.Trail actorTrail(){return actor;}public NativePickup.Trail dropTrail(){return drop;}
+        public NativeHarvest.Entry harvest(){return original.entry();}
+    }
+    private NativeBirth beginMembershipBirth(NativeHarvest.Intent intent,Villager actor) {
+        if(intent.key().ordinal()!=1||!intent.key().root().equals(intent.key().step())||intent.actorBefore().slots().stream().anyMatch(slot->slot.count()!=0))return null;
+        if(membershipBirths.size()==NativeHarvest.MAX_ENTRIES||membershipBirths.containsKey(intent.key().token()))throw new IllegalStateException("Original H membership quota/identity");
+        var birth=new NativeBirth(intent,actor);membershipBirths.put(intent.key().token(),birth);return birth;
+    }
+    private void born(NativeBirth birth,ItemEntity drop) {
+        check();if(birth==null)return;
+        boolean original=drop.level()==level&&!drop.isRemoved()&&level.getEntity(drop.getUUID())==null
+                &&drop.blockPosition().equals(pos(birth.intent.source()))&&BuiltInRegistries.ITEM.getKey(drop.getItem().getItem()).toString().equals(birth.intent.item());
+        if(!original||birth.drops.size()==64||birth.drops.containsKey(drop.getUUID())){birth.complete=false;return;}
+        var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();state.activate();state.track(List.of(drop.getItem()));
+        var trail=((EntityMembershipParticipant)drop).cognitivecraft$beginMembership(state.incarnation());
+        birth.drops.put(drop.getUUID(),new BornDrop(state.incarnation(),membershipChunk(drop),trail,true));
+    }
+    public PickupLineage capturePickupLineage(HarvestEvidenceStore.Acknowledged original) {
+        check();if(closed||!enabled||!store.owns(original))return null;var e=original.entry();var birth=membershipBirths.get(e.token());
+        if(birth==null||!birth.complete||!birth.finished||!birth.intent.equals(e.intent())||e.result()==null||e.result().live()!=NativeHarvest.Live.COMPLETE
+                ||e.result().drops().size()!=1||birth.drops.size()!=1)return null;
+        var ref=e.result().drops().getFirst();var born=birth.drops.get(ref.entity());if(born==null||!born.incarnation().equals(ref.incarnation())||!born.beforeNativeAdd())return null;
+        var expected=new Marker(e.token(),e.intent().digest(),MarkerPhase.RESULT,e.result().digest());
+        var actor=actorWitness(e.result().actor());var source=sourceWitness(e.result().source());var drops=dropWitnesses(e.result().drops());
+        if(actor==null||source==null||drops==null||drops.size()!=1||!actor.participant().equals(e.result().actor())||!source.source().equals(e.result().source())
+                ||!drops.getFirst().drop().equals(ref)||!expected.equals(actor.marker())||!expected.equals(source.marker())||!expected.equals(drops.getFirst().marker()))return null;
+        try {
+            var actorTrail=birth.actor.capture();var dropTrail=born.trail().capture();
+            var nativeActor=level.getEntity(UUID.fromString(e.result().actor().address()));var nativeDrop=level.getEntity(ref.entity());
+            if(nativeActor==null||nativeDrop==null||!actorTrail.current().equals(membershipChunk(nativeActor))||!dropTrail.current().equals(membershipChunk(nativeDrop)))return null;
+            return new PickupLineage(this,birth,original,actorTrail,dropTrail);
+        }catch(RuntimeException incomplete){return null;}
+    }
+    public boolean currentPickupLineage(PickupLineage lineage) {
+        check();if(lineage==null||lineage.owner!=this||membershipBirths.get(lineage.birth.intent.key().token())!=lineage.birth)return false;
+        var current=capturePickupLineage(lineage.original);return current!=null&&current.actor.equals(lineage.actor)&&current.drop.equals(lineage.drop);
+    }
+    public List<MembershipBirth> membershipBirths() {
+        check();var views=new ArrayList<MembershipBirth>();
+        for(var birth:membershipBirths.values()) {
+            NativePickup.Trail actor=null;boolean complete=birth.complete&&birth.finished;
+            try{actor=birth.actor.capture();}catch(RuntimeException gap){complete=false;}
+            var drops=new ArrayList<DropBirth>();
+            for(var e:birth.drops.entrySet()){NativePickup.Trail trail=null;try{trail=e.getValue().trail().capture();}catch(RuntimeException gap){complete=false;}
+                drops.add(new DropBirth(e.getKey(),e.getValue().incarnation(),e.getValue().birth(),trail,e.getValue().beforeNativeAdd()));}
+            var acknowledged=store.acknowledged(birth.intent.key());boolean linked=acknowledged!=null&&capturePickupLineage(acknowledged)!=null;
+            views.add(new MembershipBirth(birth.intent.key().token(),birth.intent.key(),birth.actorBirth,actor,List.copyOf(drops),complete,linked));
+        }
+        views.sort(Comparator.comparing(MembershipBirth::token));return List.copyOf(views);
+    }
+
     public FabricHarvestProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,HarvestJournal journal,
                                  HarvestJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
@@ -63,7 +131,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public HarvestEvidenceStore evidence(){check();return store;}
     public void observe(Consumer<Point> observer){check();this.observer=Objects.requireNonNull(observer);}
     public void tick(){check();store.tick();}
-    public void close(){check();closed=true;for(var ticket:tickets)ticket.forgotten=true;tickets.clear();}
+    public void close(){check();closed=true;for(var ticket:tickets)ticket.forgotten=true;tickets.clear();membershipBirths.clear();}
     @Override public Ticket begin(Request request,Action original) {
         check();long began=System.nanoTime();
         try{return beginNative(Objects.requireNonNull(request),Objects.requireNonNull(original));}
@@ -165,8 +233,9 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         mark(pair,new Marker(intent.key().token(),intent.digest(),MarkerPhase.PREPARED,""));observer.accept(Point.PREPARED_MARKED);
         if(!nativeCurrent(intent))throw new IllegalStateException("Harvest changed after prepared marker");
         mark(pair,new Marker(intent.key().token(),intent.digest(),MarkerPhase.MUTATING,""));observer.accept(Point.BEFORE_MUTATION);
+        NativeBirth birth=beginMembershipBirth(intent,pair.actor);
         Observed observed=null;RuntimeException failure=null;
-        try{observed=ticket.original.execute();}catch(RuntimeException error){failure=error;}
+        try(var scope=HarvestBirthScope.open(drop->born(birth,drop))){observed=ticket.original.execute();}catch(RuntimeException error){failure=error;}
         observer.accept(Point.AFTER_MUTATION);
         Pair after=Objects.requireNonNull(pair(ticket.request,true));var drops=new ArrayList<Drop>();var nativeDrops=new ArrayList<ItemEntity>();
         if(observed!=null)for(var actual:observed.harvest().drops()) {
@@ -176,7 +245,10 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         var result=NativeHarvest.observed(intent,after.source,drops,observed==null?null:observed.receipt(),observed==null?ticket.original.usage():observed.usage(),
                 failure==null?observed.harvest().reason()==null?"":observed.harvest().reason().name():failure.getClass().getName(),after.actorSnapshot);
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());mark(after,marker);
-        for(var drop:nativeDrops)((DepositParticipant)drop).cognitivecraft$depositParticipant().mark(marker,()->{ });return result;
+        for(var drop:nativeDrops)((DepositParticipant)drop).cognitivecraft$depositParticipant().mark(marker,()->{ });
+        if(birth!=null){birth.finished=result.live()==NativeHarvest.Live.COMPLETE;
+            if(!birth.drops.keySet().equals(result.drops().stream().map(Drop::entity).collect(java.util.stream.Collectors.toSet())))birth.complete=false;}
+        return result;
     }
     public HarvestEvidenceStore.Reconciled reconcile(Key key){check();return store.reconcile(key);}
     public HarvestEvidenceStore.Code verify(HarvestEvidenceStore.Reconciled proof){
