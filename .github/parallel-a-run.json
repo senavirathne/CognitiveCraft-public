@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 5,
-  "parentSource": "326c1922a947eaa5fbf5e58bd8bb910febb299c1",
+  "sequence": 6,
+  "parentSource": "2058281c8a6d327a004ae9cff4b598864b2b4d22",
   "stage": "A06",
-  "scope": "native-harvest-registration-and-unacknowledged-cancellation-fixes-with-all-required-regressions",
+  "scope": "scoped-original-preflight-and-first-native-harvest-with-complete-required-regressions-and-Docker-archive-review",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -45,6 +45,25 @@
         ],
         "causes": "UNRESOLVED"
       }
+    },
+    {
+      "run": 40754098206,
+      "source": "543cd78493bd619e05dce073d95db42f8bb94b9f",
+      "moduleCases": 2415,
+      "moduleStatus": "PASS_CI_PENDING_INDEPENDENT_XML_REVIEW",
+      "nativeCases": "FAIL_BOUNDARY_NOT_REACHED",
+      "observed": "One prepared intent; original harvest boundary was never observed",
+      "diagnosis": "Source analysis identifies own destination-permission query intersecting harvest exclusion; new native trial required",
+      "requiredHosts": {
+        "pass": 7,
+        "fail": 2,
+        "failed": [
+          "GP-21 cold work0 TARGET_UNAVAILABLE before native start",
+          "GP-22 cold work0 TARGET_UNAVAILABLE before native start"
+        ],
+        "causes": "UNRESOLVED"
+      }
     }
-  ]
+  ],
+  "independentArchiveReview": "Docker python:3.12-slim, no network; immutable source543 native and contract archives"
 }
