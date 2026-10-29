@@ -3,6 +3,7 @@ import argparse,hashlib,json,xml.etree.ElementTree as ET
 from pathlib import Path
 from harvest_fixture import saved_harvest,SOURCE_TAG
 from native_nbt import chunk
+from harvest_cases import select_case,fixture_positions
 from review_receipt_prefix import dimension_root,block_name
 
 def read(path):return json.loads(path.read_text())
@@ -57,9 +58,11 @@ def settled(job,original,key,receipt):
         assert receipt[saved]==actual[live],(saved,actual)
     assert actual['stage']=='HARVEST' and actual['quantity']==receipt['quantity'] and actual['dropIds']==receipt['drops']
     assert all(count<=attempt['allowance']['maxima'][kind] for kind,count in attempt['usage'].items())
-def review(root,repo,out,source,expected_modules=None,removal_cases=16):
+def review(root,repo,out,source,expected_modules=None,removal_cases=16,case_id='heldout-W6-002'):
     out.mkdir(parents=True,exist_ok=True)
+    frozen=read(repo/'e2e/parallel_a/a06_original_cases.json');case=select_case(frozen,case_id)
     result=read(root/'a06-harvest-results.json');metadata=read(root/'metadata.json');counts=modules(repo,expected_modules,removal_cases)
+    assert result['originalCase']==case,'Reported case is not the exact selected frozen original'
     assert metadata.get('reviewedHeadCommit',metadata['sourceCommit'])==source and metadata['dirty'] is False
     release=sha(repo/'fabric/build/libs/ai-villages-0.1.0.jar');observer=sha(repo/'build/e2e-driver/observer.jar')
     for base in [root/'server/game',*[root/'clients'/p/'game' for p in ('PlayerA','PlayerB')]]:
@@ -68,7 +71,7 @@ def review(root,repo,out,source,expected_modules=None,removal_cases=16):
     value={'schema':1,'source':source,'modules':counts,'moduleCases':sum(v[0] for v in counts.values()),
            'releaseSha256':release,'observerSha256':observer,'status':'PASS_FAILURE_EVIDENCE_REVIEW_ONLY',
            'originalOwnerSettlements':0,'remainingOriginalCases':'NOT_EXECUTED_REQUIRED','a06Qualified':False,
-           'nativeStatus':result['status'],'nativeReason':result.get('reason')}
+           'nativeStatus':result['status'],'nativeReason':result.get('reason'),'originalCase':case,'caseId':case_id}
     if result['status']=='FAIL':
         assert result['originalTwelveSettlements']==0
         last=result.get('lastEvidence') or {}
@@ -77,9 +80,8 @@ def review(root,repo,out,source,expected_modules=None,removal_cases=16):
                      claim='Current failure is retained. No intended saved boundary, native completion or owner settlement is inferred.')
     else:
         assert result['status']=='PASS_FIRST_H_PENDING_ARCHIVE_REVIEW' and result['originalTwelveSettlements']==1
-        frozen=read(repo/'e2e/parallel_a/a06_original_cases.json')
-        case=next(c for c in frozen['cases'] if c['id']=='heldout-W6-002')
-        assert result['originalCase']==case and case['requested']==2
+        assert result['originalCase']==case
+        if expected_modules is None:assert result['fixturePositions']==fixture_positions(case)
         killed=root/'saved-harvest-killed-world'
         assert manifest(killed)==result['killedWorldHashes']
         proof=saved_harvest(killed);assert proof==result['independentSavedNative']
@@ -89,10 +91,20 @@ def review(root,repo,out,source,expected_modules=None,removal_cases=16):
         assert marker['commands']==[{'command':'tick freeze','result':1},{'command':'save-all flush','result':1}]
         original=result['originalAtCut'];assert original['state']=='ACTIVE' and original['attempts'][-1].get('terminal') is None
         assert original['id']==key['step']==key['root'] and original['attempts'][-1]['id']==key['attempt'] and key['ordinal']==1
-        assert original['request']['request']['arguments']['amount']['value']==2
+        assert original['request']['request']['arguments']['amount']['value']==case['requested']
+        assert original['request']['request']['capability']==case['capability']
         assert receipt['source']==[case['source'][k] for k in ('minX','minY','minZ','maxX','maxY','maxZ')]
         assert receipt['destination']==[case['destination'][k] for k in ('x','y','z')] and receipt['item']==case['item']
         assert intent['run']==receipt['run']==original['attempts'][-1]['executions'][0]['runId']
+        if case['item']=='minecraft:birch_log':
+            setup=result['seedContinuation'];admission=setup['admission'];view=admission['view']
+            assert setup['kind']=='FRESH_GENUINE_BIRCH_ADMISSION' and setup['nativeAdmissionEffectsCountedAsA06']==0
+            assert admission['status']=='PASS' and admission['item']==case['item'] and view['responsibility']['state']=='SUCCEEDED'
+            assert view['marker']['outcome']=='ADMITTED' and view['marker']['artifactSha256']==setup['artifactSha256']
+            assert admission['callsAfter']['generationCalls']>admission['callsBefore']['generationCalls']
+            assert original['attempts'][-1]['executions'][0]['artifact']['sha256']==setup['artifactSha256']
+            assert all(sum(r['quantity'] for r in view['resourceReceipts'] if r['stage']==stage and r['item']['id']==case['item'])==1 for stage in ('HARVEST','PICKUP','DEPOSIT'))
+            assert setup['activationRestart']['sameClients'] is True and setup['activationRestart']['reader']['journal']['entries']==[]
         before=result['beforeCancellation']
         assert before['id']==key['step'] and before['state']=='INTERRUPTED' and before['attempts'][-1]['uncertain']
         settled(result['originalAfterSettlement'],original,key,receipt)
@@ -120,7 +132,7 @@ def review(root,repo,out,source,expected_modules=None,removal_cases=16):
         value['originalHarvestBirths']=birth_review(root,result,value['nativeSavedProof']['entry'])
         print('A06_ACTUAL_H_BIRTH_REVIEW '+json.dumps(value['originalHarvestBirths']))
     (out/'review.json').write_text(json.dumps(value,indent=2)+'\n')
-    print('A06_CURRENT_HARVEST_REVIEW '+json.dumps({k:value[k] for k in ('status','moduleCases','originalOwnerSettlements','a06Qualified','releaseSha256','observerSha256')}))
+    print('A06_CURRENT_HARVEST_REVIEW '+json.dumps({k:value[k] for k in ('status','caseId','moduleCases','originalOwnerSettlements','a06Qualified','releaseSha256','observerSha256')}))
     return value
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);p.add_argument('--repo',type=Path,required=True)
