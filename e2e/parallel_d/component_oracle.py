@@ -66,6 +66,7 @@ def case(spec,rows,diagnostic=False):
                 else:require(c['slots']is None and group=='storage'and n==11,'hidden inventory converted to empty')
         if r['event']=='MOVE':move.append(r['step_ns'])
         if r['event']in ('WITHDRAW','DEPOSIT','HANDOFF','RIVAL_WITHDRAW','COMPETING_HANDOFF'):transfers.append(r['step_ns']) if r['step_ns'] else None
+        elapsed=r['tick']-previous['tick'];require(math.dist(r['native_feet'],previous['native_feet'])<=.6*elapsed+1e-6,'actor teleported between actual native observations')
         previous=r
     outcome='PASS';details={}
     if group=='storage':
@@ -119,6 +120,8 @@ def case(spec,rows,diagnostic=False):
             outcome='REFUSED_EXPECTED';require(deposited==0,'unsafe courier deposited cargo')
             if n in (7,8,9):require(withdrawn==4 and count(last,'carrier',item)==7,'unsafe destination lost attributed cargo')
             else:require(withdrawn==0,'unsafe courier withdrew before admission')
+            if n==9:
+                requested=next(r for r in rows if r['event']=='EXTERNAL_GRANT_REVOCATION_REQUESTED');ack=next(r for r in rows if r['event']=='EXTERNAL_GRANT_REVOKED');require(requested['phase']=='MOVING_TO_DESTINATION'and ack['facts']['destination_record']['acl']==[]and ack['facts']['destination_record']['aclRevision']>first['facts']['destination_record']['aclRevision']and next(r for r in rows if r['event']=='DEPOSIT')['detail']['reason']=='UNAUTHORIZED','grant revocation did not commit during original travel before final effect guard')
             if n==4:require(last['detail']['typed_refusal']=='QUANTITY_OUT_OF_RANGE'and images(first)==images(last),'q65 had physical effect')
             if n==10:
                 selected=next(r for r in rows if r['event']=='SELECTED_SOURCE');effect=next(r for r in rows if r['event']=='WITHDRAW');require(0<=effect['tick']-selected['detail']['tick']<=40 and selected['detail']['count']==10,'stolen-source control did not recheck a still-fresh actual selection');require(vector(last,item)==[6,3,2]and count(last,'external_custody',item)==4,'stolen source falsely authorized or unclassified')
@@ -126,7 +129,7 @@ def case(spec,rows,diagnostic=False):
         if n==7:
             expected=ledger(first).copy();oak=next(k for k in expected if k[0]==item);expected[oak]-=2;stone=next(k for k in ledger(last)if k[0]=='minecraft:stone');expected[stone]+=1728;require(+expected==ledger(last),'full-during-travel external replacement not conserved')
         if n==8:require(ledger(first)==ledger(last),'replaced destination lost native break drops')
-        details={'withdrawn':withdrawn,'deposited':deposited,'batches':batches,'live_native_vector':vector(last,item)}
+        details={'withdrawn':withdrawn,'deposited':deposited,'batches':batches,'live_native_vector':vector(last,item),**delivery_movement(rows)}
     elif group=='handoff':
         g=first['facts']['goal'];require(g['request']==request and g['carrier']['entity']==first['actor']and g['carrier']['principal']==first['principal']and g['recipient']['entity']==first['entities']['recipient']['entity'],'swapped recipient/carrier/principal lineage')
         require(all(r['facts']['goal']==g for r in rows),'handoff rebound original recipient/request')
@@ -167,6 +170,26 @@ def case(spec,rows,diagnostic=False):
     else:
         details=movement(spec,rows);outcome='REFUSED_EXPECTED'if n in (3,4,8,9,10,11,12)else'PASS'
     return {'case':spec['id'],'disposition':outcome,'frames':len(rows),'movement_performance':performance(move),'transfer_performance':performance(transfers),**details}
+
+def delivery_movement(rows):
+    route=None;previous=None;last_tick=None;total=0;route_distance=0;count=0;last_observation=None;ownership_interruptions=0
+    for row in rows:
+        if row['event']in ('TRAVEL_ACCEPTED','RETURN_ACCEPTED'):
+            route=row['facts']['route'];previous=row['native_feet'];last_tick=None;route_distance=0;last_observation=None
+            require(route['mode']=='GO_NAMED_STORAGE'and route['actor']['entity']==row['actor']and route['actor']['principal']==row['principal'],'courier route belongs to another native actor/principal')
+        if row['event']!='MOVE':continue
+        count+=1;observation=row['detail'];require(route is not None and row['facts']['route']==route,'courier movement has no immutable accepted route')
+        if last_tick is not None:require(row['tick']==last_tick+1,'courier skipped a native control tick')
+        delta=math.dist(previous,row['native_feet']);require(delta<=.6,'courier teleported while carrying cargo');total+=delta;route_distance+=delta;previous=row['native_feet'];last_tick=row['tick']
+        require(row['facts']['path_nodes']<=256 and row['facts']['path_length']<=64 and row['facts']['checked_chunks']<=121 and route['deadline']<=route['acceptedTick']+600 and len(route['standing'])<=8,'courier widened native route limits')
+        require(row['tick']-route['acceptedTick']<=600 and route_distance<=64.6,'courier exceeded original route time/travel')
+        if observation['status']=='BLOCKED'and observation['blocker']in ('STALE_STORAGE','NAVIGATION_CHANGED'):
+            require(last_observation is not None and all(observation[k]==last_observation[k]for k in observation if k not in ('status','blocker')),'native guard did not retain its exact last accepted observation')
+            if observation['blocker']=='STALE_STORAGE':require(row['native_navigation_done'],'stale storage guard kept owned native navigation')
+            else:ownership_interruptions+=1
+        else:require([observation['feet'][k]for k in ('x','y','z')]==row['native_feet']and abs(observation['travelBlocks']-route_distance)<1e-6,'courier movement observation differs from actual native feet/travel')
+        last_observation=observation
+    require(total<=64.6,'courier reset its cumulative component travel allowance');return {'native_control_ticks':count,'native_travel_blocks':total,'native_path_ownership_interruptions':ownership_interruptions}
 
 def movement(spec,rows):
     n=int(spec['id'][-2:]);moves=[r for r in rows if r['event']=='MOVE'];require(moves,'missing actual native movement/control ticks');last_tick=None;session=None;last_feet=None;distance=0;observed={};pauses=0;routes={};last_repath={}
