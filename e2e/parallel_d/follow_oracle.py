@@ -86,6 +86,9 @@ def client(root,identity,fixture):
         d=json.loads(a.read('fabric.mod.json'));d['id']='cognitivecraft_parallel_d_clients';d['entrypoints']={'main':['dev.aivillages.e2e.paralleld.DFollowServer']};require(json.loads(b.read('fabric.mod.json'))==d,'follow fixture entrypoint changed')
     rows=reconcile(root/'server',root/'server/d07');arena(root/'server/d07/arena.json');groups,perf=sessions(rows,'D07-CL01',m['world'],offline('PlayerD_A'))
     require(len(groups)==2 and [s['reason']for s in groups]==['CANCELLED','PAUSE_LIMIT']and groups[0]['travel_blocks']>10 and groups[0]['crossed_obstacle']and groups[1]['paused_ticks']==100,'missing real follow/STOP/disconnect session')
+    second=[r for r in rows if r['state']['session']==groups[1]['session']]
+    disconnect=next((i for i,r in enumerate(second)if not r['connected']),None)
+    require(disconnect is not None and any(not r['navigation_done']for r in second[:disconnect])and all(r['navigation_done']for r in second[disconnect:]),'disconnect did not interrupt a live native route')
     frames=read(root/'follow-clients.json');require(set(r['phase']for r in frames)>={'BEFORE','FOLLOWING','PLAYER_WALKING','STOPPED','BEFORE_DISCONNECT','DISCONNECTED','PAUSE_TERMINAL'},'follow client phases absent')
     tracking=tracked(frames)
     for player in PLAYERS:

@@ -16,6 +16,11 @@ class DFollowClient(DStorageObservationClient):
                 s=self.request(p,'snapshot');require(s.get('play')and not s.get('singleplayer'),'D07 actual multiplayer')
                 require(any(e['uuid']==ready['actor']for e in s['entities']),'D07 synchronized villager missing')
                 frames.append({'phase':phase,'player':p,'state':s});write(self.root/'follow-clients.json',frames)
+        for p in PLAYERS:
+            expected=[14.5,201,7.5]if p=='PlayerD_A'else[17.5,201,4.5]
+            def synchronized():
+                state=self.request(p,'snapshot');return state.get('play')and any(e['uuid']==ready['actor']for e in state.get('entities',[]))and sum((state['pos'][i]-expected[i])**2 for i in range(3))<.1
+            self.wait(synchronized,'D07 actual entity and teleport packet synchronization '+p,120)
         sample('BEFORE');self.request('PlayerD_A','command',text='d-follow start')
         self.wait(lambda:(self.root/'server/d07/accepted-1.json').exists(),'D07 actual start')
         # Wait for traversal before ordinary walking; every position is sampled from real client state.
@@ -33,7 +38,10 @@ class DFollowClient(DStorageObservationClient):
             s=self.request(p,'snapshot');a=next(e for e in s['entities']if e['uuid']==ready['actor']);self.request(p,'look',pos=[int(a['pos'][0]),int(a['pos'][1])+1,int(a['pos'][2])]);shots.append({'player':p,'result':self.request(p,'screenshot',name='d07-follow-stopped')})
         write(self.root/'screenshots.json',shots)
         self.request('PlayerD_A','command',text='d-follow start');self.wait(lambda:(self.root/'server/d07/accepted-2.json').exists(),'D07 explicit new session')
-        self.request('PlayerD_A','move',yaw=180,ticks=35);time.sleep(.8);sample('BEFORE_DISCONNECT')
+        self.request('PlayerD_A','move',yaw=90,ticks=35);time.sleep(.8)
+        def active_follow():
+            rows=lines(self.root/'server/d07/follow.jsonl');return rows and rows[-1]['state']['session']==read(self.root/'server/d07/accepted-2.json')['session']and rows[-1]['navigation_done']is False
+        self.wait(active_follow,'D07 active native path before disconnect',10);sample('BEFORE_DISCONNECT')
         self.request('PlayerD_A','disconnect')
         while not (self.root/'server/d07/terminal-2.json').exists():
             sample('DISCONNECTED',('PlayerD_B',));require(time.monotonic()<self.deadline,'D07 finite disconnect');time.sleep(.2)
