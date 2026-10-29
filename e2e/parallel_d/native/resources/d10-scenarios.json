@@ -15,7 +15,8 @@
         2
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Two loaded normal halves combined exactly once; ordered incarnation topology",
@@ -32,7 +33,8 @@
         2
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Six facing states preserve adapter semantics and slots",
@@ -49,7 +51,8 @@
         2
       ],
       "item": "minecraft:ender_pearl",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Same storage UUID and incarnation, increment metadata revision",
@@ -66,7 +69,8 @@
         2
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Old binding/ACL unusable; new incarnation; explicit rebind required",
@@ -83,7 +87,8 @@
         34
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Old binding generation invalid; no inherited new-half authorization",
@@ -100,7 +105,8 @@
         34
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Old aggregate endpoint invalid; items remain physically observable per half",
@@ -117,7 +123,8 @@
         34
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Both conflicting bindings quarantined; neither gains automation access",
@@ -134,7 +141,8 @@
         34
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "P2 cannot inspect/withdraw; explicit deposit works without contents disclosure",
@@ -151,7 +159,8 @@
         66
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "No public automation access despite label/visibility",
@@ -168,7 +177,8 @@
         66
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "UNKNOWN/DENY, never empty or forced-load",
@@ -185,7 +195,8 @@
         66
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Trapped/shulker/hopper/dispenser/dropper/furnace/modded endpoint refuses before mutation",
@@ -202,7 +213,8 @@
         66
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Move player after acceptance; actor reaches old point <=1.5 blocks",
@@ -219,7 +231,8 @@
         98
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Ordinary native path only; no teleport; bounded progress",
@@ -236,7 +249,8 @@
         98
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Typed physical blocker; finite candidate/repath/time counters",
@@ -253,7 +267,8 @@
         98
       ],
       "item": "minecraft:ender_pearl",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "No forced chunk load or movement into unknown",
@@ -270,7 +285,8 @@
         98
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Exact registered ID reached; unsupported landmark clarifies",
@@ -287,7 +303,8 @@
         130
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "2-4 block desired band when feasible; observed server positions",
@@ -304,7 +321,8 @@
         130
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "<=8-block lookahead; repath >=10 ticks",
@@ -321,7 +339,8 @@
         130
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "No new navigation after next server control tick",
@@ -338,7 +357,8 @@
         130
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Stop movement next control tick; <=100-tick pause inside original total",
@@ -355,7 +375,8 @@
         162
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Stop/refuse unsupported scope; no teleport",
@@ -372,7 +393,8 @@
         162
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "<=1200 total ticks and <=128 blocks including resumes",
@@ -389,7 +411,8 @@
         162
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Test authority serializes competing owners; no simultaneous native controllers",
@@ -406,7 +429,8 @@
         162
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Native source/carrier/dest delta -1/0/+1; exact ItemKey",
@@ -423,7 +447,8 @@
         194
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 1
+      "quantity": 1,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "10/3/2 -> 6/3/6; original 3 not credit",
@@ -440,7 +465,8 @@
         194
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Exact 64, <=8 batches, slot/capacity limits observed",
@@ -457,7 +483,8 @@
         194
       ],
       "item": "minecraft:ender_pearl",
-      "quantity": 64
+      "quantity": 64,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "No withdrawal/movement for out-of-range goal",
@@ -474,7 +501,8 @@
         194
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 65
+      "quantity": 65,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Refuse without slot mutation",
@@ -491,7 +519,8 @@
         226
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Refuse before withdrawal; unchanged source/carrier",
@@ -508,7 +537,8 @@
         226
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Cargo retained and reported; no deposit credit",
@@ -525,7 +555,8 @@
         226
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Generation mismatch refuses; cargo retained",
@@ -542,7 +573,8 @@
         226
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "No deposit after revocation; cargo retained under test lineage",
@@ -559,7 +591,8 @@
         258
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Expected slot/item snapshot mismatch -> no withdrawal",
@@ -576,7 +609,8 @@
         258
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "One successful guarded debit at most; no duplicate quantity",
@@ -593,7 +627,8 @@
         258
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Record real restored source/carrier/dest; uncertain cuts fenced; no A settlement claim",
@@ -610,7 +645,8 @@
         258
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "9/1 -> 5/5; stable identities, no dropped item entity",
@@ -627,7 +663,8 @@
         290
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Unchanged sender/recipient",
@@ -644,7 +681,8 @@
         290
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Bound stable ID unchanged; transfer not rerouted by name",
@@ -661,7 +699,8 @@
         290
       ],
       "item": "minecraft:ender_pearl",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Ambiguity or wrong ID refuses",
@@ -678,7 +717,8 @@
         290
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Old entity/generation mismatch refuses",
@@ -695,7 +735,8 @@
         322
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "No forced load or deposit; cargo retained",
@@ -712,7 +753,8 @@
         322
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Explicit loss/disappearance observation; no fabricated restoration",
@@ -729,7 +771,8 @@
         322
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Immediate effect recheck denies",
@@ -746,7 +789,8 @@
         322
       ],
       "item": "minecraft:spruce_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "No transfer beyond 2.5 blocks",
@@ -763,7 +807,8 @@
         354
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "MVP rejects source citizen other than controlled carrier",
@@ -780,7 +825,8 @@
         354
       ],
       "item": "minecraft:cobblestone",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "REFUSED_EXPECTED"
     },
     {
       "expected": "Guarded source revision permits at most one debit",
@@ -797,7 +843,8 @@
         354
       ],
       "item": "minecraft:birch_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     },
     {
       "expected": "Observe restored vectors; UNKNOWN cannot become settlement or replay",
@@ -814,7 +861,8 @@
         354
       ],
       "item": "minecraft:oak_planks",
-      "quantity": 4
+      "quantity": 4,
+      "expected_disposition": "PASS"
     }
   ],
   "default_courier_vector": {

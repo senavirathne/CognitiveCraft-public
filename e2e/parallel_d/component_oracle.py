@@ -1,5 +1,5 @@
 """Independent D10 observer. Derives outcomes from native slots, routes, saved bytes and client packets."""
-import copy,hashlib,json,math
+import copy,hashlib,json,math,struct,os
 from collections import Counter
 from zipfile import ZipFile
 from common import *
@@ -18,6 +18,9 @@ def no_settlement(value):
             no_settlement(v)
     elif isinstance(value,list):
         for v in value:no_settlement(v)
+
+def containers(path):
+    rows=lines(path);return rows[0]if len(rows)==1 and isinstance(rows[0],list)else rows
 
 def checked_identity(meta,identity):
     require(meta['identity']==identity and meta['identity']['jar_sha256']==identity['jar_sha256'],'wrong D10 source/tree/run/JAR')
@@ -82,7 +85,7 @@ def case(spec,rows,diagnostic=False):
         if n==8:require(events['CLONE_ORIGINAL']['detail']['binding']['storage_id']!=events['CLONE_COPIED']['detail']['binding']['storage_id'],'clone did not use separate bindings');outcome='REFUSED_EXPECTED'
         if n==9:
             require(events['PRIVATE_P2']['detail']['snapshot']=='INSTANCE'and events['DEPOSIT_ONLY_VIEW']['detail']['snapshot']=='INSTANCE'and events['DEPOSIT_ONLY_VIEW']['detail']['withdraw']['refusal']!='NONE','private/deposit-only disclosure')
-            require(vector(first,item)==[5,2,7]and vector(last,item)==[4,2,8]and last['detail']['delivered']==1,'valid explicit deposit-only use broken');require(ledger(first)==ledger(last),'deposit-only hidden residual or loss')
+            require(vector(first,item)==[5,2,7]and vector(last,item)==[4,2,8]and last['detail']['delivered']==1,'valid explicit deposit-only use broken');require(last['detail']['caller']!=first['principal'],'deposit-only operation did not use second native principal');require(ledger(first)==ledger(last),'deposit-only hidden residual or loss')
         if n==10:require(events['UNREGISTERED_PUBLIC_LOOKING']['detail']['snapshot']=='INSTANCE'and events['UNREGISTERED_PUBLIC_LOOKING']['detail']['check']['refusal']!='NONE','public appearance granted automation');outcome='REFUSED_EXPECTED'
         if n==11:
             d=events['UNLOADED']['detail'];require(not d['loaded_before']and not d['loaded_after']and d['chest']==d['barrel']=='UNLOADED'and last['facts']['loot_remains_unresolved'],'unloaded/loot control forced load or unwrapped unknown');outcome='REFUSED_EXPECTED'
@@ -189,8 +192,9 @@ def movement(spec,rows):
     if n in (1,2,5):
         require(last['status']=='ARRIVED'and math.dist(rows[-1]['native_feet'],[last['endpoint'][k]for k in ('x','y','z')])<=1.5+1e-8,'required captured/native named arrival absent')
         if n==1:require(any(math.dist(r['detail']['native_player'],[goal['endpoint'][k]for k in ('x','y','z')])>2 for r in moves),'COME did not retain old target after actual player motion')
-        if n==5:require(rows[-1]['facts']['unsupported_landmark']=='CLARIFY_UNSUPPORTED_LANDMARK'and rows[-1]['facts']['named_storage_id']==rows[0]['facts']['destination_binding']['storage_id'] if 'destination_binding'in rows[0]['facts']else rows[-1]['facts']['unsupported_landmark']=='CLARIFY_UNSUPPORTED_LANDMARK','unsupported place guessed endpoint')
-    if n in (3,4):require(last['status']=='BLOCKED'and last['blocker']in ({'UNREACHABLE','COLLISION','NO_PROGRESS'}if n==3 else {'UNLOADED'}),'missing actual finite no-path/unloaded refusal')
+        if n==5:require(rows[-1]['facts']['unsupported_landmark']=='CLARIFY_UNSUPPORTED_LANDMARK'and rows[-1]['facts']['named_storage_id']==rows[0]['facts']['destination_binding']['storage_id'],'unsupported place guessed endpoint')
+    if n in (3,4):require(last['status']=='BLOCKED'and last['blocker']in ({'UNREACHABLE','COLLISION','NO_PROGRESS'}if n==3 else {'UNLOADED','UNREACHABLE','TRAVEL_LIMIT'}),'missing actual finite no-path/unloaded refusal')
+    if n==4:require(not rows[-1]['facts']['bridge_loaded_before']and not rows[-1]['facts']['bridge_loaded_after']and all(math.dist(r['native_feet'],rows[0]['native_feet'])<.01 for r in moves),'unloaded bridge was forced or actor entered unknown route')
     if n>=6:
         in_band=[r for r in moves if r['detail']['connected']and r['detail']['player_dimension']==goal['actor']['dimension']and 2<=math.dist(r['native_feet'],r['detail']['native_player'])<=4.1]
         require(in_band,'follow lacks feasible native 2–4 block band')
@@ -198,9 +202,11 @@ def movement(spec,rows):
         if n in (6,7,8,12):require(last['reason']=='CANCELLED'and rows[-1]['native_navigation_done'],'STOP failed to remove owned path')
         if n==9:require(last['reason']=='PAUSE_LIMIT'and pauses==100,'actual disconnect did not exhaust original finite pause')
         if n==10:require(last['reason']=='DIMENSION_CHANGED'and any(r['detail']['player_dimension']!='minecraft:overworld'for r in moves),'dimension change guard lacks native target transition')
+        if n==8:
+            stop=next(r for r in rows if r['event']=='STOP_REQUESTED');require(stop['detail']['prior_path_present']and stop['detail']['navigation_done']and rows[-1]['tick']-stop['tick']<=1,'STOP was not witnessed on the owned native path by next control tick')
         if n==11:
             require(len(observed)==2 and pauses>=30 and last['reason']=='TRAVEL_LIMIT','expiry/resume reset time/travel allowances');expiry=next(r for r in rows if r['event']=='TIME_EXPIRY');require(expiry['detail']['reason']=='DEADLINE'and expiry['tick']-expiry['detail']['acceptedTick']==1200,'original time expiry not observed')
-        if n==12:require(any(r['event']=='COMPETING_CONTROLLER_REFUSED'and r['detail']['refused']and r['detail']['same_navigation']for r in rows),'competing owner acquired native controller')
+        if n==12:require(any(r['event']=='COMPETING_CONTROLLER_REFUSED'and r['detail']['refused']and r['detail']['same_navigation']and r['detail']['primary_path_active']for r in rows),'competing owner acquired native controller')
     return details
 
 def saved(distribution,descriptor):
@@ -208,10 +214,10 @@ def saved(distribution,descriptor):
     for name,spec in descriptor['participants'].items():
         values=[]
         for role in ('source','carrier','destination')if name=='courier'else('sender','recipient'):
-            witness=value['participants'][name]['roles'][role];path=distribution/witness['witness'];require(sha(path)==witness['witness_sha256'],'saved witness changed');nbt=decode(path);p=spec[role]
+            witness=value['participants'][name]['roles'][role];path=distribution/witness['witness'];require(sha(path)==witness['witness_sha256'],'saved witness changed');nbt=decode(path);p=spec[role];raw=read(path);pos=p['pos'];require([raw['chunk_x'],raw['chunk_z']]==[int(pos[0])>>4,int(pos[2])>>4],'saved participant wrong chunk')
             if 'entity'in p:found=[r for r in nbt['Entities']if uuid(r['UUID'])==p['entity']]
             else:found=[r for r in nbt['block_entities']if [r[k]for k in ('x','y','z')]==p['pos']]
-            require(len(found)==1,'saved native participant UUID/position swapped');quantity=inventory(found[0],spec['item']);require(quantity==witness['count'],'saved count fabricated');values.append(quantity)
+            require(len(found)==1,'saved native participant UUID/position swapped');require(found[0].get('cognitivecraft_storage_v1')==witness.get('native_marker'),'saved actual marker altered');quantity=inventory(found[0],spec['item']);require(quantity==witness['count'],'saved count fabricated');values.append(quantity)
         require(values==value['participants'][name]['vector'],'saved native vector fabricated');actual[name]=values
     return actual
 
@@ -232,7 +238,7 @@ def native_restart(root):
     return {'case':'D10-GT01','restored':expected,'classification':'UNKNOWN_NATIVE_PARTICIPANT_PERSISTENCE','original_owner_settlement':None,'automatic_replay':False,'native_write_callbacks':len(cuts),'read_only_ticks':100}
 
 def client(root,identity,fixture):
-    meta=read(root/'identity.json');checked_identity(meta,identity);selected=root/'selected-client-fixture.jar';require(sha(selected)==meta['selected_fixture_sha256']and sha(fixture)==meta['fixture_sha256'],'wrong D10 actual fixture JAR')
+    meta=read(root/'identity.json');checked_identity(meta,identity);require(meta['scenario_sha256']==sha(HERE/'scenarios.json')==registry('D10')['component_suite']['scenario_sha256'],'frozen D10 scenario bytes changed');require(meta['driver_sha256']==sha(REPO/'build/e2e-driver/client.jar')and meta['observer_sha256']==sha(REPO/'build/e2e-driver/observer.jar'),'established actual client driver bytes changed');selected=root/'selected-client-fixture.jar';require(sha(selected)==meta['selected_fixture_sha256']and sha(fixture)==meta['fixture_sha256'],'wrong D10 actual fixture JAR')
     with ZipFile(fixture)as original,ZipFile(selected)as actual:
         require(original.namelist()==actual.namelist(),'D10 fixture members changed')
         for name in original.namelist():
@@ -242,7 +248,7 @@ def client(root,identity,fixture):
     stdout=(root/'server/stdout.log').read_text();native_rows=[json.loads(s.split('CC_D10_COMPONENT ',1)[1])for s in stdout.splitlines()if 'CC_D10_COMPONENT 'in s];require({r['case']for r in native_rows}=={s['id']for s in specs},'missing/unknown actual D10 native cases')
     observations=read(root/'component-clients.json');menus=read(root/'component-menus.json');summaries=[];actors=set()
     for spec in specs:
-        cid=spec['id'];box=root/'server/d10'/cid;rows=lines(box/'frames.jsonl');require(rows==[r for r in native_rows if r['case']==cid],'D10 raw/native stdout frame mismatch');require(all(r['world']==WORLD and r['world_seed']==20261027 and r['principal']==offline('PlayerD_A')and r['forced_chunks']==0 for r in rows),'wrong D10 actual world/principal/seed/forced chunks');actors.add(rows[0]['actor']);summaries.append(case(spec,rows))
+        cid=spec['id'];box=root/'server/d10'/cid;rows=lines(box/'frames.jsonl');require(rows==[r for r in native_rows if r['case']==cid],'D10 raw/native stdout frame mismatch');require(all(r['world']==WORLD and r['world_seed']==20261027 and r['principal']==offline('PlayerD_A')and r['forced_chunks']==0 for r in rows),'wrong D10 actual world/principal/seed/forced chunks');actors.add(rows[0]['actor']);summaries.append(case(spec,rows));require(summaries[-1]['disposition']==spec['expected_disposition'],'frozen component expected disposition not met')
         for player in PLAYERS:
             for phase in ('BEFORE','AFTER'):
                 samples=[r for r in observations if r['case']==cid and r['player']==player and r['phase']==phase];require(len(samples)==1,'missing/duplicate two-player case snapshot');state=samples[0]['state'];require(state['play']and not state['singleplayer']and state['uuid']==offline(player),'swapped real connected player snapshot')
@@ -258,14 +264,22 @@ def client(root,identity,fixture):
                         matching=[m for m in menus if m['case']==cid and m['phase']==phase and m['role']==role and m['player']==player];require(len(matching)==1,'missing real native menu witness');m=matching[0];actual=[s for s in m['state']['slots']if not s['playerInventory']];require([(s['item']if s['count']else None,s['count'])for s in actual[:len(c['slots'])]]==[(s['native_item_id'],s['count'])for s in c['slots']]and all(s['count']==0 for s in actual[len(c['slots']):]),'actual native GUI does not match all slots')
         if spec['group']in ('courier','handoff')and cid.endswith('-12'):
             d=read(box/'participants.json');expected={spec['group']:[6,7,2]if spec['group']=='courier'else[5,1]};require(saved(box/'prekill-saved',d)==saved(box/'killed-saved',d)==expected,'client actual save-cut distribution absent');boundary=read(root/'boots'/cid/'boundary.json');require(boundary['kill_kind']=='SIGKILL'and boundary['disk_sha256']==sha(box/'prekill-saved/distributions.json'),'unwitnessed real client kill window');no_settlement(boundary)
-            for kind,process in boundary['before'].items():require(boundary['after'][kind]['start']>process['start'],'client/server JVM was not restarted')
+            killed=containers(root/'boots'/cid/'containers-after-kill.jsonl');restarted=containers(root/'boots'/cid/'containers-after-restart.jsonl');require(len(killed)==len(restarted)==3 and {c['Service']for c in killed}=={c['Service']for c in restarted}=={'minecraft','client-a','client-b'},'actual three-process restart missing');require(next(c for c in killed if c['Service']=='minecraft')['ExitCode']==137,'actual native server was not killed by SIGKILL');require(all(next(c for c in killed if c['Service']==n)['ID']!=next(c for c in restarted if c['Service']==n)['ID']for n in ('minecraft','client-a','client-b')),'client/server container namespace reused')
+            for kind,process in boundary['before'].items():require(boundary['after'][kind]['start']>process['start']and process['releaseSha256']==boundary['after'][kind]['releaseSha256']==identity['jar_sha256'],'client/server JVM was not restarted on exact JAR')
             restored=lines(box/'restart.jsonl');require([r['event']for r in restored]==['LIVE_AFTER_NATIVE_SAVE','FRESH_RESTORED_UNKNOWN','NO_AUTOMATIC_COMPONENT_REPLAY']and restored[-1]['tick']-restored[1]['tick']==100,'fresh client native no-replay window missing')
+            require(restored==[json.loads(s.split('CC_D10_RESTART ',1)[1])for s in stdout.splitlines()if 'CC_D10_RESTART 'in s and json.loads(s.split('CC_D10_RESTART ',1)[1])['case']==cid],'native client restart stdout/raw mismatch')
             for r in restored[1:]:no_settlement(r);require({k:v['vector']for k,v in r['participants'].items()}==expected,'client restored UNKNOWN vector silently replayed')
             for player in PLAYERS:
                 require(any(m['case']==cid and m['player']==player and m['phase']=='AFTER_RELOAD'for m in menus),'restored native inventory not actually visible to both clients')
-    require(len(actors)==48,'native case identity reused');require(read(root/'campaign-progress.json')['completed']==[s['id']for s in specs],'incomplete 48-case schedule')
+    require(all(c['Image']==os.environ.get('CC_D_RUNTIME_IMAGE','cognitivecraft-e2e:java25')for c in containers(root/'containers.jsonl')),'D10 runtime container image changed');require(len(actors)==48,'native case identity reused');require(read(root/'campaign-progress.json')['completed']==[s['id']for s in specs],'incomplete 48-case schedule')
+    server=read(root/'server/process.json');require(server['releaseSha256']==identity['jar_sha256']and any(m['sha256']==meta['selected_fixture_sha256']for m in server['mods']),'actual native server used wrong release/fixture')
     for player in PLAYERS:
         process=read(root/'clients'/player/'process.json');require(process['releaseSha256']==identity['jar_sha256']and process['kind']=='client'and '25.'in process['javaVersion'],'wrong actual D10 client process/JAR/runtime')
+        require(process['renderEnvironment'].get('SDL_VIDEO_DRIVER')=='offscreen'and process['renderEnvironment'].get('LIBGL_ALWAYS_SOFTWARE')=='1','actual native rendering environment changed')
+        observed=lines(root/'clients'/player/'observations.jsonl')
+        for row in [r for r in observations+menus if r['player']==player]:require(any(o['state']==row['state']for o in observed),'D10 client snapshot was fabricated')
         events=lines(root/'clients'/player/'events.jsonl');require(any(e['kind']=='play'for e in events),'no actual multiplayer events')
     shots=read(root/'screenshots.json');require(len(shots)==24 and len({(s['case'],s['player'])for s in shots})==24,'missing actual D10 native screenshot schedule')
+    for shot in shots:
+        png=(root/'clients'/shot['player']/'screenshots'/(shot['case'].lower()+'-'+shot['player']+'.png')).read_bytes();require(png[:8]==b'\x89PNG\r\n\x1a\n'and struct.unpack('>II',png[16:24])==(800,600),'actual native rendered screenshot bytes missing')
     return {'kind':'NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS','cases':summaries,'planned':48,'executed':48,'passed':sum(s['disposition']=='PASS'for s in summaries),'refused_expected':sum(s['disposition']=='REFUSED_EXPECTED'for s in summaries),'failed':0,'inconclusive':0,'players':2,'native_frames':len(native_rows),'client_snapshots':len(observations),'native_menus':len(menus),'screenshots':len(shots),'production_activation':None,'participant_save_proof':None}

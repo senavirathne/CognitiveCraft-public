@@ -70,7 +70,7 @@ class DComponentCampaign(DStorageObservationClient):
         self.compose('up','-d','minecraft','client-a','client-b')
         for kind in boot['before']:
             self.wait(lambda:(p:=self.root/kind/'process.json').exists() and read(p)['start']>boot['before'][kind]['start'],'new actual native process '+kind,180)
-        self.connected();self.position_players(spec)
+        (history/'containers-after-restart.jsonl').write_text(self.compose('ps','-a','--format','json').stdout);self.connected();self.position_players(spec)
         self.console(['d-component resume '+case]);self.wait(lambda:(box/'terminal.json').exists(),'fresh restored UNKNOWN and 100 ticks without replay '+case,120)
         boot['after']={kind:read(self.root/kind/'process.json') for kind in boot['before']};write(history/'boundary.json',boot)
         fresh=lines(box/'restart.jsonl')[-1];roles=fresh['participants'][spec['group']]['roles'];raw=self.rows(case)[-1];restored={'entities':raw['entities'],'inventories':{}}

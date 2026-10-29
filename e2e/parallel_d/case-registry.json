@@ -5449,7 +5449,7 @@
       "id": "D10-CL01",
       "cases": 48,
       "required_players": 2,
-      "scenario_sha256": "cee62d1d4b26a97443ec69d294c0eaf45f477b67510c3468c9398737dbf56551",
+      "scenario_sha256": "cfd1ff93aea517a2ae6346747d95860a02b296d621ea504bee2e61dcd9858311",
       "expected_pass": 21,
       "expected_refusal": 27,
       "fresh_client_restarts": 2,

@@ -109,7 +109,9 @@ def run(root,stage="D05"):
         for player in PLAYERS:write(root/'clients'/player/'observation-area.json',area)
     if stage=='D09':
         for player in PLAYERS:write(root/'clients'/player/'observation-area.json',{'minX':24,'footY':201,'minZ':0,'maxX':43,'maxZ':24})
-    plan={'identity':identity,'world':world,'case':stage+'-CL01','players':list(PLAYERS),'seed':20261027,'render_backend':'ESTABLISHED_SDL_OFFSCREEN','fixture_sha256':sha(fixture),'selected_fixture_sha256':sha(selected),'driver_sha256':sha(REPO/'build/e2e-driver/client.jar'),'observer_sha256':sha(REPO/'build/e2e-driver/observer.jar'),'phase':'COLLECTING_RAW','integration_root':None,'save_proof':None};write(root/'identity.json',plan)
+    plan={'identity':identity,'world':world,'case':stage+'-CL01','players':list(PLAYERS),'seed':20261027,'render_backend':'ESTABLISHED_SDL_OFFSCREEN','fixture_sha256':sha(fixture),'selected_fixture_sha256':sha(selected),'driver_sha256':sha(REPO/'build/e2e-driver/client.jar'),'observer_sha256':sha(REPO/'build/e2e-driver/observer.jar'),'phase':'COLLECTING_RAW','integration_root':None,'save_proof':None}
+    if stage=='D10':plan.update(scenario_sha256=sha(HERE/'scenarios.json'),case_ids=[r['id']for r in read(HERE/'scenarios.json')['cases']])
+    write(root/'identity.json',plan)
     try:
         result=h.compose('config');(root/'resolved-compose.yml').write_text(result.stdout);h.compose('up','-d','minecraft','client-a','client-b');(root/'containers.jsonl').write_text(h.compose('ps','-a','--format','json').stdout);h.run();plan['phase']='COLLECTED_RAW'
     finally:
