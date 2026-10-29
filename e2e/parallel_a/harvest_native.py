@@ -92,6 +92,14 @@ def main():
         if h is not None:result['lastEvidence']=h.evidence();result['lastSnapshot']=h.snapshot()
         raise
     finally:
+        if result['status']=='FAIL':
+            native=result.get('lastEvidence') or {}
+            jobs=native.get('runtime',{}).get('jobs',{}).get('jobs',[])
+            owners=[{'id':j['id'],'state':j['state'],'reason':j.get('reason'),'attempts':j.get('attempts',[])} for j in jobs
+                    if j['request']['request']['arguments'].get('amount',{}).get('value')==case['requested']]
+            records=[{'key':e['intent']['key'],'live':e.get('result',{}).get('live'),'verified':bool(e.get('verification'))} for e in native.get('journal',{}).get('entries',[])]
+            print('A06_HARVEST_FAILURE_STATE '+json.dumps({'pending':native.get('pending'),'fenced':native.get('fenced'),
+                  'records':records,'refusals':native.get('metrics',{}).get('refusals',[]),'originalOwners':owners}),flush=True)
         if h is not None:h.finish()
         atomic(root/'a06-harvest-results.json',result);print('PARALLEL_A_A06_HARVEST_RESULT '+json.dumps({'status':result['status'],'reason':result.get('reason')}),flush=True)
 
