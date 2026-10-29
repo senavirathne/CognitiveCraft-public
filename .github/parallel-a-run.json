@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "sequence": 20,
-  "parentSource": "eb985b626ac3095fe9412ba77e24d29f9a03eee9",
+  "sequence": 21,
+  "parentSource": "b9e270cd9e6cd1ae05fee7ebb1c21cc0b0ead53f",
   "stage": "A06",
-  "scope": "execute-three-distinct-frozen-original-log-H-cases-with-real-save-kill-restart-public-original-cancellation-and-independent-review",
+  "scope": "preliminary-native-pickup-integration-module-and-required-host-regressions; original all-twelve qualification remains required",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
-  "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
+  "nativePickupProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_P; implementation pending native qualification",
   "originalCase": "heldout-W6-002",
   "originalQuantity": 2,
   "requiredRegressionWorkflows": 9,
@@ -854,143 +854,13 @@
     "fullBranchQualified": false
   },
   "currentValidation": {
-    "status": "PASS_THREE_ORIGINAL_H_CASES_ONLY_REQUIRED_HOSTS_FAIL",
-    "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
-    "tree": "383d93459e6d254c4ed1e8d883f0169ddd821c31",
-    "run": 40859317054,
-    "job": 123404713551,
-    "modules": {
-      "core": 2300,
-      "providers": 131,
-      "fabric": 110,
-      "total": 2541,
-      "failures": 0,
-      "errors": 0,
-      "skipped": 0
-    },
-    "python": {
-      "aOwned": 74,
-      "baseline": 72,
-      "status": "PASS"
-    },
-    "ownership": {
-      "ownedFiles": 186,
-      "bOwnedEdits": 0
-    },
-    "requiredHosts": {
-      "status": "FAIL_REQUIRED_HOST_REGRESSIONS_REMAIN",
-      "pass": 7,
-      "fail": 2,
-      "originalConditionalNotApplicable": 3,
-      "finalAttempt": 2,
-      "initialFailures": [
-        {
-          "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
-          "run": 40859317054,
-          "attempt": 1,
-          "suite": "GP-21",
-          "job": 123398202155,
-          "phase": "cold actual Jobs",
-          "reason": "work0 BLOCKED/TARGET_UNAVAILABLE, committedEffects0, stock0",
-          "cause": "UNRESOLVED",
-          "artifact": {
-            "id": 12891330695,
-            "bytes": 273042,
-            "sha256": "e40a80a5332cb73078656e7c7ee878827ce44e8f4a6867e27e56a2de0d62803c"
-          }
-        },
-        {
-          "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
-          "run": 40859317054,
-          "attempt": 1,
-          "suite": "GP-22",
-          "job": 123398202848,
-          "phase": "warm known wheat after backend stopped",
-          "reason": "work5 BLOCKED/STALE_OBSERVATION, committedEffects1, actorInventory0, failedResources2",
-          "cause": "UNRESOLVED",
-          "artifact": {
-            "id": 12890927414,
-            "bytes": 3967502,
-            "sha256": "6793c21519a0d5a4001decf935e89c8f0057ebcaca9b7a5f1de09dc0d9b58f26"
-          }
-        }
-      ],
-      "retry": {
-        "attempt": 2,
-        "sourceChanged": false,
-        "newWorkflowRunIds": 0,
-        "jobs": [
-          {
-            "suite": "GP-21",
-            "attempt": 2,
-            "job": 123404713462,
-            "status": "FAIL",
-            "reason": "java.lang.AssertionError: Actual outcome mismatch work=1 outcome=Execution[status=BLOCKED, reason=TARGET_UNAVAILABLE, committedEffects=4, completion=null] stock=3",
-            "cause": "UNRESOLVED",
-            "sourceUnchanged": true,
-            "artifact": {
-              "id": 12891811532,
-              "bytes": 273505,
-              "sha256": "82b78157f83929b69d3ef011d4c24874bcddae562f96523e49d535f470cdb3d2"
-            }
-          },
-          {
-            "suite": "GP-22",
-            "attempt": 2,
-            "job": 123404713101,
-            "status": "FAIL",
-            "reason": "[11:00:13] [Server thread/INFO] (Minecraft)    - ai_villages_tests:apprenticeship_restart_game_tests_learned_shared_method_runs_in_another_saved_world_jvm_with_backend_stopped: World item/block conservation mismatch stock=10 mature=1 failedDrops=0 failedInventory=0 on tick 2002",
-            "cause": "UNRESOLVED",
-            "sourceUnchanged": true,
-            "artifact": {
-              "id": 12891472783,
-              "bytes": 3969462,
-              "sha256": "3788a042652467971fa5fc51bcc80b219e3f81bdfb697f0612b16c79d063c348"
-            }
-          }
-        ]
-      },
-      "earlierFailureCauses": "UNRESOLVED_NOT_CLOSED"
-    },
-    "mainVerification": {
-      "run": 40859317009,
-      "job": 123398201070,
-      "status": "PASS"
-    },
-    "workflowAccounting": {
-      "executingWorkflowRunIds": [
-        40859317003,
-        40859317128,
-        40859317057,
-        40859317094,
-        40859317035,
-        40859317056,
-        40859317009,
-        40859317054
-      ],
-      "totalWorkflowRunIds": 8,
-      "groupedQualification": 40859317054,
-      "mainVerification": 40859317009,
-      "sameSourceFailedJobRerunCreatesNoNewWorkflowId": true,
-      "triggerDetail": "Combined code correction and control commit also matched six original workflow path filters. Future code corrections must use skip-ci checkpoints followed by a control-only validation commit."
-    },
-    "testsStillRunning": 0,
-    "documentationValidation": {
-      "json": "PASS",
-      "relativeLinks": 384,
-      "missing": 0,
-      "frozenA00A05": "UNCHANGED",
-      "canonicalHistory": "UNCHANGED_EXCEPT_A06_STATUS_LINE",
-      "originalTable": {
-        "total": 12,
-        "verified": 3
-      },
-      "testsStillRunning": 0
-    },
-    "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
-    "a06Qualified": false
+    "status": "PENDING",
+    "source": "b9e270cd9e6cd1ae05fee7ebb1c21cc0b0ead53f",
+    "nativeOriginalCasesThisBatch": 0,
+    "qualifiedOriginalCasesPreviously": 3,
+    "requiredOriginalCases": 12
   },
-  "completion": {
+  "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
     "testedImplementationSource": "5b95effe980a93e31c9d2d2b005f131da9371a18",
     "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
