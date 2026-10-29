@@ -92,7 +92,7 @@ final class EntityChunkRemovalStateTest {
         var good=active().capture(Set.of()).metadata();String text=good.getString(TAG).orElseThrow();
         var newline=good.copy();newline.putString(TAG,text+"\n");assertFalse(saved(newline).valid());
         var unknown=StrictJson.object(text);unknown.put("unknown",1L);var tag=new CompoundTag();tag.putString(TAG,StrictJson.canonical(unknown));assertFalse(saved(tag).valid());
-        var duplicate=StrictJson.object(text);var values=new ArrayList<>((List<?>)duplicate.get("removals"));values.add(values.getFirst());duplicate.put("removals",values);
+        var duplicate=StrictJson.object(text);var values=new ArrayList<Object>((List<?>)duplicate.get("removals"));values.add(values.getFirst());duplicate.put("removals",values);
         tag=new CompoundTag();tag.putString(TAG,StrictJson.canonical(duplicate));assertFalse(saved(tag).valid());
     }
     @Test void orphanQuarantineCannotBeSilentlyDroppedAndNativeFieldsAreNotOwned() {
