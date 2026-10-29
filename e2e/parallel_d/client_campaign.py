@@ -12,7 +12,8 @@ class DComponentCampaign(DStorageObservationClient):
     def wait(self,condition,description,timeout=120):
         def checked():self.healthy();return condition()
         return super().wait(checked,description,timeout)
-    def rows(self,case):return lines(self.root/'server/d10'/case/'frames.jsonl')
+    def rows(self,case):
+        root=self.root/'server/d10'/case;final=root/'frames-final.jsonl';return lines(final if final.exists()else root/'frames.jsonl')
     def sample(self,case,phase,players=PLAYERS,actor_required=True):
         ready=read(self.root/'server/d10'/case/'ready.json');raw=self.rows(case);native=raw[-1]
         for player in players:
@@ -23,6 +24,7 @@ class DComponentCampaign(DStorageObservationClient):
                 if actor_required and ready['actor'] not in entities:return None
                 for role,entity in native['entities'].items():
                     if not entity['loaded'] and entity['entity'] in entities:return None
+                    if entity['loaded'] and entity['alive'] and (entity['entity']not in entities or entities[entity['entity']]['name']!=entity['native_name']):return None
                 return state
             state=self.wait(snapshot,f'{case} {phase} actual client packets {player}')
             self.snapshots.append({'case':case,'phase':phase,'player':player,'state':state});write(self.root/'component-clients.json',self.snapshots)
@@ -36,7 +38,7 @@ class DComponentCampaign(DStorageObservationClient):
             if not native['inventory_known'] or role in raw['entities'] and not raw['entities'][role]['loaded']:continue
             for player in PLAYERS:
                 if case=='D10-STORAGE-09' and player=='PlayerD_B':continue
-                pos=native.get('pos',raw['entities'].get(role,raw['entities']['carrier'])['pos']);self.tp(player,[pos[0]+.5,pos[1],pos[2]-1.5]);self.request(player,'command',text='d-component inspect '+role)
+                pos=native.get('pos',raw['entities'].get(role,raw['entities']['carrier'])['pos']);self.tp(player,[pos[0]+.5,pos[1],pos[2]-2.5]);self.request(player,'command',text='d-component inspect '+role)
                 expected=[(x['native_item_id'],x['count']) for x in native['slots']];size=((len(expected)+8)//9)*9
                 def snapshot():
                     s=self.request(player,'snapshot');slots=[r for r in s.get('slots',[]) if not r['playerInventory']]
@@ -85,7 +87,7 @@ class DComponentCampaign(DStorageObservationClient):
         self.deadline=time.monotonic()+read(HERE/'scenarios.json')['limits']['client_seconds'];self.snapshots=[];self.menu_rows=[];screens=[];self.connected();self.console(['gamemode creative PlayerD_A','gamemode creative PlayerD_B'])
         for spec in read(HERE/'scenarios.json')['cases']:
             case=spec['id'];n=int(case[-2:]);group=spec['group'];box=self.root/'server/d10'/case
-            self.position_players(spec);self.console(['d-component prepare '+case]);self.wait(lambda:(box/'ready.json').exists(),'fresh native fixture '+case,180);self.position_players(spec);self.sample(case,'BEFORE');self.menus(spec,'BEFORE');self.position_players(spec)
+            x,y,z=spec['origin'];self.console([f'fill {x} {y-1} {z} {x+19} {y-1} {z+24} stone']);self.position_players(spec);self.console(['d-component prepare '+case]);self.wait(lambda:(box/'ready.json').exists(),'fresh native fixture '+case,180);self.position_players(spec);self.sample(case,'BEFORE');self.menus(spec,'BEFORE');self.position_players(spec)
             if case=='D10-STORAGE-01':
                 x,y,z=spec['origin'];pos=[x+5,y,z+7];self.tp('PlayerD_A',[pos[0]+.5,y,pos[2]-2.5]);self.request('PlayerD_A','look',pos=pos)
             if case=='D10-MOBILITY-04':

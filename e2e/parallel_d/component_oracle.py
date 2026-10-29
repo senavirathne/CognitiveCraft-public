@@ -120,7 +120,8 @@ def case(spec,rows,diagnostic=False):
             if n in (7,8,9):require(withdrawn==4 and count(last,'carrier',item)==7,'unsafe destination lost attributed cargo')
             else:require(withdrawn==0,'unsafe courier withdrew before admission')
             if n==4:require(last['detail']['typed_refusal']=='QUANTITY_OUT_OF_RANGE'and images(first)==images(last),'q65 had physical effect')
-            if n==10:require(vector(last,item)==[6,3,2]and count(last,'external_custody',item)==4,'stolen source falsely authorized or unclassified')
+            if n==10:
+                selected=next(r for r in rows if r['event']=='SELECTED_SOURCE');effect=next(r for r in rows if r['event']=='WITHDRAW');require(0<=effect['tick']-selected['detail']['tick']<=40 and selected['detail']['count']==10,'stolen-source control did not recheck a still-fresh actual selection');require(vector(last,item)==[6,3,2]and count(last,'external_custody',item)==4,'stolen source falsely authorized or unclassified')
         if n not in (7,8):require(ledger(first)==ledger(last),'courier final unclassified external residual')
         if n==7:
             expected=ledger(first).copy();oak=next(k for k in expected if k[0]==item);expected[oak]-=2;stone=next(k for k in ledger(last)if k[0]=='minecraft:stone');expected[stone]+=1728;require(+expected==ledger(last),'full-during-travel external replacement not conserved')
@@ -149,7 +150,7 @@ def case(spec,rows,diagnostic=False):
         if n in (1,3,11,12):require(deposited==4,'required live handoff absent')
         else:require(deposited==0 and count(last,'carrier',item)==9,'unsafe handoff debited sender');outcome='REFUSED_EXPECTED'
         if n==3:require(count(last,'namesake',item)==17 and last['facts']['recipient_projection']['entity']==g['recipient']['entity'],'rename rerouted stable recipient')
-        if n==4:require(next(r for r in rows if r['event']=='FRESH_NAME_RESOLUTION')['detail']['status']=='CLARIFY','namesake ambiguity guessed recipient')
+        if n==4:require(next(r for r in rows if r['event']=='FRESH_NAME_RESOLUTION')['detail']['status']=='CLARIFY'and first['entities']['namesake']['entity']!=g['recipient']['entity']and first['entities']['namesake']['native_name']==first['entities']['recipient']['native_name']=='Receiver','namesake ambiguity lacks distinct actual native participants')
         if n==5:require(last['entities']['recipient']['entity']!=g['recipient']['entity']and not last['entities']['retired_recipient']['loaded'],'entity replacement did not invalidate old generation')
         if n in (6,7):require(not last['entities']['recipient']['loaded'],'recipient disappearance was fabricated')
         if n==7:require(not last['entities']['recipient']['alive'],'recipient death has no actual native disappearance')
@@ -248,11 +249,15 @@ def client(root,identity,fixture):
     stdout=(root/'server/stdout.log').read_text();native_rows=[json.loads(s.split('CC_D10_COMPONENT ',1)[1])for s in stdout.splitlines()if 'CC_D10_COMPONENT 'in s];require({r['case']for r in native_rows}=={s['id']for s in specs},'missing/unknown actual D10 native cases')
     observations=read(root/'component-clients.json');menus=read(root/'component-menus.json');summaries=[];actors=set()
     for spec in specs:
-        cid=spec['id'];box=root/'server/d10'/cid;rows=lines(box/'frames.jsonl');require(rows==[r for r in native_rows if r['case']==cid],'D10 raw/native stdout frame mismatch');require(all(r['world']==WORLD and r['world_seed']==20261027 and r['principal']==offline('PlayerD_A')and r['forced_chunks']==0 for r in rows),'wrong D10 actual world/principal/seed/forced chunks');actors.add(rows[0]['actor']);summaries.append(case(spec,rows));require(summaries[-1]['disposition']==spec['expected_disposition'],'frozen component expected disposition not met')
+        cid=spec['id'];box=root/'server/d10'/cid;rows=lines(box/'frames-final.jsonl');commit=read(box/'frames-commit.json');require(commit['case']==cid and commit['sha256']==sha(box/'frames-final.jsonl')and commit['frames']==len(rows)and commit['bytes']==(box/'frames-final.jsonl').stat().st_size,'native final frame file commitment changed');progress=lines(box/'frames.jsonl');require(progress==rows[:len(progress)],'progress stream diverges from committed native observations');require(rows==[r for r in native_rows if r['case']==cid],'D10 raw/native stdout frame mismatch');require(all(r['world']==WORLD and r['world_seed']==20261027 and r['principal']==offline('PlayerD_A')and r['forced_chunks']==0 for r in rows),'wrong D10 actual world/principal/seed/forced chunks');actors.add(rows[0]['actor']);summaries.append(case(spec,rows));require(summaries[-1]['disposition']==spec['expected_disposition'],'frozen component expected disposition not met')
         for player in PLAYERS:
             for phase in ('BEFORE','AFTER'):
                 samples=[r for r in observations if r['case']==cid and r['player']==player and r['phase']==phase];require(len(samples)==1,'missing/duplicate two-player case snapshot');state=samples[0]['state'];require(state['play']and not state['singleplayer']and state['uuid']==offline(player),'swapped real connected player snapshot')
                 require(any(e['uuid']==rows[0]['actor']for e in state['entities']),'D10 client did not actually witness native actor')
+                current=rows[0]if phase=='BEFORE'else rows[-1];actual={e['uuid']:e for e in state['entities']}
+                for role,e in current['entities'].items():
+                    if e['loaded']and e['alive']:require(e['entity']in actual and actual[e['entity']]['name']==e['native_name'],'D10 client did not witness actual target/namesake identity/name')
+                    if not e['loaded']:require(e['entity']not in actual,'D10 client did not witness actual entity disappearance')
         full=[r for r in rows if 'inventories'in r]
         if spec['group']!='mobility':
             for phase,native in [('BEFORE',full[0]),('AFTER',full[-1])]:
