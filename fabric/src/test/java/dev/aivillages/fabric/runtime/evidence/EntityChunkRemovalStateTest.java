@@ -53,7 +53,10 @@ final class EntityChunkRemovalStateTest {
     @Test void anEntityStillInTheActualNativeRecordContradictsItsRemoval() {
         var tag=active().capture(Set.of()).metadata();
         var state=load(tag,true,DIM,POS,Set.of(row(0).entity()));assertFalse(state.valid());
-        assertFalse(state.restored(row(0),Set.of()));assertEquals(tag,state.capture(Set.of()).metadata());
+        assertFalse(state.restored(row(0),Set.of()));var quarantined=state.capture(Set.of());
+        assertFalse(quarantined.supported());assertEquals(tag,quarantined.metadata().get(TAG+"_original"));
+        var laterAbsent=saved(quarantined.metadata());assertFalse(laterAbsent.valid());
+        assertFalse(laterAbsent.restored(row(0),Set.of()),"Later unrelated absence cannot launder the contradictory saved record");
     }
     @Test void currentEntityPresenceCannotBeReplacedByAZeroOrUnrelatedCount() {
         var state=saved(active().capture(Set.of()).metadata());

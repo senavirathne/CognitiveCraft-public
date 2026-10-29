@@ -98,7 +98,13 @@ public final class EntityChunkRemovalState {
                 UUID id=UUID.fromString(entity),version=UUID.fromString(incarnation);
                 if(!id.toString().equals(entity) || !version.toString().equals(incarnation))throw new IllegalArgumentException("Native removal UUID");
                 var removal=new Removal(id,version,revision,NativeDeposit.markerJson(marker));String key=removal.marker().effect();
-                if(members.contains(id) || state.rows.putIfAbsent(key,removal)!=null)throw new IllegalArgumentException("Native removal membership conflict");
+                if(members.contains(id)) {
+                    // A contradictory native save must stay quarantined if that entity later
+                    // disappears for an unrelated reason. Retaining a valid-looking declaration
+                    // alone would let a later empty save launder the original contradiction.
+                    state.quarantined=true;throw new IllegalArgumentException("Native removal membership conflict");
+                }
+                if(state.rows.putIfAbsent(key,removal)!=null)throw new IllegalArgumentException("Duplicate native removal");
             }
             if(!state.text().equals(text))throw new IllegalArgumentException("Noncanonical native removal metadata");
             state.restored.addAll(state.rows.keySet());
