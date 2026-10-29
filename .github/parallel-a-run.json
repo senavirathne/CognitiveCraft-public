@@ -256,6 +256,103 @@
         "status": "PASS"
       },
       "testsRemoved": 0
+    },
+    {
+      "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+      "run": 40859317054,
+      "attempt": 1,
+      "job": 123398202626,
+      "phase": "Birch genuine model download before Minecraft startup",
+      "failure": "Ollama pull qwen3:4b-instruct-2507-q4_K_M returned HTTP503 after downloading weights; no birch original native task ran",
+      "nativeOriginalCasesIndividuallyVerified": [
+        "heldout-W6-002",
+        "heldout-W6-008"
+      ],
+      "nativeBirchOriginalOwnerSettlements": 0,
+      "artifacts": [
+        {
+          "id": 12892020372,
+          "bytes": 163564543,
+          "sha256": "c3a2cd2f9a23856695a7d6c4103a76aa764e06d1adab9df884eae78b98a58dac"
+        },
+        {
+          "id": 12891492202,
+          "bytes": 3569838,
+          "sha256": "c9bfa7e01a13eeeb79ba62743c420092597aaf9ebdc68bbea1b641311def5f5e"
+        }
+      ],
+      "requiredHostFailures": [
+        {
+          "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+          "run": 40859317054,
+          "attempt": 1,
+          "suite": "GP-21",
+          "job": 123398202155,
+          "phase": "cold actual Jobs",
+          "reason": "work0 BLOCKED/TARGET_UNAVAILABLE, committedEffects0, stock0",
+          "cause": "UNRESOLVED",
+          "artifact": {
+            "id": 12891330695,
+            "bytes": 273042,
+            "sha256": "e40a80a5332cb73078656e7c7ee878827ce44e8f4a6867e27e56a2de0d62803c"
+          }
+        },
+        {
+          "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+          "run": 40859317054,
+          "attempt": 1,
+          "suite": "GP-22",
+          "job": 123398202848,
+          "phase": "warm known wheat after backend stopped",
+          "reason": "work5 BLOCKED/STALE_OBSERVATION, committedEffects1, actorInventory0, failedResources2",
+          "cause": "UNRESOLVED",
+          "artifact": {
+            "id": 12890927414,
+            "bytes": 3967502,
+            "sha256": "6793c21519a0d5a4001decf935e89c8f0057ebcaca9b7a5f1de09dc0d9b58f26"
+          }
+        }
+      ],
+      "correctedWithoutSourceChange": "Same-source failed-job retry; all three native H cases pass on attempt2"
+    },
+    {
+      "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+      "run": 40859317054,
+      "attempt": 2,
+      "phase": "Required GP-21 and GP-22 gameplay regressions",
+      "nativeThreeOriginalCases": "PASS_INDEPENDENT_RAW_NATIVE_REVIEW",
+      "failures": [
+        {
+          "suite": "GP-21",
+          "attempt": 2,
+          "job": 123404713462,
+          "status": "FAIL",
+          "reason": "java.lang.AssertionError: Actual outcome mismatch work=1 outcome=Execution[status=BLOCKED, reason=TARGET_UNAVAILABLE, committedEffects=4, completion=null] stock=3",
+          "cause": "UNRESOLVED",
+          "sourceUnchanged": true,
+          "artifact": {
+            "id": 12891811532,
+            "bytes": 273505,
+            "sha256": "82b78157f83929b69d3ef011d4c24874bcddae562f96523e49d535f470cdb3d2"
+          }
+        },
+        {
+          "suite": "GP-22",
+          "attempt": 2,
+          "job": 123404713101,
+          "status": "FAIL",
+          "reason": "[11:00:13] [Server thread/INFO] (Minecraft)    - ai_villages_tests:apprenticeship_restart_game_tests_learned_shared_method_runs_in_another_saved_world_jvm_with_backend_stopped: World item/block conservation mismatch stock=10 mature=1 failedDrops=0 failedInventory=0 on tick 2002",
+          "cause": "UNRESOLVED",
+          "sourceUnchanged": true,
+          "artifact": {
+            "id": 12891472783,
+            "bytes": 3969462,
+            "sha256": "3788a042652467971fa5fc51bcc80b219e3f81bdfb697f0612b16c79d063c348"
+          }
+        }
+      ],
+      "causes": "UNRESOLVED_RETAINED_AS_FAILURES",
+      "testsRemoved": 0
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -516,7 +613,7 @@
     "omittedTests": 0
   },
   "originalScenarioBatch": {
-    "status": "PENDING_NATIVE_EXECUTION_AND_INDEPENDENT_REVIEW",
+    "status": "PASS_THREE_ORIGINAL_LOG_H_CASES_ONLY",
     "startingQualifiedOriginalCases": 1,
     "targetQualifiedOriginalCases": 3,
     "requiredOriginalCases": 12,
@@ -555,6 +652,364 @@
     },
     "newOracleCases": 14,
     "nativePickupProducer": "INACTIVE",
-    "remainingCases": "Wheat H, all four P and all four D remain mandatory, plus representative cost and other A06 gates"
+    "remainingCases": "Nine frozen originals: wheat H, all four P and all four D; representative cost and every remaining A06 gate remain mandatory",
+    "qualifiedUniqueOriginalCases": 3,
+    "caseResults": [
+      {
+        "id": "heldout-W6-002",
+        "checkpoint": "HARVEST",
+        "item": "minecraft:oak_log",
+        "requested": 2,
+        "key": {
+          "attempt": "91e22df8-c9d2-42ea-b7ef-185dc9c0625e",
+          "generation": 1,
+          "ordinal": 1,
+          "root": "fb5c39e5-b902-4d44-b214-03815e4787c5",
+          "step": "fb5c39e5-b902-4d44-b214-03815e4787c5",
+          "world": "7aa8bbe0-fb4e-4244-b987-7a47ac337306"
+        },
+        "state": "CANCELLED",
+        "effects": 1,
+        "credited": 0,
+        "status": "PASS_ORIGINAL_SAVED_H_OWNER"
+      },
+      {
+        "id": "heldout-W6-008",
+        "checkpoint": "HARVEST",
+        "item": "minecraft:oak_log",
+        "requested": 3,
+        "key": {
+          "attempt": "8efd4cef-0699-45bb-a2b7-bdc244846ac7",
+          "generation": 1,
+          "ordinal": 1,
+          "root": "051cfbf0-24d9-4d24-9df8-48e8ca4cf58d",
+          "step": "051cfbf0-24d9-4d24-9df8-48e8ca4cf58d",
+          "world": "7aa8bbe0-fb4e-4244-b987-7a47ac337306"
+        },
+        "state": "CANCELLED",
+        "effects": 1,
+        "credited": 0,
+        "status": "PASS_ORIGINAL_SAVED_H_OWNER"
+      },
+      {
+        "id": "W6-002",
+        "checkpoint": "HARVEST",
+        "item": "minecraft:birch_log",
+        "requested": 2,
+        "key": {
+          "attempt": "2a6ad91a-bfba-47fa-8700-dac2fa4a4f7b",
+          "generation": 1,
+          "ordinal": 1,
+          "root": "06c95e19-78a1-41a0-9f08-9956f67ec348",
+          "step": "06c95e19-78a1-41a0-9f08-9956f67ec348",
+          "world": "69fab1c1-1997-47fa-b532-938d592eb9bc"
+        },
+        "state": "CANCELLED",
+        "effects": 1,
+        "credited": 0,
+        "status": "PASS_ORIGINAL_SAVED_H_OWNER"
+      }
+    ],
+    "remainingRequiredCaseIds": [
+      "W6-003",
+      "W6-004",
+      "W6-008",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-009",
+      "heldout-W6-010"
+    ],
+    "a06Qualified": false,
+    "currentReview": {
+      "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+      "tree": "383d93459e6d254c4ed1e8d883f0169ddd821c31",
+      "run": 40859317054,
+      "job": 123404713551,
+      "attempt": 2,
+      "status": "PASS_THREE_ORIGINAL_LOG_H_CASES_ONLY",
+      "modules": {
+        "core": 2300,
+        "providers": 131,
+        "fabric": 110,
+        "total": 2541
+      },
+      "python": {
+        "aOwned": 74,
+        "baseline": 72
+      },
+      "mainVerification": {
+        "run": 40859317009,
+        "job": 123398201070,
+        "status": "PASS"
+      },
+      "requiredHosts": {
+        "status": "FAIL_REQUIRED_HOST_REGRESSIONS_REMAIN",
+        "pass": 7,
+        "fail": 2,
+        "originalConditionalNotApplicable": 3,
+        "finalAttempt": 2,
+        "initialFailures": [
+          {
+            "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+            "run": 40859317054,
+            "attempt": 1,
+            "suite": "GP-21",
+            "job": 123398202155,
+            "phase": "cold actual Jobs",
+            "reason": "work0 BLOCKED/TARGET_UNAVAILABLE, committedEffects0, stock0",
+            "cause": "UNRESOLVED",
+            "artifact": {
+              "id": 12891330695,
+              "bytes": 273042,
+              "sha256": "e40a80a5332cb73078656e7c7ee878827ce44e8f4a6867e27e56a2de0d62803c"
+            }
+          },
+          {
+            "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+            "run": 40859317054,
+            "attempt": 1,
+            "suite": "GP-22",
+            "job": 123398202848,
+            "phase": "warm known wheat after backend stopped",
+            "reason": "work5 BLOCKED/STALE_OBSERVATION, committedEffects1, actorInventory0, failedResources2",
+            "cause": "UNRESOLVED",
+            "artifact": {
+              "id": 12890927414,
+              "bytes": 3967502,
+              "sha256": "6793c21519a0d5a4001decf935e89c8f0057ebcaca9b7a5f1de09dc0d9b58f26"
+            }
+          }
+        ],
+        "retry": {
+          "attempt": 2,
+          "sourceChanged": false,
+          "newWorkflowRunIds": 0,
+          "jobs": [
+            {
+              "suite": "GP-21",
+              "attempt": 2,
+              "job": 123404713462,
+              "status": "FAIL",
+              "reason": "java.lang.AssertionError: Actual outcome mismatch work=1 outcome=Execution[status=BLOCKED, reason=TARGET_UNAVAILABLE, committedEffects=4, completion=null] stock=3",
+              "cause": "UNRESOLVED",
+              "sourceUnchanged": true,
+              "artifact": {
+                "id": 12891811532,
+                "bytes": 273505,
+                "sha256": "82b78157f83929b69d3ef011d4c24874bcddae562f96523e49d535f470cdb3d2"
+              }
+            },
+            {
+              "suite": "GP-22",
+              "attempt": 2,
+              "job": 123404713101,
+              "status": "FAIL",
+              "reason": "[11:00:13] [Server thread/INFO] (Minecraft)    - ai_villages_tests:apprenticeship_restart_game_tests_learned_shared_method_runs_in_another_saved_world_jvm_with_backend_stopped: World item/block conservation mismatch stock=10 mature=1 failedDrops=0 failedInventory=0 on tick 2002",
+              "cause": "UNRESOLVED",
+              "sourceUnchanged": true,
+              "artifact": {
+                "id": 12891472783,
+                "bytes": 3969462,
+                "sha256": "3788a042652467971fa5fc51bcc80b219e3f81bdfb697f0612b16c79d063c348"
+              }
+            }
+          ]
+        },
+        "earlierFailureCauses": "UNRESOLVED_NOT_CLOSED"
+      },
+      "artifacts": [
+        {
+          "kind": "contracts",
+          "id": 12892772279,
+          "bytes": 3574557,
+          "sha256": "3164961edc21f883dcb89d4385fd489e653cd3f04f882847795f408ddea15e2f"
+        },
+        {
+          "kind": "native",
+          "id": 12892757758,
+          "bytes": 239847376,
+          "sha256": "3a2550dd26b247f7cecc32cac04c45744e0944fe1d3678da8d134aac7a2b7daa"
+        }
+      ],
+      "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
+      "documentationEvidence": "docs/implementation/parallel-a/A06-original-h-cases-evidence.json"
+    }
+  },
+  "latestOriginalCoverage": {
+    "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+    "run": 40859317054,
+    "job": 123404713551,
+    "attempt": 2,
+    "qualifiedUniqueOriginalCases": 3,
+    "requiredOriginalCases": 12,
+    "originalCaseIds": [
+      "heldout-W6-002",
+      "heldout-W6-008",
+      "W6-002"
+    ],
+    "nativePickupProducer": "INACTIVE",
+    "a06Qualified": false,
+    "fullBranchQualified": false
+  },
+  "currentValidation": {
+    "status": "PASS_THREE_ORIGINAL_H_CASES_ONLY_REQUIRED_HOSTS_FAIL",
+    "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+    "tree": "383d93459e6d254c4ed1e8d883f0169ddd821c31",
+    "run": 40859317054,
+    "job": 123404713551,
+    "modules": {
+      "core": 2300,
+      "providers": 131,
+      "fabric": 110,
+      "total": 2541,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "python": {
+      "aOwned": 74,
+      "baseline": 72,
+      "status": "PASS"
+    },
+    "ownership": {
+      "ownedFiles": 186,
+      "bOwnedEdits": 0
+    },
+    "requiredHosts": {
+      "status": "FAIL_REQUIRED_HOST_REGRESSIONS_REMAIN",
+      "pass": 7,
+      "fail": 2,
+      "originalConditionalNotApplicable": 3,
+      "finalAttempt": 2,
+      "initialFailures": [
+        {
+          "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+          "run": 40859317054,
+          "attempt": 1,
+          "suite": "GP-21",
+          "job": 123398202155,
+          "phase": "cold actual Jobs",
+          "reason": "work0 BLOCKED/TARGET_UNAVAILABLE, committedEffects0, stock0",
+          "cause": "UNRESOLVED",
+          "artifact": {
+            "id": 12891330695,
+            "bytes": 273042,
+            "sha256": "e40a80a5332cb73078656e7c7ee878827ce44e8f4a6867e27e56a2de0d62803c"
+          }
+        },
+        {
+          "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+          "run": 40859317054,
+          "attempt": 1,
+          "suite": "GP-22",
+          "job": 123398202848,
+          "phase": "warm known wheat after backend stopped",
+          "reason": "work5 BLOCKED/STALE_OBSERVATION, committedEffects1, actorInventory0, failedResources2",
+          "cause": "UNRESOLVED",
+          "artifact": {
+            "id": 12890927414,
+            "bytes": 3967502,
+            "sha256": "6793c21519a0d5a4001decf935e89c8f0057ebcaca9b7a5f1de09dc0d9b58f26"
+          }
+        }
+      ],
+      "retry": {
+        "attempt": 2,
+        "sourceChanged": false,
+        "newWorkflowRunIds": 0,
+        "jobs": [
+          {
+            "suite": "GP-21",
+            "attempt": 2,
+            "job": 123404713462,
+            "status": "FAIL",
+            "reason": "java.lang.AssertionError: Actual outcome mismatch work=1 outcome=Execution[status=BLOCKED, reason=TARGET_UNAVAILABLE, committedEffects=4, completion=null] stock=3",
+            "cause": "UNRESOLVED",
+            "sourceUnchanged": true,
+            "artifact": {
+              "id": 12891811532,
+              "bytes": 273505,
+              "sha256": "82b78157f83929b69d3ef011d4c24874bcddae562f96523e49d535f470cdb3d2"
+            }
+          },
+          {
+            "suite": "GP-22",
+            "attempt": 2,
+            "job": 123404713101,
+            "status": "FAIL",
+            "reason": "[11:00:13] [Server thread/INFO] (Minecraft)    - ai_villages_tests:apprenticeship_restart_game_tests_learned_shared_method_runs_in_another_saved_world_jvm_with_backend_stopped: World item/block conservation mismatch stock=10 mature=1 failedDrops=0 failedInventory=0 on tick 2002",
+            "cause": "UNRESOLVED",
+            "sourceUnchanged": true,
+            "artifact": {
+              "id": 12891472783,
+              "bytes": 3969462,
+              "sha256": "3788a042652467971fa5fc51bcc80b219e3f81bdfb697f0612b16c79d063c348"
+            }
+          }
+        ]
+      },
+      "earlierFailureCauses": "UNRESOLVED_NOT_CLOSED"
+    },
+    "mainVerification": {
+      "run": 40859317009,
+      "job": 123398201070,
+      "status": "PASS"
+    },
+    "workflowAccounting": {
+      "executingWorkflowRunIds": [
+        40859317003,
+        40859317128,
+        40859317057,
+        40859317094,
+        40859317035,
+        40859317056,
+        40859317009,
+        40859317054
+      ],
+      "totalWorkflowRunIds": 8,
+      "groupedQualification": 40859317054,
+      "mainVerification": 40859317009,
+      "sameSourceFailedJobRerunCreatesNoNewWorkflowId": true,
+      "triggerDetail": "Combined code correction and control commit also matched six original workflow path filters. Future code corrections must use skip-ci checkpoints followed by a control-only validation commit."
+    },
+    "testsStillRunning": 0,
+    "documentationValidation": {
+      "json": "PASS",
+      "relativeLinks": 384,
+      "missing": 0,
+      "frozenA00A05": "UNCHANGED",
+      "canonicalHistory": "UNCHANGED_EXCEPT_A06_STATUS_LINE",
+      "originalTable": {
+        "total": 12,
+        "verified": 3
+      },
+      "testsStillRunning": 0
+    },
+    "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
+    "a06Qualified": false
+  },
+  "completion": {
+    "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
+    "testedImplementationSource": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+    "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
+    "metadataOnlyCheckpoint": true,
+    "defaultActivationChanged": false,
+    "automaticContinuationChanged": false,
+    "mainMerged": false,
+    "nextStageStarted": false,
+    "additionalWorkflowRunsRequested": 0,
+    "remainingOriginalCaseIds": [
+      "W6-003",
+      "W6-004",
+      "W6-008",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-009",
+      "heldout-W6-010"
+    ]
   }
 }
