@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 16,
-  "parentSource": "231f4718e5bf5b35ab40570da344e6d066fc1f41",
+  "sequence": 17,
+  "parentSource": "d9b741869627db5e2021e67b654de31152707cb6",
   "stage": "A06",
-  "scope": "native-entity-storage-empty-cache-persistence-ordered-bounded-writes-real-save-reopen-movement-controls-and-complete-regression-batch",
+  "scope": "pickup-durable-evidence-owner-shared-retention-family-and-actual-harvest-birth-lineage-with-complete-native-and-regression-batch",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -278,17 +278,27 @@
     }
   },
   "latestValidatedCheckpoint": {
-    "source": "ee85bcb04299766b138fa61bd6c71f1a4ac82952",
-    "run": 40823885728,
-    "job": 123282358654,
-    "modules": 2481,
+    "source": "23b97125f6532a105744b01c84f29ca4dbe66dc8",
+    "tree": "6f8ca7e8aedb0047cff832d6866f834addc42140",
+    "run": 40840409561,
+    "attempt": 2,
+    "job": 123335119805,
+    "modules": 2505,
     "python": {
-      "aOwned": 49,
+      "aOwned": 54,
       "baseline": 72
     },
-    "requiredHosts": 9,
+    "requiredHosts": {
+      "pass": 9,
+      "firstAttemptPass": 7,
+      "firstAttemptFail": 2,
+      "retriedJobs": 2,
+      "sourceChanged": false,
+      "causes": "UNRESOLVED"
+    },
     "mainVerification": {
-      "run": 40823885725,
+      "run": 40840409542,
+      "job": 123335118625,
       "status": "PASS"
     },
     "uniqueOriginalCases": 1,
@@ -331,7 +341,7 @@
   },
   "nativeEntityStorage": {
     "source": "231f4718e5bf5b35ab40570da344e6d066fc1f41",
-    "status": "PENDING_CURRENT_VALIDATION",
+    "status": "PASS_NATIVE_STORAGE_MECHANICS_AT_23B",
     "newJavaCases": 24,
     "newPythonOracleCases": 5,
     "expectedModules": {
@@ -362,6 +372,84 @@
       "Same-tick cross/cross/return records every visited chunk; changed UUID gaps tracking",
       "Independent offline raw Anvil/NBT review, no original P pass inferred"
     ],
-    "remaining": "Actual first-P birth attachment, original gateway/receipt/journal authority, live migration facts and original P/D owner trials remain required"
+    "remaining": "Actual first-P birth attachment, original gateway/receipt/journal authority, live migration facts and original P/D owner trials remain required",
+    "validation": {
+      "source": "23b97125f6532a105744b01c84f29ca4dbe66dc8",
+      "tree": "6f8ca7e8aedb0047cff832d6866f834addc42140",
+      "run": 40840409561,
+      "attempt": 2,
+      "job": 123335119805,
+      "modules": 2505,
+      "python": {
+        "aOwned": 54,
+        "baseline": 72
+      },
+      "requiredHosts": {
+        "pass": 9,
+        "firstAttemptPass": 7,
+        "firstAttemptFail": 2,
+        "retriedJobs": 2,
+        "sourceChanged": false,
+        "causes": "UNRESOLVED"
+      },
+      "mainVerification": {
+        "run": 40840409542,
+        "job": 123335118625,
+        "status": "PASS"
+      },
+      "uniqueOriginalCases": 1,
+      "requiredOriginalCases": 12,
+      "a06Qualified": false
+    }
+  },
+  "pickupCausalStorage": {
+    "source": "d9b741869627db5e2021e67b654de31152707cb6",
+    "status": "PENDING_CURRENT_VALIDATION_NOT_RUNTIME_SELECTED",
+    "nativePickupProducer": "INACTIVE",
+    "components": [
+      "Separate canonical pickup intent/result/verification journal with original H/D formats unchanged",
+      "Game-thread pickup evidence owner requires the private live H acknowledgement; only a registered current native port can execute",
+      "Prepared/result/verification ACK ordering, exact process/owner capabilities, no effect replay from restored bytes",
+      "Single harvest-family retention slot accounts for every H/P file, exact shared writer and combined64-row ceiling",
+      "Actual original H actor trail capture and original drop observation before native addFreshEntity; private live lineage cannot be reconstructed after restart"
+    ],
+    "limits": {
+      "pickupRows": 64,
+      "familyCombinedRows": 64,
+      "recordBytes": 32768,
+      "intentAdmissionBytes": 8192,
+      "journalReaderBytes": 4194304,
+      "retentionOwnerHardMaximum": 17,
+      "worldBytes": 67108864,
+      "evidenceCategoryBytes": 16777216,
+      "trailChunksPerParticipant": 8
+    },
+    "newJavaCases": {
+      "pickupOwner": 16,
+      "pickupJournal": 9,
+      "familyRetention": 7,
+      "birthScope": 4,
+      "total": 36
+    },
+    "newPythonOracleCases": 6,
+    "expectedModules": {
+      "core": 2300,
+      "providers": 131,
+      "fabric": 110,
+      "total": 2541
+    },
+    "expectedPython": {
+      "aOwned": 60,
+      "baseline": 72
+    },
+    "nativeQualification": "Only actual original first-H birth/restart checks and prior native storage controls; no original P pass inferred",
+    "remaining": [
+      "Native P gateway/lease/receipt wrapper and runtime journal/family selection",
+      "Native actor/live-drop membership facts and legitimate departure/reentry handling",
+      "Joined H/P/D stopped-original-owner reconciliation, remaining eleven frozen originals",
+      "Original cancellation/re-kill/remaining-demand/unrelated-progress/torn containment and representative cost gates"
+    ],
+    "omittedTasks": 0,
+    "omittedTests": 0
   }
 }
