@@ -1,0 +1,861 @@
+{
+  "cases": [
+    {
+      "expected": "Real server selection/marker roundtrip; exact native slots; no unconfirmed mutation",
+      "group": "storage",
+      "id": "D10-STORAGE-01",
+      "scenario": "Normal single chest registration",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 1,
+      "case_seed": 20261028,
+      "origin": [
+        12,
+        201,
+        2
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Two loaded normal halves combined exactly once; ordered incarnation topology",
+      "group": "storage",
+      "id": "D10-STORAGE-02",
+      "scenario": "Normal double chest",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 2,
+      "case_seed": 20261029,
+      "origin": [
+        44,
+        201,
+        2
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Six facing states preserve adapter semantics and slots",
+      "group": "storage",
+      "id": "D10-STORAGE-03",
+      "scenario": "Normal barrel",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 3,
+      "case_seed": 20261030,
+      "origin": [
+        76,
+        201,
+        2
+      ],
+      "item": "minecraft:ender_pearl",
+      "quantity": 4
+    },
+    {
+      "expected": "Same storage UUID and incarnation, increment metadata revision",
+      "group": "storage",
+      "id": "D10-STORAGE-04",
+      "scenario": "Rename",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 4,
+      "case_seed": 20261031,
+      "origin": [
+        108,
+        201,
+        2
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Old binding/ACL unusable; new incarnation; explicit rebind required",
+      "group": "storage",
+      "id": "D10-STORAGE-05",
+      "scenario": "Same-position replacement",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 5,
+      "case_seed": 20261032,
+      "origin": [
+        12,
+        201,
+        34
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "Old binding generation invalid; no inherited new-half authorization",
+      "group": "storage",
+      "id": "D10-STORAGE-06",
+      "scenario": "Pair single chest",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 6,
+      "case_seed": 20261033,
+      "origin": [
+        44,
+        201,
+        34
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Old aggregate endpoint invalid; items remain physically observable per half",
+      "group": "storage",
+      "id": "D10-STORAGE-07",
+      "scenario": "Split double chest",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 7,
+      "case_seed": 20261034,
+      "origin": [
+        76,
+        201,
+        34
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Both conflicting bindings quarantined; neither gains automation access",
+      "group": "storage",
+      "id": "D10-STORAGE-08",
+      "scenario": "Clone incarnation marker",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 8,
+      "case_seed": 20261035,
+      "origin": [
+        108,
+        201,
+        34
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "P2 cannot inspect/withdraw; explicit deposit works without contents disclosure",
+      "group": "storage",
+      "id": "D10-STORAGE-09",
+      "scenario": "Private and deposit-only",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 9,
+      "case_seed": 20261036,
+      "origin": [
+        12,
+        201,
+        66
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "No public automation access despite label/visibility",
+      "group": "storage",
+      "id": "D10-STORAGE-10",
+      "scenario": "Unregistered public-looking chest",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 10,
+      "case_seed": 20261037,
+      "origin": [
+        44,
+        201,
+        66
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "UNKNOWN/DENY, never empty or forced-load",
+      "group": "storage",
+      "id": "D10-STORAGE-11",
+      "scenario": "Unload, lock or unresolved loot",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 11,
+      "case_seed": 20261038,
+      "origin": [
+        76,
+        201,
+        66
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Trapped/shulker/hopper/dispenser/dropper/furnace/modded endpoint refuses before mutation",
+      "group": "storage",
+      "id": "D10-STORAGE-12",
+      "scenario": "Unsupported storage variants",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 12,
+      "case_seed": 20261039,
+      "origin": [
+        108,
+        201,
+        66
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Move player after acceptance; actor reaches old point <=1.5 blocks",
+      "group": "mobility",
+      "id": "D10-MOBILITY-01",
+      "scenario": "Captured come",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 13,
+      "case_seed": 20261040,
+      "origin": [
+        12,
+        201,
+        98
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Ordinary native path only; no teleport; bounded progress",
+      "group": "mobility",
+      "id": "D10-MOBILITY-02",
+      "scenario": "Come around obstacle",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 14,
+      "case_seed": 20261041,
+      "origin": [
+        44,
+        201,
+        98
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Typed physical blocker; finite candidate/repath/time counters",
+      "group": "mobility",
+      "id": "D10-MOBILITY-03",
+      "scenario": "Come no path",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 15,
+      "case_seed": 20261042,
+      "origin": [
+        76,
+        201,
+        98
+      ],
+      "item": "minecraft:ender_pearl",
+      "quantity": 4
+    },
+    {
+      "expected": "No forced chunk load or movement into unknown",
+      "group": "mobility",
+      "id": "D10-MOBILITY-04",
+      "scenario": "Come unloaded route",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 16,
+      "case_seed": 20261043,
+      "origin": [
+        108,
+        201,
+        98
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Exact registered ID reached; unsupported landmark clarifies",
+      "group": "mobility",
+      "id": "D10-MOBILITY-05",
+      "scenario": "Go named storage",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 17,
+      "case_seed": 20261044,
+      "origin": [
+        12,
+        201,
+        130
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "2-4 block desired band when feasible; observed server positions",
+      "group": "mobility",
+      "id": "D10-MOBILITY-06",
+      "scenario": "Follow straight moving player",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 18,
+      "case_seed": 20261045,
+      "origin": [
+        44,
+        201,
+        130
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "<=8-block lookahead; repath >=10 ticks",
+      "group": "mobility",
+      "id": "D10-MOBILITY-07",
+      "scenario": "Follow obstacle and lookahead",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 19,
+      "case_seed": 20261046,
+      "origin": [
+        76,
+        201,
+        130
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "No new navigation after next server control tick",
+      "group": "mobility",
+      "id": "D10-MOBILITY-08",
+      "scenario": "Follow stop",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 20,
+      "case_seed": 20261047,
+      "origin": [
+        108,
+        201,
+        130
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Stop movement next control tick; <=100-tick pause inside original total",
+      "group": "mobility",
+      "id": "D10-MOBILITY-09",
+      "scenario": "Follow disconnect",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 21,
+      "case_seed": 20261048,
+      "origin": [
+        12,
+        201,
+        162
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Stop/refuse unsupported scope; no teleport",
+      "group": "mobility",
+      "id": "D10-MOBILITY-10",
+      "scenario": "Follow dimension change",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 22,
+      "case_seed": 20261049,
+      "origin": [
+        44,
+        201,
+        162
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "<=1200 total ticks and <=128 blocks including resumes",
+      "group": "mobility",
+      "id": "D10-MOBILITY-11",
+      "scenario": "Follow time/travel expiry",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 23,
+      "case_seed": 20261050,
+      "origin": [
+        76,
+        201,
+        162
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Test authority serializes competing owners; no simultaneous native controllers",
+      "group": "mobility",
+      "id": "D10-MOBILITY-12",
+      "scenario": "Actor contention",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 24,
+      "case_seed": 20261051,
+      "origin": [
+        108,
+        201,
+        162
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Native source/carrier/dest delta -1/0/+1; exact ItemKey",
+      "group": "courier",
+      "id": "D10-COURIER-01",
+      "scenario": "Transfer q1",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 25,
+      "case_seed": 20261052,
+      "origin": [
+        12,
+        201,
+        194
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 1
+    },
+    {
+      "expected": "10/3/2 -> 6/3/6; original 3 not credit",
+      "group": "courier",
+      "id": "D10-COURIER-02",
+      "scenario": "Transfer q4 with old cargo",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 26,
+      "case_seed": 20261053,
+      "origin": [
+        44,
+        201,
+        194
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Exact 64, <=8 batches, slot/capacity limits observed",
+      "group": "courier",
+      "id": "D10-COURIER-03",
+      "scenario": "Transfer q64",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 27,
+      "case_seed": 20261054,
+      "origin": [
+        76,
+        201,
+        194
+      ],
+      "item": "minecraft:ender_pearl",
+      "quantity": 64
+    },
+    {
+      "expected": "No withdrawal/movement for out-of-range goal",
+      "group": "courier",
+      "id": "D10-COURIER-04",
+      "scenario": "Reject q65",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 28,
+      "case_seed": 20261055,
+      "origin": [
+        108,
+        201,
+        194
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 65
+    },
+    {
+      "expected": "Refuse without slot mutation",
+      "group": "courier",
+      "id": "D10-COURIER-05",
+      "scenario": "Same endpoint",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 29,
+      "case_seed": 20261056,
+      "origin": [
+        12,
+        201,
+        226
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "Refuse before withdrawal; unchanged source/carrier",
+      "group": "courier",
+      "id": "D10-COURIER-06",
+      "scenario": "Destination full initially",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 30,
+      "case_seed": 20261057,
+      "origin": [
+        44,
+        201,
+        226
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Cargo retained and reported; no deposit credit",
+      "group": "courier",
+      "id": "D10-COURIER-07",
+      "scenario": "Destination full during travel",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 31,
+      "case_seed": 20261058,
+      "origin": [
+        76,
+        201,
+        226
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Generation mismatch refuses; cargo retained",
+      "group": "courier",
+      "id": "D10-COURIER-08",
+      "scenario": "Destination replaced",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 32,
+      "case_seed": 20261059,
+      "origin": [
+        108,
+        201,
+        226
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "No deposit after revocation; cargo retained under test lineage",
+      "group": "courier",
+      "id": "D10-COURIER-09",
+      "scenario": "Grant revoked during travel",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 33,
+      "case_seed": 20261060,
+      "origin": [
+        12,
+        201,
+        258
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Expected slot/item snapshot mismatch -> no withdrawal",
+      "group": "courier",
+      "id": "D10-COURIER-10",
+      "scenario": "Source stolen/replaced before effect",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 34,
+      "case_seed": 20261061,
+      "origin": [
+        44,
+        201,
+        258
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "One successful guarded debit at most; no duplicate quantity",
+      "group": "courier",
+      "id": "D10-COURIER-11",
+      "scenario": "Two couriers last stack",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 35,
+      "case_seed": 20261062,
+      "origin": [
+        76,
+        201,
+        258
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Record real restored source/carrier/dest; uncertain cuts fenced; no A settlement claim",
+      "group": "courier",
+      "id": "D10-COURIER-12",
+      "scenario": "Save/reload between withdraw/deposit",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 36,
+      "case_seed": 20261063,
+      "origin": [
+        108,
+        201,
+        258
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "9/1 -> 5/5; stable identities, no dropped item entity",
+      "group": "handoff",
+      "id": "D10-HANDOFF-01",
+      "scenario": "Sender gives q4",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 37,
+      "case_seed": 20261064,
+      "origin": [
+        12,
+        201,
+        290
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Unchanged sender/recipient",
+      "group": "handoff",
+      "id": "D10-HANDOFF-02",
+      "scenario": "Recipient full",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 38,
+      "case_seed": 20261065,
+      "origin": [
+        44,
+        201,
+        290
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Bound stable ID unchanged; transfer not rerouted by name",
+      "group": "handoff",
+      "id": "D10-HANDOFF-03",
+      "scenario": "Recipient renamed",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 39,
+      "case_seed": 20261066,
+      "origin": [
+        76,
+        201,
+        290
+      ],
+      "item": "minecraft:ender_pearl",
+      "quantity": 4
+    },
+    {
+      "expected": "Ambiguity or wrong ID refuses",
+      "group": "handoff",
+      "id": "D10-HANDOFF-04",
+      "scenario": "Namesake recipient",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 40,
+      "case_seed": 20261067,
+      "origin": [
+        108,
+        201,
+        290
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Old entity/generation mismatch refuses",
+      "group": "handoff",
+      "id": "D10-HANDOFF-05",
+      "scenario": "Recipient entity replacement",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 41,
+      "case_seed": 20261068,
+      "origin": [
+        12,
+        201,
+        322
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "No forced load or deposit; cargo retained",
+      "group": "handoff",
+      "id": "D10-HANDOFF-06",
+      "scenario": "Recipient unload",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 42,
+      "case_seed": 20261069,
+      "origin": [
+        44,
+        201,
+        322
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Explicit loss/disappearance observation; no fabricated restoration",
+      "group": "handoff",
+      "id": "D10-HANDOFF-07",
+      "scenario": "Recipient death",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 43,
+      "case_seed": 20261070,
+      "origin": [
+        76,
+        201,
+        322
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Immediate effect recheck denies",
+      "group": "handoff",
+      "id": "D10-HANDOFF-08",
+      "scenario": "Consent revoked",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 44,
+      "case_seed": 20261071,
+      "origin": [
+        108,
+        201,
+        322
+      ],
+      "item": "minecraft:spruce_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "No transfer beyond 2.5 blocks",
+      "group": "handoff",
+      "id": "D10-HANDOFF-09",
+      "scenario": "Out of native reach",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 45,
+      "case_seed": 20261072,
+      "origin": [
+        12,
+        201,
+        354
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "MVP rejects source citizen other than controlled carrier",
+      "group": "handoff",
+      "id": "D10-HANDOFF-10",
+      "scenario": "Third-party donor source",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 46,
+      "case_seed": 20261073,
+      "origin": [
+        44,
+        201,
+        354
+      ],
+      "item": "minecraft:cobblestone",
+      "quantity": 4
+    },
+    {
+      "expected": "Guarded source revision permits at most one debit",
+      "group": "handoff",
+      "id": "D10-HANDOFF-11",
+      "scenario": "Competing handoff",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 47,
+      "case_seed": 20261074,
+      "origin": [
+        76,
+        201,
+        354
+      ],
+      "item": "minecraft:birch_planks",
+      "quantity": 4
+    },
+    {
+      "expected": "Observe restored vectors; UNKNOWN cannot become settlement or replay",
+      "group": "handoff",
+      "id": "D10-HANDOFF-12",
+      "scenario": "Partial native saves",
+      "suite": "D10-CL01",
+      "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+      "ordinal": 48,
+      "case_seed": 20261075,
+      "origin": [
+        108,
+        201,
+        354
+      ],
+      "item": "minecraft:oak_planks",
+      "quantity": 4
+    }
+  ],
+  "default_courier_vector": {
+    "after": [
+      6,
+      3,
+      6
+    ],
+    "before": [
+      10,
+      3,
+      2
+    ],
+    "quantity": 4
+  },
+  "default_handoff_vector": {
+    "after": [
+      5,
+      5
+    ],
+    "before": [
+      9,
+      1
+    ],
+    "quantity": 4
+  },
+  "environment": "Existing repository runtime/SDK/Docker/client driver, isolated component-test world; no A process or production activation",
+  "executed": 0,
+  "planned": 48,
+  "world": "d1000000-0000-4000-8000-000000000001",
+  "world_seed": 20261027,
+  "players": 2,
+  "limits": {
+    "move_ticks": 600,
+    "move_blocks": 64,
+    "follow_ticks": 1200,
+    "follow_blocks": 128,
+    "pause_ticks": 100,
+    "p99_ns": 50000000,
+    "max_ns": 250000000,
+    "client_seconds": 3000,
+    "new_forced_chunks": 0
+  }
+}
