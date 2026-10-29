@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 9,
-  "parentSource": "702760e9564167e44392ac9d9e5b091db89ac86d",
+  "sequence": 10,
+  "parentSource": "87750a5038d19546208f8e671930aa1171c7b572",
   "stage": "A06",
-  "scope": "original-started-harvest-lease-accounting-with-ten-new-contracts-native-cuts-offline-current-and-prior-review-and-all-required-regressions",
+  "scope": "acknowledged-original-lease-accounting-complete-native-and-regression-batch-with-all-retained-failure-reviews",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -120,9 +120,27 @@
         "cause": "UNRESOLVED"
       },
       "originalOwnerSettlements": 0
+    },
+    {
+      "run": 40814496199,
+      "source": "ed5a32ccef54164ba98e578dbfbacdbf31820b5d",
+      "phase": "new destination-refusal contract",
+      "moduleCases": 2432,
+      "coreFailures": 1,
+      "case": "HarvestLeasePublicationTest.publicationWaitDoesNotSkipTheDestinationClaim",
+      "cause": "New test inspected REVOKED in the acknowledged snapshot before its original storage acknowledgement. Terminal INTERRUPTED and retained-debit checks already passed. Corrected test waits for the same acknowledgement; no test was removed.",
+      "remainingNewCases": "NINE_PASS",
+      "baselinePython": 72,
+      "aOwnedPython": 49,
+      "nativeCases": "NOT_EXECUTED_REQUIRED_MODULE_PREREQUISITE_FAILED",
+      "artifact": {
+        "id": 12872265094,
+        "bytes": 2805224,
+        "sha256": "fb5d9e2326c42d31a373dbd46bf163ca8b3576df782f17dda5745928d5b4368d"
+      }
     }
   ],
-  "independentArchiveReview": "Same offline Docker job checks immutable source543 and sourceb075 archives and independently inspects the current raw world/module evidence",
+  "independentArchiveReview": "Same offline Docker job reviews immutable source543 and sourceb075 native/contracts, sourceed5 failed contract XML, and the current raw native world and complete module XML",
   "nativePrerequisites": [
     "Current module contracts PASS",
     "Current production/native observer preparation PASS",
