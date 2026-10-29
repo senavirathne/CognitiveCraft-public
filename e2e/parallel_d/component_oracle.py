@@ -73,7 +73,7 @@ def case(spec,rows,diagnostic=False):
         events={r['event']:r for r in rows};checks=[r for r in rows if r['event']in ('REGISTERED','DOUBLE','BARREL','RENAMED','EXPLICIT_REBIND','EXPLICIT_PAIR_REBIND')]
         for r in checks:
             d=r['detail'];topology(d['binding']);require(d['inspect']['eligible'] if 'eligible'in d['inspect']else d['inspect']['refusal']=='NONE','native authorized read refused');require(isinstance(d['snapshot'],dict),'authorized read lacks actual slots')
-        if n==1:require(events['NATIVE_SERVER_SELECTION']['detail']['hit']=='BLOCK'and events['NATIVE_SERVER_SELECTION']['detail']['marker_before']and checks,'registration bypassed actual fresh server selection')
+        if n==1:require(events['NATIVE_SERVER_SELECTION']['detail']['hit']=='BLOCK'and events['NATIVE_SERVER_SELECTION']['detail']['selected']==[spec['origin'][0]+5,spec['origin'][1],spec['origin'][2]+7]and events['NATIVE_SERVER_SELECTION']['detail']['marker_before']and checks,'registration bypassed actual fresh server selection')
         if n==2:require(len(events['DOUBLE']['detail']['snapshot']['slots'])==54 and count(last,'primary',item)==13 and count(last,'right',item)==7,'double native halves missing/double counted')
         if n==3:require(len([r for r in rows if r['event']=='BARREL'])==6 and {r['detail']['binding']['facing']for r in rows if r['event']=='BARREL'}=={'NORTH','SOUTH','EAST','WEST','UP','DOWN'},'barrel six native facing states absent')
         if n==4:

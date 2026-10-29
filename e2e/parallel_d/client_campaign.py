@@ -28,8 +28,8 @@ class DComponentCampaign(DStorageObservationClient):
                 return state
             state=self.wait(snapshot,f'{case} {phase} actual client packets {player}')
             self.snapshots.append({'case':case,'phase':phase,'player':player,'state':state});write(self.root/'component-clients.json',self.snapshots)
-    def tp(self,player,pos):
-        self.request(player,'close-menu');self.console([f'tp {player} {pos[0]} {pos[1]} {pos[2]} 0 0'])
+    def tp(self,player,pos,pitch=0):
+        self.request(player,'close-menu');self.console([f'tp {player} {pos[0]} {pos[1]} {pos[2]} 0 {pitch}'])
         self.wait(lambda:math.dist(self.request(player,'snapshot').get('pos',[0,0,0]),pos)<.4,'actual observer position packet '+player)
     def menus(self,spec,phase,raw=None):
         if spec['group']=='mobility':return
@@ -89,7 +89,11 @@ class DComponentCampaign(DStorageObservationClient):
             case=spec['id'];n=int(case[-2:]);group=spec['group'];box=self.root/'server/d10'/case
             x,y,z=spec['origin'];self.console([f'fill {x} {y-1} {z} {x+19} {y-1} {z+24} stone']);self.position_players(spec);self.console(['d-component prepare '+case]);self.wait(lambda:(box/'ready.json').exists(),'fresh native fixture '+case,180);self.position_players(spec);self.sample(case,'BEFORE');self.menus(spec,'BEFORE');self.position_players(spec)
             if case=='D10-STORAGE-01':
-                x,y,z=spec['origin'];pos=[x+5,y,z+7];self.tp('PlayerD_A',[pos[0]+.5,y,pos[2]-2.5]);self.request('PlayerD_A','look',pos=pos)
+                # The server teleport packet prepares the observer's view before
+                # admission. A local look reply alone does not acknowledge the
+                # outbound rotation packet; both prepared and client angles hit
+                # the same chest, which the unchanged server raycast must prove.
+                x,y,z=spec['origin'];pos=[x+5,y,z+7];self.tp('PlayerD_A',[pos[0]+.5,y,pos[2]-2.5],pitch=25);self.request('PlayerD_A','look',pos=pos)
             if case=='D10-MOBILITY-04':
                 x,y,z=spec['origin'];target=[x+100000.5,y,z+100007.5];self.console([f'fill {int(target[0])-2} {y-1} {int(target[2])-2} {int(target[0])+2} {y-1} {int(target[2])+2} stone']);self.tp('PlayerD_A',target);self.wait(lambda:self.request('PlayerD_A','snapshot')['pos'][1]>=y-1,'actual distant player chunks',20)
             if case=='D10-STORAGE-09':
