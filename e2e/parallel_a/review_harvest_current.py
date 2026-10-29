@@ -9,7 +9,7 @@ def read(path):return json.loads(path.read_text())
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def manifest(world):
     return {p.relative_to(world).as_posix():sha(p) for p in sorted(world.rglob('*')) if p.is_file() and p.name!='session.lock'}
-def modules(repo):
+def modules(repo,expected=None,removal_cases=16):
     counts={}
     for name in ('core','providers','fabric'):
         rows=list((repo/name/'build/test-results/test').glob('TEST-*.xml'));assert rows,name
@@ -18,9 +18,12 @@ def modules(repo):
             row=ET.parse(path).getroot()
             for n,key in enumerate(('tests','failures','errors','skipped')):count[n]+=int(row.get(key,0))
         counts[name]=count
-    assert counts=={'core':[2243,0,0,0],'providers':[131,0,0,0],'fabric':[58,0,0,0]},counts
+    assert counts==(expected or {'core':[2243,0,0,0],'providers':[131,0,0,0],'fabric':[74,0,0,0]}),counts
     suite=ET.parse(repo/'core/build/test-results/test/TEST-dev.aivillages.core.kernel.HarvestLeasePublicationTest.xml').getroot()
     assert len(suite.findall('testcase'))==10 and not suite.findall('.//failure') and not suite.findall('.//error') and not suite.findall('.//skipped')
+    if removal_cases:
+        removal=ET.parse(repo/'fabric/build/test-results/test/TEST-dev.aivillages.fabric.runtime.evidence.EntityChunkRemovalStateTest.xml').getroot()
+        assert len(removal.findall('testcase'))==removal_cases and not removal.findall('.//failure') and not removal.findall('.//error') and not removal.findall('.//skipped')
     return counts
 def participants(world,source):
     x,y,z=source['x'],source['y'],source['z']
@@ -42,9 +45,9 @@ def settled(job,original,key,receipt):
         assert receipt[saved]==actual[live],(saved,actual)
     assert actual['stage']=='HARVEST' and actual['quantity']==receipt['quantity'] and actual['dropIds']==receipt['drops']
     assert all(count<=attempt['allowance']['maxima'][kind] for kind,count in attempt['usage'].items())
-def review(root,repo,out,source):
+def review(root,repo,out,source,expected_modules=None,removal_cases=16):
     out.mkdir(parents=True,exist_ok=True)
-    result=read(root/'a06-harvest-results.json');metadata=read(root/'metadata.json');counts=modules(repo)
+    result=read(root/'a06-harvest-results.json');metadata=read(root/'metadata.json');counts=modules(repo,expected_modules,removal_cases)
     assert metadata.get('reviewedHeadCommit',metadata['sourceCommit'])==source and metadata['dirty'] is False
     release=sha(repo/'fabric/build/libs/ai-villages-0.1.0.jar');observer=sha(repo/'build/e2e-driver/observer.jar')
     for base in [root/'server/game',*[root/'clients'/p/'game' for p in ('PlayerA','PlayerB')]]:

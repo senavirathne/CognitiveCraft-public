@@ -214,6 +214,11 @@ jobs:
           root="$PWD/build/parallel-a/source-audit/a06-harvest-ed5-contract-review"
           mkdir -p "$root"
           docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_failure.py --contracts-only-ed5 --contracts-archive build/parallel-a/harvest-failure-inputs/ed5-contracts.zip --out "$root"
+          gh api repos/${{ github.repository }}/actions/artifacts/12872212591/zip > build/parallel-a/harvest-failure-inputs/119c-native.zip
+          gh api repos/${{ github.repository }}/actions/artifacts/12872441805/zip > build/parallel-a/harvest-failure-inputs/119c-contracts.zip
+          root="$PWD/build/parallel-a/source-audit/a06-first-positive-harvest-archive-review"
+          mkdir -p "$root"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_harvest_checkpoint.py --native-archive build/parallel-a/harvest-failure-inputs/119c-native.zip --contracts-archive build/parallel-a/harvest-failure-inputs/119c-contracts.zip --out "$root"
       - name: A06 first native original-owner harvest and equal-state replacement refusal
         id: a06_native_harvest
         if: >-
