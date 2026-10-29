@@ -27,7 +27,7 @@ def run(stage, output):
         def addFailure(self,test,err):
             super().addFailure(test,err);ET.SubElement(self.node,'failure').text=self._exc_info_to_string(err,test)
         def addError(self,test,err):
-            super().addError(test,err);ET.SubElement(self.node,'error').text=self._exc_info_to_string(err,test)
+            super().addError(test,err);node=self.node if getattr(self,'node',None)is not None and self.node.get('name')==test.id()else ET.SubElement(root,'testcase',name=test.id(),classname=test.__class__.__name__);ET.SubElement(node,'error').text=self._exc_info_to_string(err,test)
         def addSkip(self,test,reason):
             super().addSkip(test,reason);ET.SubElement(self.node,'skipped').text=reason
         def addSubTest(self,test,subtest,err):

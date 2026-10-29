@@ -1,0 +1,3740 @@
+{
+  "tier": "SYNTHETIC_CONSISTENCY_MODEL_ONLY",
+  "physical_scenario_credit": 0,
+  "spec": {
+    "expected": "9/1 -> 5/5; stable identities, no dropped item entity",
+    "group": "handoff",
+    "id": "D10-HANDOFF-01",
+    "scenario": "Sender gives q4",
+    "suite": "D10-CL01",
+    "tier": "NATIVE_COMPONENT_WITH_REAL_CLIENT_WITNESS",
+    "ordinal": 37,
+    "case_seed": 20261064,
+    "origin": [
+      12,
+      201,
+      290
+    ],
+    "item": "minecraft:oak_planks",
+    "quantity": 4
+  },
+  "rows": [
+    {
+      "actor": "55c51678-3ba1-3285-8787-e70412ce911a",
+      "case": "D10-HANDOFF-01",
+      "case_seed": 20261064,
+      "detail": null,
+      "effect_id": null,
+      "entities": {
+        "carrier": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 58,
+          "pos": [
+            15.5,
+            201.0,
+            297.5
+          ],
+          "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+          "removed": false
+        },
+        "recipient": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 4,
+          "pos": [
+            17.5,
+            201.0,
+            297.5
+          ],
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "removed": false
+        }
+      },
+      "event": "BEFORE",
+      "facts": {
+        "batches": 0,
+        "control": {
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "controlled": true,
+          "exclusiveSender": true,
+          "exclusiveRecipient": true,
+          "existingSourceAuthorized": true,
+          "protectionAllowed": true,
+          "custodyRevision": 1,
+          "interactionLimit": 2.5
+        },
+        "delivered": 0,
+        "diagnostic_mock_players": true,
+        "goal": {
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "recipient": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "citizen": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+            "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+            "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+            "generation": 1,
+            "policyRevision": 2,
+            "dimension": "minecraft:overworld"
+          },
+          "source": "EXISTING_CARRIER",
+          "sourceCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "storageSource": null,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "quantity": 4
+        },
+        "in_flight": 0,
+        "recipient_projection": {
+          "scope": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "domain": "d0800000-0000-4000-8000-000000000002",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "actorCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5"
+          },
+          "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+          "id": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "generation": 1,
+          "policyRevision": 2,
+          "label": "Receiver",
+          "dimension": "minecraft:overworld",
+          "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+          "tick": 111,
+          "visible": true,
+          "controlled": false,
+          "loaded": true,
+          "permitted": [
+            "DEPOSIT"
+          ]
+        },
+        "selected_source": null,
+        "session_phase": "READY"
+      },
+      "forced_chunks": 24,
+      "group": "handoff",
+      "heap_used_bytes": 432258512,
+      "integration_root": null,
+      "inventories": {
+        "source": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "f657fc9a-7d2b-464a-bf7e-2cbe2ae349df",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"f657fc9a-7d2b-464a-bf7e-2cbe2ae349df\",version:1},components:{},id:\"minecraft:chest\",x:14,y:201,z:297}",
+          "pos": [
+            14,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 10,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 1396157901,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "carrier": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 9,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 259511893,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        },
+        "destination": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "c493de26-163a-4356-9afd-d304857c01b6",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[],cognitivecraft_storage_v1:{generation:1L,incarnation:\"c493de26-163a-4356-9afd-d304857c01b6\",version:1},components:{},id:\"minecraft:chest\",x:29,y:201,z:297}",
+          "pos": [
+            29,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "recipient": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 1,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 999045973,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        }
+      },
+      "item_entities": [],
+      "jvm_start_ms": 1793283067511,
+      "native_feet": [
+        15.5,
+        201.0,
+        297.5
+      ],
+      "native_navigation_done": true,
+      "operation_label": "D10-HANDOFF-01/native-observation/1",
+      "phase": "READY",
+      "pid": 32,
+      "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+      "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+      "save_proof": null,
+      "step_ns": 0,
+      "tick": 115,
+      "world": "d0200000-0000-4000-8000-000000000001",
+      "world_seed": 0
+    },
+    {
+      "actor": "55c51678-3ba1-3285-8787-e70412ce911a",
+      "case": "D10-HANDOFF-01",
+      "case_seed": 20261064,
+      "detail": null,
+      "effect_id": null,
+      "entities": {
+        "carrier": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 58,
+          "pos": [
+            15.5,
+            201.0,
+            297.5
+          ],
+          "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+          "removed": false
+        },
+        "recipient": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 4,
+          "pos": [
+            17.5,
+            201.0,
+            297.5
+          ],
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "removed": false
+        }
+      },
+      "event": "ADMITTED",
+      "facts": {
+        "batches": 1,
+        "control": {
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "controlled": true,
+          "exclusiveSender": true,
+          "exclusiveRecipient": true,
+          "existingSourceAuthorized": true,
+          "protectionAllowed": true,
+          "custodyRevision": 1,
+          "interactionLimit": 2.5
+        },
+        "delivered": 0,
+        "diagnostic_mock_players": true,
+        "goal": {
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "recipient": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "citizen": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+            "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+            "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+            "generation": 1,
+            "policyRevision": 2,
+            "dimension": "minecraft:overworld"
+          },
+          "source": "EXISTING_CARRIER",
+          "sourceCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "storageSource": null,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "quantity": 4
+        },
+        "in_flight": 4,
+        "recipient_projection": {
+          "scope": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "domain": "d0800000-0000-4000-8000-000000000002",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "actorCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5"
+          },
+          "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+          "id": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "generation": 1,
+          "policyRevision": 2,
+          "label": "Receiver",
+          "dimension": "minecraft:overworld",
+          "inventoryRevision": "a47ceccf0fc92d2fec6e42346b8bdd90b50488f8d58ccc57f3e7880f1976e6f0",
+          "tick": 115,
+          "visible": true,
+          "controlled": false,
+          "loaded": true,
+          "permitted": [
+            "DEPOSIT"
+          ]
+        },
+        "selected_source": {
+          "slots": [
+            {
+              "native_count": 9,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "quantity": 4,
+              "slot": 0,
+              "native_object": 259511893
+            }
+          ],
+          "sender": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "observed_tick": 115,
+          "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3"
+        },
+        "session_phase": "IN_FLIGHT"
+      },
+      "forced_chunks": 24,
+      "group": "handoff",
+      "heap_used_bytes": 435168144,
+      "integration_root": null,
+      "inventories": {
+        "source": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "f657fc9a-7d2b-464a-bf7e-2cbe2ae349df",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"f657fc9a-7d2b-464a-bf7e-2cbe2ae349df\",version:1},components:{},id:\"minecraft:chest\",x:14,y:201,z:297}",
+          "pos": [
+            14,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 10,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 1396157901,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "carrier": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 9,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 259511893,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        },
+        "destination": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "c493de26-163a-4356-9afd-d304857c01b6",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[],cognitivecraft_storage_v1:{generation:1L,incarnation:\"c493de26-163a-4356-9afd-d304857c01b6\",version:1},components:{},id:\"minecraft:chest\",x:29,y:201,z:297}",
+          "pos": [
+            29,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "recipient": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 1,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 999045973,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        }
+      },
+      "item_entities": [],
+      "jvm_start_ms": 1793283067511,
+      "native_feet": [
+        15.5,
+        201.0,
+        297.5
+      ],
+      "native_navigation_done": true,
+      "operation_label": "D10-HANDOFF-01/native-observation/2",
+      "phase": "EXECUTING",
+      "pid": 32,
+      "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+      "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+      "save_proof": null,
+      "step_ns": 19849776,
+      "tick": 115,
+      "world": "d0200000-0000-4000-8000-000000000001",
+      "world_seed": 0
+    },
+    {
+      "actor": "55c51678-3ba1-3285-8787-e70412ce911a",
+      "case": "D10-HANDOFF-01",
+      "case_seed": 20261064,
+      "detail": {
+        "status": "LIVE_DEPOSITED",
+        "reason": "NONE",
+        "quantity": 4,
+        "before": {
+          "source": 0,
+          "carrier": 9,
+          "destination": 1
+        },
+        "after": {
+          "source": 0,
+          "carrier": 5,
+          "destination": 5
+        },
+        "location": "authorized recipient inventory; live observation only"
+      },
+      "effect_id": null,
+      "entities": {
+        "carrier": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 58,
+          "pos": [
+            15.5,
+            201.0,
+            297.5
+          ],
+          "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+          "removed": false
+        },
+        "recipient": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 4,
+          "pos": [
+            17.5,
+            201.0,
+            297.5
+          ],
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "removed": false
+        }
+      },
+      "event": "HANDOFF",
+      "facts": {
+        "batches": 1,
+        "control": {
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "controlled": true,
+          "exclusiveSender": true,
+          "exclusiveRecipient": true,
+          "existingSourceAuthorized": true,
+          "protectionAllowed": true,
+          "custodyRevision": 1,
+          "interactionLimit": 2.5
+        },
+        "delivered": 4,
+        "diagnostic_mock_players": true,
+        "goal": {
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "recipient": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "citizen": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+            "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+            "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+            "generation": 1,
+            "policyRevision": 2,
+            "dimension": "minecraft:overworld"
+          },
+          "source": "EXISTING_CARRIER",
+          "sourceCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "storageSource": null,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "quantity": 4
+        },
+        "in_flight": 0,
+        "recipient_projection": {
+          "scope": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "domain": "d0800000-0000-4000-8000-000000000002",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "actorCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5"
+          },
+          "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+          "id": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "generation": 1,
+          "policyRevision": 2,
+          "label": "Receiver",
+          "dimension": "minecraft:overworld",
+          "inventoryRevision": "ee0da0bb0ddc17347276e2ea20faba8a79eac3ee65e6f2d231d75739e804c830",
+          "tick": 115,
+          "visible": true,
+          "controlled": false,
+          "loaded": true,
+          "permitted": [
+            "DEPOSIT"
+          ]
+        },
+        "selected_source": {
+          "slots": [
+            {
+              "native_count": 9,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "quantity": 4,
+              "slot": 0,
+              "native_object": 259511893
+            }
+          ],
+          "sender": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "observed_tick": 115,
+          "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3"
+        },
+        "session_phase": "DELIVERED_LIVE"
+      },
+      "forced_chunks": 24,
+      "group": "handoff",
+      "heap_used_bytes": 437248976,
+      "integration_root": null,
+      "inventories": {
+        "source": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "f657fc9a-7d2b-464a-bf7e-2cbe2ae349df",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"f657fc9a-7d2b-464a-bf7e-2cbe2ae349df\",version:1},components:{},id:\"minecraft:chest\",x:14,y:201,z:297}",
+          "pos": [
+            14,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 10,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 1396157901,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "carrier": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 5,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 849940127,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        },
+        "destination": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "c493de26-163a-4356-9afd-d304857c01b6",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[],cognitivecraft_storage_v1:{generation:1L,incarnation:\"c493de26-163a-4356-9afd-d304857c01b6\",version:1},components:{},id:\"minecraft:chest\",x:29,y:201,z:297}",
+          "pos": [
+            29,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "recipient": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 5,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 688961183,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        }
+      },
+      "item_entities": [],
+      "jvm_start_ms": 1793283067511,
+      "native_feet": [
+        15.5,
+        201.0,
+        297.5
+      ],
+      "native_navigation_done": true,
+      "operation_label": "D10-HANDOFF-01/native-observation/3",
+      "phase": "EXECUTING",
+      "pid": 32,
+      "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+      "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+      "save_proof": null,
+      "step_ns": 20284216,
+      "tick": 115,
+      "world": "d0200000-0000-4000-8000-000000000001",
+      "world_seed": 0
+    },
+    {
+      "actor": "55c51678-3ba1-3285-8787-e70412ce911a",
+      "case": "D10-HANDOFF-01",
+      "case_seed": 20261064,
+      "detail": {
+        "status": "LIVE_DEPOSITED",
+        "reason": "NONE",
+        "quantity": 4,
+        "before": {
+          "source": 0,
+          "carrier": 9,
+          "destination": 1
+        },
+        "after": {
+          "source": 0,
+          "carrier": 5,
+          "destination": 5
+        },
+        "location": "authorized recipient inventory; live observation only"
+      },
+      "effect_id": null,
+      "entities": {
+        "carrier": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 58,
+          "pos": [
+            15.5,
+            201.0,
+            297.5
+          ],
+          "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+          "removed": false
+        },
+        "recipient": {
+          "loaded": true,
+          "alive": true,
+          "class": "net.minecraft.world.entity.npc.villager.Villager",
+          "entity_ticks": 4,
+          "pos": [
+            17.5,
+            201.0,
+            297.5
+          ],
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "removed": false
+        }
+      },
+      "event": "TERMINAL",
+      "facts": {
+        "batches": 1,
+        "control": {
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "controlled": true,
+          "exclusiveSender": true,
+          "exclusiveRecipient": true,
+          "existingSourceAuthorized": true,
+          "protectionAllowed": true,
+          "custodyRevision": 1,
+          "interactionLimit": 2.5
+        },
+        "delivered": 4,
+        "diagnostic_mock_players": true,
+        "goal": {
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "carrier": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "citizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+            "entity": "55c51678-3ba1-3285-8787-e70412ce911a",
+            "generation": 1,
+            "controlRevision": 1,
+            "dimension": "minecraft:overworld"
+          },
+          "recipient": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "citizen": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+            "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+            "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+            "generation": 1,
+            "policyRevision": 2,
+            "dimension": "minecraft:overworld"
+          },
+          "source": "EXISTING_CARRIER",
+          "sourceCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "storageSource": null,
+          "item": {
+            "registryId": "minecraft:oak_planks",
+            "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+            "maxStack": 64,
+            "defaultComponents": true,
+            "containerItem": false
+          },
+          "quantity": 4
+        },
+        "in_flight": 0,
+        "recipient_projection": {
+          "scope": {
+            "world": "d0200000-0000-4000-8000-000000000001",
+            "domain": "d0800000-0000-4000-8000-000000000002",
+            "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+            "actorCitizen": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5"
+          },
+          "epoch": "dec87e7f-6788-46b4-a903-0929ee6d1824",
+          "id": "f3da9254-b7af-35d9-8f17-3fdc8554cfbd",
+          "entity": "c3c00777-a600-3ccd-8881-54b57ad60eed",
+          "generation": 1,
+          "policyRevision": 2,
+          "label": "Receiver",
+          "dimension": "minecraft:overworld",
+          "inventoryRevision": "ee0da0bb0ddc17347276e2ea20faba8a79eac3ee65e6f2d231d75739e804c830",
+          "tick": 115,
+          "visible": true,
+          "controlled": false,
+          "loaded": true,
+          "permitted": [
+            "DEPOSIT"
+          ]
+        },
+        "selected_source": {
+          "slots": [
+            {
+              "native_count": 9,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "quantity": 4,
+              "slot": 0,
+              "native_object": 259511893
+            }
+          ],
+          "sender": "8e668d93-f8ad-3ffb-98ad-6ec88f3925e5",
+          "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+          "observed_tick": 115,
+          "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3"
+        },
+        "session_phase": "DELIVERED_LIVE"
+      },
+      "forced_chunks": 24,
+      "group": "handoff",
+      "heap_used_bytes": 437797856,
+      "integration_root": null,
+      "inventories": {
+        "source": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "f657fc9a-7d2b-464a-bf7e-2cbe2ae349df",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[{Slot:0b,count:10,id:\"minecraft:oak_planks\"}],cognitivecraft_storage_v1:{generation:1L,incarnation:\"f657fc9a-7d2b-464a-bf7e-2cbe2ae349df\",version:1},components:{},id:\"minecraft:chest\",x:14,y:201,z:297}",
+          "pos": [
+            14,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 10,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 1396157901,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "carrier": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 5,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 849940127,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        },
+        "destination": {
+          "block_state": "Block{minecraft:chest}[facing=north,type=single,waterlogged=false]",
+          "inventory_known": true,
+          "marker": {
+            "incarnation": "c493de26-163a-4356-9afd-d304857c01b6",
+            "generation": 1
+          },
+          "native_class": "net.minecraft.world.level.block.entity.ChestBlockEntity",
+          "native_nbt": "{Items:[],cognitivecraft_storage_v1:{generation:1L,incarnation:\"c493de26-163a-4356-9afd-d304857c01b6\",version:1},components:{},id:\"minecraft:chest\",x:29,y:201,z:297}",
+          "pos": [
+            29,
+            201,
+            297
+          ],
+          "slots": [
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 8
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 9
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 10
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 11
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 12
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 13
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 14
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 15
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 16
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 17
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 18
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 19
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 20
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 21
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 22
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 23
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 24
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 25
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 26
+            }
+          ]
+        },
+        "recipient": {
+          "inventory_known": true,
+          "native_class": "net.minecraft.world.SimpleContainer",
+          "slots": [
+            {
+              "count": 5,
+              "item": {
+                "registryId": "minecraft:oak_planks",
+                "fingerprint": "28d0d0e1232454a4e67021d4ba611fde3aac107ed582a2d7d2da57558566628b",
+                "maxStack": 64,
+                "defaultComponents": true,
+                "containerItem": false
+              },
+              "native_codec": "{\"id\":\"minecraft:oak_planks\",\"count\":1}",
+              "native_default": true,
+              "native_item_id": "minecraft:oak_planks",
+              "native_max_stack": 64,
+              "native_object": 688961183,
+              "slot": 0
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 1
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 2
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 3
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 4
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 5
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 6
+            },
+            {
+              "count": 0,
+              "item": null,
+              "native_codec": null,
+              "native_default": true,
+              "native_item_id": null,
+              "native_max_stack": 1,
+              "native_object": 211943013,
+              "slot": 7
+            }
+          ]
+        }
+      },
+      "item_entities": [],
+      "jvm_start_ms": 1793283067511,
+      "native_feet": [
+        15.5,
+        201.0,
+        297.5
+      ],
+      "native_navigation_done": true,
+      "operation_label": "D10-HANDOFF-01/native-observation/4",
+      "phase": "TERMINAL",
+      "pid": 32,
+      "principal": "e479df56-75b1-4316-b065-e8ee6f36daa3",
+      "request": "84c34503-865a-3d01-8cf5-5d54632c1134",
+      "save_proof": null,
+      "step_ns": 20284216,
+      "tick": 115,
+      "world": "d0200000-0000-4000-8000-000000000001",
+      "world_seed": 0
+    }
+  ],
+  "identity": {
+    "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "tree_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "jar_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "workflow_run": null,
+    "attempt": null
+  }
+}

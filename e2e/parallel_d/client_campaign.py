@@ -80,7 +80,7 @@ class DComponentCampaign(DStorageObservationClient):
             if 'entity'in p:restored['entities'][actual]={**raw['entities'][actual],'pos':p['pos'],'loaded':True,'entity':p['entity']}
         self.menus(spec,'AFTER_RELOAD',restored)
     def position_players(self,spec):
-        x,y,z=spec['origin'];self.tp('PlayerD_A',[x+14.5,y,z+7.5]);self.tp('PlayerD_B',[x+16.5,y,z+4.5])
+        x,y,z=spec['origin'];self.tp('PlayerD_A',[x+14.5,y,z+(1.5 if (spec['group']=='courier' or spec['id']=='D10-MOBILITY-05') else 7.5)]);self.tp('PlayerD_B',[x+16.5,y,z+(1.5 if (spec['group']=='courier' or spec['id']=='D10-MOBILITY-05') else 4.5)])
     def run(self):
         self.deadline=time.monotonic()+read(HERE/'scenarios.json')['limits']['client_seconds'];self.snapshots=[];self.menu_rows=[];screens=[];self.connected();self.console(['gamemode creative PlayerD_A','gamemode creative PlayerD_B'])
         for spec in read(HERE/'scenarios.json')['cases']:
@@ -89,7 +89,7 @@ class DComponentCampaign(DStorageObservationClient):
             if case=='D10-STORAGE-01':
                 x,y,z=spec['origin'];pos=[x+5,y,z+7];self.tp('PlayerD_A',[pos[0]+.5,y,pos[2]-2.5]);self.request('PlayerD_A','look',pos=pos)
             if case=='D10-MOBILITY-04':
-                x,y,z=spec['origin'];target=[x+100000.5,y,z+100007.5];self.tp('PlayerD_A',target);self.console([f'fill {int(target[0])-2} {y-1} {int(target[2])-2} {int(target[0])+2} {y-1} {int(target[2])+2} stone']);self.wait(lambda:self.request('PlayerD_A','snapshot')['pos'][1]>=y-1,'actual distant player chunks',20)
+                x,y,z=spec['origin'];target=[x+100000.5,y,z+100007.5];self.console([f'fill {int(target[0])-2} {y-1} {int(target[2])-2} {int(target[0])+2} {y-1} {int(target[2])+2} stone']);self.tp('PlayerD_A',target);self.wait(lambda:self.request('PlayerD_A','snapshot')['pos'][1]>=y-1,'actual distant player chunks',20)
             if case=='D10-STORAGE-09':
                 self.request('PlayerD_B','command',text='d-component probe');self.wait(lambda:any(e['kind']=='feedback' and e['data']['text']=='D10_REPLY UNAVAILABLE'for e in lines(self.root/'clients/PlayerD_B/events.jsonl')),'fieldless private refusal')
             self.request('PlayerD_B' if case=='D10-STORAGE-09' else 'PlayerD_A','command',text='d-component execute')
@@ -119,8 +119,13 @@ class DComponentCampaign(DStorageObservationClient):
             self.wait(caught,'actual feasible follow band '+case,90);self.sample(case,'FOLLOW_BAND')
             if n in (6,7):
                 self.request('PlayerD_A','move',yaw=0,ticks=30);time.sleep(1.7);self.request('PlayerD_A','stop-move');self.wait(caught,'following actual ordinary moving-player input '+case,60);self.sample(case,'MOVED_FOLLOW_BAND');self.request('PlayerD_A','command',text='d-component stop')
-            elif n in (8,12):self.request('PlayerD_A','command',text='d-component stop')
+            elif n in (8,12):
+                if n==8:
+                    before=self.rows(case)[-1]['tick'];self.request('PlayerD_A','move',yaw=0,ticks=50);self.wait(lambda:any(r['event']=='MOVE'and r['tick']>before and not r['native_navigation_done']for r in self.rows(case)),'active owned native path before STOP',20)
+                self.request('PlayerD_A','command',text='d-component stop')
+                if n==8:self.request('PlayerD_A','stop-move')
             elif n==9:
+                before=self.rows(case)[-1]['tick'];self.request('PlayerD_A','move',yaw=0,ticks=50);self.wait(lambda:any(r['event']=='MOVE'and r['tick']>before and not r['native_navigation_done']for r in self.rows(case)),'active native path before actual disconnect',20)
                 self.request('PlayerD_A','disconnect');self.wait(lambda:(box/'terminal.json').exists(),'actual disconnect bounded pause',30);self.sample(case,'DISCONNECTED',('PlayerD_B',));self.request('PlayerD_A','connect',address='127.0.0.1:25661');self.wait(lambda:self.request('PlayerD_A','snapshot').get('play'),'same authenticated player reconnect')
             elif n==10:
                 self.console(['execute in minecraft:the_nether run tp PlayerD_A 0 80 0']);self.wait(lambda:(box/'terminal.json').exists(),'actual dimension change guard',30);x,y,z=spec['origin'];self.console([f'execute in minecraft:overworld run tp PlayerD_A {x+14.5} {y} {z+7.5}'])

@@ -22,7 +22,7 @@ def metric(planned,rows,evidence):
     require(len(rows)<=planned,'execution denominator inflated')
     return {'planned':planned,'executed':len(rows),'passed':counts['PASS'],'failed':counts['FAIL'],
             'refused_expected':counts['REFUSED_EXPECTED'],'inconclusive':counts['INCONCLUSIVE'],
-            'status':'NOT_EXECUTED' if not planned else 'PASS' if len(rows)==planned and counts['PASS']==planned else 'FAIL' if counts['FAIL'] else 'INCONCLUSIVE','evidence':evidence}
+            'status':'NOT_EXECUTED' if not planned else 'PASS' if len(rows)==planned and counts['PASS']+counts['REFUSED_EXPECTED']==planned else 'FAIL' if counts['FAIL'] else 'INCONCLUSIVE','evidence':evidence}
 
 def unique(rows):
     require(len({r['id'] for r in rows})==len(rows),'duplicate stable case IDs')
@@ -106,18 +106,21 @@ def verify(stage,root,source,tree,jar):
     if spec['client_e2e']:
         from client_oracle import verify as client_verify
         client_rows,client_details=client_verify(root/'clients-d05',current,fixture)
-        if stage in ('D06','D07','D08','D09'):
+        if stage in ('D06','D07','D08','D09','D10'):
             from mobility_oracle import client as come_verify
             added,come_details=come_verify(root/'clients-d06',current,fixture);client_rows+=added;client_details['mobility']=come_details;client_details['evidence']+=come_details['evidence']
-        if stage in ('D07','D08','D09'):
+        if stage in ('D07','D08','D09','D10'):
             from follow_oracle import client as follow_verify
             added,follow_details=follow_verify(root/'clients-d07',current,fixture);client_rows+=added;client_details['follow']=follow_details;client_details['evidence']+=follow_details['evidence']
-        if stage in ('D08','D09'):
+        if stage in ('D08','D09','D10'):
             from delivery_oracle import client as delivery_verify
             added,delivery_details=delivery_verify(root/'clients-d08',current,fixture);client_rows+=added;client_details['delivery']=delivery_details;client_details['evidence']+=delivery_details['evidence']
-        if stage=='D09':
+        if stage in ('D09','D10'):
             from handoff_oracle import client as handoff_verify
             added,handoff_details=handoff_verify(root/'clients-d09',current,fixture);client_rows+=added;client_details['handoff']=handoff_details;client_details['evidence']+=handoff_details['evidence']
+        if stage=='D10':
+            from component_oracle import client as component_verify
+            component=component_verify(root/'clients-d10',current,fixture);client_details['component']=component;client_rows += [{'id':s['case'],'status':s['disposition']}for s in component['cases']];client_details['evidence'] += ['clients-d10/component-clients.json','clients-d10/component-menus.json','clients-d10/server/stdout.log']
         require({r['id']for r in client_rows}==set(spec['client_e2e']),'client case reconciliation')
     identities=native['configured_players'];require(len(identities)==2 and len({p['name'] for p in identities})==2 and len({p['anticipated_offline_uuid'] for p in identities})==2,'duplicate configured principals')
     result={**current,'stage':stage,'owner':'D','base_sha':BASE,'docs_sha':m['docs_sha'],'contract_sha256':CONTRACT,

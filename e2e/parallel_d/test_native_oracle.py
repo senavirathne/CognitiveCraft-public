@@ -50,3 +50,29 @@ class NativeOracleTest(unittest.TestCase):
             p=Path(d)/'chunk.json';write(p,witness);self.assertEqual(saved_entities(p),[])
             witness['native_chunk_sha256']='0'*64;write(p,witness)
             with self.assertRaisesRegex(ValueError,'bytes changed'):saved_entities(p)
+
+class ComponentCorruptionTest(unittest.TestCase):
+    """D10-P01: consistency controls only; no native or client execution credit."""
+    def model(self):return copy.deepcopy(read(HERE/'fixtures/D10-handoff-model.json'))
+    def accepted(self,m):
+        from component_oracle import case,checked_identity
+        meta={'identity':m['identity'],'world':'d1000000-0000-4000-8000-000000000001','case':'D10-CL01','phase':'COLLECTED_RAW','integration_root':None,'save_proof':None}
+        checked_identity(meta,m['identity']);return case(m['spec'],m['rows'],True)
+    def test_d10_swapped_recipient_rejects_qualification(self):
+        m=self.model();self.accepted(m);m['rows'][0]['entities']['recipient']['entity']='00000000-0000-4000-8000-000000000000'
+        with self.assertRaisesRegex(ValueError,'recipient'):self.accepted(m)
+    def test_d10_hidden_residual_rejects_qualification(self):
+        m=self.model();self.accepted(m);tail=m['rows'][-1];hidden=copy.deepcopy(tail['inventories']['carrier']);hidden['slots'][0]['count']=1
+        for s in hidden['slots'][1:]:s.update(count=0,item=None,native_item_id=None,native_codec=None)
+        tail['inventories']['hidden_residual']=hidden
+        with self.assertRaisesRegex(ValueError,'residual|conservation'):self.accepted(m)
+    def test_d10_fabricated_save_flag_rejects_qualification(self):
+        m=self.model();self.accepted(m);m['rows'][-1]['save_proof']={'settled':True}
+        with self.assertRaisesRegex(ValueError,'fabricated'):self.accepted(m)
+    def test_d10_duplicated_effect_label_rejects_qualification(self):
+        m=self.model();self.accepted(m);m['rows'][-1]['operation_label']=m['rows'][0]['operation_label']
+        with self.assertRaisesRegex(ValueError,'duplicated effect label'):self.accepted(m)
+    def test_d10_wrong_jar_rejects_qualification(self):
+        from component_oracle import checked_identity
+        m=self.model();self.accepted(m);meta={'identity':{**m['identity'],'jar_sha256':'f'*64},'world':'d1000000-0000-4000-8000-000000000001','case':'D10-CL01','phase':'COLLECTED_RAW'}
+        with self.assertRaisesRegex(ValueError,'JAR'):checked_identity(meta,m['identity'])
