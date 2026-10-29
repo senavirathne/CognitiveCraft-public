@@ -142,7 +142,7 @@ public final class StorageIncarnationAdapter implements AutoCloseable {
         for (int i=0;i<entities.size();i++) { var p=entities.get(i).getBlockPos();var m=markers.get(i);members.add(new Member(p.getX(),p.getY(),p.getZ(),m.incarnation(),m.generation())); }
         return new Binding(storage,generation,liveEpochs.computeIfAbsent(storage,k->epoch),Math.max(0,level.getGameTime()),status,new Topology(world,dimension(),adapter,facing,members));
     }
-    public static boolean eligible(BlockEntity be) { return be instanceof ChestBlockEntity && be.getBlockState().is(Blocks.CHEST) || be instanceof BarrelBlockEntity && be.getBlockState().is(Blocks.BARREL); }
+    public static boolean eligible(BlockEntity be) { return be!=null && (be.getClass()==ChestBlockEntity.class && be.getBlockState().is(Blocks.CHEST) || be.getClass()==BarrelBlockEntity.class && be.getBlockState().is(Blocks.BARREL)); }
     public static boolean topologyChanged(BlockState a,BlockState b) {
         if (a.getBlock()!=b.getBlock()) return true;
         if (a.is(Blocks.CHEST)) return a.getValue(ChestBlock.TYPE)!=b.getValue(ChestBlock.TYPE) || a.getValue(ChestBlock.FACING)!=b.getValue(ChestBlock.FACING);

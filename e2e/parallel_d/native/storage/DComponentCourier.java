@@ -1,0 +1,44 @@
+package dev.aivillages.e2e.paralleld;
+import java.nio.file.*;
+import java.util.*;
+import com.google.gson.JsonObject;
+import dev.aivillages.core.kernel.storage.*;
+import dev.aivillages.core.kernel.logistics.*;
+import dev.aivillages.fabric.logistics.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.*;
+import net.minecraft.world.*;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.*;
+import net.minecraft.world.level.block.Blocks;
+import static dev.aivillages.core.kernel.logistics.TransferObservation.*;
+final class DComponentCourier extends DComponentCase {
+ Container output;MinecraftTransferAdapter.Selected selected;Villager rival;boolean interfered;
+ DComponentCourier(JsonObject s,DChestCourierScene b,Path e){super(s,b,e);}
+ @Override void prepare(Runnable next){clearWall();output=base.destination();if(number==3){var pos=origin.offset(5,0,7);level.setBlockAndUpdate(pos,Blocks.CHEST.defaultBlockState());register(pos,StorageBindingRules.SINGLE,"bounded-four-batch-destination",List.of(publicGrant(StorageRegistry.Permission.DEPOSIT)),b->{extra.put("unused_original_destination",output);output=(Container)level.getBlockEntity(pos);base.destination=b;setup(next);});}else setup(next);}
+ void setup(Runnable next){base.arena.actor.setPos(base.sourcePos.getX()+1.5,base.sourcePos.getY(),base.sourcePos.getZ()+.5);if(number==5)base.destination=base.source;
+  DChestCourierScene.fill(base.source(),item,number==3?64:number==11?4:10);DChestCourierScene.fill(output,item,number==3?0:2);DChestCourierScene.fill(base.arena.actor.getInventory(),item,3);if(number==6)DChestCourierScene.fill(output,Items.STONE,27*64);
+  if(number!=4)base.session=new DeliveryPolicy.Session(new DeliveryPolicy.Goal(request,base.arena.identity.citizen(),base.endpoint(base.source),base.endpoint(base.destination),base.reader.describeItem(new ItemStack(item)),quantity,number!=10,number==10));base.currentItem=item;base.route=null;base.batch=null;base.last=null;
+  if(number==10){var p=origin.offset(3,0,12);level.setBlockAndUpdate(p,Blocks.CHEST.defaultBlockState());extra.put("external_custody",(Container)level.getBlockEntity(p));}
+  if(number==11){rival=new Villager(EntityTypes.VILLAGER,level);rival.setUUID(DVillagerHandoffScene.id(id+"-rival"));rival.setPos(base.arena.actor.getX()+1,base.arena.actor.getY(),base.arena.actor.getZ()+1);rival.setPersistenceRequired();rival.removeFreeWill();level.addFreshEntity(rival);extra.put("rival",rival.getInventory());entities.put("rival",rival);}
+  sync();next.run();
+ }
+ @Override Map<String,Container> containers(){var out=super.containers();out.put("destination",output);return out;}
+ void sync(){if(base.session!=null){facts.put("goal",base.session.goal());facts.put("session_phase",base.session.phase());facts.put("delivered",base.session.delivered());facts.put("in_flight",base.session.inFlight());facts.put("batches",base.session.batches());}facts.put("source_binding",base.source.wire().body());facts.put("destination_binding",base.destination.wire().body());if(base.route!=null){facts.put("route",base.route.goal());facts.put("path_nodes",base.route.pathNodes());facts.put("path_length",base.route.pathLength());facts.put("checked_chunks",base.route.checkedChunks());}}
+ @Override void execute(ServerPlayer p){phase="EXECUTING";if(number==4){String refusal;try{new DeliveryPolicy.Goal(request,base.arena.identity.citizen(),base.endpoint(base.source),base.endpoint(base.destination),base.reader.describeItem(new ItemStack(item)),65,true,false);throw new IllegalStateException("unbounded goal accepted");}catch(IllegalArgumentException expected){refusal=expected.getMessage();}complete(Map.of("typed_refusal","QUANTITY_OUT_OF_RANGE","reason",refusal));return;}
+  if(number==10){selected=new MinecraftTransferAdapter.Selected(base.source.storage(),base.source.topology().members().getFirst().incarnation(),0,base.source().getItem(0),base.source().getItem(0).getCount(),level.getGameTime(),p.getUUID());phase="AWAIT_SOURCE_INTERFERENCE";operation("SELECTED_SOURCE",Map.of("slot",0,"count",selected.admittedCount(),"tick",selected.observedTick(),"principal",p.getUUID(),"native_object",System.identityHashCode(selected.nativeStack())));return;}
+  if(number==12)level.getServer().saveEverything(false,true,true);withdraw();
+ }
+ void withdraw(){long ns=System.nanoTime();var w=base.transfer.withdraw(base.session,base.source,base.destination,new ItemStack(item),selected==null?null:(storage,probe,tick)->selected);stepNs=System.nanoTime()-ns;base.batch=w.batch();base.last=w.observation();if(base.session.phase()!=DeliveryPolicy.Phase.BLOCKED)base.session.observe(w.observation());sync();operation("WITHDRAW",w.observation());if(w.batch()==null){complete(w.observation());return;}if(number==12){phase="AWAIT_NATIVE_SAVE";operation("LIVE_IN_FLIGHT",w.observation());return;}if(number==11 && !interfered){phase="AWAIT_RIVAL_ATTEMPT";operation("AWAIT_RIVAL",null);return;}base.travel();phase="MOVING_TO_DESTINATION";sync();operation("TRAVEL_ACCEPTED",base.route.observation());}
+ @Override void interfere(ServerPlayer p,String action){if(p.getUUID().equals(base.scope.principal()))throw new SecurityException("actual second player required");facts.put("interference_principal",p.getUUID());if(number==10 && phase.equals("AWAIT_SOURCE_INTERFERENCE")){ItemStack moved=base.source().removeItem(0,4);extra.get("external_custody").setItem(0,moved);base.source().setChanged();operation("EXTERNAL_SOURCE_MOVED",Map.of("classification","MOVED_TO_NATIVE_EXTERNAL_CUSTODY","quantity",4));withdraw();return;}
+  if(number==11 && phase.equals("AWAIT_RIVAL_ATTEMPT")){interfered=true;var actor=new MobilityPolicy.Actor(base.world,p.getUUID(),DVillagerHandoffScene.id(id+"rival-citizen"),rival.getUUID(),1,1,base.arena.identity.dimension());var sc=new StorageAccessPolicy.Scope(base.world,base.scope.domain(),p.getUUID(),actor.citizen());var adapter=new MinecraftTransferAdapter(level,rival,actor,sc,base.reader,(a,order)->new MinecraftTransferAdapter.Control(actor,true,true,1));var session=new DeliveryPolicy.Session(new DeliveryPolicy.Goal(DVillagerHandoffScene.id(id+"rival-request"),actor.citizen(),base.endpoint(base.source),base.endpoint(base.destination),base.reader.describeItem(new ItemStack(item)),4,true,false));var result=adapter.withdraw(session,base.source,base.destination,new ItemStack(item),null);operation("RIVAL_WITHDRAW",result.observation());base.travel();phase="MOVING_TO_DESTINATION";return;}
+  if(!phase.equals("MOVING_TO_DESTINATION") || interfered)throw new IllegalStateException("native travel interference window");interfered=true;
+  if(number==7){DChestCourierScene.fill(output,Items.STONE,27*64);operation("EXTERNAL_DESTINATION_FILLED",Map.of("classification","EXTERNAL_REPLACEMENT","old_items_removed",2,"stone_inserted",27*64));}
+  else if(number==8){var pos=base.destPos;level.setBlockAndUpdate(pos,Blocks.AIR.defaultBlockState());level.setBlockAndUpdate(pos,Blocks.CHEST.defaultBlockState());output=(Container)level.getBlockEntity(pos);operation("EXTERNAL_DESTINATION_REPLACED",Map.of("classification","NATIVE_BREAK_DROPS"));}
+  else if(number==9){phase="REVOKING_DURING_TRAVEL";base.revoke(()->{phase="MOVING_TO_DESTINATION";operation("EXTERNAL_GRANT_REVOKED",Map.of("classification","ACL_REVISION_ONLY"));});}
+  else throw new IllegalStateException("unexpected interference "+id);
+ }
+ @Override void tick(){if(!phase.startsWith("MOVING_"))return;long start=System.nanoTime();var o=base.route.step();stepNs=System.nanoTime()-start;sync();frame("MOVE",o);if(!o.terminal())return;if(phase.equals("MOVING_TO_SOURCE")){withdraw();return;}long ns=System.nanoTime();base.last=base.transfer.deposit(base.batch);stepNs=System.nanoTime()-ns;base.session.observe(base.last);sync();operation("DEPOSIT",base.last);if(base.session.phase()==DeliveryPolicy.Phase.READY){base.home();phase="MOVING_TO_SOURCE";operation("RETURN_ACCEPTED",base.route.observation());}else complete(base.last);}
+ JsonObject participants(){return DComeScene.JSON.toJsonTree(Map.of("participants",Map.of("courier",Map.of("item",spec.get("item").getAsString(),"source",DObservedParticipants.block(base.sourcePos),"carrier",DObservedParticipants.entity(base.arena.actor),"destination",DObservedParticipants.block(base.destPos))))).getAsJsonObject();}
+}

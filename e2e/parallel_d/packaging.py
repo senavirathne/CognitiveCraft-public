@@ -4,13 +4,13 @@ from zipfile import ZipFile
 from common import HERE, REPO, BASE, git, require
 
 ENTRY = 'dev.aivillages.e2e.paralleld.DGameTests'
-ENTRIES = [ENTRY]+['dev.aivillages.e2e.paralleld.'+n for n in ('DStorageIncarnationGameTests','DStorageTopologyGameTests','DStorageTopologyReloadGameTests','DStorageLifecycleCostGameTests','DStorageBaselineGameTests','DStorageAdaptersGameTests','DComeGameTests','DFollowGameTests','DChestCourierGameTests','DChestCourierCrashGameTests','DVillagerHandoffGameTests')]
+ENTRIES = [ENTRY]+['dev.aivillages.e2e.paralleld.'+n for n in ('DStorageIncarnationGameTests','DStorageTopologyGameTests','DStorageTopologyReloadGameTests','DStorageLifecycleCostGameTests','DStorageBaselineGameTests','DStorageAdaptersGameTests','DComeGameTests','DFollowGameTests','DChestCourierGameTests','DChestCourierCrashGameTests','DVillagerHandoffGameTests','DObservedRestartGameTests')]
 TEST_PREFIX = 'dev/aivillages/e2e/paralleld/'
 
 def fixture_descriptor(value):
     require(value['id'] == 'cognitivecraft_parallel_d_tests','wrong fixture mod identity')
     require(value.get('entrypoints') == {'fabric-gametest':ENTRIES},'non-D or automatic fixture entrypoint')
-    require(value.get('mixins') == ['parallel-d.mixins.json'],'wrong fixture mixins')
+    require(value.get('mixins') == ['parallel-d.mixins.json','parallel-d-save-fixture.mixins.json'],'wrong fixture mixins')
 
 def inspect_release(path):
     with ZipFile(path) as archive:
@@ -31,3 +31,7 @@ def inspect_fixture(path):
         require(all(not n.endswith('.class') or n.startswith(TEST_PREFIX) for n in names),'peer or production classes in fixture mod')
         mixin = json.loads(archive.read('parallel-d.mixins.json'))
         require(mixin['package'] == 'dev.aivillages.fabric.storage.mixin' and mixin['mixins'] == ['StorageMarkerMixin'],'unowned mixin registration')
+
+        save_mixin=json.loads(archive.read("parallel-d-save-fixture.mixins.json"))
+        require(save_mixin["package"]=="dev.aivillages.e2e.paralleld.mixin" and save_mixin["mixins"]==["DEntityChunkSaveMixin"],"wrong test-only native save cut")
+        require(archive.read("d10-scenarios.json")== (HERE/"scenarios.json").read_bytes(),"native D10 campaign changed")

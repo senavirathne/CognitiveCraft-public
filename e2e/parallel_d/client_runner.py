@@ -72,9 +72,9 @@ class DStorageObservationClient:
         for player in PLAYERS:self.request(player,'close-menu');self.request(player,'disconnect');self.request(player,'exit')
 
 def run(root,stage="D05"):
-    require(stage in ("D05","D06","D07","D08","D09"),"unimplemented native client campaign")
-    world={"D05":WORLD,"D06":"d0600000-0000-4000-8000-000000000001","D07":"d0700000-0000-4000-8000-000000000001","D08":"d0800000-0000-4000-8000-000000000001","D09":"d0900000-0000-4000-8000-000000000001"}[stage]
-    entry={"D05":"DStorageObservationServer","D06":"DComeServer","D07":"DFollowServer","D08":"DChestCourierServer","D09":"DVillagerHandoffServer"}[stage]
+    require(stage in ("D05","D06","D07","D08","D09","D10"),"unimplemented native client campaign")
+    world={"D05":WORLD,"D06":"d0600000-0000-4000-8000-000000000001","D07":"d0700000-0000-4000-8000-000000000001","D08":"d0800000-0000-4000-8000-000000000001","D09":"d0900000-0000-4000-8000-000000000001","D10":"d1000000-0000-4000-8000-000000000001"}[stage]
+    entry={"D05":"DStorageObservationServer","D06":"DComeServer","D07":"DFollowServer","D08":"DChestCourierServer","D09":"DVillagerHandoffServer","D10":"DComponentCampaignServer"}[stage]
     root=root.resolve();require(not root.exists(),'do not overwrite a client campaign');root.mkdir(parents=True);identity=source_identity();fixture=REPO/'build/parallel-d-native/parallel-d-fixtures.jar';selected=root/'selected-client-fixture.jar';
     with ZipFile(fixture)as source,ZipFile(selected,'w',ZIP_DEFLATED)as target:
         for name in source.namelist():
@@ -88,7 +88,10 @@ def run(root,stage="D05"):
     if stage=='D09':properties=properties.replace('view-distance=4','view-distance=6').replace('simulation-distance=4','simulation-distance=6')
     (root/'server/game/server.properties').write_text(properties)
     env=os.environ.copy();env['CC_D_RUN_ROOT']=str(root);env['CC_D_SERVER_TEST_JAVA']='-Dcognitivecraft.parallelD.fixtureWorld='+world
-    if stage=='D09':
+    if stage=='D10':
+        from client_campaign import DComponentCampaign
+        h=DComponentCampaign(root,env)
+    elif stage=='D09':
         from handoff_client import DVillagerHandoffClient
         h=DVillagerHandoffClient(root,env)
     elif stage=='D08':
