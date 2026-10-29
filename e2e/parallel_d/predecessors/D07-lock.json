@@ -1,0 +1,13 @@
+{
+  "source_sha": "2b5f6a5c5b2eff56e6ade056214570e559780bb6",
+  "tree_sha": "21d6c2118587ab4b54f000c64a99e09440174ef4",
+  "jar_sha256": "3519dad4d0bad04c0dd7a747c585f4a75dd721f4bcf5716cec5c0e826db5e0a0",
+  "workflow_run": 40808548505,
+  "artifact_id": 12870035585,
+  "artifact_sha256": "53bbde7a648fdd3f4a01c2e2f2fa05c3589c57da44f2c793093d5fd6c1da61ad",
+  "stage": "D07",
+  "attempt": 1,
+  "docs_sha": "8b43363e9905dc9bc042eab77ad90608cc919689",
+  "docs_tree_sha": "455f27c5d8bf317cb68f86dca8dd05fc7006a60a",
+  "qualified_sha256": "6cc52bfcb25f24aa214d011e6d1d6addcb83079bc43c6ef8a3bfbe8f4aae370e"
+}

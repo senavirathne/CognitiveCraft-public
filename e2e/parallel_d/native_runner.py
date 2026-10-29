@@ -20,9 +20,9 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
               'stage':stage,'connected_clients':0,'phases':[]}
     write(root/'identity.json',metadata)
     subprocess.run(['javap','-classpath',str(sdk/'minecraft-server.jar'),'-p','-c',*['net.minecraft.world.level.block.entity.'+n for n in ('BlockEntity','BaseContainerBlockEntity','ChestBlockEntity','BarrelBlockEntity')]],stdout=(root/'api-bytecode.txt').open('w'),check=True)
-    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage in ('D05','D06','D07')else[])+([('come','DComeGameTests','D06-GT01')]if stage in ('D06','D07')else[])+([('follow','DFollowGameTests','D07-GT01')]if stage=='D07'else[]):
+    for phase,entry,case in SCHEDULE+([('adapters','DStorageAdaptersGameTests','D05-GT01')]if stage in ('D05','D06','D07','D08')else[])+([('come','DComeGameTests','D06-GT01')]if stage in ('D06','D07','D08')else[])+([('follow','DFollowGameTests','D07-GT01')]if stage in ('D07','D08')else[])+([('courier','DChestCourierGameTests','D08-GT01'),('courier-crash-write','DChestCourierCrashGameTests','D08-GT01'),('courier-crash-read','DChestCourierCrashGameTests','D08-GT01')]if stage=='D08'else[]):
         phase_release=baseline if phase=='baseline' else release
-        target=root/phase;target.mkdir();game=root/'worlds'/('reload' if phase.startswith('reload') else phase);mods=game/'mods';mods.mkdir(parents=True,exist_ok=True)
+        target=root/phase;target.mkdir();game=root/'worlds'/('courier-crash'if phase.startswith('courier-crash')else'reload' if phase.startswith('reload') else phase);mods=game/'mods';mods.mkdir(parents=True,exist_ok=True)
         report=target/'native-results.xml';evidence=target/'evidence';evidence.mkdir()
         with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         properties='online-mode=false\nserver-ip=127.0.0.1\nserver-port='+str(port)+'\nlevel-name=d-isolated\nlevel-seed=20261027\n'
@@ -39,7 +39,7 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
         shutil.copy2(selected,target/'selected-fixture.jar')
         for p in (sdk/'fabric-api.jar',sdk/'gametest.jar',phase_release):shutil.copy2(p,mods/p.name)
         java=os.environ.get('JAVA_HOME','');java=str(Path(java)/'bin/java') if java else 'java'
-        command=[java,'-Xms256M','-Xmx1100M','-Dfabric-api.gametest','-Dfabric-api.gametest.report-file='+str(report.resolve()),
+        command=[java,*(['-Xlog:class+init=info:file='+str((target/'class-init.log').resolve())]if phase.startswith('courier-crash')else[]),'-Xms256M','-Xmx1100M','-Dfabric-api.gametest','-Dfabric-api.gametest.report-file='+str(report.resolve()),
                  '-Dcognitivecraft.parallelD.fixtureWorld='+WORLD,'-Dcognitivecraft.parallelD.phase='+phase,
                  '-Dcognitivecraft.parallelD.shared='+str((root/'metadata').resolve()),'-Dcognitivecraft.parallelD.evidence='+str(evidence.resolve()),
                  '-cp',os.pathsep.join(map(str,runtime)),'net.fabricmc.loader.impl.launch.knot.KnotServer','nogui']
@@ -48,7 +48,17 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
         metadata['phases'].append(row);write(root/'identity.json',metadata)
         start=time.monotonic()
         with (target/'stdout.log').open('wb') as log:
-            try:result=subprocess.run(command,cwd=game,stdout=log,stderr=subprocess.STDOUT,timeout=500);row['exit']=result.returncode
+            try:
+                if phase=='courier-crash-write':
+                    process=subprocess.Popen(command,cwd=game,stdout=log,stderr=subprocess.STDOUT);end=time.monotonic()+500;armed=evidence/'kill-ready.json'
+                    while process.poll()is None and time.monotonic()<end:
+                        if armed.exists() and 'LIVE_IN_FLIGHT'in (target/'stdout.log').read_text(errors='replace'):
+                            row['termination']={'kind':'SIGKILL','sentinel_sha256':sha(armed),'boundary':'AFTER_NATIVE_LIVE_WITHDRAW_BEFORE_SAVE'};process.kill();break
+                        time.sleep(.025)
+                    if process.poll()is None and time.monotonic()>=end:process.kill();row['termination']={'kind':'TIMEOUT'}
+                    row['exit']=process.wait(timeout=10)
+                else:
+                    result=subprocess.run(command,cwd=game,stdout=log,stderr=subprocess.STDOUT,timeout=500);row['exit']=result.returncode
             except subprocess.TimeoutExpired:row['exit']='TIMEOUT'
             log.flush();os.fsync(log.fileno())
         if phase=='come':
@@ -70,10 +80,13 @@ def run(root,release,fixture,identity,baseline,stage="D02"):
                         'native_chunk_base64':base64.b64encode(chunk[:length+4]).decode(),
                         'native_chunk_sha256':__import__('hashlib').sha256(chunk[:length+4]).hexdigest()})
             saved.append({'path':str(dest.relative_to(root)),'sha256':sha(dest),'bytes':dest.stat().st_size})
+        if phase.startswith('courier-crash'):
+            for kind,x,z,label in [('region',8,8,'source'),('region',9,8,'destination'),('entities',8,8,'carrier')]:
+                regions=list(game.glob('**/dimensions/minecraft/overworld/'+kind+'/r.0.0.mca'));require(len(regions)==1,'courier saved participant region missing '+label);region=regions[0];data=region.read_bytes();entry=data[((x%32)+(z%32)*32)*4:((x%32)+(z%32)*32)*4+4];sector=int.from_bytes(entry[:3],'big');count=entry[3];require(sector>=2 and count>0,'courier participant chunk not allocated '+label);chunk=data[sector*4096:(sector+count)*4096];length=int.from_bytes(chunk[:4],'big');require(1<length<=len(chunk)-4 and chunk[4]==2,'courier saved compression');dest=target/('saved-'+label+'.json');write(dest,{'chunk_x':x,'chunk_z':z,'native_region_path':str(region.relative_to(game)),'region_sha256':sha(region),'native_chunk_base64':base64.b64encode(chunk[:length+4]).decode(),'native_chunk_sha256':__import__('hashlib').sha256(chunk[:length+4]).hexdigest()});saved.append({'path':str(dest.relative_to(root)),'sha256':sha(dest),'bytes':dest.stat().st_size})
         row['saved_world_files']=saved;write(root/'identity.json',metadata)
         require(sha(release)==metadata['release_sha256'],'native phase changed release')
         print('NATIVE_PROCESS',phase,'exit',row['exit'],flush=True)
-        if row['exit']!=0:break
+        if row['exit']!=0 and not (phase=='courier-crash-write'and row['exit']==-9 and row.get('termination',{}).get('kind')=='SIGKILL'):break
     # Mutable world includes caches/session locks, not needed for independent observations; saved region bytes above are retained.
     for cleanup_attempt in range(3):
         try:shutil.rmtree(root/'worlds');break

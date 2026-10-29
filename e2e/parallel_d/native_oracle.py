@@ -55,7 +55,7 @@ def coherent(frame):
 def xml(path,phase):
     rows=list(ET.parse(path).getroot().iter('testcase'));names=[r.get('name')for r in rows]
     require(len(names)==len(set(names)),'duplicate native XML case IDs')
-    require(set(names)=={'minecraft:always_pass',PREFIX+({'follow':'dfollow_game_tests_finite_follow_obstacle_pause_ownership_and_dimension','come':'dcome_game_tests_captured_location_around_obstacle_without_teleport_or_chunk_loads','adapters':'dstorage_adapters_game_tests_native_single_double_barrel_capacity_and_fail_closed_eligibility',**METHODS}[phase])},'missing/unregistered actual native XML test')
+    require(set(names)=={'minecraft:always_pass',PREFIX+({'courier':'dchest_courier_game_tests_exact_guarded_courier_preserves_stock_and_refuses_interference','courier-crash-read':'dchest_courier_crash_game_tests_killed_carrier_has_no_automatic_recovery_or_save_receipt','follow':'dfollow_game_tests_finite_follow_obstacle_pause_ownership_and_dimension','come':'dcome_game_tests_captured_location_around_obstacle_without_teleport_or_chunk_loads','adapters':'dstorage_adapters_game_tests_native_single_double_barrel_capacity_and_fail_closed_eligibility',**METHODS}[phase])},'missing/unregistered actual native XML test')
     require(all(not any(c.find(tag) is not None for tag in ('failure','error','skipped'))for c in rows),'native XML failed/skipped')
 
 def performance(baseline,candidate):
@@ -94,17 +94,18 @@ def verify(root,identity,fixture,stage="D02"):
     native=read(root/'identity.json');require(native['identity']==identity,'native source/JAR/run identity changed')
     require(native['release_sha256']==identity['jar_sha256'] and native['fixture_sha256']==sha(fixture),'native release/fixture changed')
     require(native['world']==WORLD and native['seed']==20261027 and native['connected_clients']==0,'native context/false client claim')
-    phases=native['phases'];require([r['phase']for r in phases]==list(METHODS)+(['adapters']if stage in ('D05','D06','D07')else[])+(['come']if stage in ('D06','D07')else[])+(['follow']if stage=='D07'else[]),'missing/duplicate native JVM schedule')
+    phases=native['phases'];require([r['phase']for r in phases]==list(METHODS)+(['adapters']if stage in ('D05','D06','D07','D08')else[])+(['come']if stage in ('D06','D07','D08')else[])+(['follow']if stage in ('D07','D08')else[])+(['courier','courier-crash-write','courier-crash-read']if stage=='D08'else[]),'missing/duplicate native JVM schedule')
     for dep in native['runtime']:require(sha(REPO/dep['path'])==dep['sha256'],'native dependency changed')
     frames={}
     for row in phases:
-        phase=row['phase'];require(row['exit']==0,'actual native JVM failed')
-        expected_entry={'baseline':'DStorageBaselineGameTests','incarnation':'DStorageIncarnationGameTests','topology':'DStorageTopologyGameTests','reload-write':'DStorageTopologyReloadGameTests','reload-read':'DStorageTopologyReloadGameTests','performance':'DStorageLifecycleCostGameTests','adapters':'DStorageAdaptersGameTests','come':'DComeGameTests','follow':'DFollowGameTests'}[phase]
+        phase=row['phase'];require(row['exit']==(-9 if phase=='courier-crash-write'else 0),'actual native JVM failed')
+        expected_entry={'baseline':'DStorageBaselineGameTests','incarnation':'DStorageIncarnationGameTests','topology':'DStorageTopologyGameTests','reload-write':'DStorageTopologyReloadGameTests','reload-read':'DStorageTopologyReloadGameTests','performance':'DStorageLifecycleCostGameTests','adapters':'DStorageAdaptersGameTests','come':'DComeGameTests','follow':'DFollowGameTests','courier':'DChestCourierGameTests','courier-crash-write':'DChestCourierCrashGameTests','courier-crash-read':'DChestCourierCrashGameTests'}[phase]
         require(row['entrypoint']=='dev.aivillages.e2e.paralleld.'+expected_entry,'swapped native entrypoint')
-        require(row['world_path']=='worlds/'+('reload' if phase.startswith('reload') else phase),'unowned/reset native world')
+        require(row['world_path']=='worlds/'+('courier-crash'if phase.startswith('courier-crash')else'reload' if phase.startswith('reload') else phase),'unowned/reset native world')
         expected_jar=read(HERE/'predecessors/D01-lock.json')['jar_sha256'] if phase=='baseline' else identity['jar_sha256']
         require(row['release_sha256']==expected_jar,'native baseline/candidate JAR swapped')
-        xml(root/phase/'native-results.xml',phase)
+        if phase!='courier-crash-write':xml(root/phase/'native-results.xml',phase)
+        else:require(row.get('termination',{}).get('kind')=='SIGKILL'and row['termination']['sentinel_sha256']==sha(root/phase/'evidence/kill-ready.json'),'courier real process-kill boundary absent')
         selected=root/phase/'selected-fixture.jar';require(sha(selected)==row['selected_fixture_sha256'],'selected fixture changed')
         with ZipFile(fixture) as original,ZipFile(selected) as observed:
             require(original.namelist()==observed.namelist(),'selected fixture member set changed')
@@ -113,7 +114,7 @@ def verify(root,identity,fixture,stage="D02"):
             desc=json.loads(original.read('fabric.mod.json'));desc['entrypoints']['fabric-gametest']=[row['entrypoint']]
             if phase=='baseline':desc['mixins']=[]
             require(json.loads(observed.read('fabric.mod.json'))==desc,'unrequested selected fixture registration')
-        if phase not in ('baseline','adapters','come','follow'):
+        if phase not in ('baseline','adapters','come','follow','courier','courier-crash-write','courier-crash-read'):
             rows=[json.loads(line,object_pairs_hook=no_duplicates)for line in (root/phase/'evidence/observations.jsonl').read_text().splitlines()]
             require([r['event']for r in rows]==EVENTS[phase],'missing/duplicate native observation events')
             require(all(r['case']==row['case'] for r in rows),'swapped native stable case ID')
@@ -125,21 +126,25 @@ def verify(root,identity,fixture,stage="D02"):
             n=frame['native'][0];saved=lookup[(n['x'],n['y'],n['z'])]['cognitivecraft_storage_v1']
             require(saved['version']==1 and saved['incarnation']==n['incarnation'] and saved['generation']==n['marker_generation'],'actual saved NBT differs from observed/reloaded marker')
     adapter_details={}
-    if stage in ('D05','D06','D07'):
+    if stage in ('D05','D06','D07','D08'):
         from adapters_oracle import verify as adapters_verify
         adapter_details=adapters_verify(root/'adapters')
     mobility_details={}
-    if stage in ('D06','D07'):
+    if stage in ('D06','D07','D08'):
         from mobility_oracle import native as mobility_verify
         mobility_details=mobility_verify(root/'come')
     follow_details={}
-    if stage=='D07':
+    if stage in ('D07','D08'):
         from follow_oracle import native as follow_verify
         follow_details=follow_verify(root/'follow')
-    evidence=[str((root/p/'native-results.xml').relative_to(root.parent))for p in list(METHODS)+(['adapters']if stage in ('D05','D06','D07')else[])+(['come']if stage in ('D06','D07')else[])+(['follow']if stage=='D07'else[])]
-    evidence+=follow_details.get('evidence',[])
-    if stage in ('D06','D07'):evidence += ['native/come/'+p for p in ('stdout.log','evidence/arena.json','evidence/movement.jsonl','evidence/storage-movement.jsonl','evidence/controls.json','evidence/storage-controls.json')]
-    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06','D07')else[])+(['D06-GT01']if stage in ('D06','D07')else[])+(['D07-GT01']if stage=='D07'else[])],{
-        'follow_details':follow_details,'native_jvms':len(phases),'owned_cases':4+(stage in ('D05','D06','D07'))+(stage in ('D06','D07'))+(stage=='D07'),'xml_observations':5+(stage in ('D05','D06','D07'))+(stage in ('D06','D07'))+(stage=='D07'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
+    delivery_details={}
+    if stage=='D08':
+        from delivery_oracle import native as delivery_verify
+        delivery_details=delivery_verify(root)
+    evidence=[str((root/p/'native-results.xml').relative_to(root.parent))for p in list(METHODS)+(['adapters']if stage in ('D05','D06','D07','D08')else[])+(['come']if stage in ('D06','D07','D08')else[])+(['follow']if stage in ('D07','D08')else[])+(['courier','courier-crash-read']if stage=='D08'else[])]
+    evidence+=follow_details.get('evidence',[])+delivery_details.get('evidence',[])
+    if stage in ('D06','D07','D08'):evidence += ['native/come/'+p for p in ('stdout.log','evidence/arena.json','evidence/movement.jsonl','evidence/storage-movement.jsonl','evidence/controls.json','evidence/storage-controls.json')]
+    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06','D07','D08')else[])+(['D06-GT01']if stage in ('D06','D07','D08')else[])+(['D07-GT01']if stage in ('D07','D08')else[])+(['D08-GT01']if stage=='D08'else[])],{
+        'delivery_details':delivery_details,'follow_details':follow_details,'native_jvms':len(phases),'owned_cases':4+(stage in ('D05','D06','D07','D08'))+(stage in ('D06','D07','D08'))+(stage in ('D07','D08'))+(stage=='D08'),'xml_observations':5+(stage in ('D05','D06','D07','D08'))+(stage in ('D06','D07','D08'))+(stage in ('D07','D08'))+2*(stage=='D08'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
         'mobility_details':mobility_details,'adapter_details':adapter_details,'frames':sum(len(v)for v in frames.values())+adapter_details.get('events',0)+sum(d.get('frames',0)for d in mobility_details.values()if isinstance(d,dict)),'evidence':evidence,
         'performance':performance(read(root/'baseline/evidence/performance.json'),read(root/'performance/evidence/performance.json'))}

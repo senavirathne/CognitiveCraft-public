@@ -20,12 +20,15 @@ final class DComeScene {
     final ServerLevel level;final ServerPlayer principal;final Villager actor;final MinecraftNavigationAdapter adapter;final Actor identity;final BlockPos origin;final Path evidence;final String caseId;
     final Map<String,List<String>> rawFrames=new LinkedHashMap<>();boolean authorized=true;MinecraftNavigationAdapter.Route route;long deadline;final int forcedBefore;
     DComeScene(ServerLevel level,BlockPos origin,ServerPlayer principal,Path evidence,String caseId){
+        this(level,origin,principal,evidence,caseId,UUID.fromString("d0600000-0000-4000-8000-000000000003"),UUID.fromString("d0600000-0000-4000-8000-000000000004"));
+    }
+    DComeScene(ServerLevel level,BlockPos origin,ServerPlayer principal,Path evidence,String caseId,UUID actorId,UUID citizenId){
         this.level=level;this.principal=principal;this.origin=origin;this.evidence=evidence;this.caseId=caseId;UUID world=DTestAuthority.acquireTaggedWorld().world();
         // Construction happens before admission. No forceload/ticket or actor-position command is used.
         for(int x=0;x<20;x++)for(int z=0;z<25;z++){level.setBlockAndUpdate(origin.offset(x,-1,z),Blocks.STONE.defaultBlockState());for(int y=0;y<4;y++)level.setBlockAndUpdate(origin.offset(x,y,z),Blocks.AIR.defaultBlockState());}
         for(int z=4;z<=10;z++)for(int y=0;y<3;y++)level.setBlockAndUpdate(origin.offset(8,y,z),Blocks.STONE.defaultBlockState());
-        actor=new Villager(EntityTypes.VILLAGER,level);actor.setUUID(UUID.fromString("d0600000-0000-4000-8000-000000000003"));actor.setPos(origin.getX()+3.5,origin.getY(),origin.getZ()+7.5);actor.setPersistenceRequired();actor.removeFreeWill();level.addFreshEntity(actor);
-        identity=new Actor(world,principal.getUUID(),UUID.fromString("d0600000-0000-4000-8000-000000000004"),actor.getUUID(),1,1,level.dimension().identifier().toString());
+        actor=new Villager(EntityTypes.VILLAGER,level);actor.setUUID(actorId);actor.setPos(origin.getX()+3.5,origin.getY(),origin.getZ()+7.5);actor.setPersistenceRequired();actor.removeFreeWill();level.addFreshEntity(actor);
+        identity=new Actor(world,principal.getUUID(),citizenId,actor.getUUID(),1,1,level.dimension().identifier().toString());
         var walls=new ArrayList<Map<String,Object>>();var floor=new ArrayList<Map<String,Object>>();for(int x=0;x<20;x++)for(int z=0;z<25;z++){var p=origin.offset(x,-1,z);floor.add(Map.of("relative",List.of(x,-1,z),"state",level.getBlockState(p).toString()));}for(int z=4;z<=10;z++)for(int y=0;y<3;y++){var p=origin.offset(8,y,z);walls.add(Map.of("relative",List.of(8,y,z),"state",level.getBlockState(p).toString()));}write(evidence.resolve("arena.json"),Map.of("origin",List.of(origin.getX(),origin.getY(),origin.getZ()),"floor",floor,"wall",walls,"native_class",actor.getClass().getName()));
         deadline=level.getGameTime()+600;adapter=new MinecraftNavigationAdapter(level,actor,(key,tick)->new MinecraftNavigationAdapter.Control(identity,authorized,Limits.maximum(),deadline));forcedBefore=level.getChunkSource().getForceLoadedChunks().size();
     }

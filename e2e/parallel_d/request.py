@@ -5,8 +5,8 @@ from common import *
 if __name__=='__main__':
     final=HERE/'qualification-request.json';path=final if final.exists() else HERE/'blocking-request.json'
     r=read(path);require(r['contract_sha256']==CONTRACT,'request contract changed');registry(r['stage'])
-    require(r['stage'] in ('D00','D01','D02','D03','D04','D05','D06','D07') and path.name=='blocking-request.json','unimplemented qualification stage')
-    require(r['campaign']=={'D00':'D00-BOOTSTRAP','D01':'D01-METADATA','D02':'D02-INCARNATION','D03':'D03-ACL','D04':'D04-RESOLUTION','D05':'D05-ADAPTERS','D06':'D06-MOBILITY','D07':'D07-FOLLOW'}[r['stage']] and r.get('reason') and len(r['nonce'])>=12,'invalid blocking request')
+    require(r['stage'] in ('D00','D01','D02','D03','D04','D05','D06','D07','D08') and path.name=='blocking-request.json','unimplemented qualification stage')
+    require(r['campaign']=={'D00':'D00-BOOTSTRAP','D01':'D01-METADATA','D02':'D02-INCARNATION','D03':'D03-ACL','D04':'D04-RESOLUTION','D05':'D05-ADAPTERS','D06':'D06-MOBILITY','D07':'D07-FOLLOW','D08':'D08-COURIER'}[r['stage']] and r.get('reason') and len(r['nonce'])>=12,'invalid blocking request')
     require('source_sha' not in r,'self-referential request source')
     if os.getenv('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('stage='+r['stage']+'\n')

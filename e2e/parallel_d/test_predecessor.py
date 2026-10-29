@@ -58,3 +58,12 @@ class PredecessorTest(unittest.TestCase):
             with self.assertRaises(ValueError):measured_d04(bad)
         bad=copy.deepcopy(good);bad['unit']['executed']=158
         with self.assertRaises(ValueError):measured_d04(bad)
+
+    def test_d07_exact_native_follow_handoff_required(self):
+        from prerequisites import measured_d07
+        good=read(HERE/'predecessors/D07-qualified.json');measured_d07(good)
+        for field,value in [('source_sha','0'*40),('gate_status','INCONCLUSIVE'),('attempt',2)]:
+            bad=copy.deepcopy(good);bad[field]=value
+            with self.assertRaises(ValueError):measured_d07(bad)
+        bad=copy.deepcopy(good);bad['client_e2e']['passed']-=1
+        with self.assertRaises(ValueError):measured_d07(bad)

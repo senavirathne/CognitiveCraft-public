@@ -58,7 +58,7 @@ jobs:
           python3 e2e/runtime.py prepare 2>&1 | tee "$D_ROOT/sdk-prepare.log"
           python3 e2e/runtime.py compile 2>&1 | tee "$D_ROOT/driver-compile.log"
       - name: Restore exact qualified D01 JAR for the unchanged native performance baseline
-        if: steps.request.outputs.stage == 'D02' || steps.request.outputs.stage == 'D03' || steps.request.outputs.stage == 'D04' || steps.request.outputs.stage == 'D05' || steps.request.outputs.stage == 'D06' || steps.request.outputs.stage == 'D07'
+        if: steps.request.outputs.stage == 'D02' || steps.request.outputs.stage == 'D03' || steps.request.outputs.stage == 'D04' || steps.request.outputs.stage == 'D05' || steps.request.outputs.stage == 'D06' || steps.request.outputs.stage == 'D07' || steps.request.outputs.stage == 'D08'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -99,27 +99,34 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: D05 real two-client storage synchronization and privacy observations
         id: clients
-        if: steps.request.outputs.stage == 'D05' || steps.request.outputs.stage == 'D06' || steps.request.outputs.stage == 'D07'
+        if: steps.request.outputs.stage == 'D05' || steps.request.outputs.stage == 'D06' || steps.request.outputs.stage == 'D07' || steps.request.outputs.stage == 'D08'
         shell: bash
         run: |
           set -euo pipefail
           python3 e2e/parallel_d/client_runner.py --root "$D_ROOT/clients-d05"
       - name: D06 captured-location movement with two real native clients
         id: mobility
-        if: steps.request.outputs.stage == 'D06' || steps.request.outputs.stage == 'D07'
+        if: steps.request.outputs.stage == 'D06' || steps.request.outputs.stage == 'D07' || steps.request.outputs.stage == 'D08'
         shell: bash
         run: |
           set -euo pipefail
           python3 e2e/parallel_d/client_runner.py --stage D06 --root "$D_ROOT/clients-d06"
       - name: D07 finite follow with two real native clients
         id: follow
-        if: steps.request.outputs.stage == 'D07'
+        if: steps.request.outputs.stage == 'D07' || steps.request.outputs.stage == 'D08'
         shell: bash
         run: |
           set -euo pipefail
           python3 e2e/parallel_d/client_runner.py --stage D07 --root "$D_ROOT/clients-d07"
+      - name: D08 guarded courier and preserved in-flight custody with two real clients
+        id: courier
+        if: steps.request.outputs.stage == 'D08'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 e2e/parallel_d/client_runner.py --stage D08 --root "$D_ROOT/clients-d08"
       - name: Docker packaging, isolation, contract and tamper controls with raw XML collection
-        if: success() || steps.clients.outcome == 'failure' || steps.mobility.outcome == 'failure' || steps.follow.outcome == 'failure'
+        if: success() || steps.clients.outcome == 'failure' || steps.mobility.outcome == 'failure' || steps.follow.outcome == 'failure' || steps.courier.outcome == 'failure'
         shell: bash
         run: |
           set -euo pipefail

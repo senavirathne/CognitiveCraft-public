@@ -2,7 +2,7 @@
 import base64,hashlib,struct,zlib
 from common import require,read
 
-def saved_entities(path):
+def decode(path):
     witness=read(path);raw=base64.b64decode(witness['native_chunk_base64'],validate=True)
     require(hashlib.sha256(raw).hexdigest()==witness['native_chunk_sha256'],'native chunk bytes changed')
     require(len(raw)>5 and int.from_bytes(raw[:4],'big')==len(raw)-4 and raw[4]==2,'native chunk framing')
@@ -31,5 +31,7 @@ def saved_entities(path):
             n=number('i');require(0<=n<=1048576,'native array bound');return take(n*{7:1,11:4,12:8}[kind])
         raise ValueError('unsupported native NBT tag')
     require(number('B')==10,'native root compound');string();root=value(10)
-    require(cursor==len(data) and root['xPos']==8 and root['zPos']==8,'native chunk coordinate/trailing mismatch')
-    entities=root['block_entities'];require(isinstance(entities,list),'native block entities missing');return entities
+    require(cursor==len(data),'native chunk trailing mismatch');return root
+
+def saved_entities(path):
+    root=decode(path);require(root['xPos']==8 and root['zPos']==8,'native chunk coordinate mismatch');entities=root['block_entities'];require(isinstance(entities,list),'native block entities missing');return entities

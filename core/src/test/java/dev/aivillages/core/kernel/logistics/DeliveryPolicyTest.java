@@ -1,0 +1,35 @@
+package dev.aivillages.core.kernel.logistics;
+import java.util.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import static dev.aivillages.core.kernel.logistics.DeliveryPolicy.*;
+import static dev.aivillages.core.kernel.logistics.TransferObservation.*;
+import dev.aivillages.core.kernel.storage.StorageCapabilities.Item;
+class DeliveryPolicyTest {
+ final UUID world=UUID.randomUUID(),carrier=UUID.randomUUID();final Endpoint src=new Endpoint(world,UUID.randomUUID(),"minecraft:overworld",Set.of(UUID.randomUUID())),dst=new Endpoint(world,UUID.randomUUID(),"minecraft:overworld",Set.of(UUID.randomUUID()));
+ Item item(int max){return new Item("minecraft:oak_planks","a".repeat(64),max,true,false);}
+ Goal goal(int q){return new Goal(UUID.randomUUID(),carrier,src,dst,item(64),q,true,false);}
+ TransferObservation take(int source,int carrier,int dest,int q){return new TransferObservation(Status.LIVE_WITHDRAWN,Reason.NONE,q,new Counts(source,carrier,dest),new Counts(source-q,carrier+q,dest),"carrier");}
+ TransferObservation put(int source,int carrier,int dest,int q){return new TransferObservation(Status.LIVE_DEPOSITED,Reason.NONE,q,new Counts(source,carrier,dest),new Counts(source,carrier-q,dest+q),"destination");}
+ @Test void quantitiesOneFourAndSixtyFourAreExact(){for(int q:new int[]{1,4,64}){var g=goal(q);assertEquals(Reason.NONE,admit(g));assertEquals(q,batch(g,q,64,64));var s=new Session(g);s.observe(take(64,3,2,q));s.observe(put(64-q,3+q,2,q));assertEquals(Phase.DELIVERED_LIVE,s.phase());assertEquals(q,s.delivered());assertEquals(0,s.inFlight());}}
+ @Test void quantityZeroNegativeAndSixtyFiveRefuseBeforeAdmission(){for(int q:new int[]{0,-1,65,Integer.MAX_VALUE})assertThrows(IllegalArgumentException.class,()->goal(q));}
+ @Test void sameStorageEndpointRefusesAllTransfer(){var g=new Goal(UUID.randomUUID(),carrier,src,src,item(64),4,true,false);assertEquals(Reason.SAME_ENDPOINT,admit(g));assertEquals(Phase.BLOCKED,new Session(g).phase());}
+ @Test void overlappingPhysicalMembersRefuseDespiteDifferentLabelsOrIds(){var alias=new Endpoint(world,UUID.randomUUID(),src.dimension(),src.participants());assertEquals(Reason.SAME_ENDPOINT,admit(new Goal(UUID.randomUUID(),carrier,src,alias,item(64),4,true,false)));}
+ @Test void foreignWorldAndDimensionRefuse(){for(var other:List.of(new Endpoint(UUID.randomUUID(),dst.storage(),dst.dimension(),dst.participants()),new Endpoint(world,dst.storage(),"minecraft:the_nether",dst.participants())))assertEquals(Reason.STALE_ENDPOINT,admit(new Goal(UUID.randomUUID(),carrier,src,other,item(64),4,true,false)));}
+ @Test void nonDefaultAndContainerComponentsRefuse(){for(var i:List.of(new Item("minecraft:oak_planks","a".repeat(64),64,false,false),new Item("minecraft:chest","a".repeat(64),64,true,true)))assertEquals(Reason.UNSUPPORTED_ITEM,admit(new Goal(UUID.randomUUID(),carrier,src,dst,i,4,true,false)));}
+ @Test void theseItemsRequireDeliberateSourceSlotWitness(){assertEquals(Reason.SELECTION_REQUIRED,admit(new Goal(UUID.randomUUID(),carrier,src,dst,item(64),4,false,false)));assertEquals(Reason.NONE,admit(new Goal(UUID.randomUUID(),carrier,src,dst,item(64),4,false,true)));}
+ @Test void lowStackItemsUseBoundedBatches(){var g=new Goal(UUID.randomUUID(),carrier,src,dst,item(16),64,true,false);var s=new Session(g);int source=64,destination=2;for(int n=0;n<4;n++){assertEquals(16,batch(g,s.remaining(),64,100));s.observe(take(source,3,destination,16));source-=16;s.observe(put(source,19,destination,16));destination+=16;}assertEquals(4,s.batches());assertEquals(Phase.DELIVERED_LIVE,s.phase());assertEquals(66,destination);}
+ @Test void ninthCarryingBatchIsRefused(){assertEquals(Reason.BATCH_LIMIT,admit(new Goal(UUID.randomUUID(),carrier,src,dst,item(1),9,true,false)));assertEquals(Reason.NONE,admit(new Goal(UUID.randomUUID(),carrier,src,dst,item(1),8,true,false)));}
+ @Test void completeBatchCapacityIsRequired(){var g=goal(4);assertEquals(0,batch(g,4,64,3));assertEquals(4,batch(g,4,64,4));assertEquals(0,batch(g,4,0,64));}
+ @Test void oldCarrierStockCannotSatisfyAnUnwithdrawnTransfer(){var s=new Session(goal(4));assertThrows(IllegalArgumentException.class,()->s.observe(put(10,7,2,4)));assertEquals(Phase.READY,s.phase());assertEquals(0,s.delivered());}
+ @Test void partialOrForeignCarrierDeltaCannotDischargeBatch(){var s=new Session(goal(4));s.observe(take(10,3,2,4));assertThrows(IllegalArgumentException.class,()->s.observe(put(6,7,2,3)));assertEquals(4,s.inFlight());assertEquals(0,s.delivered());}
+ @Test void mintedOrDroppedItemsFailConservation(){assertFalse(withdrawal(new Counts(10,3,2),new Counts(6,8,2),4));assertFalse(deposit(new Counts(6,7,2),new Counts(6,2,6),4));}
+ @Test void unrelatedSourceOrDestinationDeltaCannotCount(){assertFalse(withdrawal(new Counts(10,3,2),new Counts(6,7,3),4));assertFalse(deposit(new Counts(6,7,2),new Counts(5,3,6),4));}
+ @Test void replacementRevocationAndFullDestinationKeepInFlightCustody(){for(var reason:List.of(Reason.STALE_ENDPOINT,Reason.UNAUTHORIZED,Reason.CAPACITY)){var s=new Session(goal(4));s.observe(take(10,3,2,4));s.observe(new TransferObservation(Status.REFUSED,reason,0,new Counts(6,7,2),new Counts(6,7,2),"carrier slot1"));assertEquals(4,s.inFlight());assertEquals(0,s.delivered());assertEquals(Phase.BLOCKED,s.phase());}}
+ @Test void uncertainEffectCannotBeCreditedOrReplayed(){var s=new Session(goal(4));s.observe(new TransferObservation(Status.UNCERTAIN,Reason.UNCERTAIN_EFFECT,4,new Counts(10,3,2),new Counts(6,7,2),"native participants"));assertEquals(Phase.UNCERTAIN,s.phase());assertEquals(0,s.delivered());assertThrows(IllegalStateException.class,()->s.observe(put(6,7,2,4)));}
+ @Test void terminalDeliveryCannotDepositAgain(){var s=new Session(goal(4));s.observe(take(10,3,2,4));s.observe(put(6,7,2,4));assertThrows(IllegalStateException.class,()->s.observe(put(6,7,6,4)));}
+ @Test void requestAndEndpointParticipantIdentitiesAreStableAndCopied(){var members=new HashSet<>(src.participants());var e=new Endpoint(world,src.storage(),src.dimension(),members);members.clear();assertEquals(src,e);assertThrows(UnsupportedOperationException.class,()->e.participants().clear());}
+ @Test void standardCourierConservesFifteenAndPreservesOldThree(){var a=new Counts(10,3,2);var b=new Counts(6,7,2);var c=new Counts(6,3,6);assertTrue(withdrawal(a,b,4));assertTrue(deposit(b,c,4));assertEquals(15,a.total());assertEquals(15,b.total());assertEquals(15,c.total());}
+ @Test void negativeOrOverflowingParticipantCountsAreRefused(){assertThrows(IllegalArgumentException.class,()->new Counts(-1,3,2));assertThrows(IllegalArgumentException.class,()->new Counts(10,8193,2));assertThrows(IllegalArgumentException.class,()->new TransferObservation(Status.LIVE_DEPOSITED,Reason.NONE,4,null,null,"destination"));}
+ @Test void arbitrarySmallerBatchesStillCannotExceedEight(){var s=new Session(goal(9));for(int n=0;n<8;n++){s.observe(take(20-n,3,2+n,1));s.observe(put(19-n,4,2+n,1));}assertThrows(IllegalArgumentException.class,()->s.observe(take(12,3,10,1)));assertEquals(8,s.batches());assertEquals(8,s.delivered());}
+}
