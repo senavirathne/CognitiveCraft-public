@@ -24,6 +24,17 @@ public final class MinecraftNavigationAdapter {
         thread();Control control=admit(identity);if(!player.getUUID().equals(identity.principal()) || player.level()!=level || !player.isAlive())throw new SecurityException("authenticated same-level principal required");
         var goal=MobilityPolicy.come(identity,point(player.getX(),player.getY(),player.getZ()),level.getGameTime(),control.deadline(),control.remaining());return new Route(goal,null,null,null);
     }
+    /** One enrolled recipient and one captured position; no automatic name lookup or target following. */
+    public Route recipient(Actor identity,StorageAccessPolicy.Scope scope,RecipientResolver.Bound endpoint){
+        thread();Control control=admit(identity);
+        if(!scope.world().equals(identity.world()) || !scope.principal().equals(identity.principal()) || !Objects.equals(scope.actorCitizen(),identity.citizen()))throw new SecurityException("current recipient caller required");
+        var accepted=endpoint.fresh(scope);var nativeTarget=level.getEntity(endpoint.entityId());
+        if(accepted==null || !accepted.permitted().contains(StorageRegistry.Permission.DEPOSIT) || !(nativeTarget instanceof net.minecraft.world.entity.npc.villager.Villager target) || !target.isAlive() || target.level()!=level || !accepted.dimension().equals(identity.dimension()) || !level.hasChunkAt(target.blockPosition()))throw new SecurityException("current enrolled deposit recipient required");
+        Point captured=point(target.getX(),target.getY(),target.getZ());
+        var route=new Route(MobilityPolicy.recipient(identity,captured,level.getGameTime(),control.deadline(),control.remaining()),null,null,()->{
+            var fresh=endpoint.fresh(scope);return fresh!=null && fresh.permitted().contains(StorageRegistry.Permission.DEPOSIT) && level.getEntity(endpoint.entityId())==target && target.isAlive() && !target.isRemoved() && target.level()==level && level.hasChunkAt(target.blockPosition()) && captured.distance(point(target.getX(),target.getY(),target.getZ()))<=.25;
+        });route.targetChanged=Blocker.STALE_RECIPIENT;return route;
+    }
     /** Resolve the name once in D04. Retain this binding; fresh permission/incarnations are checked per tick. */
     public Route storage(Actor identity,StorageAccessPolicy.Scope scope,StorageResolver.Bound endpoint,StorageRegistry.Permission operation,MinecraftStorageAdapter storage){
         thread();Control control=admit(identity);Objects.requireNonNull(storage);
@@ -38,7 +49,7 @@ public final class MinecraftNavigationAdapter {
     private Control admit(Actor identity){Control c=authority.observe(identity,level.getGameTime());if(c==null || !c.authorized || !c.identity.equals(identity) || !nativeIdentity(identity) || c.deadline<=level.getGameTime())throw new SecurityException("fresh movement owner authority required");return c;}
     private boolean nativeIdentity(Actor key){return actor.isAlive() && actor.level()==level && actor.getUUID().equals(key.entity()) && level.dimension().identifier().toString().equals(key.dimension());}
     public final class Route {
-        private final Session session;private final java.util.function.BooleanSupplier storageCurrent;private Path ownedPath;private long lastStep=-1;private int checkedChunks,pathNodes;private double pathLength;private String diagnostic="";
+        private final Session session;private final java.util.function.BooleanSupplier storageCurrent;private Blocker targetChanged=Blocker.STALE_STORAGE;private Path ownedPath;private long lastStep=-1;private int checkedChunks,pathNodes;private double pathLength;private String diagnostic="";
         private Route(Goal goal,StorageAccessPolicy.Scope scope,StorageBindingRules.Binding binding,java.util.function.BooleanSupplier storageCurrent){session=new Session(goal,feet());this.storageCurrent=storageCurrent;}
         public Goal goal(){return session.goal();}public MobilityObservation observation(){return session.observation();}
         public String diagnostic(){return diagnostic;}public int checkedChunks(){return checkedChunks;}public int pathNodes(){return pathNodes;}public double pathLength(){return pathLength;}
@@ -48,7 +59,7 @@ public final class MinecraftNavigationAdapter {
                 if(c==null || !nativeIdentity(identity))return stop(Blocker.IDENTITY_CHANGED);
                 if(!c.identity.equals(identity))return stop(Blocker.IDENTITY_CHANGED);
                 if(!actor.getNavigation().isDone() && (ownedPath==null || actor.getNavigation().getPath()!=ownedPath))return stop(Blocker.NAVIGATION_CHANGED);
-                if(storageCurrent!=null && !storageCurrent.getAsBoolean())return stop(Blocker.STALE_STORAGE);
+                if(storageCurrent!=null && !storageCurrent.getAsBoolean())return stop(targetChanged);
                 boolean loaded=loaded(feet()) && loaded(goal().endpoint());
                 var result=session.advance(new Facts(now,c.identity,feet(),c.authorized,loaded,loaded && clear(feet()) && safe(goal().endpoint()),c.remaining,c.deadline),actor.getNavigation().isDone());
                 if(result.terminal())return stopOwned();

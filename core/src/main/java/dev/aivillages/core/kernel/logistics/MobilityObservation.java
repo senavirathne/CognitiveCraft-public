@@ -10,7 +10,7 @@ public record MobilityObservation(Status status, Blocker blocker, long tick,
     public enum Status { MOVING, PROPOSE_ROUTE, ARRIVED, BLOCKED }
     public enum Blocker { NONE, UNAUTHORIZED, IDENTITY_CHANGED, DIMENSION_CHANGED, CLOCK_INVALID,
         DEADLINE, TRAVEL_LIMIT, UNLOADED, COLLISION, NO_SAFE_STANDING_POSITION,
-        UNREACHABLE, NO_PROGRESS, NAVIGATION_CHANGED, STALE_STORAGE, CANCELLED }
+        UNREACHABLE, NO_PROGRESS, NAVIGATION_CHANGED, STALE_STORAGE, STALE_RECIPIENT, CANCELLED }
     public MobilityObservation {
         Objects.requireNonNull(status);Objects.requireNonNull(blocker);Objects.requireNonNull(feet);
         Objects.requireNonNull(endpoint);Objects.requireNonNull(lastProgress);

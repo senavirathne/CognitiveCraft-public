@@ -1,0 +1,12 @@
+{
+  "minecraft_server_sha256": "a362163eec5d1612d520772bc16e5b39c09e3b234fdc045f56bf544284ee8ae6",
+  "classes": {
+    "net/minecraft/world/SimpleContainer.class": "f91aebc7ea230a4917eb7b7209bb29c7fc1a30175a857c2713546fce2df1847c",
+    "net/minecraft/core/NonNullList.class": "36bb78e4cf5fba028647b8a11f27fbc302cfc7b4f3b3196959b875931b79493c",
+    "net/minecraft/world/entity/npc/villager/AbstractVillager.class": "68d848feed796ad3859ed3be62065d60baeefa27f9a4323fee4b95e36a3b0742"
+  },
+  "inventory_class": "net.minecraft.world.SimpleContainer",
+  "slot_list_class": "net.minecraft.core.NonNullList",
+  "slots": 8,
+  "scope": "The exact installed vanilla callback-free fixed-slot primitive. A/J02 must reverify transformed native classes before activation."
+}

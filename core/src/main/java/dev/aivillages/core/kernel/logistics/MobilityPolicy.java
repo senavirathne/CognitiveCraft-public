@@ -8,7 +8,7 @@ public final class MobilityPolicy {
     public static final int MAX_TICKS=600,MAX_CANDIDATES=8,MIN_REPATH_TICKS=10;
     public static final double MAX_TRAVEL=64,MAX_ARRIVAL=1.5;
     private MobilityPolicy(){}
-    public enum Mode { COME_TO_PLAYER, GO_NAMED_STORAGE }
+    public enum Mode { COME_TO_PLAYER, GO_NAMED_STORAGE, GO_RECIPIENT }
     public enum PlaceDisposition { CLARIFY_UNSUPPORTED_LANDMARK }
     public static PlaceDisposition unsupportedLandmark(){return PlaceDisposition.CLARIFY_UNSUPPORTED_LANDMARK;}
     public record Point(String dimension,double x,double y,double z){
@@ -31,6 +31,7 @@ public final class MobilityPolicy {
             if(mode==Mode.COME_TO_PLAYER && (standing.size()!=1 || !standing.getFirst().equals(endpoint)))throw new IllegalArgumentException("COME is one captured position");}
     }
     public static Goal come(Actor actor,Point authenticatedServerPosition,long tick,long ownerDeadline,Limits limits){return goal(Mode.COME_TO_PLAYER,actor,authenticatedServerPosition,List.of(authenticatedServerPosition),tick,ownerDeadline,limits);}
+    public static Goal recipient(Actor actor,Point authenticatedRecipientPosition,long tick,long ownerDeadline,Limits limits){return goal(Mode.GO_RECIPIENT,actor,authenticatedRecipientPosition,List.of(authenticatedRecipientPosition),tick,ownerDeadline,limits);}
     /** Caller already selected a safe position from at most eight points around one authorized binding. */
     public static Goal storage(Actor actor,Point safeInteraction,List<Point> candidates,long tick,long ownerDeadline,Limits limits){return goal(Mode.GO_NAMED_STORAGE,actor,safeInteraction,candidates,tick,ownerDeadline,limits);}
     private static Goal goal(Mode mode,Actor actor,Point endpoint,List<Point> candidates,long tick,long deadline,Limits limits){if(tick<0 || tick>Long.MAX_VALUE-MAX_TICKS)throw new IllegalArgumentException("acceptance clock");return new Goal(mode,actor,endpoint,candidates,tick,Math.min(deadline,tick+limits.maxTicks),limits);}
