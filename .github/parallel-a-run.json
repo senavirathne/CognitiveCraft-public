@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 18,
-  "parentSource": "3f765b5ae38d549ad2661e4182d36f380ca798a1",
+  "sequence": 19,
+  "parentSource": "ae5fe7f9d2c95c764d9905ba4692e6ca311aef28",
   "stage": "A06",
-  "scope": "pickup-durable-evidence-owner-shared-retention-family-and-actual-harvest-birth-lineage-with-complete-native-and-regression-batch",
+  "scope": "execute-three-distinct-frozen-original-log-H-cases-with-real-save-kill-restart-public-original-cancellation-and-independent-review",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "INACTIVE_REQUIRED_NEXT",
   "originalCase": "heldout-W6-002",
@@ -315,27 +315,19 @@
     }
   },
   "latestValidatedCheckpoint": {
-    "source": "23b97125f6532a105744b01c84f29ca4dbe66dc8",
-    "tree": "6f8ca7e8aedb0047cff832d6866f834addc42140",
-    "run": 40840409561,
-    "attempt": 2,
-    "job": 123335119805,
-    "modules": 2505,
+    "source": "1b463713eb6325231780a9cc71fb1aef92d9c987",
+    "tree": "d604fe582ed67450b8566cd0e1f165cd5e77ae91",
+    "run": 40850971807,
+    "job": 123370038086,
+    "modules": 2541,
     "python": {
-      "aOwned": 54,
+      "aOwned": 60,
       "baseline": 72
     },
-    "requiredHosts": {
-      "pass": 9,
-      "firstAttemptPass": 7,
-      "firstAttemptFail": 2,
-      "retriedJobs": 2,
-      "sourceChanged": false,
-      "causes": "UNRESOLVED"
-    },
+    "requiredHosts": 9,
     "mainVerification": {
-      "run": 40840409542,
-      "job": 123335118625,
+      "run": 40850971908,
+      "job": 123370037077,
       "status": "PASS"
     },
     "uniqueOriginalCases": 1,
@@ -488,5 +480,47 @@
     ],
     "omittedTasks": 0,
     "omittedTests": 0
+  },
+  "originalScenarioBatch": {
+    "status": "PENDING_NATIVE_EXECUTION_AND_INDEPENDENT_REVIEW",
+    "startingQualifiedOriginalCases": 1,
+    "targetQualifiedOriginalCases": 3,
+    "requiredOriginalCases": 12,
+    "caseIds": [
+      "heldout-W6-002",
+      "heldout-W6-008",
+      "W6-002"
+    ],
+    "newTargets": [
+      {
+        "id": "heldout-W6-008",
+        "checkpoint": "HARVEST",
+        "item": "minecraft:oak_log",
+        "requested": 3
+      },
+      {
+        "id": "W6-002",
+        "checkpoint": "HARVEST",
+        "item": "minecraft:birch_log",
+        "requested": 2
+      }
+    ],
+    "originalGeometryAndQuantitiesChanged": false,
+    "oldCaseRepeatedOnlyAsRegression": true,
+    "training": "Birch must be genuinely admitted/demonstrated with both experimental H/D owners off, generator stopped, then real server restart activates native H before the original case; training counts zero A06 cases",
+    "qualifiedOnlyAfter": "Independent raw native saves and exact original owner/attempt/cancellation checks pass for every distinct case; failure preserves all evidence and remaining reviews still execute",
+    "expectedModules": {
+      "core": 2300,
+      "providers": 131,
+      "fabric": 110,
+      "total": 2541
+    },
+    "expectedPython": {
+      "aOwned": 73,
+      "baseline": 72
+    },
+    "newOracleCases": 13,
+    "nativePickupProducer": "INACTIVE",
+    "remainingCases": "Wheat H, all four P and all four D remain mandatory, plus representative cost and other A06 gates"
   }
 }
