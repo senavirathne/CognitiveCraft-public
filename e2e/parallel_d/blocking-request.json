@@ -2,6 +2,6 @@
   "stage": "D10",
   "campaign": "D10-COMPONENT-48",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "D10-consolidated-20261029-02",
-  "reason": "Corrected candidate after failed run 40903330196: synchronize the actual observer view before the unchanged server selection guard; repeat the entire frozen D10 campaign and all D00-D09 regressions in one consolidated Actions/Docker job/build. Preserve first failure raw evidence. Stop after D10; D11 remains unstarted."
+  "nonce": "D10-consolidated-20261030-03",
+  "reason": "Corrected candidate after failed run 40912642058: an incomplete live console acknowledgment must be retried without granting progress; preserve strict final evidence parsing and all existing deadlines. Repeat all 48 frozen D10 cases and every required D00-D09 regression in one consolidated Actions/Docker job with one production build. Preserve both failed original artifacts. Stop after D10; D11 remains unstarted."
 }

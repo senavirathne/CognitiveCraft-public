@@ -10,7 +10,15 @@ class DComponentCampaign(DStorageObservationClient):
         p=self.root/'server/d10/error.json'
         if p.exists():raise RuntimeError(str(read(p)))
     def wait(self,condition,description,timeout=120):
-        def checked():self.healthy();return condition()
+        def checked():
+            self.healthy()
+            try:return condition()
+            except json.JSONDecodeError:
+                # The established server writes this live mailbox in place.
+                # A partial acknowledgment is not an acknowledgment; the same
+                # nonce must still arrive within the existing bounded wait.
+                if description!='server console handoff':raise
+                return None
         return super().wait(checked,description,timeout)
     def rows(self,case):
         root=self.root/'server/d10'/case;final=root/'frames-final.jsonl';return lines(final if final.exists()else root/'frames.jsonl')
