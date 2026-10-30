@@ -103,13 +103,14 @@ def case(spec,rows,diagnostic=False):
         for r in full[1:]:
             d=r['detail'];event=r['event']
             if event in ('WITHDRAW','DEPOSIT'):
+                require(previous['event']=='BEFORE_'+event and previous['tick']==r['tick'],'courier lacks an immediate same-tick native before image')
                 a=vector(previous,item);b=vector(r,item);require(ledger(previous)==ledger(r),'courier operation lost/minted hidden residual')
                 if d['status'].startswith('LIVE_'):
                     q=d['quantity'];require([d['before'][k]for k in ('source','carrier','destination')]==a and [d['after'][k]for k in ('source','carrier','destination')]==b,'courier claimed counts differ from native slots')
                     if event=='WITHDRAW':require(cargo is None and b==[a[0]-q,a[1]+q,a[2]],'courier guarded debit mismatch');cargo=q;withdrawn+=q;batches+=1
                     else:require(cargo==q and b==[a[0],a[1]-q,a[2]+q],'old/foreign carrier stock discharged cargo');cargo=None;deposited+=q
                 else:require(d['status']=='REFUSED'and d['quantity']==0 and images(previous)==images(r),'refused courier mutated native participants')
-            if event=='RIVAL_WITHDRAW':require(d['status']=='REFUSED'and d['reason']=='SHORTAGE'and count(r,'rival',item)==0,'rival debited same last stack twice')
+            if event=='RIVAL_WITHDRAW':require(previous['event']=='BEFORE_RIVAL_WITHDRAW'and previous['tick']==r['tick']and images(previous)==images(r)and d['status']=='REFUSED'and d['reason']=='SHORTAGE'and count(r,'rival',item)==0,'rival debited same last stack twice')
             previous=r
         require(batches<=8 and deposited<=spec['quantity'],'courier original allowance reset');require(last['inventories']['carrier']['slots'][0]['count']==old[0]['count']and last['inventories']['carrier']['slots'][0]['item']==old[0]['item'],'old carrier stock credited or replaced')
         if n in (1,2,3,11):
