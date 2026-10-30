@@ -52,3 +52,17 @@ class QualificationTest(unittest.TestCase):
         good=self.report();self.assertEqual(readiness_status(good),'BRANCH_READY');good['client_e2e'].update(passed=26,refused_expected=27);self.assertEqual(readiness_status(good),'BRANCH_READY')
         good['docs_sha']=None
         with self.assertRaisesRegex(ValueError,'pin missing'):readiness_status(good)
+
+    def test_native_report_counts_distinct_cases_and_physical_xml_observations(self):
+        from native_oracle import execution_summary
+        schedule=registry('D11')['native_schedule']
+        expected={'D02':(4,6,5),'D05':(5,7,6),'D06':(6,8,7),'D07':(7,9,8),'D08':(8,12,10),'D09':(9,13,11),'D10':(10,15,12),'D11':(10,15,12)}
+        for stage,(owned,jvms,xml)in expected.items():
+            with self.subTest(stage=stage):
+                cases=[{'id':case,'status':'PASS'}for case in registry(stage)['game_tests']]
+                phases=[{'phase':phase}for phase in schedule[:jvms]]
+                actual=execution_summary(cases,phases)
+                self.assertEqual(actual,{'owned_cases':owned,'native_jvms':jvms,'xml_observations':xml})
+                self.assertTrue(all(type(value)is int for value in actual.values()))
+                with self.assertRaisesRegex(ValueError,'duplicate native report case'):execution_summary(cases+cases[:1],phases)
+                with self.assertRaisesRegex(ValueError,'duplicate native report phase'):execution_summary(cases,phases+phases[:1])

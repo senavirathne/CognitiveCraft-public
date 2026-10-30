@@ -24,6 +24,13 @@ LIVE={'BOUND','RENAMED','REBOUND','SINGLE','PAIRED_REBOUND','REPAIRED','CLONE_BE
 
 def canonical(value):return (json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':'))+'\n').encode()
 
+def execution_summary(cases,phases):
+    """Count distinct verified cases and physical observations, excluding baseline credit."""
+    require(len(cases)==len({row['id']for row in cases}),'duplicate native report case')
+    require(len(phases)==len({row['phase']for row in phases}),'duplicate native report phase')
+    return {'owned_cases':len(cases),'native_jvms':len(phases),
+            'xml_observations':sum(row['phase']not in ('baseline','courier-crash-write','observed-restart-write')for row in phases)}
+
 def topology(binding):
     keys=('adapter_id','world_id','dimension','members','facing');shape={k:binding[k]for k in keys}
     require(hashlib.sha256(canonical(shape)).hexdigest()==binding['topology_sha256'],'native topology digest mismatch')
@@ -153,7 +160,8 @@ def verify(root,identity,fixture,stage="D02"):
     if stage in ('D10','D11'):evidence+=['native/observed-restart-read/native-results.xml','native/observed-restart-read/evidence/restart.jsonl','native/observed-restart-read/evidence/binding-reload.json','native/observed-restart-write/evidence/restart.jsonl','native/observed-restart-write/prekill-saved/distributions.json']
     evidence+=follow_details.get('evidence',[])+delivery_details.get('evidence',[])+handoff_details.get('evidence',[])
     if stage in ('D06','D07','D08','D09','D10','D11'):evidence += ['native/come/'+p for p in ('stdout.log','evidence/arena.json','evidence/movement.jsonl','evidence/storage-movement.jsonl','evidence/controls.json','evidence/storage-controls.json')]
-    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06','D07','D08','D09','D10','D11')else[])+(['D06-GT01']if stage in ('D06','D07','D08','D09','D10','D11')else[])+(['D07-GT01']if stage in ('D07','D08','D09','D10','D11')else[])+(['D08-GT01']if stage in ('D08','D09','D10','D11')else[])+(['D09-GT01']if stage in ('D09','D10','D11')else[])+(['D10-GT01']if stage in ('D10','D11')else[])],{
-        'observed_restart_details':restart_details,'handoff_details':handoff_details,'delivery_details':delivery_details,'follow_details':follow_details,'native_jvms':len(phases),'owned_cases':4+(stage in ('D05','D06','D07','D08','D09','D10','D11'))+(stage in ('D06','D07','D08','D09','D10','D11'))+(stage in ('D07','D08','D09','D10','D11'))+(stage in ('D08','D09','D10','D11'))+(stage in ('D09','D10','D11'))+(stage in ('D10','D11'),'D11'),'xml_observations':5+(stage in ('D05','D06','D07','D08','D09','D10','D11'))+(stage in ('D06','D07','D08','D09','D10','D11'))+(stage in ('D07','D08','D09','D10','D11'))+2*(stage in ('D08','D09','D10','D11'))+(stage in ('D09','D10','D11'))+(stage in ('D10','D11'),'D11'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
+    cases=[{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06','D07','D08','D09','D10','D11')else[])+(['D06-GT01']if stage in ('D06','D07','D08','D09','D10','D11')else[])+(['D07-GT01']if stage in ('D07','D08','D09','D10','D11')else[])+(['D08-GT01']if stage in ('D08','D09','D10','D11')else[])+(['D09-GT01']if stage in ('D09','D10','D11')else[])+(['D10-GT01']if stage in ('D10','D11')else[])]
+    return cases,{
+        'observed_restart_details':restart_details,'handoff_details':handoff_details,'delivery_details':delivery_details,'follow_details':follow_details,**execution_summary(cases,phases),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
         'mobility_details':mobility_details,'adapter_details':adapter_details,'frames':sum(len(v)for v in frames.values())+adapter_details.get('events',0)+sum(d.get('frames',0)for d in mobility_details.values()if isinstance(d,dict)),'evidence':evidence,
         'performance':performance(read(root/'baseline/evidence/performance.json'),read(root/'performance/evidence/performance.json'))}

@@ -2,6 +2,6 @@
   "stage": "D11",
   "campaign": "D11-CUMULATIVE",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "D11-consolidated-20261030-01",
-  "reason": "Final independent Agent D qualification after exact D10 handoff. One90-minute Actions/Docker job and one production build reused by every required and affected regression: full core/providers/fabric modules,264 owned Java cases,115 Python checks,10 native cases across15 JVMs, all48 frozen D10 component cases and five predecessor real-client compatibility controls. Preserve all original cases, limits, raw native producer/save bytes, current source/fixture/world identities and strict independent oracle. BRANCH_READY only after current-candidate CI and complete ownership/contract parity; production/J saves remain deferred. Stop after D11; J00 unexecuted."
+  "nonce": "D11-consolidated-20261030-02",
+  "reason": "After failed run 41023940558, preserve its entire original Actions artifact and INCONCLUSIVE report with zero final credit. Fix only native report counters by counting distinct validated case/phase rows; add a Python regression for historical totals, baseline/kill exclusions and duplicate refusal. Fresh full cumulative qualification: one Actions/Docker job, one production build, all 2571 module tests including 264 owned Java, 116 Python checks, 10 native cases across 15 JVMs, all 48 frozen D10 component cases and all five compatibility campaigns. Keep every physical ID, expected outcome, native save cut and timing/travel/scan bound unchanged. BRANCH_READY only after exact candidate raw verification; stop after D11 with J00 unexecuted and production/J settlement deferred."
 }

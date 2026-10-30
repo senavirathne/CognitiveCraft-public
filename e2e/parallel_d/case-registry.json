@@ -5621,6 +5621,7 @@
       "test_qualification.QualificationTest.test_incomplete_or_failed_mandatory_tier_cannot_be_branch_ready",
       "test_qualification.QualificationTest.test_local_owned_pass_has_no_branch_readiness",
       "test_qualification.QualificationTest.test_missing_native_producer_cannot_be_branch_ready",
+      "test_qualification.QualificationTest.test_native_report_counts_distinct_cases_and_physical_xml_observations",
       "test_qualification.QualificationTest.test_stale_shared_contract_cannot_be_branch_ready",
       "test_qualification.QualificationTest.test_wrong_client_fixture_or_world_cannot_be_branch_ready",
       "test_qualification.QualificationTest.test_wrong_native_fixture_or_world_cannot_be_branch_ready",
