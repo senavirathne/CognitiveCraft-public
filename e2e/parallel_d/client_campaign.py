@@ -89,13 +89,16 @@ class DComponentCampaign(DStorageObservationClient):
             restored['inventories'][actual]={'inventory_known':True,'slots':[{'native_item_id':s['id'],'count':s['count']}for s in value['slots']],**({'pos':p['pos']} if 'entity' not in p else {})}
             if 'entity'in p:restored['entities'][actual]={**raw['entities'][actual],'pos':p['pos'],'loaded':True,'entity':p['entity']}
         self.menus(spec,'AFTER_RELOAD',restored)
-    def position_players(self,spec):
-        x,y,z=spec['origin'];self.tp('PlayerD_A',[x+14.5,y,z+(1.5 if (spec['group']=='courier' or spec['id']=='D10-MOBILITY-05') else 7.5)]);self.tp('PlayerD_B',[x+16.5,y,z+(1.5 if (spec['group']=='courier' or spec['id']=='D10-MOBILITY-05') else 4.5)])
+    def position_players(self,spec,foot_y=None):
+        x,y,z=spec['origin'];y=y if foot_y is None else foot_y;self.tp('PlayerD_A',[x+14.5,y,z+(1.5 if (spec['group']=='courier' or spec['id']=='D10-MOBILITY-05') else 7.5)]);self.tp('PlayerD_B',[x+16.5,y,z+(1.5 if (spec['group']=='courier' or spec['id']=='D10-MOBILITY-05') else 4.5)])
     def run(self):
         self.deadline=time.monotonic()+read(HERE/'scenarios.json')['limits']['client_seconds'];self.snapshots=[];self.menu_rows=[];screens=[];self.connected();self.console(['gamemode creative PlayerD_A','gamemode creative PlayerD_B'])
         for spec in read(HERE/'scenarios.json')['cases']:
             case=spec['id'];n=int(case[-2:]);group=spec['group'];box=self.root/'server/d10'/case
-            x,y,z=spec['origin'];self.console([f'fill {x} {y-1} {z} {x+19} {y-1} {z+24} stone']);self.position_players(spec);self.console(['d-component prepare '+case]);self.wait(lambda:(box/'ready.json').exists(),'fresh native fixture '+case,180);self.position_players(spec);self.sample(case,'BEFORE');self.menus(spec,'BEFORE');self.position_players(spec)
+            # Normal player tickets load the region while observers stand on
+            # the existing flat-world ground. Prepare the elevated floor only
+            # after native loaded-chunk observation, before actor admission.
+            x,y,z=spec['origin'];self.position_players(spec,foot_y=-60);self.console(['d-component area '+case]);self.wait(lambda:(box/'area-preparation.json').exists(),'native loaded observer platform '+case);self.position_players(spec);self.console(['d-component prepare '+case]);self.wait(lambda:(box/'ready.json').exists(),'fresh native fixture '+case,180);self.position_players(spec);self.sample(case,'BEFORE');self.menus(spec,'BEFORE');self.position_players(spec)
             if case=='D10-STORAGE-01':
                 # The server teleport packet prepares the observer's view before
                 # admission. A local look reply alone does not acknowledge the
@@ -103,7 +106,7 @@ class DComponentCampaign(DStorageObservationClient):
                 # the same chest, which the unchanged server raycast must prove.
                 x,y,z=spec['origin'];pos=[x+5,y,z+7];self.tp('PlayerD_A',[pos[0]+.5,y,pos[2]-2.5],pitch=25);self.request('PlayerD_A','look',pos=pos)
             if case=='D10-MOBILITY-04':
-                x,y,z=spec['origin'];target=[x+100000.5,y,z+100007.5];self.console([f'fill {int(target[0])-2} {y-1} {int(target[2])-2} {int(target[0])+2} {y-1} {int(target[2])+2} stone']);self.tp('PlayerD_A',target);self.wait(lambda:self.request('PlayerD_A','snapshot')['pos'][1]>=y-1,'actual distant player chunks',20)
+                x,y,z=spec['origin'];target=[x+100000.5,y,z+100007.5];self.tp('PlayerD_A',[target[0],-60,target[2]]);self.console(['d-component distant-area']);self.wait(lambda:(box/'distant-area-preparation.json').exists(),'native loaded distant observer platform');self.tp('PlayerD_A',target)
             if case=='D10-STORAGE-09':
                 self.request('PlayerD_B','command',text='d-component probe');self.wait(lambda:any(e['kind']=='feedback' and e['data']['text']=='D10_REPLY UNAVAILABLE'for e in lines(self.root/'clients/PlayerD_B/events.jsonl')),'fieldless private refusal')
             self.request('PlayerD_B' if case=='D10-STORAGE-09' else 'PlayerD_A','command',text='d-component execute')
