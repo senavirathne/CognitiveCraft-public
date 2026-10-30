@@ -2,6 +2,6 @@
   "stage": "D10",
   "campaign": "D10-COMPONENT-48",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "nonce": "D10-consolidated-20261030-04",
-  "reason": "Corrected candidate after failed run 40990898024: prepare each elevated observer floor only after real players load its normal chunks, then verify the native platform before case admission. Preserve the same 48 frozen cases, original limits, strict identity/conservation and no-forced-load gates. Repeat every required test and affected D00-D09 regression in one consolidated Actions/Docker job with one production build. Retain all failed original artifacts. Stop after D10; D11 remains unstarted."
+  "nonce": "D10-consolidated-20261030-05",
+  "reason": "Corrected candidate after failed run 40994010946 and independent raw review: use verified platform height for inventory observers, and accept a bounded single remaining native follow waypoint so the original reduced travel budget reaches its required typed TRAVEL_LIMIT. Preserve every frozen assertion, case, identity, deadline, travel/scan/performance bound and strict evidence validation. Repeat all required tests and affected D00-D09 regressions in one consolidated Actions/Docker job with one production build. Retain all failed original artifacts. Stop after D10; D11 remains unstarted."
 }

@@ -34,7 +34,7 @@ public final class FollowObservationAdapter {
                 if(result.action()!=Action.MOVE_PROPOSAL)return result;
                 Point end=result.proposal();if(!safe(end))return stop(loaded(end)?Reason.UNREACHABLE:Reason.UNLOADED);
                 Path path=actor.getNavigation().createPath(BlockPos.containing(end.x(),end.y(),end.z()),0,16);
-                if(path==null || path.getNodeCount()<2)return stop(session.remainingTravel()<1?Reason.TRAVEL_LIMIT:Reason.UNREACHABLE);
+                if(path==null || path.getNodeCount()==0)return stop(session.remainingTravel()<1?Reason.TRAVEL_LIMIT:Reason.UNREACHABLE);
                 // Native navigation may return its current Path, including already walked nodes.
                 // Validate a bounded unwalked suffix without truncating that live shared object.
                 var remainingNodes=new ArrayList<net.minecraft.world.level.pathfinder.Node>();
@@ -43,9 +43,12 @@ public final class FollowObservationAdapter {
                 // Every accepted path segment is <=8 loaded blocks, including obstacle detours.
                 double length=0;Point previous=feet();int keep=0;boolean limitedByOwner=false;
                 for(int i=0;i<path.getNodeCount() && i<32;i++){var p=path.getNodePos(i);var node=new Point(end.dimension(),p.getX()+.5,p.getY(),p.getZ()+.5);if(!safe(node))return stop(loaded(node)?Reason.UNREACHABLE:Reason.UNLOADED);double next=previous.distance(node);if(length+next>Math.min(8,session.remainingTravel())){limitedByOwner=session.remainingTravel()<8;break;}length+=next;previous=node;keep++;}
-                if(keep<2)return stop(limitedByOwner?Reason.TRAVEL_LIMIT:Reason.UNREACHABLE);path.truncateNodes(keep);pathLength=length;pathNodes=keep;
+                // A cached path can have one unwalked waypoint. Native moveTo
+                // accepts that nonempty suffix; requiring a start node again
+                // would reject ordinary progress before the inherited cap.
+                if(keep==0)return stop(limitedByOwner?Reason.TRAVEL_LIMIT:Reason.UNREACHABLE);path.truncateNodes(keep);pathLength=length;pathNodes=keep;
                 Control fresh=authority.observe(key,tick);if(!c.equals(fresh) || !fresh.authorized() || fresh.reserved() || !nativeIdentity(key))return stop(Reason.UNAUTHORIZED);
-                if(!actor.getNavigation().moveTo(path,.3))return stop(Reason.UNREACHABLE);owned=actor.getNavigation().getPath();return result;
+                if(!actor.getNavigation().moveTo(path,.3))return stop(session.remainingTravel()<1?Reason.TRAVEL_LIMIT:Reason.UNREACHABLE);owned=actor.getNavigation().getPath();return result;
             }catch(RuntimeException unavailable){diagnostic=unavailable.toString();return stop(Reason.UNREACHABLE);}
         }
         public FollowState cancel(){thread();return stop(Reason.CANCELLED);}

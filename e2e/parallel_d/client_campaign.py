@@ -46,7 +46,10 @@ class DComponentCampaign(DStorageObservationClient):
             if not native['inventory_known'] or role in raw['entities'] and not raw['entities'][role]['loaded']:continue
             for player in PLAYERS:
                 if case=='D10-STORAGE-09' and player=='PlayerD_B':continue
-                pos=native.get('pos',raw['entities'].get(role,raw['entities']['carrier'])['pos']);self.tp(player,[pos[0]+.5,pos[1],pos[2]-2.5]);self.request(player,'command',text='d-component inspect '+role)
+                # A native villager may finish on a chest's 0.875-block top.
+                # The observer stands on the independently witnessed platform;
+                # copying the actor's elevated feet would place it in midair.
+                pos=native.get('pos',raw['entities'].get(role,raw['entities']['carrier'])['pos']);self.tp(player,[pos[0]+.5,spec['origin'][1],pos[2]-2.5]);self.request(player,'command',text='d-component inspect '+role)
                 expected=[(x['native_item_id'],x['count']) for x in native['slots']];size=((len(expected)+8)//9)*9
                 def snapshot():
                     s=self.request(player,'snapshot');slots=[r for r in s.get('slots',[]) if not r['playerInventory']]
