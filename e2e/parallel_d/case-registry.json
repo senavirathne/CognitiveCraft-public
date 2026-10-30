@@ -5649,7 +5649,8 @@
       "test_verify.EvidenceVerifierTest.test_missing_raw_snapshot_rejected",
       "test_verify.EvidenceVerifierTest.test_mutated_jar_hash_rejected",
       "test_verify.EvidenceVerifierTest.test_unmanifested_frame_rejected",
-      "test_verify.EvidenceVerifierTest.test_xml_failures_and_skips_are_not_passes"
+      "test_verify.EvidenceVerifierTest.test_xml_failures_and_skips_are_not_passes",
+      "test_component_collection.ComponentCollectionTest.test_partial_process_record_waits_for_fresh_witness_with_original_deadline"
     ],
     "game_tests": [
       "D02-GT01",

@@ -67,6 +67,14 @@ class DComponentCampaign(DStorageObservationClient):
             self.wait(lambda:self.request(player,'snapshot').get('play'),'actual D10 multiplayer '+player,180)
     def phase(self,case,value):
         rows=self.rows(case);return rows and rows[-1]['phase']==value
+    def fresh_process(self,kind,previous):
+        # The established launcher writes process.json in place. A missing or
+        # incomplete live record is not a new process witness. Retry only this
+        # read; complete records still face the original freshness check and
+        # the independent producer/identity oracle.
+        try:current=read(self.root/kind/'process.json')
+        except (FileNotFoundError,json.JSONDecodeError):return None
+        return current if current['start']>previous['start'] else None
     def restart(self,spec):
         case=spec['id'];box=self.root/'server/d10'/case;self.console(['d-component save']);self.wait(lambda:(box/'save-ready.json').exists(),'native participant save boundary '+case)
         disk=observe(self.root/'server/game',box/'participants.json',box/'prekill-saved');expected=[6,7,2] if spec['group']=='courier' else [5,1]
@@ -82,7 +90,7 @@ class DComponentCampaign(DStorageObservationClient):
                 if p.exists():p.rename(history/(player+'-'+filename))
         self.compose('up','-d','minecraft','client-a','client-b')
         for kind in boot['before']:
-            self.wait(lambda:(p:=self.root/kind/'process.json').exists() and read(p)['start']>boot['before'][kind]['start'],'new actual native process '+kind,180)
+            self.wait(lambda:self.fresh_process(kind,boot['before'][kind]),'new actual native process '+kind,180)
         (history/'containers-after-restart.jsonl').write_text(self.compose('ps','-a','--format','json').stdout);self.connected();self.position_players(spec)
         self.console(['d-component resume '+case]);self.wait(lambda:(box/'terminal.json').exists(),'fresh restored UNKNOWN and 100 ticks without replay '+case,120)
         boot['after']={kind:read(self.root/kind/'process.json') for kind in boot['before']};write(history/'boundary.json',boot)
