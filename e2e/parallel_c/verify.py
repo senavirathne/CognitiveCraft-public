@@ -3,18 +3,48 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 import re
 import struct
+import tempfile
 import xml.etree.ElementTree as ET
 
 from common import BASE, BASE_TREE, BUILD_COMMAND, CONTRACT, HERE, ROOT, EvidenceError
-from common import artifact, check, contained, contract_hashes, digest, git, read, tracked_clean, write
+from common import artifact, check, contained, contract_hashes, digest, git, no_duplicates, read, tracked_clean, write
+from build_profile import matching_profiles, verify_profile
+from gradle_results import export_binary, prepare_reader
 
 
-def xml_cases(paths):
+def binary_cases(paths):
     rows = {}
+    for path in paths:
+        records = [json.loads(line, object_pairs_hook=no_duplicates) for line in Path(path).read_text().splitlines()]
+        by_id = {}
+        for record in records:
+            check(record["id"] not in by_id, "duplicate Gradle binary record ID")
+            by_id[record["id"]] = record
+        parents = {r["parent"] for r in records if r["parent"] is not None}
+        for record in records:
+            if record["parent"] is not None:
+                check(record["parent"] in by_id, "missing Gradle binary parent")
+            if record["id"] in parents:
+                continue
+            cls, name = record["class"], record["name"]
+            check(cls and name, "missing Gradle stable method identity")
+            key = cls + "#" + name
+            check(key not in rows, "duplicate Gradle stable case: " + key)
+            check(record["outcome"] in ("SUCCESS", "FAILURE", "SKIPPED"), "unknown Gradle outcome")
+            outcome = {"SUCCESS": "PASS", "FAILURE": "FAIL", "SKIPPED": "INCONCLUSIVE"}[record["outcome"]]
+            check(record["end"] >= record["start"] and (outcome != "PASS" or record["failures"] == 0), "inconsistent Gradle outcome")
+            rows[key] = {"outcome": outcome, "display_id": cls + "#" + record["display"], "file": str(path)}
+    check(rows, "missing actual Gradle method identities")
+    return rows
+
+
+def xml_cases(paths, identities=None):
+    rows = {}; observed = []
     for path in sorted(map(Path, paths)):
         data = path.read_bytes()
         check(b"<!DOCTYPE" not in data and b"<!ENTITY" not in data, "XML entities are forbidden")
@@ -31,10 +61,16 @@ def xml_cases(paths):
                 cls, name = case.get("classname"), case.get("name")
                 check(cls and name, "XML missing stable case identity")
                 key = cls + "#" + name
-                check(key not in rows, "duplicate XML case: " + key)
+                if identities is None: check(key not in rows, "duplicate XML case: " + key)
                 outcome = "FAIL" if case.find("failure") is not None or case.find("error") is not None else (
                     "INCONCLUSIVE" if case.find("skipped") is not None else "PASS")
                 rows[key] = {"outcome": outcome, "file": str(path)}
+                observed.append((key, outcome))
+    if identities is not None:
+        stable = binary_cases(identities)
+        check(Counter(observed) == Counter((row["display_id"], row["outcome"]) for row in stable.values()),
+              "XML/Gradle method identity reconciliation mismatch")
+        return stable
     check(rows, "missing actual JUnit cases")
     return rows
 
@@ -58,6 +94,7 @@ def verify_build(directory, pins, expected_jar=None):
     record = read(directory / "build-record.json")
     for key, value in pins.items(): check(record.get(key) == value, "build pin mismatch: " + key)
     check(record.get("command") == BUILD_COMMAND, "unexpected build command")
+    verify_profile(record.get("profile"))
     check(record.get("exit") == 0 and not record.get("blocked"), "module build unavailable or failed")
     check(record["ended_ns"] > record["started_ns"], "invalid build interval")
     check(re.search(r'(?:version\s+"|openjdk\s+)25(?:[.\s"+-])', record["environment"]["java"]["output"]), "target Java 25 build required")
@@ -67,7 +104,22 @@ def verify_build(directory, pins, expected_jar=None):
     paths = []
     for path, sha in record["xml"].items(): artifact(directory, path, sha); paths.append(contained(directory, path))
     check({Path(path).parts[1] for path in record["xml"]} == {"core", "providers", "fabric"}, "all three module XML sets required")
-    return xml_cases(paths)
+    check(set(record.get("gradle_results", {})) == {"core", "providers", "fabric"}, "missing Gradle stable identity artifacts")
+    metadata = read(directory / "gradle-reader/reader.json")
+    check(metadata["exit"] == 0 and metadata["source_sha256"] == digest(HERE / "junit/GradleResults.java"), "Gradle identity reader source mismatch")
+    for path, sha in metadata["libraries"].items():
+        check(Path(path).is_file() and digest(path) == sha, "Gradle reader dependency changed")
+    identities = []
+    # Re-export actual binary results, so a hand-authored identity JSON cannot substitute for them.
+    with tempfile.TemporaryDirectory(prefix="c00-gradle-oracle-") as temporary:
+        reader = prepare_reader(Path(temporary) / "reader")
+        for module, item in record["gradle_results"].items():
+            for path, sha in item["binary"].items(): artifact(directory, path, sha)
+            artifact(directory, item["identities"], item["identities_sha256"])
+            regenerated = export_binary(directory / "unit" / module / "binary", Path(temporary) / (module + ".jsonl"), reader)
+            check(regenerated == item["identities_sha256"], "Gradle identity export differs from retained binary results")
+            identities.append(directory / item["identities"])
+    return xml_cases(paths, identities)
 
 
 def metric(rows, planned):
@@ -104,6 +156,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     require_frames(root, registry["native_cases"] + registry["client_cases"], artifacts)
     baseline = verify_build(root / "baseline", {"source_sha": BASE, "tree_sha": BASE_TREE})
     unit = verify_build(root / "candidate", {"source_sha": source, "tree_sha": tree}, run["jar_sha256"])
+    matching_profiles(read(root / "baseline/build-record.json")["profile"], read(root / "candidate/build-record.json")["profile"])
     check(set(baseline).issubset(unit), "a frozen baseline module case is missing")
     expected_unit = {case["xml_id"] for case in registry["unit_cases"]}
     check(set(unit) - set(baseline) == expected_unit, "missing/unregistered owned Java case")

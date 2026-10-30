@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import shutil
@@ -13,6 +14,7 @@ from zipfile import ZipFile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import HERE, JAR, ROOT, EvidenceError, check, digest, environment, read, write
+from build_profile import server_sdk_profile
 
 APIS = [
     {"class": "net.minecraft.client.multiplayer.ClientPacketListener", "symbol": "sendChat(java.lang.String)",
@@ -28,33 +30,30 @@ def sha1(path):
     return hashlib.sha1(Path(path).read_bytes()).hexdigest()
 
 
+def client_libraries(version, sdk):
+    spec = importlib.util.spec_from_file_location("c_existing_runtime", ROOT / "e2e/runtime.py")
+    runtime = importlib.util.module_from_spec(spec); spec.loader.exec_module(runtime)
+    libraries = []
+    for lib in version["libraries"]:
+        item = lib.get("downloads", {}).get("artifact")
+        if item and runtime.allowed(lib):
+            p = sdk / "libraries" / item["path"]
+            check(p.is_file(), "missing required client SDK library: " + item["path"])
+            check(sha1(p) == item["sha1"], "SDK library checksum: " + str(p))
+            libraries.append(p)
+    return libraries
+
+
 def prepared_classpath(sdk, release):
     artifacts = {}
     check(sha1(sdk / "version.json") == "702fe59163c6ee6578607daa85811d9bc9c7cc40", "exact 26.3 version metadata required")
     version = read(sdk / "version.json")
     check(sha1(sdk / "minecraft-client.jar") == version["downloads"]["client"]["sha1"], "client SDK checksum")
-    client = [sdk / "minecraft-client.jar"]
-    for lib in version["libraries"]:
-        item = lib.get("downloads", {}).get("artifact")
-        if item:
-            p = sdk / "libraries" / item["path"]
-            if p.is_file(): check(sha1(p) == item["sha1"], "SDK library checksum: " + str(p)); client.append(p)
+    client = [sdk / "minecraft-client.jar", *client_libraries(version, sdk)]
     server = ROOT / "build/server-sdk"
-    lock = read(ROOT / "scripts/dependencies.json")
-    for item in lock["downloads"]:
-        check(digest(server / item["file"]) == item["sha256"], "server SDK lock: " + item["file"])
-    expected_server = {}
-    with ZipFile(server / "server26.jar") as jar:
-        for line in jar.read("META-INF/libraries.list").decode().splitlines():
-            sha, _, name = line.split("\t"); expected_server[Path(name).name] = sha
-    with ZipFile(server / "fabric-api.jar") as jar:
-        for entry in __import__("json").loads(jar.read("fabric.mod.json"))["jars"]:
-            data = jar.read(entry["file"]); expected_server[Path(entry["file"]).name] = hashlib.sha256(data).hexdigest()
-    for item in lock["loader_libraries"]: expected_server[item["file"]] = item["sha256"]
-    expected_server["gametest.jar"] = next(i["sha256"] for i in lock["downloads"] if i["file"] == "gametest.jar")
+    server_profile = server_sdk_profile(ROOT, server / "minecraft-server.jar", server / "libs")
     libs = sorted((server / "libs").glob("*.jar"))
-    check({p.name for p in libs} == set(expected_server), "server SDK library set differs from pinned archives")
-    for p in libs: check(digest(p) == expected_server[p.name], "prepared server library checksum: " + p.name)
+    artifacts.update({str(server / path): sha for path, sha in server_profile["artifacts"].items()})
     for p in [sdk / "version.json", *client, *libs, release]: artifacts[str(p)] = digest(p)
     return [*client, release, *libs], artifacts
 

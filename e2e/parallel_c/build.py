@@ -11,6 +11,8 @@ import subprocess
 import time
 
 from common import BASE, BUILD_COMMAND, ROOT, digest, environment, identity, tracked_clean, write
+from build_profile import capture_profile
+from gradle_results import export_binary, prepare_reader
 
 
 def capture(repo, output):
@@ -20,7 +22,7 @@ def capture(repo, output):
     pins = identity(repo)
     env = environment()
     record = {**pins, "command": BUILD_COMMAND, "started_ns": time.time_ns(), "environment": env,
-              "exit": None, "jar_sha256": None, "xml": {}, "blocked": []}
+              "exit": None, "jar_sha256": None, "xml": {}, "gradle_results": {}, "blocked": [], "profile": capture_profile(repo)}
     if env["java"]["exit"] != 0 or not __import__("re").search(r'(?:version\s+"|openjdk\s+)25(?:[.\s"+-])', env["java"]["output"]):
         record["blocked"].append("Required Java 25; observed " + env["java"]["output"])
         (output / "build.log").write_text("NOT_EXECUTED: Java 25 is required by the frozen build.\n")
@@ -37,11 +39,19 @@ def capture(repo, output):
         jar = repo / "fabric/build/libs/ai-villages-0.1.0.jar"
         if record["exit"] == 0 and jar.is_file():
             shutil.copy2(jar, output / "production.jar"); record["jar_sha256"] = digest(jar)
+            reader = prepare_reader(output / "gradle-reader")
             for module in ("core", "providers", "fabric"):
                 for source in sorted((repo / module / "build/test-results/test").glob("TEST-*.xml")):
                     path = Path("unit") / module / source.name
                     (output / path).parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(source, output / path); record["xml"][path.as_posix()] = digest(source)
+                binary = repo / module / "build/test-results/test/binary"
+                copied = output / "unit" / module / "binary"
+                shutil.copytree(binary, copied)
+                relative = "identities/" + module + ".jsonl"
+                record["gradle_results"][module] = {"identities": relative,
+                    "identities_sha256": export_binary(copied, output / relative, reader),
+                    "binary": {p.relative_to(output).as_posix(): digest(p) for p in copied.rglob("*") if p.is_file()}}
         elif record["exit"] == 0:
             record["blocked"].append("Gradle returned zero without the exact release JAR")
     record["ended_ns"] = time.time_ns()
