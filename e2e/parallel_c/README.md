@@ -42,3 +42,22 @@ Use a new root per retry; the collector refuses to reuse a directory. Raw artifa
 The single final workflow is dormant until C08 changes `qualification-request.json`. Only the template exists at C00. Its branch AND path filter prevents development pushes from requesting an owner run. The identical frozen ten-workflow trigger patch prevents legacy push fan-out on exact C/D/J branches. No PR is opened at C00. Final CI requires an explicitly authorized private docs read credential named `COGNITIVECRAFT_DOCS_READ_TOKEN`; C00 neither creates nor assumes that secret. No docs workflow, main merge or production integration is performed.
 
 Deferred adapters: InteractionIngress; ActivityEvidencePort; A original-root assistance persistence; D selector bridge; native storage selection; A terminal-status projection. See `predecessor-discovery.json` for read-only live A discovery. A remains unqualified; those observations do not change the C base.
+# C01 candidate and context extension
+
+C01 adds inert IntentParser, CandidateValidator and ConversationContext APIs under the owned core
+namespace. The finite grammar covers all frozen dialogue actions and reply variants. Strict decoding,
+exact source spans and authenticated transport correlation precede a candidate routing decision;
+no class admits or executes a world action. J supplies real ingress, resolution, confirmation and A
+question/authority revalidation. The legacy LanguageRequests action enum is unchanged.
+
+Context is keyed by stable world/principal/citizen IDs and bounded to eight turns, 1024 characters per
+utterance, 4096 retained characters, ten minutes idle and 128 live server sessions. Active assistance
+pins cannot be evicted to make room. FORGET and logout affect C memory only. Explicit extraction
+permits one primary call plus at most one correction to the same selected extractor; replay and late
+response fences prevent another request or stale text deletion. C01 contains no genuine provider call.
+
+The C01 cumulative registry includes the C00 cases, 22 new Java cases and 11 new Python cases.
+The stage collector and independent oracle accept only C00/C01, verify the exact qualified C00
+predecessor, and require fresh complete module/Python results and isolated fixture compilation.
+Native/client campaigns and C02 remain unimplemented. Development pushes do not change the
+qualification request and must launch no Actions run.

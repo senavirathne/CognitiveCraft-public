@@ -3,7 +3,7 @@
   "capabilities": {
     "client_oracle_implemented": false,
     "fabric_api": "0.161.0+26.3",
-    "fixture_compile_required": false,
+    "fixture_compile_required": true,
     "loader": "0.19.5",
     "minecraft": "26.3",
     "native_oracle_implemented": false,
@@ -17,15 +17,41 @@
     "J02: A-owned activity effects, leases and native storage/mobility",
     "J03: A-owned original-root persistence, reobservation and save-qualified terminal projection"
   ],
-  "implementation": "NOT_EXECUTED",
+  "implementation": "IMPLEMENTED",
   "limits": {
+    "candidate_bytes": 16384,
     "compose_port": 25651,
+    "context_turns": 8,
+    "corrections_per_message": 1,
+    "idle_millis": 600000,
     "input_bytes": 262144,
     "json_depth": 64,
     "json_nodes": 32768,
-    "qualification_job_minutes": 90
+    "primary_inferences_per_message": 1,
+    "qualification_job_minutes": 90,
+    "retained_characters": 4096,
+    "sessions": 128,
+    "utterance_characters": 1024
   },
   "mandatory": {
+    "C00-P01": {
+      "assertion": "A one-byte edit to a protected baseline file and an imported peer commit both fail the audit.",
+      "name": "test_ownership.py",
+      "stage": "C00",
+      "tier": "PYTHON"
+    },
+    "C00-P02": {
+      "assertion": "A changed JAR hash, duplicated XML case and nonexistent native frame each fail qualification.",
+      "name": "test_evidence.py",
+      "stage": "C00",
+      "tier": "PYTHON"
+    },
+    "C00-U01": {
+      "assertion": "All 57 canonical fixtures retain their expected shape/semantic/context disposition.",
+      "name": "InteractionCodecTest",
+      "stage": "C00",
+      "tier": "UNIT"
+    },
     "C01-P01": {
       "assertion": "0, -1, 65, overflowing quantities and inserted principal/root/coordinates are rejected.",
       "name": "test_intents.py",
@@ -46,13 +72,548 @@
     }
   },
   "native_cases": [],
-  "python_cases": [],
+  "predecessor": {
+    "docs_sha": "d2ed91d0bcea7c2864e3cdc0511e9ecfdaeff3ab",
+    "source_sha": "33717878a818ea5518e94b840170766574efb8bb",
+    "stage": "C00"
+  },
+  "python_cases": [
+    "test_build_profile.BuildProfileTests#test_different_baseline_and_candidate_inputs_are_rejected",
+    "test_build_profile.BuildProfileTests#test_missing_sdk_provenance_is_rejected",
+    "test_build_profile.BuildProfileTests#test_unknown_profile_is_rejected",
+    "test_docs.DocsTests#test_missing_fragment_is_rejected",
+    "test_docs.DocsTests#test_missing_untracked_target_is_rejected",
+    "test_docs.DocsTests#test_owned_link_and_fragment",
+    "test_docs.DocsTests#test_sparse_target_must_be_an_actual_committed_blob",
+    "test_evidence.EvidenceTests#test_artifact_path_escape_is_rejected",
+    "test_evidence.EvidenceTests#test_changed_jar_is_rejected",
+    "test_evidence.EvidenceTests#test_duplicate_xml_case_is_rejected",
+    "test_evidence.EvidenceTests#test_existing_frame_and_pass_flag_do_not_qualify_native",
+    "test_evidence.EvidenceTests#test_fabricated_settlement_is_rejected",
+    "test_evidence.EvidenceTests#test_failure_and_skip_are_not_passes",
+    "test_evidence.EvidenceTests#test_injected_root_or_owner_is_rejected",
+    "test_evidence.EvidenceTests#test_nonexistent_native_frame_is_rejected",
+    "test_evidence.EvidenceTests#test_xml_counters_are_recomputed",
+    "test_evidence.EvidenceTests#test_xml_entities_are_rejected",
+    "test_gradle_identities.GradleIdentityTests#test_distinct_methods_with_same_display_name_remain_distinct",
+    "test_gradle_identities.GradleIdentityTests#test_duplicate_stable_method_is_rejected",
+    "test_gradle_identities.GradleIdentityTests#test_extra_xml_row_cannot_inflate_binary_count",
+    "test_intents.IntentTests#test_ambiguous_unsupported_and_overlong_text_clarify",
+    "test_intents.IntentTests#test_inserted_principal_root_and_coordinates_are_rejected",
+    "test_intents.IntentTests#test_integer_endpoints_work_and_float_or_hallucinated_quantity_does_not",
+    "test_intents.IntentTests#test_labels_cannot_be_promoted_to_actor_identity_or_permission",
+    "test_intents.IntentTests#test_reply_question_and_revision_cannot_be_swapped",
+    "test_intents.IntentTests#test_zero_negative_sixty_five_and_overflow_quantities_are_rejected",
+    "test_native_sdk.NativeSdkTests#test_changed_library_is_rejected",
+    "test_native_sdk.NativeSdkTests#test_missing_required_library_is_rejected",
+    "test_native_sdk.NativeSdkTests#test_non_linux_library_is_not_required",
+    "test_ownership.OwnershipTests#test_allowed_addition_preserves_baseline",
+    "test_ownership.OwnershipTests#test_core_constant_pool_dependency_is_rejected",
+    "test_ownership.OwnershipTests#test_core_peer_dependency_is_rejected",
+    "test_ownership.OwnershipTests#test_imported_peer_commit_is_rejected",
+    "test_ownership.OwnershipTests#test_one_byte_protected_edit_is_rejected",
+    "test_ownership.OwnershipTests#test_owned_correction_keeps_original_baseline_frozen",
+    "test_ownership.OwnershipTests#test_protected_mode_edit_is_rejected",
+    "test_ownership.OwnershipTests#test_unowned_addition_is_rejected",
+    "test_predecessor.PredecessorTests#test_actual_qualified_predecessor_has_exact_ancestry_and_digests",
+    "test_predecessor.PredecessorTests#test_changed_predecessor_source_jar_or_failed_gate_is_rejected",
+    "test_predecessor.PredecessorTests#test_missing_predecessor_case_or_invented_native_credit_is_rejected"
+  ],
   "schedule": {
-    "client_executions_at_C00": 0,
-    "native_executions_at_C00": 0,
-    "seed_rule": "20261027 plus frozen case ordinal"
+    "client_executions_at_C01": 0,
+    "native_executions_at_C01": 0,
+    "seed_rule": "20261027 plus frozen case ordinal",
+    "tiers": "Synthetic module/Python; no provider/native/client credit"
   },
   "seed": 20261027,
   "stage": "C01",
-  "unit_cases": []
+  "unit_cases": [
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "access-expiry-too-long.json",
+      "id": "C00-U01:access-expiry-too-long",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[1]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "access-wrong-storage.json",
+      "id": "C00-U01:access-wrong-storage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[2]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "admitted-proof-still-reobserves.json",
+      "id": "C00-U01:admitted-proof-still-reobserves",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[3]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "binding-wrong-topology-digest.json",
+      "id": "C00-U01:binding-wrong-topology-digest",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[4]"
+    },
+    {
+      "expected": "INVALID_SCHEMA",
+      "fixture": "candidate-cannot-forge-principal.json",
+      "id": "C00-U01:candidate-cannot-forge-principal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[5]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "chat-cannot-carry-delivery.json",
+      "id": "C00-U01:chat-cannot-carry-delivery",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[6]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "claimed-save-proof-is-untrusted.json",
+      "id": "C00-U01:claimed-save-proof-is-untrusted",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[7]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "come-freezes-position.json",
+      "id": "C00-U01:come-freezes-position",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[8]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "cross-world-transfer.json",
+      "id": "C00-U01:cross-world-transfer",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[9]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "delivery-wrong-principal.json",
+      "id": "C00-U01:delivery-wrong-principal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[10]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "destination-must-deposit.json",
+      "id": "C00-U01:destination-must-deposit",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[11]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "follow-needs-player.json",
+      "id": "C00-U01:follow-needs-player",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[12]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "forget-cannot-transfer.json",
+      "id": "C00-U01:forget-cannot-transfer",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[13]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "forget-only-own-context.json",
+      "id": "C00-U01:forget-only-own-context",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[14]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "mismatched-assistance-root.json",
+      "id": "C00-U01:mismatched-assistance-root",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[15]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "missing-primitive-is-not-shortage.json",
+      "id": "C00-U01:missing-primitive-is-not-shortage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[16]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "namesake-clarifies.json",
+      "id": "C00-U01:namesake-clarifies",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[17]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-ActivityResumeSignal.json",
+      "id": "C00-U01:positive-ActivityResumeSignal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[18]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-AssistanceRequest.json",
+      "id": "C00-U01:positive-AssistanceRequest",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[19]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-BlockerEvidence.json",
+      "id": "C00-U01:positive-BlockerEvidence",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[20]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-CustodyCheckpoint.json",
+      "id": "C00-U01:positive-CustodyCheckpoint",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[21]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-DeliveryGoal.json",
+      "id": "C00-U01:positive-DeliveryGoal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[22]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-DialogueIntent.json",
+      "id": "C00-U01:positive-DialogueIntent",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[23]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-MobilityGoal.json",
+      "id": "C00-U01:positive-MobilityGoal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[24]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-PhysicalStorageBinding.json",
+      "id": "C00-U01:positive-PhysicalStorageBinding",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[25]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-PlayerReplyIntent.json",
+      "id": "C00-U01:positive-PlayerReplyIntent",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[26]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-ResolvedEndpoint.json",
+      "id": "C00-U01:positive-ResolvedEndpoint",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[27]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-SelectionWitness.json",
+      "id": "C00-U01:positive-SelectionWitness",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[28]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-StageManifest.json",
+      "id": "C00-U01:positive-StageManifest",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[29]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-StorageAccessDecision.json",
+      "id": "C00-U01:positive-StorageAccessDecision",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[30]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-StorageRecord.json",
+      "id": "C00-U01:positive-StorageRecord",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[31]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-StorageRoleAssignment.json",
+      "id": "C00-U01:positive-StorageRoleAssignment",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[32]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-StorageSelector.json",
+      "id": "C00-U01:positive-StorageSelector",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[33]"
+    },
+    {
+      "expected": "VALID",
+      "fixture": "positive-VersionRevisionGeneration.json",
+      "id": "C00-U01:positive-VersionRevisionGeneration",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[34]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "public-cannot-administer.json",
+      "id": "C00-U01:public-cannot-administer",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[35]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "public-is-not-a-default-beneficiary.json",
+      "id": "C00-U01:public-is-not-a-default-beneficiary",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[36]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "question-outlives-root.json",
+      "id": "C00-U01:question-outlives-root",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[37]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "question-reply-from-other-principal.json",
+      "id": "C00-U01:question-reply-from-other-principal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[38]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "redacted-cannot-disclose-storage.json",
+      "id": "C00-U01:redacted-cannot-disclose-storage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[39]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "replaced-native-marker.json",
+      "id": "C00-U01:replaced-native-marker",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[40]"
+    },
+    {
+      "expected": "INVALID_SCHEMA",
+      "fixture": "reply-is-not-proof.json",
+      "id": "C00-U01:reply-is-not-proof",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[41]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "reply-to-stale-generation.json",
+      "id": "C00-U01:reply-to-stale-generation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[42]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "revoked-access.json",
+      "id": "C00-U01:revoked-access",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[43]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "same-endpoint-delivery.json",
+      "id": "C00-U01:same-endpoint-delivery",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[44]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "save-tier-requires-proof.json",
+      "id": "C00-U01:save-tier-requires-proof",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[45]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "selection-cannot-outlive-40-ticks.json",
+      "id": "C00-U01:selection-cannot-outlive-40-ticks",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[46]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "settled-with-unknown-effect.json",
+      "id": "C00-U01:settled-with-unknown-effect",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[47]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "single-chest-two-members.json",
+      "id": "C00-U01:single-chest-two-members",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[48]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "source-citizen-must-be-carrier.json",
+      "id": "C00-U01:source-citizen-must-be-carrier",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[49]"
+    },
+    {
+      "expected": "INVALID_SCHEMA",
+      "fixture": "unbounded-follow.json",
+      "id": "C00-U01:unbounded-follow",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[50]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "unknown-cannot-disclose-quantity.json",
+      "id": "C00-U01:unknown-cannot-disclose-quantity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[51]"
+    },
+    {
+      "expected": "INVALID_SCHEMA",
+      "fixture": "unknown-selector-kind.json",
+      "id": "C00-U01:unknown-selector-kind",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[52]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "unregistered-is-not-public.json",
+      "id": "C00-U01:unregistered-is-not-public",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[53]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "whole-unchanged-chest-no-resume.json",
+      "id": "C00-U01:whole-unchanged-chest-no-resume",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[54]"
+    },
+    {
+      "expected": "INVALID_SEMANTICS",
+      "fixture": "wrong-claim-authority.json",
+      "id": "C00-U01:wrong-claim-authority",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[55]"
+    },
+    {
+      "expected": "REFUSED_EXPECTED",
+      "fixture": "wrong-supply-no-resume.json",
+      "id": "C00-U01:wrong-supply-no-resume",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[56]"
+    },
+    {
+      "expected": "INVALID_SCHEMA",
+      "fixture": "zero-items.json",
+      "id": "C00-U01:zero-items",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#canonicalFixtures()[57]"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:rejectsDuplicateKeys",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#rejectsDuplicateKeys()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:rejectsNonIntegerTokens",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#rejectsNonIntegerTokens()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:rejectsUnknownVersionAndFields",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#rejectsUnknownVersionAndFields()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:refusesProjectionsAtLanguageIngress",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#refusesProjectionsAtLanguageIngress()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:normalizesNeitherLabelsNorMalformedUnicode",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#normalizesNeitherLabelsNorMalformedUnicode()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:refusesOversizeAndDeepInput",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#refusesOversizeAndDeepInput()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C00-U01:noPublicTrustedConstructorOrFactoryExists",
+      "xml_id": "dev.aivillages.core.kernel.interaction.contract.InteractionCodecTest#noPublicTrustedConstructorOrFactoryExists()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:comeFollowAndOrdinaryChatKeepStableActorWithoutWorldCalls",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#comeFollowAndOrdinaryChatKeepStableActorWithoutWorldCalls()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:allDialogueActionsProduceOnlyFrozenCandidateFields",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#allDialogueActionsProduceOnlyFrozenCandidateFields()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:exactQuantitiesAndStorageTypeRemainCandidates",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#exactQuantitiesAndStorageTypeRemainCandidates()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:registrationRenameAndAccessRequireConfirmationWithoutChangingAssociation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#registrationRenameAndAccessRequireConfirmationWithoutChangingAssociation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:allPlayerRepliesBindOnlyToCurrentQuestionAndNeverResumeAnActivity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#allPlayerRepliesBindOnlyToCurrentQuestionAndNeverResumeAnActivity()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:missingAmbiguousNegatedAndUnsupportedCommandsClarify",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#missingAmbiguousNegatedAndUnsupportedCommandsClarify()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:selectedStorageRequiresMatchingServerCorrelationAndType",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#selectedStorageRequiresMatchingServerCorrelationAndType()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:validatorRejectsForgedIdentityRootCoordinatesAndUnknownEnvelopeFields",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#validatorRejectsForgedIdentityRootCoordinatesAndUnknownEnvelopeFields()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:validatorRejectsSwappedActorMessageTextAndReplyGeneration",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#validatorRejectsSwappedActorMessageTextAndReplyGeneration()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:sourceSpansMustCoverExactGroundedClaimsAndUnicodeBoundaries",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#sourceSpansMustCoverExactGroundedClaimsAndUnicodeBoundaries()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:inferenceHasOnePrimaryAndOneBoundedCorrectionWithoutFallthroughOrReplay",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#inferenceHasOnePrimaryAndOneBoundedCorrectionWithoutFallthroughOrReplay()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:providerExceptionAndCrossPrincipalResponseNeverTryAnotherProvider",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#providerExceptionAndCrossPrincipalResponseNeverTryAnotherProvider()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U01:lateInferenceCannotForgetNewerConversation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.IntentParserTest#lateInferenceCannotForgetNewerConversation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:principalsWorldsAndCitizensHaveDisjointContext",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#principalsWorldsAndCitizensHaveDisjointContext()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:ninthTurnKeepsOnlyLastEightAndSnapshotsAreImmutable",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#ninthTurnKeepsOnlyLastEightAndSnapshotsAreImmutable()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:characterBudgetDropsOldestWholeTurnsAndRejectsOversizeWithoutTruncating",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#characterBudgetDropsOldestWholeTurnsAndRejectsOversizeWithoutTruncating()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:tenMinuteIdleLimitIsExactAndReadingDoesNotRenewIt",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#tenMinuteIdleLimitIsExactAndReadingDoesNotRenewIt()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:fullServerRefusesNewSessionAndNeverEvictsAnActiveAssociation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#fullServerRefusesNewSessionAndNeverEvictsAnActiveAssociation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:forgetIsScopedAndKeepsReplayFenceAndAssistancePin",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#forgetIsScopedAndKeepsReplayFenceAndAssistancePin()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:logoutClearsOnlyThatPrincipalInThatWorldIncludingEphemeralPins",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#logoutClearsOnlyThatPrincipalInThatWorldIncludingEphemeralPins()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:monotonicClockAndReplayFailuresDoNotRenewOrMutateText",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#monotonicClockAndReplayFailuresDoNotRenewOrMutateText()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C01-U02:unicodeLimitsCountCharactersAndNeverRepairMalformedInput",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#unicodeLimitsCountCharactersAndNeverRepairMalformedInput()"
+    }
+  ]
 }

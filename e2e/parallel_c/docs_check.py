@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 import re
+import subprocess
 from urllib.parse import unquote, urlsplit
 
 from common import EvidenceError, check, contract_hashes, write
@@ -25,7 +26,7 @@ def anchors(path):
 def check_links(root, prefix, stage, require_fragments=True):
     root = Path(root).resolve(); owned = (root / prefix).resolve()
     check(owned.is_relative_to(root) and owned.is_dir(), "missing/unsafe owned docs prefix")
-    count = 0
+    count = 0; sparse_targets = set()
     for path in sorted(owned.rglob("*.md")):
         # Contract reference documents are frozen inputs; validate their relative links too.
         text = path.read_text()
@@ -33,7 +34,17 @@ def check_links(root, prefix, stage, require_fragments=True):
             link = match.group(1).strip("<>"); parsed = urlsplit(link)
             if parsed.scheme or parsed.netloc: continue
             target = (path.parent / unquote(parsed.path)).resolve() if parsed.path else path
-            check(target.is_relative_to(root) and target.exists(), "broken owned link: " + str(path.relative_to(root)) + " -> " + link)
+            check(target.is_relative_to(root), "unsafe owned link: " + link)
+            if not target.exists():
+                # Large historical archives may be omitted by an explicit sparse checkout.
+                # Resolve their real committed blob; do not create placeholder evidence files.
+                relative = target.relative_to(root).as_posix()
+                tracked = subprocess.run(["git", "-C", str(root), "ls-files", "-t", "--", relative], capture_output=True, text=True)
+                entry = subprocess.run(["git", "-C", str(root), "ls-tree", "HEAD", "--", relative], capture_output=True, text=True)
+                check(tracked.returncode == 0 and tracked.stdout == "S " + relative + "\n"
+                      and re.fullmatch(r"100(?:644|755) blob [0-9a-f]{40}\t" + re.escape(relative) + r"\n", entry.stdout),
+                      "broken owned link: " + str(path.relative_to(root)) + " -> " + link)
+                sparse_targets.add(relative)
             if parsed.fragment:
                 check(target.suffix == ".md" and unquote(parsed.fragment) in anchors(target), "broken owned fragment: " + link)
             count += 1
@@ -43,7 +54,7 @@ def check_links(root, prefix, stage, require_fragments=True):
         contract_hashes(owned / "contracts")
         manifest = json.loads((owned / "manifest-fragment.json").read_text())
         check(manifest.get("merge_owner") == "J06" and manifest.get("destinations"), "shared destinations must be deferred to J06")
-    return {"status": "PASS", "stage": stage, "scope": prefix, "links": count}
+    return {"status": "PASS", "stage": stage, "scope": prefix, "links": count, "sparse_targets": sorted(sparse_targets)}
 
 
 if __name__ == "__main__":

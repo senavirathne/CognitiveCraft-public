@@ -138,7 +138,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     tracked_clean()
     check(git(ROOT, "rev-parse", "HEAD") == source, "oracle must execute at the frozen source commit")
     registry = read(HERE / "registries" / (stage + ".json"))
-    check(registry["implementation"] == "IMPLEMENTED" and stage == "C00", "stage is NOT_EXECUTED; implement its own oracle first")
+    check(registry["implementation"] == "IMPLEMENTED" and stage in ("C00", "C01"), "stage is NOT_EXECUTED; implement its own oracle first")
     contract_hashes()
     run = read(root / "run.json")
     check(run["source_sha"] == source and run["tree_sha"] == tree, "run/source/tree mismatch")
@@ -185,6 +185,9 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     from ownership import audit
     from docs_check import check_links
     docs_root = Path(docs_root or ROOT.parent / "CognitiveCraft-Documentation-C")
+    if stage == "C01":
+        from predecessor import verify_predecessor
+        check(read(root / "predecessor.json") == verify_predecessor(docs_root), "C00 predecessor evidence changed")
     current_owner = audit(docs_root=docs_root)
     check(current_owner["gate_status"] == "OWNED_GATES_PASS", "independent current ownership audit is incomplete")
     check_links(docs_root, "docs/implementation/parallel-c", stage)
@@ -195,7 +198,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     return {"gate_status": "OWNED_GATES_PASS", "stage": stage, "source_sha": source, "tree_sha": tree,
             "jar_sha256": run["jar_sha256"], "contract_sha256": CONTRACT, "counts": totals,
             "native_executed": 0, "client_executed": 0, "workflow_run": None, "attempt": None,
-            "blocked": registry["deferred"], "claim": "C00 component qualification; no physical or production UI proof"}
+            "blocked": registry["deferred"], "claim": stage + " component qualification; no physical or production UI proof"}
 
 
 if __name__ == "__main__":

@@ -15,15 +15,16 @@ from common import digest, environment, git, identity, read, tracked_clean, writ
 from docs_check import check_links
 from ownership import audit
 from run_tests import run as run_python
+from predecessor import verify_predecessor
 
 
 def collect(stage, root, baseline, candidate, docs_root):
-    check(stage == "C00", "later stages are NOT_EXECUTED; stop at C00 handoff")
+    check(stage in ("C00", "C01"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
     tracked_clean()
     registry_path = HERE / "registries" / (stage + ".json")
     registry = read(registry_path)
     check(registry["implementation"] == "IMPLEMENTED", "unimplemented registry")
-    check(registry["native_cases"] == [] and registry["client_cases"] == [], "C00 cannot execute future physical schedules")
+    check(registry["native_cases"] == [] and registry["client_cases"] == [], "C00/C01 cannot execute future physical schedules")
     hashes = contract_hashes()
     root = Path(root).resolve()
     check(root.is_relative_to(ROOT / "build/e2e/parallel-c"), "dedicated C evidence root required")
@@ -37,6 +38,7 @@ def collect(stage, root, baseline, candidate, docs_root):
            "workflow_run": None, "attempt": None}
     write(root / "environment.json", environment())
     write(root / "contract-artifacts.json", hashes)
+    if stage == "C01": write(root / "predecessor.json", verify_predecessor(docs_root))
     for name, directory in (("baseline", baseline), ("candidate", candidate)):
         if directory.is_dir(): shutil.copytree(directory, root / name)
         else: run["collection_blocks"].append(str(directory) + ": missing measured " + name + " build")
