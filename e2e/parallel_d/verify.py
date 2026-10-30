@@ -106,19 +106,19 @@ def verify(stage,root,source,tree,jar):
     if spec['client_e2e']:
         from client_oracle import verify as client_verify
         client_rows,client_details=client_verify(root/'clients-d05',current,fixture)
-        if stage in ('D06','D07','D08','D09','D10'):
+        if stage in ('D06','D07','D08','D09','D10','D11'):
             from mobility_oracle import client as come_verify
             added,come_details=come_verify(root/'clients-d06',current,fixture);client_rows+=added;client_details['mobility']=come_details;client_details['evidence']+=come_details['evidence']
-        if stage in ('D07','D08','D09','D10'):
+        if stage in ('D07','D08','D09','D10','D11'):
             from follow_oracle import client as follow_verify
             added,follow_details=follow_verify(root/'clients-d07',current,fixture);client_rows+=added;client_details['follow']=follow_details;client_details['evidence']+=follow_details['evidence']
-        if stage in ('D08','D09','D10'):
+        if stage in ('D08','D09','D10','D11'):
             from delivery_oracle import client as delivery_verify
             added,delivery_details=delivery_verify(root/'clients-d08',current,fixture);client_rows+=added;client_details['delivery']=delivery_details;client_details['evidence']+=delivery_details['evidence']
-        if stage in ('D09','D10'):
+        if stage in ('D09','D10','D11'):
             from handoff_oracle import client as handoff_verify
             added,handoff_details=handoff_verify(root/'clients-d09',current,fixture);client_rows+=added;client_details['handoff']=handoff_details;client_details['evidence']+=handoff_details['evidence']
-        if stage=='D10':
+        if stage in ('D10','D11'):
             from component_oracle import client as component_verify
             component=component_verify(root/'clients-d10',current,fixture);client_details['component']=component;client_rows += [{'id':s['case'],'status':s['disposition']}for s in component['cases']];client_details['evidence'] += ['clients-d10/component-clients.json','clients-d10/component-menus.json','clients-d10/server/stdout.log']
         require({r['id']for r in client_rows}==set(spec['client_e2e']),'client case reconciliation')
@@ -129,6 +129,15 @@ def verify(stage,root,source,tree,jar):
             'game_tests':metric(len(spec['game_tests']),native_rows,native_details.get('evidence',[])),'client_e2e':metric(len(spec['client_e2e']),client_rows,client_details.get('evidence',[])),'native_evidence':native_details.get('evidence',[]),
             'blocked':['J01/J02/J04: production registration, runtime authority and selector admission are deferred; '+stage+' production hooks remain disabled; test-only native markers are not A settlement'],
             'regressions':[],'gate_status':'OWNED_GATES_PASS'}
+    readiness={}
+    if stage=='D11':
+        result['blocked']=['J01: production marker installation, registration/selection, metadata/retention lifecycle adapters are deferred.',
+                           'J02: production authority, original-root leases/custody/budgets, courier/follow scheduling and transformed primitive requalification are deferred.',
+                           'J04: production resolver/beneficiary/identity admission and confirmation adapters are deferred.',
+                           'J05: coordinated participant saves, ambiguous crash/restart/cancel reconciliation and original-owner settlement are deferred; partial persistence stays UNKNOWN.']
+        from qualification import finalize
+        result['gate_status'],readiness=finalize(root,result,fixture)
+        result['native_evidence']+=readiness['native_target_evidence']
     # Apply the external frozen schema and counter semantics, not our own JSON pass flag.
     import importlib.util
     loader=importlib.util.spec_from_file_location('d_frozen_contract',HERE/'contracts/verify_contract.py')
@@ -138,6 +147,7 @@ def verify(stage,root,source,tree,jar):
     details={'scope':stage+'_ONLY','resolution_observations':resolution_details,'resolution_queries_are_python_case_observations':True,'acl_sequence_observations':acl_details,'acl_transitions_are_python_case_observations':True,'metadata_recovery_observations':recoveries,'metadata_observations_are_existing_unit_cases':True,'fixture_outcomes':dict(collections.Counter(r['actual'] for r in observations)),
              'regression_modules':regression,'duplicates':[],'native_executions':len(native_rows),'native_details':native_details,'client_details':client_details,'connected_clients_observed':client_details.get('connected_clients',0),
              'docs_pin_is_prequalification':True,'final_docs_pin':'external handoff after report commit'}
+    if stage=='D11':details['readiness']=readiness
     return result,details
 
 if __name__=='__main__':

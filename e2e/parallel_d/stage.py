@@ -28,6 +28,9 @@ def run(stage, root, built):
               'integration':{'root_id':None,'owner_id':None,'effect_id':None,'save_proof':None,'blocker':'J01/J02: registration and A authority adapters deferred'},
               'docs_sha':read(HERE/'docs-snapshot.json')['candidate_sha'],'predecessor':predecessor(stage)}
     write(root/'metadata.json',metadata)
+    if stage=='D11':
+        from qualification import collect_native_targets
+        collect_native_targets(root)
     write(root/'ownership.json',audit(require_built=True))
     for module in ('core','providers','fabric'):
         paths=sorted((REPO/module/'build/test-results/test').glob('TEST-*.xml'))
@@ -49,7 +52,7 @@ def run(stage, root, built):
         write(root/'native-plan.json',{'game_tests':spec['game_tests'],'client_e2e':spec['client_e2e'], 'status':'COLLECTED_RAW',
               'configured_players':[{'name':name,'anticipated_offline_uuid':str(uuid.UUID(bytes=__import__('hashlib').md5(('OfflinePlayer:'+name).encode()).digest(),version=3))} for name in ('PlayerD_A','PlayerD_B')]})
     if spec['client_e2e']:
-        required={'D05':1,'D06':2,'D07':3,'D08':4,'D09':5,'D10':6};require(stage in required and all((root/('clients-d'+str(i).zfill(2))/'identity.json').is_file()for i in range(5,5+required[stage])),'actual cumulative two-client campaign absent')
+        required={'D05':1,'D06':2,'D07':3,'D08':4,'D09':5,'D10':6,'D11':6};require(stage in required and all((root/('clients-d'+str(i).zfill(2))/'identity.json').is_file()for i in range(5,5+required[stage])),'actual cumulative two-client campaign absent')
     files=[{'path':str(p.relative_to(root)),'sha256':sha(p),'bytes':p.stat().st_size} for p in sorted(root.rglob('*')) if p.is_file() and p.name not in ('manifest.json','qualified.json','oracle-details.json')]
     write(root/'manifest.json',{'identity':identity,'files':files})
     print(json.dumps({'stage':stage,'operation':'RAW_EVIDENCE_COLLECTED','files':len(files),'qualification_claims':0},sort_keys=True))

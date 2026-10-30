@@ -94,7 +94,7 @@ def verify(root,identity,fixture,stage="D02"):
     native=read(root/'identity.json');require(native['identity']==identity,'native source/JAR/run identity changed')
     require(native['release_sha256']==identity['jar_sha256'] and native['fixture_sha256']==sha(fixture),'native release/fixture changed')
     require(native['world']==WORLD and native['seed']==20261027 and native['connected_clients']==0,'native context/false client claim')
-    phases=native['phases'];require([r['phase']for r in phases]==list(METHODS)+(['adapters']if stage in ('D05','D06','D07','D08','D09','D10')else[])+(['come']if stage in ('D06','D07','D08','D09','D10')else[])+(['follow']if stage in ('D07','D08','D09','D10')else[])+(['courier','courier-crash-write','courier-crash-read']if stage in ('D08','D09','D10')else[])+(['handoff']if stage in ('D09','D10')else[])+(['observed-restart-write','observed-restart-read']if stage=='D10'else[]),'missing/duplicate native JVM schedule')
+    phases=native['phases'];require([r['phase']for r in phases]==list(METHODS)+(['adapters']if stage in ('D05','D06','D07','D08','D09','D10','D11')else[])+(['come']if stage in ('D06','D07','D08','D09','D10','D11')else[])+(['follow']if stage in ('D07','D08','D09','D10','D11')else[])+(['courier','courier-crash-write','courier-crash-read']if stage in ('D08','D09','D10','D11')else[])+(['handoff']if stage in ('D09','D10','D11')else[])+(['observed-restart-write','observed-restart-read']if stage in ('D10','D11')else[]),'missing/duplicate native JVM schedule')
     for dep in native['runtime']:require(sha(REPO/dep['path'])==dep['sha256'],'native dependency changed')
     frames={}
     for row in phases:
@@ -126,34 +126,34 @@ def verify(root,identity,fixture,stage="D02"):
             n=frame['native'][0];saved=lookup[(n['x'],n['y'],n['z'])]['cognitivecraft_storage_v1']
             require(saved['version']==1 and saved['incarnation']==n['incarnation'] and saved['generation']==n['marker_generation'],'actual saved NBT differs from observed/reloaded marker')
     adapter_details={}
-    if stage in ('D05','D06','D07','D08','D09','D10'):
+    if stage in ('D05','D06','D07','D08','D09','D10','D11'):
         from adapters_oracle import verify as adapters_verify
         adapter_details=adapters_verify(root/'adapters')
     mobility_details={}
-    if stage in ('D06','D07','D08','D09','D10'):
+    if stage in ('D06','D07','D08','D09','D10','D11'):
         from mobility_oracle import native as mobility_verify
         mobility_details=mobility_verify(root/'come')
     follow_details={}
-    if stage in ('D07','D08','D09','D10'):
+    if stage in ('D07','D08','D09','D10','D11'):
         from follow_oracle import native as follow_verify
         follow_details=follow_verify(root/'follow')
     delivery_details={}
-    if stage in ('D08','D09','D10'):
+    if stage in ('D08','D09','D10','D11'):
         from delivery_oracle import native as delivery_verify
         delivery_details=delivery_verify(root)
     handoff_details={}
-    if stage in ('D09','D10'):
+    if stage in ('D09','D10','D11'):
         from handoff_oracle import native as handoff_verify
         handoff_details=handoff_verify(root/'handoff')
     restart_details={}
-    if stage=='D10':
+    if stage in ('D10','D11'):
         from component_oracle import native_restart
         restart_details=native_restart(root)
-    evidence=[str((root/p/'native-results.xml').relative_to(root.parent))for p in list(METHODS)+(['adapters']if stage in ('D05','D06','D07','D08','D09','D10')else[])+(['come']if stage in ('D06','D07','D08','D09','D10')else[])+(['follow']if stage in ('D07','D08','D09','D10')else[])+(['courier','courier-crash-read']if stage in ('D08','D09','D10')else[])+(['handoff']if stage in ('D09','D10')else[])]
-    if stage=='D10':evidence+=['native/observed-restart-read/native-results.xml','native/observed-restart-read/evidence/restart.jsonl','native/observed-restart-read/evidence/binding-reload.json','native/observed-restart-write/evidence/restart.jsonl','native/observed-restart-write/prekill-saved/distributions.json']
+    evidence=[str((root/p/'native-results.xml').relative_to(root.parent))for p in list(METHODS)+(['adapters']if stage in ('D05','D06','D07','D08','D09','D10','D11')else[])+(['come']if stage in ('D06','D07','D08','D09','D10','D11')else[])+(['follow']if stage in ('D07','D08','D09','D10','D11')else[])+(['courier','courier-crash-read']if stage in ('D08','D09','D10','D11')else[])+(['handoff']if stage in ('D09','D10','D11')else[])]
+    if stage in ('D10','D11'):evidence+=['native/observed-restart-read/native-results.xml','native/observed-restart-read/evidence/restart.jsonl','native/observed-restart-read/evidence/binding-reload.json','native/observed-restart-write/evidence/restart.jsonl','native/observed-restart-write/prekill-saved/distributions.json']
     evidence+=follow_details.get('evidence',[])+delivery_details.get('evidence',[])+handoff_details.get('evidence',[])
-    if stage in ('D06','D07','D08','D09','D10'):evidence += ['native/come/'+p for p in ('stdout.log','evidence/arena.json','evidence/movement.jsonl','evidence/storage-movement.jsonl','evidence/controls.json','evidence/storage-controls.json')]
-    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06','D07','D08','D09','D10')else[])+(['D06-GT01']if stage in ('D06','D07','D08','D09','D10')else[])+(['D07-GT01']if stage in ('D07','D08','D09','D10')else[])+(['D08-GT01']if stage in ('D08','D09','D10')else[])+(['D09-GT01']if stage in ('D09','D10')else[])+(['D10-GT01']if stage=='D10'else[])],{
-        'observed_restart_details':restart_details,'handoff_details':handoff_details,'delivery_details':delivery_details,'follow_details':follow_details,'native_jvms':len(phases),'owned_cases':4+(stage in ('D05','D06','D07','D08','D09','D10'))+(stage in ('D06','D07','D08','D09','D10'))+(stage in ('D07','D08','D09','D10'))+(stage in ('D08','D09','D10'))+(stage in ('D09','D10'))+(stage=='D10'),'xml_observations':5+(stage in ('D05','D06','D07','D08','D09','D10'))+(stage in ('D06','D07','D08','D09','D10'))+(stage in ('D07','D08','D09','D10'))+2*(stage in ('D08','D09','D10'))+(stage in ('D09','D10'))+(stage=='D10'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
+    if stage in ('D06','D07','D08','D09','D10','D11'):evidence += ['native/come/'+p for p in ('stdout.log','evidence/arena.json','evidence/movement.jsonl','evidence/storage-movement.jsonl','evidence/controls.json','evidence/storage-controls.json')]
+    return [{'id':case,'status':'PASS'}for case in ['D02-GT01','D02-GT02-TOPOLOGY','D02-GT02-RELOAD','D02-PERF']+(['D05-GT01']if stage in ('D05','D06','D07','D08','D09','D10','D11')else[])+(['D06-GT01']if stage in ('D06','D07','D08','D09','D10','D11')else[])+(['D07-GT01']if stage in ('D07','D08','D09','D10','D11')else[])+(['D08-GT01']if stage in ('D08','D09','D10','D11')else[])+(['D09-GT01']if stage in ('D09','D10','D11')else[])+(['D10-GT01']if stage in ('D10','D11')else[])],{
+        'observed_restart_details':restart_details,'handoff_details':handoff_details,'delivery_details':delivery_details,'follow_details':follow_details,'native_jvms':len(phases),'owned_cases':4+(stage in ('D05','D06','D07','D08','D09','D10','D11'))+(stage in ('D06','D07','D08','D09','D10','D11'))+(stage in ('D07','D08','D09','D10','D11'))+(stage in ('D08','D09','D10','D11'))+(stage in ('D09','D10','D11'))+(stage in ('D10','D11'),'D11'),'xml_observations':5+(stage in ('D05','D06','D07','D08','D09','D10','D11'))+(stage in ('D06','D07','D08','D09','D10','D11'))+(stage in ('D07','D08','D09','D10','D11'))+2*(stage in ('D08','D09','D10','D11'))+(stage in ('D09','D10','D11'))+(stage in ('D10','D11'),'D11'),'baseline_cases':1,'cold_reload_jvms':2,'saved_marker_snapshots':6,
         'mobility_details':mobility_details,'adapter_details':adapter_details,'frames':sum(len(v)for v in frames.values())+adapter_details.get('events',0)+sum(d.get('frames',0)for d in mobility_details.values()if isinstance(d,dict)),'evidence':evidence,
         'performance':performance(read(root/'baseline/evidence/performance.json'),read(root/'performance/evidence/performance.json'))}

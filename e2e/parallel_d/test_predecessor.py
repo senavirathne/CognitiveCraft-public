@@ -87,3 +87,12 @@ class PredecessorTest(unittest.TestCase):
         for tier in ('unit','python','game_tests','client_e2e'):
             bad=copy.deepcopy(good);bad[tier]['passed']-=1
             with self.assertRaises(ValueError):measured_d09(bad)
+
+    def test_d10_exact_complete_component_handoff_required(self):
+        from prerequisites import measured_d10
+        good=read(HERE/'predecessors/D10-qualified.json');measured_d10(good)
+        for field,value in [('source_sha','0'*40),('gate_status','INCONCLUSIVE'),('attempt',2)]:
+            bad=copy.deepcopy(good);bad[field]=value
+            with self.assertRaises(ValueError):measured_d10(bad)
+        bad=copy.deepcopy(good);bad['client_e2e']['refused_expected']-=1
+        with self.assertRaises(ValueError):measured_d10(bad)
