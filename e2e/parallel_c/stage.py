@@ -19,12 +19,12 @@ from predecessor import verify_predecessor
 
 
 def collect(stage, root, baseline, candidate, docs_root):
-    check(stage in ("C00", "C01", "C02"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
+    check(stage in ("C00", "C01", "C02", "C03"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
     tracked_clean()
     registry_path = HERE / "registries" / (stage + ".json")
     registry = read(registry_path)
     check(registry["implementation"] == "IMPLEMENTED", "unimplemented registry")
-    check(registry["native_cases"] == [] and registry["client_cases"] == [], "C00-C02 cannot execute future physical schedules")
+    check(registry["native_cases"] == [] and registry["client_cases"] == [], "C00-C03 cannot execute future physical schedules")
     hashes = contract_hashes()
     root = Path(root).resolve()
     check(root.is_relative_to(ROOT / "build/e2e/parallel-c"), "dedicated C evidence root required")
@@ -42,8 +42,8 @@ def collect(stage, root, baseline, candidate, docs_root):
     if docs_sha is None: run["collection_blocks"].append("private documentation checkout unavailable; source gates still execute")
     write(root / "environment.json", environment())
     write(root / "contract-artifacts.json", hashes)
-    if stage in ("C01", "C02"):
-        try: previous = verify_predecessor(docs_root, "C00" if stage == "C01" else "C01")
+    if stage in ("C01", "C02", "C03"):
+        try: previous = verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02"}[stage])
         except (EvidenceError, OSError, subprocess.CalledProcessError) as failure:
             previous = {"status": "BLOCKED_DEPENDENCY", "error": str(failure)}; run["collection_blocks"].append(str(failure))
         write(root / "predecessor.json", previous)
@@ -57,9 +57,14 @@ def collect(stage, root, baseline, candidate, docs_root):
     compiled = compiler.compile_fixture(root / "native", JAR)
     run["collection_blocks"].extend(compiled["blocked"])
     run_python(root / "python")  # Writes observations only; failures are adjudicated independently from XML.
-    if stage == "C02":
+    if stage in ("C02", "C03"):
         from blocker_runtime import dependency
         write(root / "python/blocker-runtime.json", dependency())
+    if stage == "C03":
+        from live_provider import run as run_live
+        live = run_live(root / "live-provider")
+        run["provider_summary"] = live
+        if live["status"] != "PASS": run["collection_blocks"].append("genuine provider: " + str(live.get("error")))
     try:
         owner = audit(docs_root=docs_root)
         run["collection_blocks"].extend(owner["blocked"])

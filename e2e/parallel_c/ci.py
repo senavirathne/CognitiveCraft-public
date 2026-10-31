@@ -55,7 +55,16 @@ def main():
     release = ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"
     result.update(ended_ns=time.time_ns(), jar_sha256=digest(release) if release.is_file() else None, evidence_root=str(evidence), oracle=oracle)
     passed = all(x["exit"] == 0 for x in result["phases"]) and result["docs_sha"] == request["docs_candidate_sha"] and oracle.get("gate_status") == "OWNED_GATES_PASS"
-    result["gate_status"] = "OWNED_GATES_PASS" if passed else "BLOCKED_DEPENDENCY" if not result["docs_available"] else "FAIL"
+    run_file = evidence / "run.json"
+    collected = read(run_file) if run_file.is_file() else {}
+    predecessor_file = evidence / "predecessor.json"
+    predecessor = read(predecessor_file) if predecessor_file.is_file() else {}
+    live_file = evidence / "live-provider/live.json"
+    live = read(live_file) if live_file.is_file() else {}
+    result.update(collection_blocks=collected.get("collection_blocks", []), predecessor=predecessor, genuine_provider=live)
+    builds_pass = all(x["exit"] == 0 for x in result["phases"] if x["name"] in ("sdk", "baseline-checkout", "baseline-build", "candidate-build", "existing-drivers"))
+    dependency = not result["docs_available"] or predecessor.get("status") == "BLOCKED_DEPENDENCY" or live.get("status") == "BLOCKED_DEPENDENCY"
+    result["gate_status"] = "OWNED_GATES_PASS" if passed else "BLOCKED_DEPENDENCY" if builds_pass and dependency else "FAIL"
     write(output / "ci-result.json", result)
     print(__import__("json").dumps(result, sort_keys=True), flush=True)
     return 0 if passed else 2

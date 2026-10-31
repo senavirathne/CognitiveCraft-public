@@ -20,7 +20,7 @@ class CiTests(unittest.TestCase):
         result = self.request(); self.assertEqual("C02", result["stage"]); self.assertEqual("infrastructure-recovery", result["purpose"])
 
     def test_unimplemented_stage_or_wrong_purpose_cannot_spend_qualification_run(self):
-        for change in ({"stage": "C03"}, {"purpose": "final-qualification"}, {"stage": "J00"}, {"stage": "C08", "purpose": "final-qualification"}):
+        for change in ({"stage": "C04"}, {"purpose": "final-qualification"}, {"stage": "J00"}, {"stage": "C08", "purpose": "final-qualification"}):
             with self.assertRaises(EvidenceError): self.request(**change)
 
     def test_wrong_contract_unpinned_docs_or_extra_authority_fields_are_rejected(self):
@@ -39,3 +39,20 @@ class CiTests(unittest.TestCase):
 
     def test_local_identity_remains_uncredited_as_github_actions(self):
         self.assertEqual({"workflow_run": None, "attempt": None, "workflow_url": None}, workflow_context({}))
+
+    def test_only_explicit_pinned_model_configuration_can_reuse_host_network(self):
+        from ci_host import shared_model_configuration
+        from live_provider import ENV
+        self.assertEqual(({}, False, None), shared_model_configuration(dict.fromkeys(ENV, '')))
+        values = dict(zip(ENV, ('http://127.0.0.1:8080', 'qwen', 'a'*64, 'build/e2e-sdk/models/qwen.gguf', '/models/qwen.gguf', 'b1-abc')))
+        self.assertEqual((values, True, None), shared_model_configuration(values))
+        remote = dict(values, COGNITIVECRAFT_C_MODEL_URL='https://model.example.com')
+        self.assertEqual((remote, False, None), shared_model_configuration(remote))
+
+    def test_model_url_credentials_bad_urls_and_unowned_files_are_not_forwarded(self):
+        from ci_host import shared_model_configuration
+        from live_provider import ENV
+        values = dict(zip(ENV, ('http://127.0.0.1:8080', 'qwen', 'a'*64, 'build/e2e-sdk/models/qwen.gguf', '/models/qwen.gguf', 'b1-abc')))
+        for changes in ({ENV[0]:'https://user:secret@model.example.com'}, {ENV[0]:'http://['}, {ENV[3]:'/etc/passwd'}, {ENV[3]:'build/e2e-sdk/models/../../private'}, {ENV[2]:''}):
+            accepted, host_network, error = shared_model_configuration(dict(values, **changes))
+            self.assertEqual({}, accepted); self.assertFalse(host_network); self.assertIsNotNone(error)

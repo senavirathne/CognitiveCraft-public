@@ -64,6 +64,13 @@ jobs:
             parallel-c-docker-linux-v2-
             minecraft-client-26.3-702fe591-fabric-0195-linux-v1
       - name: Run all cumulative gates inside the existing E2E Docker stack
+        env:
+          COGNITIVECRAFT_C_MODEL_URL: ${{ vars.COGNITIVECRAFT_C_MODEL_URL }}
+          COGNITIVECRAFT_C_MODEL_ALIAS: ${{ vars.COGNITIVECRAFT_C_MODEL_ALIAS }}
+          COGNITIVECRAFT_C_MODEL_SHA256: ${{ vars.COGNITIVECRAFT_C_MODEL_SHA256 }}
+          COGNITIVECRAFT_C_MODEL_FILE: ${{ vars.COGNITIVECRAFT_C_MODEL_FILE }}
+          COGNITIVECRAFT_C_MODEL_SERVER_PATH: ${{ vars.COGNITIVECRAFT_C_MODEL_SERVER_PATH }}
+          COGNITIVECRAFT_C_MODEL_BUILD: ${{ vars.COGNITIVECRAFT_C_MODEL_BUILD }}
         run: python3 e2e/parallel_c/ci_host.py
       - name: Retain reusable caches after successful or partial execution
         if: always() && steps.cache.outputs.cache-hit != 'true'
