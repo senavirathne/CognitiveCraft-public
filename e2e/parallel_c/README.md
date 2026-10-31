@@ -61,3 +61,9 @@ The stage collector and independent oracle accept only C00/C01, verify the exact
 predecessor, and require fresh complete module/Python results and isolated fixture compilation.
 Native/client campaigns and C02 remain unimplemented. Development pushes do not change the
 qualification request and must launch no Actions run.
+
+## C02 grounded assistance extension
+
+C02 adds a read-only proposed ActivityEvidencePort, BlockerProjection, PlanningExplanationAdapter and AssistanceFeasibility. It reads the actual frozen B Analysis/Decision types and rechecks bounded virtual material additions against the unchanged planner, coordinator, recipe choices, methods, original policy, budgets and deadline. B residual is available stock rather than missing material. Privacy/unknown/unsupported/capacity blockers cannot become material promises. Multiple exact materials are supported, and absent native choices/admission remain J03 dependencies. No virtual stock is persisted or credited.
+
+The C02 cumulative registry freezes 2413 module cases and 48 Python checks, including all prior owned regressions, 20 new Java cases and eight new Python checks. Python executes the compiled Java planner and records the exact existing core Gson dependency. C02 has no native/client/live-provider cases and changes no production entrypoint. The actual A adapter and original activity continuation remain deferred to J03. Stop after C02; only C08 may request C CI.

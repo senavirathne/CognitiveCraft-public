@@ -19,12 +19,12 @@ from predecessor import verify_predecessor
 
 
 def collect(stage, root, baseline, candidate, docs_root):
-    check(stage in ("C00", "C01"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
+    check(stage in ("C00", "C01", "C02"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
     tracked_clean()
     registry_path = HERE / "registries" / (stage + ".json")
     registry = read(registry_path)
     check(registry["implementation"] == "IMPLEMENTED", "unimplemented registry")
-    check(registry["native_cases"] == [] and registry["client_cases"] == [], "C00/C01 cannot execute future physical schedules")
+    check(registry["native_cases"] == [] and registry["client_cases"] == [], "C00-C02 cannot execute future physical schedules")
     hashes = contract_hashes()
     root = Path(root).resolve()
     check(root.is_relative_to(ROOT / "build/e2e/parallel-c"), "dedicated C evidence root required")
@@ -38,7 +38,7 @@ def collect(stage, root, baseline, candidate, docs_root):
            "workflow_run": None, "attempt": None}
     write(root / "environment.json", environment())
     write(root / "contract-artifacts.json", hashes)
-    if stage == "C01": write(root / "predecessor.json", verify_predecessor(docs_root))
+    if stage in ("C01", "C02"): write(root / "predecessor.json", verify_predecessor(docs_root, "C00" if stage == "C01" else "C01"))
     for name, directory in (("baseline", baseline), ("candidate", candidate)):
         if directory.is_dir(): shutil.copytree(directory, root / name)
         else: run["collection_blocks"].append(str(directory) + ": missing measured " + name + " build")
@@ -49,6 +49,9 @@ def collect(stage, root, baseline, candidate, docs_root):
     compiled = compiler.compile_fixture(root / "native", JAR)
     run["collection_blocks"].extend(compiled["blocked"])
     run_python(root / "python")  # Writes observations only; failures are adjudicated independently from XML.
+    if stage == "C02":
+        from blocker_runtime import dependency
+        write(root / "python/blocker-runtime.json", dependency())
     try:
         owner = audit(docs_root=docs_root)
         run["collection_blocks"].extend(owner["blocked"])

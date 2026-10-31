@@ -7,6 +7,21 @@ from predecessor import validate_records, verify_predecessor
 
 
 class PredecessorTests(unittest.TestCase):
+    def test_c01_handoff_is_qualified_with_exact_source_docs_and_evidence_digests(self):
+        result = verify_predecessor(ROOT.parent / "CognitiveCraft-Documentation-C", "C01")
+        self.assertEqual("C01", result["stage"]); self.assertEqual("PASS", result["status"])
+
+    def test_c01_missing_case_or_changed_jar_cannot_advance_c02(self):
+        import json, subprocess
+        def pinned(path):
+            return json.loads(subprocess.check_output(["git", "-C", str(ROOT.parent / "CognitiveCraft-Documentation-C"), "show",
+                "12d758152161c45d22690afca7f2da097ee319ec:docs/implementation/parallel-c/" + path]))
+        manifest = pinned("stage-manifest.json"); oracle = pinned("evidence/C01-20261031/qualified.json")
+        validate_records(manifest, oracle, "C01")
+        changed = copy.deepcopy(oracle); changed["jar_sha256"] = "0" * 64
+        with self.assertRaises(EvidenceError): validate_records(manifest, changed, "C01")
+        changed = copy.deepcopy(oracle); changed["counts"]["unit"]["passed"] -= 1
+        with self.assertRaises(EvidenceError): validate_records(manifest, changed, "C01")
     def records(self):
         root = ROOT.parent / "CognitiveCraft-Documentation-C/docs/implementation/parallel-c"
         # Read the immutable Git objects so later stage reports cannot replace C00 evidence.

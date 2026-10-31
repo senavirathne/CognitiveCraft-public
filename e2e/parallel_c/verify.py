@@ -138,7 +138,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     tracked_clean()
     check(git(ROOT, "rev-parse", "HEAD") == source, "oracle must execute at the frozen source commit")
     registry = read(HERE / "registries" / (stage + ".json"))
-    check(registry["implementation"] == "IMPLEMENTED" and stage in ("C00", "C01"), "stage is NOT_EXECUTED; implement its own oracle first")
+    check(registry["implementation"] == "IMPLEMENTED" and stage in ("C00", "C01", "C02"), "stage is NOT_EXECUTED; implement its own oracle first")
     contract_hashes()
     run = read(root / "run.json")
     check(run["source_sha"] == source and run["tree_sha"] == tree, "run/source/tree mismatch")
@@ -165,6 +165,9 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     check(set(python) == set(registry["python_cases"]), "missing/unregistered Python case")
     process = read(root / "python/python-process.json")
     check(process["exit"] == 0 and process["source_sha"] == source and process["tree_sha"] == tree, "Python process pin/exit mismatch")
+    if stage == "C02":
+        from blocker_runtime import dependency
+        check(read(root / "python/blocker-runtime.json") == dependency(), "blocker Java runtime dependency changed")
     compile_record = read(root / "native/compile.json")
     check(compile_record["exit"] == 0 and compile_record["jar_sha256"] == run["jar_sha256"], "native fixture compiler failed/unavailable")
     check(compile_record["command"][1:3] == ["--release", "25"] and compile_record["classes"], "missing exact native compiler evidence")
@@ -185,9 +188,9 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     from ownership import audit
     from docs_check import check_links
     docs_root = Path(docs_root or ROOT.parent / "CognitiveCraft-Documentation-C")
-    if stage == "C01":
+    if stage in ("C01", "C02"):
         from predecessor import verify_predecessor
-        check(read(root / "predecessor.json") == verify_predecessor(docs_root), "C00 predecessor evidence changed")
+        check(read(root / "predecessor.json") == verify_predecessor(docs_root, "C00" if stage == "C01" else "C01"), "qualified predecessor evidence changed")
     current_owner = audit(docs_root=docs_root)
     check(current_owner["gate_status"] == "OWNED_GATES_PASS", "independent current ownership audit is incomplete")
     check_links(docs_root, "docs/implementation/parallel-c", stage)
