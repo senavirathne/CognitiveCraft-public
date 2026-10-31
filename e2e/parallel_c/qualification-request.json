@@ -1,9 +1,9 @@
 {
-  "stage": "C02",
+  "stage": "C03",
   "campaign": "parallel-c-cumulative-docker-v2",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "docs_candidate_sha": "59e6644a62049974d9d881ca8c654e401f096c95",
-  "nonce": "c02-exact-docs-requalification-20261031-001",
+  "docs_candidate_sha": "ff6ad3dc3ed66ab552f298ee9a48e06bcd76f22d",
+  "nonce": "c03-qualified-predecessor-20261031-41218560406",
   "purpose": "infrastructure-recovery",
-  "reason": "Restore the exact private-docs sparse Git objects using the already passing D pattern. Qualify C02 first while retaining all 2485 implemented module, 83 Python, 100 dialogue-sequence and six real-model regressions. No check or prerequisite is waived."
+  "reason": "Consume the newly published and independently verified C02 passing handoff. Repeat every implemented C module/Python, native fixture compiler, 100 dialogue-sequence and six real-model regression. Preserve all frozen versions, ownership, budgets and checks; C-only repair."
 }

@@ -473,11 +473,12 @@
   },
   "native_cases": [],
   "predecessor": {
-    "implementation_authorization": "User explicitly requested continue to c03; qualification does not waive C02 or genuine-provider gates.",
-    "pending_docs_sha": "29e6fa781ecfd2dffa90c7295b03e65fd6b7a93a",
-    "pending_source_sha": "1586b72994ce7c2768a699e2e68688faf6376539",
-    "qualification": "REQUIRED_BUT_CURRENTLY_BLOCKED",
-    "stage": "C02"
+    "attempt": 1,
+    "docs_sha": "ff6ad3dc3ed66ab552f298ee9a48e06bcd76f22d",
+    "qualification": "VERIFIED_QUALIFIED",
+    "source_sha": "ee07dc541807991a6c06aa21368213db35241f85",
+    "stage": "C02",
+    "workflow_run": 41218560406
   },
   "provider_cases": [
     {
