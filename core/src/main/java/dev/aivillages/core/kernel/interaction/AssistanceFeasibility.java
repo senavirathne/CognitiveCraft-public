@@ -51,17 +51,24 @@ public final class AssistanceFeasibility {
         if (runtime.isPresent() && rank(runtime.get().code()) <= 1) return new Result(false, runtime.get(), null, 0);
         if (!reference.matches(s) || e.worldRevision() != s.relevantWorldRevision() || s.nowMillis() != question.nowMillis()
                 || target != null && !target.fresh()) return blocked(e, Code.STALE_REFERENCE, 0);
-        PlanningExplanationAdapter.Evaluated current = PlanningExplanationAdapter.evaluate(s);
+        PlanningExplanationAdapter.Evaluated current = PlanningExplanationAdapter.evaluate(s, view.memory());
+        String currentReason = PlanningExplanationAdapter.reason(current);
+        if (currentReason.contains("REGRESSED") || currentReason.contains("CHANGED") || currentReason.contains("SCOPE_MISMATCH"))
+            return blocked(e, Code.STALE_REFERENCE, 0);
         // Unknown evidence outranks unsupported/capacity facts, and never supplies a made-up number.
-        if (current.analysis().feasibility() == Feasibility.UNKNOWN) return blocked(e, Code.UNKNOWN_WORLD_STATE, 0);
+        if (PlanningExplanationAdapter.feasibility(current) == Feasibility.UNKNOWN && !PlanningExplanationAdapter.executable(current)) {
+            Code code = budgetFailure(currentReason) ? Code.BUDGET_OR_DEADLINE_EXCEEDED : Code.UNKNOWN_WORLD_STATE;
+            if (runtime.isPresent() && rank(runtime.get().code()) < rank(code)) return new Result(false, runtime.get(), null, 0);
+            return blocked(e, code, 0);
+        }
         if (runtime.isPresent()) return new Result(false, runtime.get(), null, 0);
-        if (!s.supportedKinds().contains(Kind.PRODUCE) && s.goal().mode() != Mode.SUPPLY) return blocked(e, Code.UNSUPPORTED_EFFECT, 0);
+        if (!PlanningExplanationAdapter.executable(current) && !s.supportedKinds().contains(Kind.PRODUCE) && s.goal().mode() != Mode.SUPPLY)
+            return blocked(e, Code.UNSUPPORTED_EFFECT, 0);
         if (question.nowMillis() >= reference.absoluteDeadlineMillis() || s.owner().cancellationRequested()
                 || s.budget().used().entrySet().stream().anyMatch(x -> x.getValue() > s.budget().original().get(x.getKey()))
-                || current.analysis().reason().contains("BUDGET") || current.analysis().reason().contains("DEADLINE")
-                || current.analysis().reason().contains("RETRIES")) return blocked(e, Code.BUDGET_OR_DEADLINE_EXCEEDED, 0);
+                || budgetFailure(currentReason)) return blocked(e, Code.BUDGET_OR_DEADLINE_EXCEEDED, 0);
         if (PlanningExplanationAdapter.executable(current)) return new Result(true, null, null, 0);
-        if (current.analysis().feasibility() == Feasibility.FEASIBLE) return blocked(e, Code.DEPENDENCY_NOT_QUALIFIED, 0);
+        if (PlanningExplanationAdapter.feasibility(current) == Feasibility.FEASIBLE) return blocked(e, Code.DEPENDENCY_NOT_QUALIFIED, 0);
         if (target == null) return blocked(e, Code.UNKNOWN_WORLD_STATE, 0);
         if (!s.goal().policy().staging().equals(target.container()) || !s.goal().policy().allowedSources().contains(target.container()))
             return blocked(e, Code.UNAUTHORIZED, 0);
@@ -74,11 +81,11 @@ public final class AssistanceFeasibility {
             if (candidate.values().stream().mapToLong(Long::longValue).sum() > target.freeCapacityUnits()) continue;
             if (++hypotheses > MAX_HYPOTHESES) return blocked(e, Code.UNKNOWN_WORLD_STATE, MAX_HYPOTHESES);
             PlanningExplanationAdapter.Evaluated trial;
-            try { trial = PlanningExplanationAdapter.evaluate(PlanningExplanationAdapter.hypothetical(view, target.container(), candidate, target.travelCost())); }
+            try { trial = PlanningExplanationAdapter.evaluate(PlanningExplanationAdapter.hypothetical(view, target.container(), candidate, target.travelCost()), view.memory()); }
             catch (IllegalArgumentException | ArithmeticException invalid) { return blocked(e, Code.UNKNOWN_WORLD_STATE, hypotheses); }
-            if (trial.analysis().feasibility() == Feasibility.UNKNOWN) return blocked(e, Code.UNKNOWN_WORLD_STATE, hypotheses);
-            if (trial.analysis().feasibility() != Feasibility.FEASIBLE) {
-                budgetLimited |= trial.analysis().reason().contains("BUDGET") || trial.analysis().reason().contains("DEADLINE") || trial.analysis().reason().contains("RETRIES");
+            if (budgetFailure(PlanningExplanationAdapter.reason(trial))) { budgetLimited = true; continue; }
+            if (PlanningExplanationAdapter.feasibility(trial) == Feasibility.UNKNOWN) return blocked(e, Code.UNKNOWN_WORLD_STATE, hypotheses);
+            if (PlanningExplanationAdapter.feasibility(trial) != Feasibility.FEASIBLE) {
                 continue;
             }
             if (!PlanningExplanationAdapter.executable(trial)) return blocked(e, Code.DEPENDENCY_NOT_QUALIFIED, hypotheses);
@@ -90,9 +97,10 @@ public final class AssistanceFeasibility {
                     if (smaller.isEmpty()) break; // Current complete snapshot was already proven infeasible.
                     if (hypotheses == MAX_HYPOTHESES) return blocked(e, Code.UNKNOWN_WORLD_STATE, hypotheses);
                     hypotheses++;
-                    PlanningExplanationAdapter.Evaluated reduced = PlanningExplanationAdapter.evaluate(PlanningExplanationAdapter.hypothetical(view, target.container(), smaller, target.travelCost()));
-                    if (reduced.analysis().feasibility() == Feasibility.UNKNOWN) return blocked(e, Code.UNKNOWN_WORLD_STATE, hypotheses);
-                    if (reduced.analysis().feasibility() != Feasibility.FEASIBLE) break;
+                    PlanningExplanationAdapter.Evaluated reduced = PlanningExplanationAdapter.evaluate(PlanningExplanationAdapter.hypothetical(view, target.container(), smaller, target.travelCost()), view.memory());
+                    if (budgetFailure(PlanningExplanationAdapter.reason(reduced))) break;
+                    if (PlanningExplanationAdapter.feasibility(reduced) == Feasibility.UNKNOWN) return blocked(e, Code.UNKNOWN_WORLD_STATE, hypotheses);
+                    if (PlanningExplanationAdapter.feasibility(reduced) != Feasibility.FEASIBLE) break;
                     if (!PlanningExplanationAdapter.executable(reduced)) return blocked(e, Code.DEPENDENCY_NOT_QUALIFIED, hypotheses);
                     minimal = smaller;
                 }
@@ -110,6 +118,9 @@ public final class AssistanceFeasibility {
         }
         return blocked(e, candidates.stream().allMatch(m -> m.values().stream().mapToLong(Long::longValue).sum() > target.freeCapacityUnits())
                 ? Code.DESTINATION_FULL : budgetLimited ? Code.BUDGET_OR_DEADLINE_EXCEEDED : Code.UNKNOWN_WORLD_STATE, hypotheses);
+    }
+    private static boolean budgetFailure(String reason) {
+        return reason.contains("BUDGET") || reason.contains("DEADLINE") || reason.contains("LIMIT") || reason.contains("RETRIES") || reason.contains("REPLANS");
     }
     private static Result blocked(Evidence e, Code code, int hypotheses) { return new Result(false, failure(e, code, "B_PLANNER"), null, hypotheses); }
 }

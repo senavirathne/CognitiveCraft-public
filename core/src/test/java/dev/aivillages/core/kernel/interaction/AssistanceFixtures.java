@@ -30,6 +30,7 @@ final class AssistanceFixtures {
     Map<Counter, Long> used = Map.of(Counter.TRAVEL, 10L, Counter.EFFECTS, 7L, Counter.ELAPSED_TICKS, 200L,
             Counter.RETRIES, 1L, Counter.REPLANS, 1L, Counter.MODEL_CALLS, 0L);
     List<Stock> extraStock = new ArrayList<>(); List<Row> rows = new ArrayList<>();
+    Memory memory = Memory.empty(); // Explicit synthetic first-plan history; production J must supply actual B memory.
     RecipeProfile profile(CapabilityId legacy, List<List<RecipeChoice.ItemKey>> cells, RecipeChoice.ItemKey output) {
         CapabilityId cap = new CapabilityId(legacy.name(), versionTwo ? 2 : 1);
         String semantic = RecipeTransaction.fingerprint("synthetic:C02:recipe:" + cap);
@@ -56,7 +57,12 @@ final class AssistanceFixtures {
     PlanningExplanationAdapter.ItemDescriptor descriptor(RecipeChoice.ItemKey item) {
         return new PlanningExplanationAdapter.ItemDescriptor(item.id(), RecipeTransaction.fingerprint("synthetic:C02:default-components:" + item.id()));
     }
-    PlanningExplanationAdapter.View view() { return new PlanningExplanationAdapter().adapt(snapshot(), descriptors()); }
+    PlanningExplanationAdapter.View view() { return new PlanningExplanationAdapter().adapt(snapshot(), memory, descriptors()); }
+    Memory priorMemory(Map<Counter, Long> observedUsage) {
+        Snapshot s = snapshot();
+        return new Memory(world, root, ownerId, context, s.goal().digest(), "", RecipeTransaction.fingerprint("synthetic:C02:prior-proposal"),
+                0, 0, s.budget().initialDigest(), deadline, observedUsage, 0);
+    }
     ActivityRef reference() {
         Snapshot s = snapshot();
         return new ActivityRef(world, context.scope().domainId(), context.principal().id(), root, ownerId, attempt, actor.citizenId(),

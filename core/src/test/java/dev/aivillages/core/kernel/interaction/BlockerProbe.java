@@ -21,6 +21,8 @@ public final class BlockerProbe {
         f.versionTwo = (Boolean) input.getOrDefault("recipe_version_two", false); f.now = (Long) input.getOrDefault("clock_ms", 1000L);
         if (!((Boolean) input.getOrDefault("primitive_supported", true))) f.kinds.remove(Kind.PRODUCE);
         if (input.containsKey("used_effects")) { var used = new EnumMap<Counter, Long>(f.used); used.put(Counter.EFFECTS, (Long) input.get("used_effects")); f.used = used; }
+        if (input.containsKey("used_replans")) { var used = new EnumMap<Counter, Long>(f.used); used.put(Counter.REPLANS, (Long) input.get("used_replans")); f.used = used; }
+        if ((Boolean) input.getOrDefault("prior_plan", false)) f.memory = f.priorMemory(f.used);
         int ordinal = 0;
         for (Object value : (List<Object>) input.getOrDefault("rows", List.of())) {
             var row = (Map<String, Object>) value;
@@ -50,7 +52,7 @@ public final class BlockerProbe {
             evidence = new Evidence(wrong, id(10), 100, 5, true, true, true, f.rows);
         }
         Evidence returned = evidence;
-        var view = new PlanningExplanationAdapter().adapt(snapshot, f.descriptors());
+        var view = new PlanningExplanationAdapter().adapt(snapshot, f.memory, f.descriptors());
         var target = new AssistanceFeasibility.Target(f.world, f.context.principal().id(), f.storage, f.source, true, true, true,
                 (Long) input.getOrDefault("target_capacity", 64L), 2);
         var question = new AssistanceFeasibility.Question(id(11), 4, f.now, (Long) input.getOrDefault("current_tick", 100L), 120000);

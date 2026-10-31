@@ -74,6 +74,7 @@ class BlockerTests(unittest.TestCase):
 
     def test_original_budget_deadline_and_returned_root_cannot_be_replaced(self):
         cases = [(dict(used_effects=999), "BUDGET_OR_DEADLINE_EXCEEDED"), (dict(clock_ms=100000), "BUDGET_OR_DEADLINE_EXCEEDED"),
+                 (dict(prior_plan=True, used_replans=5), "BUDGET_OR_DEADLINE_EXCEEDED"),
                  (dict(returned_root="00000000-0000-0000-0000-000000009999"), "UNAUTHORIZED")]
         for snapshot, expected in cases:
             frame = self.probe(**snapshot); self.assertEqual(expected, frame["blocker"]["code"]); self.assertIsNone(frame["request"])

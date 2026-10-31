@@ -12,6 +12,25 @@ import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AssistanceFeasibilityTest {
+    @Test void priorDecisionMemoryEnforcesRemainingReplansWithoutResettingHistory() {
+        var f = new AssistanceFixtures(); var used = new EnumMap<Counter, Long>(f.used);
+        used.put(Counter.REPLANS, f.original.get(Counter.REPLANS)); f.used = used; f.memory = f.priorMemory(f.used);
+        var result = f.assess(); assertNull(result.request()); assertEquals(Code.BUDGET_OR_DEADLINE_EXCEEDED, result.blocker().code());
+        assertEquals(5L, f.memory.observedUsage().get(Counter.REPLANS));
+        var valid = new AssistanceFixtures(); valid.memory = valid.priorMemory(valid.used);
+        assertNotNull(valid.assess().request());
+    }
+
+    @Test void regressedUsageOrChangedDecisionMemoryCannotProduceAQuestion() {
+        var f = new AssistanceFixtures(); var observed = new EnumMap<Counter, Long>(f.used);
+        observed.put(Counter.EFFECTS, f.used.get(Counter.EFFECTS) + 1); f.memory = f.priorMemory(observed);
+        var result = f.assess(); assertNull(result.request()); assertEquals(Code.STALE_REFERENCE, result.blocker().code());
+        var m = f.priorMemory(f.used);
+        f.memory = new Memory(m.world(), id(9999), m.owner(), m.context(), m.originalGoalDigest(), m.signature(), m.lastProposalId(),
+                m.unchangedChecks(), m.nextCheckMillis(), m.originalBudgetDigest(), m.originalDeadlineMillis(), m.observedUsage(), m.returnsUsed());
+        assertEquals(Code.STALE_REFERENCE, f.assess().blocker().code()); assertNull(f.assess().request());
+    }
+
     @Test void supportedAxeMissingTwoPlanksAsksForExactlyTwoInAuthorizedStorageWithOriginalRoot() {
         var f = new AssistanceFixtures(); var result = f.assess();
         assertEquals(Code.INSUFFICIENT_MATERIAL, result.blocker().code()); assertNotNull(result.request());
@@ -82,7 +101,7 @@ class AssistanceFeasibilityTest {
         var f = new AssistanceFixtures(); var service = new AssistanceFeasibility();
         var unavailable = service.assess(f.reference(), ref -> Optional.empty(), f.view(), f.target(), f.question());
         assertEquals(Code.UNKNOWN_WORLD_STATE, unavailable.blocker().code()); assertNull(unavailable.request());
-        var view = new PlanningExplanationAdapter().adapt(f.snapshot(), Map.of());
+        var view = new PlanningExplanationAdapter().adapt(f.snapshot(), f.memory, Map.of());
         var noItems = service.assess(f.reference(), ref -> Optional.of(f.evidence()), view, f.target(), f.question());
         assertNull(noItems.request()); assertEquals(List.of(), noItems.blocker().wire().body().get("requirements"));
     }

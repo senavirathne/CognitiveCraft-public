@@ -37,8 +37,10 @@ public final class PlanningExplanationAdapter {
         private final Snapshot snapshot;
         private final Map<RecipeChoice.ItemKey, ItemDescriptor> items;
         private final Set<Location> occupied;
-        private View(Snapshot original, Map<RecipeChoice.ItemKey, ItemDescriptor> items) {
+        private final Memory memory;
+        private View(Snapshot original, Memory memory, Map<RecipeChoice.ItemKey, ItemDescriptor> items) {
             Objects.requireNonNull(original); this.items = Map.copyOf(items);
+            this.memory = Objects.requireNonNull(memory);
             this.occupied = original.stock().stream().map(Stock::location).collect(java.util.stream.Collectors.toUnmodifiableSet());
             if (items.size() > MAX_ITEMS || items.entrySet().stream().anyMatch(e -> !e.getKey().id().equals(e.getValue().registryId())))
                 throw new IllegalArgumentException("bounded exact item mapping");
@@ -46,24 +48,29 @@ public final class PlanningExplanationAdapter {
             this.snapshot = copy(original, original.stock().stream().filter(Stock::permitted).sorted(Comparator.comparing(Stock::key)).toList());
         }
         public Report analyse() {
-            Evaluated e = evaluate(snapshot);
-            return new Report(e.analysis().feasibility(), e.analysis().reason(), e.decision() == null ? null : e.decision().kind(),
-                    e.decision() == null ? "" : e.decision().blocker());
+            Evaluated e = evaluate(snapshot, memory);
+            return new Report(feasibility(e), reason(e), e.decision().kind(), e.decision().blocker());
         }
         Snapshot snapshot() { return snapshot; }
         Map<RecipeChoice.ItemKey, ItemDescriptor> items() { return items; }
+        Memory memory() { return memory; }
     }
-    public View adapt(Snapshot snapshot, Map<RecipeChoice.ItemKey, ItemDescriptor> items) { return new View(snapshot, items); }
+    public View adapt(Snapshot snapshot, Memory memory, Map<RecipeChoice.ItemKey, ItemDescriptor> items) { return new View(snapshot, memory, items); }
 
-    static Evaluated evaluate(Snapshot snapshot) {
-        Analysis analysis = new StaticProductionPlanner().analyse(snapshot);
-        Decision decision = analysis.feasibility() == Feasibility.FEASIBLE
-                ? new PlanningCoordinator().next(snapshot, analysis.plan(), Memory.empty()) : null;
+    static Evaluated evaluate(Snapshot snapshot, Memory memory) {
+        // Real B memory enforces original scope, usage monotonicity and remaining replan allowance.
+        // Do not substitute empty memory or reuse a trial's newly proposed memory as current history.
+        Decision decision = new PlanningCoordinator().next(snapshot, null, memory);
+        Analysis analysis = decision.analysis();
+        if (analysis != null && analysis.feasibility() == Feasibility.FEASIBLE)
+            analysis = new StaticProductionPlanner().revalidate(snapshot, analysis.plan());
         return new Evaluated(analysis, decision);
     }
+    static Feasibility feasibility(Evaluated e) { return e.analysis() == null ? Feasibility.UNKNOWN : e.analysis().feasibility(); }
+    static String reason(Evaluated e) { return !e.decision().blocker().isEmpty() ? e.decision().blocker() : e.analysis() == null ? "" : e.analysis().reason(); }
     static boolean executable(Evaluated e) {
-        return e.analysis().feasibility() == Feasibility.FEASIBLE && e.decision() != null
-                && (e.decision().kind() == DecisionKind.PROPOSE || e.decision().kind() == DecisionKind.GOAL_ALREADY_CREDITED);
+        return e.decision().kind() == DecisionKind.GOAL_ALREADY_CREDITED
+                || feasibility(e) == Feasibility.FEASIBLE && e.decision().kind() == DecisionKind.PROPOSE;
     }
 
     /** Residual is stock, not missing units. Only complete, known exhaustive failures may seed candidates. */

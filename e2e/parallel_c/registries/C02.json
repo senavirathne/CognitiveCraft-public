@@ -24,6 +24,7 @@
     "blocker_rows": 128,
     "candidate_recipe_cells": 288,
     "compose_port": 25651,
+    "decision_memory_required": true,
     "evidence_age_ticks": 2,
     "hypothetical_planner_calls": 128,
     "input_bytes": 262144,
@@ -640,6 +641,16 @@
       "expected": "PASS",
       "id": "C01-U02:unicodeLimitsCountCharactersAndNeverRepairMalformedInput",
       "xml_id": "dev.aivillages.core.kernel.interaction.ConversationContextTest#unicodeLimitsCountCharactersAndNeverRepairMalformedInput()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C02-U01:priorDecisionMemoryEnforcesRemainingReplansWithoutResettingHistory",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceFeasibilityTest#priorDecisionMemoryEnforcesRemainingReplansWithoutResettingHistory()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C02-U01:regressedUsageOrChangedDecisionMemoryCannotProduceAQuestion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceFeasibilityTest#regressedUsageOrChangedDecisionMemoryCannotProduceAQuestion()"
     },
     {
       "expected": "PASS",
