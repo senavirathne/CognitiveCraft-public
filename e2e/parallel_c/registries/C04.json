@@ -489,11 +489,12 @@
   },
   "native_cases": [],
   "predecessor": {
-    "implementation_authorization": "User explicitly requested continue to c04 and automatic Docker backend recovery. This does not waive C03 qualification.",
-    "pending_docs_sha": "7e506d6ddb434d6dc036eb5ca56ffc917669996f",
-    "pending_source_sha": "7011a8dfca917f1e2f9b13e541cc542906061962",
-    "qualification": "REQUIRED_BUT_CURRENTLY_BLOCKED",
-    "stage": "C03"
+    "attempt": 1,
+    "docs_sha": "e00ae7b70219a14131461602f987b5bdf9497b97",
+    "qualification": "VERIFIED_QUALIFIED",
+    "source_sha": "ec8110c9bbbbc769da9b268d6d7f932c846f9723",
+    "stage": "C03",
+    "workflow_run": 41224435608
   },
   "provider_cases": [
     {

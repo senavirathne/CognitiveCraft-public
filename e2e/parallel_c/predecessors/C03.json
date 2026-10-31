@@ -1,0 +1,21 @@
+{
+  "stage": "C03",
+  "pins": {
+    "source_sha": "ec8110c9bbbbc769da9b268d6d7f932c846f9723",
+    "tree_sha": "34ca4a3228000a55d2146d64303724696ca9ee3d",
+    "jar_sha256": "459dc4e969873ecbd142d44a5de20bc5319673f7622ac12342398902100a33ab",
+    "workflow_run": 41224435608,
+    "attempt": 1,
+    "container_image_id": "sha256:90d2a6fa4f81ed5241c0e238018790dfa61866dbdc33a4aa6e47f5d544592913",
+    "genuine_provider_executed": 6,
+    "dialogue_sequences_executed": 100,
+    "docs_sha": "e00ae7b70219a14131461602f987b5bdf9497b97",
+    "docs_tree": "cfc3ea7b680869150dc510f6b85652181dd67d28"
+  },
+  "files": {
+    "stage-manifest.json": "0555fcb0f7d9921f1ab62b195c33d636255de651d9a28e61688eba214f7a5d6f",
+    "evidence/C03-20261031-requalified/qualified.json": "bcda2d4b6b65d503265b84514676744e6d3f7c73bd687eb7051c6c4a695c3172"
+  },
+  "unit": 2485,
+  "python": 83
+}
