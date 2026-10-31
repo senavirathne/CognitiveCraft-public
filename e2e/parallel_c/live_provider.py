@@ -11,7 +11,7 @@ import subprocess
 import urllib.parse
 import urllib.request
 
-from common import HERE, JAR, ROOT, EvidenceError, check, digest, identity, read, write
+from common import HERE, JAR, ROOT, EvidenceError, check, digest, identity, no_duplicates, read, write
 from blocker_runtime import dependency
 
 ENV = ('COGNITIVECRAFT_C_MODEL_URL', 'COGNITIVECRAFT_C_MODEL_ALIAS', 'COGNITIVECRAFT_C_MODEL_SHA256',
@@ -56,6 +56,8 @@ def verify(output, registry):
         check(row['tier'] == 'GENUINE_MODEL_SYNTHETIC_FACTS', 'wrong genuine response tier')
         check(row['production_jar_sha256'] == receipt['jar_sha256'], 'live wrapper did not load from the measured production JAR')
         check(row['fact_packet'] == expected['facts'] and row['allowed_replies'] == expected['replies'], 'live fixture facts/phrasing changed')
+        facts_digest = hashlib.sha256((json.dumps(expected['facts'], sort_keys=True, ensure_ascii=False, separators=(',', ':')) + '\n').encode()).hexdigest()
+        check(row['facts_sha256'] == facts_digest, 'live fact digest changed')
         check(row['deliverable'] and row['reason'] in ('MODEL', 'INVALID_RESPONSE') and row['text'] in expected['replies'], 'actual provider response/fallback did not satisfy grounding')
         check(row['model_sha256'] == receipt['model_sha256'] and row['tokenizer_sha256'] == expected_tokenizer, 'response model/tokenizer mismatch')
         check(row['actual_input_tokens'] is None and row['actual_output_tokens'] is None and row['compute_termination_confirmed'] is False, 'SPI usage/termination must remain unknown')
@@ -71,12 +73,23 @@ def verify(output, registry):
                   and all(type(t) is int and t >= 0 for t in tokenization['tokens']), 'actual tokenization result required')
             request, response = generation['request'], generation['response']
             check(request['messages'] == tokenization['messages'] and request['model'] == receipt['model_alias'] and request['max_tokens'] == 128, 'tokenized/generated prompt mismatch')
+            expected_schema = {'type': 'object', 'properties': {'text': {'type': 'string', 'enum': expected['replies']},
+                'facts_sha256': {'type': 'string', 'const': facts_digest}}, 'required': ['text', 'facts_sha256'], 'additionalProperties': False}
+            check(request['response_format'] == {'type': 'json_object', 'schema': expected_schema}, 'pinned server grammar field/schema mismatch')
             check(200 <= generation['http_status'] < 300, 'genuine backend HTTP failure')
             usage = response.get('usage', {})
             observed_input, observed_output = usage.get('prompt_tokens'), usage.get('completion_tokens')
             check(type(observed_input) is int and type(observed_output) is int and 0 < observed_input <= tokenization['count'] and 0 <= observed_output <= 128, 'actual backend usage missing or over reservation')
             input_tokens += observed_input; output_tokens += observed_output; reserved += tokenization['count']
         check(input_tokens <= reserved == row['reserved_input_tokens'] and output_tokens <= row['reserved_output_tokens'], 'cumulative genuine response budget')
+        final = generations[-1]['response']['choices'][0]
+        check(final['finish_reason'] == 'stop', 'actual generation did not finish within its existing token limit')
+        try:
+            candidate = json.loads(final['message']['content'], object_pairs_hook=no_duplicates)
+            valid = isinstance(candidate, dict) and set(candidate) == {'text', 'facts_sha256'} and candidate['text'] in expected['replies'] and candidate['facts_sha256'] == facts_digest
+        except (ValueError, TypeError): valid = False
+        check((row['reason'] == 'MODEL') == valid, 'model/fallback disposition disagrees with actual generated content')
+        if valid: check(row['text'] == candidate['text'], 'delivered phrasing differs from actual generated text')
     return {'status': 'PASS', 'planned': len(rows), 'executed': len(rows), 'passed': len(rows), 'failed': 0,
             'refused_expected': 0, 'inconclusive': 0, 'model_sha256': receipt['model_sha256'], 'tokenizer_sha256': expected_tokenizer,
             'accepted_model_responses': sum(r['reason'] == 'MODEL' for r in rows),
@@ -131,6 +144,7 @@ def run(output):
         check(result.returncode == 0, 'actual provider driver failed; see process.log')
         totals = verify(output, registry); record.update(totals); write(output / 'live.json', record)
     except (EvidenceError, OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as failure:
+        if isinstance(failure, KeyError): record['missing_receipt_field'] = str(failure.args[0])[:96]
         record['error'] = str(failure) if isinstance(failure, EvidenceError) else type(failure).__name__ + ': shared backend evidence unavailable'
         record['status'] = 'BLOCKED_DEPENDENCY'
         if (output / 'responses.json').is_file():

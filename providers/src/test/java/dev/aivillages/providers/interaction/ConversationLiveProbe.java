@@ -77,7 +77,7 @@ public final class ConversationLiveProbe {
         public String id() { return "configured-llama-cpp"; }
         public CompletableFuture<Response> generate(Request request) {
             Object body = Map.of("model", model, "messages", messages(request), "stream", false, "max_tokens", request.maxOutputTokens(),
-                    "temperature", 0, "response_format", Map.of("type", "json_schema", "schema", Json.GSON.fromJson(request.jsonSchema(), JsonObject.class)));
+                    "temperature", 0, "response_format", Map.of("type", "json_object", "schema", Json.GSON.fromJson(request.jsonSchema(), JsonObject.class)));
             return http.sendAsync(post("/v1/chat/completions", body), HttpResponse.BodyHandlers.ofInputStream()).thenApply(raw -> {
                 JsonObject data = response(raw); generations.add(Map.of("request", body, "response", data, "http_status", raw.statusCode())); save();
                 var choice = data.getAsJsonArray("choices").get(0).getAsJsonObject();
@@ -108,7 +108,7 @@ public final class ConversationLiveProbe {
                 row.put("elapsed_ns", System.nanoTime() - started); row.put("model_sha256", digest); row.put("tokenizer_sha256", tokenizer);
                 row.put("production_jar_sha256", productionSha);
                 row.put("wire", caseId + "/wire.json"); row.put("allowed_replies", ResponseTemplates.choices(facts)); rows.add(row);
-                Files.writeString(root.resolve("responses.json"), Json.GSON.toJson(rows) + "\n");
+                Files.writeString(root.resolve("responses.json"), new com.google.gson.GsonBuilder().serializeNulls().disableHtmlEscaping().create().toJson(rows) + "\n");
             }
         }
     }
