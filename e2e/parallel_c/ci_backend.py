@@ -96,8 +96,16 @@ class Backend:
         except (OSError, ValueError, KeyError, subprocess.SubprocessError):
             self.report["model_image_cache_rejected"] = True
         if not reused:
-            self.run("build-model-image", ["docker", "build", "--build-arg", "C_RUNTIME=" + self.runtime_image,
+            # Dockerfile FROM accepts a reference, not a bare image-config digest (which becomes docker.io/library/sha256).
+            parent = "cognitivecraft-c-model-parent:" + self.runtime_image.split(":", 1)[1]
+            self.run("tag-exact-parent", ["docker", "image", "tag", self.runtime_image, parent], 30)
+            parent_id = json.loads(subprocess.check_output(["docker", "image", "inspect", parent], text=True))[0]["Id"]
+            check(parent_id == self.runtime_image, "model parent tag must identify the inspected exact runtime image")
+            self.report["parent_reference"] = parent
+            self.run("build-model-image", ["docker", "build", "--build-arg", "C_RUNTIME=" + parent,
                      "--build-arg", "LLAMA_COMMIT=" + self.lock["llama_commit"], "-f", str(DOCKERFILE), "-t", tag, str(DOCKERFILE.parent)], 1200)
+            check(json.loads(subprocess.check_output(["docker", "image", "inspect", parent], text=True))[0]["Id"] == self.runtime_image,
+                  "model parent changed during build")
             inspected = json.loads(subprocess.check_output(["docker", "image", "inspect", tag], text=True))[0]
             partial = archive.with_suffix(".partial")
             with partial.open("wb") as out:

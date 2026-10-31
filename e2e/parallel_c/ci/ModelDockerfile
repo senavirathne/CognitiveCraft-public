@@ -1,4 +1,4 @@
-ARG C_RUNTIME
+ARG C_RUNTIME=cognitivecraft-c-ci:java25
 FROM ${C_RUNTIME}
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends cmake g++ make libssl-dev \
