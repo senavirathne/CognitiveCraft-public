@@ -12,7 +12,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 
 from common import BASE, BASE_TREE, BUILD_COMMAND, CONTRACT, HERE, ROOT, EvidenceError
-from common import artifact, check, contained, contract_hashes, digest, git, no_duplicates, read, tracked_clean, write
+from common import artifact, check, contained, contract_hashes, digest, git, no_duplicates, read, tracked_clean, workflow_context, write
 from build_profile import matching_profiles, verify_profile
 from gradle_results import export_binary, prepare_reader
 
@@ -141,6 +141,13 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     check(registry["implementation"] == "IMPLEMENTED" and stage in ("C00", "C01", "C02"), "stage is NOT_EXECUTED; implement its own oracle first")
     contract_hashes()
     run = read(root / "run.json")
+    context = workflow_context()
+    check(all(run.get(key) == value for key, value in context.items()), "workflow run/attempt identity mismatch")
+    if context["workflow_run"] is not None:
+        check(re.fullmatch(r"sha256:[0-9a-f]{64}", run.get("container_image_id") or ""), "CI requires exact Docker image identity")
+        from qualification_request import validate
+        requested = validate(HERE / "qualification-request.json")
+        check(requested["stage"] == stage and requested["docs_candidate_sha"] == run["docs_sha"], "workflow request/docs/stage mismatch")
     check(run["source_sha"] == source and run["tree_sha"] == tree, "run/source/tree mismatch")
     check(git(ROOT, "rev-parse", source + "^{tree}") == tree, "source tree does not match commit")
     check(run["stage"] == stage and run["contract_sha256"] == CONTRACT, "stage/contract mismatch")
@@ -200,7 +207,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     for rows in (unit, python): check(all(r["outcome"] == "PASS" for r in rows.values()), "a regression blocks advancement")
     return {"gate_status": "OWNED_GATES_PASS", "stage": stage, "source_sha": source, "tree_sha": tree,
             "jar_sha256": run["jar_sha256"], "contract_sha256": CONTRACT, "counts": totals,
-            "native_executed": 0, "client_executed": 0, "workflow_run": None, "attempt": None,
+            "native_executed": 0, "client_executed": 0, **context, "container_image_id": run.get("container_image_id"),
             "blocked": registry["deferred"], "claim": stage + " component qualification; no physical or production UI proof"}
 
 
@@ -216,5 +223,5 @@ if __name__ == "__main__":
     except (EvidenceError, OSError, ValueError, KeyError, ET.ParseError) as failure:
         result = {"gate_status": "BLOCKED_DEPENDENCY" if isinstance(failure, FileNotFoundError) or "missing measured" in str(failure) else "FAIL",
                   "stage": a.stage, "source_sha": a.source, "tree_sha": a.tree, "error": str(failure),
-                  "native_executed": 0, "client_executed": 0, "workflow_run": None, "attempt": None}; code = 2
+                  "native_executed": 0, "client_executed": 0, **workflow_context()}; code = 2
     write(a.output, result); print(json.dumps(result, sort_keys=True)); raise SystemExit(code)

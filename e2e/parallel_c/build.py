@@ -37,6 +37,11 @@ def capture(repo, output):
             except subprocess.TimeoutExpired:
                 record["blocked"].append("Frozen module build exceeded its one-hour collection timeout")
         jar = repo / "fabric/build/libs/ai-villages-0.1.0.jar"
+        if record["exit"] != 0:
+            # Preserve whatever the failed command actually produced; never qualify partial data.
+            for module in ("core", "providers", "fabric"):
+                partial = repo / module / "build/test-results/test"
+                if partial.is_dir(): shutil.copytree(partial, output / "partial-results" / module)
         if record["exit"] == 0 and jar.is_file():
             shutil.copy2(jar, output / "production.jar"); record["jar_sha256"] = digest(jar)
             reader = prepare_reader(output / "gradle-reader")

@@ -1,10 +1,10 @@
-# C00 interaction contract and evidence harness
+# C interaction contract and evidence harness
 
 C00 is independent of A/D and uses the exact frozen B source. None of these Java classes is registered with the production runtime. The 17 wire kinds are decoded into recursively immutable **untrusted** values; `decodeCandidate` accepts only language candidates. Schema/context validity grants no authority, and there is no public constructor or factory for a trusted projection.
 
 The frozen contract, CI trigger bytes, external freeze manifest and action revisions are copied or pinned here. The contract's 57 fixtures are synthetic. The Java suite includes those 57 cases plus seven strict parser/ingress controls. Python checks cover protected byte/mode changes, real peer history, class dependency descriptors, artifact mutation, duplicate XML, missing frames, fabricated settlement and owned documentation links. A diagnostic Java 17 execution cannot qualify the Java 25 baseline.
 
-`registries/C00.json` freezes the actual schedule and stable XML IDs before candidate measurement. C01–C08 registry files contain supplied specifications with implementation NOT_EXECUTED. `stage.py` refuses them until their own implementation/oracles exist. Future physical/client checks live only in the deferred ledger; C00 executes zero native/client scenarios. Its isolated chat fixture **compiler** is nevertheless mandatory.
+`registries/C00.json` freezes the actual schedule and stable XML IDs before candidate measurement. C01 and C02 have implemented cumulative registries. C03–C08 contain supplied specifications with implementation NOT_EXECUTED; `stage.py` refuses them until their own implementation/oracles exist. Future physical/client checks live only in the deferred ledger; C00 executes zero native/client scenarios. Its isolated chat fixture **compiler** is nevertheless mandatory.
 
 ## Local qualification
 
@@ -66,6 +66,12 @@ qualification request and must launch no Actions run.
 
 C02 adds a read-only proposed ActivityEvidencePort, BlockerProjection, PlanningExplanationAdapter and AssistanceFeasibility. It reads the actual frozen B Analysis/Decision types and rechecks bounded virtual material additions against the unchanged planner, coordinator, recipe choices, methods, original policy, budgets and deadline. B residual is available stock rather than missing material. Privacy/unknown/unsupported/capacity blockers cannot become material promises. Multiple exact materials are supported, and absent native choices/admission remain J03 dependencies. No virtual stock is persisted or credited.
 
-The C02 cumulative registry freezes 2415 module cases and 48 Python checks, including all prior owned regressions, 22 new Java cases and eight new Python checks. Python executes the compiled Java planner and records the exact existing core Gson dependency. C02 has no native/client/live-provider cases and changes no production entrypoint. The actual A adapter and original activity continuation remain deferred to J03. Stop after C02; only C08 may request C CI.
+The C02 cumulative registry freezes 2415 module cases and 54 Python checks, including all prior owned regressions, 22 new Java cases and 14 new Python checks. Python executes the compiled Java planner and records the exact existing core Gson dependency. C02 has no native/client/live-provider cases and changes no production entrypoint. The actual A adapter and original activity continuation remain deferred to J03. Stop after C02. The user-authorized infrastructure recovery schedule below supersedes the original C08-only request restriction.
 
 The C02 adapter requires explicit current B decision Memory. It never substitutes empty memory in production code, so native B scope/usage monotonicity and remaining replan checks apply to every hypothesis. Trial memory is not persisted or reused as authoritative history.
+
+## Consolidated Docker CI recovery (2026-10-31 user instruction)
+
+The user explicitly superseded the C08-only CI restriction after local execution disconnected. Ready C candidates may request one consolidated infrastructure-recovery run. The existing parallel-c-qualification workflow keeps its exact branch AND qualification-request path trigger, with one sequential 90-minute job. ci_host.py builds/reuses the existing e2e/Dockerfile stack plus Git/unzip harness prerequisites, inspects and caches its exact image ID, and executes ci.py inside Docker. No model credential or Git token enters the container.
+
+All cumulative modules, complete C Python schedule, existing drivers, isolated fixture compiler, ownership/contract/docs audits and independent oracle run on the one built JAR. Cache/partial artifact publication runs even after failure. Missing private-docs credentials do not skip source tests or qualify the docs gate. GitHub Actions requires COGNITIVECRAFT_DOCS_READ_TOKEN for the private docs checkout; the connected ChatGPT GitHub app is separate authentication. Each request pins docs, contract, implemented stage, purpose and nonce; source/run/attempt/image are measured from the actual workflow. C08 still requires final cumulative CI including every then-required native/client/provider case. No unimplemented or future stage is credited.

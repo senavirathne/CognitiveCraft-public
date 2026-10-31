@@ -1,10 +1,13 @@
-name: C final cumulative qualification
+name: C cumulative Docker qualification
 on:
   push:
     branches: [feature/player-assisted-dialogue]
     paths: [e2e/parallel_c/qualification-request.json]
 permissions:
   contents: read
+concurrency:
+  group: parallel-c-qualification-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   qualification:
     runs-on: ubuntu-latest
@@ -12,9 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Validate explicit final qualification request
+      - name: Validate one explicit cumulative request
         id: request
         run: |
           python3 e2e/parallel_c/qualification_request.py e2e/parallel_c/qualification-request.json
@@ -24,11 +28,22 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as out:
               out.write('docs_sha='+value['docs_candidate_sha']+'\n')
           PY
-      - name: Require authorized private documentation checkout
+      - name: Discover private documentation credential availability
+        id: docs-access
         env:
           DOCS_TOKEN: ${{ secrets.COGNITIVECRAFT_DOCS_READ_TOKEN }}
-        run: test -n "$DOCS_TOKEN" || { echo 'Missing authorized docs-repository read credential; see C00 handoff.'; exit 2; }
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        run: |
+          if test -n "$DOCS_TOKEN"; then
+            printf 'available=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'available=false\n' >> "$GITHUB_OUTPUT"
+            echo 'Private docs credential unavailable. Execute all source gates and retain the documentation blocker.'
+          fi
+      - name: Checkout exact private docs when authorized
+        id: docs
+        if: steps.docs-access.outputs.available == 'true'
+        continue-on-error: true
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: senavirathne/CognitiveCraft-Documentation
           ref: ${{ steps.request.outputs.docs_sha }}
@@ -36,37 +51,38 @@ jobs:
           path: build/CognitiveCraft-Documentation-C
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
-        with:
-          distribution: temurin
-          java-version: '25'
-      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+      - name: Restore verified SDK Gradle and runtime image caches
+        id: cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
             build/e2e-sdk
             build/server-sdk
-          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
-      - name: Measure exact unchanged B baseline
+            build/parallel-c-cache
+          key: parallel-c-docker-linux-v2-${{ hashFiles('scripts/dependencies.json', 'gradle/wrapper/gradle-wrapper.properties', 'e2e/runtime.py', 'e2e/Dockerfile', 'e2e/parallel_c/ci/Dockerfile') }}
+          restore-keys: |
+            parallel-c-docker-linux-v2-
+            minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Run all cumulative gates inside the existing E2E Docker stack
+        run: python3 e2e/parallel_c/ci_host.py
+      - name: Retain reusable caches after successful or partial execution
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+            build/parallel-c-cache
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Print bounded container result
+        if: always()
         run: |
-          git worktree add --detach build/parallel-c-baseline-source 12fb3af99e0c9496171b89d4dd2ffff3f5c7a824
-          python3 e2e/parallel_c/build.py --repo build/parallel-c-baseline-source --output build/e2e/parallel-c/baseline
-      - name: Build one production candidate and capture all module XML
-        run: python3 e2e/parallel_c/build.py --output build/e2e/parallel-c/candidate
-      - name: Reuse exact installed SDK and compile existing isolated drivers
-        run: |
-          python3 e2e/runtime.py prepare
-          python3 e2e/runtime.py compile
-      - name: Collect cumulative owned unit Python native and client schedules
-        run: python3 e2e/parallel_c/stage.py run --stage C08 --built --root build/e2e/parallel-c/C08 --docs-root build/CognitiveCraft-Documentation-C
-      - name: Independent final oracle
-        run: |
-          python3 e2e/parallel_c/verify.py --stage C08 --root build/e2e/parallel-c/C08 --source "$(git rev-parse HEAD)" --tree "$(git rev-parse 'HEAD^{tree}')" --jar fabric/build/libs/ai-villages-0.1.0.jar --docs-root build/CognitiveCraft-Documentation-C --output build/e2e/parallel-c/C08/qualified.json
-      - name: Publish raw and partial evidence
+          if test -f build/e2e/parallel-c/container.log; then tail -n 70 build/e2e/parallel-c/container.log; fi
+      - name: Publish all raw and partial evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: parallel-c-${{ github.sha }}-${{ github.run_attempt }}
+          name: parallel-c-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 90
           path: |
@@ -74,4 +90,6 @@ jobs:
             core/build/test-results/
             providers/build/test-results/
             fabric/build/test-results/
+            fabric/build/libs/
+            build/e2e-driver/
             build/e2e-sdk/integrity.json

@@ -11,7 +11,7 @@ import shutil
 import subprocess
 
 from common import BASE, CONTRACT, HERE, JAR, ROOT, EvidenceError, check, contract_hashes
-from common import digest, environment, git, identity, read, tracked_clean, write
+from common import digest, environment, git, identity, read, tracked_clean, workflow_context, write
 from docs_check import check_links
 from ownership import audit
 from run_tests import run as run_python
@@ -30,15 +30,23 @@ def collect(stage, root, baseline, candidate, docs_root):
     check(root.is_relative_to(ROOT / "build/e2e/parallel-c"), "dedicated C evidence root required")
     check(not root.exists(), "refusing to mix candidates/retries in an existing evidence root")
     root.mkdir(parents=True)
-    run = {**identity(), "stage": stage, "contract_sha256": CONTRACT, "registry_sha256": digest(registry_path),
+    context = workflow_context()
+    try: docs_sha = git(docs_root, "rev-parse", "HEAD")
+    except (OSError, subprocess.CalledProcessError): docs_sha = None
+    run = {**identity(), **context, "stage": stage, "contract_sha256": CONTRACT, "registry_sha256": digest(registry_path),
            "seed": registry["seed"], "jar_sha256": digest(JAR) if JAR.is_file() else None,
-           "docs_sha": git(docs_root, "rev-parse", "HEAD"), "original_root_id": None, "original_owner_id": None,
+           "docs_sha": docs_sha, "original_root_id": None, "original_owner_id": None,
            "a_settlement": None, "native_results": [], "client_results": [], "collection_blocks": [],
            "compose_project": f"cc-c-{os.environ.get('GITHUB_RUN_ID', 'local')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}",
-           "workflow_run": None, "attempt": None}
+           "container_image_id": os.environ.get("COGNITIVECRAFT_C_IMAGE_ID")}
+    if docs_sha is None: run["collection_blocks"].append("private documentation checkout unavailable; source gates still execute")
     write(root / "environment.json", environment())
     write(root / "contract-artifacts.json", hashes)
-    if stage in ("C01", "C02"): write(root / "predecessor.json", verify_predecessor(docs_root, "C00" if stage == "C01" else "C01"))
+    if stage in ("C01", "C02"):
+        try: previous = verify_predecessor(docs_root, "C00" if stage == "C01" else "C01")
+        except (EvidenceError, OSError, subprocess.CalledProcessError) as failure:
+            previous = {"status": "BLOCKED_DEPENDENCY", "error": str(failure)}; run["collection_blocks"].append(str(failure))
+        write(root / "predecessor.json", previous)
     for name, directory in (("baseline", baseline), ("candidate", candidate)):
         if directory.is_dir(): shutil.copytree(directory, root / name)
         else: run["collection_blocks"].append(str(directory) + ": missing measured " + name + " build")

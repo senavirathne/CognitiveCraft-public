@@ -9,6 +9,14 @@
     "native_oracle_implemented": false,
     "target_java": 25
   },
+  "ci_policy": {
+    "authorization": "User instruction 2026-10-31 supersedes C08-only restriction",
+    "final_C08_required": true,
+    "mode": "DOCKER",
+    "recovery_allowed": true,
+    "request_required": true,
+    "workflow": ".github/workflows/parallel-c-qualification.yml"
+  },
   "client_cases": [],
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
   "deferred": [
@@ -106,6 +114,12 @@
     "test_build_profile.BuildProfileTests#test_different_baseline_and_candidate_inputs_are_rejected",
     "test_build_profile.BuildProfileTests#test_missing_sdk_provenance_is_rejected",
     "test_build_profile.BuildProfileTests#test_unknown_profile_is_rejected",
+    "test_ci.CiTests#test_ci_identity_records_real_run_attempt_and_repository",
+    "test_ci.CiTests#test_explicit_recovery_can_schedule_complete_implemented_stage",
+    "test_ci.CiTests#test_local_identity_remains_uncredited_as_github_actions",
+    "test_ci.CiTests#test_missing_or_spoofed_ci_identity_is_rejected",
+    "test_ci.CiTests#test_unimplemented_stage_or_wrong_purpose_cannot_spend_qualification_run",
+    "test_ci.CiTests#test_wrong_contract_unpinned_docs_or_extra_authority_fields_are_rejected",
     "test_docs.DocsTests#test_missing_fragment_is_rejected",
     "test_docs.DocsTests#test_missing_untracked_target_is_rejected",
     "test_docs.DocsTests#test_owned_link_and_fragment",

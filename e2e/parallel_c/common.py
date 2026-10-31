@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 
@@ -83,6 +84,20 @@ def tracked_clean(root=ROOT):
     check(not git(root, "status", "--porcelain", "--untracked-files=normal"), "freeze source before measuring: dirty checkout")
 
 
+def workflow_context(values=None):
+    values = os.environ if values is None else values
+    run, attempt = values.get("GITHUB_RUN_ID"), values.get("GITHUB_RUN_ATTEMPT")
+    if not run and not attempt:
+        check(values.get("GITHUB_ACTIONS") != "true", "CI requires workflow run and attempt")
+        return {"workflow_run": None, "attempt": None, "workflow_url": None}
+    check(all(isinstance(v, str) and re.fullmatch(r"[1-9][0-9]*", v) for v in (run, attempt)), "invalid workflow run/attempt")
+    check(int(run) <= 9_007_199_254_740_991 and int(attempt) <= 9_007_199_254_740_991, "workflow counter range")
+    repository = values.get("GITHUB_REPOSITORY")
+    check(repository == "senavirathne/CognitiveCraft-public", "workflow repository mismatch")
+    return {"workflow_run": int(run), "attempt": int(attempt),
+            "workflow_url": f"https://github.com/{repository}/actions/runs/{run}/attempts/{attempt}"}
+
+
 def contract_hashes(root=HERE / "contracts"):
     check(digest(root / "SHA256SUMS.json") == CONTRACT, "external contract digest mismatch")
     check(digest(root / "contract.schema.json") == SCHEMA, "external schema digest mismatch")
@@ -102,6 +117,7 @@ def environment():
               "sdk": str(Path(os.environ.get("COGNITIVECRAFT_E2E_CACHE", ROOT / "build/e2e-sdk")).resolve()),
               "model": os.environ.get("COGNITIVECRAFT_OLLAMA_MODEL"),
               "workflow_run": os.environ.get("GITHUB_RUN_ID"), "attempt": os.environ.get("GITHUB_RUN_ATTEMPT")}
+    result["container_image_id"] = os.environ.get("COGNITIVECRAFT_C_IMAGE_ID")
     for name, command in {"java": ["java", "-version"], "javac": ["javac", "-version"],
                           "docker": ["docker", "version", "--format", "{{.Server.Version}}"],
                           "compose": ["docker", "compose", "version", "--short"]}.items():
