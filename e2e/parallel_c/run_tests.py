@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
 from pathlib import Path
 import time
 import unittest
@@ -34,7 +35,12 @@ def run(output):
     output = Path(output); output.mkdir(parents=True, exist_ok=True)
     suite = unittest.defaultTestLoader.discover(str(HERE), pattern="test_*.py")
     log = io.StringIO()
-    result = unittest.TextTestRunner(stream=log, verbosity=2, resultclass=RecordedResult).run(suite)
+    previous_evidence = os.environ.get('COGNITIVECRAFT_C_PYTHON_EVIDENCE_ROOT')
+    os.environ['COGNITIVECRAFT_C_PYTHON_EVIDENCE_ROOT'] = str(output.resolve())
+    try: result = unittest.TextTestRunner(stream=log, verbosity=2, resultclass=RecordedResult).run(suite)
+    finally:
+        if previous_evidence is None: os.environ.pop('COGNITIVECRAFT_C_PYTHON_EVIDENCE_ROOT', None)
+        else: os.environ['COGNITIVECRAFT_C_PYTHON_EVIDENCE_ROOT'] = previous_evidence
     (output / "python.log").write_text(log.getvalue())
     xml = ET.Element("testsuite", name="C-owned Python", tests=str(result.testsRun),
                      failures=str(len(result.failures)), errors=str(len(result.errors)), skipped=str(len(result.skipped)))

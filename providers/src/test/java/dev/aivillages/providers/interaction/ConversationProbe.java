@@ -25,10 +25,10 @@ public final class ConversationProbe {
         if (mode.equals("late")) { active.set(false); pending.complete(f.valid()); }
         var result = future.join(); Map<String, Object> out = new LinkedHashMap<>();
         out.put("tier", "SYNTHETIC_PROVIDER"); out.put("scenario", mode); out.put("reason", result.reason().name()); out.put("text", result.text());
-        out.put("deliverable", result.deliverable()); out.put("provider_calls", f.calls.get()); out.put("completions", completions.get());
-        out.put("effect_calls", effects.get()); out.put("effect_scope", "NO_EFFECT_INTERFACE_EXPOSED"); out.put("actual_input_tokens", result.actualInputTokens());
+        out.put("deliverable", result.deliverable()); out.put("provider_calls", (long) f.calls.get()); out.put("completions", (long) completions.get());
+        out.put("effect_calls", (long) effects.get()); out.put("effect_scope", "NO_EFFECT_INTERFACE_EXPOSED"); out.put("actual_input_tokens", result.actualInputTokens());
         out.put("actual_output_tokens", result.actualOutputTokens()); out.put("compute_termination_confirmed", result.computeTerminationConfirmed());
-        out.put("reserved_input_tokens", result.reservedInputTokens()); out.put("reserved_output_tokens", result.reservedOutputTokens());
+        out.put("reserved_input_tokens", (long) result.reservedInputTokens()); out.put("reserved_output_tokens", (long) result.reservedOutputTokens());
         System.out.print(InteractionCodec.canonical(out));
     }
 }

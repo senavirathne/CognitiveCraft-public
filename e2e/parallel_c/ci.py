@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 
 from common import BASE, ROOT, check, digest, git, identity, read, tracked_clean, workflow_context, write
 from qualification_request import validate
@@ -64,7 +65,15 @@ def main():
     result.update(collection_blocks=collected.get("collection_blocks", []), predecessor=predecessor, genuine_provider=live)
     builds_pass = all(x["exit"] == 0 for x in result["phases"] if x["name"] in ("sdk", "baseline-checkout", "baseline-build", "candidate-build", "existing-drivers"))
     dependency = not result["docs_available"] or predecessor.get("status") == "BLOCKED_DEPENDENCY" or live.get("status") == "BLOCKED_DEPENDENCY"
-    result["gate_status"] = "OWNED_GATES_PASS" if passed else "BLOCKED_DEPENDENCY" if builds_pass and dependency else "FAIL"
+    python_file = evidence / 'python/python.xml'
+    python_regressions = []
+    if python_file.is_file():
+        for case in ET.parse(python_file).getroot().iter('testcase'):
+            if case.find('failure') is not None or case.find('error') is not None:
+                if result['docs_available'] or case.get('classname') != 'test_predecessor.PredecessorTests':
+                    python_regressions.append(case.get('classname', '') + '#' + case.get('name', ''))
+    result['python_regressions'] = python_regressions
+    result["gate_status"] = "OWNED_GATES_PASS" if passed else "BLOCKED_DEPENDENCY" if builds_pass and dependency and not python_regressions else "FAIL"
     write(output / "ci-result.json", result)
     print(__import__("json").dumps(result, sort_keys=True), flush=True)
     return 0 if passed else 2

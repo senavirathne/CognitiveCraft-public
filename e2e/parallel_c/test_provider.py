@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import unittest
 
-from common import ROOT, EvidenceError, read
+from common import ROOT, EvidenceError, identity, read, write
 from predecessor import validate_records
 
 
@@ -12,7 +12,14 @@ class ProviderTests(unittest.TestCase):
     def probe(self, scenario):
         java = str(Path(os.environ['JAVA_HOME']) / 'bin/java') if os.environ.get('JAVA_HOME') else 'java'
         classpath = os.pathsep.join(str(ROOT / path) for path in ('core/build/classes/java/main', 'providers/build/classes/java/main', 'providers/build/classes/java/test'))
-        result = subprocess.run([java, '-cp', classpath, 'dev.aivillages.providers.interaction.ConversationProbe', scenario], capture_output=True, text=True, check=True, timeout=20)
+        command = [java, '-cp', classpath, 'dev.aivillages.providers.interaction.ConversationProbe', scenario]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+        evidence = os.environ.get('COGNITIVECRAFT_C_PYTHON_EVIDENCE_ROOT')
+        if evidence:
+            folder = Path(evidence)/'provider-probes'/scenario; folder.mkdir(parents=True, exist_ok=False)
+            (folder/'stdout.json').write_text(result.stdout); (folder/'stderr.log').write_text(result.stderr)
+            write(folder/'process.json', {**identity(), 'command': command, 'exit': result.returncode, 'tier': 'SYNTHETIC_PROVIDER'})
+        self.assertEqual(0, result.returncode, result.stderr)
         import json
         row = json.loads(result.stdout)
         self.assertEqual('SYNTHETIC_PROVIDER', row['tier']); self.assertEqual(1, row['completions'])
