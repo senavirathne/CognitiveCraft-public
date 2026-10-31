@@ -1,0 +1,13 @@
+{
+  "stage": "C04",
+  "purpose": "Unchanged grammar/performance comparison only; no current-stage credit",
+  "source_sha": "a8d477aa78ed955a3a12c8c56fe873ed7c6c40e0",
+  "tree_sha": "71eecdb9e5eed58a115abd2f17fc2a2c49d545b0",
+  "docs_sha": "fd48bc4b2c10ba1f500baaf2dcb6234eaaf8bd40",
+  "workflow_run": 41225013138,
+  "attempt": 1,
+  "artifact_id": 13051217230,
+  "artifact_sha256": "8ee8c6c837fc3102f385b97231eb628d4215284de657850851469854bb588a5f",
+  "path": "candidate/production.jar",
+  "jar_sha256": "459dc4e969873ecbd142d44a5de20bc5319673f7622ac12342398902100a33ab"
+}

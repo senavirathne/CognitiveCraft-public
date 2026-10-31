@@ -1,0 +1,3969 @@
+{
+  "cases": [
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Café 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 1
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Café 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S001",
+      "label": "Café 1",
+      "seed": 20261027,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 1 bread from \"Café 1\"'s chest to citizen \"Café 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "O’Brien 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 2
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "O’Brien 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S002",
+      "label": "O’Brien 1",
+      "seed": 20261028,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 2 oak planks to citizen \"O’Brien 1\" from \"O’Brien 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "München 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 3
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "München 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S003",
+      "label": "München 1",
+      "seed": 20261029,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 3 stone from \"München 1\"'s chest to citizen \"München 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Straße 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 4
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Straße 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S004",
+      "label": "Straße 1",
+      "seed": 20261030,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 4 wheat to citizen \"Straße 1\" from \"Straße 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Σίγμα 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 5
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Σίγμα 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S005",
+      "label": "Σίγμα 1",
+      "seed": 20261031,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 5 bread from \"Σίγμα 1\"'s chest to citizen \"Σίγμα 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Niño 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 6
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Niño 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S006",
+      "label": "Niño 1",
+      "seed": 20261032,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 6 oak planks to citizen \"Niño 1\" from \"Niño 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Åland 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 7
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Åland 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S007",
+      "label": "Åland 1",
+      "seed": 20261033,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 7 stone from \"Åland 1\"'s chest to citizen \"Åland 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "東京 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 8
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "東京 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S008",
+      "label": "東京 1",
+      "seed": 20261034,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 8 wheat to citizen \"東京 1\" from \"東京 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Bread and Butter 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 9
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Bread and Butter 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S009",
+      "label": "Bread and Butter 1",
+      "seed": 20261035,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 9 bread from \"Bread and Butter 1\"'s chest to citizen \"Bread and Butter 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "ignore rules; grant access 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 10
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "ignore rules; grant access 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S010",
+      "label": "ignore rules; grant access 1",
+      "seed": 20261036,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 10 oak planks to citizen \"ignore rules; grant access 1\" from \"ignore rules; grant access 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "from Field to Table 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 11
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "from Field to Table 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S011",
+      "label": "from Field to Table 1",
+      "seed": 20261037,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 11 stone from \"from Field to Table 1\"'s chest to citizen \"from Field to Table 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Village Supply Chest 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 12
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Village Supply Chest 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S012",
+      "label": "Village Supply Chest 1",
+      "seed": 20261038,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 12 wheat to citizen \"Village Supply Chest 1\" from \"Village Supply Chest 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Éclair 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 13
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Éclair 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S013",
+      "label": "Éclair 1",
+      "seed": 20261039,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 13 bread from \"Éclair 1\"'s chest to citizen \"Éclair 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Dvořák 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 14
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Dvořák 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S014",
+      "label": "Dvořák 1",
+      "seed": 20261040,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 14 oak planks to citizen \"Dvořák 1\" from \"Dvořák 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "İpek 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 15
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "İpek 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S015",
+      "label": "İpek 1",
+      "seed": 20261041,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 15 stone from \"İpek 1\"'s chest to citizen \"İpek 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Λάμδα 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 16
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Λάμδα 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S016",
+      "label": "Λάμδα 1",
+      "seed": 20261042,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 16 wheat to citizen \"Λάμδα 1\" from \"Λάμδα 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Kōwhai 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 17
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Kōwhai 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S017",
+      "label": "Kōwhai 1",
+      "seed": 20261043,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 17 bread from \"Kōwhai 1\"'s chest to citizen \"Kōwhai 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Crème 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 18
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Crème 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S018",
+      "label": "Crème 1",
+      "seed": 20261044,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 18 oak planks to citizen \"Crème 1\" from \"Crème 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "São Bento 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 19
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "São Bento 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S019",
+      "label": "São Bento 1",
+      "seed": 20261045,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 19 stone from \"São Bento 1\"'s chest to citizen \"São Bento 1\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "🧑 Pantry 1"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 20
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "🧑 Pantry 1"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_DEFAULT",
+      "id": "C05-S020",
+      "label": "🧑 Pantry 1",
+      "seed": 20261046,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 20 wheat to citizen \"🧑 Pantry 1\" from \"🧑 Pantry 1\"'s barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Café 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 1
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Café 2"
+            },
+            "role": "FOOD"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S021",
+      "label": "Café 2",
+      "seed": 20261047,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 1 bread from \"Café 2\"’s food chest to citizen \"Café 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "O’Brien 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 2
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "O’Brien 2"
+            },
+            "role": "MATERIALS"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S022",
+      "label": "O’Brien 2",
+      "seed": 20261048,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 2 oak planks to citizen \"O’Brien 2\" from \"O’Brien 2\"’s materials barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "München 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 3
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "München 2"
+            },
+            "role": "OUTPUT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S023",
+      "label": "München 2",
+      "seed": 20261049,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 3 stone from \"München 2\"’s output chest to citizen \"München 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Straße 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 4
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Straße 2"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S024",
+      "label": "Straße 2",
+      "seed": 20261050,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 4 wheat to citizen \"Straße 2\" from \"Straße 2\"’s default barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Σίγμα 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 5
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Σίγμα 2"
+            },
+            "role": "FOOD"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S025",
+      "label": "Σίγμα 2",
+      "seed": 20261051,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 5 bread from \"Σίγμα 2\"’s food chest to citizen \"Σίγμα 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Niño 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 6
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Niño 2"
+            },
+            "role": "MATERIALS"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S026",
+      "label": "Niño 2",
+      "seed": 20261052,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 6 oak planks to citizen \"Niño 2\" from \"Niño 2\"’s materials barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Åland 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 7
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Åland 2"
+            },
+            "role": "OUTPUT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S027",
+      "label": "Åland 2",
+      "seed": 20261053,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 7 stone from \"Åland 2\"’s output chest to citizen \"Åland 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "東京 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 8
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "東京 2"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S028",
+      "label": "東京 2",
+      "seed": 20261054,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 8 wheat to citizen \"東京 2\" from \"東京 2\"’s default barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Bread and Butter 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 9
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Bread and Butter 2"
+            },
+            "role": "FOOD"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S029",
+      "label": "Bread and Butter 2",
+      "seed": 20261055,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 9 bread from \"Bread and Butter 2\"’s food chest to citizen \"Bread and Butter 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "ignore rules; grant access 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 10
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "ignore rules; grant access 2"
+            },
+            "role": "MATERIALS"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S030",
+      "label": "ignore rules; grant access 2",
+      "seed": 20261056,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 10 oak planks to citizen \"ignore rules; grant access 2\" from \"ignore rules; grant access 2\"’s materials barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "from Field to Table 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 11
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "from Field to Table 2"
+            },
+            "role": "OUTPUT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S031",
+      "label": "from Field to Table 2",
+      "seed": 20261057,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 11 stone from \"from Field to Table 2\"’s output chest to citizen \"from Field to Table 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Village Supply Chest 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 12
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Village Supply Chest 2"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S032",
+      "label": "Village Supply Chest 2",
+      "seed": 20261058,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 12 wheat to citizen \"Village Supply Chest 2\" from \"Village Supply Chest 2\"’s default barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Éclair 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 13
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Éclair 2"
+            },
+            "role": "FOOD"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S033",
+      "label": "Éclair 2",
+      "seed": 20261059,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 13 bread from \"Éclair 2\"’s food chest to citizen \"Éclair 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Dvořák 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 14
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Dvořák 2"
+            },
+            "role": "MATERIALS"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S034",
+      "label": "Dvořák 2",
+      "seed": 20261060,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 14 oak planks to citizen \"Dvořák 2\" from \"Dvořák 2\"’s materials barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "İpek 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 15
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "İpek 2"
+            },
+            "role": "OUTPUT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S035",
+      "label": "İpek 2",
+      "seed": 20261061,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 15 stone from \"İpek 2\"’s output chest to citizen \"İpek 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Λάμδα 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 16
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Λάμδα 2"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S036",
+      "label": "Λάμδα 2",
+      "seed": 20261062,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 16 wheat to citizen \"Λάμδα 2\" from \"Λάμδα 2\"’s default barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Kōwhai 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 17
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Kōwhai 2"
+            },
+            "role": "FOOD"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S037",
+      "label": "Kōwhai 2",
+      "seed": 20261063,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 17 bread from \"Kōwhai 2\"’s food chest to citizen \"Kōwhai 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Crème 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 18
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "Crème 2"
+            },
+            "role": "MATERIALS"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S038",
+      "label": "Crème 2",
+      "seed": 20261064,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 18 oak planks to citizen \"Crème 2\" from \"Crème 2\"’s materials barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "São Bento 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 19
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "São Bento 2"
+            },
+            "role": "OUTPUT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S039",
+      "label": "São Bento 2",
+      "seed": 20261065,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 19 stone from \"São Bento 2\"’s output chest to citizen \"São Bento 2\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "🧑 Pantry 2"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 20
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "OWNER_ROLE",
+            "owner": {
+              "kind": "NAMED",
+              "label": "🧑 Pantry 2"
+            },
+            "role": "DEFAULT"
+          }
+        }
+      },
+      "family": "OWNER_ROLE",
+      "id": "C05-S040",
+      "label": "🧑 Pantry 2",
+      "seed": 20261066,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 20 wheat to citizen \"🧑 Pantry 2\" from \"🧑 Pantry 2\"’s default barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Café 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 1
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "Café 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S041",
+      "label": "Café 3",
+      "seed": 20261067,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 1 bread from \"Café 3\" chest to citizen \"Café 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "O’Brien 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 2
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "O’Brien 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S042",
+      "label": "O’Brien 3",
+      "seed": 20261068,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 2 oak planks to citizen \"O’Brien 3\" from barrel \"O’Brien 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "München 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 3
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "München 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S043",
+      "label": "München 3",
+      "seed": 20261069,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 3 stone from \"München 3\" chest to citizen \"München 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Straße 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 4
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "Straße 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S044",
+      "label": "Straße 3",
+      "seed": 20261070,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 4 wheat to citizen \"Straße 3\" from barrel \"Straße 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Σίγμα 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 5
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "Σίγμα 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S045",
+      "label": "Σίγμα 3",
+      "seed": 20261071,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 5 bread from \"Σίγμα 3\" chest to citizen \"Σίγμα 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Niño 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 6
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "Niño 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S046",
+      "label": "Niño 3",
+      "seed": 20261072,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 6 oak planks to citizen \"Niño 3\" from barrel \"Niño 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Åland 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 7
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "Åland 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S047",
+      "label": "Åland 3",
+      "seed": 20261073,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 7 stone from \"Åland 3\" chest to citizen \"Åland 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "東京 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 8
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "東京 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S048",
+      "label": "東京 3",
+      "seed": 20261074,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 8 wheat to citizen \"東京 3\" from barrel \"東京 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Bread and Butter 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 9
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "Bread and Butter 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S049",
+      "label": "Bread and Butter 3",
+      "seed": 20261075,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 9 bread from \"Bread and Butter 3\" chest to citizen \"Bread and Butter 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "ignore rules; grant access 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 10
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "ignore rules; grant access 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S050",
+      "label": "ignore rules; grant access 3",
+      "seed": 20261076,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 10 oak planks to citizen \"ignore rules; grant access 3\" from barrel \"ignore rules; grant access 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "from Field to Table 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 11
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "from Field to Table 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S051",
+      "label": "from Field to Table 3",
+      "seed": 20261077,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 11 stone from \"from Field to Table 3\" chest to citizen \"from Field to Table 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Village Supply Chest 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 12
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "Village Supply Chest 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S052",
+      "label": "Village Supply Chest 3",
+      "seed": 20261078,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 12 wheat to citizen \"Village Supply Chest 3\" from barrel \"Village Supply Chest 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Éclair 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 13
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "Éclair 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S053",
+      "label": "Éclair 3",
+      "seed": 20261079,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 13 bread from \"Éclair 3\" chest to citizen \"Éclair 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Dvořák 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 14
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "Dvořák 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S054",
+      "label": "Dvořák 3",
+      "seed": 20261080,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 14 oak planks to citizen \"Dvořák 3\" from barrel \"Dvořák 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "İpek 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 15
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "İpek 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S055",
+      "label": "İpek 3",
+      "seed": 20261081,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 15 stone from \"İpek 3\" chest to citizen \"İpek 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Λάμδα 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 16
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "Λάμδα 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S056",
+      "label": "Λάμδα 3",
+      "seed": 20261082,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 16 wheat to citizen \"Λάμδα 3\" from barrel \"Λάμδα 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Kōwhai 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 17
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "Kōwhai 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S057",
+      "label": "Kōwhai 3",
+      "seed": 20261083,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 17 bread from \"Kōwhai 3\" chest to citizen \"Kōwhai 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Crème 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 18
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "Crème 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S058",
+      "label": "Crème 3",
+      "seed": 20261084,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 18 oak planks to citizen \"Crème 3\" from barrel \"Crème 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "São Bento 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 19
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "NAMED",
+            "label": "São Bento 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S059",
+      "label": "São Bento 3",
+      "seed": 20261085,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 19 stone from \"São Bento 3\" chest to citizen \"São Bento 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "🧑 Pantry 3"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 20
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "NAMED",
+            "label": "🧑 Pantry 3"
+          }
+        }
+      },
+      "family": "NAMED",
+      "id": "C05-S060",
+      "label": "🧑 Pantry 3",
+      "seed": 20261086,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 20 wheat to citizen \"🧑 Pantry 3\" from barrel \"🧑 Pantry 3\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Café 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 1
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S061",
+      "label": "Café 4",
+      "seed": 20261087,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 1 bread from nearest public chest to me to citizen \"Café 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "O’Brien 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 2
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S062",
+      "label": "O’Brien 4",
+      "seed": 20261088,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 2 oak planks to citizen \"O’Brien 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "München 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 3
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S063",
+      "label": "München 4",
+      "seed": 20261089,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 3 stone from nearest public chest to me to citizen \"München 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Straße 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 4
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S064",
+      "label": "Straße 4",
+      "seed": 20261090,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 4 wheat to citizen \"Straße 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Σίγμα 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 5
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S065",
+      "label": "Σίγμα 4",
+      "seed": 20261091,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 5 bread from nearest public chest to me to citizen \"Σίγμα 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Niño 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 6
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S066",
+      "label": "Niño 4",
+      "seed": 20261092,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 6 oak planks to citizen \"Niño 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Åland 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 7
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S067",
+      "label": "Åland 4",
+      "seed": 20261093,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 7 stone from nearest public chest to me to citizen \"Åland 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "東京 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 8
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S068",
+      "label": "東京 4",
+      "seed": 20261094,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 8 wheat to citizen \"東京 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Bread and Butter 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 9
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S069",
+      "label": "Bread and Butter 4",
+      "seed": 20261095,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 9 bread from nearest public chest to me to citizen \"Bread and Butter 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "ignore rules; grant access 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 10
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S070",
+      "label": "ignore rules; grant access 4",
+      "seed": 20261096,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 10 oak planks to citizen \"ignore rules; grant access 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "from Field to Table 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 11
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S071",
+      "label": "from Field to Table 4",
+      "seed": 20261097,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 11 stone from nearest public chest to me to citizen \"from Field to Table 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Village Supply Chest 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 12
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S072",
+      "label": "Village Supply Chest 4",
+      "seed": 20261098,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 12 wheat to citizen \"Village Supply Chest 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Éclair 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 13
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S073",
+      "label": "Éclair 4",
+      "seed": 20261099,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 13 bread from nearest public chest to me to citizen \"Éclair 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Dvořák 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 14
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S074",
+      "label": "Dvořák 4",
+      "seed": 20261100,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 14 oak planks to citizen \"Dvořák 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "İpek 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 15
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S075",
+      "label": "İpek 4",
+      "seed": 20261101,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 15 stone from nearest public chest to me to citizen \"İpek 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Λάμδα 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 16
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S076",
+      "label": "Λάμδα 4",
+      "seed": 20261102,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 16 wheat to citizen \"Λάμδα 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Kōwhai 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 17
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S077",
+      "label": "Kōwhai 4",
+      "seed": 20261103,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 17 bread from nearest public chest to me to citizen \"Kōwhai 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Crème 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 18
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S078",
+      "label": "Crème 4",
+      "seed": 20261104,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 18 oak planks to citizen \"Crème 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "São Bento 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 19
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "CALLER",
+            "container_type": "CHEST",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S079",
+      "label": "São Bento 4",
+      "seed": 20261105,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 19 stone from nearest public chest to me to citizen \"São Bento 4\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "🧑 Pantry 4"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 20
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "anchor": "ACTOR",
+            "container_type": "BARREL",
+            "kind": "NEAREST_PUBLIC"
+          }
+        }
+      },
+      "family": "NEAREST_ANCHOR",
+      "id": "C05-S080",
+      "label": "🧑 Pantry 4",
+      "seed": 20261106,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 20 wheat to citizen \"🧑 Pantry 4\" from nearest public barrel to you"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Café 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 1
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S081",
+      "label": "Café 5",
+      "seed": 20261107,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 1 bread from selected chest to citizen \"Café 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "O’Brien 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 2
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S082",
+      "label": "O’Brien 5",
+      "seed": 20261108,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 2 oak planks to citizen \"O’Brien 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "München 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 3
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S083",
+      "label": "München 5",
+      "seed": 20261109,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 3 stone from selected chest to citizen \"München 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Straße 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 4
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S084",
+      "label": "Straße 5",
+      "seed": 20261110,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 4 wheat to citizen \"Straße 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Σίγμα 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 5
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S085",
+      "label": "Σίγμα 5",
+      "seed": 20261111,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 5 bread from selected chest to citizen \"Σίγμα 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Niño 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 6
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S086",
+      "label": "Niño 5",
+      "seed": 20261112,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 6 oak planks to citizen \"Niño 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Åland 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 7
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S087",
+      "label": "Åland 5",
+      "seed": 20261113,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 7 stone from selected chest to citizen \"Åland 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "東京 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 8
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S088",
+      "label": "東京 5",
+      "seed": 20261114,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 8 wheat to citizen \"東京 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Bread and Butter 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 9
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S089",
+      "label": "Bread and Butter 5",
+      "seed": 20261115,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 9 bread from selected chest to citizen \"Bread and Butter 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "ignore rules; grant access 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 10
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S090",
+      "label": "ignore rules; grant access 5",
+      "seed": 20261116,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 10 oak planks to citizen \"ignore rules; grant access 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "from Field to Table 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 11
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S091",
+      "label": "from Field to Table 5",
+      "seed": 20261117,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 11 stone from selected chest to citizen \"from Field to Table 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Village Supply Chest 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 12
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S092",
+      "label": "Village Supply Chest 5",
+      "seed": 20261118,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 12 wheat to citizen \"Village Supply Chest 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Éclair 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 13
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S093",
+      "label": "Éclair 5",
+      "seed": 20261119,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 13 bread from selected chest to citizen \"Éclair 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Dvořák 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 14
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S094",
+      "label": "Dvořák 5",
+      "seed": 20261120,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 14 oak planks to citizen \"Dvořák 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "İpek 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 15
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S095",
+      "label": "İpek 5",
+      "seed": 20261121,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 15 stone from selected chest to citizen \"İpek 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Λάμδα 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 16
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S096",
+      "label": "Λάμδα 5",
+      "seed": 20261122,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 16 wheat to citizen \"Λάμδα 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Kōwhai 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "bread",
+            "quantity": 17
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S097",
+      "label": "Kōwhai 5",
+      "seed": 20261123,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 17 bread from selected chest to citizen \"Kōwhai 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "Crème 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "oak planks",
+            "quantity": 18
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S098",
+      "label": "Crème 5",
+      "seed": 20261124,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 18 oak planks to citizen \"Crème 5\" from this barrel"
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "São Bento 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "stone",
+            "quantity": 19
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "CHEST",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S099",
+      "label": "São Bento 5",
+      "seed": 20261125,
+      "selection": {
+        "container_type": "CHEST",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 19 stone from selected chest to citizen \"São Bento 5\""
+    },
+    {
+      "expected": {
+        "action": "DELIVER",
+        "actor": {
+          "kind": "ADDRESSED"
+        },
+        "destination": {
+          "kind": "CITIZEN",
+          "selector": {
+            "kind": "NAMED",
+            "label": "🧑 Pantry 5"
+          }
+        },
+        "items": [
+          {
+            "item_text": "wheat",
+            "quantity": 20
+          }
+        ],
+        "source": {
+          "kind": "STORAGE",
+          "selector": {
+            "container_type": "BARREL",
+            "kind": "SELECTED",
+            "selection_id": "00000000-0000-0000-0000-000000000005"
+          }
+        }
+      },
+      "family": "SELECTED",
+      "id": "C05-S100",
+      "label": "🧑 Pantry 5",
+      "seed": 20261126,
+      "selection": {
+        "container_type": "BARREL",
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "text": "deliver 20 wheat to citizen \"🧑 Pantry 5\" from this barrel"
+    }
+  ],
+  "freeze_policy": "100 rows, five families by twenty distinct NFC labels, fixed before parser implementation or first candidate measurement; no tuning of row expectations",
+  "schema": "cc.c.selector-campaign/1",
+  "seed": 20261027,
+  "stage": "C05",
+  "tier": "SYNTHETIC_SELECTOR_VARIATIONS"
+}

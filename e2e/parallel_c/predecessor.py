@@ -34,7 +34,7 @@ def configuration(stage):
     if stage == "C00": return PINS, FILES, 2371, 29
     if stage == "C01": return C01_PINS, C01_FILES, 2393, 40
     path = HERE / "predecessors" / (stage + ".json")
-    check(stage in ("C02", "C03") and path.is_file(), "predecessor stage has no qualified pin")
+    check(stage in ("C02", "C03", "C04") and path.is_file(), "predecessor stage has no qualified pin")
     frozen = read(path)
     check(set(frozen) == {"stage", "pins", "files", "unit", "python"} and frozen["stage"] == stage, "predecessor lock shape")
     pins = frozen["pins"]

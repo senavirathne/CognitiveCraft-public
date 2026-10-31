@@ -685,7 +685,15 @@
     "test_provider.ProviderTests#test_missing_live_configuration_has_zero_genuine_execution_credit",
     "test_provider.ProviderTests#test_offline_fallback_is_independent_of_optional_model_availability",
     "test_provider.ProviderTests#test_timeout_chooses_one_offline_fallback_and_discards_late_completion",
-    "test_provider.ProviderTests#test_unqualified_c02_cannot_be_forged_into_a_qualified_predecessor"
+    "test_provider.ProviderTests#test_unqualified_c02_cannot_be_forged_into_a_qualified_predecessor",
+    "test_selectors.SelectorTests#test_one_hundred_held_out_variations_preserve_anchor_role_and_direction",
+    "test_selectors.SelectorTests#test_five_frozen_families_have_twenty_distinct_nfc_labels",
+    "test_selectors.SelectorTests#test_swapped_caller_actor_anchor_is_rejected",
+    "test_selectors.SelectorTests#test_reversed_source_destination_is_rejected",
+    "test_selectors.SelectorTests#test_lost_container_type_or_changed_owner_role_is_rejected",
+    "test_selectors.SelectorTests#test_duplicate_partial_or_summary_only_frames_cannot_qualify",
+    "test_selectors.SelectorTests#test_simulated_native_credit_is_rejected",
+    "test_selectors.SelectorTests#test_qualified_c04_pin_is_required_for_advancement"
   ],
   "regression_scope": "Every implemented C00-C04 case is required while qualifying this component; no later stage is implicitly qualified.",
   "regression_unit_cases": [
@@ -1038,6 +1046,141 @@
       "expected": "PASS",
       "id": "C04-INFRA:providerGrammarRestrictsOutputToTheSameGroundedPhrasingsAndDigestAsTheValidator",
       "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#providerGrammarRestrictsOutputToTheSameGroundedPhrasingsAndDigestAsTheValidator()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:adasChestIsOwnerDefaultAndBobsFoodBarrelRetainsType",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#adasChestIsOwnerDefaultAndBobsFoodBarrelRetainsType()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:literalVillageSupplyChestStaysNamedAndWarehouseIsOnlyAnAlias",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#literalVillageSupplyChestStaysNamedAndWarehouseIsOnlyAnAlias()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:nearestPublicPreservesCallerAndActorAnchors",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#nearestPublicPreservesCallerAndActorAnchors()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:selectedBarrelUsesOnlyTheSuppliedNativeCorrelation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#selectedBarrelUsesOnlyTheSuppliedNativeCorrelation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:textCannotSupplySelectionIdsCoordinatesOrWitnesses",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#textCannotSupplySelectionIdsCoordinatesOrWitnesses()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:quotedApostrophesCurlyPossessivesAndRoleNamesAreData",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#quotedApostrophesCurlyPossessivesAndRoleNamesAreData()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:comparisonUsesNfcFullCasefoldWithoutChangingWireLabels",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#comparisonUsesNfcFullCasefoldWithoutChangingWireLabels()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:namesAndTypesAcceptBothExplicitWordOrders",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#namesAndTypesAcceptBothExplicitWordOrders()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:namedVillagersProduceOnlyCitizenSelectors",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#namedVillagersProduceOnlyCitizenSelectors()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:deliveryDirectionIsPreservedAcrossWordOrdersAndAnchors",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#deliveryDirectionIsPreservedAcrossWordOrdersAndAnchors()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:fromToAndInstructionsInsideQuotedLabelsDoNotBecomeCommands",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#fromToAndInstructionsInsideQuotedLabelsDoNotBecomeCommands()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:malformedOverlongUnsupportedAndCompoundReferencesClarify",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#malformedOverlongUnsupportedAndCompoundReferencesClarify()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:selectorTreesAndSpanProofsAreImmutable",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#selectorTreesAndSpanProofsAreImmutable()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U01:sourceSpansCoverTheExactOriginalPhraseAfterWhitespaceAndUnicode",
+      "xml_id": "dev.aivillages.core.kernel.interaction.SelectorParserTest#sourceSpansCoverTheExactOriginalPhraseAfterWhitespaceAndUnicode()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:explicitMissingNameNeverFallsBackToNearestOrDefault",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#explicitMissingNameNeverFallsBackToNearestOrDefault()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:twoVisibleCandidatesClarifyInsteadOfChoosingFirst",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#twoVisibleCandidatesClarifyInsteadOfChoosingFirst()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:unsupportedAndDeniedReadsDiscloseNoChoicesOrDefault",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#unsupportedAndDeniedReadsDiscloseNoChoicesOrDefault()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:conflictingNameAndContainerTypeClarifyWithoutChangingIdentity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#conflictingNameAndContainerTypeClarifyWithoutChangingIdentity()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:namedWarehouseAliasStillRequiresSupportedRegisteredStorage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#namedWarehouseAliasStillRequiresSupportedRegisteredStorage()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:omittedSourceRequiresConfirmedConfiguredDefaultInThisQuery",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#omittedSourceRequiresConfirmedConfiguredDefaultInThisQuery()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:staleExpiredOrCrossPrincipalObservationsCannotBind",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#staleExpiredOrCrossPrincipalObservationsCannotBind()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:currentDepositOnlyUseIsIndependentOfWithdrawOrInspectPermission",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#currentDepositOnlyUseIsIndependentOfWithdrawOrInspectPermission()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:renameKeepsStableIdentityWhileReplacementPreservesNewGeneration",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#renameKeepsStableIdentityWhileReplacementPreservesNewGeneration()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:casefoldMatchesMetadataButCannotDisambiguateDuplicateLabels",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#casefoldMatchesMetadataButCannotDisambiguateDuplicateLabels()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:citizenSelectorsRequireCitizenMetadataAndNeverBecomeStorage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#citizenSelectorsRequireCitizenMetadataAndNeverBecomeStorage()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:unavailableResolverAndExceptionsFailClosedWithoutLeakingMessages",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#unavailableResolverAndExceptionsFailClosedWithoutLeakingMessages()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C05-U02:observationAndClarificationChoicesAreImmutableAndBounded",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#observationAndClarificationChoicesAreImmutableAndBounded()"
     }
   ],
   "schedule": {

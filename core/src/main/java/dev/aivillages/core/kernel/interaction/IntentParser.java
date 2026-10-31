@@ -112,20 +112,24 @@ public final class IntentParser {
             if (endpoint instanceof Code code) return problem(code);
             if (!((Map<?, ?>) endpoint).get("kind").equals("STORAGE")) return problem(Code.UNSUPPORTED);
             body.put("destination", endpoint);
-        } else if ((m = match("(deliver) ([+-]?[0-9]+) (.+?) from (.+?) to (.+)", text)) != null) {
+        } else if ((m = match("(deliver) ([+-]?[0-9]+) (.+)", text)) != null) {
             action = "DELIVER";
             long quantity;
             try { quantity = Long.parseLong(m.group(2)); }
             catch (NumberFormatException invalid) { return problem(Code.INVALID_QUANTITY); }
             if (quantity < 1 || quantity > 64) return problem(Code.INVALID_QUANTITY);
-            Object source = endpoint(m.group(4), offset + m.start(4), "/source", spans, t);
-            Object destination = endpoint(m.group(5), offset + m.start(5), "/destination", spans, t);
+            var parts = SelectorParser.delivery(m.group(3));
+            if (parts == null) return problem(Code.MISSING_TARGET);
+            int tailOffset = offset + m.start(3);
+            Object source = endpoint(parts.source(), tailOffset + parts.sourceSpan().start(), "/source", spans, t);
+            Object destination = endpoint(parts.destination(), tailOffset + parts.destinationSpan().start(), "/destination", spans, t);
             if (source instanceof Code code) return problem(code);
             if (destination instanceof Code code) return problem(code);
-            if (m.group(3).codePointCount(0, m.group(3).length()) > 96) return problem(Code.UNSUPPORTED);
+            if (parts.item().codePointCount(0, parts.item().length()) > 96) return problem(Code.UNSUPPORTED);
             body.put("source", source); body.put("destination", destination);
-            body.put("items", List.of(Map.of("item_text", m.group(3), "quantity", quantity)));
-            proof(spans, "/items/0/quantity", m, 2, offset); proof(spans, "/items/0/item_text", m, 3, offset);
+            body.put("items", List.of(Map.of("item_text", parts.item(), "quantity", quantity)));
+            proof(spans, "/items/0/quantity", m, 2, offset);
+            spans.put("/items/0/item_text", new Span(tailOffset + parts.itemSpan().start(), tailOffset + parts.itemSpan().end()));
         } else if ((m = match("(register) (this (?:chest|barrel|storage)) as \"([^\"\\\\]+)\"(?: for (default|food|materials|output))?", text)) != null) {
             action = "REGISTER_STORAGE";
             Object endpoint = endpoint(m.group(2), offset + m.start(2), "/destination", spans, t);
@@ -185,35 +189,13 @@ public final class IntentParser {
         return new Extraction(draft(t, "DialogueIntent", body, spans), null);
     }
 
-    private static boolean ambiguous(String text) {
-        String unquoted = text.replaceAll("\"[^\"]*\"", "");
-        return Pattern.compile(";|\\b(?:and|then|or)\\b", Pattern.CASE_INSENSITIVE).matcher(unquoted).find();
-    }
+    private static boolean ambiguous(String text) { return SelectorParser.ambiguous(text); }
 
     private static Object endpoint(String text, int offset, String field, Map<String, Span> spans, Transport t) {
-        Matcher m;
-        Map<String, Object> selector;
-        String kind = "STORAGE";
-        if ((m = match("(chest|barrel|storage|citizen) \"([^\"\\\\]+)\"", text)) != null) {
-            kind = m.group(1).equalsIgnoreCase("citizen") ? "CITIZEN" : "STORAGE";
-            selector = new LinkedHashMap<>(); selector.put("kind", "NAMED"); selector.put("label", m.group(2));
-            proof(spans, field + "/selector/label", m, 2, offset);
-            if (kind.equals("STORAGE")) { selector.put("container_type", type(m.group(1))); proof(spans, field + "/selector/container_type", m, 1, offset); }
-        } else if ((m = match("(this|selected) (chest|barrel|storage)", text)) != null) {
-            if (t.selection() == null || (!type(m.group(2)).equals("ANY_MVP") && !type(m.group(2)).equals(t.selection().containerType())))
-                return Code.MISSING_SELECTION;
-            selector = new LinkedHashMap<>(Map.of("kind", "SELECTED", "selection_id", t.selection().id().toString(), "container_type", type(m.group(2))));
-            proof(spans, field + "/selector/container_type", m, 2, offset);
-        } else if ((m = match("(your) (default|food|materials|output) (chest|barrel|storage)", text)) != null) {
-            selector = new LinkedHashMap<>(Map.of("kind", "OWNER_ROLE", "owner", addressed(), "role", m.group(2).toUpperCase(Locale.ROOT), "container_type", type(m.group(3))));
-            proof(spans, field + "/selector/role", m, 2, offset); proof(spans, field + "/selector/container_type", m, 3, offset);
-        } else if ((m = match("(nearest public) (chest|barrel|storage)", text)) != null) {
-            selector = new LinkedHashMap<>(Map.of("kind", "NEAREST_PUBLIC", "anchor", "CALLER", "container_type", type(m.group(2))));
-            proof(spans, field + "/selector/container_type", m, 2, offset);
-        } else if ((m = match("(you)", text)) != null) {
-            kind = "CITIZEN"; selector = addressed();
-        } else return Code.MISSING_TARGET;
-        proof(spans, field + "/kind", m, 1, offset); proof(spans, field + "/selector/kind", m, 1, offset);
-        return Map.of("kind", kind, "selector", selector);
+        var result = new SelectorParser().parse(text, t.selection());
+        if (result instanceof SelectorParser.Clarification clarification) return clarification.code();
+        var parsed = (SelectorParser.Parsed) result;
+        parsed.spans().forEach((key, value) -> spans.put(field + key, new Span(offset + value.start(), offset + value.end())));
+        return parsed.endpoint();
     }
 }
