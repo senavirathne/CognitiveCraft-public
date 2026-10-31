@@ -1,4 +1,4 @@
-"""Qualify genuine optional phrasing on an existing, pinned llama.cpp service; never create a model stack."""
+"""Qualify genuine phrasing on the pinned shared or CI-managed llama.cpp Docker backend."""
 from pathlib import Path
 import argparse
 import hashlib
@@ -40,6 +40,12 @@ def verify(output, registry):
     check(receipt['before']['chat_template_sha256'] == hashlib.sha256(receipt['chat_template'].encode()).hexdigest(), 'recorded chat template differs from observed backend')
     check(receipt['jar_sha256'] == digest(JAR), 'genuine probe JAR changed')
     check(receipt['driver_classes'], 'measured actual live driver bytecode required')
+    if receipt.get('backend_profile') == 'PINNED_CI_BACKEND':
+        bootstrap = read(output / 'managed-backend.json'); lock = read(HERE / 'ci/model-lock.json')
+        check(bootstrap['status'] == 'READY' and bootstrap['lock'] == lock and bootstrap['lock_sha256'] == digest(HERE / 'ci/model-lock.json'), 'managed backend source/model lock mismatch')
+        check(bootstrap['dockerfile_sha256'] == digest(HERE / 'ci/ModelDockerfile') and bootstrap['model_sha256'] == receipt['model_sha256'], 'managed model build provenance mismatch')
+        check(re.fullmatch(r'sha256:[0-9a-f]{64}', bootstrap['image_id']) and re.fullmatch(r'[0-9a-f]{64}',bootstrap['server_binary_sha256']), 'measured server image/binary identity required')
+        check(bootstrap['lock']['build'] == receipt['configured_build'], 'managed server build mismatch')
     for path, sha in receipt['driver_classes'].items():
         data = (output / path).read_bytes()
         check(digest(output / path) == sha and data[:4] == b'\xca\xfe\xba\xbe' and struct.unpack_from('>H', data, 6)[0] == 69, 'live driver class changed/not Java 25')
@@ -73,6 +79,9 @@ def verify(output, registry):
         check(input_tokens <= reserved == row['reserved_input_tokens'] and output_tokens <= row['reserved_output_tokens'], 'cumulative genuine response budget')
     return {'status': 'PASS', 'planned': len(rows), 'executed': len(rows), 'passed': len(rows), 'failed': 0,
             'refused_expected': 0, 'inconclusive': 0, 'model_sha256': receipt['model_sha256'], 'tokenizer_sha256': expected_tokenizer,
+            'accepted_model_responses': sum(r['reason'] == 'MODEL' for r in rows),
+            'fallback_after_real_generation': sum(r['reason'] == 'INVALID_RESPONSE' for r in rows),
+            'provider_calls': sum(r['provider_calls'] for r in rows),
             'scope': 'GENUINE_GENERATION_WITH_SYNTHETIC_FACTS; zero native/client/settlement credit'}
 
 
@@ -83,8 +92,8 @@ def run(output):
               'inconclusive': 0, 'refused_expected': 0, 'error': None, 'model_sha256': None, 'tokenizer_sha256': None}
     try:
         values = {key: os.environ.get(key, '') for key in ENV}
-        check(not os.environ.get('COGNITIVECRAFT_C_MODEL_CONFIG_ERROR'), 'invalid shared-model configuration; no credential forwarded')
-        check(all(values.values()), 'existing pinned llama.cpp backend/model/tokenizer configuration unavailable; no model server started')
+        check(not os.environ.get('COGNITIVECRAFT_C_MODEL_CONFIG_ERROR'), os.environ.get('COGNITIVECRAFT_C_MODEL_CONFIG_ERROR', 'model configuration unavailable'))
+        check(all(values.values()), 'pinned backend/model/tokenizer unavailable; inspect host backend bootstrap logs')
         base = values[ENV[0]]; uri = urllib.parse.urlsplit(base)
         check(uri.scheme == 'https' or uri.scheme == 'http' and uri.hostname in ('localhost', '127.0.0.1', '::1'), 'HTTPS or explicit loopback model service required')
         check(uri.hostname is not None and not uri.username and not uri.password and not uri.query and not uri.fragment and uri.path in ('', '/'), 'credential-free root backend URL required')
@@ -96,6 +105,9 @@ def run(output):
         with model.open('rb') as stream: check(stream.read(4) == b'GGUF', 'actual configured GGUF required')
         check(digest(model) == values[ENV[2]], 'configured GGUF digest mismatch')
         before = get_properties(base)
+        record['backend_profile'] = os.environ.get('COGNITIVECRAFT_C_BACKEND_PROFILE', 'EXISTING_PINNED_BACKEND')
+        if record['backend_profile'] == 'PINNED_CI_BACKEND':
+            shutil.copy2(ROOT / 'build/e2e/parallel-c/backend/backend.json', output / 'managed-backend.json')
         check(before['model_path'] == values[ENV[4]] and before['build_info'] == values[ENV[5]] and isinstance(before['chat_template'], str), 'configured shared backend model/build/template mismatch')
         tokenizer = hashlib.sha256((values[ENV[2]] + '\n' + before['chat_template']).encode()).hexdigest()
         def whitelisted(properties):

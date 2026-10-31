@@ -1,0 +1,17 @@
+ARG C_RUNTIME
+FROM ${C_RUNTIME}
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends cmake g++ make libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+ARG LLAMA_COMMIT=8642541b255bfb5dc39cd351a178be09013a55d6
+RUN git init /opt/llama.cpp \
+    && git -C /opt/llama.cpp remote add origin https://github.com/ggml-org/llama.cpp.git \
+    && git -C /opt/llama.cpp fetch --depth 1 origin ${LLAMA_COMMIT} \
+    && git -C /opt/llama.cpp checkout --detach FETCH_HEAD \
+    && test "$(git -C /opt/llama.cpp rev-parse HEAD)" = "${LLAMA_COMMIT}" \
+    && cmake -S /opt/llama.cpp -B /opt/llama-build -DCMAKE_BUILD_TYPE=Release \
+       -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DLLAMA_BUILD_TESTS=OFF \
+       -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_SERVER=ON \
+       -DLLAMA_BUILD_NUMBER=1 -DLLAMA_BUILD_COMMIT=8642541b255b \
+    && cmake --build /opt/llama-build --target llama-server --parallel 2
+ENTRYPOINT ["/opt/llama-build/bin/llama-server"]

@@ -20,7 +20,7 @@ class CiTests(unittest.TestCase):
         result = self.request(); self.assertEqual("C02", result["stage"]); self.assertEqual("infrastructure-recovery", result["purpose"])
 
     def test_unimplemented_stage_or_wrong_purpose_cannot_spend_qualification_run(self):
-        for change in ({"stage": "C04"}, {"purpose": "final-qualification"}, {"stage": "J00"}, {"stage": "C08", "purpose": "final-qualification"}):
+        for change in ({"stage": "C05"}, {"purpose": "final-qualification"}, {"stage": "J00"}, {"stage": "C08", "purpose": "final-qualification"}):
             with self.assertRaises(EvidenceError): self.request(**change)
 
     def test_wrong_contract_unpinned_docs_or_extra_authority_fields_are_rejected(self):

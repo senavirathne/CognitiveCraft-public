@@ -12,6 +12,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static dev.aivillages.providers.interaction.ConversationProvider.Reason.*;
 
 class ConversationProviderTest {
+    @Test void providerGrammarRestrictsOutputToTheSameGroundedPhrasingsAndDigestAsTheValidator() {
+        var f=new ConversationFixtures(); f.wrapper(f.provider(r->CompletableFuture.completedFuture(f.valid()))).respond(f.ticket(1,1),f.facts,t->true).join();
+        var schema=(java.util.Map<?,?>)dev.aivillages.core.kernel.interaction.contract.InteractionCodec.parseJson(f.requests.getFirst().jsonSchema());
+        var properties=(java.util.Map<?,?>)schema.get("properties");
+        assertEquals(ResponseTemplates.choices(f.facts),((java.util.Map<?,?>)properties.get("text")).get("enum"));
+        assertEquals(f.facts.digest(),((java.util.Map<?,?>)properties.get("facts_sha256")).get("const"));
+        assertEquals(false,schema.get("additionalProperties"));
+    }
     @Test void validResponseUsesTheExistingSpiAndReportsUnknownActualUsage() {
         var f = new ConversationFixtures(); var wrapper = f.wrapper(f.provider(r -> CompletableFuture.completedFuture(f.valid())));
         var result = wrapper.respond(f.ticket(1, 1), f.facts, t -> true).join();

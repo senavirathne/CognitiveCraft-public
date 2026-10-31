@@ -1,0 +1,13 @@
+{
+  "alias": "cognitivecraft-ci-qwen3-0.6b",
+  "build": "b1-8642541b255b",
+  "llama_commit": "8642541b255bfb5dc39cd351a178be09013a55d6",
+  "llama_repository": "https://github.com/ggml-org/llama.cpp.git",
+  "model_file": "Qwen3-0.6B-Q4_0.gguf",
+  "model_repository": "ggml-org/Qwen3-0.6B-GGUF",
+  "model_revision": "13ac06624948e4d8589cb4b6f90100837342fcb8",
+  "model_sha256": "da2572f16c06133561ce56accaa822216f2391ef4d37fba427801cd6736417d4",
+  "model_size": 428970080,
+  "model_url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/13ac06624948e4d8589cb4b6f90100837342fcb8/Qwen3-0.6B-Q4_0.gguf",
+  "server_model_path": "/models/qualified.gguf"
+}

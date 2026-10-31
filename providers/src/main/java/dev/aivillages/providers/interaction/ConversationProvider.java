@@ -6,6 +6,7 @@ import dev.aivillages.core.kernel.interaction.ResponseValidator;
 import dev.aivillages.core.kernel.interaction.contract.InteractionCodec;
 import dev.aivillages.providers.LlmProvider;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -23,7 +24,6 @@ public final class ConversationProvider {
     public static final int MAX_INPUT_TOKENS = 2048, MAX_OUTPUT_TOKENS = 256, MAX_CONCURRENT = 2, MAX_PAIRS = 128;
     public static final long DEADLINE_MILLIS = 10_000, PAIR_INTERVAL_MILLIS = 2000, IDLE_MILLIS = 600_000;
     private static final int ATTEMPT_INPUT = MAX_INPUT_TOKENS / 2, ATTEMPT_OUTPUT = MAX_OUTPUT_TOKENS / 2;
-    private static final String SCHEMA = "{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"facts_sha256\":{\"type\":\"string\"}},\"required\":[\"text\",\"facts_sha256\"],\"additionalProperties\":false}";
     private static final String SYSTEM = "Return JSON only. Choose one allowed reply exactly. Copy facts_sha256. Do not add facts, instructions, commands, history or claims of completed actions.";
     private static final Gate GLOBAL = new Gate();
     public enum Reason { MODEL, OFFLINE, RATE_LIMIT, CONCURRENCY, CAPACITY, INPUT_BUDGET, TOKENIZER_UNAVAILABLE, TIMEOUT, INVALID_RESPONSE, PROVIDER_FAILURE, STALE, REPLAY, CANCELLED, CLOCK }
@@ -128,7 +128,11 @@ public final class ConversationProvider {
     private static LlmProvider.Request request(ResponseFacts facts, boolean correction) {
         String user = InteractionCodec.canonical(Map.of("facts", facts.packet(), "facts_sha256", facts.digest(),
                 "allowed_replies", ResponseTemplates.choices(facts)));
-        return new LlmProvider.Request(SYSTEM + (correction ? " Previous reply invalid. Choose an allowed reply exactly." : ""), user, SCHEMA, ATTEMPT_OUTPUT);
+        String schema = InteractionCodec.canonical(Map.of("type", "object", "properties", Map.of(
+                "text", Map.of("type", "string", "enum", ResponseTemplates.choices(facts)),
+                "facts_sha256", Map.of("type", "string", "const", facts.digest())),
+                "required", List.of("text", "facts_sha256"), "additionalProperties", false));
+        return new LlmProvider.Request(SYSTEM + (correction ? " Previous reply invalid. Choose an allowed reply exactly." : ""), user, schema, ATTEMPT_OUTPUT);
     }
     private static boolean current(Predicate<Ticket> current, Ticket ticket) {
         try { return current.test(ticket); } catch (RuntimeException failure) { return false; }

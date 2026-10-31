@@ -82,10 +82,25 @@ def main():
                "--env", "COGNITIVECRAFT_C_IMAGE_ID=" + image["Id"]]
     for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA", "GITHUB_REPOSITORY", "GITHUB_ACTIONS"):
         command += ["--env", key + "=" + os.environ[key]]
-    # Optional existing shared backend only. Do not forward URL credentials or arbitrary host-file paths.
+    # Reuse a healthy pinned shared service; otherwise start the independently pinned CI model container.
     from live_provider import ENV as model_keys
+    from ci_backend import Backend, healthy_existing
     model_values = {key: os.environ.get(key, "") for key in model_keys}
     model_values, host_network, model_error = shared_model_configuration(model_values)
+    backend = None
+    if not healthy_existing(model_values):
+        backend = Backend(folder, cache, image["Id"], context)
+        backend.report["selection_reason"] = model_error or ("configured backend unavailable or model pin differs" if model_values else "no shared backend configured")
+        model_values, host_network = {}, False
+        try:
+            model_values = backend.start(); model_error = None
+            command += ["--network", "container:" + backend.name]
+            command += ["--env", "COGNITIVECRAFT_C_BACKEND_PROFILE=PINNED_CI_BACKEND"]
+        except (OSError, ValueError, subprocess.SubprocessError) as failure:
+            backend.fail(failure)
+            model_error = "pinned CI backend bootstrap failed; retained backend logs; source gates still execute"
+    else:
+        write(folder / "backend-selection.json", {"profile": "EXISTING_PINNED_BACKEND", "health_verified": True})
     for key, value in model_values.items(): command += ["--env", key + "=" + value]
     if host_network: command += ["--network", "host"]
     if model_error: command += ["--env", "COGNITIVECRAFT_C_MODEL_CONFIG_ERROR=" + model_error]
@@ -100,6 +115,7 @@ def main():
         if inspected.returncode == 0: write(folder / "container-inspect.json", json.loads(inspected.stdout))
         report["ended_ns"] = time.time_ns(); write(folder / "ci-host.json", report)
         subprocess.run(["docker", "rm", "--force", name], capture_output=True)
+        if backend is not None: backend.close()
 
 
 if __name__ == "__main__":

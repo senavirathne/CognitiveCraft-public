@@ -51,7 +51,7 @@ jobs:
           path: build/CognitiveCraft-Documentation-C
           fetch-depth: 0
           persist-credentials: false
-      - name: Restore verified SDK Gradle and runtime image caches
+      - name: Restore verified SDK Gradle model and Docker image caches
         id: cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
@@ -59,11 +59,12 @@ jobs:
             build/e2e-sdk
             build/server-sdk
             build/parallel-c-cache
-          key: parallel-c-docker-linux-v2-${{ hashFiles('scripts/dependencies.json', 'gradle/wrapper/gradle-wrapper.properties', 'e2e/runtime.py', 'e2e/Dockerfile', 'e2e/parallel_c/ci/Dockerfile') }}
+          key: parallel-c-docker-linux-v3-${{ hashFiles('scripts/dependencies.json', 'gradle/wrapper/gradle-wrapper.properties', 'e2e/runtime.py', 'e2e/Dockerfile', 'e2e/parallel_c/ci/Dockerfile', 'e2e/parallel_c/ci/ModelDockerfile', 'e2e/parallel_c/ci/model-lock.json') }}
           restore-keys: |
+            parallel-c-docker-linux-v3-
             parallel-c-docker-linux-v2-
             minecraft-client-26.3-702fe591-fabric-0195-linux-v1
-      - name: Run all cumulative gates inside the existing E2E Docker stack
+      - name: Start healthy model backend and run every cumulative gate in Docker
         env:
           COGNITIVECRAFT_C_MODEL_URL: ${{ vars.COGNITIVECRAFT_C_MODEL_URL }}
           COGNITIVECRAFT_C_MODEL_ALIAS: ${{ vars.COGNITIVECRAFT_C_MODEL_ALIAS }}
