@@ -28,7 +28,7 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as out:
               out.write('docs_sha='+value['docs_candidate_sha']+'\n')
           PY
-      - name: Discover private documentation credential availability
+      - name: Discover optional direct documentation checkout credential
         id: docs-access
         env:
           DOCS_TOKEN: ${{ secrets.COGNITIVECRAFT_DOCS_READ_TOKEN }}
@@ -37,7 +37,7 @@ jobs:
             printf 'available=true\n' >> "$GITHUB_OUTPUT"
           else
             printf 'available=false\n' >> "$GITHUB_OUTPUT"
-            echo 'Private docs credential unavailable. Execute all source gates and retain the documentation blocker.'
+            echo 'Direct docs credential unavailable. Restore the exact verified sparse Git snapshot and execute every gate.'
           fi
       - name: Checkout exact private docs when authorized
         id: docs
@@ -51,6 +51,10 @@ jobs:
           path: build/CognitiveCraft-Documentation-C
           fetch-depth: 0
           persist-credentials: false
+      - name: Restore exact sparse docs Git objects when direct checkout is unavailable
+        if: steps.docs.outcome != 'success'
+        run: |
+          python3 e2e/parallel_c/materialize_docs.py --root build/CognitiveCraft-Documentation-C --expected-sha '${{ steps.request.outputs.docs_sha }}' --output build/e2e/parallel-c/docs-input.json
       - name: Restore verified SDK Gradle model and Docker image caches
         id: cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830

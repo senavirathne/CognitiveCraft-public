@@ -25,6 +25,409 @@
     "J02: A-owned activity effects, leases and native storage/mobility",
     "J03: A-owned original-root persistence, reobservation and save-qualified terminal projection"
   ],
+  "dialogue_sequence_cases": [
+    {
+      "id": "C04-S001",
+      "seed": 20261027
+    },
+    {
+      "id": "C04-S002",
+      "seed": 20261028
+    },
+    {
+      "id": "C04-S003",
+      "seed": 20261029
+    },
+    {
+      "id": "C04-S004",
+      "seed": 20261030
+    },
+    {
+      "id": "C04-S005",
+      "seed": 20261031
+    },
+    {
+      "id": "C04-S006",
+      "seed": 20261032
+    },
+    {
+      "id": "C04-S007",
+      "seed": 20261033
+    },
+    {
+      "id": "C04-S008",
+      "seed": 20261034
+    },
+    {
+      "id": "C04-S009",
+      "seed": 20261035
+    },
+    {
+      "id": "C04-S010",
+      "seed": 20261036
+    },
+    {
+      "id": "C04-S011",
+      "seed": 20261037
+    },
+    {
+      "id": "C04-S012",
+      "seed": 20261038
+    },
+    {
+      "id": "C04-S013",
+      "seed": 20261039
+    },
+    {
+      "id": "C04-S014",
+      "seed": 20261040
+    },
+    {
+      "id": "C04-S015",
+      "seed": 20261041
+    },
+    {
+      "id": "C04-S016",
+      "seed": 20261042
+    },
+    {
+      "id": "C04-S017",
+      "seed": 20261043
+    },
+    {
+      "id": "C04-S018",
+      "seed": 20261044
+    },
+    {
+      "id": "C04-S019",
+      "seed": 20261045
+    },
+    {
+      "id": "C04-S020",
+      "seed": 20261046
+    },
+    {
+      "id": "C04-S021",
+      "seed": 20261047
+    },
+    {
+      "id": "C04-S022",
+      "seed": 20261048
+    },
+    {
+      "id": "C04-S023",
+      "seed": 20261049
+    },
+    {
+      "id": "C04-S024",
+      "seed": 20261050
+    },
+    {
+      "id": "C04-S025",
+      "seed": 20261051
+    },
+    {
+      "id": "C04-S026",
+      "seed": 20261052
+    },
+    {
+      "id": "C04-S027",
+      "seed": 20261053
+    },
+    {
+      "id": "C04-S028",
+      "seed": 20261054
+    },
+    {
+      "id": "C04-S029",
+      "seed": 20261055
+    },
+    {
+      "id": "C04-S030",
+      "seed": 20261056
+    },
+    {
+      "id": "C04-S031",
+      "seed": 20261057
+    },
+    {
+      "id": "C04-S032",
+      "seed": 20261058
+    },
+    {
+      "id": "C04-S033",
+      "seed": 20261059
+    },
+    {
+      "id": "C04-S034",
+      "seed": 20261060
+    },
+    {
+      "id": "C04-S035",
+      "seed": 20261061
+    },
+    {
+      "id": "C04-S036",
+      "seed": 20261062
+    },
+    {
+      "id": "C04-S037",
+      "seed": 20261063
+    },
+    {
+      "id": "C04-S038",
+      "seed": 20261064
+    },
+    {
+      "id": "C04-S039",
+      "seed": 20261065
+    },
+    {
+      "id": "C04-S040",
+      "seed": 20261066
+    },
+    {
+      "id": "C04-S041",
+      "seed": 20261067
+    },
+    {
+      "id": "C04-S042",
+      "seed": 20261068
+    },
+    {
+      "id": "C04-S043",
+      "seed": 20261069
+    },
+    {
+      "id": "C04-S044",
+      "seed": 20261070
+    },
+    {
+      "id": "C04-S045",
+      "seed": 20261071
+    },
+    {
+      "id": "C04-S046",
+      "seed": 20261072
+    },
+    {
+      "id": "C04-S047",
+      "seed": 20261073
+    },
+    {
+      "id": "C04-S048",
+      "seed": 20261074
+    },
+    {
+      "id": "C04-S049",
+      "seed": 20261075
+    },
+    {
+      "id": "C04-S050",
+      "seed": 20261076
+    },
+    {
+      "id": "C04-S051",
+      "seed": 20261077
+    },
+    {
+      "id": "C04-S052",
+      "seed": 20261078
+    },
+    {
+      "id": "C04-S053",
+      "seed": 20261079
+    },
+    {
+      "id": "C04-S054",
+      "seed": 20261080
+    },
+    {
+      "id": "C04-S055",
+      "seed": 20261081
+    },
+    {
+      "id": "C04-S056",
+      "seed": 20261082
+    },
+    {
+      "id": "C04-S057",
+      "seed": 20261083
+    },
+    {
+      "id": "C04-S058",
+      "seed": 20261084
+    },
+    {
+      "id": "C04-S059",
+      "seed": 20261085
+    },
+    {
+      "id": "C04-S060",
+      "seed": 20261086
+    },
+    {
+      "id": "C04-S061",
+      "seed": 20261087
+    },
+    {
+      "id": "C04-S062",
+      "seed": 20261088
+    },
+    {
+      "id": "C04-S063",
+      "seed": 20261089
+    },
+    {
+      "id": "C04-S064",
+      "seed": 20261090
+    },
+    {
+      "id": "C04-S065",
+      "seed": 20261091
+    },
+    {
+      "id": "C04-S066",
+      "seed": 20261092
+    },
+    {
+      "id": "C04-S067",
+      "seed": 20261093
+    },
+    {
+      "id": "C04-S068",
+      "seed": 20261094
+    },
+    {
+      "id": "C04-S069",
+      "seed": 20261095
+    },
+    {
+      "id": "C04-S070",
+      "seed": 20261096
+    },
+    {
+      "id": "C04-S071",
+      "seed": 20261097
+    },
+    {
+      "id": "C04-S072",
+      "seed": 20261098
+    },
+    {
+      "id": "C04-S073",
+      "seed": 20261099
+    },
+    {
+      "id": "C04-S074",
+      "seed": 20261100
+    },
+    {
+      "id": "C04-S075",
+      "seed": 20261101
+    },
+    {
+      "id": "C04-S076",
+      "seed": 20261102
+    },
+    {
+      "id": "C04-S077",
+      "seed": 20261103
+    },
+    {
+      "id": "C04-S078",
+      "seed": 20261104
+    },
+    {
+      "id": "C04-S079",
+      "seed": 20261105
+    },
+    {
+      "id": "C04-S080",
+      "seed": 20261106
+    },
+    {
+      "id": "C04-S081",
+      "seed": 20261107
+    },
+    {
+      "id": "C04-S082",
+      "seed": 20261108
+    },
+    {
+      "id": "C04-S083",
+      "seed": 20261109
+    },
+    {
+      "id": "C04-S084",
+      "seed": 20261110
+    },
+    {
+      "id": "C04-S085",
+      "seed": 20261111
+    },
+    {
+      "id": "C04-S086",
+      "seed": 20261112
+    },
+    {
+      "id": "C04-S087",
+      "seed": 20261113
+    },
+    {
+      "id": "C04-S088",
+      "seed": 20261114
+    },
+    {
+      "id": "C04-S089",
+      "seed": 20261115
+    },
+    {
+      "id": "C04-S090",
+      "seed": 20261116
+    },
+    {
+      "id": "C04-S091",
+      "seed": 20261117
+    },
+    {
+      "id": "C04-S092",
+      "seed": 20261118
+    },
+    {
+      "id": "C04-S093",
+      "seed": 20261119
+    },
+    {
+      "id": "C04-S094",
+      "seed": 20261120
+    },
+    {
+      "id": "C04-S095",
+      "seed": 20261121
+    },
+    {
+      "id": "C04-S096",
+      "seed": 20261122
+    },
+    {
+      "id": "C04-S097",
+      "seed": 20261123
+    },
+    {
+      "id": "C04-S098",
+      "seed": 20261124
+    },
+    {
+      "id": "C04-S099",
+      "seed": 20261125
+    },
+    {
+      "id": "C04-S100",
+      "seed": 20261126
+    }
+  ],
+  "documentation_input": "Exact sparse Git objects with immutable commit/tree/blob verification; identical frozen lineage and ownership checks.",
   "implementation": "IMPLEMENTED",
   "limits": {
     "added_units_total": 64,
@@ -104,6 +507,99 @@
     "source_sha": "0b08f14808cd72ee55eea6c7eacc98344629d549",
     "stage": "C01"
   },
+  "provider_cases": [
+    {
+      "expected": "PASS",
+      "facts": {
+        "key": "conversation.small_talk",
+        "language": "en",
+        "materials": [],
+        "mode": "SMALL_TALK"
+      },
+      "id": "C03-L01",
+      "replies": [
+        "Hello.",
+        "Hi there. How can I help?",
+        "We can chat or discuss a supported task."
+      ],
+      "tier": "GENUINE_MODEL_SYNTHETIC_FACTS"
+    },
+    {
+      "expected": "PASS",
+      "facts": {
+        "key": "blocker.unauthorized",
+        "language": "en",
+        "materials": [],
+        "mode": "TASK"
+      },
+      "id": "C03-L02",
+      "replies": [
+        "I cannot share details for this task. Ask its owner to review access.",
+        "Hello. I cannot share details for this task. Ask its owner to review access."
+      ],
+      "tier": "GENUINE_MODEL_SYNTHETIC_FACTS"
+    },
+    {
+      "expected": "PASS",
+      "facts": {
+        "key": "blocker.unknown_world_state",
+        "language": "en",
+        "materials": [],
+        "mode": "TASK"
+      },
+      "id": "C03-L03",
+      "replies": [
+        "There is not enough current information about this task. Ask for a fresh observation.",
+        "Hello. There is not enough current information about this task. Ask for a fresh observation."
+      ],
+      "tier": "GENUINE_MODEL_SYNTHETIC_FACTS"
+    },
+    {
+      "expected": "PASS",
+      "facts": {
+        "key": "blocker.unsupported_effect",
+        "language": "en",
+        "materials": [],
+        "mode": "TASK"
+      },
+      "id": "C03-L04",
+      "replies": [
+        "This task needs an unsupported action. Choose a supported action.",
+        "Hello. This task needs an unsupported action. Choose a supported action."
+      ],
+      "tier": "GENUINE_MODEL_SYNTHETIC_FACTS"
+    },
+    {
+      "expected": "PASS",
+      "facts": {
+        "key": "blocker.destination_full",
+        "language": "en",
+        "materials": [],
+        "mode": "TASK"
+      },
+      "id": "C03-L05",
+      "replies": [
+        "The destination cannot accept this task's items. Free capacity in an authorized destination, then ask to check again.",
+        "Hello. The destination cannot accept this task's items. Free capacity in an authorized destination, then ask to check again."
+      ],
+      "tier": "GENUINE_MODEL_SYNTHETIC_FACTS"
+    },
+    {
+      "expected": "PASS",
+      "facts": {
+        "key": "blocker.stale_reference",
+        "language": "en",
+        "materials": [],
+        "mode": "TASK"
+      },
+      "id": "C03-L06",
+      "replies": [
+        "This task reference is out of date. Select the current target, then ask to check again.",
+        "Hello. This task reference is out of date. Select the current target, then ask to check again."
+      ],
+      "tier": "GENUINE_MODEL_SYNTHETIC_FACTS"
+    }
+  ],
   "python_cases": [
     "test_blockers.BlockerTests#test_multiple_material_counts_and_request_root_come_from_actual_planner",
     "test_blockers.BlockerTests#test_original_budget_deadline_and_returned_root_cannot_be_replaced",
@@ -159,6 +655,390 @@
     "test_predecessor.PredecessorTests#test_c01_missing_case_or_changed_jar_cannot_advance_c02",
     "test_predecessor.PredecessorTests#test_changed_predecessor_source_jar_or_failed_gate_is_rejected",
     "test_predecessor.PredecessorTests#test_missing_predecessor_case_or_invented_native_credit_is_rejected"
+  ],
+  "regression_python_cases": [
+    "test_ci.CiTests#test_model_url_credentials_bad_urls_and_unowned_files_are_not_forwarded",
+    "test_ci.CiTests#test_only_explicit_pinned_model_configuration_can_reuse_host_network",
+    "test_ci_backend.BackendTests#test_absent_unavailable_or_changed_backend_selects_managed_fallback",
+    "test_ci_backend.BackendTests#test_matching_healthy_service_is_reused_without_creating_another_backend",
+    "test_ci_backend.BackendTests#test_model_cache_requires_gguf_bytes_digest_and_exact_length",
+    "test_ci_backend.BackendTests#test_running_service_requires_exact_model_build_and_chat_template",
+    "test_dialogue_sequences.DialogueSequenceTests#test_a_summary_label_or_partial_campaign_cannot_replace_actual_sequence_frames",
+    "test_dialogue_sequences.DialogueSequenceTests#test_frozen_campaign_has_distinct_seeds_and_twenty_registered_events_each",
+    "test_dialogue_sequences.DialogueSequenceTests#test_one_hundred_frozen_twenty_event_sequences_preserve_original_root_owner_and_budget",
+    "test_dialogue_sequences.DialogueSequenceTests#test_unqualified_c03_cannot_be_promoted_to_a_qualified_c04_predecessor",
+    "test_docs_snapshot.DocsSnapshotTests#test_changed_ancestor_or_candidate_commit_bytes_are_rejected",
+    "test_docs_snapshot.DocsSnapshotTests#test_changed_owned_blob_is_rejected_before_it_can_qualify",
+    "test_docs_snapshot.DocsSnapshotTests#test_changed_tree_bytes_are_rejected",
+    "test_docs_snapshot.DocsSnapshotTests#test_exact_sparse_checkout_keeps_real_commit_identity_and_protected_blob_metadata",
+    "test_docs_snapshot.DocsSnapshotTests#test_existing_checkout_is_never_overwritten",
+    "test_docs_snapshot.DocsSnapshotTests#test_missing_candidate_commit_or_wrong_repository_is_rejected",
+    "test_docs_snapshot.DocsSnapshotTests#test_real_snapshot_must_match_requested_commit_and_frozen_baseline",
+    "test_docs_snapshot.DocsSnapshotTests#test_unowned_or_parent_path_cannot_be_materialized",
+    "test_predecessor_ci.PredecessorCiTests#test_ci_predecessor_requires_exact_run_attempt_and_docker_image",
+    "test_predecessor_ci.PredecessorCiTests#test_local_predecessor_cannot_gain_fabricated_ci_credit",
+    "test_provider.ProviderTests#test_a_live_pass_label_cannot_replace_actual_model_and_driver_evidence",
+    "test_provider.ProviderTests#test_current_valid_candidate_passes_with_synthetic_usage_uncredited",
+    "test_provider.ProviderTests#test_injection_and_finished_action_claims_never_become_commands",
+    "test_provider.ProviderTests#test_invalid_json_exhausts_one_correction_then_falls_back",
+    "test_provider.ProviderTests#test_late_session_completion_is_not_deliverable",
+    "test_provider.ProviderTests#test_missing_live_configuration_has_zero_genuine_execution_credit",
+    "test_provider.ProviderTests#test_offline_fallback_is_independent_of_optional_model_availability",
+    "test_provider.ProviderTests#test_timeout_chooses_one_offline_fallback_and_discards_late_completion",
+    "test_provider.ProviderTests#test_unqualified_c02_cannot_be_forged_into_a_qualified_predecessor"
+  ],
+  "regression_scope": "Every implemented C00-C04 case is required while qualifying this component; no later stage is implicitly qualified.",
+  "regression_unit_cases": [
+    {
+      "expected": "PASS",
+      "id": "C03-U01:packetContainsOnlyLanguageModeKeyAndAuthorizedMaterials",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseFactsTest#packetContainsOnlyLanguageModeKeyAndAuthorizedMaterials()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:redactionRemovesAllActivityStorageAndMaterialIdentifiers",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseFactsTest#redactionRemovesAllActivityStorageAndMaterialIdentifiers()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:packetAndMaterialViewsAreImmutable",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseFactsTest#packetAndMaterialViewsAreImmutable()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:digestIsStableAcrossLocaleHintsAndDifferentForDifferentFacts",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseFactsTest#digestIsStableAcrossLocaleHintsAndDifferentForDifferentFacts()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:unboundedOrInvalidMaterialDescriptorsAreRefused",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseFactsTest#unboundedOrInvalidMaterialDescriptorsAreRefused()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U02:everyBlockerHasShortAuthorizedExplanationAndNextStep",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseTemplatesTest#everyBlockerHasShortAuthorizedExplanationAndNextStep()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U02:unsupportedActionsExplicitlyExplainTheSupportLimit",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseTemplatesTest#unsupportedActionsExplicitlyExplainTheSupportLimit()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U02:allLocalesUseTheSameEnglishFallbackWithoutEchoingTheirInput",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseTemplatesTest#allLocalesUseTheSameEnglishFallbackWithoutEchoingTheirInput()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U02:offlineSmallTalkHasNoWorkClaimsOrHistoricalRelationship",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseTemplatesTest#offlineSmallTalkHasNoWorkClaimsOrHistoricalRelationship()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U02:longAuthorizedMaterialListsUseABoundedExplanationWithoutInventingCounts",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseTemplatesTest#longAuthorizedMaterialListsUseABoundedExplanationWithoutInventingCounts()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:exactTwoPlanksIsAcceptedAndInventedThreeIsRejected",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#exactTwoPlanksIsAcceptedAndInventedThreeIsRejected()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:hiddenChestNameAndUnauthorizedLocationClaimsAreRejected",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#hiddenChestNameAndUnauthorizedLocationClaimsAreRejected()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:alreadyDeliveredAndFutureActionPromisesCannotBecomeTaskStatus",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#alreadyDeliveredAndFutureActionPromisesCannotBecomeTaskStatus()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:validWarmPhrasingKeepsExactlyTheSameFacts",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#validWarmPhrasingKeepsExactlyTheSameFacts()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:duplicatedUnknownAndWronglyTypedJsonFieldsFailClosed",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#duplicatedUnknownAndWronglyTypedJsonFieldsFailClosed()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:aReplyForDifferentFactsCannotBeReused",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#aReplyForDifferentFactsCannotBeReused()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:commandsInjectionAndInvisibleSuffixesAreRejected",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#commandsInjectionAndInvisibleSuffixesAreRejected()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U01:oversizedEnvelopesAndUnlistedSmallTalkHistoryAreRejected",
+      "xml_id": "dev.aivillages.core.kernel.interaction.ResponseValidatorTest#oversizedEnvelopesAndUnlistedSmallTalkHistoryAreRejected()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:validResponseUsesTheExistingSpiAndReportsUnknownActualUsage",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#validResponseUsesTheExistingSpiAndReportsUnknownActualUsage()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:offlineModeReturnsTheDeterministicTemplateWithoutProviderCalls",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#offlineModeReturnsTheDeterministicTemplateWithoutProviderCalls()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:invalidJsonGetsOneCorrectionAndThenOneFallback",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#invalidJsonGetsOneCorrectionAndThenOneFallback()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:correctionCanSucceedWithoutRepeatingUntrustedProviderText",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#correctionCanSucceedWithoutRepeatingUntrustedProviderText()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:timeoutReturnsOnceAndKeepsTheSlotUntilPendingWorkSettles",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#timeoutReturnsOnceAndKeepsTheSlotUntilPendingWorkSettles()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:correctionSharesTheOriginalTenSecondDeadline",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#correctionSharesTheOriginalTenSecondDeadline()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:pairRateLimitAllowsTheExactTwoSecondBoundaryAcrossWrapperInstances",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#pairRateLimitAllowsTheExactTwoSecondBoundaryAcrossWrapperInstances()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:globalConcurrencyIsSharedAcrossDifferentProviderInstances",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#globalConcurrencyIsSharedAcrossDifferentProviderInstances()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:newerMessageFencesOldOutputAndAcceptsTheCurrentMessage",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#newerMessageFencesOldOutputAndAcceptsTheCurrentMessage()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:revokedSessionAndOlderGenerationsCannotDeliverOrStartCalls",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#revokedSessionAndOlderGenerationsCannotDeliverOrStartCalls()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:replayAndClockRollbackNeverSpendAnotherModelCall",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#replayAndClockRollbackNeverSpendAnotherModelCall()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:callerCancellationDoesNotClaimProviderComputeStopped",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#callerCancellationDoesNotClaimProviderComputeStopped()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:queuedInvocationCanExpireWithoutCallingTheBackend",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#queuedInvocationCanExpireWithoutCallingTheBackend()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:providerExceptionsDoNotExposeTheirMessageOrTriggerCorrection",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#providerExceptionsDoNotExposeTheirMessageOrTriggerCorrection()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:missingPinnedTokenizerFallsBackWithoutGuessingFromByteLength",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#missingPinnedTokenizerFallsBackWithoutGuessingFromByteLength()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C03-U03:actualTokenizerCountAboveTheAttemptLimitSpendsNoGenerationCall",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#actualTokenizerCountAboveTheAttemptLimitSpendsNoGenerationCall()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:doneOnlyRequestsReobservationAndUnchangedChestKeepsOriginalRootPending",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#doneOnlyRequestsReobservationAndUnchangedChestKeepsOriginalRootPending()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:wrongItemKeepsAccurateRemainderAndCannotEarnContinuation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#wrongItemKeepsAccurateRemainderAndCannotEarnContinuation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:partialNativeSupplyUpdatesOnlyTheRemainderOfTheSameQuestion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#partialNativeSupplyUpdatesOnlyTheRemainderOfTheSameQuestion()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:sufficientNativeSupplyStillWaitsForAWithoutASecondResumeSignal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#sufficientNativeSupplyStillWaitsForAWithoutASecondResumeSignal()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:repeatedUnchangedChecksUseTwoFourEightSecondsThenWaitForNativeChange",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#repeatedUnchangedChecksUseTwoFourEightSecondsThenWaitForNativeChange()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:earlyCheckDoesNotConsumeAnotherReplyOrScheduleAnotherObservation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#earlyCheckDoesNotConsumeAnotherReplyOrScheduleAnotherObservation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:backoffAndQuestionNeverOutliveTheOriginalDeadline",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#backoffAndQuestionNeverOutliveTheOriginalDeadline()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:eightReplyRoundsAreFiniteAndNeverResetRootBudgetOrDeadline",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#eightReplyRoundsAreFiniteAndNeverResetRootBudgetOrDeadline()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:cancelIsOnlyAProposalUntilTheExactOwnerAcknowledgesIt",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#cancelIsOnlyAProposalUntilTheExactOwnerAcknowledgesIt()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:nativeOwnerRefusalReturnsToConversationWithoutRepeatingTheProposal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#nativeOwnerRefusalReturnsToConversationWithoutRepeatingTheProposal()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:correctionRequiresExplicitSecondConfirmationThenOwnerApproval",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#correctionRequiresExplicitSecondConfirmationThenOwnerApproval()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:decliningCorrectionKeepsTheOriginalGoalAndEmitsNoAmendment",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#decliningCorrectionKeepsTheOriginalGoalAndEmitsNoAmendment()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:nullChosenTargetCannotTurnAReplyIntoAnAuthorizedEndpoint",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#nullChosenTargetCannotTurnAReplyIntoAnAuthorizedEndpoint()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:chosenTargetIsAnUntrustedOwnerProposalAndNeverReplacesTheOriginalRoot",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#chosenTargetIsAnUntrustedOwnerProposalAndNeverReplacesTheOriginalRoot()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:helpDuringPendingObservationFencesOldPhrasingButDoesNotRequestAnotherRead",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#helpDuringPendingObservationFencesOldPhrasingButDoesNotRequestAnotherRead()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:cancellationFencesAnAlreadyPendingNativeObservation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#cancellationFencesAnAlreadyPendingNativeObservation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:unavailableNativeAuthorityRefusesRepliesAndModelDelivery",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#unavailableNativeAuthorityRefusesRepliesAndModelDelivery()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:redactedOrStaleNativeObservationClosesOldQuestionWithoutReexposingItsFacts",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#redactedOrStaleNativeObservationClosesOldQuestionWithoutReexposingItsFacts()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U01:nativeRootOrOwnerChangeClosesOldQuestionWithoutRebasingIt",
+      "xml_id": "dev.aivillages.core.kernel.interaction.AssistanceDialogueTest#nativeRootOrOwnerChangeClosesOldQuestionWithoutRebasingIt()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:duplicateReplyNeverEmitsASecondRevalidationSignal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#duplicateReplyNeverEmitsASecondRevalidationSignal()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:oldResponseGenerationAndOldQuestionRevisionCannotScheduleObservation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#oldResponseGenerationAndOldQuestionRevisionCannotScheduleObservation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:crossPlayerSessionPrincipalAndWorldRepliesAreRefusedAlongsideAValidControl",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#crossPlayerSessionPrincipalAndWorldRepliesAreRefusedAlongsideAValidControl()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:forgedActivityCannotInvalidateTheLegitimateQuestionOrResetItsBudget",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#forgedActivityCannotInvalidateTheLegitimateQuestionOrResetItsBudget()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:expiryAtTheExactDeadlineSuppressesAllFurtherRepliesAndModelCallbacks",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#expiryAtTheExactDeadlineSuppressesAllFurtherRepliesAndModelCallbacks()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:duplicateAndLateModelResultsCanOnlyProposeOneDelivery",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#duplicateAndLateModelResultsCanOnlyProposeOneDelivery()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:duplicateDeliveryReceiptDoesNotAppendAnotherDeliveredMessage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#duplicateDeliveryReceiptDoesNotAppendAnotherDeliveredMessage()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:snapshotRoundTripPreservesEveryOriginalCorrelationButAlwaysLocksRestore",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#snapshotRoundTripPreservesEveryOriginalCorrelationButAlwaysLocksRestore()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:restoredDialogueCannotReplayPromptOrAcceptRepliesUntilNativeRevalidation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#restoredDialogueCannotReplayPromptOrAcceptRepliesUntilNativeRevalidation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:exactNativeRestoreReceiptFencesOldCallbacksAndEmitsNoPromptOrResume",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#exactNativeRestoreReceiptFencesOldCallbacksAndEmitsNoPromptOrResume()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:forgedRestoreDigestOrUnavailableNativeAdapterCannotUnlockTheSnapshot",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#forgedRestoreDigestOrUnavailableNativeAdapterCannotUnlockTheSnapshot()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:restoredClosedQuestionStaysTerminalAndChangedOwnerClosesTheOldIdentity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#restoredClosedQuestionStaysTerminalAndChangedOwnerClosesTheOldIdentity()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:unknownSnapshotFieldsInconsistentLedgersAndForgedTrustedFlagsAreRejected",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#unknownSnapshotFieldsInconsistentLedgersAndForgedTrustedFlagsAreRejected()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:duplicateSnapshotLedgerIdsAndExcessiveInputAreRejected",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#duplicateSnapshotLedgerIdsAndExcessiveInputAreRejected()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:clockRollbackCannotAdmitAReplyOrUnlockBackoff",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#clockRollbackCannotAdmitAReplyOrUnlockBackoff()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-U02:staleObservationCorrelationAndMismatchedEvidenceCannotScheduleAnotherResume",
+      "xml_id": "dev.aivillages.core.kernel.interaction.DialogueSnapshotTest#staleObservationCorrelationAndMismatchedEvidenceCannotScheduleAnotherResume()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C04-INFRA:providerGrammarRestrictsOutputToTheSameGroundedPhrasingsAndDigestAsTheValidator",
+      "xml_id": "dev.aivillages.providers.interaction.ConversationProviderTest#providerGrammarRestrictsOutputToTheSameGroundedPhrasingsAndDigestAsTheValidator()"
+    }
   ],
   "schedule": {
     "client_executions_at_C02": 0,

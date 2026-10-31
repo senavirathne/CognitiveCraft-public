@@ -432,6 +432,7 @@
       "seed": 20261126
     }
   ],
+  "documentation_input": "Exact sparse Git objects with immutable commit/tree/blob verification; identical frozen lineage and ownership checks.",
   "implementation": "IMPLEMENTED",
   "limits": {
     "added_units_total": 64,
@@ -663,6 +664,20 @@
     "test_provider.ProviderTests#test_timeout_chooses_one_offline_fallback_and_discards_late_completion",
     "test_provider.ProviderTests#test_unqualified_c02_cannot_be_forged_into_a_qualified_predecessor"
   ],
+  "regression_python_cases": [
+    "test_docs_snapshot.DocsSnapshotTests#test_changed_ancestor_or_candidate_commit_bytes_are_rejected",
+    "test_docs_snapshot.DocsSnapshotTests#test_changed_owned_blob_is_rejected_before_it_can_qualify",
+    "test_docs_snapshot.DocsSnapshotTests#test_changed_tree_bytes_are_rejected",
+    "test_docs_snapshot.DocsSnapshotTests#test_exact_sparse_checkout_keeps_real_commit_identity_and_protected_blob_metadata",
+    "test_docs_snapshot.DocsSnapshotTests#test_existing_checkout_is_never_overwritten",
+    "test_docs_snapshot.DocsSnapshotTests#test_missing_candidate_commit_or_wrong_repository_is_rejected",
+    "test_docs_snapshot.DocsSnapshotTests#test_real_snapshot_must_match_requested_commit_and_frozen_baseline",
+    "test_docs_snapshot.DocsSnapshotTests#test_unowned_or_parent_path_cannot_be_materialized",
+    "test_predecessor_ci.PredecessorCiTests#test_ci_predecessor_requires_exact_run_attempt_and_docker_image",
+    "test_predecessor_ci.PredecessorCiTests#test_local_predecessor_cannot_gain_fabricated_ci_credit"
+  ],
+  "regression_scope": "Every implemented C00-C04 case is required while qualifying this component; no later stage is implicitly qualified.",
+  "regression_unit_cases": [],
   "schedule": {
     "client_executions_at_C02": 0,
     "native_executions_at_C02": 0,

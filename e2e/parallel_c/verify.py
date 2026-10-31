@@ -165,20 +165,24 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     unit = verify_build(root / "candidate", {"source_sha": source, "tree_sha": tree}, run["jar_sha256"])
     matching_profiles(read(root / "baseline/build-record.json")["profile"], read(root / "candidate/build-record.json")["profile"])
     check(set(baseline).issubset(unit), "a frozen baseline module case is missing")
-    expected_unit = {case["xml_id"] for case in registry["unit_cases"]}
+    registered_unit = registry["unit_cases"] + registry.get("regression_unit_cases", [])
+    expected_unit = {case["xml_id"] for case in registered_unit}
+    check(len(expected_unit) == len(registered_unit), "duplicate unit registry case")
     check(set(unit) - set(baseline) == expected_unit, "missing/unregistered owned Java case")
     check(len(baseline) == registry["baseline_module_cases"], "frozen baseline count changed")
     python = xml_cases([root / "python/python.xml"])
-    check(set(python) == set(registry["python_cases"]), "missing/unregistered Python case")
+    registered_python = registry["python_cases"] + registry.get("regression_python_cases", [])
+    check(len(set(registered_python)) == len(registered_python), "duplicate Python registry case")
+    check(set(python) == set(registered_python), "missing/unregistered Python case")
     process = read(root / "python/python-process.json")
     check(process["exit"] == 0 and process["source_sha"] == source and process["tree_sha"] == tree, "Python process pin/exit mismatch")
     if stage in ("C02", "C03", "C04"):
         from blocker_runtime import dependency
         check(read(root / "python/blocker-runtime.json") == dependency(), "blocker Java runtime dependency changed")
-    if stage in ("C03", "C04"):
+    if registry.get("provider_cases"):
         from live_provider import verify as verify_live
         verify_live(root / "live-provider", registry)
-    if stage == "C04":
+    if registry.get("dialogue_sequence_cases"):
         from dialogue_sequences import verify as verify_sequences
         check(read(root / "run.json")["dialogue_sequence_summary"] == verify_sequences(root / "python/dialogue-sequences", registry), "dialogue sequence observations changed")
     compile_record = read(root / "native/compile.json")
@@ -209,11 +213,12 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     check_links(docs_root, "docs/implementation/parallel-c", stage)
     docs = read(root / "docs-check.json")
     check(docs["status"] == "PASS" and docs["stage"] == stage, "owned docs links/fragments gate required")
-    totals = {"unit": metric(unit, len(baseline) + len(expected_unit)), "python": metric(python, len(registry["python_cases"]))}
+    totals = {"unit": metric(unit, len(baseline) + len(expected_unit)), "python": metric(python, len(registered_python))}
     for rows in (unit, python): check(all(r["outcome"] == "PASS" for r in rows.values()), "a regression blocks advancement")
     return {"gate_status": "OWNED_GATES_PASS", "stage": stage, "source_sha": source, "tree_sha": tree,
             "jar_sha256": run["jar_sha256"], "contract_sha256": CONTRACT, "counts": totals,
-            "native_executed": 0, "client_executed": 0, "genuine_provider_executed": len(registry.get("provider_cases", [])), **context, "container_image_id": run.get("container_image_id"),
+            "native_executed": 0, "client_executed": 0, "genuine_provider_executed": len(registry.get("provider_cases", [])),
+            "dialogue_sequences_executed": len(registry.get("dialogue_sequence_cases", [])), **context, "container_image_id": run.get("container_image_id"),
             "blocked": registry["deferred"], "claim": stage + " component qualification; no physical or production UI proof"}
 
 

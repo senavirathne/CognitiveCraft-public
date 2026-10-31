@@ -4,7 +4,7 @@ import hashlib
 import json
 import subprocess
 
-from common import ROOT, CONTRACT, EvidenceError, check, git
+from common import ROOT, HERE, CONTRACT, EvidenceError, check, git, read
 
 PINS = {
     "source_sha": "33717878a818ea5518e94b840170766574efb8bb",
@@ -31,8 +31,23 @@ C01_FILES = {
 
 
 def configuration(stage):
-    check(stage in ("C00", "C01"), "predecessor stage has no qualified pin")
-    return (PINS, FILES, 2371, 29) if stage == "C00" else (C01_PINS, C01_FILES, 2393, 40)
+    if stage == "C00": return PINS, FILES, 2371, 29
+    if stage == "C01": return C01_PINS, C01_FILES, 2393, 40
+    path = HERE / "predecessors" / (stage + ".json")
+    check(stage in ("C02", "C03") and path.is_file(), "predecessor stage has no qualified pin")
+    frozen = read(path)
+    check(set(frozen) == {"stage", "pins", "files", "unit", "python"} and frozen["stage"] == stage, "predecessor lock shape")
+    pins = frozen["pins"]
+    check(isinstance(pins.get("workflow_run"), int) and pins["workflow_run"] > 0 and isinstance(pins.get("attempt"), int) and pins["attempt"] > 0,
+          "actual predecessor CI run/attempt required")
+    check(frozen["unit"] >= 2415 and frozen["python"] >= 54 and len(frozen["files"]) == 2, "complete predecessor counters/evidence required")
+    return pins, frozen["files"], frozen["unit"], frozen["python"]
+
+
+def validate_execution(record, pins):
+    check(record["workflow_run"] == pins.get("workflow_run") and record["attempt"] == pins.get("attempt"), "predecessor execution context mismatch")
+    if pins.get("workflow_run") is not None:
+        check(record.get("container_image_id") == pins["container_image_id"], "predecessor Docker identity mismatch")
 
 
 def validate_records(manifest, oracle, stage="C00"):
@@ -42,13 +57,16 @@ def validate_records(manifest, oracle, stage="C00"):
         for field in ("source_sha", "tree_sha", "jar_sha256"):
             check(record[field] == pins[field], stage + " predecessor pin mismatch: " + field)
         check(record["contract_sha256"] == CONTRACT, stage + " predecessor contract mismatch")
-        check(record["workflow_run"] is None and record["attempt"] is None, "unexpected predecessor CI claim")
+        validate_execution(record, pins)
     for tier, count in (("unit", units), ("python", python)):
         for metric in (manifest[tier], oracle["counts"][tier]):
             check(metric["planned"] == metric["executed"] == metric["passed"] == count
                   and metric["failed"] == metric["inconclusive"] == metric["refused_expected"] == 0,
                   stage + " predecessor metric mismatch: " + tier)
     check(oracle["native_executed"] == oracle["client_executed"] == 0, "unexpected predecessor physical credit")
+    if pins.get("workflow_run") is not None:
+        check(oracle["genuine_provider_executed"] == pins["genuine_provider_executed"]
+              and oracle["dialogue_sequences_executed"] == pins["dialogue_sequences_executed"], "missing required predecessor regressions")
 
 
 def verify_predecessor(docs_root, stage="C00"):

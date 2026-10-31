@@ -60,12 +60,12 @@ def collect(stage, root, baseline, candidate, docs_root):
     if stage in ("C02", "C03", "C04"):
         from blocker_runtime import dependency
         write(root / "python/blocker-runtime.json", dependency())
-    if stage in ("C03", "C04"):
+    if registry.get("provider_cases"):
         from live_provider import run as run_live
         live = run_live(root / "live-provider")
         run["provider_summary"] = live
         if live["status"] != "PASS": run["collection_blocks"].append("genuine provider: " + str(live.get("error")))
-    if stage == "C04":
+    if registry.get("dialogue_sequence_cases"):
         from dialogue_sequences import verify as verify_sequences
         try: run["dialogue_sequence_summary"] = verify_sequences(root / "python/dialogue-sequences", registry)
         except (EvidenceError, OSError, ValueError, KeyError) as failure:

@@ -1,9 +1,9 @@
 {
-  "stage": "C04",
+  "stage": "C02",
   "campaign": "parallel-c-cumulative-docker-v2",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "docs_candidate_sha": "2d9603f88f5ff3f75cd41abedecf89df9a638ab5",
-  "nonce": "c04-docker-backend-recovery-20261031-003",
+  "docs_candidate_sha": "59e6644a62049974d9d881ca8c654e401f096c95",
+  "nonce": "c02-exact-docs-requalification-20261031-001",
   "purpose": "infrastructure-recovery",
-  "reason": "Repeat every cumulative gate after real model execution exposed omitted null receipt fields and an ignored flat json_schema option. Preserve explicit unknown SPI usage, use the pinned server json_object/schema grammar, and independently verify actual output against unchanged fixtures and budgets."
+  "reason": "Restore the exact private-docs sparse Git objects using the already passing D pattern. Qualify C02 first while retaining all 2485 implemented module, 83 Python, 100 dialogue-sequence and six real-model regressions. No check or prerequisite is waived."
 }
