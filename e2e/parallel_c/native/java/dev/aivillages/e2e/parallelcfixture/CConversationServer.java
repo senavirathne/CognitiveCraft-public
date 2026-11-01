@@ -35,6 +35,7 @@ public final class CConversationServer implements ModInitializer {
             var campaign=(Map<String,Object>)InteractionCodec.parseJson(Files.readString(Path.of(System.getenv("COGNITIVECRAFT_C_CAMPAIGN"))));
             for(Object c:(List<?>)campaign.get("cases"))for(Object step:(List<?>)((Map<?,?>)c).get("steps")){var row=(Map<String,Object>)step;FIXTURES.put((String)row.get("id"),row);}
         }catch(Exception failure){throw new IllegalStateException("frozen C06 campaign",failure);}
+        CInteractionSafetyServer.initialize();
         PayloadTypeRegistry.serverboundPlay().register(ConversationPayloads.Request.TYPE,ConversationPayloads.Request.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ConversationPayloads.Response.TYPE,ConversationPayloads.Response.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(ConversationPayloads.Request.TYPE,(payload,context)->receive(context.player(),payload.json()));
@@ -52,6 +53,7 @@ public final class CConversationServer implements ModInitializer {
         try {
             var input=(Map<String,Object>)InteractionCodec.parseJson(json);
             if(!"cc.c.client-input/1".equals(input.get("schema")))throw new IllegalArgumentException("input version");
+            if("SAFETY".equals(input.get("operation"))){CInteractionSafetyServer.receive(player,input,SESSIONS.get(player.getUUID()));return;}
             String operation=(String)input.get("operation"),caseId=(String)input.get("case_id");var fixture=FIXTURES.get(caseId);
             if(fixture==null || !player.getUUID().equals(id("OfflinePlayer:"+fixture.get("player"))) || !SESSIONS.containsKey(player.getUUID()))throw new IllegalArgumentException("authenticated fixture principal");
             event("request",Map.of("native_player",player.getUUID().toString(),"input",input,"guards",ConversationGuards.snapshot()));
@@ -93,7 +95,7 @@ public final class CConversationServer implements ModInitializer {
         };
     }
     private static void sendView(ServerPlayer player,String caseId,InteractionPresenter.View view,String reason){send(player,Map.of("schema","cc.c.client-output/1","kind","VIEW","case_id",caseId,"view",view.value(),"phrasing_reason",reason,"facts_tier","SYNTHETIC_CONTRACT"));}
-    private static void send(ServerPlayer player,Map<String,Object> body){String json=InteractionCodec.canonical(body);ServerPlayNetworking.send(player,new ConversationPayloads.Response(json));event("sent",Map.of("native_player",player.getUUID().toString(),"payload",body,"guards",ConversationGuards.snapshot()));}
+    static void send(ServerPlayer player,Map<String,Object> body){String json=InteractionCodec.canonical(body);ServerPlayNetworking.send(player,new ConversationPayloads.Response(json));event("sent",Map.of("native_player",player.getUUID().toString(),"payload",body,"guards",ConversationGuards.snapshot()));}
     public static synchronized void event(String kind,Object data) {
         try {Path dir=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR")).resolve("server/c-conversation");Files.createDirectories(dir);Files.writeString(dir.resolve("events.jsonl"),new com.google.gson.GsonBuilder().serializeNulls().create().toJson(Map.of("kind",kind,"time",System.currentTimeMillis(),"pid",ProcessHandle.current().pid(),"data",data))+"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);}
         catch(Exception failure){throw new IllegalStateException("native C server evidence",failure);}

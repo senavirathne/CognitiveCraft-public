@@ -17,7 +17,7 @@ import static dev.aivillages.core.kernel.interaction.CandidateValidator.*;
 public final class IntentParser {
     private final CandidateValidator validator = new CandidateValidator();
 
-    /** Optional single chosen extractor. C06 supplies the qualified provider adapter, with no fallthrough. */
+    /** Optional single chosen extractor. An eventual qualified adapter supplies the provider, with no fallthrough. */
     @FunctionalInterface public interface Extractor { Draft extract(ExtractionRequest request) throws Exception; }
     public record ExtractionRequest(Transport transport, List<ConversationContext.Turn> context,
                                     boolean correction, Code problem, int maxOutputBytes) {
@@ -96,6 +96,12 @@ public final class IntentParser {
         Map<String, Span> spans = new LinkedHashMap<>();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("action", "CHAT"); body.put("actor", addressed()); body.put("utterance", original);
+        Matcher namedActor=match("([\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} _-]*), (.+)",text);
+        if(namedActor!=null && namedActor.group(2).matches("(?iu)(?:come|follow|stop|status|go|deliver|move|hand|register|rename|assign|set|share|forget|choose|correct|cancel|check|help)\\b.*")) {
+            body.put("actor",Map.of("kind","NAMED","label",namedActor.group(1)));
+            proof(spans,"/actor/label",namedActor,1,offset);
+            offset+=namedActor.start(2);text=namedActor.group(2);
+        }
         body.put("source", null); body.put("destination", null); body.put("items", List.of());
         body.put("label", null); body.put("role", null); body.put("requested_access", null);
         spans.put("/utterance", new Span(0, original.length()));
@@ -112,10 +118,10 @@ public final class IntentParser {
             if (endpoint instanceof Code code) return problem(code);
             if (!((Map<?, ?>) endpoint).get("kind").equals("STORAGE")) return problem(Code.UNSUPPORTED);
             body.put("destination", endpoint);
-        } else if ((m = match("(deliver) ([+-]?[0-9]+) (.+)", text)) != null) {
+        } else if ((m = match("(deliver|move) ([+-]?[0-9]+|one|two|three|four|five|six|seven|eight|nine|ten|sixty-four) (.+)", text)) != null) {
             action = "DELIVER";
             long quantity;
-            try { quantity = Long.parseLong(m.group(2)); }
+            try { quantity = quantity(m.group(2)); }
             catch (NumberFormatException invalid) { return problem(Code.INVALID_QUANTITY); }
             if (quantity < 1 || quantity > 64) return problem(Code.INVALID_QUANTITY);
             var parts = SelectorParser.delivery(m.group(3));
@@ -130,6 +136,35 @@ public final class IntentParser {
             body.put("items", List.of(Map.of("item_text", parts.item(), "quantity", quantity)));
             proof(spans, "/items/0/quantity", m, 2, offset);
             spans.put("/items/0/item_text", new Span(tailOffset + parts.itemSpan().start(), tailOffset + parts.itemSpan().end()));
+        } else if ((m = match("(hand) ([+-]?[0-9]+|one|two|three|four|five|six|seven|eight|nine|ten|sixty-four) (.+) (you) carry to ([\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} _-]*)", text)) != null) {
+            action="DELIVER";long quantity;
+            try { quantity=quantity(m.group(2)); } catch(NumberFormatException invalid){ return problem(Code.INVALID_QUANTITY); }
+            if(quantity<1||quantity>64)return problem(Code.INVALID_QUANTITY);
+            body.put("source",Map.of("kind","CITIZEN","selector",Map.of("kind","ADDRESSED")));
+            proof(spans,"/source/kind",m,4,offset);proof(spans,"/source/selector/kind",m,4,offset);
+            body.put("destination",Map.of("kind","CITIZEN","selector",Map.of("kind","NAMED","label",m.group(5))));
+            proof(spans,"/destination/kind",m,5,offset);proof(spans,"/destination/selector/kind",m,5,offset);proof(spans,"/destination/selector/label",m,5,offset);
+            body.put("items",List.of(Map.of("item_text",m.group(3),"quantity",quantity)));
+            proof(spans,"/items/0/quantity",m,2,offset);proof(spans,"/items/0/item_text",m,3,offset);
+        } else if ((m = match("(register) (this (?:chest|barrel)) as (.+)[’']s (default|food|materials|output) (chest|barrel)",text))!=null) {
+            action="REGISTER_STORAGE";
+            if(!m.group(2).substring(5).equalsIgnoreCase(m.group(5)))return problem(Code.MISSING_SELECTION);
+            Object target=endpoint(m.group(2),offset+m.start(2),"/destination",spans,t);
+            if(target instanceof Code code)return problem(code);
+            body.put("destination",target);body.put("actor",Map.of("kind","NAMED","label",m.group(3)));
+            proof(spans,"/actor/label",m,3,offset);body.put("role",m.group(4).toUpperCase(Locale.ROOT));proof(spans,"/role",m,4,offset);
+            body.put("label",m.group(3)+"'s "+m.group(4)+" "+m.group(5));
+            spans.put("/label",new Span(offset+m.start(3),offset+m.end(5)));
+        } else if ((m = match("(rename) (this (?:chest|barrel)) to ([\\p{Lu}\\p{N}][\\p{L}\\p{M}\\p{N} _-]*)",text))!=null) {
+            action="RENAME_STORAGE";Object target=endpoint(m.group(2),offset+m.start(2),"/source",spans,t);
+            if(target instanceof Code code)return problem(code);body.put("source",target);body.put("label",m.group(3));proof(spans,"/label",m,3,offset);
+        } else if ((m = match("(make) (this (?:chest|barrel)) (.+)[’']s (default|food|materials|output) storage",text))!=null) {
+            action="ASSIGN_STORAGE";Object target=endpoint(m.group(2),offset+m.start(2),"/source",spans,t);
+            if(target instanceof Code code)return problem(code);body.put("source",target);body.put("actor",Map.of("kind","NAMED","label",m.group(3)));proof(spans,"/actor/label",m,3,offset);
+            body.put("role",m.group(4).toUpperCase(Locale.ROOT));proof(spans,"/role",m,4,offset);
+        } else if ((m = match("(share) (this (?:chest|barrel)) for (public deposits)",text))!=null) {
+            action="SET_STORAGE_ACCESS";Object target=endpoint(m.group(2),offset+m.start(2),"/source",spans,t);
+            if(target instanceof Code code)return problem(code);body.put("source",target);body.put("requested_access","PUBLIC_DEPOSIT");proof(spans,"/requested_access",m,3,offset);
         } else if ((m = match("(register) (this (?:chest|barrel|storage)) as \"([^\"\\\\]+)\"(?: for (default|food|materials|output))?", text)) != null) {
             action = "REGISTER_STORAGE";
             Object endpoint = endpoint(m.group(2), offset + m.start(2), "/destination", spans, t);
@@ -157,10 +192,11 @@ public final class IntentParser {
             proof(spans, "/requested_access", m, 3, offset);
         } else {
             String reply = null;
-            if ((m = match("(check again)", text)) != null) reply = "CHECK_AGAIN";
-            else if ((m = match("(cancel)", text)) != null) reply = "CANCEL";
-            else if ((m = match("(help)", text)) != null) reply = "HELP";
+            if ((m = match("(check again|I (?:put|added|supplied) .+|check .+ again|continue after restart)", text)) != null) reply = "CHECK_AGAIN";
+            else if ((m = match("(cancel(?: this request)?)", text)) != null) reply = "CANCEL";
+            else if ((m = match("(help(?: me understand the problem)?)", text)) != null) reply = "HELP";
             else if ((m = match("(correct goal): (.+)", text)) != null) reply = "CORRECT_GOAL";
+            else if ((m = match("(make a different item instead)",text))!=null) reply="CORRECT_GOAL";
             else if ((m = match("(choose) (.+)", text)) != null) reply = "CHOOSE_TARGET";
             if (reply != null) {
                 if (t.question() == null) return problem(Code.QUESTION_REQUIRED);
@@ -176,8 +212,8 @@ public final class IntentParser {
                 return new Extraction(draft(t, "PlayerReplyIntent", replyBody, spans), null);
             }
             // Unsupported command-like text is never downgraded to ordinary chat.
-            if (match("(?:come|follow|stop|go|deliver|register|rename|assign|set|forget|choose|correct|cancel|check)(?:\\b.*)?", text) != null)
-                return problem(ambiguous(text) ? Code.AMBIGUOUS : text.toLowerCase(Locale.ROOT).startsWith("deliver")
+            if (match("(?:come|follow|stop|go|deliver|move|hand|register|rename|assign|set|share|forget|choose|correct|cancel|check)(?:\\b.*)?", text) != null)
+                return problem(ambiguous(text) ? Code.AMBIGUOUS : text.toLowerCase(Locale.ROOT).matches("(?:deliver|move|hand).*?")
                         ? Code.MISSING_QUANTITY : Code.UNSUPPORTED);
             if (match("(?s).*(?:\\b(?:come here|come to me|follow me|deliver|register|rename)\\b).*", text) != null)
                 return problem(Code.AMBIGUOUS);
@@ -187,6 +223,11 @@ public final class IntentParser {
         if (ambiguous(text)) return problem(Code.AMBIGUOUS);
         body.put("action", action); proof(spans, "/action", m, 1, offset);
         return new Extraction(draft(t, "DialogueIntent", body, spans), null);
+    }
+
+    private static long quantity(String word) {
+        int named=List.of("zero","one","two","three","four","five","six","seven","eight","nine","ten").indexOf(word.toLowerCase(Locale.ROOT));
+        return named>=0?named:word.equalsIgnoreCase("sixty-four")?64:Long.parseLong(word);
     }
 
     private static boolean ambiguous(String text) { return SelectorParser.ambiguous(text); }

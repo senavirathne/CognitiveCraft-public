@@ -19,12 +19,12 @@ from predecessor import verify_predecessor
 
 
 def collect(stage, root, baseline, candidate, docs_root):
-    check(stage in ("C00", "C01", "C02", "C03", "C04", "C05", "C06"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
+    check(stage in ("C00", "C01", "C02", "C03", "C04", "C05", "C06", "C07"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
     tracked_clean()
     registry_path = HERE / "registries" / (stage + ".json")
     registry = read(registry_path)
     check(registry["implementation"] == "IMPLEMENTED", "unimplemented registry")
-    check(registry["native_cases"] == [] and (stage == "C06" or registry["client_cases"] == []), "only the declared C06 client component schedules are executable")
+    check(registry["native_cases"] == [] and (stage in ("C06", "C07") or registry["client_cases"] == []), "only the declared C06 client component schedules are executable")
     hashes = contract_hashes()
     root = Path(root).resolve()
     check(root.is_relative_to(ROOT / "build/e2e/parallel-c"), "dedicated C evidence root required")
@@ -42,8 +42,8 @@ def collect(stage, root, baseline, candidate, docs_root):
     if docs_sha is None: run["collection_blocks"].append("private documentation checkout unavailable; source gates still execute")
     write(root / "environment.json", environment())
     write(root / "contract-artifacts.json", hashes)
-    if stage in ("C01", "C02", "C03", "C04", "C05", "C06"):
-        try: previous = verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02", "C04": "C03", "C05": "C04", "C06": "C05"}[stage])
+    if stage in ("C01", "C02", "C03", "C04", "C05", "C06", "C07"):
+        try: previous = verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02", "C04": "C03", "C05": "C04", "C06": "C05", "C07": "C06"}[stage])
         except (EvidenceError, OSError, subprocess.CalledProcessError) as failure:
             previous = {"status": "BLOCKED_DEPENDENCY", "error": str(failure)}; run["collection_blocks"].append(str(failure))
         write(root / "predecessor.json", previous)
@@ -57,7 +57,7 @@ def collect(stage, root, baseline, candidate, docs_root):
     compiled = compiler.compile_fixture(root / "native", JAR)
     run["collection_blocks"].extend(compiled["blocked"])
     run_python(root / "python")  # Writes observations only; failures are adjudicated independently from XML.
-    if stage in ("C02", "C03", "C04", "C05", "C06"):
+    if stage in ("C02", "C03", "C04", "C05", "C06", "C07"):
         from blocker_runtime import dependency
         write(root / "python/blocker-runtime.json", dependency())
     if registry.get("provider_cases"):
@@ -77,15 +77,28 @@ def collect(stage, root, baseline, candidate, docs_root):
         except (EvidenceError, OSError, ValueError, KeyError) as failure:
             run["selector_variation_summary"] = {"status":"FAIL","error":str(failure)}
             run["collection_blocks"].append("selector variations: " + str(failure))
+    if registry.get("safety_benchmark"):
+        from safety_benchmark import verify as verify_benchmark
+        try: run["safety_benchmark_summary"]=verify_benchmark(root / "python/safety-benchmark")
+        except (EvidenceError,OSError,ValueError,KeyError) as failure:
+            run["collection_blocks"].append("parser comparison: "+str(failure))
     if registry.get("client_cases"):
         from client_conversation import run as run_clients, verify as verify_clients
         try:
             run_clients(root / "client-conversation", root / "native/chat-fixture.jar")
-            client_summary=verify_clients(root / "client-conversation", registry)
+            client_summary=verify_clients(root / "client-conversation", {"client_cases":registry.get("regression_client_cases",registry["client_cases"])})
             run["client_results"]=client_summary["cases"];run["client_component_summary"]=client_summary
         except (EvidenceError,OSError,ValueError,KeyError,subprocess.SubprocessError) as failure:
             run["client_component_summary"]={"status":"FAIL","error":str(failure)}
             run["collection_blocks"].append("native client component: "+str(failure))
+    if registry.get("language_cases"):
+        from client_safety import run as run_safety, verify as verify_safety
+        try:
+            run_safety(root / "client-safety", root / "native/chat-fixture.jar")
+            safety=verify_safety(root / "client-safety",registry);run["client_safety_summary"]=safety;run["client_results"].append(safety["suite_case"])
+        except (EvidenceError,OSError,ValueError,KeyError,subprocess.SubprocessError) as failure:
+            run["client_safety_summary"]={"status":"FAIL","error":str(failure)}
+            run["collection_blocks"].append("native client safety: "+str(failure))
     try:
         owner = audit(docs_root=docs_root)
         run["collection_blocks"].extend(owner["blocked"])

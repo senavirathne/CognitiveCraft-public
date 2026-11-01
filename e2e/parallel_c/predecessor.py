@@ -34,13 +34,13 @@ def configuration(stage):
     if stage == "C00": return PINS, FILES, 2371, 29
     if stage == "C01": return C01_PINS, C01_FILES, 2393, 40
     path = HERE / "predecessors" / (stage + ".json")
-    check(stage in ("C02", "C03", "C04", "C05") and path.is_file(), "predecessor stage has no qualified pin")
+    check(stage in ("C02", "C03", "C04", "C05", "C06") and path.is_file(), "predecessor stage has no qualified pin")
     frozen = read(path)
     check(set(frozen) == {"stage", "pins", "files", "unit", "python"} and frozen["stage"] == stage, "predecessor lock shape")
     pins = frozen["pins"]
     check(isinstance(pins.get("workflow_run"), int) and pins["workflow_run"] > 0 and isinstance(pins.get("attempt"), int) and pins["attempt"] > 0,
           "actual predecessor CI run/attempt required")
-    check(frozen["unit"] >= 2415 and frozen["python"] >= 54 and len(frozen["files"]) == 2, "complete predecessor counters/evidence required")
+    check(frozen["unit"] >= 2415 and frozen["python"] >= 54 and len(frozen["files"]) == (3 if stage == "C06" else 2), "complete predecessor counters/evidence required")
     return pins, frozen["files"], frozen["unit"], frozen["python"]
 
 
@@ -63,7 +63,15 @@ def validate_records(manifest, oracle, stage="C00"):
             check(metric["planned"] == metric["executed"] == metric["passed"] == count
                   and metric["failed"] == metric["inconclusive"] == metric["refused_expected"] == 0,
                   stage + " predecessor metric mismatch: " + tier)
-    check(oracle["native_executed"] == oracle["client_executed"] == 0, "unexpected predecessor physical credit")
+    check(oracle["native_executed"] == 0, "unexpected predecessor activity gameplay credit")
+    check(oracle["client_executed"] == pins.get("client_executed", 0), "predecessor actual client count mismatch")
+    if stage == "C06":
+        check(oracle.get("client_tier") == pins["client_tier"] == "COMPONENT_CLIENT", "C06 requires qualified real client transport")
+        client = manifest["client_e2e"]
+        check(client["planned"] == client["executed"] == client["passed"] == 2 and client["failed"] == client["inconclusive"] == client["refused_expected"] == 0,
+              "C06 actual client metrics missing")
+        check(manifest.get("client_transport_steps") == 18 and manifest.get("component_client_tier") == "COMPONENT_CLIENT",
+              "C06 client transport qualification missing")
     if pins.get("workflow_run") is not None:
         check(oracle["genuine_provider_executed"] == pins["genuine_provider_executed"]
               and oracle["dialogue_sequences_executed"] == pins["dialogue_sequences_executed"], "missing required predecessor regressions")
@@ -80,11 +88,18 @@ def verify_predecessor(docs_root, stage="C00"):
               "missing qualified " + stage + " ancestor: " + pin)
     check(git(ROOT, "rev-parse", pins["source_sha"] + "^{tree}") == pins["tree_sha"], stage + " source tree mismatch")
     check(git(docs_root, "rev-parse", pins["docs_sha"] + "^{tree}") == pins["docs_tree"], stage + " docs tree mismatch")
-    records = []
-    for path, expected in files.items():
+    records = {}
+    for path, expected in sorted(files.items(), key=lambda item: item[0] != "stage-manifest.json"):
         raw = subprocess.check_output(["git", "-C", str(docs_root), "show", pins["docs_sha"] + ":docs/implementation/parallel-c/" + path])
         check(hashlib.sha256(raw).hexdigest() == expected, stage + " evidence digest mismatch: " + path)
-        records.append(json.loads(raw))
-    validate_records(*records, stage=stage)
+        records[path]=json.loads(raw)
+    oracle=next(value for path,value in records.items() if path.endswith("/qualified.json"))
+    validate_records(records["stage-manifest.json"], oracle, stage=stage)
+    if stage == "C06":
+        native=next(value for path,value in records.items() if path.endswith("/native-audit.json"))
+        check(native["status"] == "PASS" and native["source_sha"] == pins["source_sha"] and native["jar_sha256"] == pins["jar_sha256"]
+              and native["transport_steps"] == 18 and native["native_clients"] == 2 and native["native_server"] == 1
+              and native["job_calls"] == native["world_operation_calls"] == native["activity_gameplay_executed"] == 0
+              and native["raw_artifacts_verified"] is True, "C06 native client/guard evidence changed")
     return {"status": "PASS", "stage": stage, **pins, "evidence": files,
             "scope": "PINNED_PREDECESSOR_ONLY; current-stage cumulative cases require a fresh candidate run"}

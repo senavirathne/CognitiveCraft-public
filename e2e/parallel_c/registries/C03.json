@@ -676,7 +676,19 @@
     "test_presentation_oracle.PresentationOracleTests#test_any_actual_job_or_world_call_fails_the_guard_oracle",
     "test_presentation_oracle.PresentationOracleTests#test_missing_native_hooks_or_shutdown_evidence_cannot_pass",
     "test_presentation_oracle.PresentationOracleTests#test_a_pass_summary_without_actual_client_processes_cannot_qualify",
-    "test_presentation_oracle.PresentationOracleTests#test_unqualified_c05_cannot_be_used_as_a_presenter_predecessor"
+    "test_presentation_oracle.PresentationOracleTests#test_unqualified_c05_cannot_be_used_as_a_presenter_predecessor",
+    "test_interaction_oracle.InteractionOracleTests.test_frozen_sixty_messages_preserve_all_supplied_ids_and_expectations",
+    "test_interaction_oracle.InteractionOracleTests.test_mutated_shortage_fails_with_a_positive_control",
+    "test_interaction_oracle.InteractionOracleTests.test_swapped_native_principal_fails_even_with_matching_message",
+    "test_interaction_oracle.InteractionOracleTests.test_omitted_duplicate_or_reordered_messages_fail",
+    "test_interaction_oracle.InteractionOracleTests.test_invented_completion_or_settlement_fails",
+    "test_interaction_oracle.InteractionOracleTests.test_missing_or_swapped_message_and_root_question_fail",
+    "test_interaction_oracle.InteractionOracleTests.test_private_labels_raw_uuids_and_missing_accessibility_fail",
+    "test_interaction_oracle.InteractionOracleTests.test_provider_reason_attempt_and_deadline_limits_are_independent_of_pass_flags",
+    "test_interaction_oracle.InteractionOracleTests.test_unknown_provider_usage_and_compute_stop_cannot_be_invented",
+    "test_interaction_oracle.InteractionOracleTests.test_malformed_and_delayed_faults_cannot_be_replaced_with_offline_summaries",
+    "test_interaction_oracle.InteractionOracleTests.test_c06_predecessor_cannot_silently_lose_its_two_actual_client_cases",
+    "test_interaction_oracle.InteractionBenchmarkTests.test_unchanged_c06_then_candidate_use_the_same_frozen_sixty_message_parser_schedule"
   ],
   "regression_scope": "Every implemented C00-C04 case is required while qualifying this component; no later stage is implicitly qualified.",
   "regression_unit_cases": [
@@ -1129,6 +1141,126 @@
       "expected": "PASS",
       "id": "C06-U01:viewChoicesAndReplayLedgersAreImmutableAndBounded",
       "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#viewChoicesAndReplayLedgersAreImmutableAndBounded()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:privilegedFieldAndRawExecutionRequestsCannotBecomeCandidates",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#privilegedFieldAndRawExecutionRequestsCannotBecomeCandidates()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:instructionLikeLabelsRemainDataWhileQuotedRenameRemainsAConfirmation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#instructionLikeLabelsRemainDataWhileQuotedRenameRemainsAConfirmation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:crossPlayerHistoryAndQuestionTokensStayPrivate",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#crossPlayerHistoryAndQuestionTokensStayPrivate()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:greetingAnotherCitizenDoesNotChangeTheAddressedIdentity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#greetingAnotherCitizenDoesNotChangeTheAddressedIdentity()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:staleRepliesRevalidateWhileTheSameCurrentQuestionCanCheckAgain",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#staleRepliesRevalidateWhileTheSameCurrentQuestionCanCheckAgain()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:cancelledRepliesCannotReportCompletionAndLiveRepliesRemainUsable",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#cancelledRepliesCannotReportCompletionAndLiveRepliesRemainUsable()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:unsupportedEffectsNeverBecomeMaterialRequests",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#unsupportedEffectsNeverBecomeMaterialRequests()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:supplyClaimsOnlyRequestReobservationIncludingWrongItemsAndWrongChest",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#supplyClaimsOnlyRequestReobservationIncludingWrongItemsAndWrongChest()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:quantityEndpointsWorkAndSixtyFiveZeroNegativeAndOverflowCannotBecomeChat",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#quantityEndpointsWorkAndSixtyFiveZeroNegativeAndOverflowCannotBecomeChat()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:addressedCommandsKeepTextualActorAsAnUntrustedNamedCandidate",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#addressedCommandsKeepTextualActorAsAnUntrustedNamedCandidate()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:carriedDeliveryKeepsSourceCarrierAndRecipientDistinct",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#carriedDeliveryKeepsSourceCarrierAndRecipientDistinct()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:vagueDeliveryAndNegatedOrMultipleCommandsClarify",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#vagueDeliveryAndNegatedOrMultipleCommandsClarify()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:administrativeAliasesRequireConfirmationAndOnlyCandidateMetadata",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#administrativeAliasesRequireConfirmationAndOnlyCandidateMetadata()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:publicDepositProposalDoesNotInventInspectWithdrawOrDefaultAuthority",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#publicDepositProposalDoesNotInventInspectWithdrawOrDefaultAuthority()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:namedActorAnchorsRequireTheAlreadyAddressedCitizenLabel",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#namedActorAnchorsRequireTheAlreadyAddressedCitizenLabel()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:duplicateVisibleLabelsClarifyWithoutChoosingAnIdentity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#duplicateVisibleLabelsClarifyWithoutChoosingAnIdentity()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:privateOrMissingDefaultCannotDiscloseItsExistenceButConfirmedDepositStillWorks",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#privateOrMissingDefaultCannotDiscloseItsExistenceButConfirmedDepositStillWorks()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:missingThrowingOrSwappedIngressReviewCannotSupplyFacts",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#missingThrowingOrSwappedIngressReviewCannotSupplyFacts()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:modelProposedPrincipalAndCompletionFieldsFailTheFrozenCandidateCodec",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#modelProposedPrincipalAndCompletionFieldsFailTheFrozenCandidateCodec()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:malformedPrivateOrFalseDoneModelOutputCannotEscapeTheFinitePhrasingLanguage",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#malformedPrivateOrFalseDoneModelOutputCannotEscapeTheFinitePhrasingLanguage()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:forgetClearsOnlyTheAuthenticatedPairAndRetainsItsAssociation",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#forgetClearsOnlyTheAuthenticatedPairAndRetainsItsAssociation()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:inventedCoordinatesAndMissingSelectionClarifyWhileAValidSelectionKeepsItsToken",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#inventedCoordinatesAndMissingSelectionClarifyWhileAValidSelectionKeepsItsToken()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:correctionAndCancelAreOnlyCorrelatedProposals",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#correctionAndCancelAreOnlyCorrelatedProposals()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:overlongMalformedUnicodeAndReplayedMessagesFailClosed",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#overlongMalformedUnicodeAndReplayedMessagesFailClosed()"
     }
   ],
   "schedule": {

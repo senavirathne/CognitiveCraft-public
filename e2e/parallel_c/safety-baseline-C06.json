@@ -1,0 +1,10 @@
+{
+  "attempt": 1,
+  "git_blob": "c8ccf09e35b24e41782f67dd10109188f477520e",
+  "jar_sha256": "28c6452b6b31ba4f76ef72d86daf742875e39327d940dbd763e3c31466b1a103",
+  "scope": "UNCHANGED_PARSER_COMPARISON_ONLY; not a release dependency or current native execution",
+  "source_sha": "f573b2919c0001f7bb612f4af56375eaf35ecc6e",
+  "stage": "C06",
+  "tree_sha": "fda1edf5bab069c9833270f8bbfd5ce64e9e32d9",
+  "workflow_run": 41282715436
+}

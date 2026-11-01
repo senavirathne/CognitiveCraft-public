@@ -1,9 +1,9 @@
 {
-  "stage": "C06",
+  "stage": "C07",
   "campaign": "parallel-c-cumulative-docker-v2",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "docs_candidate_sha": "3862aa71d259c6eab10e57d956ea3cc35a664f5c",
-  "nonce": "c06-cumulative-real-clients-20261101-v3",
+  "docs_candidate_sha": "9d93738c9b733479bc78eb9336c772c9cc46a72c",
+  "nonce": "c07-cumulative-real-client-safety-20261101-v1",
   "purpose": "infrastructure-recovery",
-  "reason": "Native protocol/guard gates passed in run 41282154978. Screenshot review found startup toasts covering response text. Narrow only the test screen text column and use its accessible text as narration title, then repeat every unchanged cumulative case and both actual client campaigns."
+  "reason": "Continue qualified C06 through C07. Local Java 25/Docker execution is unavailable; use the existing consolidated Docker Actions job for all cumulative gates, unchanged 60-message safety schedule, and two C06 real-client regressions. User-authorized infrastructure recovery."
 }

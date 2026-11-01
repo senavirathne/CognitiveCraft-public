@@ -36,25 +36,33 @@ def wait_for(predicate,label,seconds=30,processes=()):
         time.sleep(.1)
     raise EvidenceError('native wait timed out: '+label)
 
-def run(output,fixture):
+def run(output,fixture,safety_campaign=None):
     output=Path(output);output.mkdir(parents=True,exist_ok=False)
     context=identity();nonce=output.parent.name
-    world=ROOT/'build/parallel-c-worlds'/('C06-'+nonce)
+    stage='C07' if safety_campaign else 'C06'
+    world=ROOT/'build/parallel-c-worlds'/(stage+'-'+nonce)
     check(not world.exists(),'refusing to reuse a mutable C/peer world');world.mkdir(parents=True)
     campaign=read(CAMPAIGN);check(digest(CAMPAIGN)==CAMPAIGN_SHA256,'frozen client schedule changed')
+    measured_campaign=CAMPAIGN
+    if safety_campaign:
+        from oracle import freeze
+        safety=freeze();measured_campaign=Path(safety_campaign)
+        campaign=dict(clients=safety['clients'],cases=[dict(id='C07-CL01',steps=[dict(r,operation='SAFETY') for r in safety['cases']])])
     environment=dict(os.environ,COGNITIVECRAFT_C_FIXTURE_ALLOWED='chat-only',COGNITIVECRAFT_C_FIXTURE_JAR=str(Path(fixture).resolve()),
                      COGNITIVECRAFT_C_CAMPAIGN=str(CAMPAIGN),LIBGL_ALWAYS_SOFTWARE='1',SDL_VIDEO_DRIVER='offscreen')
-    receipt=dict(**context,exit=None,tier='COMPONENT_CLIENT',facts_tier='SYNTHETIC_CONTRACT',campaign_sha256=digest(CAMPAIGN),
+    if safety_campaign:environment['COGNITIVECRAFT_C_SAFETY_SCENARIOS']=str(Path(safety_campaign).resolve())
+    receipt=dict(**context,exit=None,tier='COMPONENT_CLIENT',facts_tier='SYNTHETIC_CONTRACT',campaign_sha256=digest(measured_campaign),
                  jar_sha256=digest(JAR),fixture_sha256=digest(fixture),launcher_sha256=digest(ROOT/'e2e/launch.py'),
                  owned_launcher_sha256=digest(HERE/'native/launch_conversation.py'),runtime_image_id=os.environ.get('COGNITIVECRAFT_C_IMAGE_ID'),
                  mutable_world_root=str(world),started_ns=time.time_ns(),processes=[],frames=[],screenshots=[])
     game=world/'server/game';game.mkdir(parents=True)
     properties='online-mode=false\nenforce-secure-profile=false\nwhite-list=false\nenforce-whitelist=false\nserver-ip=127.0.0.1\nserver-port=25651\nspawn-protection=0\nview-distance=4\nsimulation-distance=4\nlevel-type=minecraft:flat\ngenerate-structures=false\ndifficulty=peaceful\nsync-chunk-writes=true\nmax-players=4\nlevel-name=C06Component\nlevel-seed=20261027\n'
+    properties=properties.replace('C06Component',stage+'Component')
     (game/'server.properties').write_text(properties)
     receipt['world_seed']=20261027;receipt['requested_server_properties_sha256']=digest(game/'server.properties')
     (output/'requested-server.properties').write_text(properties)
     children=[];logs=[];views={}
-    def uid(name):return str(uuid.uuid5(uuid.NAMESPACE_URL,'c06:'+nonce+':'+name))
+    def uid(name):return str(uuid.uuid5(uuid.NAMESPACE_URL,stage.lower()+':'+nonce+':'+name))
     def remember():write(output/'process.json',receipt)
     def launch(kind,player=None):
         command=['python3',str(HERE/'native/launch_conversation.py'),kind,'--root',str(world),'--port','25651']
@@ -95,15 +103,21 @@ def run(output,fixture):
                         wait_for(lambda:sum(e['kind']=='play' for e in events(world/'clients'/player/'events.jsonl'))>before,'client actual rejoin',120,children)
                         request=dict(id=uid(name),operation='RESUME',case_id=name)
                     elif operation=='MESSAGE':request=dict(id=uid(name),operation='MESSAGE',case_id=name,text=step['text'])
+                    elif operation=='SAFETY':
+                        if step['provider_fault'] in ('MALFORMED','DELAY_AFTER_CANCEL'):time.sleep(2.1) # existing two-second provider admission interval
+                        question=str(uuid.UUID(bytes=hashlib.md5(('C07-question:'+native_player(player)+':'+step['citizen']).encode()).digest(),version=3))
+                        if 'question token' in step['text'].lower() and 'other player' in step['text'].lower():
+                            question=next(v['question_id'] for p,v in views.items() if p!=player and v.get('question_id'))
+                        request=dict(id=uid(name),operation='SAFETY',case_id=name,text=step['text'],reply_question_id=question,reply_generation=1 if step['facts']['reply_current'] else 0)
                     else:
                         v=views[step['view']];request=dict(id=uid(name),operation=operation,case_id=name,event_id=uid(step['event']),message_id=v['message_id'],generation=v['generation'],action=step['action'])
                     issue(world/'clients'/player/'c-conversation/request.json',request);frame['request']=request
                     got=wait_for(lambda:latest(player,'payload-received',name),player+' received '+name,30,children);frame['received']=got
-                    if operation in ('MESSAGE','REJOIN'):
-                        views[name]=got['data']['payload']['view']
+                    if operation in ('MESSAGE','REJOIN','SAFETY'):
+                        views[player if operation=='SAFETY' else name]=got['data']['payload'] if operation=='SAFETY' else got['data']['payload']['view']
                         frame['rendered']=wait_for(lambda:latest(player,'native-ui-rendered',name),player+' native UI '+name,30,children)
-                        if name in ('A-wait','B-wait'):
-                            screenshot=driver(player,'screenshot',name='C06-'+name)
+                        if name in ('A-wait','B-wait','C07-ASSISTANCE-01','C07-ASSISTANCE-02'):
+                            screenshot=driver(player,'screenshot',name=stage+'-'+name)
                             frame['screenshot']=screenshot;receipt['screenshots'].append(screenshot['result']['path'])
                 frame['ended_ns']=time.time_ns();receipt['frames'].append(frame);remember()
         # Keep both real receivers online long enough to observe unsolicited/cross-player delivery.

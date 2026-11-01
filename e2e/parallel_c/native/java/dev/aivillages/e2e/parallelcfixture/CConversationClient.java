@@ -31,6 +31,13 @@ public final class CConversationClient implements ClientModInitializer {
     }
     @SuppressWarnings("unchecked") private static void receive(Minecraft client,UUID nativePlayer,String json) {
         var body=(Map<String,Object>)InteractionCodec.parseJson(json);
+        if("cc.c.safety-output/1".equals(body.get("schema"))) {
+            if(!nativePlayer.toString().equals(body.get("native_player"))||!"SYNTHETIC_CONTRACT".equals(body.get("facts_tier"))||!"SAFETY".equals(body.get("kind")))throw new IllegalArgumentException("safety native receiver");
+            event("payload-received",Map.of("native_player",nativePlayer.toString(),"payload",body));
+            Map<String,Object> view=new LinkedHashMap<>(body);view.put("choices",List.of());
+            client.player.sendSystemMessage(Component.literal((String)body.get("accessible_text")));
+            client.gui.setScreen(new ConversationScreen(view,(String)body.get("case_id")));return;
+        }
         if(!"cc.c.client-output/1".equals(body.get("schema"))||!"SYNTHETIC_CONTRACT".equals(body.get("facts_tier")))throw new IllegalArgumentException("output envelope");
         event("payload-received",Map.of("native_player",nativePlayer.toString(),"payload",body));
         if("VIEW".equals(body.get("kind"))) {

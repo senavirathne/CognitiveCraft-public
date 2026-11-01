@@ -1,0 +1,25 @@
+{
+  "files": {
+    "evidence/C06-20261101/final/native-audit.json": "232c353526e7a76433e9cc21deae601624102b904b07a9f3b3e1af5d9388b035",
+    "evidence/C06-20261101/final/qualified.json": "85102f2409f8090043c36016abfbaf404d54e0a214ca82605165bed881b657e4",
+    "stage-manifest.json": "8a2c46ace5b1247a89562914a618e1a815c32f0e7f1b56f9368ad63766cd7f3f"
+  },
+  "pins": {
+    "attempt": 1,
+    "client_executed": 2,
+    "client_tier": "COMPONENT_CLIENT",
+    "container_image_id": "sha256:90d2a6fa4f81ed5241c0e238018790dfa61866dbdc33a4aa6e47f5d544592913",
+    "dialogue_sequences_executed": 100,
+    "docs_sha": "856b48cde1f0010ff978d16fce8c0e1a303cf9f4",
+    "docs_tree": "1977c18ac7fe44cb05667e1651456ef301a7e3aa",
+    "genuine_provider_executed": 6,
+    "jar_sha256": "28c6452b6b31ba4f76ef72d86daf742875e39327d940dbd763e3c31466b1a103",
+    "selector_variations_executed": 100,
+    "source_sha": "f573b2919c0001f7bb612f4af56375eaf35ecc6e",
+    "tree_sha": "fda1edf5bab069c9833270f8bbfd5ce64e9e32d9",
+    "workflow_run": 41282715436
+  },
+  "python": 100,
+  "stage": "C06",
+  "unit": 2539
+}

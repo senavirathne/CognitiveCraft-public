@@ -30,6 +30,11 @@ public final class SelectorParser {
     private static final String QUOTED = "(?:\"([^\"\\\\]+)\"|'([^'\\\\]+)')";
 
     public Result parse(String phrase, Selection selection) {
+        return parse(phrase, selection, null);
+    }
+
+    /** A named actor anchor is usable only when the ingress already bound that addressed label. */
+    public Result parse(String phrase, Selection selection, String addressedLabel) {
         if (phrase == null || phrase.isBlank() || phrase.codePointCount(0, phrase.length()) > 1024
                 || !ConversationContext.validUtterance(Normalizer.normalize(phrase, Normalizer.Form.NFC)))
             return new Clarification(Code.MALFORMED);
@@ -43,10 +48,14 @@ public final class SelectorParser {
                 return new Clarification(Code.MISSING_SELECTION);
             s.putAll(Map.of("kind", "SELECTED", "selection_id", selection.id().toString(), "container_type", type));
             span(spans, "/selector/container_type", m, 2, offset);
-        } else if ((m = match("(nearest public) " + TYPE + "(?: (to me|to you))?", text)) != null) {
+        } else if ((m = match("((?:the )?nearest (?:authorized )?public) " + TYPE + "(?: (to me|to you|near me|near [\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} _-]*))?", text)) != null) {
             if (m.group(2).equalsIgnoreCase("warehouse")) return new Clarification(Code.UNSUPPORTED);
+            String anchor=m.group(3);
+            boolean actor=anchor!=null && !anchor.equalsIgnoreCase("to me") && !anchor.equalsIgnoreCase("near me");
+            if (actor && !anchor.equalsIgnoreCase("to you") && (addressedLabel==null || !SelectorNames.fold(anchor.substring(5)).equals(SelectorNames.fold(addressedLabel))))
+                return new Clarification(Code.MISSING_TARGET);
             s.putAll(Map.of("kind", "NEAREST_PUBLIC", "container_type", type(m.group(2)),
-                    "anchor", "to you".equalsIgnoreCase(m.group(3)) ? "ACTOR" : "CALLER"));
+                    "anchor", actor ? "ACTOR" : "CALLER"));
             span(spans, "/selector/container_type", m, 2, offset);
             if (m.group(3) != null) span(spans, "/selector/anchor", m, 3, offset);
         } else if ((m = match("(your) (default|food|materials|output) " + TYPE, text)) != null) {
@@ -79,6 +88,11 @@ public final class SelectorParser {
         } else if ((m = match("(citizen|villager) ([\\p{L}\\p{N}][\\p{L}\\p{M}\\p{N} ’'_-]*)", text)) != null) {
             if (!validName(m.group(2)) || ambiguous(m.group(2))) return new Clarification(Code.AMBIGUOUS);
             endpointKind = "CITIZEN"; s.putAll(Map.of("kind", "NAMED", "label", nfc(m.group(2)))); span(spans, "/selector/label", m, 2, offset);
+        } else if ((m = match("([\\p{Lu}\\p{N}][\\p{L}\\p{M}\\p{N}_-]*(?: [\\p{Lu}\\p{N}][\\p{L}\\p{M}\\p{N}_-]*)*)", text)) != null) {
+            if (!validName(text)) return new Clarification(Code.MALFORMED);
+            if(java.util.Arrays.stream(text.split(" ")).anyMatch(w->!Character.isUpperCase(w.codePointAt(0)) && !Character.isDigit(w.codePointAt(0)))) return new Clarification(Code.MISSING_TARGET);
+            s.putAll(Map.of("kind","NAMED","label",nfc(text),"container_type","ANY_MVP"));
+            span(spans,"/selector/label",m,1,offset);
         } else return new Clarification(ambiguous(text) ? Code.AMBIGUOUS : Code.MISSING_TARGET);
         int first = m.group(1) != null ? 1 : 2;
         span(spans, "/kind", m, first, offset); span(spans, "/selector/kind", m, first, offset);
