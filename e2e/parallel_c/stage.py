@@ -87,7 +87,7 @@ def collect(stage, root, baseline, candidate, docs_root):
         try:
             run_clients(root / "client-conversation", root / "native/chat-fixture.jar")
             client_summary=verify_clients(root / "client-conversation", {"client_cases":registry.get("regression_client_cases",registry["client_cases"])})
-            run["client_results"]=client_summary["cases"];run["client_component_summary"]=client_summary
+            run["client_results"]=list(client_summary["cases"]);run["client_component_summary"]=client_summary
         except (EvidenceError,OSError,ValueError,KeyError,subprocess.SubprocessError) as failure:
             run["client_component_summary"]={"status":"FAIL","error":str(failure)}
             run["collection_blocks"].append("native client component: "+str(failure))
