@@ -714,7 +714,17 @@
     "test_interaction_oracle.InteractionOracleTests#test_unknown_provider_usage_and_compute_stop_cannot_be_invented",
     "test_interaction_oracle.InteractionOracleTests#test_malformed_and_delayed_faults_cannot_be_replaced_with_offline_summaries",
     "test_interaction_oracle.InteractionOracleTests#test_c06_predecessor_cannot_silently_lose_its_two_actual_client_cases",
-    "test_interaction_oracle.InteractionBenchmarkTests#test_unchanged_c06_then_candidate_use_the_same_frozen_sixty_message_parser_schedule"
+    "test_interaction_oracle.InteractionBenchmarkTests#test_unchanged_c06_then_candidate_use_the_same_frozen_sixty_message_parser_schedule",
+    "test_qualification.QualificationTests#test_complete_consistent_control_is_ready_only_for_c_owned_component_gates",
+    "test_qualification.QualificationTests#test_missing_case_in_any_mandatory_tier_blocks_readiness",
+    "test_qualification.QualificationTests#test_duplicate_case_cannot_replace_a_missing_case_even_when_count_matches",
+    "test_qualification.QualificationTests#test_mismatched_or_missing_jar_in_each_execution_phase_blocks_readiness",
+    "test_qualification.QualificationTests#test_false_a_settlement_root_owner_or_production_activation_is_rejected",
+    "test_qualification.QualificationTests#test_invalid_contract_and_source_tree_or_docs_pins_block_readiness",
+    "test_qualification.QualificationTests#test_missing_actual_ci_ownership_predecessor_or_docs_prevents_readiness",
+    "test_qualification.QualificationTests#test_expected_refusals_and_zero_effect_requirements_cannot_be_relabeled",
+    "test_qualification.QualificationTests#test_mutable_final_registry_cannot_drop_a_predecessor_method_or_language_row",
+    "test_qualification.QualificationTests#test_pass_summary_without_raw_evidence_cannot_qualify_through_the_cli"
   ],
   "regression_scope": "Every implemented C00-C04 case is required while qualifying this component; no later stage is implicitly qualified.",
   "regression_unit_cases": [

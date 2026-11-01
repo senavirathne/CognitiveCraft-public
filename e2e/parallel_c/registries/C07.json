@@ -1063,7 +1063,17 @@
     "test_presentation_oracle.PresentationOracleTests#test_any_actual_job_or_world_call_fails_the_guard_oracle",
     "test_presentation_oracle.PresentationOracleTests#test_missing_native_hooks_or_shutdown_evidence_cannot_pass",
     "test_presentation_oracle.PresentationOracleTests#test_a_pass_summary_without_actual_client_processes_cannot_qualify",
-    "test_presentation_oracle.PresentationOracleTests#test_unqualified_c05_cannot_be_used_as_a_presenter_predecessor"
+    "test_presentation_oracle.PresentationOracleTests#test_unqualified_c05_cannot_be_used_as_a_presenter_predecessor",
+    "test_qualification.QualificationTests#test_complete_consistent_control_is_ready_only_for_c_owned_component_gates",
+    "test_qualification.QualificationTests#test_missing_case_in_any_mandatory_tier_blocks_readiness",
+    "test_qualification.QualificationTests#test_duplicate_case_cannot_replace_a_missing_case_even_when_count_matches",
+    "test_qualification.QualificationTests#test_mismatched_or_missing_jar_in_each_execution_phase_blocks_readiness",
+    "test_qualification.QualificationTests#test_false_a_settlement_root_owner_or_production_activation_is_rejected",
+    "test_qualification.QualificationTests#test_invalid_contract_and_source_tree_or_docs_pins_block_readiness",
+    "test_qualification.QualificationTests#test_missing_actual_ci_ownership_predecessor_or_docs_prevents_readiness",
+    "test_qualification.QualificationTests#test_expected_refusals_and_zero_effect_requirements_cannot_be_relabeled",
+    "test_qualification.QualificationTests#test_mutable_final_registry_cannot_drop_a_predecessor_method_or_language_row",
+    "test_qualification.QualificationTests#test_pass_summary_without_raw_evidence_cannot_qualify_through_the_cli"
   ],
   "regression_unit_cases": [
     {

@@ -138,7 +138,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     tracked_clean()
     check(git(ROOT, "rev-parse", "HEAD") == source, "oracle must execute at the frozen source commit")
     registry = read(HERE / "registries" / (stage + ".json"))
-    check(registry["implementation"] == "IMPLEMENTED" and stage in ("C00", "C01", "C02", "C03", "C04", "C05", "C06", "C07"), "stage is NOT_EXECUTED; implement its own oracle first")
+    check(registry["implementation"] == "IMPLEMENTED" and stage in ("C00", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08"), "stage is NOT_EXECUTED; implement its own oracle first")
     contract_hashes()
     run = read(root / "run.json")
     context = workflow_context()
@@ -163,7 +163,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     require_frames(root, registry["native_cases"], artifacts)
     client_summary=None
     if registry["client_cases"]:
-        check(stage in ("C06", "C07"), "client oracle not implemented for this stage")
+        check(stage in ("C06", "C07", "C08"), "client oracle not implemented for this stage")
         from client_conversation import verify as verify_clients
         client_summary=verify_clients(root / "client-conversation", {"client_cases":registry.get("regression_client_cases",registry["client_cases"])})
         client_cases=list(client_summary["cases"])
@@ -188,7 +188,7 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     check(set(python) == set(registered_python), "missing/unregistered Python case")
     process = read(root / "python/python-process.json")
     check(process["exit"] == 0 and process["source_sha"] == source and process["tree_sha"] == tree, "Python process pin/exit mismatch")
-    if stage in ("C02", "C03", "C04", "C05", "C06", "C07"):
+    if stage in ("C02", "C03", "C04", "C05", "C06", "C07", "C08"):
         from blocker_runtime import dependency
         check(read(root / "python/blocker-runtime.json") == dependency(), "blocker Java runtime dependency changed")
     if registry.get("provider_cases"):
@@ -223,9 +223,9 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     from ownership import audit
     from docs_check import check_links
     docs_root = Path(docs_root or ROOT.parent / "CognitiveCraft-Documentation-C")
-    if stage in ("C01", "C02", "C03", "C04", "C05", "C06", "C07"):
+    if stage in ("C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08"):
         from predecessor import verify_predecessor
-        check(read(root / "predecessor.json") == verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02", "C04": "C03", "C05": "C04", "C06": "C05", "C07": "C06"}[stage]), "qualified predecessor evidence changed")
+        check(read(root / "predecessor.json") == verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02", "C04": "C03", "C05": "C04", "C06": "C05", "C07": "C06", "C08": "C07"}[stage]), "qualified predecessor evidence changed")
     current_owner = audit(docs_root=docs_root)
     check(current_owner["gate_status"] == "OWNED_GATES_PASS", "independent current ownership audit is incomplete")
     check_links(docs_root, "docs/implementation/parallel-c", stage)
@@ -233,12 +233,34 @@ def qualify(root, stage, source, tree, jar, docs_root=None):
     check(docs["status"] == "PASS" and docs["stage"] == stage, "owned docs links/fragments gate required")
     totals = {"unit": metric(unit, len(baseline) + len(expected_unit)), "python": metric(python, len(registered_python))}
     for rows in (unit, python): check(all(r["outcome"] == "PASS" for r in rows.values()), "a regression blocks advancement")
-    return {"gate_status": "OWNED_GATES_PASS", "stage": stage, "source_sha": source, "tree_sha": tree,
+    result = {"gate_status": "OWNED_GATES_PASS", "stage": stage, "source_sha": source, "tree_sha": tree,
             "jar_sha256": run["jar_sha256"], "contract_sha256": CONTRACT, "counts": totals,
             "selector_variations_executed": len(registry.get("selector_variation_cases", [])), "native_executed": 0, "client_executed": len(registry["client_cases"]), "client_tier": "COMPONENT_CLIENT" if client_summary else None, "genuine_provider_executed": len(registry.get("provider_cases", [])),
             "language_messages_executed": len(registry.get("language_cases", [])),
             "dialogue_sequences_executed": len(registry.get("dialogue_sequence_cases", [])), **context, "container_image_id": run.get("container_image_id"),
             "blocked": registry["deferred"], "claim": stage + " owned component qualification; activity facts synthetic; no A settlement or production activation"}
+
+
+    if stage == "C08":
+        from qualification import expected_inventory, promote, compatibility
+        required=expected_inventory(registry)
+        live=read(root / "live-provider/live.json")
+        fault_rows=[]
+        from client_conversation import events
+        for event in events(root / "client-safety/raw/server/c-conversation/events.jsonl"):
+            if event['kind']=='safety-observation' and event['data']['provider']['fault'] is not None:
+                provider=event['data']['provider'];fault_rows.append(dict(case_id=event['data']['case_id'],reason=provider['reason'],provider_calls=provider['calls'],tier=provider['fault']['tier'],outstanding_after=provider['fault']['outstanding_after']))
+        observed=dict(source_sha=source,tree_sha=tree,docs_sha=run['docs_sha'],contract_sha256=run['contract_sha256'],
+            jars=dict(candidate=read(root/'candidate/build-record.json')['jar_sha256'],native_regression=read(root/'client-conversation/process.json')['jar_sha256'],native_safety=read(root/'client-safety/process.json')['jar_sha256'],provider=live['jar_sha256'],compiler=compile_record['jar_sha256'],dialogue=read(root/'python/dialogue-sequences/process.json')['jar_sha256'],selectors=read(root/'python/selector-variations/process.json')['jar_sha256'],benchmark=read(root/'python/safety-benchmark/receipt.json')['runs'][1]['jar_sha256']),
+            cases=dict(unit=sorted(set(unit)-set(baseline)),python=sorted(python),clients=[c['id'] for c in client_cases],language=[c['id'] for c in safety['cases']],provider=[c['case_id'] for c in read(root/'live-provider/responses.json')],selectors=[c['id'] for c in read(root/'python/selector-variations/frames.json')['cases']],dialogue=[c['id'] for c in read(root/'python/dialogue-sequences/frames.json')['sequences']]),
+            language_counts={key:safety[key] for key in ('planned','executed','passed','refused_expected','failed','inconclusive')},job_calls=safety['job_calls']+client_summary['job_calls'],world_operation_calls=safety['world_operation_calls']+client_summary['world_operation_calls'],original_root_id=run['original_root_id'],original_owner_id=run['original_owner_id'],a_settlement=run['a_settlement'],production_activation=False,ownership_status=current_owner['gate_status'],predecessor_status=read(root/'predecessor.json')['status'],docs_status=docs['status'])
+        result=promote(result,observed,required)
+        report=compatibility(result,live,fault_rows)
+        write(root/'compatibility.json',report)
+        result['compatibility_report']=dict(path='compatibility.json',sha256=digest(root/'compatibility.json'))
+        write(root/'readiness-observations.json',observed)
+        result['readiness_observations']=dict(path='readiness-observations.json',sha256=digest(root/'readiness-observations.json'))
+    return result
 
 
 if __name__ == "__main__":

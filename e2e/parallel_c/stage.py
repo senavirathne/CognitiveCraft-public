@@ -19,12 +19,12 @@ from predecessor import verify_predecessor
 
 
 def collect(stage, root, baseline, candidate, docs_root):
-    check(stage in ("C00", "C01", "C02", "C03", "C04", "C05", "C06", "C07"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
+    check(stage in ("C00", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08"), "later stages are NOT_EXECUTED; stop at the implemented handoff")
     tracked_clean()
     registry_path = HERE / "registries" / (stage + ".json")
     registry = read(registry_path)
     check(registry["implementation"] == "IMPLEMENTED", "unimplemented registry")
-    check(registry["native_cases"] == [] and (stage in ("C06", "C07") or registry["client_cases"] == []), "only the declared C06 client component schedules are executable")
+    check(registry["native_cases"] == [] and (stage in ("C06", "C07", "C08") or registry["client_cases"] == []), "only the declared C06 client component schedules are executable")
     hashes = contract_hashes()
     root = Path(root).resolve()
     check(root.is_relative_to(ROOT / "build/e2e/parallel-c"), "dedicated C evidence root required")
@@ -42,8 +42,8 @@ def collect(stage, root, baseline, candidate, docs_root):
     if docs_sha is None: run["collection_blocks"].append("private documentation checkout unavailable; source gates still execute")
     write(root / "environment.json", environment())
     write(root / "contract-artifacts.json", hashes)
-    if stage in ("C01", "C02", "C03", "C04", "C05", "C06", "C07"):
-        try: previous = verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02", "C04": "C03", "C05": "C04", "C06": "C05", "C07": "C06"}[stage])
+    if stage in ("C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08"):
+        try: previous = verify_predecessor(docs_root, {"C01": "C00", "C02": "C01", "C03": "C02", "C04": "C03", "C05": "C04", "C06": "C05", "C07": "C06", "C08": "C07"}[stage])
         except (EvidenceError, OSError, subprocess.CalledProcessError) as failure:
             previous = {"status": "BLOCKED_DEPENDENCY", "error": str(failure)}; run["collection_blocks"].append(str(failure))
         write(root / "predecessor.json", previous)
@@ -57,7 +57,7 @@ def collect(stage, root, baseline, candidate, docs_root):
     compiled = compiler.compile_fixture(root / "native", JAR)
     run["collection_blocks"].extend(compiled["blocked"])
     run_python(root / "python")  # Writes observations only; failures are adjudicated independently from XML.
-    if stage in ("C02", "C03", "C04", "C05", "C06", "C07"):
+    if stage in ("C02", "C03", "C04", "C05", "C06", "C07", "C08"):
         from blocker_runtime import dependency
         write(root / "python/blocker-runtime.json", dependency())
     if registry.get("provider_cases"):

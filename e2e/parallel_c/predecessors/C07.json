@@ -1,0 +1,28 @@
+{
+  "files": {
+    "evidence/C07-20261101/final/native-audit.json": "8b979abd6eca7fc00821e5689e8d92cf82d31bbe897296b7217ec70a21169bc3",
+    "evidence/C07-20261101/final/qualified.json": "fd4198b95cc1fcc8cca6e7fe470c5e99f08f660f1edfc9c759eaa26b836ae5b6",
+    "stage-manifest.json": "31e5e916cab9f7db92cc76311668d6952d2f8d1ddd5ab637da5b22f86123f9e1"
+  },
+  "pins": {
+    "attempt": 1,
+    "client_executed": 3,
+    "client_tier": "COMPONENT_CLIENT",
+    "client_transport_steps": 78,
+    "container_image_id": "sha256:90d2a6fa4f81ed5241c0e238018790dfa61866dbdc33a4aa6e47f5d544592913",
+    "dialogue_sequences_executed": 100,
+    "docs_sha": "0652eb7c6b388035fb79643f7320d7be7178322a",
+    "docs_tree": "6345299c251e3251c529de2998b3ec2a2ab4d3ca",
+    "genuine_provider_executed": 6,
+    "jar_sha256": "8ce8a6bb2e22c74b377a16a4b84a75d9df818fb009bd68f110d6a37400c8add1",
+    "language_messages_executed": 60,
+    "registry_sha256": "ed1307e9d4d35df7cf6703cf23d72809d10181219c845f952d86c2589eb69ff0",
+    "selector_variations_executed": 100,
+    "source_sha": "2417874a7cc76565ce8c22cd513d4c0ceff19e5c",
+    "tree_sha": "b64be4037d6d01069f7504ebc79ca850773dcd38",
+    "workflow_run": 41287442197
+  },
+  "python": 112,
+  "stage": "C07",
+  "unit": 2564
+}

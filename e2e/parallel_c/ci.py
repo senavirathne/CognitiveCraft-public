@@ -55,7 +55,7 @@ def main():
     oracle = read(qualified) if qualified.is_file() else {}
     release = ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"
     result.update(ended_ns=time.time_ns(), jar_sha256=digest(release) if release.is_file() else None, evidence_root=str(evidence), oracle=oracle)
-    passed = all(x["exit"] == 0 for x in result["phases"]) and result["docs_sha"] == request["docs_candidate_sha"] and oracle.get("gate_status") == "OWNED_GATES_PASS"
+    passed = all(x["exit"] == 0 for x in result["phases"]) and result["docs_sha"] == request["docs_candidate_sha"] and oracle.get("gate_status") == ("BRANCH_READY" if stage == "C08" else "OWNED_GATES_PASS")
     run_file = evidence / "run.json"
     collected = read(run_file) if run_file.is_file() else {}
     predecessor_file = evidence / "predecessor.json"
@@ -73,7 +73,7 @@ def main():
                 if result['docs_available'] or case.get('classname') != 'test_predecessor.PredecessorTests':
                     python_regressions.append(case.get('classname', '') + '#' + case.get('name', ''))
     result['python_regressions'] = python_regressions
-    result["gate_status"] = "OWNED_GATES_PASS" if passed else "BLOCKED_DEPENDENCY" if builds_pass and dependency and not python_regressions else "FAIL"
+    result["gate_status"] = ("BRANCH_READY" if stage == "C08" else "OWNED_GATES_PASS") if passed else "BLOCKED_DEPENDENCY" if builds_pass and dependency and not python_regressions else "FAIL"
     write(output / "ci-result.json", result)
     print(__import__("json").dumps(result, sort_keys=True), flush=True)
     return 0 if passed else 2

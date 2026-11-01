@@ -1,9 +1,9 @@
 {
-  "stage": "C07",
+  "stage": "C08",
   "campaign": "parallel-c-cumulative-docker-v2",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
-  "docs_candidate_sha": "9d93738c9b733479bc78eb9336c772c9cc46a72c",
-  "nonce": "c07-cumulative-real-client-safety-20261101-v4",
-  "purpose": "infrastructure-recovery",
-  "reason": "Run 41286675015 completed all sixty native messages but caught the synthetic cancellation observer sampling before callback attachment. Retain the compute slot until actual callback consumption, observe a bounded real drain with raw lifecycle phases, and add one deterministic regression forcing that interleaving. Repeat every unchanged language case and cumulative gate."
+  "docs_candidate_sha": "39c08a3846c513bd18027d7713ff4a53c3a3e114",
+  "nonce": "c08-final-c-owned-freeze-20261101-v1",
+  "purpose": "final-qualification",
+  "reason": "Final C-owned branch qualification after qualified C07. Repeat all module/provider/Python and real-client cases on one release, independently verify exact case/JAR/contract/ownership evidence, attach language/provider compatibility and required J adapters, then stop before J."
 }

@@ -18,9 +18,10 @@ class CiTests(unittest.TestCase):
 
     def test_explicit_recovery_can_schedule_complete_implemented_stage(self):
         result = self.request(); self.assertEqual("C02", result["stage"]); self.assertEqual("infrastructure-recovery", result["purpose"])
+        final=self.request(stage="C08",purpose="final-qualification");self.assertEqual("C08",final["stage"])
 
     def test_unimplemented_stage_or_wrong_purpose_cannot_spend_qualification_run(self):
-        for change in ({"stage": "C08"}, {"purpose": "final-qualification"}, {"stage": "J00"}, {"stage": "C08", "purpose": "final-qualification"}):
+        for change in ({"stage": "C08"}, {"purpose": "final-qualification"}, {"stage": "J00"}, {"stage": "C09"}):
             with self.assertRaises(EvidenceError): self.request(**change)
 
     def test_wrong_contract_unpinned_docs_or_extra_authority_fields_are_rejected(self):
