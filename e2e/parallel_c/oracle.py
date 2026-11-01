@@ -94,6 +94,11 @@ def check_provider(observation,want):
             check(output['source']=='SYNTHETIC_FAULT_INJECTION' and 'Private secret chest' in output['raw'] and output['max_output_tokens']==128,'fault was not actually presented to C03')
             total+=token['count']
         check(total==p['reserved_input_tokens'],'fault cumulative input reservation mismatch')
+        if fault=='DELAY_AFTER_CANCEL':
+            lifecycle=injected['lifecycle']
+            check([s['phase'] for s in lifecycle]==['backend-entered','wrapper-cancelled','synthetic-completion-signalled','wrapper-drained'],'actual cancellation callback lifecycle missing')
+            check(lifecycle[0]['outstanding']==lifecycle[1]['outstanding']==1 and lifecycle[2]['outstanding'] in (0,1) and lifecycle[3]['outstanding']==0,'cancelled compute slot released too early or never drained')
+            check([s['at_ns'] for s in lifecycle]==sorted(s['at_ns'] for s in lifecycle) and 0<=lifecycle[3]['at_ns']-lifecycle[2]['at_ns']<=2_100_000_000,'bounded actual callback drain observation required')
     else:check(p['fault'] is None and p['reserved_input_tokens']==0,'offline path attempted a model call')
     if fault=='FORGED_AUTHORITY':check(observation['rejected_candidate']['result']=='MALFORMED' and 'principal_id' in observation['rejected_candidate']['raw'],'model authority candidate not actually rejected')
     if want['facts'].get('private_default'):check(observation['private_default']==dict(result='DEFAULT_UNCONFIRMED',visible_count=0,permission='DEPOSIT',authority_changed=False),'private default reference gained authority')

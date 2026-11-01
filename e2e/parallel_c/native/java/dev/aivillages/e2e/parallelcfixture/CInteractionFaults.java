@@ -20,6 +20,7 @@ public final class CInteractionFaults implements LlmProvider {
     private final String model=System.getenv("COGNITIVECRAFT_C_MODEL_SHA256");
     private final String tokenizer;
     private final List<Map<String,Object>> tokenizations=new CopyOnWriteArrayList<>(),outputs=new CopyOnWriteArrayList<>();
+    private final List<Map<String,Object>> lifecycle=new CopyOnWriteArrayList<>();
     private final CountDownLatch invoked=new CountDownLatch(1);
     private final CompletableFuture<Response> pending=new CompletableFuture<>();
     public CInteractionFaults(String fault) {
@@ -54,13 +55,23 @@ public final class CInteractionFaults implements LlmProvider {
     public CompletableFuture<Response> generate(Request request) {
         String raw=fault.equals("MALFORMED")?"{broken JSON; Private secret chest":"{\"text\":\"Done, delivered 64 diamonds from Private secret chest.\",\"principal_id\":\"forged\"}";
         outputs.add(Map.of("raw",raw,"source","SYNTHETIC_FAULT_INJECTION","max_output_tokens",request.maxOutputTokens(),"request_schema",request.jsonSchema()));
+        if(fault.equals("DELAY_AFTER_CANCEL"))observe("backend-entered");
         invoked.countDown();return fault.equals("DELAY_AFTER_CANCEL")?pending:CompletableFuture.completedFuture(new Response(raw,id(),"synthetic"));
     }
     public void completeAfterCancellation(ConversationProvider provider,ConversationProvider.Ticket ticket)throws Exception {
         if(!invoked.await(5,TimeUnit.SECONDS))throw new IllegalStateException("fault invocation missing");
         if(!provider.cancel(ticket))throw new IllegalStateException("pending response was not cancelled");
+        observe("wrapper-cancelled");
         pending.complete(new Response((String)outputs.getFirst().get("raw"),id(),"synthetic"));
+        observe("synthetic-completion-signalled");
+        // generate() may not yet have returned its future to the wrapper. Observe its actual
+        // callback drain rather than equating completion signalling with callback consumption.
+        long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
+        while(ConversationProvider.outstandingOperations()!=0 && System.nanoTime()<deadline)Thread.sleep(1);
+        observe("wrapper-drained");
+        if(ConversationProvider.outstandingOperations()!=0)throw new IllegalStateException("synthetic provider callback did not drain within two seconds");
     }
-    public Map<String,Object> evidence(){return Map.of("tier","SYNTHETIC_PROVIDER_FAULT_ACTUAL_TOKENIZER","fault",fault,"model_sha256",model,"tokenizer_sha256",tokenizer,"tokenizations",tokenizations,"outputs",outputs,"outstanding_after",ConversationProvider.outstandingOperations());}
+    private void observe(String phase){lifecycle.add(Map.of("phase",phase,"at_ns",System.nanoTime(),"outstanding",ConversationProvider.outstandingOperations()));}
+    public Map<String,Object> evidence(){return Map.of("tier","SYNTHETIC_PROVIDER_FAULT_ACTUAL_TOKENIZER","fault",fault,"model_sha256",model,"tokenizer_sha256",tokenizer,"tokenizations",tokenizations,"outputs",outputs,"lifecycle",lifecycle,"outstanding_after",ConversationProvider.outstandingOperations());}
     public static String sha(String text){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);}}
 }

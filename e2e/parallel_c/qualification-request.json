@@ -3,7 +3,7 @@
   "campaign": "parallel-c-cumulative-docker-v2",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
   "docs_candidate_sha": "9d93738c9b733479bc78eb9336c772c9cc46a72c",
-  "nonce": "c07-cumulative-real-client-safety-20261101-v3",
+  "nonce": "c07-cumulative-real-client-safety-20261101-v4",
   "purpose": "infrastructure-recovery",
-  "reason": "Run 41285976279 completed all sixty C07 messages and both C06 suites. The oracle caught a shared list that appended C07 into the retained C06 summary; the raw audit also found twelve Python registry IDs with a wrong method separator. Copy the case list, correct only those identifiers, preserve every frozen expectation and repeat every cumulative gate."
+  "reason": "Run 41286675015 completed all sixty native messages but caught the synthetic cancellation observer sampling before callback attachment. Retain the compute slot until actual callback consumption, observe a bounded real drain with raw lifecycle phases, and add one deterministic regression forcing that interleaving. Repeat every unchanged language case and cumulative gate."
 }

@@ -1947,6 +1947,11 @@
       "expected": "PASS",
       "id": "C07-U01:overlongMalformedUnicodeAndReplayedMessagesFailClosed",
       "xml_id": "dev.aivillages.core.kernel.interaction.InteractionSafetyTest#overlongMalformedUnicodeAndReplayedMessagesFailClosed()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C07-U01:cancellationBeforeCallbackAttachmentRetainsTheSlotUntilActualCompletionIsConsumed",
+      "xml_id": "dev.aivillages.providers.interaction.InteractionCancellationRaceTest#cancellationBeforeCallbackAttachmentRetainsTheSlotUntilActualCompletionIsConsumed()"
     }
   ],
   "schedule": {
