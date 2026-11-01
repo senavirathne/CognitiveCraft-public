@@ -34,15 +34,21 @@ class PresentationOracleTests(unittest.TestCase):
         v['private']='Private secret chest'
         with self.assertRaises(EvidenceError):check_view(v,w,native_player('CPlayerA'))
     def guards(self):
-        return [dict(kind='server-start',data=dict(guards=dict(active_hooks=['JobLifecycleStore','SurvivalGateway'],job_calls=0,world_operation_calls=0))),dict(kind='server-stop',data=dict(active_hooks=['JobLifecycleStore','SurvivalGateway'],job_calls=0,world_operation_calls=0))]
+        ready=['JobLifecycleStore','SurvivalGateway'];zero=dict(active_hooks=ready,job_calls=0,world_operation_calls=0)
+        return [dict(kind='server-start',data=dict(guards=dict(active_hooks=[],job_calls=0,world_operation_calls=0))),
+                dict(kind='guard-ready',data=dict(hook='SurvivalGateway')),dict(kind='guard-ready',data=dict(hook='JobLifecycleStore')),
+                dict(kind='guards-armed',data=zero),dict(kind='request',data=dict(guards=zero)),dict(kind='server-stop',data=zero.copy())]
     def test_any_actual_job_or_world_call_fails_the_guard_oracle(self):
         check_guards(self.guards())
         for field in ('job_calls','world_operation_calls'):
             rows=self.guards();rows[-1]['data'][field]=1
             with self.assertRaises(EvidenceError):check_guards(rows)
     def test_missing_native_hooks_or_shutdown_evidence_cannot_pass(self):
-        for rows in ([self.guards()[0]],[dict(kind='server-start',data=dict(guards=dict(active_hooks=[],job_calls=0,world_operation_calls=0))),self.guards()[-1]]):
-            with self.assertRaises(EvidenceError):check_guards(rows)
+        rows=self.guards();missing_ready=copy.deepcopy(rows);missing_ready.pop(1)
+        missing_arm=[e for e in rows if e['kind']!='guards-armed']
+        early=copy.deepcopy(rows);early.insert(1,early.pop(4))
+        for candidate in (rows[:-1],missing_ready,missing_arm,early):
+            with self.assertRaises(EvidenceError):check_guards(candidate)
     def test_a_pass_summary_without_actual_client_processes_cannot_qualify(self):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaises((EvidenceError,FileNotFoundError)):verify(Path(temporary))

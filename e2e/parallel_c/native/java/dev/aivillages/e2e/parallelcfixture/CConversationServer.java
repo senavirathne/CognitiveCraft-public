@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerPlayer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -23,6 +24,7 @@ public final class CConversationServer implements ModInitializer {
     private static final Map<UUID,Entry> ENTRIES=new HashMap<>();
     private static final Map<String,Map<String,Object>> FIXTURES=new HashMap<>();
     private static final java.util.concurrent.ScheduledExecutorService TIMER=Executors.newSingleThreadScheduledExecutor(r->{var t=new Thread(r,"c06-offline-provider-timer");t.setDaemon(true);return t;});
+    private static boolean guardsArmed;
     private static final ConversationProvider PHRASING=new ConversationProvider(null,TIMER);
     private record Entry(InteractionPresenter.State state,String fixture,UUID message) { }
     public static UUID id(String value){return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8));}
@@ -39,6 +41,11 @@ public final class CConversationServer implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler,sender,server)->{SESSIONS.put(handler.player.getUUID(),UUID.randomUUID());event("native-join",Map.of("player",handler.player.getUUID().toString(),"session",SESSIONS.get(handler.player.getUUID()).toString()));});
         ServerPlayConnectionEvents.DISCONNECT.register((handler,server)->{event("native-disconnect",Map.of("player",handler.player.getUUID().toString()));SESSIONS.remove(handler.player.getUUID());});
         ServerLifecycleEvents.SERVER_STARTED.register(server->event("server-start",Map.of("pid",ProcessHandle.current().pid(),"java",System.getProperty("java.version"),"guards",ConversationGuards.snapshot(),"facts_tier","SYNTHETIC_CONTRACT")));
+        ServerTickEvents.END_SERVER_TICK.register(server->{
+            if(!guardsArmed && ConversationGuards.snapshot().get("active_hooks").equals(List.of("JobLifecycleStore","SurvivalGateway"))) {
+                guardsArmed=true;event("guards-armed",ConversationGuards.snapshot());
+            }
+        });
         ServerLifecycleEvents.SERVER_STOPPED.register(server->{event("server-stop",ConversationGuards.snapshot());TIMER.shutdownNow();});
     }
     @SuppressWarnings("unchecked") private static void receive(ServerPlayer player,String json) {

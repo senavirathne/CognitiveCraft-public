@@ -48,6 +48,11 @@ def run(output,fixture):
                  jar_sha256=digest(JAR),fixture_sha256=digest(fixture),launcher_sha256=digest(ROOT/'e2e/launch.py'),
                  owned_launcher_sha256=digest(HERE/'native/launch_conversation.py'),runtime_image_id=os.environ.get('COGNITIVECRAFT_C_IMAGE_ID'),
                  mutable_world_root=str(world),started_ns=time.time_ns(),processes=[],frames=[],screenshots=[])
+    game=world/'server/game';game.mkdir(parents=True)
+    properties='online-mode=false\nenforce-secure-profile=false\nwhite-list=false\nenforce-whitelist=false\nserver-ip=127.0.0.1\nserver-port=25651\nspawn-protection=0\nview-distance=4\nsimulation-distance=4\nlevel-type=minecraft:flat\ngenerate-structures=false\ndifficulty=peaceful\nsync-chunk-writes=true\nmax-players=4\nlevel-name=C06Component\nlevel-seed=20261027\n'
+    (game/'server.properties').write_text(properties)
+    receipt['world_seed']=20261027;receipt['requested_server_properties_sha256']=digest(game/'server.properties')
+    (output/'requested-server.properties').write_text(properties)
     children=[];logs=[];views={}
     def uid(name):return str(uuid.uuid5(uuid.NAMESPACE_URL,'c06:'+nonce+':'+name))
     def remember():write(output/'process.json',receipt)
@@ -70,6 +75,7 @@ def run(output,fixture):
     try:
         server=launch('server')
         wait_for(lambda:next((e for e in events(world/'server/c-conversation/events.jsonl') if e['kind']=='server-start'),None),'server startup',180,children)
+        wait_for(lambda:next((e for e in events(world/'server/c-conversation/events.jsonl') if e['kind']=='guards-armed'),None),'native mutation guards armed',60,children)
         for player in campaign['clients']:launch('client',player)
         for player in campaign['clients']:
             wait_for(lambda p=player:(world/'clients'/p/'c-conversation/events.jsonl').is_file(),player+' startup',180,children)
@@ -123,6 +129,9 @@ def run(output,fixture):
             for path in (world/name).rglob('*'):
                 if path.is_file() and 'game' not in path.relative_to(world/name).parts:
                     target=output/'raw'/path.relative_to(world);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(path,target)
+        (output/'raw/server').mkdir(parents=True,exist_ok=True)
+        shutil.copy2(game/'server.properties',output/'raw/server/server.properties')
+        receipt['server_properties_sha256']=digest(output/'raw/server/server.properties')
         for item,p in zip(receipt['processes'],children):item['exit']=p.returncode
         receipt['ended_ns']=time.time_ns();remember()
     return receipt
@@ -141,7 +150,15 @@ def check_view(view,want,native):
 def check_guards(rows):
     starts=[e for e in rows if e['kind']=='server-start'];stops=[e for e in rows if e['kind']=='server-stop']
     check(len(starts)==len(stops)==1,'complete native server lifecycle required')
-    check(set(starts[0]['data']['guards']['active_hooks'])=={'JobLifecycleStore','SurvivalGateway'},'actual native mutation hooks not loaded')
+    armed=[i for i,e in enumerate(rows) if e['kind']=='guards-armed']
+    check(len(armed)==1,'one actual native guards-armed frame required')
+    arm=armed[0];required={'JobLifecycleStore','SurvivalGateway'}
+    check(set(rows[arm]['data']['active_hooks'])==required,'actual native mutation hooks not loaded')
+    ready={e['data']['hook'] for e in rows[:arm] if e['kind']=='guard-ready'}
+    check(ready==required,'both native constructor hooks must precede guard arming')
+    for i,e in enumerate(rows):
+        if e['kind']=='request':check(i>arm and set(e['data']['guards']['active_hooks'])==required,'transport request preceded native guard arming')
+    check(arm<len(rows)-1 and rows[-1]['kind']=='server-stop','guard window must extend through native shutdown')
     check(not any(e['kind'] in ('job-call','world-operation-call','rejected-input') for e in rows),'native effect/Job call or unexpected transport rejection')
     for e in rows:
         guards=e['data'].get('guards',e['data'] if e['kind']=='server-stop' else None)
@@ -152,6 +169,10 @@ def verify(output,registry=None):
     check(receipt['exit']==0 and receipt['tier']=='COMPONENT_CLIENT' and receipt['facts_tier']=='SYNTHETIC_CONTRACT','no completed actual C client transport')
     check(receipt['campaign_sha256']==digest(CAMPAIGN)==CAMPAIGN_SHA256,'frozen client schedule changed')
     check(receipt['jar_sha256']==digest(JAR),'native client campaign used another release')
+    check(digest(output/'requested-server.properties')==receipt['requested_server_properties_sha256'],'declared native world configuration changed')
+    properties=output/'raw/server/server.properties';check(receipt['world_seed']==20261027 and digest(properties)==receipt['server_properties_sha256'],'native world fixture configuration changed')
+    values=dict(line.split('=',1) for line in properties.read_text().splitlines() if line and not line.startswith('#'))
+    check(values['level-seed']=='20261027' and values['level-name']=='C06Component' and values['server-ip']=='127.0.0.1' and values['server-port']=='25651','isolated seeded native fixture required')
     check(receipt['fixture_sha256']==digest(output.parent/'native/chat-fixture.jar'),'native fixture differs from exact compiler gate')
     check(receipt['launcher_sha256']==digest(ROOT/'e2e/launch.py') and receipt['owned_launcher_sha256']==digest(HERE/'native/launch_conversation.py'),'existing launcher changed')
     check(len(receipt['processes'])==3 and all(p['exit']==0 for p in receipt['processes']),'server and two real client launcher exits required')
