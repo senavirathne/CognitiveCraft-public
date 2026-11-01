@@ -3,7 +3,7 @@
   "campaign": "parallel-c-cumulative-docker-v2",
   "contract_sha256": "e1e97de64c8c8934d51b47bba143a1fccb49e9fedb8882380fc5cdd3fe008cb3",
   "docs_candidate_sha": "3862aa71d259c6eab10e57d956ea3cc35a664f5c",
-  "nonce": "c06-cumulative-real-clients-20261101-v2",
+  "nonce": "c06-cumulative-real-clients-20261101-v3",
   "purpose": "infrastructure-recovery",
-  "reason": "Correct the observed native guard startup race: require an explicit armed frame after both constructor hooks and before every client request. Preserve all frozen expectations and rerun every cumulative gate plus both real client campaigns. Also retain the declared isolated world seed/configuration."
+  "reason": "Native protocol/guard gates passed in run 41282154978. Screenshot review found startup toasts covering response text. Narrow only the test screen text column and use its accessible text as narration title, then repeat every unchanged cumulative case and both actual client campaigns."
 }

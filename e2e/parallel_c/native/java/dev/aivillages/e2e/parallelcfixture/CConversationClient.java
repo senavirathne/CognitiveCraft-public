@@ -70,7 +70,7 @@ public final class CConversationClient implements ClientModInitializer {
         final String caseId;
         final Map<InteractionPresenter.Action,Button> buttons=new EnumMap<>(InteractionPresenter.Action.class);
         boolean rendered;
-        ConversationScreen(Map<String,Object> view,String caseId){super(Component.literal("C conversation component"));this.view=view;this.caseId=caseId;}
+        ConversationScreen(Map<String,Object> view,String caseId){super(Component.literal((String)view.get("accessible_text")));this.view=view;this.caseId=caseId;}
         @Override protected void init(){
             buttons.clear();int y=110;
             for(Object value:(List<?>)view.get("choices")){
@@ -81,7 +81,7 @@ public final class CConversationClient implements ClientModInitializer {
         }
         @Override public void extractRenderState(GuiGraphicsExtractor graphics,int mouseX,int mouseY,float delta){
             super.extractRenderState(graphics,mouseX,mouseY,delta);
-            graphics.textWithWordWrap(font,Component.literal((String)view.get("accessible_text")),20,20,width-40,0xffffffff);
+            graphics.textWithWordWrap(font,Component.literal((String)view.get("accessible_text")),20,20,Math.min(150,width-40),0xffffffff);
             if(!rendered){rendered=true;event("native-ui-rendered",Map.of("case_id",caseId,"message_id",view.get("message_id"),"generation",view.get("generation"),"text",view.get("text"),"accessible_text",view.get("accessible_text"),"native_player",Minecraft.getInstance().player.getUUID().toString(),"screen",getClass().getName()));}
         }
         @Override public boolean isPauseScreen(){return false;}
