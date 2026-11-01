@@ -23,6 +23,15 @@ APIS = [
      "baseline_path": "e2e/client/java/dev/aivillages/e2e/mixin/PacketTraceMixin.java", "baseline_verified": True},
     {"class": "net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents", "symbol": "END_CLIENT_TICK",
      "baseline_path": "e2e/client/java/dev/aivillages/e2e/ClientDriver.java", "baseline_verified": True},
+    {"class":"net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry","symbol":"serverboundPlay()","baseline_path":"C06 pinned Fabric API 6.3.8+fcdff87f5d sources","baseline_verified":False},
+    {"class":"net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry","symbol":"clientboundPlay()","baseline_path":"C06 pinned Fabric API 6.3.8+fcdff87f5d sources","baseline_verified":False},
+    {"class":"net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking","symbol":"registerGlobalReceiver(","baseline_path":"C06 pinned networking API","baseline_verified":False},
+    {"class":"net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking","symbol":"registerGlobalReceiver(","baseline_path":"C06 pinned networking API","baseline_verified":False},
+    {"class":"net.minecraft.client.gui.components.Button","symbol":"onPress(net.minecraft.client.input.InputWithModifiers)","baseline_path":"C06 exact Minecraft 26.3 SDK bytecode discovery","baseline_verified":False},
+    {"class":"net.minecraft.client.gui.screens.Screen","symbol":"extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor","baseline_path":"C06 exact Minecraft 26.3 SDK bytecode discovery","baseline_verified":False},
+    {"class":"net.minecraft.client.player.LocalPlayer","symbol":"sendSystemMessage(net.minecraft.network.chat.Component)","baseline_path":"C06 exact Minecraft 26.3 SDK bytecode discovery","baseline_verified":False},
+    {"class":"dev.aivillages.core.kernel.JobLifecycleStore","symbol":" create(","baseline_path":"core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java","baseline_verified":True},
+    {"class":"dev.aivillages.core.kernel.SurvivalGateway","symbol":" start(","baseline_path":"core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java","baseline_verified":True},
 ]
 
 

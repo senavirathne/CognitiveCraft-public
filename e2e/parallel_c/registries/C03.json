@@ -667,7 +667,16 @@
     "test_selectors.SelectorTests#test_lost_container_type_or_changed_owner_role_is_rejected",
     "test_selectors.SelectorTests#test_duplicate_partial_or_summary_only_frames_cannot_qualify",
     "test_selectors.SelectorTests#test_simulated_native_credit_is_rejected",
-    "test_selectors.SelectorTests#test_qualified_c04_pin_is_required_for_advancement"
+    "test_selectors.SelectorTests#test_qualified_c04_pin_is_required_for_advancement",
+    "test_presentation_oracle.PresentationOracleTests#test_frozen_two_client_campaign_has_eighteen_distinct_declared_steps",
+    "test_presentation_oracle.PresentationOracleTests#test_swapped_native_principal_cannot_receive_a_private_view",
+    "test_presentation_oracle.PresentationOracleTests#test_mutated_shortage_or_invented_completion_is_rejected",
+    "test_presentation_oracle.PresentationOracleTests#test_raw_uuid_or_lost_accessibility_is_rejected",
+    "test_presentation_oracle.PresentationOracleTests#test_redacted_denial_cannot_carry_a_root_or_private_label",
+    "test_presentation_oracle.PresentationOracleTests#test_any_actual_job_or_world_call_fails_the_guard_oracle",
+    "test_presentation_oracle.PresentationOracleTests#test_missing_native_hooks_or_shutdown_evidence_cannot_pass",
+    "test_presentation_oracle.PresentationOracleTests#test_a_pass_summary_without_actual_client_processes_cannot_qualify",
+    "test_presentation_oracle.PresentationOracleTests#test_unqualified_c05_cannot_be_used_as_a_presenter_predecessor"
   ],
   "regression_scope": "Every implemented C00-C04 case is required while qualifying this component; no later stage is implicitly qualified.",
   "regression_unit_cases": [
@@ -985,6 +994,141 @@
       "expected": "PASS",
       "id": "C05-U02:observationAndClarificationChoicesAreImmutableAndBounded",
       "xml_id": "dev.aivillages.core.kernel.interaction.ReferenceClarificationTest#observationAndClarificationChoicesAreImmutableAndBounded()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:waitingCheckingDeniedAndVerifiedCompletionHaveDistinctStatusesAndText",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#waitingCheckingDeniedAndVerifiedCompletionHaveDistinctStatusesAndText()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:authorizedWaitingShowsExactQuantityAndVisibleChest",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#authorizedWaitingShowsExactQuantityAndVisibleChest()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:deniedProjectionDoesNotConfirmPrivateChestRootOrQuestion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#deniedProjectionDoesNotConfirmPrivateChestRootOrQuestion()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:crossPrincipalWorldAndCitizenReferencesCannotDiscloseEvenWithAnAllowingPort",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#crossPrincipalWorldAndCitizenReferencesCannotDiscloseEvenWithAnAllowingPort()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:aClaimOrDefaultTerminalVerifierCannotProduceCompletion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#aClaimOrDefaultTerminalVerifierCannotProduceCompletion()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:exactAAuthenticatedTerminalReferenceCanProduceDefinitiveCompletion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#exactAAuthenticatedTerminalReferenceCanProduceDefinitiveCompletion()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:aSwappedTerminalRootOrBudgetCannotBeAuthenticatedByAnUnrelatedReceipt",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#aSwappedTerminalRootOrBudgetCannotBeAuthenticatedByAnUnrelatedReceipt()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:lateAuthenticatedSettlementCanDisplayWhileAnExpiredWaitCannotContinue",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#lateAuthenticatedSettlementCanDisplayWhileAnExpiredWaitCannotContinue()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:staleFutureAndMismatchedEvidenceBecomesUnknownOrDenied",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#staleFutureAndMismatchedEvidenceBecomesUnknownOrDenied()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:falseDoneShowsCheckingWithoutCreditingAnyActivity",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#falseDoneShowsCheckingWithoutCreditingAnyActivity()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:accidentalUuidInLabelsIsRedactedAndPrivateRawIdsNeverAppearInText",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#accidentalUuidInLabelsIsRedactedAndPrivateRawIdsNeverAppearInText()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:detailsRequireAnExplicitRequestAndAuthorizedEvidence",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#detailsRequireAnExplicitRequestAndAuthorizedEvidence()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:modelTextCannotInventCommandsNumbersPrivateLabelsOrCompletion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#modelTextCannotInventCommandsNumbersPrivateLabelsOrCompletion()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:localeKeyAndEnglishFallbackAreStablePlatformNeutralValues",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#localeKeyAndEnglishFallbackAreStablePlatformNeutralValues()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:accessibleTextRepeatsStatusAndEveryChoiceWithoutColorOrClickDependence",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#accessibleTextRepeatsStatusAndEveryChoiceWithoutColorOrClickDependence()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:callbacksAreTypedProposalsAndExposeNoExecutableModelString",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#callbacksAreTypedProposalsAndExposeNoExecutableModelString()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:duplicateCallbackEventDoesNotProduceASecondProposal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#duplicateCallbackEventDoesNotProduceASecondProposal()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:repeatedChoiceWithAnotherEventIdStillDoesNotProduceASecondProposal",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#repeatedChoiceWithAnotherEventIdStillDoesNotProduceASecondProposal()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:anotherPrincipalOrSessionCannotUseAVisibleCallback",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#anotherPrincipalOrSessionCannotUseAVisibleCallback()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:oldGenerationAndMessageIdentityAreFenced",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#oldGenerationAndMessageIdentityAreFenced()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:expiryAndClockRollbackSuppressCallbacksWithAnExactBoundaryControl",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#expiryAndClockRollbackSuppressCallbacksWithAnExactBoundaryControl()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:missingRevokedOrThrowingAuthorityCannotDeliverCallbacks",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#missingRevokedOrThrowingAuthorityCannotDeliverCallbacks()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:rejoinRetainsOutputIdentityButFencesTheOldSessionAndAllowsACurrentControl",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#rejoinRetainsOutputIdentityButFencesTheOldSessionAndAllowsACurrentControl()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:rejoinCannotChangeRootCallerQuestionOrReuseAnOldGeneration",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#rejoinCannotChangeRootCallerQuestionOrReuseAnOldGeneration()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:forgetIsOnlyAProposalAndCannotEraseRootBudgetOrQuestion",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#forgetIsOnlyAProposalAndCannotEraseRootBudgetOrQuestion()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:startAndCorrectionNeedConfirmationAndCancellationWaitsForItsOwner",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#startAndCorrectionNeedConfirmationAndCancellationWaitsForItsOwner()"
+    },
+    {
+      "expected": "PASS",
+      "id": "C06-U01:viewChoicesAndReplayLedgersAreImmutableAndBounded",
+      "xml_id": "dev.aivillages.core.kernel.interaction.InteractionPresenterTest#viewChoicesAndReplayLedgersAreImmutableAndBounded()"
     }
   ],
   "schedule": {

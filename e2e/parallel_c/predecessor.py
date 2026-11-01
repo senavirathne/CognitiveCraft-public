@@ -34,7 +34,7 @@ def configuration(stage):
     if stage == "C00": return PINS, FILES, 2371, 29
     if stage == "C01": return C01_PINS, C01_FILES, 2393, 40
     path = HERE / "predecessors" / (stage + ".json")
-    check(stage in ("C02", "C03", "C04") and path.is_file(), "predecessor stage has no qualified pin")
+    check(stage in ("C02", "C03", "C04", "C05") and path.is_file(), "predecessor stage has no qualified pin")
     frozen = read(path)
     check(set(frozen) == {"stage", "pins", "files", "unit", "python"} and frozen["stage"] == stage, "predecessor lock shape")
     pins = frozen["pins"]
@@ -67,6 +67,9 @@ def validate_records(manifest, oracle, stage="C00"):
     if pins.get("workflow_run") is not None:
         check(oracle["genuine_provider_executed"] == pins["genuine_provider_executed"]
               and oracle["dialogue_sequences_executed"] == pins["dialogue_sequences_executed"], "missing required predecessor regressions")
+
+    if "selector_variations_executed" in pins:
+        check(manifest.get("selector_variations_executed") == oracle.get("selector_variations_executed") == pins["selector_variations_executed"], "missing predecessor selector campaign")
 
 
 def verify_predecessor(docs_root, stage="C00"):

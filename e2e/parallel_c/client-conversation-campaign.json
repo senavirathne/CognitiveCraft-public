@@ -1,0 +1,187 @@
+{
+  "cases": [
+    {
+      "id": "C06-CL01",
+      "seed": 20261027,
+      "steps": [
+        {
+          "expected_status": "CHAT",
+          "expected_text": "Hello.",
+          "fixture": "CHAT",
+          "id": "A-chat",
+          "operation": "MESSAGE",
+          "player": "CPlayerA",
+          "text": "hello"
+        },
+        {
+          "expected_status": "CHAT",
+          "expected_text": "Hello.",
+          "fixture": "CHAT",
+          "id": "B-chat",
+          "operation": "MESSAGE",
+          "player": "CPlayerB",
+          "text": "hello"
+        },
+        {
+          "expected_status": "WAITING",
+          "expected_text": "Waiting for 2 oak planks in Ada's chest.",
+          "fixture": "WAITING",
+          "id": "A-wait",
+          "operation": "MESSAGE",
+          "player": "CPlayerA",
+          "text": "status"
+        },
+        {
+          "expected_status": "WAITING",
+          "expected_text": "Waiting for 3 wheat in Bob's barrel.",
+          "fixture": "WAITING",
+          "id": "B-wait",
+          "operation": "MESSAGE",
+          "player": "CPlayerB",
+          "text": "status"
+        },
+        {
+          "expected_status": "CHECKING",
+          "expected_text": "I can check again. Your claim does not confirm completion.",
+          "fixture": "CHECKING",
+          "id": "A-claim",
+          "operation": "MESSAGE",
+          "player": "CPlayerA",
+          "text": "done"
+        },
+        {
+          "expected_status": "DENIED",
+          "expected_text": "I cannot share details for this activity.",
+          "fixture": "DENIED",
+          "id": "B-denied",
+          "operation": "MESSAGE",
+          "player": "CPlayerB",
+          "text": "status"
+        },
+        {
+          "expected_status": "CHECKING",
+          "expected_text": "I can check again. Your claim does not confirm completion.",
+          "fixture": "UNVERIFIED_COMPLETION",
+          "id": "A-unverified",
+          "operation": "MESSAGE",
+          "player": "CPlayerA",
+          "text": "is it completed?"
+        },
+        {
+          "expected_status": "COMPLETED",
+          "expected_text": "Completed. The activity owner verified the result.",
+          "facts_tier": "SYNTHETIC_CONTRACT_ONLY",
+          "fixture": "VERIFIED_COMPLETION",
+          "id": "B-verified-synthetic",
+          "operation": "MESSAGE",
+          "player": "CPlayerB",
+          "text": "status"
+        },
+        {
+          "expected_status": "CLARIFICATION",
+          "expected_text": "Please clarify the intended target before continuing.",
+          "fixture": "CLARIFICATION",
+          "id": "A-clarify",
+          "operation": "MESSAGE",
+          "player": "CPlayerA",
+          "text": "which chest?"
+        }
+      ],
+      "tier": "COMPONENT_CLIENT"
+    },
+    {
+      "id": "C06-CL02",
+      "seed": 20261028,
+      "steps": [
+        {
+          "expected_status": "WAITING",
+          "expected_text": "Waiting for 2 oak planks in Ada's chest.",
+          "fixture": "WAITING",
+          "id": "A-callback-view",
+          "operation": "MESSAGE",
+          "player": "CPlayerA",
+          "text": "status"
+        },
+        {
+          "action": "CHECK_AGAIN",
+          "event": "check-once",
+          "expected": "PROPOSED",
+          "id": "A-click",
+          "operation": "CLICK",
+          "player": "CPlayerA",
+          "view": "A-callback-view"
+        },
+        {
+          "action": "CHECK_AGAIN",
+          "event": "check-once",
+          "expected": "DUPLICATE",
+          "id": "A-duplicate-click",
+          "operation": "CLICK",
+          "player": "CPlayerA",
+          "view": "A-callback-view"
+        },
+        {
+          "id": "A-disconnect",
+          "operation": "DISCONNECT",
+          "player": "CPlayerA"
+        },
+        {
+          "expected_status": "WAITING",
+          "expected_text": "Waiting for 3 wheat in Bob's barrel.",
+          "fixture": "WAITING",
+          "id": "B-during-disconnect",
+          "operation": "MESSAGE",
+          "player": "CPlayerB",
+          "text": "status"
+        },
+        {
+          "expected": "SAME_MESSAGE_ID_NEW_SESSION_GENERATION",
+          "id": "A-rejoin",
+          "operation": "REJOIN",
+          "player": "CPlayerA",
+          "view": "A-callback-view"
+        },
+        {
+          "action": "CANCEL",
+          "event": "stale-session",
+          "expected": "STALE",
+          "id": "A-old-session",
+          "operation": "RAW_CALLBACK",
+          "player": "CPlayerA",
+          "view": "A-callback-view"
+        },
+        {
+          "action": "CANCEL",
+          "event": "current-cancel",
+          "expected": "PROPOSED",
+          "id": "A-fresh-callback",
+          "operation": "CLICK",
+          "player": "CPlayerA",
+          "view": "A-rejoin"
+        },
+        {
+          "action": "CANCEL",
+          "event": "different-event-same-action",
+          "expected": "DUPLICATE",
+          "id": "A-duplicate-action",
+          "operation": "CLICK",
+          "player": "CPlayerA",
+          "view": "A-rejoin"
+        }
+      ],
+      "tier": "COMPONENT_CLIENT"
+    }
+  ],
+  "clients": [
+    "CPlayerA",
+    "CPlayerB"
+  ],
+  "facts_tier": "SYNTHETIC_CONTRACT",
+  "job_calls_expected": 0,
+  "production_enabled": false,
+  "qualification_tier": "COMPONENT_CLIENT",
+  "schema": "cc.c.client-campaign/1",
+  "seed": 20261027,
+  "stage": "C06",
+  "world_operations_expected": 0
+}
