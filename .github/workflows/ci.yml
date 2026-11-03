@@ -16,7 +16,7 @@ jobs:
   verify:
     name: Java 25 / Fabric verification
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ github.ref == 'refs/heads/qualification/primitive-generalization-pg00' && 75 || 30 }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -818,3 +818,76 @@ jobs:
             fabric/build/hardkill-gametest-run/gametest-results.xml
             fabric/build/hardkill-gametest-run/logs/
             fabric/build/hardkill-gametest-run/crash-reports/
+      - name: PG00 compare all v1 signatures and run the independent oracle controls
+        if: ${{ !cancelled() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' }}
+        run: |
+          set -euo pipefail
+          q=qualification/primitive-generalization
+          mkdir -p build/pg00
+          java -cp fabric/build/libs/ai-villages-0.1.0.jar "$q/RegistrySnapshot.java" "$q/legacy-51.tsv" build/pg00/observed-51.tsv
+          python3 -m unittest discover -s "$q" -p 'test_*.py' -v
+          python3 -m unittest discover -s e2e -p 'test_*.py'
+      - name: PG00 reuse the existing hash-verified Minecraft SDK cache
+        if: ${{ !cancelled() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: PG00 run existing connected-client and physical legacy regressions in Docker Compose
+        if: ${{ !cancelled() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' }}
+        run: |
+          set -euo pipefail
+          python3 e2e/runtime.py prepare
+          python3 e2e/runtime.py compile
+          python3 qualification/primitive-generalization/run_baseline.py
+      - name: PG00 independently verify native frames, player observations and physical bread
+        if: ${{ !cancelled() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' }}
+        run: |
+          python3 qualification/primitive-generalization/verify_evidence.py --root build/e2e/pg00 --source "$GITHUB_SHA" --jar fabric/build/libs/ai-villages-0.1.0.jar --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --output build/pg00/independent.json
+      - name: PG00 retain original native evidence and the exact binary
+        if: ${{ always() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg00-native-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            build/pg00/
+            build/e2e/pg00/metadata.json
+            build/e2e/pg00/results.json
+            build/e2e/pg00/junit.xml
+            build/e2e/pg00/configuration-manifest.json
+            build/e2e/pg00/screenshots.json
+            build/e2e/pg00/supervisor.jsonl
+            build/e2e/pg00/server/*.json*
+            build/e2e/pg00/server/stdout.log
+            build/e2e/pg00/clients/*/*.json*
+            build/e2e/pg00/clients/*/stdout.log
+            build/e2e/pg00/clients/*/screenshots/*.png
+            build/e2e/pg00/cases/**
+            build/e2e-sdk/integrity.json
+            fabric/build/libs/ai-villages-0.1.0.jar
+            fabric/build/release-audit.json
+            core/build/test-results/test/TEST-*.xml
+            providers/build/test-results/test/TEST-*.xml
+            fabric/build/test-results/test/TEST-*.xml
+      - name: PG00 expose two original frames for read-only visual review
+        if: ${{ !cancelled() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' && hashFiles('build/pg00/independent.json') != '' }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json
+          from pathlib import Path
+          root = Path('build/e2e/pg00')
+          captures = json.loads((root / 'screenshots.json').read_text())['captures']
+          print('PG00_ORACLE', (Path('build/pg00/independent.json').read_text()).replace('\n', ' '))
+          for family, prefix in [('E2E-CONN-001', 'named-citizen-after-reconnect'), ('E2E-LEGACY-001', 'synchronized-container-')]:
+              frame = next(c for c in captures if c['family'] == family and c['checkpoint'].startswith(prefix))
+              data = (root / frame['path']).read_bytes()
+              assert hashlib.sha256(data).hexdigest() == frame['sha256']
+              encoded = base64.b64encode(data).decode('ascii')
+              print('PG00_FRAME_META', json.dumps(frame, separators=(',', ':')))
+              for off in range(0, len(encoded), 3072):
+                  print('PG00_FRAME_DATA', family, off, encoded[off:off+3072])
+          PY
