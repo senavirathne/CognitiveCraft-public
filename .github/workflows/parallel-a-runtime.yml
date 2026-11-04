@@ -19,7 +19,7 @@ jobs:
     env:
       JAVA_TOOL_OPTIONS: ""
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v6
         with:
@@ -285,6 +285,47 @@ jobs:
         if: >-
           ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
         run: python3 e2e/parallel_a/profile_native.py --root build/parallel-a/native
+      - name: All twelve original native H P D recovery scenarios on one connected track
+        id: a06_native_recovery
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+        run: |
+          python3 tools/needle/install.py build/needle
+          python3 e2e/parallel_a/recovery_native.py --root build/parallel-a/native-a06-recovery
+      - name: Preserve a failed prerequisite for all twelve required originals
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') && steps.a06_native_recovery.outcome == 'skipped' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('build/parallel-a/native-a06-recovery');root.mkdir(parents=True,exist_ok=True)
+          cases=json.loads(Path('e2e/parallel_a/a06_original_cases.json').read_text())['cases']
+          value={'schema':1,'status':'FAIL_REQUIRED_PREREQUISITE','a06Qualified':False,'requiredOriginalCases':12,'originalOwnerSettlements':0,
+                 'plannedCases':[c['id'] for c in cases],'cases':[{'originalCase':c,'status':'NOT_EXECUTED_REQUIRED'} for c in cases],
+                 'prerequisites':{'modules':'${{ steps.a06_modules.outcome }}','nativePreparation':'${{ steps.a06_prepare.outcome }}'}}
+          (root/'a06-original-results.json').write_text(json.dumps(value,indent=2)+'\n')
+          raise SystemExit('All twelve native scenarios remain required; prerequisite failed')
+          PY
+      - name: Independently inspect every saved original and complete module results in Docker
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' && steps.a06_native_recovery.outcome != 'skipped' }}
+        run: |
+          docker pull python:3.12-slim
+          root="$PWD/build/parallel-a/source-audit/a06-current-recovery-review"
+          mkdir -p "$root"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_recovery_current.py --root build/parallel-a/native-a06-recovery --repo "$PWD" --source "${{ github.sha }}" --out "$root"
+          docker image inspect --format '{{.Id}}' python:3.12-slim > "$root/python-image-id.txt"
+      - name: Retain all twelve native worlds original owners and failed assertions
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-recovery-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/native-a06-recovery/
       - name: Retain contract results and exact built mod
         if: always()
         uses: actions/upload-artifact@v4

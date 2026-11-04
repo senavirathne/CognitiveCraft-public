@@ -140,10 +140,15 @@ public final class NativePickup {
         Live live=delta(intent,source,actor,remaining);if(live==Live.COMPLETE && receipt==null)live=Live.UNRECEIPTED_EFFECT;
         return new Result(intent.digest(),live,source,actor,remaining,receipt,usage,failure);
     }
-    public static List<Member> members(Intent intent) {
+    static boolean extendsTrail(Trail actual,Trail original) {
+        return actual.entity().equals(original.entity()) && actual.incarnation().equals(original.incarnation())
+                && actual.current().dimension().equals(original.current().dimension()) && actual.chunks().containsAll(original.chunks());
+    }
+    public static List<Member> members(Intent intent){return members(intent.actorTrail(),intent.dropTrail());}
+    private static List<Member> members(Trail actor,Trail drop) {
         var result=new ArrayList<Member>();
-        intent.actorTrail().chunks().forEach(c->result.add(new Member(Role.ACTOR,intent.actorTrail().entity(),c)));
-        intent.dropTrail().chunks().forEach(c->result.add(new Member(Role.DROP,intent.dropTrail().entity(),c)));
+        actor.chunks().forEach(c->result.add(new Member(Role.ACTOR,actor.entity(),c)));
+        drop.chunks().forEach(c->result.add(new Member(Role.DROP,drop.entity(),c)));
         return List.copyOf(result);
     }
     public static Reconciliation classify(Entry entry,Observation observation) {
@@ -156,16 +161,17 @@ public final class NativePickup {
         if(!actor.participant().equals(r.actor()) || !source.source().equals(r.source()) || !expected.equals(actor.marker()) || !expected.equals(source.marker()))
             return Reconciliation.TORN_SAVED_COHORT;
         var trail=observation.actorTrail();
-        if(trail==null || !trail.restoredFromNativeSave() || !expected.equals(trail.marker()) || !trail.trail().equals(entry.intent().actorTrail()))
+        if(trail==null || !trail.restoredFromNativeSave() || !expected.equals(trail.marker()) || !extendsTrail(trail.trail(),entry.intent().actorTrail()))
             return Reconciliation.UNPROVEN;
         if(r.remaining()!=null) {
             var drop=observation.drop();var dt=observation.dropTrail();
             if(drop==null)return Reconciliation.WAIT_WORLD;
             if(!drop.restoredFromNativeSave() || !drop.drop().equals(r.remaining()) || !expected.equals(drop.marker())
-                    || dt==null || !dt.restoredFromNativeSave() || !dt.trail().equals(entry.intent().dropTrail()) || !expected.equals(dt.marker()))return Reconciliation.UNPROVEN;
+                    || dt==null || !dt.restoredFromNativeSave() || !extendsTrail(dt.trail(),entry.intent().dropTrail()) || !expected.equals(dt.marker()))return Reconciliation.UNPROVEN;
         }else if(observation.drop()!=null)return Reconciliation.TORN_SAVED_COHORT;
-        List<Member> references=members(entry.intent());var witnesses=observation.memberships();
-        if(witnesses.size()<references.size())return Reconciliation.WAIT_WORLD;
+        var observedDrop=r.remaining()!=null?observation.dropTrail().trail():entry.intent().dropTrail();
+        List<Member> references=members(trail.trail(),observedDrop);var witnesses=observation.memberships();
+        if(witnesses.size()<references.size())return trail.trail().equals(entry.intent().actorTrail()) && observedDrop.equals(entry.intent().dropTrail())?Reconciliation.WAIT_WORLD:Reconciliation.UNPROVEN;
         if(witnesses.size()!=references.size() || witnesses.stream().map(MembershipWitness::member).distinct().count()!=witnesses.size())return Reconciliation.UNPROVEN;
         var indexed=new HashMap<Member,MembershipWitness>();for(var w:witnesses)indexed.put(w.member(),w);
         var frames=new HashMap<Chunk,String>();
@@ -173,8 +179,8 @@ public final class NativePickup {
             var w=indexed.get(ref);if(w==null)return Reconciliation.UNPROVEN;
             String frame=frames.putIfAbsent(ref.chunk(),w.frameDigest());
             if(frame!=null && !frame.equals(w.frameDigest()))return Reconciliation.TORN_SAVED_COHORT;
-            boolean present=ref.role()==Role.ACTOR?ref.chunk().equals(entry.intent().actorTrail().current()):
-                    r.remaining()!=null && ref.chunk().equals(entry.intent().dropTrail().current());
+            boolean present=ref.role()==Role.ACTOR?ref.chunk().equals(trail.trail().current()):
+                    r.remaining()!=null && ref.chunk().equals(observedDrop.current());
             UUID incarnation=ref.role()==Role.ACTOR?r.actor().incarnation():entry.intent().harvest().result().drops().getFirst().incarnation();
             long revision=ref.role()==Role.ACTOR?r.actor().revision():r.remaining()==null?
                     entry.intent().harvest().result().drops().getFirst().revision():r.remaining().revision();

@@ -19,12 +19,12 @@ public abstract class HarvestDropParticipantMixin implements DepositParticipant 
     }
     @Inject(method="addAdditionalSaveData",at=@At("TAIL"))
     private void cognitivecraft$saveHarvestDrop(ValueOutput output,CallbackInfo ci) {
-        if(cognitivecraft$harvestDrop!=null)cognitivecraft$harvestDrop.save(output);
+        if(cognitivecraft$harvestDrop!=null){cognitivecraft$harvestDrop.save(output);((EntityMembershipParticipant)this).cognitivecraft$membershipData().save(output,cognitivecraft$harvestDrop);}
     }
     @Inject(method="readAdditionalSaveData",at=@At("TAIL"))
     private void cognitivecraft$loadHarvestDrop(ValueInput input,CallbackInfo ci) {
         var state=cognitivecraft$depositParticipant();state.load(input,Kind.ACTOR);
-        if(state.active() && state.valid())state.trackLoaded(List.of(((ItemEntity)(Object)this).getItem()));
+        if(state.active() && state.valid()){state.trackLoaded(List.of(((ItemEntity)(Object)this).getItem()));((EntityMembershipParticipant)this).cognitivecraft$membershipData().load(input,state);}
     }
     @Inject(method="setItem",at=@At("HEAD"))
     private void cognitivecraft$dropStackChanged(ItemStack stack,CallbackInfo ci) {

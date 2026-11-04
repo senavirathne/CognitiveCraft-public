@@ -19,6 +19,8 @@ public final class EntityStorageEvidence {
     private final Map<ChunkPos,List<EntityChunkMembershipState.Row>> membership=new HashMap<>();
     private final Set<ChunkPos> retained=ConcurrentHashMap.newKeySet();
     private final Map<ChunkPos,CompletableFuture<Void>> writes=new HashMap<>();
+    private final Map<ChunkPos,Long> revisions=new ConcurrentHashMap<>();
+    public long revision(ChunkPos pos){return revisions.getOrDefault(pos,0L);}
     private volatile boolean overflow;private volatile Throwable failure;private int rows,pendingWrites;
     public EntityStorageEvidence(Access access,String dimension){this(access,dimension,ForkJoinPool.commonPool());}
     EntityStorageEvidence(Access access,String dimension,Executor worker){this.access=Objects.requireNonNull(access);this.dimension=Objects.requireNonNull(dimension);metadataWorker=Objects.requireNonNull(worker);}
@@ -69,7 +71,7 @@ public final class EntityStorageEvidence {
                 CompoundTag merged=EntityChunkRecord.merge(previous.orElse(null),root.get(),dimension,pos,wanted,members);
                 if(EntityChunkRecord.hasMetadata(merged))retain(pos);return access.write(pos,merged);
             },metadataWorker);
-            writes.put(pos,next);next.whenComplete((ignored,error)->{synchronized(writes){pendingWrites--;if(error!=null)failure=error;}});return next;
+            writes.put(pos,next);next.whenComplete((ignored,error)->{synchronized(writes){pendingWrites--;if(error!=null)failure=error;else if(retained.contains(pos))revisions.merge(pos,1L,Math::addExact);}});return next;
         }
     }
     /** Only Minecraft's already blocking flush/close boundary waits for metadata I/O. */

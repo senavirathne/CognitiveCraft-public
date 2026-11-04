@@ -366,11 +366,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 : SurvivalGateway.WorldAccess.super.approachResource(actor,target,maximum,item);
     }
     @Override public Movement approachResourceDrop(ActorRef actor,UUID id,int expected,int maximum,ResourceDelivery.ItemIdentity item) {
-        if(!LogAcquisition.log(item))
+        if(!LogAcquisition.log(item) && !item.equals(ResourceDelivery.WHEAT))
             return SurvivalGateway.WorldAccess.super.approachResourceDrop(actor,id,expected,maximum,item);
         Villager v=villager(actor);Entity entity=level.getEntity(id);
         if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive()
-                || !defaultLog(drop.getItem(),item) || drop.getItem().getCount()!=expected)
+                || !(item.equals(ResourceDelivery.WHEAT)?drop.getItem().is(Items.WHEAT) && ItemStack.isSameItemSameComponents(drop.getItem(),new ItemStack(Items.WHEAT)):defaultLog(drop.getItem(),item))
+                || drop.getItem().getCount()!=expected)
             return new Movement(false,true,0,0);
         BlockPos actual=drop.blockPosition();
         if(!loaded(actual) || !level.mayInteract(v,actual))return new Movement(false,true,0,0);
@@ -770,6 +771,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos p=drop.blockPosition();
         return new ItemDropState(loaded(p) ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                 new Cell(dimension(),p.getX(),p.getY(),p.getZ()),defaultLog(drop.getItem(),item) ? drop.getItem().getCount() : 0);
+    }
+    @Override public boolean resourcePickupDelayed(ActorRef actor,UUID id,int expected,ResourceDelivery.ItemIdentity item) {
+        var v=villager(actor);var entity=level.getEntity(id);
+        if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive() || !loaded(drop.blockPosition()) || drop.getItem().getCount()!=expected)return false;
+        boolean matching=item.equals(ResourceDelivery.WHEAT)?drop.getItem().is(Items.WHEAT):LogAcquisition.log(item)&&defaultLog(drop.getItem(),item);
+        return matching && drop.hasPickUpDelay();
     }
     @Override public ItemPickup resourcePickup(ActorRef actor,UUID id,int expected,ResourceDelivery.ItemIdentity item) {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourcePickup(actor,id,expected,item);

@@ -239,6 +239,7 @@ public final class SurvivalGateway implements GatewayPort {
             return new ItemDropState(item.equals(ResourceDelivery.WHEAT) ? d.status() : ObservationStatus.UNKNOWN,
                     d.cell(),item.equals(ResourceDelivery.WHEAT) ? d.wheat() : 0);
         }
+        default boolean resourcePickupDelayed(ActorRef actor,UUID drop,int expected,ResourceDelivery.ItemIdentity item){return false;}
         default ItemPickup resourcePickup(ActorRef actor,UUID drop,int expected,ResourceDelivery.ItemIdentity item) {
             if (!item.equals(ResourceDelivery.WHEAT)) return new ItemPickup(0,expected,Reason.UNSUPPORTED_PRIMITIVE);
             Pickup p = pickup(actor,drop,expected); return new ItemPickup(p.collectedWheat(),p.dropRemaining(),p.reason());
@@ -1087,6 +1088,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         // The crop's source was verified at harvest. A dropped entity may drift afterward:
         // its current loaded cell, not its old crop cell, must pass the effect-time hook.
+        if(world.resourcePickupDelayed(run.actor,drop.getKey(),drop.getValue(),run.item))return;
         if(pickupProtocol!=null && LogAcquisition.log(run.item)){durablePickup(action,target,batch,drop);return;}
         Reason pickupPermission = world.permit(run.request, Effect.PICKUP, target);
         if (pickupPermission != null) { finish(action, pickupPermission, null, null); return; }

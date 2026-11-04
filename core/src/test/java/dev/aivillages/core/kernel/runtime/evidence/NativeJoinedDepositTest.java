@@ -87,6 +87,16 @@ final class NativeJoinedDepositTest {
         assertEquals(verified,decode(encode(verified)));assertEquals(1,intent.actor().slots().stream().mapToLong(Slot::count).sum());
         assertTrue(intent.chest().slots().stream().allMatch(slot->slot.count()==0));
     }
+    @Test void savedActorMovementAfterDepositRequiresAllDepartureAndArrivalFrames() {
+        var e=entry();var o=saved(e);var old=o.actorTrail().trail();var next=new NativePickup.Chunk(old.current().dimension(),2,0);
+        var path=new ArrayList<>(old.chunks());path.add(next);var trail=new NativePickup.Trail(old.entity(),old.incarnation(),path,next);
+        var rows=new ArrayList<NativePickup.MembershipWitness>();
+        for(var w:o.memberships())rows.add(w.member().role()==NativePickup.Role.ACTOR?NativePickupTest.witness(w,false,false,w.frameDigest()):w);
+        rows.add(new NativePickup.MembershipWitness(new NativePickup.Member(NativePickup.Role.ACTOR,old.entity(),next),old.incarnation(),e.result().actor().revision(),marker(e),true,true,true,NativeDeposit.sha(next.toString())));
+        var moved=new NativePickup.Observation(o.actor(),o.source(),null,new NativePickup.TrailWitness(trail,marker(e),true),o.dropTrail(),rows);
+        assertEquals(Reconciliation.SAVED_COMPLETE,classify(e,o.actor(),chest(e),moved));
+        assertNotEquals(Reconciliation.SAVED_COMPLETE,classify(e,o.actor(),chest(e),NativePickupTest.members(moved,rows.subList(1,rows.size()))));
+    }
     @Test void verificationPublicationWaitsForItsOwnDurableAcknowledgementAndNeverExecutes() {
         var e=entry();var o=saved(e);var pending=new CompletableFuture<DepositJournal.Snapshot>();var next=new DepositJournal.Snapshot[1];
         var port=new DepositEvidenceStore.NativePort() {

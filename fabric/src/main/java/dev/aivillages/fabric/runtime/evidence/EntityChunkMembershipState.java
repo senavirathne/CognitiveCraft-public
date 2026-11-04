@@ -36,6 +36,8 @@ public final class EntityChunkMembershipState {
     /** Called only with detached declarations made by the native producer's live lifetime. */
     public void record(Row row) {
         if(!valid)throw new IllegalStateException("Unsupported membership metadata");check(row);Row before=rows.get(row.key());
+        if(before!=null && row.marker().equals(before.marker()) && row.predecessor()==null && before.predecessor()!=null)
+            row=new Row(row.role(),row.trail(),row.revision(),row.marker(),row.present(),before.predecessor());
         if(before!=null && !before.equals(row)) {
             if(!row.trail().incarnation().equals(before.trail().incarnation()) || row.role()!=before.role()
                     || !row.trail().chunks().containsAll(before.trail().chunks()) || row.revision()<before.revision()

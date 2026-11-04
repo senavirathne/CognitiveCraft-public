@@ -5,4 +5,5 @@ import java.util.UUID;
 public interface EntityMembershipParticipant {
     EntityMembershipTrail cognitivecraft$beginMembership(UUID incarnation);
     EntityMembershipTrail cognitivecraft$membership();
+    EntityMembershipData cognitivecraft$membershipData();
 }

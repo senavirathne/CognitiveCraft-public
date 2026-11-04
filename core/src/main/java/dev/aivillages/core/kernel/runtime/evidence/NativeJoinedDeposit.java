@@ -47,10 +47,10 @@ public final class NativeJoinedDeposit {
                 || !o.source().source().equals(p.result().source()) || !expected.equals(o.actor().marker()) || !cohort.equals(o.source().marker())
                 || o.drop()!=null || o.actorTrail()==null || o.dropTrail()==null
                 || !o.actorTrail().restoredFromNativeSave() || !o.dropTrail().restoredFromNativeSave()
-                || !o.actorTrail().trail().equals(prefix.actorTrail()) || !o.dropTrail().trail().equals(p.intent().dropTrail())
+                || !NativePickup.extendsTrail(o.actorTrail().trail(),prefix.actorTrail()) || !o.dropTrail().trail().equals(p.intent().dropTrail())
                 || !cohort.equals(o.actorTrail().marker()) || !cohort.equals(o.dropTrail().marker()))return Reconciliation.UNPROVEN;
         var refs=new ArrayList<NativePickup.Member>();
-        prefix.actorTrail().chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.ACTOR,prefix.actorTrail().entity(),c)));
+        o.actorTrail().trail().chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.ACTOR,prefix.actorTrail().entity(),c)));
         p.intent().dropTrail().chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.DROP,p.intent().dropTrail().entity(),c)));
         if(o.memberships().size()<refs.size())return Reconciliation.WAIT_WORLD;
         if(o.memberships().size()!=refs.size())return Reconciliation.UNPROVEN;
@@ -59,7 +59,7 @@ public final class NativeJoinedDeposit {
         for(var ref:refs) {
             var row=rows.get(ref);if(row==null)return Reconciliation.UNPROVEN;
             var frame=frames.putIfAbsent(ref.chunk(),row.frameDigest());if(frame!=null&&!frame.equals(row.frameDigest()))return Reconciliation.TORN_PARTICIPANTS;
-            boolean isActor=ref.role()==NativePickup.Role.ACTOR;boolean present=isActor&&ref.chunk().equals(prefix.actorTrail().current());
+            boolean isActor=ref.role()==NativePickup.Role.ACTOR;boolean present=isActor&&ref.chunk().equals(o.actorTrail().trail().current());
             var incarnation=isActor?actor.incarnation():p.intent().dropTrail().incarnation();
             long revision=isActor?actor.revision():p.intent().harvest().result().drops().getFirst().revision();
             if(!row.restoredFromNativeSave() || !cohort.equals(row.marker()) || !row.incarnation().equals(incarnation) || row.revision()!=revision

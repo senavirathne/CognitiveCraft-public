@@ -280,7 +280,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
                 ?NativeHarvest.observedCrop(intent,after.source,drops,observed==null?null:observed.cropReceipt(),observed==null?ticket.original.usage():observed.usage(),outcome,after.actorSnapshot)
                 :NativeHarvest.observed(intent,after.source,drops,observed==null?null:observed.receipt(),observed==null?ticket.original.usage():observed.usage(),outcome,after.actorSnapshot);
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());mark(after,marker);
-        for(var drop:nativeDrops)((DepositParticipant)drop).cognitivecraft$depositParticipant().mark(marker,()->{ });
+        ((EntityMembershipParticipant)after.actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),false);
+        for(var drop:nativeDrops){((DepositParticipant)drop).cognitivecraft$depositParticipant().mark(marker,()->{ });((EntityMembershipParticipant)drop).cognitivecraft$membershipData().result(marker,((DepositParticipant)drop).cognitivecraft$depositParticipant().revision(),false);}
         if(birth!=null){birth.finished=result.live()==NativeHarvest.Live.COMPLETE;
             if(!birth.drops.keySet().equals(result.drops().stream().map(Drop::entity).collect(java.util.stream.Collectors.toSet())))birth.complete=false;}
         return result;

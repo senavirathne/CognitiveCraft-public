@@ -27,14 +27,14 @@ final class CropHarvestGatewayTest {
     @Test void actualCropReceiptIsWithheldUntilResultAcknowledgementAndNeverReplacedByAResourceReceipt() {
         var p=pending();p.protocol.prepared=true;p.world.tick++;var unpublished=p.gateway.poll(p.handle);
         assertEquals(1,p.world.harvests);assertEquals(2,p.world.seedsDropped);assertEquals(1,unpublished.committedEffects());
-        assertTrue(unpublished.receipts().isEmpty());assertTrue(unpublished.resourceReceipts().isEmpty());assertNull(p.protocol.observed.receipt());
+        assertTrue(unpublished.cropReceipts().isEmpty());assertTrue(unpublished.resourceReceipts().isEmpty());assertNull(p.protocol.observed.receipt());
         assertNotNull(p.protocol.observed.cropReceipt());assertEquals(CropDelivery.Stage.HARVEST,p.protocol.observed.cropReceipt().stage());
         p.protocol.acknowledged=true;p.world.tick++;var result=p.gateway.poll(p.handle);
-        assertTrue(result.terminal());assertNull(result.reason());assertEquals(List.of(p.protocol.observed.cropReceipt()),result.receipts());assertTrue(result.resourceReceipts().isEmpty());
+        assertTrue(result.terminal());assertNull(result.reason());assertEquals(List.of(p.protocol.observed.cropReceipt()),result.cropReceipts());assertTrue(result.resourceReceipts().isEmpty());
     }
     @Test void cancellationAfterCropRemovalPreservesUncertainDebitAndWithholdsTheLegacyReceipt() {
         var p=pending();p.protocol.prepared=true;p.world.tick++;p.gateway.poll(p.handle);
         var cancelled=p.gateway.cancel(p.handle);assertEquals(Outcomes.Reason.INTERRUPTED,cancelled.reason());assertEquals(1,cancelled.committedEffects());
-        assertTrue(cancelled.receipts().isEmpty());p.protocol.acknowledged=true;p.world.tick++;assertEquals(cancelled,p.gateway.poll(p.handle));assertEquals(1,p.world.harvests);
+        assertTrue(cancelled.cropReceipts().isEmpty());p.protocol.acknowledged=true;p.world.tick++;assertEquals(cancelled,p.gateway.poll(p.handle));assertEquals(1,p.world.harvests);
     }
 }

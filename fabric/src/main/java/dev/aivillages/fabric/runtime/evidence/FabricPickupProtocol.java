@@ -25,6 +25,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final PickupEvidenceStore store;private boolean closed;
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<ChunkPos,CompletableFuture<EntityChunkRecord.Frame>> frames=new HashMap<>();
+    private final Map<ChunkPos,Long> frameRevisions=new HashMap<>();
     private Consumer<Point> observer=p->{};
     private final Map<String,FabricHarvestProtocol.PickupLineage> live=new HashMap<>();
     private String descendant="";
@@ -144,7 +145,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
         stage(intent.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,null);
         stage(intent.dropTrail(),NativePickup.Role.DROP,result.remaining()==null?h.result().drops().getFirst().revision():result.remaining().revision(),marker,result.remaining()!=null,null);
         live.put(intent.key().token(),ticket.lineage);
-        harvest.observeActorTrail(ticket.lineage,trail->stage(trail,NativePickup.Role.ACTOR,result.actor().revision(),marker,true,null));
+        ((EntityMembershipParticipant)actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),true);
+        if(remaining!=null)((EntityMembershipParticipant)remaining).cognitivecraft$membershipData().result(marker,result.remaining().revision(),true);
         frames.clear();return result;
     }
     private void mark(NativePickup.Intent intent,Villager actor,ItemEntity drop,Marker marker) {
@@ -163,6 +165,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var port=NativeEntityStorage.get(level);if(port==null || !port.available() || !chunk.dimension().equals(level.dimension().identifier().toString()))return null;
         var pos=new ChunkPos(chunk.x(),chunk.z());
         if(frames.size()==EntityStorageEvidence.MAX_CHUNKS && !frames.containsKey(pos))return null;
+        long revision=port.revision(pos);if(!Objects.equals(frameRevisions.get(pos),revision)){frames.remove(pos);frameRevisions.put(pos,revision);}
         var pending=frames.computeIfAbsent(pos,port::readFrame);return pending.isDone()&&!pending.isCompletedExceptionally()?pending.getNow(null):null;
     }
     private boolean present(UUID id,NativePickup.Chunk chunk) {
@@ -172,6 +175,11 @@ public final class FabricPickupProtocol implements PickupProtocol {
         check();if(entry.result()==null)return null;
         return observeCohort(entry.result().actor(),entry.result().source(),entry.intent().actorTrail(),entry.intent().dropTrail());
     }
+    private NativePickup.Trail savedTrail(NativePickup.Trail original) {
+        var f=frame(original.chunks().getFirst());if(f==null || !f.supported())return null;
+        var state=EntityChunkMembershipState.load(f.metadata(),original.current().dimension(),f.position(),f.members());var row=state.row(original.entity());
+        return row==null?null:row.trail();
+    }
     private NativePickup.Observation observeCohort(Participant expectedActor,NativeHarvest.Source expectedSource,NativePickup.Trail actorTrail,NativePickup.Trail dropTrail) {
         var actor=harvest.actorWitness(expectedActor);var source=harvest.sourceWitness(expectedSource);
         var drop=drop(dropTrail.entity());NativeHarvest.DropWitness dw=null;
@@ -179,9 +187,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();
             try{dw=new NativeHarvest.DropWitness(harvest.dropSnapshot(drop,false),state.marker(),state.restored());}catch(RuntimeException invalid){return null;}
         }
+        actorTrail=savedTrail(actorTrail);dropTrail=savedTrail(dropTrail);if(actorTrail==null || dropTrail==null)return null;
         var refs=new ArrayList<NativePickup.Member>();
-        actorTrail.chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.ACTOR,actorTrail.entity(),c)));
-        dropTrail.chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.DROP,dropTrail.entity(),c)));
+        for(var c:actorTrail.chunks())refs.add(new NativePickup.Member(NativePickup.Role.ACTOR,actorTrail.entity(),c));
+        for(var c:dropTrail.chunks())refs.add(new NativePickup.Member(NativePickup.Role.DROP,dropTrail.entity(),c));
         var members=new ArrayList<NativePickup.MembershipWitness>();NativePickup.TrailWitness at=null,dt=null;
         for(var member:refs) {
             var c=member.chunk();if(level.getChunkSource().getChunkNow(c.x(),c.z())==null)return null;
@@ -229,7 +238,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         mark(p.intent(),actor,null,marker);
         stage(lineage.prefix.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous);
         stage(p.intent().dropTrail(),NativePickup.Role.DROP,p.intent().harvest().result().drops().getFirst().revision(),marker,false,previous);
-        harvest.observeActorTrail(lineage.harvest,trail->stage(trail,NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous));frames.clear();
+        ((EntityMembershipParticipant)actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),true);frames.clear();
     }
     NativePickup.Observation observeDeposit(NativeDeposit.Entry entry) {
         check();var prefix=entry.intent().pickupPrefix();if(prefix==null || store.fenced() || store.pending())return null;

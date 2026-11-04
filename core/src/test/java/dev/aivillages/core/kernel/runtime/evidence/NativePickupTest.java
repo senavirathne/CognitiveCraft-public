@@ -243,6 +243,17 @@ final class NativePickupTest {
         var verified=new Entry(bounded,maximumEntry.result(),new Verification(Reconciliation.SAVED_COMPLETE,saved(maximumEntry),UUID.randomUUID(),102));
         assertTrue(encode(verified).length<=MAX_RECORD_BYTES);assertEquals(verified,decode(encode(verified)));
     }
+    @Test void actualSavedMovementExtensionRequiresEveryOldAndNewNativeMembershipFrame() {
+        var e=completed(intent(harvest(1)),0);var o=saved(e);var old=e.intent().actorTrail();var next=new Chunk(DIM,2,0);
+        var path=new ArrayList<>(old.chunks());path.add(next);var trail=new Trail(old.entity(),old.incarnation(),path,next);
+        var rows=new ArrayList<MembershipWitness>();
+        for(var w:o.memberships())rows.add(w.member().role()==Role.ACTOR?witness(w,false,false,w.frameDigest()):w);
+        rows.add(new MembershipWitness(new Member(Role.ACTOR,old.entity(),next),old.incarnation(),e.result().actor().revision(),marker(e),true,true,true,NativeDeposit.sha(next.toString())));
+        var complete=new Observation(o.actor(),o.source(),null,new TrailWitness(trail,marker(e),true),null,rows);
+        assertEquals(Reconciliation.SAVED_COMPLETE,classify(e,complete));
+        assertEquals(e.intent().key(),decode(encode(new Entry(e.intent(),e.result(),new Verification(Reconciliation.SAVED_COMPLETE,complete,UUID.randomUUID(),200)))).intent().key());
+        assertEquals(Reconciliation.UNPROVEN,classify(e,members(complete,rows.subList(0,rows.size()-1))));
+    }
     @Test void positiveVerificationCannotRelabelMissingTornOrNoEffectEvidence() {
         var e=completed(intent(harvest(1)),0);var o=saved(e);
         assertThrows(IllegalArgumentException.class,()->new Entry(e.intent(),e.result(),new Verification(Reconciliation.SAVED_COMPLETE,members(o,List.of()),UUID.randomUUID(),100)));
