@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 23,
-  "parentSource": "fe821f8d3cfac6aff20a2582775b4af40ad54848",
+  "sequence": 24,
+  "parentSource": "0858c7384f6652f245849bc319be64f25bf4d715",
   "stage": "A06",
-  "scope": "joined H/P/D and genuine wheat contracts, packaging, all required regressions and wheat failure diagnostics",
+  "scope": "all twelve originals, explicit remaining-one continuation, native unsaved/torn/cancel/unrelated controls, active cost and all required regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_P; implementation pending native qualification",
   "originalCase": "heldout-W6-002",
@@ -353,6 +353,16 @@
       ],
       "causes": "UNRESOLVED_RETAINED_AS_FAILURES",
       "testsRemoved": 0
+    },
+    {
+      "run": 41798493693,
+      "source": "0988a838a1a76b0ea733eddaa5854c8ee87b444b",
+      "job": 126468210249,
+      "phase": "core tests",
+      "cause": "new wheat test omitted its required source binding; fixture corrected",
+      "tests": 2328,
+      "failures": 2,
+      "nativeOriginalCasesExecuted": 0
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -855,12 +865,15 @@
   },
   "currentValidation": {
     "status": "PENDING",
-    "source": "7cd82769b1e0fc389ff557d968c307fd035d87b8",
+    "source": "0858c7384f6652f245849bc319be64f25bf4d715",
     "nativeOriginalCasesThisBatch": 12,
     "qualifiedOriginalCasesPreviously": 3,
     "requiredOriginalCases": 12,
     "allOriginalCasesMandatory": true,
-    "widerControlsRequired": true
+    "widerControlsRequired": true,
+    "nativeControls": 9,
+    "focusedPythonTests": 81,
+    "baselinePythonTests": 72
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
