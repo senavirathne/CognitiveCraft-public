@@ -873,21 +873,17 @@ jobs:
             core/build/test-results/test/TEST-*.xml
             providers/build/test-results/test/TEST-*.xml
             fabric/build/test-results/test/TEST-*.xml
-      - name: PG00 expose two original frames for read-only visual review
+      - name: PG00 publish the verified frame identities
         if: ${{ !cancelled() && github.ref == 'refs/heads/qualification/primitive-generalization-pg00' && hashFiles('build/pg00/independent.json') != '' }}
         run: |
           python3 - <<'PY'
-          import base64, hashlib, json
+          import json, os
           from pathlib import Path
-          root = Path('build/e2e/pg00')
-          captures = json.loads((root / 'screenshots.json').read_text())['captures']
-          print('PG00_ORACLE', (Path('build/pg00/independent.json').read_text()).replace('\n', ' '))
-          for family, prefix in [('E2E-CONN-001', 'named-citizen-after-reconnect'), ('E2E-LEGACY-001', 'synchronized-container-')]:
-              frame = next(c for c in captures if c['family'] == family and c['checkpoint'].startswith(prefix))
-              data = (root / frame['path']).read_bytes()
-              assert hashlib.sha256(data).hexdigest() == frame['sha256']
-              encoded = base64.b64encode(data).decode('ascii')
-              print('PG00_FRAME_META', json.dumps(frame, separators=(',', ':')))
-              for off in range(0, len(encoded), 3072):
-                  print('PG00_FRAME_DATA', family, off, encoded[off:off+3072])
+          result = json.loads(Path('build/pg00/independent.json').read_text())
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as out:
+              print('### PG00 verified native frames', file=out)
+              print(f"\nObserved {result['bread']} bread in the authorized destination.\n", file=out)
+              for frame in result['screenshots']:
+                  print(f"- {frame['checkpoint']} · native tick {frame['tick']} · SHA-256 {frame['sha256']}", file=out)
+          print('PG00_ORACLE', json.dumps(result, sort_keys=True))
           PY

@@ -105,6 +105,14 @@ class EvidenceTest(unittest.TestCase):
     def test_reconciles_all_three_producers(self):
         self.assertEqual(self.checked()["bread"], 8)
 
+    def test_later_player_must_not_appear_in_an_earlier_result(self):
+        results = json.loads((self.root / "results.json").read_text())
+        smoke = next(row for row in results["results"] if row["id"] == CONNECTION)
+        smoke["evidence"]["players"]["PlayerB"] = BOB
+        write(self.root, "results.json", results)
+        with self.assertRaisesRegex(ValueError, "family result"):
+            self.checked()
+
     def test_wrong_release_or_attempt(self):
         with self.assertRaises(ValueError):
             verify(self.root, SOURCE, self.jar, 123, 2)
