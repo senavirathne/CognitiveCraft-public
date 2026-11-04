@@ -233,7 +233,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
     }
     /** Bounded, explicitly requested historical classification; never invokes a gateway action. */
     public DepositEvidenceStore.Reconciled reconcile(Key key){check();return store.reconcile(key);}
-    public DepositEvidenceStore.Code verify(DepositEvidenceStore.Reconciled proof){check();return store.verify(proof);}
+    public DepositEvidenceStore.Code verify(DepositEvidenceStore.Reconciled proof){check();var code=store.verify(proof);if(code==DepositEvidenceStore.Code.RESOLVED)observer.accept(Point.VERIFICATION_ACKNOWLEDGED);return code;}
     public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;
         if(store.fenced())return true;

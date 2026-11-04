@@ -75,6 +75,18 @@ final class NativeJoinedDepositTest {
         rows=new ArrayList<>(o.memberships());var r=rows.getLast();rows.set(rows.size()-1,NativePickupTest.witness(r,false,false,"f".repeat(64)));
         assertNotEquals(Reconciliation.SAVED_COMPLETE,classify(e,o.actor(),chest(e),NativePickupTest.members(o,rows)));
     }
+    @Test void savedPreparedDepositProvesNoNewDepositWhileRetainingTheOriginalPickupCustody() {
+        var complete=entry();var intent=complete.intent();var prepared=new Entry(intent,null);var p=intent.pickupPrefix().pickup();
+        var dMarker=new Marker(prepared.token(),intent.digest(),MarkerPhase.PREPARED,"");var pMarker=NativePickupTest.marker(p);
+        var original=saved(complete);var rows=original.memberships().stream().map(r->new NativePickup.MembershipWitness(r.member(),r.incarnation(),
+                r.member().role()==NativePickup.Role.ACTOR?intent.actor().revision():r.revision(),pMarker,true,r.savedPresent(),r.currentPresent(),r.frameDigest())).toList();
+        var o=new NativePickup.Observation(new Witness(intent.actor(),dMarker,true),new NativeHarvest.SourceWitness(p.result().source(),pMarker,true),null,
+                new NativePickup.TrailWitness(intent.pickupPrefix().actorTrail(),pMarker,true),new NativePickup.TrailWitness(p.intent().dropTrail(),pMarker,true),rows);
+        assertEquals(Reconciliation.PREPARED_NO_EFFECT,classify(prepared,o.actor(),new Witness(intent.chest(),dMarker,true),o));
+        var verified=new Entry(intent,null,new Verification(Reconciliation.PREPARED_NO_EFFECT,intent.actor(),intent.chest(),dMarker,dMarker,UUID.randomUUID(),100,o));
+        assertEquals(verified,decode(encode(verified)));assertEquals(1,intent.actor().slots().stream().mapToLong(Slot::count).sum());
+        assertTrue(intent.chest().slots().stream().allMatch(slot->slot.count()==0));
+    }
     @Test void verificationPublicationWaitsForItsOwnDurableAcknowledgementAndNeverExecutes() {
         var e=entry();var o=saved(e);var pending=new CompletableFuture<DepositJournal.Snapshot>();var next=new DepositJournal.Snapshot[1];
         var port=new DepositEvidenceStore.NativePort() {

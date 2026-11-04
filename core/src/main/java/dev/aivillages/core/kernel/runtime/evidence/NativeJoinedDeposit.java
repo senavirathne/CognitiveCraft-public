@@ -38,14 +38,17 @@ public final class NativeJoinedDeposit {
     public static Reconciliation classify(Entry entry,NativePickup.Observation o) {
         if(o==null || o.actor()==null || o.source()==null)return Reconciliation.WAIT_WORLD;
         var prefix=entry.intent().pickupPrefix();var r=entry.result();
-        if(prefix==null || r==null)return Reconciliation.UNPROVEN;
-        var p=prefix.pickup();var expected=new Marker(entry.token(),entry.intent().digest(),MarkerPhase.RESULT,r.digest());
-        if(!o.actor().restoredFromNativeSave() || !o.source().restoredFromNativeSave() || !o.actor().participant().equals(r.actor())
-                || !o.source().source().equals(p.result().source()) || !expected.equals(o.actor().marker()) || !expected.equals(o.source().marker())
+        if(prefix==null)return Reconciliation.UNPROVEN;
+        boolean prepared=r==null;var p=prefix.pickup();
+        var expected=new Marker(entry.token(),entry.intent().digest(),prepared?MarkerPhase.PREPARED:MarkerPhase.RESULT,prepared?"":r.digest());
+        var predecessor=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
+        var cohort=prepared?predecessor:expected;var actor=prepared?entry.intent().actor():r.actor();
+        if(!o.actor().restoredFromNativeSave() || !o.source().restoredFromNativeSave() || !o.actor().participant().equals(actor)
+                || !o.source().source().equals(p.result().source()) || !expected.equals(o.actor().marker()) || !cohort.equals(o.source().marker())
                 || o.drop()!=null || o.actorTrail()==null || o.dropTrail()==null
                 || !o.actorTrail().restoredFromNativeSave() || !o.dropTrail().restoredFromNativeSave()
                 || !o.actorTrail().trail().equals(prefix.actorTrail()) || !o.dropTrail().trail().equals(p.intent().dropTrail())
-                || !expected.equals(o.actorTrail().marker()) || !expected.equals(o.dropTrail().marker()))return Reconciliation.UNPROVEN;
+                || !cohort.equals(o.actorTrail().marker()) || !cohort.equals(o.dropTrail().marker()))return Reconciliation.UNPROVEN;
         var refs=new ArrayList<NativePickup.Member>();
         prefix.actorTrail().chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.ACTOR,prefix.actorTrail().entity(),c)));
         p.intent().dropTrail().chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.DROP,p.intent().dropTrail().entity(),c)));
@@ -56,12 +59,13 @@ public final class NativeJoinedDeposit {
         for(var ref:refs) {
             var row=rows.get(ref);if(row==null)return Reconciliation.UNPROVEN;
             var frame=frames.putIfAbsent(ref.chunk(),row.frameDigest());if(frame!=null&&!frame.equals(row.frameDigest()))return Reconciliation.TORN_PARTICIPANTS;
-            boolean actor=ref.role()==NativePickup.Role.ACTOR;boolean present=actor&&ref.chunk().equals(prefix.actorTrail().current());
-            var incarnation=actor?r.actor().incarnation():p.intent().dropTrail().incarnation();
-            long revision=actor?r.actor().revision():p.intent().harvest().result().drops().getFirst().revision();
-            if(!row.restoredFromNativeSave() || !expected.equals(row.marker()) || !row.incarnation().equals(incarnation) || row.revision()!=revision
+            boolean isActor=ref.role()==NativePickup.Role.ACTOR;boolean present=isActor&&ref.chunk().equals(prefix.actorTrail().current());
+            var incarnation=isActor?actor.incarnation():p.intent().dropTrail().incarnation();
+            long revision=isActor?actor.revision():p.intent().harvest().result().drops().getFirst().revision();
+            if(!row.restoredFromNativeSave() || !cohort.equals(row.marker()) || !row.incarnation().equals(incarnation) || row.revision()!=revision
                     || row.savedPresent()!=present || row.currentPresent()!=present)return Reconciliation.TORN_PARTICIPANTS;
         }
+        if(prepared)return Reconciliation.PREPARED_NO_EFFECT;
         return r.live()==Live.COMPLETE?Reconciliation.SAVED_COMPLETE:r.live()==Live.NO_EFFECT?Reconciliation.SAVED_NO_EFFECT:Reconciliation.PARTIAL_UNRESOLVED;
     }
     static Map<String,Object> encode(Prefix prefix) {

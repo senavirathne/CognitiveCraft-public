@@ -190,7 +190,7 @@ public final class NativeDeposit {
     public static Reconciliation classify(Entry entry,Witness actor,Witness chest,NativePickup.Observation lineage) {
         var participants=classifyParticipants(entry,actor,chest);
         if(entry.intent.pickupPrefix==null)return lineage==null?participants:Reconciliation.UNPROVEN;
-        if(participants!=Reconciliation.SAVED_COMPLETE && participants!=Reconciliation.SAVED_NO_EFFECT)return participants==Reconciliation.WAIT_WORLD?participants:Reconciliation.UNPROVEN;
+        if(participants!=Reconciliation.SAVED_COMPLETE && participants!=Reconciliation.SAVED_NO_EFFECT && participants!=Reconciliation.PREPARED_NO_EFFECT)return participants==Reconciliation.WAIT_WORLD?participants:Reconciliation.UNPROVEN;
         var joined=NativeJoinedDeposit.classify(entry,lineage);return joined==participants?joined:joined==Reconciliation.WAIT_WORLD?joined:Reconciliation.UNPROVEN;
     }
     private static Reconciliation classifyParticipants(Entry entry,Witness actor,Witness chest) {

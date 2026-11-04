@@ -232,10 +232,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
         harvest.observeActorTrail(lineage.harvest,trail->stage(trail,NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous));frames.clear();
     }
     NativePickup.Observation observeDeposit(NativeDeposit.Entry entry) {
-        check();var prefix=entry.intent().pickupPrefix();if(prefix==null || entry.result()==null || store.fenced() || store.pending())return null;
+        check();var prefix=entry.intent().pickupPrefix();if(prefix==null || store.fenced() || store.pending())return null;
         if(store.snapshot().entries().stream().noneMatch(e->e.equals(prefix.pickup())) || harvest.evidence().fenced() || harvest.evidence().pending()
                 || harvest.evidence().snapshot().entries().stream().noneMatch(e->e.equals(prefix.pickup().intent().harvest())))return null;
-        return observeCohort(entry.result().actor(),prefix.pickup().result().source(),prefix.actorTrail(),prefix.pickup().intent().dropTrail());
+        return observeCohort(entry.result()==null?entry.intent().actor():entry.result().actor(),prefix.pickup().result().source(),prefix.actorTrail(),prefix.pickup().intent().dropTrail());
     }
     public PickupEvidenceStore.Code verify(PickupEvidenceStore.Reconciled proof){check();var code=store.verify(proof);if(code==PickupEvidenceStore.Code.RESOLVED)observer.accept(Point.VERIFICATION_ACKNOWLEDGED);return code;}
     public boolean blocked(ValidatedRequest request,Effect effect,SurvivalGateway.Cell target) {

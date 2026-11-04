@@ -12,8 +12,12 @@ permissions:
 concurrency:
   group: cc-runtime-a-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true -Dcognitivecraft.navigation.trace=true
 jobs:
   a04-contracts:
+    env:
+      JAVA_TOOL_OPTIONS: ""
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
