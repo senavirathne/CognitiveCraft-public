@@ -140,7 +140,7 @@ public final class NativePickup {
         Live live=delta(intent,source,actor,remaining);if(live==Live.COMPLETE && receipt==null)live=Live.UNRECEIPTED_EFFECT;
         return new Result(intent.digest(),live,source,actor,remaining,receipt,usage,failure);
     }
-    static boolean extendsTrail(Trail actual,Trail original) {
+    public static boolean extendsTrail(Trail actual,Trail original) {
         return actual.entity().equals(original.entity()) && actual.incarnation().equals(original.incarnation())
                 && actual.current().dimension().equals(original.current().dimension()) && actual.chunks().containsAll(original.chunks());
     }

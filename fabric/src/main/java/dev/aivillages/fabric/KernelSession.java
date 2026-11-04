@@ -321,7 +321,7 @@ public final class KernelSession implements AutoCloseable {
                     deposits.capacity(amount->retention.assessReplacement("deposits",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 }
                 if(pickups!=null) {
-                    var family=HarvestPickupRetention.bind(harvests,pickups);retention.register(family);family.bindPolicy(retention);
+                    var family=HarvestPickupRetention.bind(harvests,pickups);retention.register(family);
                 } else if(harvests!=null) {
                     retention.register(harvests.retentionOwnerForCurrentWriter());
                     harvests.capacity(amount->retention.assessReplacement("harvests",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);

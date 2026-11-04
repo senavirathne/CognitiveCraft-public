@@ -289,9 +289,12 @@ jobs:
         id: a06_native_recovery
         if: >-
           ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 tools/needle/install.py build/needle
-          python3 e2e/parallel_a/recovery_native.py --root build/parallel-a/native-a06-recovery
+          gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a06-three-admission-seed.zip
+          python3 e2e/parallel_a/recovery_native.py --root build/parallel-a/native-a06-recovery --seed-archive build/parallel-a/a06-three-admission-seed.zip
       - name: Preserve a failed prerequisite for all twelve required originals
         if: >-
           ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') && steps.a06_native_recovery.outcome == 'skipped' }}

@@ -175,6 +175,10 @@ def review(root,repo,out,source):
         for game in (root/'server/game',*(root/'clients'/p/'game' for p in ('PlayerA','PlayerB'))):assert sha(game/'mods/ai-villages-0.1.0.jar')==release
         assert sha(root/'server/game/mods/observer.jar')==observer
         admissions=read(root/'independent-admissions.json');assert admissions['nativeAdmissionsCountedAsA06']==0
+        if 'seedContinuation' in admissions:
+            seed=admissions['seedContinuation'];assert seed['currentSource']==source and seed['importedA06Settlements']==0 and seed['allTwelveMustRunOnCurrentCandidate'] is True
+            assert manifest(root/'genuinely-admitted-seed-game/world')==seed['worldHashes']==admissions['worldHashes']
+            assert seed['currentReleaseSha256']==release
         assert {a['item'] for a in admissions['admissions'] if a['status']=='PASS'}=={'minecraft:oak_log','minecraft:birch_log','minecraft:wheat'}
         for admission in admissions['admissions']:
             assert admission['callsAfter']['generationCalls']>admission['callsBefore']['generationCalls']

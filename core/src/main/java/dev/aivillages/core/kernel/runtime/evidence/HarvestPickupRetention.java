@@ -7,7 +7,7 @@ import static dev.aivillages.core.kernel.WorldRetentionManager.*;
 
 /**
  * One existing harvest owner slot covers every H/P journal file and a combined64-row ceiling.
- * Bind/register only on the shared storage worker. Not yet selected by runtime composition.
+ * Bind/register once on the shared storage worker when the optional runtime family is selected.
  */
 public final class HarvestPickupRetention implements Owner {
     private final Thread writer=Thread.currentThread();private final HarvestJournal harvest;private final PickupJournal pickup;

@@ -244,7 +244,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     }
     boolean currentDeposit(DepositLineage lineage) {
         check();return !closed && lineage!=null && lineage.owner==this && store.owns(lineage.pickup)
-                && harvest.actorTrail(lineage.harvest).equals(lineage.prefix.actorTrail());
+                && NativePickup.extendsTrail(harvest.actorTrail(lineage.harvest),lineage.prefix.actorTrail());
     }
     <T> T depositScope(DepositLineage lineage,java.util.function.Supplier<T> action) {
         check();if(!currentDeposit(lineage) || !descendant.isEmpty())throw new IllegalStateException("Original P/D scope");
@@ -256,7 +256,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());
         var previous=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
         mark(p.intent(),actor,null,marker);
-        stage(lineage.prefix.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous);
+        stage(harvest.actorTrail(lineage.harvest),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous);
         stage(p.intent().dropTrail(),NativePickup.Role.DROP,p.intent().harvest().result().drops().getFirst().revision(),marker,false,previous);
         ((EntityMembershipParticipant)actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),true);frames.clear();
     }

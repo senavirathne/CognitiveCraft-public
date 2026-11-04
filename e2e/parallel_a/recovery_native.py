@@ -13,6 +13,16 @@ WHEAT='minecraft:wheat'
 
 class RecoveryHarness(HarvestHarness):
     case_stage='HARVEST'
+    def start(self,component):
+        result=super().start(component)
+        if component=='server' and self.env.get('A06_HARVEST_ENABLED')=='true':
+            def ready():
+                current=(self.root/'server/game/logs/latest.log').read_text()
+                if 'CognitiveCraft kernel disabled' in current:
+                    raise RuntimeError('Experimental kernel startup failed: '+current[current.index('CognitiveCraft kernel disabled'):][-4500:])
+                return self.evidence()
+            self.wait(ready,'Current experimental kernel and native evidence owners ready',60)
+        return result
     def quiet(self,tick_count=40):
         start=self.snapshot()['tick'];self.wait(lambda:self.snapshot()['tick']>=start+tick_count,'Post-boundary physical fence',max(20,tick_count/20+20))
     def evidence(self):
@@ -140,12 +150,15 @@ def one(h,seed,case):
         atomic(directory/'result.json',result);raise
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);args=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);p.add_argument('--seed-archive',type=Path);args=p.parse_args()
     root=args.root.resolve();root.mkdir(parents=True,exist_ok=True);h=None
     result={'schema':1,'status':'NOT_EXECUTED','requiredOriginalCases':12,'originalOwnerSettlements':0,'a06Qualified':False,'cases':[]}
     try:
         cases=originals(ROOT/'e2e/parallel_a/a06_original_cases.json');result['plannedCases']=[c['id'] for c in cases];h=RecoveryHarness(root);h.activated=0
-        seed=learned_seed(h)
+        if args.seed_archive:
+            from recovery_seed import start as retained_seed
+            seed=retained_seed(h,args.seed_archive.resolve())
+        else:seed=learned_seed(h)
         for case in cases:
             try:value=one(h,seed,case);result['cases'].append(value)
             except Exception as error:result['cases'].append(read(root/'original-cases'/case['id']/'result.json') or {'originalCase':case,'status':'FAIL','reason':str(error)})
