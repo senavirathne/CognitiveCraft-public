@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 25,
-  "parentSource": "7f65e89df2d92d0ae6551d3211b903089568e153",
+  "sequence": 26,
+  "parentSource": "3bfa287706aaf32dc8fc526a5ae1cdb8aaef252d",
   "stage": "A06",
-  "scope": "all twelve original saved interruptions and nine native controls; registration fix, exact genuine admission seed, bounded world availability and full required regressions",
+  "scope": "Recover the exact oversized batch25 native archive; diagnose all12 originals and9 controls; validate corrected native lease reviewer and live wheat custody against full modules and all required host regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_P; implementation pending native qualification",
   "originalCase": "heldout-W6-002",
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "Docker real server and two connected native clients; native save-all flush and actual process kills",
+  "execution": "Read-only retained native evidence transport and diagnostics, plus complete current module/native host regressions; fresh12-case campaign remains mandatory after diagnosis",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -384,6 +384,36 @@
       "requiredHostSuitesPassed": 8,
       "requiredHostSuites": 9,
       "remainingHostFailure": "GP-22 initial workspace observation unavailable before any claim or physical effect"
+    },
+    {
+      "run": 41834140991,
+      "source": "297832dabba8d7978376f86c79a06c5c9c0af61b",
+      "phase": "Native originals and independent review",
+      "nativeRunnerOriginalSettlements": 11,
+      "remainingNativeCase": "W6-008 wheat H actual cut not reached",
+      "independentReview": "FAIL: raw native lease journal fields are flat, unlike runtime observer objects; reviewer KeyError owner",
+      "controls": "FAIL: exact retained control results require extraction",
+      "nativeArtifact": {
+        "id": 13329191415,
+        "bytes": 804711064,
+        "sha256": "6a4574c7d785548605473e72512b0c3cfaa5c9589f819d01a24f5b9426f5c9d5"
+      },
+      "contractsArtifact": {
+        "id": 13330215183,
+        "bytes": 3642159,
+        "sha256": "825a65502f5f623730bcca8290aa4dcd28dad9950e5a39ea9b73e2d14809c3d5"
+      },
+      "moduleCases": 2588,
+      "requiredHosts": {
+        "pass": 8,
+        "fail": 1,
+        "failed": "GP22 warm original wheat lost before pickup"
+      },
+      "mainVerification": {
+        "run": 41834140789,
+        "status": "PASS"
+      },
+      "historicalIndependentlyQualifiedOriginals": 3
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -885,18 +915,20 @@
     "fullBranchQualified": false
   },
   "currentValidation": {
-    "status": "PENDING",
-    "source": "7f65e89df2d92d0ae6551d3211b903089568e153",
-    "nativeOriginalCasesThisBatch": 12,
-    "qualifiedOriginalCasesPreviously": 3,
+    "status": "PENDING_RETAINED_DIAGNOSTICS_AND_COMPLETE_REGRESSIONS",
+    "source": "3bfa287706aaf32dc8fc526a5ae1cdb8aaef252d",
+    "nativeOriginalCasesThisBatch": 0,
+    "retainedOriginalCasesDiagnosed": 12,
+    "retainedNativeControlsDiagnosed": 9,
+    "freshNativeCampaignStillRequired": true,
     "requiredOriginalCases": 12,
+    "qualifiedOriginalCasesPreviously": 3,
     "allOriginalCasesMandatory": true,
     "widerControlsRequired": true,
-    "nativeControls": 9,
-    "focusedPythonTests": 83,
+    "focusedPythonTests": 87,
     "baselinePythonTests": 72,
-    "retainedAdmissionArtifact": 13311090608,
-    "importedRecoverySettlements": 0
+    "originalArchivePreservedLosslessly": true,
+    "nativePassesImported": 0
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
@@ -919,5 +951,19 @@
       "heldout-W6-009",
       "heldout-W6-010"
     ]
+  },
+  "previousValidation": {
+    "status": "PENDING",
+    "source": "7f65e89df2d92d0ae6551d3211b903089568e153",
+    "nativeOriginalCasesThisBatch": 12,
+    "qualifiedOriginalCasesPreviously": 3,
+    "requiredOriginalCases": 12,
+    "allOriginalCasesMandatory": true,
+    "widerControlsRequired": true,
+    "nativeControls": 9,
+    "focusedPythonTests": 83,
+    "baselinePythonTests": 72,
+    "retainedAdmissionArtifact": 13311090608,
+    "importedRecoverySettlements": 0
   }
 }
