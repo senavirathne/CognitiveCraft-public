@@ -50,7 +50,8 @@ jobs:
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
       - name: Recover exact retained A06 batch25 archive and emit every failure diagnosis
         id: a06_prior_transport
-        if: ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-review') }}
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-review') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
