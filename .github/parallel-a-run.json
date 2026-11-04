@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 26,
-  "parentSource": "3bfa287706aaf32dc8fc526a5ae1cdb8aaef252d",
+  "sequence": 27,
+  "parentSource": "ac9719d72e897f344b5f92ef3384128a6e37edb6",
   "stage": "A06",
   "scope": "Recover the exact oversized batch25 native archive; diagnose all12 originals and9 controls; validate corrected native lease reviewer and live wheat custody against full modules and all required host regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
@@ -414,6 +414,15 @@
         "status": "PASS"
       },
       "historicalIndependentlyQualifiedOriginals": 3
+    },
+    {
+      "run": 41843136110,
+      "source": "1f26ec6691595c2075fdd3ded1fd602f0dc4a2d9",
+      "phase": "Workflow YAML validation before any grouped job",
+      "cause": "Diagnostic one-line if expression contained a colon-space in an unquoted scalar",
+      "correction": "Folded YAML if expression; full workflow parsed locally with13 jobs and original9/12/140 bodies and conditions preserved",
+      "groupedNativeCases": "NOT_EXECUTED_WORKFLOW_REJECTED",
+      "mainRun": 41843138795
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -916,7 +925,7 @@
   },
   "currentValidation": {
     "status": "PENDING_RETAINED_DIAGNOSTICS_AND_COMPLETE_REGRESSIONS",
-    "source": "3bfa287706aaf32dc8fc526a5ae1cdb8aaef252d",
+    "source": "ac9719d72e897f344b5f92ef3384128a6e37edb6",
     "nativeOriginalCasesThisBatch": 0,
     "retainedOriginalCasesDiagnosed": 12,
     "retainedNativeControlsDiagnosed": 9,
@@ -928,7 +937,8 @@
     "focusedPythonTests": 87,
     "baselinePythonTests": 72,
     "originalArchivePreservedLosslessly": true,
-    "nativePassesImported": 0
+    "nativePassesImported": 0,
+    "yamlSyntax": "PASS_FULL_WORKFLOW_PARSE_13_JOBS"
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
