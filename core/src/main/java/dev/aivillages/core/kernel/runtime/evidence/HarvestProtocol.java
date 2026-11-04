@@ -19,7 +19,8 @@ public interface HarvestProtocol {
                     || deadline<0 || effectsRemaining<1)throw new IllegalArgumentException("Original harvest request envelope");
         }
     }
-    record Observed(ItemHarvest harvest,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage) {
+    record Observed(ItemHarvest harvest,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,CropDelivery.CropReceipt cropReceipt) {
+        public Observed(ItemHarvest harvest,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage){this(harvest,receipt,usage,null);}
         public Observed {Objects.requireNonNull(harvest);usage=Map.copyOf(usage);}
     }
     interface Action {

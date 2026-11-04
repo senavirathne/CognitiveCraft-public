@@ -863,6 +863,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             if (stack.isEmpty()) continue;
             ItemEntity entity = new ItemEntity(level, p.getX()+0.5, p.getY()+0.25, p.getZ()+0.5, stack.copy());
             entity.setDefaultPickUpDelay();
+            dev.aivillages.fabric.runtime.evidence.HarvestBirthScope.spawned(entity);
             if (!level.addFreshEntity(entity)) { failedSpawn = true; continue; }
             if (stack.is(Items.WHEAT)) wheat.add(new Drop(entity.getUUID(), stack.getCount()));
         }

@@ -73,7 +73,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private void born(NativeBirth birth,ItemEntity drop) {
         check();if(birth==null)return;
         boolean original=drop.level()==level&&!drop.isRemoved()&&level.getEntity(drop.getUUID())==null
-                &&drop.blockPosition().equals(pos(birth.intent.source()))&&BuiltInRegistries.ITEM.getKey(drop.getItem().getItem()).toString().equals(birth.intent.item());
+                &&drop.blockPosition().equals(pos(birth.intent.source()))&&(BuiltInRegistries.ITEM.getKey(drop.getItem().getItem()).toString().equals(birth.intent.item())
+                    || birth.intent.item().equals("minecraft:wheat") && drop.getItem().is(net.minecraft.world.item.Items.WHEAT_SEEDS));
         if(!original||birth.drops.size()==64||birth.drops.containsKey(drop.getUUID())){birth.complete=false;return;}
         var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();state.activate();state.track(List.of(drop.getItem()));
         var trail=((EntityMembershipParticipant)drop).cognitivecraft$beginMembership(state.incarnation());
@@ -185,7 +186,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             for(var claim:claims) {
                 if(!claim.group().equals(group))throw new Refused(Reason.TARGET_UNAVAILABLE);
                 var resource=claim.resource();
-                if(resource.logBlocks() && resource.area().equals(request.area()) && resource.item().equals(request.item().id()) && claim.remaining()>0)source=true;
+                if((resource.logBlocks() && resource.item().equals(request.item().id()) || request.item().equals(ResourceDelivery.WHEAT) && resource.item().equals("minecraft:mature_wheat"))
+                        && resource.area().equals(request.area()) && claim.remaining()>0)source=true;
                 if(resource.equals(ResourceLeases.Resource.facility(job.origin().scope().worldId(),request.destination())))facility=true;
                 references.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
             }
@@ -266,8 +268,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             var entity=level.getEntity(actual.entityId());if(!(entity instanceof ItemEntity drop) || drop.isRemoved() || drop.getItem().getCount()!=actual.quantity())throw new IllegalStateException("Actual harvest drop unavailable");
             drops.add(dropSnapshot(drop,true));nativeDrops.add(drop);
         }
-        var result=NativeHarvest.observed(intent,after.source,drops,observed==null?null:observed.receipt(),observed==null?ticket.original.usage():observed.usage(),
-                failure==null?observed.harvest().reason()==null?"":observed.harvest().reason().name():failure.getClass().getName(),after.actorSnapshot);
+        if(intent.item().equals("minecraft:wheat") && birth!=null) {
+            drops.clear();nativeDrops.clear();
+            for(var id:birth.drops.keySet()) {
+                var actual=level.getEntity(id);if(!(actual instanceof ItemEntity drop) || !drop.isAlive())throw new IllegalStateException("Actual crop output unavailable");
+                drops.add(dropSnapshot(drop,true));nativeDrops.add(drop);
+            }
+        }
+        String outcome=failure==null?observed.harvest().reason()==null?"":observed.harvest().reason().name():failure.getClass().getName();
+        var result=intent.item().equals("minecraft:wheat")
+                ?NativeHarvest.observedCrop(intent,after.source,drops,observed==null?null:observed.cropReceipt(),observed==null?ticket.original.usage():observed.usage(),outcome,after.actorSnapshot)
+                :NativeHarvest.observed(intent,after.source,drops,observed==null?null:observed.receipt(),observed==null?ticket.original.usage():observed.usage(),outcome,after.actorSnapshot);
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());mark(after,marker);
         for(var drop:nativeDrops)((DepositParticipant)drop).cognitivecraft$depositParticipant().mark(marker,()->{ });
         if(birth!=null){birth.finished=result.live()==NativeHarvest.Live.COMPLETE;

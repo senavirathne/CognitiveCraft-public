@@ -34,21 +34,26 @@ public final class NativeHarvest {
                     || key.ordinal()!=Math.addExact(conditions.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L),1L)
                     || !key.world().equals(origin.scope().worldId()) || !actor.citizenId().equals(conditions.citizen())
                     || !actor.dimension().equals(area.dimension()) || !actor.dimension().equals(destination.dimension()) || !actor.dimension().equals(source.dimension)
-                    || !Set.of("minecraft:oak_log","minecraft:birch_log").contains(item)
+                    || !Set.of("minecraft:oak_log","minecraft:birch_log","minecraft:wheat").contains(item)
                     || !new ResourceDelivery.BlockPosition(source.dimension,source.x,source.y,source.z).inside(area))
                 throw new IllegalArgumentException("Original harvest intent binding");
         }
         public String digest(){return sha(StrictJson.canonical(intent(this)));}
     }
-    public record Result(String intent,Live live,Source source,List<Drop> drops,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor) {
+    public record Result(String intent,Live live,Source source,List<Drop> drops,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor,CropDelivery.CropReceipt cropReceipt) {
+        public Result(String intent,Live live,Source source,List<Drop> drops,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor) {
+            this(intent,live,source,drops,receipt,usage,failure,actor,null);
+        }
         public Result {
             hash(intent);Objects.requireNonNull(live);Objects.requireNonNull(source);Objects.requireNonNull(actor);drops=List.copyOf(drops);usage=Map.copyOf(usage);
             if(drops.size()>64 || drops.stream().map(Drop::entity).distinct().count()!=drops.size() || usage.values().stream().anyMatch(n->n<0)
-                    || failure==null || failure.length()>256 || live==Live.COMPLETE && receipt==null
-                    || (live==Live.NO_EFFECT || live==Live.UNRECEIPTED_EFFECT) && receipt!=null)
+                    || failure==null || failure.length()>256 || live==Live.COMPLETE && receipt==null && cropReceipt==null
+                    || (live==Live.NO_EFFECT || live==Live.UNRECEIPTED_EFFECT) && (receipt!=null || cropReceipt!=null)
+                    || receipt!=null && cropReceipt!=null)
                 throw new IllegalArgumentException("Actual native harvest result envelope");
             if(receipt!=null && (receipt.stage()!=ResourceDelivery.Stage.HARVEST || receipt.transformation()!=null || receipt.placement()!=null))
                 throw new IllegalArgumentException("Original harvest receipt required");
+            if(cropReceipt!=null && cropReceipt.stage()!=CropDelivery.Stage.HARVEST)throw new IllegalArgumentException("Actual crop harvest receipt required");
         }
         public String digest(){return sha(StrictJson.canonical(result(this)));}
     }
@@ -68,13 +73,22 @@ public final class NativeHarvest {
             if(result!=null) {
                 if(!result.intent.equals(intent.digest()) || !intent.source.sameIdentity(result.source) || result.source.revision<intent.source.revision
                         || !(result.live==delta(intent,result.source,result.drops,result.actor)
-                            || result.live==Live.UNRECEIPTED_EFFECT && delta(intent,result.source,result.drops,result.actor)==Live.COMPLETE && result.receipt==null))
+                            || result.live==Live.UNRECEIPTED_EFFECT && delta(intent,result.source,result.drops,result.actor)==Live.COMPLETE && result.receipt==null && result.cropReceipt==null))
                     throw new IllegalArgumentException("Changed native harvest identity or actual delta");
                 for(var before:intent.conditions.usage().entrySet())if(result.usage.getOrDefault(before.getKey(),0L)<before.getValue())throw new IllegalArgumentException("Harvest usage decreased");
                 long committed=result.usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)-intent.conditions.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L);
                 long attempted=result.usage.getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)-intent.conditions.usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L);
                 if(committed<0 || committed>1 || attempted<0 || attempted>1 || result.live==Live.COMPLETE && (committed!=1 || attempted!=1) || result.live==Live.NO_EFFECT && committed!=0)
                     throw new IllegalArgumentException("Original harvest allowance delta");
+                if(result.cropReceipt!=null) {
+                    var r=result.cropReceipt;
+                    if(!intent.item.equals("minecraft:wheat") || !r.runId().equals(intent.run) || !r.actor().equals(intent.actor)
+                            || !r.source().equals(intent.area) || !r.destination().equals(intent.destination)
+                            || r.wheat()!=result.drops.stream().filter(d->d.item.equals("minecraft:wheat")).mapToLong(Drop::quantity).sum())
+                        throw new IllegalArgumentException("Actual original crop receipt binding");
+                }
+                if(intent.item.equals("minecraft:wheat") && result.receipt!=null || !intent.item.equals("minecraft:wheat") && result.cropReceipt!=null)
+                    throw new IllegalArgumentException("Original receipt type changed");
                 if(result.receipt!=null) {
                     var r=result.receipt;
                     if(!r.origin().equals(intent.origin) || !r.runId().equals(intent.run) || !r.operationId().equals(intent.operation)
@@ -94,11 +108,18 @@ public final class NativeHarvest {
         if(!intent.actorBefore.sameIdentity(actor) || !intent.source.sameIdentity(source))throw new IllegalArgumentException("Harvest source replaced");
         if(intent.actorBefore.equals(actor) && intent.source.equals(source) && drops.isEmpty())return Live.NO_EFFECT;
         return intent.actorBefore.equals(actor) && source.revision>intent.source.revision && source.state.equals("minecraft:air") && !drops.isEmpty()
-                && drops.stream().allMatch(d->d.dimension.equals(intent.source.dimension) && d.item.equals(intent.item))?Live.COMPLETE:Live.PARTIAL;
+                && drops.stream().anyMatch(d->d.item.equals(intent.item))
+                && drops.stream().allMatch(d->d.dimension.equals(intent.source.dimension) && (d.item.equals(intent.item)
+                        || intent.item.equals("minecraft:wheat") && d.item.equals("minecraft:wheat_seeds")))?Live.COMPLETE:Live.PARTIAL;
     }
     public static Result observed(Intent intent,Source source,List<Drop> drops,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor) {
         Live live=delta(intent,source,drops,actor);if(live==Live.COMPLETE && receipt==null)live=Live.UNRECEIPTED_EFFECT;
         return new Result(intent.digest(),live,source,drops,receipt,usage,failure,actor);
+    }
+    public static Result observedCrop(Intent intent,Source source,List<Drop> drops,CropDelivery.CropReceipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor) {
+        if(!intent.item.equals("minecraft:wheat"))throw new IllegalArgumentException("Original crop intent required");
+        Live live=delta(intent,source,drops,actor);if(live==Live.COMPLETE && receipt==null)live=Live.UNRECEIPTED_EFFECT;
+        return new Result(intent.digest(),live,source,drops,null,usage,failure,actor,receipt);
     }
     public static Reconciliation classify(Entry entry,Witness actor,SourceWitness source,List<DropWitness> drops) {
         if(actor==null || source==null || drops==null || drops.stream().anyMatch(Objects::isNull))return Reconciliation.WAIT_WORLD;
@@ -117,7 +138,7 @@ public final class NativeHarvest {
         return switch(entry.result.live){case COMPLETE->Reconciliation.SAVED_COMPLETE;case NO_EFFECT->Reconciliation.SAVED_NO_EFFECT;case PARTIAL,UNRECEIPTED_EFFECT->Reconciliation.PARTIAL_UNRESOLVED;};
     }
     public static byte[] encode(Entry entry) {
-        var row=new LinkedHashMap<String,Object>();row.put("schema",1L);row.put("intent",intent(entry.intent));
+        var row=new LinkedHashMap<String,Object>();row.put("schema",entry.intent.item.equals("minecraft:wheat")?2L:1L);row.put("intent",intent(entry.intent));
         if(entry.result!=null)row.put("result",result(entry.result));if(entry.verification!=null)row.put("verification",verification(entry.verification));
         byte[] raw=StrictJson.canonical(row).getBytes(StandardCharsets.UTF_8);if(raw.length>MAX_RECORD_BYTES)throw new IllegalArgumentException("Harvest record quota");return raw;
     }
@@ -127,7 +148,7 @@ public final class NativeHarvest {
             var decoder=StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
             var row=StrictJson.object(decoder.decode(java.nio.ByteBuffer.wrap(raw)).toString());var fields=new HashSet<>(Set.of("schema","intent"));
             if(row.containsKey("result"))fields.add("result");if(row.containsKey("verification"))fields.add("verification");keys(row,fields);
-            if(number(row,"schema")!=1)throw new IllegalArgumentException("Unknown harvest record schema");
+            if(number(row,"schema")!=(string(object(row,"intent"),"item").equals("minecraft:wheat")?2:1))throw new IllegalArgumentException("Unknown harvest record schema");
             var entry=new Entry(intent(object(row,"intent")),row.containsKey("result")?result(object(row,"result")):null,row.containsKey("verification")?verification(object(row,"verification")):null);
             if(!Arrays.equals(raw,encode(entry)))throw new IllegalArgumentException("Noncanonical harvest record");return entry;
         }catch(StrictJson.Invalid|java.nio.charset.CharacterCodingException invalid){throw new IllegalArgumentException("Invalid harvest record",invalid);}
@@ -151,12 +172,12 @@ public final class NativeHarvest {
     }
     private static Map<String,Object> result(Result r) {
         var row=new LinkedHashMap<String,Object>();row.put("intent",r.intent);row.put("actor",NativeDeposit.participant(r.actor));row.put("live",r.live.name());row.put("source",source(r.source));row.put("drops",r.drops.stream().map(NativeHarvest::drop).toList());
-        row.put("usage",r.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));row.put("failure",r.failure);if(r.receipt!=null)row.put("receipt",ResourceReceiptPrefixCodec.encode(r.receipt));return row;
+        row.put("usage",r.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));row.put("failure",r.failure);if(r.receipt!=null)row.put("receipt",ResourceReceiptPrefixCodec.encode(r.receipt));if(r.cropReceipt!=null)row.put("cropReceipt",CropReceiptCodec.encode(r.cropReceipt));return row;
     }
     private static Result result(Map<String,Object> r) {
-        var fields=new HashSet<>(Set.of("intent","actor","live","source","drops","usage","failure"));if(r.containsKey("receipt"))fields.add("receipt");keys(r,fields);
+        var fields=new HashSet<>(Set.of("intent","actor","live","source","drops","usage","failure"));if(r.containsKey("receipt"))fields.add("receipt");if(r.containsKey("cropReceipt"))fields.add("cropReceipt");keys(r,fields);
         if(!(r.get("drops") instanceof List<?> values) || values.size()>64)throw new IllegalArgumentException("Harvest drop quota");var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);var u=object(r,"usage");for(String key:u.keySet())usage.put(Budgets.Kind.valueOf(key),number(u,key));
-        return new Result(string(r,"intent"),Live.valueOf(string(r,"live")),source(object(r,"source")),values.stream().map(v->drop(object(v))).toList(),r.containsKey("receipt")?ResourceReceiptPrefixCodec.decode(object(r,"receipt")):null,usage,string(r,"failure"),NativeDeposit.participant(object(r,"actor")));
+        return new Result(string(r,"intent"),Live.valueOf(string(r,"live")),source(object(r,"source")),values.stream().map(v->drop(object(v))).toList(),r.containsKey("receipt")?ResourceReceiptPrefixCodec.decode(object(r,"receipt")):null,usage,string(r,"failure"),NativeDeposit.participant(object(r,"actor")),r.containsKey("cropReceipt")?CropReceiptCodec.decode(object(r,"cropReceipt")):null);
     }
     private static Map<String,Object> sourceWitness(SourceWitness w){return Map.of("source",source(w.source),"marker",NativeDeposit.markerJson(w.marker),"restored",w.restoredFromNativeSave);}
     private static SourceWitness sourceWitness(Map<String,Object> r){keys(r,Set.of("source","marker","restored"));return new SourceWitness(source(object(r,"source")),NativeDeposit.markerJson(string(r,"marker")),bool(r,"restored"));}

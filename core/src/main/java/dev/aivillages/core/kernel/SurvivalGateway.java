@@ -330,6 +330,7 @@ public final class SurvivalGateway implements GatewayPort {
         dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Ticket pickupTicket;
         PickupOutcome pickupOutcome;
         int pendingReceiptStart = -1;
+        int pendingCropReceiptStart = -1;
         Active(ActionHandle handle, Run run, Operation operation, Map<String, Value> arguments,
                Budgets.Ledger usage, long tick, long startedMillis, long deadlineMillis) {
             this.handle = handle; this.run = run; this.operation = operation == null ? null : operation.shared();
@@ -949,7 +950,7 @@ public final class SurvivalGateway implements GatewayPort {
             if (world.tick()-action.breakStarted<crop.breakTicks()) return;
         }
         if (!effectAllowance(action)) return;
-        if(harvestProtocol!=null && LogAcquisition.log(run.item)){durableHarvest(action,cell);return;}
+        if(harvestProtocol!=null){if(action.breakIdentity==null)action.breakIdentity=crop.identity();durableHarvest(action,cell);return;}
         finishHarvest(action,performHarvest(action,cell));
     }
     private record HarvestOutcome(ItemHarvest harvest,long quantity,Reason failure) { }
@@ -989,6 +990,7 @@ public final class SurvivalGateway implements GatewayPort {
                     run.actor,source(run.request),destination(run.request),cell,run.item,Math.min(action.deadlineMillis,action.usage.deadline()),
                     action.usage.remaining(Kind.COMMITTED_EFFECTS),action.usage.snapshot());
             action.pendingReceiptStart=action.resourceReceipts.size();
+            action.pendingCropReceiptStart=action.receipts.size();
             action.harvestTicket=protocol.begin(request,new dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Action() {
                 public boolean current(){
                     if(action.current.terminal() || clock.millis()>action.deadlineMillis || clock.millis()>action.usage.deadline()
@@ -1001,14 +1003,13 @@ public final class SurvivalGateway implements GatewayPort {
                     var stock=world.resourceContainer(box,run.item);var actorStock=world.resourceInventory(run.actor,run.item);
                     long requested=((IntValue)run.request.request().arguments().get("amount")).value();
                     return crop.status()==ObservationStatus.PRESENT && crop.eligible() && action.breakIdentity.equals(crop.identity())
-                            && stock.status()==ObservationStatus.PRESENT && stock.reason()==null && stock.capacity()>=requested-run.deposited
-                            && actorStock.capacity()>=requested-run.harvested && world.permit(run.request,Effect.HARVEST,cell)==null
+                            && stock.status()==ObservationStatus.PRESENT && stock.reason()==null && (!LogAcquisition.log(run.item) || stock.capacity()>=requested-run.deposited && actorStock.capacity()>=requested-run.harvested) && world.permit(run.request,Effect.HARVEST,cell)==null
                             && world.permit(run.request,Effect.TRANSFER,new Cell(box.dimension(),box.x(),box.y(),box.z()))==null;
                 }
                 public dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Observed execute(){
-                    int before=action.resourceReceipts.size();action.harvestOutcome=performHarvest(action,cell);
+                    int before=action.resourceReceipts.size(),cropBefore=action.receipts.size();action.harvestOutcome=performHarvest(action,cell);
                     var receipt=action.resourceReceipts.size()>before?action.resourceReceipts.getLast():null;
-                    return new dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Observed(action.harvestOutcome.harvest(),receipt,action.usage.snapshot());
+                    return new dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Observed(action.harvestOutcome.harvest(),receipt,action.usage.snapshot(),action.receipts.size()>cropBefore?action.receipts.getLast():null);
                 }
                 public Map<Kind,Long> usage(){return action.usage.snapshot();}
             });
@@ -1022,7 +1023,7 @@ public final class SurvivalGateway implements GatewayPort {
         if(progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.FAILED
                 || progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.UNRESOLVED){finish(action,progress.reason(),null,null);return;}
         if(action.harvestOutcome==null){finish(action,Reason.STALE_OBSERVATION,null,null);return;}
-        action.pendingReceiptStart=-1;finishHarvest(action,action.harvestOutcome);action.harvestOutcome=null;
+        action.pendingReceiptStart=-1;action.pendingCropReceiptStart=-1;finishHarvest(action,action.harvestOutcome);action.harvestOutcome=null;
     }
     private void pickupTracked(Active action) {
         Run run = action.run;
@@ -1345,7 +1346,7 @@ public final class SurvivalGateway implements GatewayPort {
     private ActionReceipt current(Active action, boolean terminal, Reason reason,
                                   Value result, ObservationSnapshot snapshot) {
         return new ActionReceipt(action.handle, terminal, action.effects,
-                List.copyOf(action.receipts), reason, result, snapshot,
+                List.copyOf(action.pendingCropReceiptStart<0?action.receipts:action.receipts.subList(0,action.pendingCropReceiptStart)), reason, result, snapshot,
                 List.copyOf(action.pendingReceiptStart<0 ? action.resourceReceipts
                         : action.resourceReceipts.subList(0,action.pendingReceiptStart)));
     }
