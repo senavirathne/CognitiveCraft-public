@@ -686,7 +686,7 @@ def smoke(h: Harness):
         require(len(h.snapshot()["players"]["PlayerA"]["citizens"]["citizens"]) == 1, "Client restart duplicated citizen")
         h.screenshot("PlayerA", "named-citizen-after-client-restart", chat=True)
     h.disconnect("PlayerA")
-    return {"citizen": citizen, "entity": h.entities["PlayerA"], "players": h.players,
+    return {"citizen": citizen, "entity": h.entities["PlayerA"], "players": dict(h.players),
             "clientJvmRestart": restarted, "modelCalls": 0}
 
 
