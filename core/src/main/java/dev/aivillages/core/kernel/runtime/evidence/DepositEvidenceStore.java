@@ -13,6 +13,7 @@ public final class DepositEvidenceStore {
         boolean current(Intent intent);
         Result execute(Intent intent);
         Witness restored(Participant participant);
+        default NativePickup.Observation restoredLineage(Entry entry){return null;}
     }
     public enum Code { PENDING, PREPARED, RESULT_ACKNOWLEDGED, RESOLVED, RECOVERY_REQUIRED, STALE, FULL, FENCED }
     public record Status(Code code,Prepared prepared) { }
@@ -23,8 +24,8 @@ public final class DepositEvidenceStore {
         public Intent intent(){return intent;}
     }
     public static final class Reconciled {
-        private final DepositEvidenceStore owner;private final Entry entry;private final Reconciliation result;private final Witness actor,chest;
-        private Reconciled(DepositEvidenceStore owner,Entry entry,Reconciliation result,Witness actor,Witness chest){this.owner=owner;this.entry=entry;this.result=result;this.actor=actor;this.chest=chest;}
+        private final DepositEvidenceStore owner;private final Entry entry;private final Reconciliation result;private final Witness actor,chest;private final NativePickup.Observation lineage;
+        private Reconciled(DepositEvidenceStore owner,Entry entry,Reconciliation result,Witness actor,Witness chest,NativePickup.Observation lineage){this.owner=owner;this.entry=entry;this.result=result;this.actor=actor;this.chest=chest;this.lineage=lineage;}
         public Entry entry(){return entry;}public Reconciliation result(){return result;}
         public UUID process(){return owner.process;}
     }
@@ -105,10 +106,11 @@ public final class DepositEvidenceStore {
     public Reconciled reconcile(Key key) {
         thread();Entry entry=find(state,key.token());if(entry==null && pending!=null)entry=find(pending,key.token());
         if(entry==null || !entry.intent().key().equals(key))return null;
-        if(fenced || pending!=null)return new Reconciled(this,entry,Reconciliation.UNPROVEN,null,null);
-        if(entry.verification()!=null)return new Reconciled(this,entry,entry.verification().outcome(),null,null);
+        if(fenced || pending!=null)return new Reconciled(this,entry,Reconciliation.UNPROVEN,null,null,null);
+        if(entry.verification()!=null)return new Reconciled(this,entry,entry.verification().outcome(),null,null,null);
         Witness actor=nativePort.restored(entry.intent().actor()),chest=nativePort.restored(entry.intent().chest());
-        return new Reconciled(this,entry,fenced?Reconciliation.UNPROVEN:classify(entry,actor,chest),actor,chest);
+        var lineage=entry.intent().pickupPrefix()==null?null:nativePort.restoredLineage(entry);
+        return new Reconciled(this,entry,fenced?Reconciliation.UNPROVEN:classify(entry,actor,chest,lineage),actor,chest,lineage);
     }
     /** Persist positive saved evidence before releasing its scoped exclusion. No physical replay. */
     public Code verify(Reconciled proof) {
@@ -118,8 +120,9 @@ public final class DepositEvidenceStore {
         if(current!=proof.entry)return Code.STALE;if(pending!=null)return Code.PENDING;
         if(!Set.of(Reconciliation.PREPARED_NO_EFFECT,Reconciliation.SAVED_COMPLETE,Reconciliation.SAVED_NO_EFFECT).contains(proof.result)
                 || !Objects.equals(proof.actor,nativePort.restored(current.intent().actor()))
-                || !Objects.equals(proof.chest,nativePort.restored(current.intent().chest())))return Code.STALE;
-        var verification=new Verification(proof.result,proof.actor.participant(),proof.chest.participant(),proof.actor.marker(),proof.chest.marker(),process,clock.millis());
+                || !Objects.equals(proof.chest,nativePort.restored(current.intent().chest()))
+                || current.intent().pickupPrefix()!=null && !Objects.equals(proof.lineage,nativePort.restoredLineage(current)))return Code.STALE;
+        var verification=new Verification(proof.result,proof.actor.participant(),proof.chest.participant(),proof.actor.marker(),proof.chest.marker(),process,clock.millis(),proof.lineage);
         Entry resolved=new Entry(current.intent(),current.result(),verification);NativeDeposit.encode(resolved);
         var entries=new ArrayList<>(state.entries());entries.set(entries.indexOf(current),resolved);
         publish(new Snapshot(state.world(),state.epoch(),Math.addExact(state.revision(),1),entries));return Code.PENDING;

@@ -8,6 +8,7 @@ import dev.aivillages.core.kernel.runtime.evidence.HarvestJournal;
 import dev.aivillages.core.kernel.runtime.evidence.HarvestStoppedSource;
 import dev.aivillages.core.kernel.runtime.evidence.PickupJournal;
 import dev.aivillages.core.kernel.runtime.evidence.PickupStoppedSource;
+import dev.aivillages.core.kernel.runtime.evidence.JoinedDepositStoppedSource;
 import dev.aivillages.core.kernel.runtime.evidence.HarvestPickupRetention;
 import dev.aivillages.fabric.runtime.evidence.FabricPickupProtocol;
 import dev.aivillages.fabric.runtime.evidence.FabricHarvestProtocol;
@@ -623,6 +624,9 @@ public final class KernelSession implements AutoCloseable {
             pickupProtocol=new FabricPickupProtocol(server.overworld(),jobs,leases,harvestProtocol,loaded.pickups(),loaded.initialPickups(),
                     loaded.pickupsReadOnly(),worker,clock,pickupEvidenceEnabled);
             gateway.pickupProtocol(pickupProtocol);
+            harvestProtocol.evidence().attachPickup(pickupProtocol.evidence());
+            if(depositProtocol!=null)pickupProtocol.evidence().attachDeposit(depositProtocol.evidence());
+            if(depositProtocol!=null)depositProtocol.pickupProtocol(pickupProtocol);
         }
         if(loaded.jobHistory()!=null)jobArchive=new JobArchive(jobs,loaded.jobHistory(),loaded.history(),historyService,
                 dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
@@ -798,6 +802,14 @@ public final class KernelSession implements AutoCloseable {
                         return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
                     }
                 }, original -> {
+                    if(depositProtocol!=null && pickupProtocol!=null && depositProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
+                            && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
+                        return new JoinedDepositStoppedSource(jobs,new JoinedDepositStoppedSource.Evidence() {
+                            public dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore harvest(){return harvestProtocol.evidence();}
+                            public dev.aivillages.core.kernel.runtime.evidence.PickupEvidenceStore pickup(){return pickupProtocol.evidence();}
+                            public dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore deposit(){return depositProtocol.evidence();}
+                            public dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore.Reconciled proof){return depositProtocol.verify(proof);}
+                        }).observe(original);
                     if(pickupProtocol!=null && pickupProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
                             && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
                         return new PickupStoppedSource(jobs,new PickupStoppedSource.Evidence() {

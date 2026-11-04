@@ -26,6 +26,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<ChunkPos,CompletableFuture<EntityChunkRecord.Frame>> frames=new HashMap<>();
     private Consumer<Point> observer=p->{};
+    private final Map<String,FabricHarvestProtocol.PickupLineage> live=new HashMap<>();
+    private String descendant="";
     private final ArrayDeque<Long> captureNanos=new ArrayDeque<>();
     private final class NativeTicket implements Ticket {
         final Request request;final Action action;final FabricHarvestProtocol.PickupLineage lineage;final NativePickup.Intent intent;final Reason failure;
@@ -50,7 +52,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public void observe(Consumer<Point> observer){check();this.observer=Objects.requireNonNull(observer);}
     public List<Long> captureNanos(){check();return List.copyOf(captureNanos);}
     public void tick(){check();store.tick();}
-    public void close(){check();closed=true;tickets.clear();frames.clear();}
+    public void close(){check();closed=true;tickets.clear();frames.clear();live.clear();}
     public Ticket begin(Request request,Action action) {
         check();long began=System.nanoTime();
         try {
@@ -141,6 +143,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());mark(intent,actor,remaining,marker);
         stage(intent.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,null);
         stage(intent.dropTrail(),NativePickup.Role.DROP,result.remaining()==null?h.result().drops().getFirst().revision():result.remaining().revision(),marker,result.remaining()!=null,null);
+        live.put(intent.key().token(),ticket.lineage);
+        harvest.observeActorTrail(ticket.lineage,trail->stage(trail,NativePickup.Role.ACTOR,result.actor().revision(),marker,true,null));
         frames.clear();return result;
     }
     private void mark(NativePickup.Intent intent,Villager actor,ItemEntity drop,Marker marker) {
@@ -165,15 +169,21 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var e=level.getEntity(id);return e!=null && !e.isRemoved() && e.chunkPosition().x()==chunk.x() && e.chunkPosition().z()==chunk.z();
     }
     private NativePickup.Observation observeSaved(NativePickup.Entry entry) {
-        check();if(entry.result()==null)return null;var r=entry.result();var intent=entry.intent();
-        var actor=harvest.actorWitness(r.actor());var source=harvest.sourceWitness(r.source());
-        var drop=drop(intent.dropTrail().entity());NativeHarvest.DropWitness dw=null;
+        check();if(entry.result()==null)return null;
+        return observeCohort(entry.result().actor(),entry.result().source(),entry.intent().actorTrail(),entry.intent().dropTrail());
+    }
+    private NativePickup.Observation observeCohort(Participant expectedActor,NativeHarvest.Source expectedSource,NativePickup.Trail actorTrail,NativePickup.Trail dropTrail) {
+        var actor=harvest.actorWitness(expectedActor);var source=harvest.sourceWitness(expectedSource);
+        var drop=drop(dropTrail.entity());NativeHarvest.DropWitness dw=null;
         if(drop!=null) {
             var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();
             try{dw=new NativeHarvest.DropWitness(harvest.dropSnapshot(drop,false),state.marker(),state.restored());}catch(RuntimeException invalid){return null;}
         }
+        var refs=new ArrayList<NativePickup.Member>();
+        actorTrail.chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.ACTOR,actorTrail.entity(),c)));
+        dropTrail.chunks().forEach(c->refs.add(new NativePickup.Member(NativePickup.Role.DROP,dropTrail.entity(),c)));
         var members=new ArrayList<NativePickup.MembershipWitness>();NativePickup.TrailWitness at=null,dt=null;
-        for(var member:NativePickup.members(intent)) {
+        for(var member:refs) {
             var c=member.chunk();if(level.getChunkSource().getChunkNow(c.x(),c.z())==null)return null;
             var f=frame(c);if(f==null || !f.supported())return null;
             var state=EntityChunkMembershipState.load(f.metadata(),c.dimension(),f.position(),f.members());var row=state.row(member.entity());if(row==null)return null;
@@ -183,11 +193,55 @@ public final class FabricPickupProtocol implements PickupProtocol {
         }
         return new NativePickup.Observation(actor,source,dw,at,dt,members);
     }
+    public static final class DepositLineage {
+        private final FabricPickupProtocol owner;private final PickupEvidenceStore.Acknowledged pickup;
+        private final FabricHarvestProtocol.PickupLineage harvest;private final NativeJoinedDeposit.Prefix prefix;
+        private DepositLineage(FabricPickupProtocol owner,PickupEvidenceStore.Acknowledged pickup,FabricHarvestProtocol.PickupLineage harvest,NativeJoinedDeposit.Prefix prefix) {
+            this.owner=owner;this.pickup=pickup;this.harvest=harvest;this.prefix=prefix;
+        }
+        NativeJoinedDeposit.Prefix prefix(){return prefix;}
+    }
+    DepositLineage captureDeposit(DepositProtocol.Request request) {
+        check();if(closed || !enabled || store.fenced() || store.pending())return null;
+        var matches=store.snapshot().entries().stream().filter(e->e.intent().harvest().intent().run().equals(request.correlation().runId())).toList();
+        if(matches.size()!=1)return null;var p=matches.getFirst();var link=live.get(p.token());var acknowledged=store.acknowledged(p.intent().key());
+        if(link==null || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
+                || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
+        var actor=actor(request.actor());var source=harvest.sourceWitness(p.result().source());var marker=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
+        if(actor==null || source==null || !source.source().equals(p.result().source()) || !marker.equals(source.marker())
+                || !harvest.actorSnapshot(actor,false).equals(p.result().actor()) || !marker.equals(((DepositParticipant)actor).cognitivecraft$depositParticipant().marker())
+                || level.getEntity(p.intent().dropTrail().entity())!=null)return null;
+        try{return new DepositLineage(this,acknowledged,link,new NativeJoinedDeposit.Prefix(p,harvest.actorTrail(link)));}catch(RuntimeException gap){return null;}
+    }
+    boolean currentDeposit(DepositLineage lineage) {
+        check();return !closed && lineage!=null && lineage.owner==this && store.owns(lineage.pickup)
+                && harvest.actorTrail(lineage.harvest).equals(lineage.prefix.actorTrail());
+    }
+    <T> T depositScope(DepositLineage lineage,java.util.function.Supplier<T> action) {
+        check();if(!currentDeposit(lineage) || !descendant.isEmpty())throw new IllegalStateException("Original P/D scope");
+        descendant=lineage.pickup.entry().token();try{return harvest.descendantScope(lineage.harvest,action);}finally{descendant="";}
+    }
+    void deposited(DepositLineage lineage,NativeDeposit.Intent intent,NativeDeposit.Result result) {
+        check();if(!currentDeposit(lineage) || !lineage.prefix.equals(intent.pickupPrefix()))throw new IllegalStateException("Original P/D lineage changed");
+        var p=lineage.pickup.entry();var actor=Objects.requireNonNull(actor(p.intent().harvest().intent().actor()));
+        var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());
+        var previous=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
+        mark(p.intent(),actor,null,marker);
+        stage(lineage.prefix.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous);
+        stage(p.intent().dropTrail(),NativePickup.Role.DROP,p.intent().harvest().result().drops().getFirst().revision(),marker,false,previous);
+        harvest.observeActorTrail(lineage.harvest,trail->stage(trail,NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous));frames.clear();
+    }
+    NativePickup.Observation observeDeposit(NativeDeposit.Entry entry) {
+        check();var prefix=entry.intent().pickupPrefix();if(prefix==null || entry.result()==null || store.fenced() || store.pending())return null;
+        if(store.snapshot().entries().stream().noneMatch(e->e.equals(prefix.pickup())) || harvest.evidence().fenced() || harvest.evidence().pending()
+                || harvest.evidence().snapshot().entries().stream().noneMatch(e->e.equals(prefix.pickup().intent().harvest())))return null;
+        return observeCohort(entry.result().actor(),prefix.pickup().result().source(),prefix.actorTrail(),prefix.pickup().intent().dropTrail());
+    }
     public PickupEvidenceStore.Code verify(PickupEvidenceStore.Reconciled proof){check();var code=store.verify(proof);if(code==PickupEvidenceStore.Code.RESOLVED)observer.accept(Point.VERIFICATION_ACKNOWLEDGED);return code;}
     public boolean blocked(ValidatedRequest request,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
         var value=request.request().arguments().get("actor");if(!(value instanceof ActorValue actor))return false;
-        for(var e:store.snapshot().entries())if(e.verification()==null && e.intent().harvest().intent().actor().equals(actor.value())) {
+        for(var e:store.snapshot().entries())if(!store.settled(e) && !e.token().equals(descendant) && e.intent().harvest().intent().actor().equals(actor.value())) {
             boolean own=tickets.stream().anyMatch(t->t.intent==e.intent() && !t.forgotten && t.request.bound().equals(request) && effect==Effect.PICKUP && t.request.target().equals(target));
             if(!own)return true;
         }

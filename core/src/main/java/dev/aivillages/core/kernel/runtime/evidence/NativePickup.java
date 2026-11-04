@@ -202,8 +202,8 @@ public final class NativePickup {
     }
     private static Map<String,Object> chunk(Chunk c){return Map.of("dimension",c.dimension(),"x",c.x(),"z",c.z());}
     private static Chunk chunk(Map<String,Object> m){keys(m,Set.of("dimension","x","z"));return new Chunk(string(m,"dimension"),integer(m,"x"),integer(m,"z"));}
-    private static Map<String,Object> trail(Trail t){return Map.of("entity",t.entity().toString(),"incarnation",t.incarnation().toString(),"chunks",t.chunks().stream().map(NativePickup::chunk).toList(),"current",chunk(t.current()));}
-    private static Trail trail(Map<String,Object> m){keys(m,Set.of("entity","incarnation","chunks","current"));return new Trail(id(m,"entity"),id(m,"incarnation"),objects(m,"chunks",MAX_TRAIL_CHUNKS).stream().map(NativePickup::chunk).toList(),chunk(object(m,"current")));}
+    static Map<String,Object> trail(Trail t){return Map.of("entity",t.entity().toString(),"incarnation",t.incarnation().toString(),"chunks",t.chunks().stream().map(NativePickup::chunk).toList(),"current",chunk(t.current()));}
+    static Trail trail(Map<String,Object> m){keys(m,Set.of("entity","incarnation","chunks","current"));return new Trail(id(m,"entity"),id(m,"incarnation"),objects(m,"chunks",MAX_TRAIL_CHUNKS).stream().map(NativePickup::chunk).toList(),chunk(object(m,"current")));}
     private static Map<String,Object> source(NativeHarvest.Source s){return Map.of("dimension",s.dimension(),"x",s.x(),"y",s.y(),"z",s.z(),"incarnation",s.incarnation().toString(),"revision",s.revision(),"state",s.state());}
     private static NativeHarvest.Source source(Map<String,Object> m){keys(m,Set.of("dimension","x","y","z","incarnation","revision","state"));return new NativeHarvest.Source(string(m,"dimension"),integer(m,"x"),integer(m,"y"),integer(m,"z"),id(m,"incarnation"),number(m,"revision"),string(m,"state"));}
     private static Map<String,Object> drop(NativeHarvest.Drop d){return Map.of("dimension",d.dimension(),"entity",d.entity().toString(),"incarnation",d.incarnation().toString(),"revision",d.revision(),"item",d.item(),"quantity",d.quantity());}
@@ -230,7 +230,7 @@ public final class NativePickup {
     }
     private static Map<String,Object> trailWitness(TrailWitness w){return Map.of("trail",trail(w.trail()),"marker",markerJson(w.marker()),"restored",w.restoredFromNativeSave());}
     private static TrailWitness trailWitness(Map<String,Object> m){keys(m,Set.of("trail","marker","restored"));return new TrailWitness(trail(object(m,"trail")),markerJson(string(m,"marker")),bool(m,"restored"));}
-    private static Map<String,Object> observation(Observation o) {
+    static Map<String,Object> observation(Observation o) {
         var m=new LinkedHashMap<String,Object>();
         m.put("actor",Map.of("participant",participant(o.actor().participant()),"marker",markerJson(o.actor().marker()),"restored",o.actor().restoredFromNativeSave()));
         m.put("source",Map.of("source",source(o.source().source()),"marker",markerJson(o.source().marker()),"restored",o.source().restoredFromNativeSave()));
@@ -241,7 +241,7 @@ public final class NativePickup {
                 "incarnation",w.incarnation().toString(),"revision",w.revision(),"marker",markerJson(w.marker()),"restored",w.restoredFromNativeSave(),
                 "savedPresent",w.savedPresent(),"currentPresent",w.currentPresent(),"frame",w.frameDigest())).toList());return m;
     }
-    private static Observation observation(Map<String,Object> m) {
+    static Observation observation(Map<String,Object> m) {
         var fields=new HashSet<>(Set.of("actor","source","actorTrail","memberships"));if(m.containsKey("drop"))fields.add("drop");if(m.containsKey("dropTrail"))fields.add("dropTrail");keys(m,fields);
         var a=object(m,"actor");keys(a,Set.of("participant","marker","restored"));var s=object(m,"source");keys(s,Set.of("source","marker","restored"));
         NativeHarvest.DropWitness d=null;if(m.containsKey("drop")){var v=object(m,"drop");keys(v,Set.of("drop","marker","restored"));d=new NativeHarvest.DropWitness(drop(object(v,"drop")),markerJson(string(v,"marker")),bool(v,"restored"));}

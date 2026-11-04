@@ -37,6 +37,8 @@ public final class FabricDepositProtocol implements DepositProtocol {
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private Consumer<Point> observer=point->{ };
     private boolean closed;
+    private FabricPickupProtocol pickups;
+    public void pickupProtocol(FabricPickupProtocol protocol){check();if(pickups!=null)throw new IllegalStateException("Joined pickup already attached");pickups=Objects.requireNonNull(protocol);}
     private final ArrayDeque<Long> beginNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
     public static final List<String> PREPARATION_PHASES=List.of("authority","owner","participants","claims","conditions","intent","exclusion");
     private final ArrayDeque<PreparationProfile> preparations=new ArrayDeque<>();
@@ -49,10 +51,14 @@ public final class FabricDepositProtocol implements DepositProtocol {
         final Request request;
         final Action original;
         final Intent intent;
+        final FabricPickupProtocol.DepositLineage lineage;
         Reason failure;
         boolean forgotten,acknowledged;
         NativeTicket(Request request,Action original,Intent intent,Reason failure) {
-            this.request=request;this.original=original;this.intent=intent;this.failure=failure;
+            this(request,original,intent,failure,null);
+        }
+        NativeTicket(Request request,Action original,Intent intent,Reason failure,FabricPickupProtocol.DepositLineage lineage) {
+            this.request=request;this.original=original;this.intent=intent;this.failure=failure;this.lineage=lineage;
         }
     }
     private record Pair(Villager actor,ChestBlockEntity chest,Participant actorSnapshot,Participant chestSnapshot) { }
@@ -76,6 +82,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
             public boolean current(Intent intent){return nativeCurrent(intent);}
             public Result execute(Intent intent){return nativeExecute(intent);}
             public Witness restored(Participant participant){return witness(participant);}
+            public NativePickup.Observation restoredLineage(Entry entry){return pickups==null?null:pickups.observeDeposit(entry);}
         },clock,30_000,readOnly);
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Native deposit game-thread owner");}
@@ -101,7 +108,9 @@ public final class FabricDepositProtocol implements DepositProtocol {
             if(closed || !enabled)throw new Refused(Reason.UNSUPPORTED_PRIMITIVE);
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=MAX_TICKETS)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
-            if(!original.current())throw new Refused(Reason.INTERRUPTED);
+            var lineage=pickups==null?null:pickups.captureDeposit(request);
+            if(pickups!=null && lineage==null)throw new Refused(Reason.INTERRUPTED);
+            if(!(lineage==null?original.current():pickups.depositScope(lineage,original::current)))throw new Refused(Reason.INTERRUPTED);
             phases[0]=System.nanoTime();
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
@@ -139,6 +148,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
                 var key=entry.intent().key();
                 if(key.root().equals(root) && key.attempt().equals(attempt.id()) && key.generation()==attempt.generation())ordinal=Math.max(ordinal,key.ordinal()+1);
             }
+            if(lineage!=null)ordinal=3;
             long deadline=Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis());
             if(request.deadline()>deadline)throw new Refused(Reason.REQUEST_INVALID);
             long remaining=attempt.allowance().maximum(Budgets.Kind.COMMITTED_EFFECTS)-request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L);
@@ -149,9 +159,9 @@ public final class FabricDepositProtocol implements DepositProtocol {
             phases[4]=System.nanoTime();
             var intent=new Intent(new Key(job.origin().scope().worldId(),root,job.id(),attempt.id(),attempt.generation(),ordinal),job.origin(),request.correlation().runId(),request.operation(),
                     pair.actorSnapshot,pair.chestSnapshot,request.item().id(),source,target,capacity(pair,source,target),conditions,
-                    retainReceiptPrefix?new ResourceReceiptPrefix(request.receiptPrefix()):null);
+                    retainReceiptPrefix || lineage!=null?new ResourceReceiptPrefix(request.receiptPrefix()):null,lineage==null?null:lineage.prefix());
             phases[5]=System.nanoTime();
-            ticket=new NativeTicket(request,original,intent,null);
+            ticket=new NativeTicket(request,original,intent,null,lineage);
             if(store.conflicts(Kind.ACTOR,intent.actor().dimension(),intent.actor().address(),"") || store.conflicts(Kind.CHEST,intent.chest().dimension(),intent.chest().address(),""))throw new Refused(Reason.INTERRUPTED);
             phases[6]=System.nanoTime();
         }catch(Refused refused){return new NativeTicket(request,original,null,refused.reason);}
@@ -189,7 +199,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
     private NativeTicket ticket(Intent intent){return tickets.stream().filter(t->t.intent==intent && !t.forgotten).findFirst().orElse(null);}
     private boolean nativeCurrent(Intent intent) {
         NativeTicket ticket=ticket(intent);
-        if(closed || !enabled || ticket==null || !ticket.original.current() || !jobs.ready() || !leases.ready())return false;
+        if(closed || !enabled || ticket==null || !(ticket.lineage==null?ticket.original.current():pickups.currentDeposit(ticket.lineage)&&pickups.depositScope(ticket.lineage,ticket.original::current)) || !jobs.ready() || !leases.ready())return false;
         var job=jobs.query(intent.key().step(),intent.origin());var attempt=job.current();
         if(job.revision()!=intent.conditions().jobRevision() || attempt==null || !attempt.id().equals(intent.key().attempt())
                 || attempt.generation()!=intent.key().generation() || jobs.stopPending(job.id(),job.generation(),job.origin())
@@ -212,13 +222,14 @@ public final class FabricDepositProtocol implements DepositProtocol {
         if(!nativeCurrent(intent))throw new IllegalStateException("Deposit changed after prepared marker");
         mark(pair,new Marker(intent.key().token(),intent.digest(),MarkerPhase.MUTATING,""));observer.accept(Point.BEFORE_MUTATION);
         Observed observed=null;RuntimeException failure=null;
-        try{observed=ticket.original.execute();}catch(RuntimeException error){failure=error;}
+        try{observed=ticket.lineage==null?ticket.original.execute():pickups.depositScope(ticket.lineage,ticket.original::execute);}catch(RuntimeException error){failure=error;}
         observer.accept(Point.AFTER_MUTATION);
         Pair after=Objects.requireNonNull(pair(ticket.request.actor(),ticket.request.destination(),true));
         Result result=NativeDeposit.observed(intent,after.actorSnapshot,after.chestSnapshot,
                 failure==null?observed.transfer().reason()==null?"":observed.transfer().reason().name():failure.getClass().getName(),
                 observed==null?null:observed.receipt(),observed==null?ticket.original.usage():observed.usage());
-        mark(after,new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest()));return result;
+        mark(after,new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest()));
+        if(ticket.lineage!=null)pickups.deposited(ticket.lineage,intent,result);return result;
     }
     /** Bounded, explicitly requested historical classification; never invokes a gateway action. */
     public DepositEvidenceStore.Reconciled reconcile(Key key){check();return store.reconcile(key);}

@@ -566,7 +566,7 @@ public final class SurvivalGateway implements GatewayPort {
         }
         Cell target = target(action);
         if(action.pickupTicket!=null){pollPickup(action);run.lastTick=world.tick();return;}
-        Reason permission = effect==Effect.PICKUP && pickupProtocol!=null && LogAcquisition.log(run.item) ? null : world.permit(run.request, effect, target);
+        Reason permission = (effect==Effect.PICKUP || effect==Effect.TRANSFER) && pickupProtocol!=null && LogAcquisition.log(run.item) ? null : world.permit(run.request, effect, target);
         if (permission != null) { finish(action, permission, null, null); return; }
         switch (op) {
             case OBSERVE_SOURCE, OBSERVE_OAK_SOURCE -> observeSource(action);
@@ -1224,6 +1224,7 @@ public final class SurvivalGateway implements GatewayPort {
             action.depositTicket=protocol.begin(request,new dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Action() {
                 public boolean current(){return !action.current.terminal() && clock.millis()<=action.deadlineMillis && clock.millis()<=action.usage.deadline()
                         && world.holds(run.actor,run.id) && allows(action,Effect.TRANSFER,target) && inventoryCurrent(run,world.resourceInventory(run.actor,run.item))
+                        && world.permit(run.request,Effect.TRANSFER,target)==null
                         && action.usage.canDebit(Kind.ATTEMPTED_EFFECTS,1) && action.usage.canDebit(Kind.COMMITTED_EFFECTS,1)
                         && run.receipts.size()+run.resourceReceipts.size()<limits.maxReceiptsPerRun();}
                 public dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Observed execute() {

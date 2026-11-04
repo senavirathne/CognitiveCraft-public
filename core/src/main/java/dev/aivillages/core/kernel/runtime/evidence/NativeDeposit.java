@@ -80,7 +80,11 @@ public final class NativeDeposit {
         }
     }
     public record Intent(Key key,TrustedContext origin,UUID run,UUID operation,Participant actor,Participant chest,
-                         String item,int actorSlot,int chestSlot,int capacity,Conditions conditions,ResourceReceiptPrefix receiptPrefix) {
+                         String item,int actorSlot,int chestSlot,int capacity,Conditions conditions,ResourceReceiptPrefix receiptPrefix,NativeJoinedDeposit.Prefix pickupPrefix) {
+        public Intent(Key key,TrustedContext origin,UUID run,UUID operation,Participant actor,Participant chest,
+                      String item,int actorSlot,int chestSlot,int capacity,Conditions conditions,ResourceReceiptPrefix receiptPrefix) {
+            this(key,origin,run,operation,actor,chest,item,actorSlot,chestSlot,capacity,conditions,receiptPrefix,null);
+        }
         public Intent(Key key,TrustedContext origin,UUID run,UUID operation,Participant actor,Participant chest,
                       String item,int actorSlot,int chestSlot,int capacity,Conditions conditions) {
             this(key,origin,run,operation,actor,chest,item,actorSlot,chestSlot,capacity,conditions,null);
@@ -109,7 +113,10 @@ public final class NativeDeposit {
         }
         public String digest(){return sha(StrictJson.canonical(result(this)));}
     }
-    public record Verification(Reconciliation outcome,Participant actor,Participant chest,Marker actorMarker,Marker chestMarker,UUID process,long observedAt) {
+    public record Verification(Reconciliation outcome,Participant actor,Participant chest,Marker actorMarker,Marker chestMarker,UUID process,long observedAt,NativePickup.Observation lineage) {
+        public Verification(Reconciliation outcome,Participant actor,Participant chest,Marker actorMarker,Marker chestMarker,UUID process,long observedAt) {
+            this(outcome,actor,chest,actorMarker,chestMarker,process,observedAt,null);
+        }
         public Verification {
             Objects.requireNonNull(outcome);Objects.requireNonNull(actor);Objects.requireNonNull(chest);Objects.requireNonNull(actorMarker);Objects.requireNonNull(chestMarker);Objects.requireNonNull(process);
             if(observedAt<0 || !Set.of(Reconciliation.PREPARED_NO_EFFECT,Reconciliation.SAVED_COMPLETE,Reconciliation.SAVED_NO_EFFECT).contains(outcome))
@@ -120,6 +127,7 @@ public final class NativeDeposit {
         public Entry(Intent intent,Result result){this(intent,result,null);}
         public Entry {
             Objects.requireNonNull(intent);
+            if(intent.pickupPrefix!=null)intent.pickupPrefix.matches(intent);
             if(intent.receiptPrefix!=null) {
                 intent.receiptPrefix.matches(intent);
                 if(result!=null)intent.receiptPrefix.result(result.receipt);
@@ -147,7 +155,7 @@ public final class NativeDeposit {
                 }
             }
             if(verification!=null && classify(new Entry(intent,result,null),new Witness(verification.actor,verification.actorMarker,true),
-                    new Witness(verification.chest,verification.chestMarker,true))!=verification.outcome)throw new IllegalArgumentException("Deposit verification does not prove its own outcome");
+                    new Witness(verification.chest,verification.chestMarker,true),verification.lineage)!=verification.outcome)throw new IllegalArgumentException("Deposit verification does not prove its own outcome");
         }
         public String token(){return intent.key.token();}
     }
@@ -176,6 +184,16 @@ public final class NativeDeposit {
                 ?Live.COMPLETE:Live.PARTIAL;
     }
     public static Reconciliation classify(Entry entry,Witness actor,Witness chest) {
+        if(entry.intent.pickupPrefix!=null)return Reconciliation.UNPROVEN;
+        return classify(entry,actor,chest,null);
+    }
+    public static Reconciliation classify(Entry entry,Witness actor,Witness chest,NativePickup.Observation lineage) {
+        var participants=classifyParticipants(entry,actor,chest);
+        if(entry.intent.pickupPrefix==null)return lineage==null?participants:Reconciliation.UNPROVEN;
+        if(participants!=Reconciliation.SAVED_COMPLETE && participants!=Reconciliation.SAVED_NO_EFFECT)return participants==Reconciliation.WAIT_WORLD?participants:Reconciliation.UNPROVEN;
+        var joined=NativeJoinedDeposit.classify(entry,lineage);return joined==participants?joined:joined==Reconciliation.WAIT_WORLD?joined:Reconciliation.UNPROVEN;
+    }
+    private static Reconciliation classifyParticipants(Entry entry,Witness actor,Witness chest) {
         if(actor==null || chest==null)return Reconciliation.WAIT_WORLD;
         if(!actor.restoredFromNativeSave || !chest.restoredFromNativeSave || actor.marker==null || chest.marker==null
                 || !entry.intent.actor.sameIdentity(actor.participant) || !entry.intent.chest.sameIdentity(chest.participant))return Reconciliation.UNPROVEN;
@@ -191,7 +209,7 @@ public final class NativeDeposit {
         return switch(entry.result.live) {case COMPLETE->Reconciliation.SAVED_COMPLETE;case NO_EFFECT->Reconciliation.SAVED_NO_EFFECT;case PARTIAL,UNRECEIPTED_EFFECT->Reconciliation.PARTIAL_UNRESOLVED;};
     }
     public static byte[] encode(Entry entry) {
-        var value=new LinkedHashMap<String,Object>();value.put("schema",entry.intent.receiptPrefix==null?1L:2L);value.put("intent",intent(entry.intent));
+        var value=new LinkedHashMap<String,Object>();value.put("schema",entry.intent.pickupPrefix!=null?3L:entry.intent.receiptPrefix==null?1L:2L);value.put("intent",intent(entry.intent));
         if(entry.result!=null)value.put("result",result(entry.result));
         if(entry.verification!=null)value.put("verification",verification(entry.verification));
         byte[] raw=StrictJson.canonical(value).getBytes(StandardCharsets.UTF_8);
@@ -204,7 +222,7 @@ public final class NativeDeposit {
             Map<String,Object> row=StrictJson.object(decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString());
             var fields=new HashSet<>(Set.of("schema","intent"));if(row.containsKey("result"))fields.add("result");if(row.containsKey("verification"))fields.add("verification");keys(row,fields);
             long schema=number(row,"schema");
-            if(schema!=1 && schema!=2 || object(row,"intent").containsKey("receiptPrefix")!=(schema==2))throw new IllegalArgumentException("Unknown or inconsistent deposit record schema");
+            if(schema<1 || schema>3 || object(row,"intent").containsKey("receiptPrefix")!=(schema>=2) || object(row,"intent").containsKey("pickupPrefix")!=(schema==3))throw new IllegalArgumentException("Unknown or inconsistent deposit record schema");
             Entry entry=new Entry(intent(object(row,"intent")),row.containsKey("result")?result(object(row,"result")):null,
                     row.containsKey("verification")?verification(object(row,"verification")):null);
             if(!Arrays.equals(encode(entry),bytes))throw new IllegalArgumentException("Noncanonical deposit record");return entry;
@@ -234,7 +252,8 @@ public final class NativeDeposit {
         var row=new LinkedHashMap<String,Object>();row.put("key",key(i.key));row.put("principal",i.origin.principal().id().toString());row.put("domain",i.origin.scope().domainId().toString());
         row.put("run",i.run.toString());row.put("operation",i.operation.toString());row.put("actor",participant(i.actor));row.put("chest",participant(i.chest));
         row.put("item",i.item);row.put("actorSlot",i.actorSlot);row.put("chestSlot",i.chestSlot);row.put("capacity",i.capacity);row.put("conditions",conditions(i.conditions));
-        if(i.receiptPrefix!=null)row.put("receiptPrefix",i.receiptPrefix.receipts().stream().map(ResourceReceiptPrefixCodec::encode).toList());return row;
+        if(i.receiptPrefix!=null)row.put("receiptPrefix",i.receiptPrefix.receipts().stream().map(ResourceReceiptPrefixCodec::encode).toList());
+        if(i.pickupPrefix!=null)row.put("pickupPrefix",NativeJoinedDeposit.encode(i.pickupPrefix));return row;
     }
     private static Intent intent(Map<String,Object> row) {
         var fields=new HashSet<>(Set.of("key","principal","domain","run","operation","actor","chest","item","actorSlot","chestSlot","capacity","conditions"));
@@ -244,9 +263,10 @@ public final class NativeDeposit {
             if(!(row.get("receiptPrefix") instanceof List<?> receipts) || receipts.isEmpty() || receipts.size()>63)throw new IllegalArgumentException("Resource prefix quota");
             prefix=new ResourceReceiptPrefix(receipts.stream().map(value->ResourceReceiptPrefixCodec.decode(object(value))).toList());
         }
+        NativeJoinedDeposit.Prefix pickup=null;if(row.containsKey("pickupPrefix")){fields.add("pickupPrefix");pickup=NativeJoinedDeposit.decode(object(row,"pickupPrefix"));}
         keys(row,fields);Key key=key(object(row,"key"));
         return new Intent(key,new TrustedContext(new PrincipalRef(id(row,"principal")),new ScopeRef(key.world,id(row,"domain"))),id(row,"run"),id(row,"operation"),
-                participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"),conditions(object(row,"conditions")),prefix);
+                participant(object(row,"actor")),participant(object(row,"chest")),string(row,"item"),integer(row,"actorSlot"),integer(row,"chestSlot"),integer(row,"capacity"),conditions(object(row,"conditions")),prefix,pickup);
     }
     static Map<String,Object> conditions(Conditions c) {return Map.of("citizen",c.citizen.toString(),"jobRevision",c.jobRevision,"deadline",c.deadlineEpochMillis,"actionDeadline",c.actionDeadlineEpochMillis,"effectsRemaining",c.effectsRemaining,"tick",c.observedTick,
             "maximumReachMilli",c.maximumReachMilli,"observedReachMilli",c.observedReachMilli,"claims",c.claims.stream().map(r->Map.of("id",r.id.toString(),"epoch",r.epoch.toString(),"group",r.group.toString(),"generation",r.generation)).toList(),
@@ -258,8 +278,17 @@ public final class NativeDeposit {
         var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);var original=object(row,"usage");for(String kind:original.keySet())usage.put(Budgets.Kind.valueOf(kind),number(original,kind));
         return new Conditions(id(row,"citizen"),number(row,"jobRevision"),number(row,"deadline"),number(row,"actionDeadline"),number(row,"effectsRemaining"),number(row,"tick"),integer(row,"maximumReachMilli"),integer(row,"observedReachMilli"),claims,usage);
     }
-    private static Map<String,Object> verification(Verification v) {return Map.of("outcome",v.outcome.name(),"actor",participant(v.actor),"chest",participant(v.chest),"actorMarker",markerJson(v.actorMarker),"chestMarker",markerJson(v.chestMarker),"process",v.process.toString(),"observedAt",v.observedAt);}
-    private static Verification verification(Map<String,Object> row) {keys(row,Set.of("outcome","actor","chest","actorMarker","chestMarker","process","observedAt"));return new Verification(Reconciliation.valueOf(string(row,"outcome")),participant(object(row,"actor")),participant(object(row,"chest")),markerJson(string(row,"actorMarker")),markerJson(string(row,"chestMarker")),id(row,"process"),number(row,"observedAt"));}
+    private static Map<String,Object> verification(Verification v) {
+        var row=new LinkedHashMap<String,Object>();row.put("outcome",v.outcome.name());row.put("actor",participant(v.actor));row.put("chest",participant(v.chest));
+        row.put("actorMarker",markerJson(v.actorMarker));row.put("chestMarker",markerJson(v.chestMarker));row.put("process",v.process.toString());row.put("observedAt",v.observedAt);
+        if(v.lineage!=null)row.put("lineage",NativePickup.observation(v.lineage));return row;
+    }
+    private static Verification verification(Map<String,Object> row) {
+        var fields=new HashSet<>(Set.of("outcome","actor","chest","actorMarker","chestMarker","process","observedAt"));
+        if(row.containsKey("lineage"))fields.add("lineage");keys(row,fields);
+        return new Verification(Reconciliation.valueOf(string(row,"outcome")),participant(object(row,"actor")),participant(object(row,"chest")),
+                markerJson(string(row,"actorMarker")),markerJson(string(row,"chestMarker")),id(row,"process"),number(row,"observedAt"),row.containsKey("lineage")?NativePickup.observation(object(row,"lineage")):null);
+    }
     private static Map<String,Object> result(Result r) {
         var row=new LinkedHashMap<String,Object>();row.put("intent",r.intent);row.put("live",r.live.name());row.put("actor",participant(r.actor));row.put("chest",participant(r.chest));row.put("failure",r.failure);
         row.put("usage",r.usage.entrySet().stream().collect(java.util.stream.Collectors.toMap(e->e.getKey().name(),Map.Entry::getValue)));if(r.receipt!=null)row.put("receipt",DepositReceiptCodec.encode(r.receipt));return row;

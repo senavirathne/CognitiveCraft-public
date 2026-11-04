@@ -49,7 +49,7 @@ final class DepositGatewayTest {
     @Test void cancellationAfterMutationKeepsAccountingButCannotExposeAnUnacknowledgedReceipt() {
         var p=new Protocol();var s=ready(p);var h=s.start(TRANSFER_OAK_LOGS);s.gateway.poll(h);
         p.prepared=true;s.world.tick++;s.gateway.poll(h);
-        var cancelled=s.gateway.cancel(h);assertEquals(Outcomes.Reason.CANCELLED,cancelled.reason());
+        var cancelled=s.gateway.cancel(h);assertEquals(Outcomes.Reason.INTERRUPTED,cancelled.reason());
         assertEquals(1,cancelled.committedEffects());assertTrue(cancelled.resourceReceipts().isEmpty());
         assertNotNull(p.observed.receipt());assertEquals(1,p.calls);assertEquals(1,s.world.transfers);
         p.resultAcknowledged=true;s.world.tick++;assertEquals(cancelled,s.gateway.poll(h));assertEquals(1,p.calls);

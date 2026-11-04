@@ -48,6 +48,17 @@ public final class PickupEvidenceStore {
     private final Map<String,Prepared> created=new HashMap<>();private final Set<String> started=new HashSet<>();
     private final Map<String,Acknowledged> acknowledged=new HashMap<>();private final ArrayDeque<Long> acknowledgementNanos=new ArrayDeque<>();
     private Snapshot state,pending;private long deadline;private boolean fenced;
+    private DepositEvidenceStore successor;
+    public void attachDeposit(DepositEvidenceStore successor){thread();if(this.successor!=null)throw new IllegalStateException("Pickup successor already attached");this.successor=Objects.requireNonNull(successor);}
+    public boolean settled(Entry entry) {
+        thread();if(fenced || pending!=null || !ancestry(entry))return false;
+        if(entry.verification()!=null)return true;
+        return successor!=null && !successor.fenced() && !successor.pending() && successor.snapshot().entries().stream().anyMatch(d->d.verification()!=null
+                && d.intent().pickupPrefix()!=null && d.intent().pickupPrefix().pickup().equals(entry));
+    }
+    public boolean settledHarvest(NativeHarvest.Entry original) {
+        thread();return !fenced && pending==null && state.entries().stream().anyMatch(e->e.intent().harvest().equals(original) && settled(e));
+    }
     public PickupEvidenceStore(Snapshot initial,HarvestEvidenceStore harvest,Storage storage,NativePort port,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.harvest=Objects.requireNonNull(harvest);this.storage=Objects.requireNonNull(storage);
         this.port=Objects.requireNonNull(port);this.clock=Objects.requireNonNull(clock);
@@ -87,7 +98,7 @@ public final class PickupEvidenceStore {
         // The first native producer is an eight-slot villager. Reserve the full unchanged
         // 32-KiB row before PREPARED; oversized ancestors refuse before any physical call.
         if(intent.harvest().intent().actorBefore().slots().size()!=8)return new Status(Code.STALE,null);
-        for(Entry prior:state.entries())if(prior.verification()==null &&
+        for(Entry prior:state.entries())if(!settled(prior) &&
                 (sameActor(prior.intent(),intent)||prior.intent().harvest().result().drops().getFirst().entity().equals(intent.harvest().result().drops().getFirst().entity())))
             return new Status(Code.RECOVERY_REQUIRED,null);
         if(state.entries().size()==MAX_ENTRIES)return new Status(Code.FULL,null);
@@ -152,7 +163,7 @@ public final class PickupEvidenceStore {
     public Set<UUID> protectedJobs() {
         thread();var jobs=new HashSet<UUID>();
         for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries())
-            if(entry.verification()==null){jobs.add(entry.intent().key().root());jobs.add(entry.intent().key().step());}
+            if(!settled(entry)){jobs.add(entry.intent().key().root());jobs.add(entry.intent().key().step());}
         return Set.copyOf(jobs);
     }
     private void publish(Snapshot next) {

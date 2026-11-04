@@ -10,6 +10,8 @@ public final class EntityMembershipTrail {
     private final NavigableSet<NativePickup.Chunk> chunks=new TreeSet<>();
     private NativePickup.Chunk current;
     private boolean complete=true;
+    private java.util.function.Consumer<NativePickup.Trail> observer=t->{};
+    public void observe(java.util.function.Consumer<NativePickup.Trail> observer){thread();this.observer=Objects.requireNonNull(observer);}
     public EntityMembershipTrail(UUID entity,UUID incarnation,NativePickup.Chunk birth) {
         this.entity=Objects.requireNonNull(entity);this.incarnation=Objects.requireNonNull(incarnation);
         current=Objects.requireNonNull(birth);chunks.add(birth);
@@ -21,7 +23,7 @@ public final class EntityMembershipTrail {
         if(!complete)return;
         if(!next.dimension().equals(current.dimension())){complete=false;return;}
         if(!chunks.contains(next) && chunks.size()==NativePickup.MAX_TRAIL_CHUNKS){complete=false;return;}
-        chunks.add(next);current=next;
+        boolean changed=!current.equals(next);chunks.add(next);current=next;if(changed)observer.accept(capture());
     }
     /** Unknown/unobserved movement permanently refuses a complete first-pickup capture. */
     public void gap(){thread();complete=false;}

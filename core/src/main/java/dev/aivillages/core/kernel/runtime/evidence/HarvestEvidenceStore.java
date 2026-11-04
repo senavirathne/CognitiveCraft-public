@@ -49,6 +49,9 @@ public final class HarvestEvidenceStore {
     private final Map<String,Prepared> created=new HashMap<>();private final Set<String> started=new HashSet<>();
     private final java.util.ArrayDeque<Long> acknowledgementNanos=new java.util.ArrayDeque<>();
     private Snapshot state,pending;private long deadline;private boolean fenced;
+    private PickupEvidenceStore successor;
+    public void attachPickup(PickupEvidenceStore successor){thread();if(this.successor!=null)throw new IllegalStateException("Harvest successor already attached");this.successor=Objects.requireNonNull(successor);}
+    private boolean unresolved(Entry entry){return entry.verification()==null && (successor==null || !successor.settledHarvest(entry));}
     public HarvestEvidenceStore(Snapshot initial,Storage storage,NativePort nativePort,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.storage=Objects.requireNonNull(storage);this.nativePort=Objects.requireNonNull(nativePort);this.clock=Objects.requireNonNull(clock);
         if(timeoutMillis<1 || timeoutMillis>30_000)throw new IllegalArgumentException("Harvest acknowledgement deadline");
@@ -97,7 +100,7 @@ public final class HarvestEvidenceStore {
         }
         if(pending!=null)return status(Code.PENDING,null);
         if(clock.millis()>intent.conditions().actionDeadlineEpochMillis())return status(Code.STALE,null);
-        for(Entry prior:state.entries())if(prior.verification()==null && (sameActor(prior.intent().actor(),intent.actor()) || sameSource(prior.intent().source(),intent.source())))
+        for(Entry prior:state.entries())if(unresolved(prior) && (sameActor(prior.intent().actor(),intent.actor()) || sameSource(prior.intent().source(),intent.source())))
             return status(Code.RECOVERY_REQUIRED,null);
         if(state.entries().size()==MAX_ENTRIES)return status(Code.FULL,null);
         // Validate the complete bounded record before reserving its worst-case result.
@@ -159,11 +162,11 @@ public final class HarvestEvidenceStore {
     /** Includes unacknowledged snapshots; neither timeout nor lease expiry erases an exclusion. */
     public Set<UUID> protectedJobs() {
         thread();var ids=new HashSet<UUID>();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))
-            snapshot.entries().stream().filter(e->e.verification()==null).forEach(e->{ids.add(e.intent().key().root());ids.add(e.intent().key().step());});return Set.copyOf(ids);
+            snapshot.entries().stream().filter(this::unresolved).forEach(e->{ids.add(e.intent().key().root());ids.add(e.intent().key().step());});return Set.copyOf(ids);
     }
     public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
-            if(entry.verification()!=null || entry.token().equals(allowedEffect))continue;
+            if(!unresolved(entry) || entry.token().equals(allowedEffect))continue;
             Source source=entry.intent().source();
             if(sameActor(entry.intent().actor(),actor) || source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z)return true;
         }

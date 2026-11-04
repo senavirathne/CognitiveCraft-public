@@ -110,6 +110,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         check();if(!pickupTrailsCurrent(lineage) || !descendant.isEmpty())throw new IllegalStateException("Original H/P scope");
         descendant=lineage.harvest().token();try{return action.get();}finally{descendant="";}
     }
+    NativePickup.Trail actorTrail(PickupLineage lineage) {
+        check();if(lineage==null || lineage.owner!=this || !store.owns(lineage.original))throw new IllegalStateException("Original H lifetime unavailable");
+        return lineage.birth.actor.capture();
+    }
+    void observeActorTrail(PickupLineage lineage,java.util.function.Consumer<NativePickup.Trail> observer) {
+        check();actorTrail(lineage);lineage.birth.actor.observe(observer);
+    }
+    <T> T descendantScope(PickupLineage lineage,java.util.function.Supplier<T> action) {
+        check();actorTrail(lineage);if(!descendant.isEmpty())throw new IllegalStateException("Nested H descendant scope");
+        descendant=lineage.harvest().token();try{return action.get();}finally{descendant="";}
+    }
     public List<MembershipBirth> membershipBirths() {
         check();var views=new ArrayList<MembershipBirth>();
         for(var birth:membershipBirths.values()) {
