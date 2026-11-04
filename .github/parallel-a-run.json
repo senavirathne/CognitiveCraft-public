@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sequence": 22,
+  "sequence": 23,
   "parentSource": "fe821f8d3cfac6aff20a2582775b4af40ad54848",
   "stage": "A06",
   "scope": "joined H/P/D and genuine wheat contracts, packaging, all required regressions and wheat failure diagnostics",
@@ -855,10 +855,12 @@
   },
   "currentValidation": {
     "status": "PENDING",
-    "source": "fe821f8d3cfac6aff20a2582775b4af40ad54848",
-    "nativeOriginalCasesThisBatch": 0,
+    "source": "7cd82769b1e0fc389ff557d968c307fd035d87b8",
+    "nativeOriginalCasesThisBatch": 12,
     "qualifiedOriginalCasesPreviously": 3,
-    "requiredOriginalCases": 12
+    "requiredOriginalCases": 12,
+    "allOriginalCasesMandatory": true,
+    "widerControlsRequired": true
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
