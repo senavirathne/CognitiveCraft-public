@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 21,
-  "parentSource": "b9e270cd9e6cd1ae05fee7ebb1c21cc0b0ead53f",
+  "sequence": 22,
+  "parentSource": "fe821f8d3cfac6aff20a2582775b4af40ad54848",
   "stage": "A06",
-  "scope": "preliminary-native-pickup-integration-module-and-required-host-regressions; original all-twelve qualification remains required",
+  "scope": "joined H/P/D and genuine wheat contracts, packaging, all required regressions and wheat failure diagnostics",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_P; implementation pending native qualification",
   "originalCase": "heldout-W6-002",
@@ -855,7 +855,7 @@
   },
   "currentValidation": {
     "status": "PENDING",
-    "source": "b9e270cd9e6cd1ae05fee7ebb1c21cc0b0ead53f",
+    "source": "fe821f8d3cfac6aff20a2582775b4af40ad54848",
     "nativeOriginalCasesThisBatch": 0,
     "qualifiedOriginalCasesPreviously": 3,
     "requiredOriginalCases": 12
