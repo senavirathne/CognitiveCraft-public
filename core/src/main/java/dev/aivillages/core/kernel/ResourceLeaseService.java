@@ -124,6 +124,9 @@ public final class ResourceLeaseService {
             Observation observation=observe(demand.resource(),facts,tick);
             inspected+=observation.inspected();
             Reason missing=observationReason(observation,tick);
+            if(missing!=null && Boolean.getBoolean("cognitivecraft.gametest.trace"))
+                System.out.println("CognitiveCraft LEASE_OBSERVATION resource="+demand.resource()+" status="+observation.status()+" quantity="+observation.quantity()
+                        +" inspected="+observation.inspected()+" identity="+observation.identity()+" reason="+missing+" tick="+tick);
             if(missing!=null)return new Result(Code.REJECTED,missing,null,List.of(),0,inspected);
             long free=free(demand.resource(),observation.quantity(),rows,tick);
             if(free<demand.quantity())return new Result(Code.CONFLICT,
@@ -416,7 +419,9 @@ public final class ResourceLeaseService {
         try {
             Observation seen=observer.observe(resource,facts);
             if(seen!=null && seen.resource().equals(resource))return seen;
-        }catch(RuntimeException ignored){ }
+        }catch(RuntimeException unavailable){
+            if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println("CognitiveCraft LEASE_OBSERVATION_FAILED resource="+resource+" error="+unavailable);
+        }
         return new Observation(resource,ObservationStatus.UNKNOWN,0,"unavailable",tick,0,Reason.TARGET_UNAVAILABLE);
     }
     private Reason observationReason(Observation o,long tick) {

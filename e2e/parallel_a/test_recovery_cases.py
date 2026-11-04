@@ -32,6 +32,24 @@ class RecoveryCasesTest(unittest.TestCase):
             with self.assertRaises(AssertionError):complete(self.cases,rows)
         rows=self.reviews();rows[0]['originalCase']=copy.deepcopy(rows[0]['originalCase']);rows[0]['originalCase']['requested']+=1
         with self.assertRaises(AssertionError):complete(self.cases,rows)
+
+    def owner(self):
+        case=next(c for c in self.cases if c['checkpoint']=='HARVEST')
+        key=dict(world='world',root='job',step='job',attempt='attempt',generation=1,ordinal=1)
+        allowance={'maxima':{'OBSERVATIONS':10}};request={'request':{'capability':case['capability'],'arguments':{'amount':{'value':case['requested']}}}}
+        original={'id':'job','generation':1,'state':'ACTIVE','children':[],'request':request,'allowance':allowance,
+                  'attempts':[{'id':'attempt','generation':1,'worker':{'entityId':'actor'},'executions':[{'runId':'run'}],
+                               'allowance':allowance,'usage':{'OBSERVATIONS':1}}]}
+        terminal=copy.deepcopy(original);terminal['state']='CANCELLED'
+        terminal['attempts'][0].update(terminal={'status':'CANCELLED'},uncertain=False,effects=1,credited=0,usage={'OBSERVATIONS':2})
+        return case,original,terminal,key
+    def test_actual_job_observer_shape_does_not_require_a_synthetic_fulfilled_field(self):
+        case,original,terminal,key=self.owner();self.assertNotIn('fulfilled',terminal)
+        self.assertEqual('PASS_ORIGINAL_OWNER',settled(case,original,terminal,key)['status'])
+    def test_recovery_cannot_change_worker_refresh_allowance_lower_usage_or_hide_uncertainty(self):
+        for update in ({'worker':{'entityId':'replacement'}},{'allowance':{'maxima':{'OBSERVATIONS':20}}},{'usage':{'OBSERVATIONS':0}},{'uncertain':True}):
+            case,original,terminal,key=self.owner();terminal['attempts'][0].update(update)
+            with self.assertRaises(AssertionError):settled(case,original,terminal,key)
         rows=self.reviews();rows[1]['key']=rows[0]['key']
         with self.assertRaises(AssertionError):complete(self.cases,rows)
 

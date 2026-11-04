@@ -141,9 +141,17 @@ public final class LeasedGateway implements GatewayPort {
                 || !run.binding.equals(bindings.bind(request,correlation)))
             return new Result(Code.REJECTED,Reason.AUTHORITY_DENIED,null,List.of(),0,0);
         if(!leases.ready())return new Result(Code.PENDING,leases.failure(),null,List.of(),0,0);
-        if(run.acquisition==null)run.acquisition=leases.acquire(run.binding.owner(),run.binding.demands(),duration,request.context());
+        if(run.acquisition==null){var acquired=acquire(run);if(acquired.code()==Code.PENDING)return acquired;}
         if(run.acquisition.group()==null)return run.acquisition;
         return leases.group(run.acquisition.group(),run.binding.owner(),request.context());
+    }
+    private Result acquire(Run run) {
+        var result=leases.acquire(run.binding.owner(),run.binding.demands(),duration,run.request.context());
+        // An initial unavailable native observation creates no claims or effects. Keep
+        // this same action pending within its existing waiting budget and reobserve.
+        if(result.code()==Code.REJECTED && result.reason()==Reason.TARGET_UNAVAILABLE && result.group()==null)
+            return new Result(Code.PENDING,result.reason(),null,List.of(),0,result.inspected());
+        run.acquisition=result;return result;
     }
     public Result validate(ValidatedRequest request,RunCorrelation correlation) {
         Result group=prepare(request,correlation);
@@ -210,8 +218,8 @@ public final class LeasedGateway implements GatewayPort {
         }
         Run run=action.run;
         if(run.acquisition==null) {
-            run.acquisition=leases.acquire(run.binding.owner(),run.binding.demands(),duration,run.request.context());
-            if(run.acquisition.code()!=Code.PENDING)return fail(action,run.acquisition.reason());
+            var acquired=acquire(run);
+            if(acquired.code()!=Code.PENDING)return fail(action,acquired.reason());
             return waitForPublication(action);
         }
         boolean harvestPending=action.nativeHandle!=null && delegate.harvestResultPending(action.nativeHandle);

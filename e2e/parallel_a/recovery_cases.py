@@ -27,7 +27,7 @@ def settled(case,original,job,key):
     assert job['id']==original['id']==key['root']==key['step'] and a['id']==old['id']==key['attempt']
     assert job['generation']==original['generation']==a['generation']==key['generation']
     assert job['state']=='CANCELLED' and a['terminal']['status']=='CANCELLED' and not a['uncertain']
-    assert a['effects']==effects and a['credited']==credit and job['fulfilled']==credit
+    assert a['effects']==effects and a['credited']==credit and sum(row['credited'] for row in job['attempts'])==credit
     assert job['allowance']==original['allowance'] and a['allowance']==old['allowance']
     assert a['worker']==old['worker'] and a['executions']==old['executions'] and job['children']==original['children']==[]
     assert job['request']==original['request'] and job['request']['request']['arguments']['amount']['value']==case['requested']
