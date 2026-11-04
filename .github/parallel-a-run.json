@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 24,
-  "parentSource": "0858c7384f6652f245849bc319be64f25bf4d715",
+  "sequence": 25,
+  "parentSource": "7f65e89df2d92d0ae6551d3211b903089568e153",
   "stage": "A06",
-  "scope": "all twelve originals, explicit remaining-one continuation, native unsaved/torn/cancel/unrelated controls, active cost and all required regressions",
+  "scope": "all twelve original saved interruptions and nine native controls; registration fix, exact genuine admission seed, bounded world availability and full required regressions",
   "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
   "nativePickupProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_P; implementation pending native qualification",
   "originalCase": "heldout-W6-002",
@@ -363,6 +363,27 @@
       "tests": 2328,
       "failures": 2,
       "nativeOriginalCasesExecuted": 0
+    },
+    {
+      "run": 41802085412,
+      "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+      "job": 126480051105,
+      "cause": "kernel startup registered H/P retention twice; all original cases failed before requested native cuts",
+      "originalCasesPassed": 0,
+      "modules": {
+        "core": 2332,
+        "providers": 131,
+        "fabric": 122
+      },
+      "focusedPython": 81,
+      "baselinePython": 72,
+      "nativeArtifact": 13311090608,
+      "nativeArchiveSha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+      "contractsArtifact": 13310630845,
+      "contractsArchiveSha256": "062ba276572282524141cf821573d975eaa7bec9c5adc8214ad6779d1aba134f",
+      "requiredHostSuitesPassed": 8,
+      "requiredHostSuites": 9,
+      "remainingHostFailure": "GP-22 initial workspace observation unavailable before any claim or physical effect"
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -865,15 +886,17 @@
   },
   "currentValidation": {
     "status": "PENDING",
-    "source": "0858c7384f6652f245849bc319be64f25bf4d715",
+    "source": "7f65e89df2d92d0ae6551d3211b903089568e153",
     "nativeOriginalCasesThisBatch": 12,
     "qualifiedOriginalCasesPreviously": 3,
     "requiredOriginalCases": 12,
     "allOriginalCasesMandatory": true,
     "widerControlsRequired": true,
     "nativeControls": 9,
-    "focusedPythonTests": 81,
-    "baselinePythonTests": 72
+    "focusedPythonTests": 83,
+    "baselinePythonTests": 72,
+    "retainedAdmissionArtifact": 13311090608,
+    "importedRecoverySettlements": 0
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
