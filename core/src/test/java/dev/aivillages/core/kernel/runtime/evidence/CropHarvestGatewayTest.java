@@ -21,8 +21,8 @@ final class CropHarvestGatewayTest {
         var limits=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);for(var kind:Budgets.Kind.values())limits.put(kind,1000L);
         var budget=new Budgets.Ledger(new Budgets.Limits(limits,100_000),clock);
         var handle=gateway.start(bound,new RunCorrelation(UUID.randomUUID(),new ArtifactRef(CropDelivery.ID,"a".repeat(64)),null),
-                GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT.requirement(),Map.of("actor",new ActorValue(actor)),budget);
-        assertFalse(gateway.poll(handle).terminal());assertNotNull(protocol.action);return new Pending(world,gateway,protocol,handle);
+                GatewayPrimitives.Operation.HARVEST_NEXT_WHEAT.requirement(),Map.of("actor",new ActorValue(actor),"source",bound.request().arguments().get("source")),budget);
+        var waiting=gateway.poll(handle);assertFalse(waiting.terminal(),()->"Crop evidence preparation: "+waiting);assertNotNull(protocol.action);return new Pending(world,gateway,protocol,handle);
     }
     @Test void actualCropReceiptIsWithheldUntilResultAcknowledgementAndNeverReplacedByAResourceReceipt() {
         var p=pending();p.protocol.prepared=true;p.world.tick++;var unpublished=p.gateway.poll(p.handle);

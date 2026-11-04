@@ -222,6 +222,11 @@ final class KernelCommands {
                     var change=session.cancelQueuedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
                     tell(ctx,"job="+uuid(ctx,"job-id")+" cancellation="+change.accepted()+" reason="+change.reason());return change.accepted()?1:0;
                 }))));
+        kernel.then(literal("job-resume").then(argument("job-id",StringArgumentType.word())
+                .executes(c->safe(c,(ctx,session)->{
+                    boolean accepted=session.resumeJoinedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
+                    tell(ctx,"job="+uuid(ctx,"job-id")+" resume="+accepted);return accepted?1:0;
+                }))));
         kernel.then(literal("status").then(argument("run-id", StringArgumentType.word())
                 .suggests((context, builder) -> suggestRunOrTicketIds(context, builder, false))
                 .executes(c -> safe(c, (ctx, session) -> {

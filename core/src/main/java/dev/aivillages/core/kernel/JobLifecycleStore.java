@@ -175,7 +175,14 @@ public final class JobLifecycleStore {
             for (Job ancestor : ancestors(id, rows)) value = Math.min(value, available(ancestor.id(), kind, rows));
             maxima.put(kind, Math.max(0, value));
         }
-        return new Budgets.Limits(maxima, job.allowance().deadlineEpochMillis());
+        long deadline=job.allowance().deadlineEpochMillis();var stopped=job.current();
+        if(stopped!=null && !stopped.open() && !stopped.uncertain() && stopped.terminal()!=null && stopped.terminal().status()==ExecutionStatus.INTERRUPTED
+                && LogAcquisition.is(job.request().request().capability()) && ((IntValue)job.request().request().arguments().get("amount")).value()==2
+                && job.attempts().size()==1 && stopped.effects()==3 && stopped.credited()==1) {
+            for(var kind:Budgets.Kind.values())maxima.merge(kind,Math.max(0,stopped.allowance().maximum(kind)-stopped.usage().getOrDefault(kind,0L)),Math::min);
+            deadline=Math.min(deadline,stopped.allowance().deadlineEpochMillis());
+        }
+        return new Budgets.Limits(maxima, deadline);
     }
     /** Returns no foreign assignment metadata. The guarded assign still repeats this test. */
     public boolean workerAvailable(ActorRef worker, TrustedContext origin) {
@@ -863,8 +870,18 @@ public final class JobLifecycleStore {
         boolean cancelledPartial = observation.kind() == StoppedKind.PARTIAL && report != null
                 && report.terminal() != null && report.terminal().status() == ExecutionStatus.CANCELLED
                 && report.effects() > 0 && (!report.receipts().isEmpty() || !report.resourceReceipts().isEmpty());
+        boolean deliveredUnit=false;
+        if(observation.kind()==StoppedKind.DELIVERED_UNIT)try {
+            deliveredUnit=job.cancellationOutcome()==null && job.state()==State.INTERRUPTED
+                    && LogAcquisition.is(current.bound().request().capability()) && job.attempts().size()==1
+                    && ((IntValue)job.request().request().arguments().get("amount")).value()==2
+                    && report.effects()==3 && report.receipts().isEmpty() && report.resourceReceipts().size()==3
+                    && report.usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)==3 && report.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)==3
+                    && report.resourceReceipts().stream().allMatch(r->r.quantity()==1)
+                    && quantity(current,report.receipts(),report.resourceReceipts())==1;
+        }catch(RuntimeException invalid){return reject(Reason.REQUEST_INVALID,work);}
         if (observation.kind() != StoppedKind.NO_EFFECT && observation.kind() != StoppedKind.EFFECT_COMPLETE
-                && !cancelledPartial)
+                && !cancelledPartial && !deliveredUnit)
             return reject(Reason.INTERRUPTED, work);
         if (!current.open() && current.effects() == report.effects() && current.usage().equals(report.usage())
                 && current.receipts().equals(report.receipts()) && current.resourceReceipts().equals(report.resourceReceipts())

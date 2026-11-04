@@ -92,7 +92,7 @@ public final class RecoveredJobOwners implements AutoCloseable {
                 try {
                     var evidence = authority.capture(StoppedContext.of(job)); observation = evidence.observation();
                     if (jobs.ready() && (observation.kind() == StoppedKind.NO_EFFECT || observation.kind() == StoppedKind.EFFECT_COMPLETE
-                            || observation.kind() == StoppedKind.PARTIAL)) {
+                            || observation.kind() == StoppedKind.PARTIAL || observation.kind()==StoppedKind.DELIVERED_UNIT)) {
                         var changed = jobs.reconcileStopped(job.id(), job.guard(), evidence, job.origin());
                         if (changed.accepted()) { projections.put(job.id(), projection(job, observation)); return; }
                     }

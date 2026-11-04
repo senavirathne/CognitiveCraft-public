@@ -22,7 +22,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final Thread thread=Thread.currentThread();
     private final ServerLevel level;private final JobLifecycleStore jobs;private final ResourceLeaseService leases;
     private final FabricHarvestProtocol harvest;private final Clock clock;private final boolean enabled;
-    private final PickupEvidenceStore store;private boolean closed;
+    private final PickupEvidenceStore store;private DepositEvidenceStore deposits;private boolean closed;
+    public void attachDeposit(DepositEvidenceStore deposits){check();if(this.deposits!=null)throw new IllegalStateException("Deposit successor already attached");this.deposits=Objects.requireNonNull(deposits);}
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<ChunkPos,CompletableFuture<EntityChunkRecord.Frame>> frames=new HashMap<>();
     private final Map<ChunkPos,Long> frameRevisions=new HashMap<>();
@@ -32,7 +33,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final ArrayDeque<Long> captureNanos=new ArrayDeque<>();
     private final class NativeTicket implements Ticket {
         final Request request;final Action action;final FabricHarvestProtocol.PickupLineage lineage;final NativePickup.Intent intent;final Reason failure;
-        boolean acknowledged,forgotten;
+        boolean acknowledged,forgotten;Marker actorPredecessor;
         NativeTicket(Request r,Action a,FabricHarvestProtocol.PickupLineage l,NativePickup.Intent i,Reason f){request=r;action=a;lineage=l;intent=i;failure=f;}
     }
     public FabricPickupProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,FabricHarvestProtocol harvest,
@@ -92,6 +93,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var frame=frame(member.chunk());if(frame==null)return new Progress(Code.PENDING,null);
             if(!frame.supported())return failed();
         }
+        try{ticket.actorPredecessor=actorPredecessor(ticket);}catch(RuntimeException unprovedSuccessor){return failed();}
         store.tick();PickupEvidenceStore.Status status;
         try {
             status=store.prepare(ticket.intent,ticket.lineage.acknowledged());
@@ -142,7 +144,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var result=NativePickup.observed(intent,source,harvest.actorSnapshot(actor,true),remaining==null?null:harvest.dropSnapshot(remaining,true),
                 observed==null?null:observed.receipt(),observed==null?ticket.action.usage():observed.usage(),failure==null?"":failure.getClass().getName());
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());mark(intent,actor,remaining,marker);
-        stage(intent.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,null);
+        stage(intent.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,ticket.actorPredecessor);
         stage(intent.dropTrail(),NativePickup.Role.DROP,result.remaining()==null?h.result().drops().getFirst().revision():result.remaining().revision(),marker,result.remaining()!=null,null);
         live.put(intent.key().token(),ticket.lineage);
         ((EntityMembershipParticipant)actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),true);
@@ -167,6 +169,24 @@ public final class FabricPickupProtocol implements PickupProtocol {
         if(frames.size()==EntityStorageEvidence.MAX_CHUNKS && !frames.containsKey(pos))return null;
         long revision=port.revision(pos);if(!Objects.equals(frameRevisions.get(pos),revision)){frames.remove(pos);frameRevisions.put(pos,revision);}
         var pending=frames.computeIfAbsent(pos,port::readFrame);return pending.isDone()&&!pending.isCompletedExceptionally()?pending.getNow(null):null;
+    }
+    /** A later bounded attempt may replace only its own acknowledged delivered-unit membership. */
+    private Marker actorPredecessor(NativeTicket ticket) {
+        Marker predecessor=null;var intent=ticket.intent;var before=intent.harvest().intent().actorBefore();
+        for(var c:intent.actorTrail().chunks()) {
+            var f=Objects.requireNonNull(frame(c));var state=EntityChunkMembershipState.load(f.metadata(),c.dimension(),f.position(),f.members());
+            if(!state.valid())throw new IllegalStateException("Unsupported prior membership");var row=state.row(intent.actorTrail().entity());if(row==null)continue;
+            if(row.marker().effect().equals(intent.key().token()))continue;
+            if(deposits==null || deposits.fenced() || deposits.pending())throw new IllegalStateException("Unproved prior actor custody");
+            var match=deposits.snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null && e.verification()!=null
+                    && e.verification().outcome()==Reconciliation.SAVED_COMPLETE && e.result()!=null && e.result().live()==NativeDeposit.Live.COMPLETE
+                    && e.intent().key().step().equals(intent.key().step()) && e.intent().key().generation()+1==intent.key().generation()
+                    && e.result().actor().equals(before) && row.role()==NativePickup.Role.ACTOR && row.revision()==before.revision()
+                    && row.trail().incarnation().equals(before.incarnation()) && intent.actorTrail().chunks().containsAll(row.trail().chunks())
+                    && row.marker().equals(new Marker(e.token(),e.intent().digest(),MarkerPhase.RESULT,e.result().digest()))).findFirst();
+            if(match.isEmpty() || predecessor!=null && !predecessor.equals(row.marker()))throw new IllegalStateException("Unproved prior actor delivery");predecessor=row.marker();
+        }
+        return predecessor;
     }
     private boolean present(UUID id,NativePickup.Chunk chunk) {
         var e=level.getEntity(id);return e!=null && !e.isRemoved() && e.chunkPosition().x()==chunk.x() && e.chunkPosition().z()==chunk.z();

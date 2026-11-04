@@ -26,15 +26,16 @@ def participant(native,expected,expected_marker,inventory):
     actual=[item(v) for v in native.get(inventory,[])]
     wanted=[(n,s['item'],s['count'],{}) for n,s in enumerate(expected['slots']) if s['count']]
     assert len({r[0] for r in actual})==len(actual) and sorted(actual)==wanted,(actual,wanted)
-    return {'metadata':metadata,'inventory':actual}
+    return {'metadata':metadata,'inventory':[list(v) for v in actual]}
 
-def native_saved(world,stage,case=None):
+def native_saved(world,stage,case=None,prepared=None,job_id=None,attempt_id=None,chest_units=1):
     world=__import__('pathlib').Path(world)
-    hh,harvests=journal(world/'data/cognitivecraft/harvest-evidence/v1/state.jsonl');assert len(harvests)==1
+    def selected(rows):return [r for r in rows if (job_id is None or r['intent']['key']['step']==job_id) and (attempt_id is None or r['intent']['key']['attempt']==attempt_id)]
+    hh,harvests=journal(world/'data/cognitivecraft/harvest-evidence/v1/state.jsonl');harvests=selected(harvests);assert len(harvests)==1
     h=harvests[0];hi,hr=h['intent'],h['result'];assert hr['live']=='COMPLETE' and hi['key']['ordinal']==1
     p=d=None
     if stage in ('PICKUP','DEPOSIT'):
-        ph,pickups=journal(world/'data/cognitivecraft/pickup-evidence/v1/state.jsonl');assert len(pickups)==1 and ph['world']==hh['world']
+        ph,pickups=journal(world/'data/cognitivecraft/pickup-evidence/v1/state.jsonl');pickups=selected(pickups);assert len(pickups)==1 and ph['world']==hh['world']
         p=pickups[0];assert p['schema']==1 and p['intent']['harvest']==h and p['result']['live']=='COMPLETE'
         assert 'remaining' not in p['result'] and p['intent']['key']['ordinal']==2
         assert p['result']['source']==hr['source'] and p['result']['actor']['incarnation']==hr['actor']['incarnation']
@@ -44,7 +45,7 @@ def native_saved(world,stage,case=None):
         assert all(r[k]==old[k] for k in ('world','principal','domain','run','batch','citizen','entity','dimension','source','destination','item','sourceBlock','drops'))
         assert r['id']!=old['id'] and r['operation']==p['intent']['operation']!=old['operation']
     if stage=='DEPOSIT':
-        dh,deposits=journal(world/'data/cognitivecraft/deposit-evidence/v1/state.jsonl');assert len(deposits)==1 and dh['world']==hh['world']
+        dh,deposits=journal(world/'data/cognitivecraft/deposit-evidence/v1/state.jsonl');deposits=selected(deposits);assert len(deposits)==1 and dh['world']==hh['world']
         d=deposits[0];assert d['schema']==3 and d['result']['live']=='COMPLETE' and d['intent']['key']['ordinal']==3
         assert d['intent']['pickupPrefix']['pickup']==p and d['intent']['receiptPrefix']==[hr['receipt'],p['result']['receipt']]
         assert d['intent']['actor']==p['result']['actor']
@@ -65,7 +66,12 @@ def native_saved(world,stage,case=None):
     frames=list(regions(world,'entities'));entities=[(e,f) for f in frames for e in f.get('Entities',[])]
     actors=[(e,f) for e,f in entities if entity_uuid(e)==hi['actor']['entity']];assert len(actors)==1 and actors[0][0]['id']=='minecraft:villager'
     actor,actor_frame=actors[0];actor_expected=hr['actor'] if stage=='HARVEST' else current['result']['actor']
-    facts={'actor':participant(actor,actor_expected,expected,'Inventory')}
+    actor_marker=expected
+    if prepared is not None:
+        assert stage=='PICKUP' and prepared['schema']==3 and prepared.get('result') is None and prepared['intent']['pickupPrefix']['pickup']==p
+        assert prepared['intent']['actor']==p['result']['actor']
+        actor_marker={'schema':1,'effect':sha(canonical(prepared['intent']['key'])),'intent':sha(canonical(prepared['intent'])),'phase':'PREPARED','result':''}
+    facts={'actor':participant(actor,actor_expected,actor_marker,'Inventory')}
     s=hr['source'];sr=source_row(world,s)
     assert sr['incarnation']==s['incarnation'] and sr['revision']==s['revision'] and json.loads(sr['marker'])==expected
     assert s['state']=='minecraft:air' and block_name(world,[s[k] for k in ('x','y','z')])=='minecraft:air';facts['source']=sr
@@ -84,7 +90,7 @@ def native_saved(world,stage,case=None):
             found=[e for e,f in entities if entity_uuid(e)==ref['entity']];assert len(found)==1 and found[0]['id']=='minecraft:item'
             actual=found[0];assert item(actual['Item'])[1:]==(ref['item'],ref['quantity'],{})
             state=json.loads(actual[PARTICIPANT]);assert state['schema']==1 and state['incarnation']==ref['incarnation'] and state['revision']==ref['revision'] and json.loads(state['marker'])==expected
-            outputs.append({'entity':ref['entity'],'stack':item(actual['Item']),'metadata':state})
+            outputs.append({'entity':ref['entity'],'stack':list(item(actual['Item'])),'metadata':state})
         facts['spawnedOutputs']=outputs
     else:
         assert all(not any(entity_uuid(e)==ref['entity'] for e,f in entities) for ref in hr['drops'])
@@ -118,5 +124,19 @@ def native_saved(world,stage,case=None):
         chests=[e for f in regions(world,'region') for e in f.get('block_entities',[]) if [e['x'],e['y'],e['z']]==pos]
         assert len(chests)==1 and chests[0]['id']=='minecraft:chest'
         facts['chest']=participant(chests[0],d['result']['chest'],expected,'Items')
-        assert actor.get('Inventory',[])==[] and sum(s['count'] for s in d['result']['chest']['slots'])==1
+        assert actor.get('Inventory',[])==[] and sum(s['count'] for s in d['result']['chest']['slots'])==chest_units
     return {'status':'PASS_INDEPENDENT_NATIVE_'+stage,'key':key,'entry':current,'harvest':h,'pickup':p,'deposit':d,'marker':expected,'native':facts}
+
+def prepared_deposit(world,case):
+    world=__import__('pathlib').Path(world)
+    _,rows=journal(world/'data/cognitivecraft/deposit-evidence/v1/state.jsonl');assert len(rows)==1
+    entry=rows[0];assert entry['intent']['key']['ordinal']==3 and entry.get('result') is None
+    prefix=native_saved(world,'PICKUP',case,prepared=entry)
+    assert entry['intent']['key']['attempt']==prefix['key']['attempt'] and entry['intent']['key']['step']==prefix['key']['step']
+    expected={'schema':1,'effect':sha(canonical(entry['intent']['key'])),'intent':sha(canonical(entry['intent'])),'phase':'PREPARED','result':''}
+    pos=list(map(int,entry['intent']['chest']['address'].split(',')))
+    chests=[e for f in regions(world,'region') for e in f.get('block_entities',[]) if [e['x'],e['y'],e['z']]==pos]
+    assert len(chests)==1 and chests[0]['id']=='minecraft:chest' and not chests[0].get('Items',[])
+    chest=participant(chests[0],entry['intent']['chest'],expected,'Items')
+    assert sum(s['count'] for s in entry['intent']['actor']['slots'])==1
+    return {'status':'PASS_INDEPENDENT_PREPARED_D_NO_EFFECT','key':entry['intent']['key'],'entry':entry,'pickupProof':prefix,'chest':chest}

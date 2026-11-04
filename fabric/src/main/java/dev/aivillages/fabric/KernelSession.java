@@ -119,6 +119,7 @@ public final class KernelSession implements AutoCloseable {
     private FabricDepositProtocol depositProtocol;
     private FabricHarvestProtocol harvestProtocol;
     private FabricPickupProtocol pickupProtocol;
+    private final Set<String> joinedResumeRequests=new java.util.HashSet<>();
     private final boolean pickupEvidenceEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_PICKUP_EVIDENCE", "false"));
     private final boolean harvestEvidenceEnabled = "true".equalsIgnoreCase(
@@ -448,7 +449,7 @@ public final class KernelSession implements AutoCloseable {
         dispatchGateway.tick();
         recoveredOwners.step();
         if(dispatchRevision!=jobs.snapshot().revision()) {
-            dispatchScopes=jobs.snapshot().jobs().stream().filter(j->!controller.ownsSubmission(j.submissionId()))
+            dispatchScopes=jobs.snapshot().jobs().stream().filter(this::dispatchableSubmission)
                     .map(Jobs.Job::origin).distinct().sorted(java.util.Comparator.comparing(c->c.principal().id().toString()
                             +":"+c.scope().domainId())).toList();
             dispatchRevision=jobs.snapshot().revision();
@@ -625,7 +626,7 @@ public final class KernelSession implements AutoCloseable {
                     loaded.pickupsReadOnly(),worker,clock,pickupEvidenceEnabled);
             gateway.pickupProtocol(pickupProtocol);
             harvestProtocol.evidence().attachPickup(pickupProtocol.evidence());
-            if(depositProtocol!=null)pickupProtocol.evidence().attachDeposit(depositProtocol.evidence());
+            if(depositProtocol!=null){pickupProtocol.evidence().attachDeposit(depositProtocol.evidence());pickupProtocol.attachDeposit(depositProtocol.evidence());}
             if(depositProtocol!=null)depositProtocol.pickupProtocol(pickupProtocol);
         }
         if(loaded.jobHistory()!=null)jobArchive=new JobArchive(jobs,loaded.jobHistory(),loaded.history(),historyService,
@@ -770,7 +771,7 @@ public final class KernelSession implements AutoCloseable {
                 new BoundedSkillExecutor.Settings(8,16,32,64));
         dispatcher=new WorkerDispatcher(jobs,new MandateWorkers(citizens,mandates),this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
-                job->ResourceDelivery.isDelivery(job.request().request().capability()) && !controller.ownsSubmission(job.submissionId()),clock,()->server.overworld().getGameTime(),
+                job->ResourceDelivery.isDelivery(job.request().request().capability()) && dispatchableSubmission(job),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
         dispatcher.jobResolver((job,request,observation)->resolver.withEligibility(access.policyForJob(job.id())).resolve(request,observation));
 
@@ -809,7 +810,7 @@ public final class KernelSession implements AutoCloseable {
                             public dev.aivillages.core.kernel.runtime.evidence.PickupEvidenceStore pickup(){return pickupProtocol.evidence();}
                             public dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore deposit(){return depositProtocol.evidence();}
                             public dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore.Reconciled proof){return depositProtocol.verify(proof);}
-                        }).observe(original);
+                        },key->joinedResumeRequests.contains(key.token()),clock).observe(original);
                     if(pickupProtocol!=null && pickupProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
                             && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
                         return new PickupStoppedSource(jobs,new PickupStoppedSource.Evidence() {
@@ -1572,6 +1573,30 @@ public final class KernelSession implements AutoCloseable {
                 .filter(j->!cancellable||!j.state().terminal()||j.state()==Jobs.State.SUCCEEDED&&BlueprintMaterials.valid(j.request().request())).map(Jobs.Job::id).toList();
     }
     public Jobs.Change cancelQueuedJob(ServerPlayer player,UUID id){ready();var owner=caller(player);jobs.tick();var job=jobs.query(id,owner);return jobs.cancel(id,job.guard(),owner);}
+    /** Explicit user intent only; native H/P/D proof still gates accounting and every new effect. */
+    public boolean resumeJoinedJob(ServerPlayer player,UUID id) {
+        ready();var job=jobs.query(id,caller(player));var a=job.current();
+        if(pickupProtocol==null || depositProtocol==null || a==null || !a.open() || job.state()!=Jobs.State.INTERRUPTED
+                || job.cancellationOutcome()!=null || job.attempts().size()!=1
+                || !LogAcquisition.is(job.request().request().capability()) || ((IntValue)job.request().request().arguments().get("amount")).value()!=2
+                || joinedResumeRequests.size()>=dev.aivillages.core.kernel.runtime.evidence.NativeHarvest.MAX_ENTRIES)return false;
+        var entries=depositProtocol.evidence().snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null
+                && e.intent().key().step().equals(id) && e.intent().key().attempt().equals(a.id()) && e.intent().key().generation()==a.generation()
+                && e.result()!=null && e.result().live()==dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Live.COMPLETE).toList();
+        if(entries.size()!=1)return false;joinedResumeRequests.add(entries.getFirst().token());return true;
+    }
+    private boolean dispatchableSubmission(Jobs.Job job) {
+        if(!controller.ownsSubmission(job.submissionId()))return true;
+        if(controller.liveSubmission(job.submissionId()))return false;
+        if(dispatcher!=null && dispatcher.ownsAttempt(job))return true;
+        if(pickupProtocol==null || depositProtocol==null || job.cancellationOutcome()!=null || job.attempts().size()!=1 || !LogAcquisition.is(job.request().request().capability())
+                || ((IntValue)job.request().request().arguments().get("amount")).value()!=2)return false;
+        var a=job.current();if(a==null || a.open() || a.uncertain() || a.credited()!=1 || a.effects()!=3 || a.terminal()==null
+                || a.terminal().status()!=Outcomes.ExecutionStatus.INTERRUPTED)return false;
+        return depositProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().pickupPrefix()!=null && e.intent().key().step().equals(job.id())
+                && e.intent().key().attempt().equals(a.id()) && e.intent().key().generation()==a.generation() && e.verification()!=null
+                && e.verification().outcome()==dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Reconciliation.SAVED_COMPLETE);
+    }
     public List<WorkerDispatcher.Decision> dispatchDiagnostics(ServerPlayer player,UUID id){ready();return dispatcher.diagnostics(id,caller(player));}
     void clearDispatchCache(){ready();dispatcher.clearPolicyCache();dispatchRevision=-1;dispatchScopes=List.of();}
     public LanguageRequests.View ask(ServerPlayer player, String message) {

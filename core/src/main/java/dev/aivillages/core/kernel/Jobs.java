@@ -244,7 +244,7 @@ public final class Jobs {
     public record Cancellation(UUID jobId, UUID attemptId, long generation, TrustedContext origin) { }
 
     /** A-owned runtime boundary. Observations are supplied by a registered native host, never JSON. */
-    public enum StoppedKind { WAIT_WORLD, AMBIGUOUS, STOPPED, NO_EFFECT, EFFECT_COMPLETE, PARTIAL }
+    public enum StoppedKind { WAIT_WORLD, AMBIGUOUS, STOPPED, NO_EFFECT, EFFECT_COMPLETE, PARTIAL, DELIVERED_UNIT }
     public record StoppedContext(UUID world, UUID job, Guard guard, UUID attempt, long generation,
                                  TrustedContext origin, Attempt original) {
         public StoppedContext {
@@ -266,7 +266,7 @@ public final class Jobs {
             if (witness.isBlank() || witness.length() > 256) throw new IllegalArgumentException("Bounded host witness");
             if ((kind == StoppedKind.WAIT_WORLD || kind == StoppedKind.AMBIGUOUS) && report != null)
                 throw new IllegalArgumentException("Unknown state cannot provide a report");
-            if ((kind == StoppedKind.NO_EFFECT || kind == StoppedKind.EFFECT_COMPLETE || kind == StoppedKind.PARTIAL)
+            if ((kind == StoppedKind.NO_EFFECT || kind == StoppedKind.EFFECT_COMPLETE || kind == StoppedKind.PARTIAL || kind == StoppedKind.DELIVERED_UNIT)
                     && (report == null || report.terminal() == null))
                 throw new IllegalArgumentException("Complete native report required");
             if (kind == StoppedKind.NO_EFFECT && (report.effects() != 0 || !report.receipts().isEmpty()
@@ -274,6 +274,9 @@ public final class Jobs {
                 throw new IllegalArgumentException("No-effect evidence contradicts physical work");
             if (kind == StoppedKind.EFFECT_COMPLETE && report.terminal().status() != ExecutionStatus.SUCCEEDED)
                 throw new IllegalArgumentException("Complete effect requires verified completion");
+            if (kind == StoppedKind.DELIVERED_UNIT && (report.terminal().status()!=ExecutionStatus.INTERRUPTED
+                    && !(report.terminal().status()==ExecutionStatus.BLOCKED && report.terminal().reason()==Reason.BUDGET_EXHAUSTED)))
+                throw new IllegalArgumentException("Delivered unit requires bounded remaining-demand accounting");
         }
         public static StoppedObservation ambiguous(String witness) {
             return new StoppedObservation(StoppedKind.AMBIGUOUS, null, witness);

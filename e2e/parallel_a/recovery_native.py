@@ -59,9 +59,12 @@ def learned_seed(h):
     require(all(sum(r['wheat'] for r in view.get('receipts',[]) if r['stage']==stage)==1 for stage in STAGES),'Genuine wheat admission lacks actual legacy H/P/D receipts')
     h.hashes['cognitivecraft:deliver_wheat']=view['marker']['artifactSha256'];h.admissions.append({'item':WHEAT,'run':run,'view':view,'status':'PASS','callsBefore':calls,'callsAfter':h.model_calls()})
     h.command('PlayerA','/aivillage kernel inference false','admission=false');h.compose('stop','ollama')
-    h.reset({},table=False);h.save_checkpoint();h.stop('server')
+    h.reset({},table=False)
+    if h.snapshot()['drops']:h.console(['kill @e[type=minecraft:item]'])
+    require(not h.inventory(),'The admission seed must have empty actual actor custody')
+    h.prepare_unrelated();h.save_checkpoint();h.stop('server')
     seed=h.root/'genuinely-admitted-seed-game';shutil.copytree(h.root/'server/game',seed,ignore=shutil.ignore_patterns('session.lock'))
-    atomic(h.root/'independent-admissions.json',{'admissions':h.admissions,'artifacts':h.hashes,'nativeAdmissionsCountedAsA06':0,'worldHashes':manifest(seed/'world')})
+    atomic(h.root/'independent-admissions.json',{'admissions':h.admissions,'artifacts':h.hashes,'nativeAdmissionsCountedAsA06':0,'worldHashes':manifest(seed/'world'),'unrelatedCompanion':h.companion})
     return seed
 
 def one(h,seed,case):
@@ -147,8 +150,13 @@ def main():
             try:value=one(h,seed,case);result['cases'].append(value)
             except Exception as error:result['cases'].append(read(root/'original-cases'/case['id']/'result.json') or {'originalCase':case,'status':'FAIL','reason':str(error)})
             atomic(root/'a06-original-results.json',result)
-        require(len(result['cases'])==12 and all(c['status']=='PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW' for c in result['cases']),'One or more original cases did not pass; inspect every retained case result')
-        result.update(status='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW',originalOwnerSettlements=12)
+        originals_pass=len(result['cases'])==12 and all(c['status']=='PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW' for c in result['cases'])
+        result.update(status='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' if originals_pass else 'FAIL_REQUIRED_ORIGINALS',
+                      originalStatus='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' if originals_pass else 'FAIL_REQUIRED_ORIGINALS',
+                      originalOwnerSettlements=sum(c.get('nativeOriginalOwnerSettlements',0) for c in result['cases']))
+        from recovery_controls import campaign
+        result['controls']=campaign(h,seed,cases)
+        require(originals_pass,'One or more original cases did not pass; inspect every retained case result')
     except Exception as error:
         result.update(status='FAIL',reason=str(error),trace=traceback.format_exc());raise
     finally:
