@@ -163,6 +163,9 @@ def main():
             try:value=one(h,seed,case);result['cases'].append(value)
             except Exception as error:result['cases'].append(read(root/'original-cases'/case['id']/'result.json') or {'originalCase':case,'status':'FAIL','reason':str(error)})
             atomic(root/'a06-original-results.json',result)
+            current=result['cases'][-1]
+            print('A06_ORIGINAL_PROGRESS '+json.dumps({'id':case['id'],'status':current['status'],'reason':current.get('reason'),
+                  'completed':len(result['cases']),'required':12}),flush=True)
         originals_pass=len(result['cases'])==12 and all(c['status']=='PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW' for c in result['cases'])
         result.update(status='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' if originals_pass else 'FAIL_REQUIRED_ORIGINALS',
                       originalStatus='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' if originals_pass else 'FAIL_REQUIRED_ORIGINALS',

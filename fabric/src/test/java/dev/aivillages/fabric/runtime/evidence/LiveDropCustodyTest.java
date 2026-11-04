@@ -20,6 +20,8 @@ class LiveDropCustodyTest {
     }
     @Test void reloadHasNoLiveOwnerEvenWhenSavedDescriptionRemains() {
         var original=new LiveDropCustody();original.bind(()->true);assertTrue(original.active());
+        original.revoke();assertFalse(original.active());
+        assertThrows(IllegalStateException.class,()->original.bind(()->true));
         var reloaded=new LiveDropCustody();assertFalse(reloaded.active());
     }
 }

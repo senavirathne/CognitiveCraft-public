@@ -35,6 +35,7 @@ public abstract class HarvestDropParticipantMixin implements DepositParticipant,
     }
     @Inject(method="readAdditionalSaveData",at=@At("TAIL"))
     private void cognitivecraft$loadHarvestDrop(ValueInput input,CallbackInfo ci) {
+        cognitivecraft$liveDrop.revoke();
         var state=cognitivecraft$depositParticipant();state.load(input,Kind.ACTOR);
         if(state.active() && state.valid()){state.trackLoaded(List.of(((ItemEntity)(Object)this).getItem()));((EntityMembershipParticipant)this).cognitivecraft$membershipData().load(input,state);}
     }

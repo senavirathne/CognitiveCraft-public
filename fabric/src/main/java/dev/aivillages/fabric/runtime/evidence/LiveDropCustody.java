@@ -18,4 +18,6 @@ public final class LiveDropCustody {
         if(owner.getAsBoolean())return true;
         owner=null;return false;
     }
+
+    public void revoke() { owner=null;bound=true; }
 }

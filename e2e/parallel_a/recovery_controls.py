@@ -168,7 +168,9 @@ def campaign(h,seed,cases):
     def attempt(name,call):
         try:value=call()
         except Exception as error:value={'id':name,'status':'FAIL','reason':str(error),'trace':traceback.format_exc()}
-        result['cases'].append(value);atomic(root,result);return value
+        result['cases'].append(value);atomic(root,result)
+        print('A06_NATIVE_CONTROL '+json.dumps({'id':name,'status':value['status'],'reason':value.get('reason')}),flush=True)
+        return value
     by_stage={s:next(c for c in cases if c['checkpoint']==s and c['item']!= 'minecraft:wheat') for s in ('HARVEST','PICKUP','DEPOSIT')}
     for stage,case in by_stage.items():
         value=attempt('source-replacement-'+stage,lambda c=case:torn(h,c,unrelated=c['checkpoint']=='PICKUP'))
