@@ -48,6 +48,70 @@ jobs:
           python3 -m compileall -q e2e/parallel_a
           python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py' -v
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
+      - name: Recover exact retained A06 batch25 archive and emit every failure diagnosis
+        id: a06_prior_transport
+        if: ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-review') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/parallel-a/prior25-transport
+          gh api repos/senavirathne/CognitiveCraft-public/actions/artifacts/13329191415/zip > build/parallel-a/prior25.zip
+          python3 e2e/parallel_a/recovery_archive.py --archive build/parallel-a/prior25.zip --out build/parallel-a/prior25-transport --sha256 6a4574c7d785548605473e72512b0c3cfaa5c9589f819d01a24f5b9426f5c9d5
+      - name: Retain complete small A06 batch25 diagnostics before current module tests
+        if: ${{ always() && steps.a06_prior_transport.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-prior25-diagnostics-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/prior25-transport/diagnostics.zip
+            build/parallel-a/prior25-transport/diagnostic-summary.json
+            build/parallel-a/prior25-transport/parts-manifest.json
+      - name: Retain lossless original A06 batch25 archive part 0
+        if: ${{ always() && steps.a06_prior_transport.outcome == 'success' && hashFiles('build/parallel-a/prior25-transport/part-000.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-prior25-part-0-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/prior25-transport/part-000.bin
+            build/parallel-a/prior25-transport/parts-manifest.json
+      - name: Retain lossless original A06 batch25 archive part 1
+        if: ${{ always() && steps.a06_prior_transport.outcome == 'success' && hashFiles('build/parallel-a/prior25-transport/part-001.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-prior25-part-1-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/prior25-transport/part-001.bin
+            build/parallel-a/prior25-transport/parts-manifest.json
+      - name: Retain lossless original A06 batch25 archive part 2
+        if: ${{ always() && steps.a06_prior_transport.outcome == 'success' && hashFiles('build/parallel-a/prior25-transport/part-002.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-prior25-part-2-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/prior25-transport/part-002.bin
+            build/parallel-a/prior25-transport/parts-manifest.json
+      - name: Retain lossless original A06 batch25 archive part 3
+        if: ${{ always() && steps.a06_prior_transport.outcome == 'success' && hashFiles('build/parallel-a/prior25-transport/part-003.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-prior25-part-3-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/prior25-transport/part-003.bin
+            build/parallel-a/prior25-transport/parts-manifest.json
       - name: Reproduce the acknowledged-owner race against the original reader
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A05 connected-world acknowledged-reader') }}

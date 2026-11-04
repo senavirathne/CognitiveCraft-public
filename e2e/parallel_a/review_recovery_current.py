@@ -43,6 +43,13 @@ def original_row(world,key):
     assert job['generation']==a['generation']==key['generation'] and a['id']==key['attempt']
     return job,a
 
+def closed_native_claims(rows,key):
+    for row in rows:
+        assert row['schema']==1 and row['state'] in {'ACTIVE','RELEASED','EXPIRED','REVOKED','INTERRUPTED'}
+        if row['job']==key['step']:
+            assert row['world']==key['world'] and row['jobGeneration']==key['generation']
+            assert row['state']!='ACTIVE','Original native claim remains active'
+
 def replaced(value):
     assert value['sameClients'] is True
     assert tuple(value['before'][k] for k in ('hostJvmPid','startTicks'))!=tuple(value['after'][k] for k in ('hostJvmPid','startTicks'))
@@ -91,7 +98,7 @@ def one(root,case):
     verification=after['entry']['verification'];assert verification['outcome']=='SAVED_COMPLETE'
     assert not any(l['owner']['job']==key['step'] and l['state']=='ACTIVE' for l in result['claimsAfterSettlement']['runtime']['leases']['leases'])
     _,leases=journal(terminal/'data/cognitivecraft/leases/v1/state.jsonl')
-    assert not any(l['owner']['job']==key['step'] and l['state']=='ACTIVE' for l in leases)
+    closed_native_claims(leases,key)
     replaced(result['firstRestart']);replaced(result['terminalRestart'])
     if case['id']=='W6-003':
         replaced(result['adoptionRestart']);replaced(result['settlementCutRestart'])

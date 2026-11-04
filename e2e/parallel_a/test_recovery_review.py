@@ -2,9 +2,21 @@
 import copy,json,tempfile,unittest
 from pathlib import Path
 from recovery_fixture import participant,PARTICIPANT
-from review_recovery_current import controls
+from review_recovery_current import controls,closed_native_claims
 
 class RecoveryReviewTest(unittest.TestCase):
+    def test_native_claims_use_the_flat_journal_codec_and_reject_active_originals(self):
+        key={'step':'original','world':'world','generation':1}
+        row={'schema':1,'job':'original','world':'world','jobGeneration':1,'state':'RELEASED'}
+        closed_native_claims([row],key)
+        with self.assertRaises(AssertionError):closed_native_claims([dict(row,state='ACTIVE')],key)
+        with self.assertRaises(AssertionError):closed_native_claims([dict(row,jobGeneration=2)],key)
+    def test_foreign_claims_do_not_hide_original_claims_and_unknown_states_refuse(self):
+        key={'step':'original','world':'world','generation':1}
+        row={'schema':1,'job':'foreign','world':'world','jobGeneration':1,'state':'ACTIVE'}
+        closed_native_claims([row],key)
+        with self.assertRaises(AssertionError):closed_native_claims([dict(row,job='original')],key)
+        with self.assertRaises(AssertionError):closed_native_claims([dict(row,state='UNKNOWN')],key)
     def participant(self):
         marker={'schema':1,'effect':'a'*64,'intent':'b'*64,'phase':'RESULT','result':'c'*64}
         expected={'incarnation':'original','revision':3,'slots':[{'item':'minecraft:oak_log','count':1},{'item':'minecraft:air','count':0}]}
