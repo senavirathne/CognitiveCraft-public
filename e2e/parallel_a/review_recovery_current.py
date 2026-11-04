@@ -26,6 +26,8 @@ def modules(repo):
               ('core','dev.aivillages.core.kernel.runtime.evidence.NativeJoinedDepositTest',9),
               ('core','dev.aivillages.core.kernel.DeliveredUnitRecoveryTest',4),
               ('core','dev.aivillages.core.kernel.HarvestLeasePublicationTest',10),
+              ('core','dev.aivillages.core.kernel.LeaseAvailabilityTest',3),
+              ('fabric','dev.aivillages.fabric.runtime.evidence.LiveDropCustodyTest',3),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityTrailRecordTest',5),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkMembershipStateTest',7),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkRemovalStateTest',16)]

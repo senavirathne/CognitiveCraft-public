@@ -870,6 +870,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             if (stack.isEmpty()) continue;
             ItemEntity entity = new ItemEntity(level, p.getX()+0.5, p.getY()+0.25, p.getZ()+0.5, stack.copy());
             entity.setDefaultPickUpDelay();
+            if(stack.is(Items.WHEAT)) {
+                UUID originalRun=GatewayControl.owner(v);
+                if(originalRun!=null) {
+                    entity.setThrower(v);entity.setTarget(entity.getUUID());
+                    ((dev.aivillages.fabric.runtime.evidence.LiveHarvestDrop)entity).cognitivecraft$liveCustody(
+                            ()->v.isAlive() && !v.isRemoved() && GatewayControl.holds(v,originalRun));
+                }
+            }
             dev.aivillages.fabric.runtime.evidence.HarvestBirthScope.spawned(entity);
             if (!level.addFreshEntity(entity)) { failedSpawn = true; continue; }
             if (stack.is(Items.WHEAT)) wheat.add(new Drop(entity.getUUID(), stack.getCount()));
