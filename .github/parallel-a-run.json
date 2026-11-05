@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 28,
-  "parentSource": "4ef18e71bd5a9a94416b64fa7102883c480e1aef",
+  "sequence": 29,
+  "parentSource": "eb135fa918e9b66e7ff112f3e8338f06e6dfa9a9",
   "stage": "A06",
-  "scope": "Run all twelve frozen originals and nine mandatory native controls on the crop-lease and original remaining-unit fixes, then independently review saved evidence in Docker",
+  "scope": "Fresh twelve originals, compact native wheat palette and exact saved output custody, same original remaining unit through H/P/D, nine controls and strict measured cost",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "One grouped run with full modules, all related host regressions, fresh original cuts, all controls, independent offline Docker review, and lossless raw evidence",
+  "execution": "A separate CI-skipped source checkpoint and one control-only branch update. All twelve frozen originals, nine controls, complete modules and required host regressions, offline Docker review, and lossless retained evidence.",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -908,42 +908,40 @@
     }
   },
   "latestOriginalCoverage": {
-    "source": "297832dabba8d7978376f86c79a06c5c9c0af61b",
-    "run": 41834140991,
-    "job": 126588603378,
+    "source": "448946d9f735989d920ca8427161ebb5df460bbe",
+    "run": 42078774329,
+    "job": 127425960215,
     "attempt": 1,
     "independentlyReviewedOriginalCases": 11,
     "requiredOriginalCases": 12,
-    "originalCaseIds": [
-      "W6-002",
-      "W6-003",
-      "W6-004",
-      "W6-009",
-      "W6-010",
-      "heldout-W6-002",
-      "heldout-W6-003",
-      "heldout-W6-004",
-      "heldout-W6-008",
-      "heldout-W6-009",
-      "heldout-W6-010"
-    ],
+    "stageCounts": {
+      "HARVEST": 3,
+      "PICKUP": 4,
+      "DEPOSIT": 4
+    },
     "pendingOriginalCaseIds": [
       "W6-008"
     ],
-    "nativeArtifact": 13329191415,
-    "review": "Recovered the complete exact ZIP and inspected raw saved worlds with the corrected flat lease-row reader",
+    "wheatActualCut": {
+      "status": "RAW_KILLED_WORLD_HARVEST_PROVED_AFTER_COMPACT_PALETTE_FIX",
+      "dropQuantities": {
+        "minecraft:wheat": 1,
+        "minecraft:wheat_seeds": 2
+      },
+      "settled": false
+    },
     "a06Qualified": false,
     "fullBranchQualified": false
   },
   "currentValidation": {
+    "source": "eb135fa918e9b66e7ff112f3e8338f06e6dfa9a9",
     "status": "PENDING_FULL_A06_CURRENT_CANDIDATE",
-    "source": "4ef18e71bd5a9a94416b64fa7102883c480e1aef",
-    "requiredOriginalCases": 12,
     "nativeOriginalCasesThisBatch": 12,
+    "requiredOriginalCases": 12,
     "nativeControls": 9,
     "allOriginalCasesMandatory": true,
     "widerControlsRequired": true,
-    "focusedPythonTests": 88,
+    "focusedPythonTests": 89,
     "baselinePythonTests": 72,
     "retainedAdmissionArtifact": 13311090608,
     "importedRecoverySettlements": 0,
@@ -954,14 +952,17 @@
       "captureP99": 2,
       "ackMax": 30000
     },
-    "priorCostMillis": {
-      "tickP95": 28.12803,
-      "tickP99": 40.715293,
-      "harvestP99": 3.603001,
-      "pickupP99": 9.63845,
-      "depositP99": 10.08797
+    "serverBudget": {
+      "cpuset": "0-1",
+      "availableProcessors": 2,
+      "heapMiB": [
+        256,
+        1536
+      ],
+      "g1HeapRegionMiB": 2,
+      "g1PauseTargetMillis": 10
     },
-    "yamlSyntax": "PASS_FULL_WORKFLOW_PARSE_13_JOBS"
+    "originalWorkloadsAndWindowsPreserved": true
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
@@ -1015,5 +1016,62 @@
     "priorDiagnosticsArtifact": 13329659081,
     "mainCiRun": 41843785711,
     "moduleCases": 2591
+  },
+  "priorBatch25OriginalCoverage": {
+    "source": "297832dabba8d7978376f86c79a06c5c9c0af61b",
+    "run": 41834140991,
+    "job": 126588603378,
+    "attempt": 1,
+    "independentlyReviewedOriginalCases": 11,
+    "requiredOriginalCases": 12,
+    "originalCaseIds": [
+      "W6-002",
+      "W6-003",
+      "W6-004",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-002",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-008",
+      "heldout-W6-009",
+      "heldout-W6-010"
+    ],
+    "pendingOriginalCaseIds": [
+      "W6-008"
+    ],
+    "nativeArtifact": 13329191415,
+    "review": "Recovered the complete exact ZIP and inspected raw saved worlds with the corrected flat lease-row reader",
+    "a06Qualified": false,
+    "fullBranchQualified": false
+  },
+  "priorBatch28Validation": {
+    "source": "448946d9f735989d920ca8427161ebb5df460bbe",
+    "tree": "46fead56477c9d6086dd679721253bc4e54ac2d2",
+    "run": 42078774329,
+    "main": 42078774184,
+    "mainStatus": "PASS",
+    "moduleCases": 2599,
+    "requiredHostsPassed": 9,
+    "originalsPassedIndependent": 11,
+    "expiryControl": "PASS",
+    "remainingControl": "FAIL_PICKUP_PREPARED_AT_JOB_REVISION_145_OBSERVED_146_147",
+    "priorWheatFailure": "Reader rejected actual compact palette entry with an empty-string key. The native cut and exact saved H outputs are present.",
+    "costMillis": {
+      "tickP95": 38.812568,
+      "tickP99": 57.144257,
+      "harvestP99": 9.021358,
+      "pickupP99": 18.699396,
+      "depositP99": 22.594882,
+      "ackMax": 49.925348
+    },
+    "nativeParts": [
+      13444270791,
+      13444105893,
+      13444330757
+    ],
+    "contracts": 13443811110,
+    "nativeArchiveSha256": "bc7915fd676b33659a2a2923492253d32e9889345a974b26a5f5928e0d59639d",
+    "duplicateStandaloneRuns": 9
   }
 }
