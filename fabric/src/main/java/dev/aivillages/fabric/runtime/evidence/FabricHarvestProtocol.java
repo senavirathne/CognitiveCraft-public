@@ -21,6 +21,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Experimental stopped-harvest envelope. It deliberately fences later pickup until native pickup proof exists. */
 public final class FabricHarvestProtocol implements HarvestProtocol {
+    private static final Slot EMPTY_SLOT = new Slot("minecraft:air", 0);
     public enum Point { PREPARED_MARKED,BEFORE_MUTATION,AFTER_MUTATION,RESULT_ACKNOWLEDGED,VERIFICATION_ACKNOWLEDGED }
     private final Thread thread=Thread.currentThread();
     private final ServerLevel level;private final JobLifecycleStore jobs;private final ResourceLeaseService leases;private final Clock clock;
@@ -42,6 +43,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private final class NativeTicket implements Ticket {
         final Request request;final Action original;final NativeHarvest.Intent intent;final Reason failure;
         boolean forgotten,acknowledged;
+        Jobs.Job authority;
         NativeTicket(Request request,Action original,NativeHarvest.Intent intent,Reason failure){this.request=request;this.original=original;this.intent=intent;this.failure=failure;}
     }
     private record Pair(Villager actor,LevelChunk chunk,Participant actorSnapshot,Source source) { }
@@ -186,7 +188,11 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             for(var claim:claims) {
                 if(!claim.group().equals(group))throw new Refused(Reason.TARGET_UNAVAILABLE);
                 var resource=claim.resource();
-                if((resource.logBlocks() && resource.item().equals(request.item().id()) || request.item().equals(ResourceDelivery.WHEAT) && resource.item().equals("minecraft:mature_wheat"))
+                // The production crop gateway claims the exact source workspace.
+                // Crop-workspace callers can also hold a mature-stock claim.
+                boolean cropSource=request.item().equals(ResourceDelivery.WHEAT)
+                        && (resource.item().equals("minecraft:mature_wheat") || resource.kind()==ResourceLeases.Kind.SPACE);
+                if((resource.logBlocks() && resource.item().equals(request.item().id()) || cropSource)
                         && resource.area().equals(request.area()) && claim.remaining()>0)source=true;
                 if(resource.equals(ResourceLeases.Resource.facility(job.origin().scope().worldId(),request.destination())))facility=true;
                 references.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
@@ -209,7 +215,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
                     request.actor(),request.area(),request.destination(),request.item().id(),pair.source,conditions,pair.actorSnapshot);
             phase="exclusion";
             if(store.conflicts(request.actor(),request.source().dimension(),request.source().x(),request.source().y(),request.source().z(),""))throw new Refused(Reason.INTERRUPTED);
-            var ticket=new NativeTicket(request,original,intent,null);tickets.add(ticket);return ticket;
+            var ticket=new NativeTicket(request,original,intent,null);ticket.authority=job;tickets.add(ticket);return ticket;
         }catch(Refused refused){refused(phase,refused.reason.name(),"");return new NativeTicket(request,original,null,refused.reason);}
         catch(RuntimeException invalid){refused(phase,invalid.getClass().getSimpleName(),invalid.getMessage());return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
     }
@@ -221,7 +227,13 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         if(ticket.failure!=null)return failed(ticket.failure);
         if(!tickets.contains(ticket))return failed(Reason.INTERRUPTED);
         store.tick();HarvestEvidenceStore.Status status;
-        try{status=store.prepare(ticket.intent);if(status.code()==HarvestEvidenceStore.Code.PREPARED)status=store.perform(status.prepared());}
+        try {
+            status=store.prepare(ticket.intent);
+            if(status.code()==HarvestEvidenceStore.Code.PREPARED) {
+                if(!jobs.ready() || !leases.ready())return new Progress(Code.PENDING,null);
+                status=store.perform(status.prepared());
+            }
+        }
         catch(RuntimeException unknown){refused("publication",unknown.getClass().getSimpleName(),unknown.getMessage());return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);}
         return switch(status.code()) {
             case PENDING,PREPARED->new Progress(Code.PENDING,null);
@@ -242,7 +254,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         NativeTicket ticket=ticket(intent);
         if(closed || !enabled || ticket==null || !preflight.test(ticket.request,ticket.original::current) || !jobs.ready() || !leases.ready())return false;
         var job=jobs.query(intent.key().step(),intent.origin());var attempt=job.current();
-        if(job.revision()!=intent.conditions().jobRevision() || attempt==null || !attempt.id().equals(intent.key().attempt()) || attempt.generation()!=intent.key().generation()
+        if(!LiveAttemptAuthority.unchanged(ticket.authority,job) || attempt==null || !attempt.id().equals(intent.key().attempt()) || attempt.generation()!=intent.key().generation()
                 || jobs.stopPending(job.id(),job.generation(),job.origin()) || Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis())!=intent.conditions().deadlineEpochMillis())return false;
         var owner=new JobLeaseOwners(jobs,clock).byRun(ticket.request.bound(),ticket.request.correlation());
         for(Claim claim:intent.conditions().claims()) {
@@ -318,7 +330,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         var slots=new ArrayList<Slot>();var stacks=new ArrayList<ItemStack>();var inventory=actor.getInventory();
         for(int n=0;n<inventory.getContainerSize();n++) {
             ItemStack stack=inventory.getItem(n);stacks.add(stack);
-            if(stack.isEmpty())slots.add(new Slot("minecraft:air",0));
+            if(stack.isEmpty())slots.add(EMPTY_SLOT);
             else {
                 if(!ItemStack.isSameItemSameComponents(stack,new ItemStack(stack.getItem())))throw new IllegalArgumentException("Native harvest actor components");
                 slots.add(new Slot(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),stack.getCount()));

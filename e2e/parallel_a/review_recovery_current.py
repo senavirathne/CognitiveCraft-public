@@ -26,7 +26,9 @@ def modules(repo):
               ('core','dev.aivillages.core.kernel.runtime.evidence.NativeJoinedDepositTest',9),
               ('core','dev.aivillages.core.kernel.DeliveredUnitRecoveryTest',4),
               ('core','dev.aivillages.core.kernel.HarvestLeasePublicationTest',10),
-              ('core','dev.aivillages.core.kernel.LeaseAvailabilityTest',3),
+              ('core','dev.aivillages.core.kernel.LeaseAvailabilityTest',5),
+              ('core','dev.aivillages.core.kernel.runtime.evidence.LiveAttemptAuthorityTest',3),
+              ('core','dev.aivillages.core.kernel.runtime.evidence.NativeDigestsTest',3),
               ('fabric','dev.aivillages.fabric.runtime.evidence.LiveDropCustodyTest',3),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityTrailRecordTest',5),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkMembershipStateTest',7),
@@ -166,7 +168,9 @@ def controls(root):
         world=directory/w['id']/'terminal-world';assert manifest(world)==w['worldHashes']
         assert native_saved(world,'DEPOSIT',w['originalCase'])==w['nativeSaved']
     wheat=next(c for c in read(root/'a06-original-results.json')['cases'] if c['originalCase']['item']=='minecraft:wheat')
-    capture['HARVEST']+=wheat['reached']['stages']['HARVEST']['metrics']['preparationNanos']
+    wheat_samples=wheat['reached']['stages']['HARVEST']['metrics']['preparationNanos']
+    assert wheat_samples and len(wheat_samples)==cost['requiredWheatSamples']
+    capture['HARVEST']+=wheat_samples
     def percentile(values,p):assert values;return sorted(values)[max(0,math.ceil(len(values)*p/100)-1)]/1e6
     assert percentile(ticks,95)<=20 and percentile(ticks,99)<=40 and all(percentile(v,99)<=2 for v in capture.values()) and max(ack)/1e6<=30000
     assert cost['status']=='PASS_REPRESENTATIVE_ACTIVE_COST' and cost['warmupExcluded'] is False
@@ -203,8 +207,11 @@ def review(root,repo,out,source):
                      individuallyReviewedOriginalCases=[r['originalCase']['id'] for r in reviews],nativeStorageMechanics=storage_review(root))
         if not failures:
             assert plan['originalStatus']=='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' and plan['originalOwnerSettlements']==12
-            value.update(complete(cases,reviews))
+            original_review=complete(cases,reviews)
+            value.update(original_review)
+            value.update(originalStatus=original_review['status'],status='FAIL_REQUIRED_CONTROL_REVIEW')
             value['controls']=controls(root)
+            value['status']=original_review['status']
             value['claim']='Twelve saved originals and their required native controls independently reviewed. Full branch qualification additionally requires every related host regression.'
     except Exception as error:failures.append({'id':'campaign','reason':str(error),'trace':traceback.format_exc()})
     value.update(failures=failures,reviews=reviews)

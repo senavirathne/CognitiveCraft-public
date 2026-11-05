@@ -63,7 +63,7 @@ public final class NativePickup {
                     throw new IllegalArgumentException("Changed original pickup claims");
             }
         }
-        public String digest(){return sha(StrictJson.canonical(intent(this)));}
+        public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(intent(this))));}
     }
     public record Result(String intent,Live live,NativeHarvest.Source source,Participant actor,NativeHarvest.Drop remaining,
                          ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure) {
@@ -74,7 +74,7 @@ public final class NativePickup {
                     || receipt!=null && (receipt.stage()!=ResourceDelivery.Stage.PICKUP || receipt.transformation()!=null || receipt.placement()!=null))
                 throw new IllegalArgumentException("Actual native pickup result");
         }
-        public String digest(){return sha(StrictJson.canonical(result(this)));}
+        public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(result(this))));}
     }
     public record TrailWitness(Trail trail,Marker marker,boolean restoredFromNativeSave){public TrailWitness{Objects.requireNonNull(trail);}}
     public record Member(Role role,UUID entity,Chunk chunk) {public Member{Objects.requireNonNull(role);Objects.requireNonNull(entity);Objects.requireNonNull(chunk);}}

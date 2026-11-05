@@ -1,10 +1,24 @@
 """Transport integrity controls; these synthetic bytes qualify no native case."""
-import hashlib,json,tempfile,unittest
+import hashlib,io,json,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
-from recovery_archive import split
+from zipfile import ZipFile
+from recovery_archive import pack,split
 
 class RecoveryArchiveTest(unittest.TestCase):
+    def test_current_transport_preserves_hidden_and_nested_native_files(self):
+        with tempfile.TemporaryDirectory() as folder,patch('recovery_archive.PART_BYTES',256):
+            root=Path(folder);evidence=root/'native';(evidence/'world').mkdir(parents=True)
+            expected={'.identity':b'native identity','world/r.1.2.mca':bytes(range(254))}
+            for path,body in expected.items():(evidence/path).write_bytes(body)
+            parts=root/'parts';manifest=pack(evidence,parts)
+            archive=b''.join((parts/part['name']).read_bytes() for part in manifest['parts'])
+            self.assertGreater(len(manifest['parts']),1)
+            self.assertEqual(hashlib.sha256(archive).hexdigest(),manifest['archiveSha256'])
+            with ZipFile(io.BytesIO(archive)) as restored:
+                self.assertIsNone(restored.testzip())
+                self.assertEqual({path:restored.read(path) for path in restored.namelist()},expected)
+
     def test_every_original_byte_is_retained_in_order_with_independent_part_hashes(self):
         with tempfile.TemporaryDirectory() as folder,patch('recovery_archive.PART_BYTES',16):
             root=Path(folder);body=bytes(range(53));source=root/'input.zip';source.write_bytes(body)

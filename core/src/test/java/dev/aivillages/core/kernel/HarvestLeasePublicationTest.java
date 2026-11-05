@@ -20,6 +20,7 @@ final class HarvestLeasePublicationTest {
         final LeasedGateway gateway;
         Snapshot disk;
         boolean facility=true,available=true;
+        Outcomes.Reason unavailableReason=Outcomes.Reason.TARGET_UNAVAILABLE;
         ActionHandle handle;
         Scene(int quantity) {
             physical=new GatewayScene(quantity,0,0);
@@ -32,7 +33,7 @@ final class HarvestLeasePublicationTest {
                     ?new OwnerFacts(OWNER,ACTOR,physical.run,physical.world.authorized,
                         physical.world.authorized?null:Outcomes.Reason.AUTHORITY_DENIED):null,
                     (resource,facts)->{
-                        if(!available)return new Observation(resource,ObservationStatus.UNKNOWN,0,"actually-unavailable",physical.world.tick,1,Outcomes.Reason.TARGET_UNAVAILABLE);
+                        if(!available)return new Observation(resource,ObservationStatus.UNKNOWN,0,"actually-unavailable",physical.world.tick,1,unavailableReason);
                         long quantityNow=resource.logBlocks()?physical.world.logs.size():
                                 resource.kind()==Kind.FACILITY&&!facility?0:1;
                         return new Observation(resource,quantityNow==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,

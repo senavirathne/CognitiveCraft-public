@@ -31,7 +31,7 @@ public final class NativeDeposit {
             Objects.requireNonNull(world);Objects.requireNonNull(root);Objects.requireNonNull(step);Objects.requireNonNull(attempt);
             if(generation<1 || ordinal<1 || ordinal>64)throw new IllegalArgumentException("Deposit effect identity");
         }
-        public String token(){return sha(StrictJson.canonical(key(this)));}
+        public String token(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(key(this))));}
     }
     /** Only unchanged default-component stacks are in this first native envelope. */
     public record Slot(String item,int count) {
@@ -100,7 +100,7 @@ public final class NativeDeposit {
             if(!from.item.equals(item) || from.count<1 || to.count>=capacity || to.count!=0 && !to.item.equals(item))
                 throw new IllegalArgumentException("Deposit precondition");
         }
-        public String digest(){return sha(StrictJson.canonical(intent(this)));}
+        public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(intent(this))));}
     }
     public record Result(String intent,Live live,Participant actor,Participant chest,String failure,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage) {
         public Result(String intent,Live live,Participant actor,Participant chest,String failure){this(intent,live,actor,chest,failure,null,Map.of());}
@@ -111,7 +111,7 @@ public final class NativeDeposit {
                 throw new IllegalArgumentException("Deposit observed result");
             if(receipt!=null)DepositReceiptCodec.encode(receipt);
         }
-        public String digest(){return sha(StrictJson.canonical(result(this)));}
+        public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(result(this))));}
     }
     public record Verification(Reconciliation outcome,Participant actor,Participant chest,Marker actorMarker,Marker chestMarker,UUID process,long observedAt,NativePickup.Observation lineage) {
         public Verification(Reconciliation outcome,Participant actor,Participant chest,Marker actorMarker,Marker chestMarker,UUID process,long observedAt) {

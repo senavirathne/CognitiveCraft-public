@@ -1,6 +1,7 @@
 """Lossless transport of retained native ZIPs through bounded artifact downloads."""
 import argparse,hashlib,json,math
 from pathlib import Path,PurePosixPath
+from tempfile import TemporaryDirectory
 from zipfile import ZipFile,ZIP_DEFLATED
 
 PART_BYTES=400*1024**2
@@ -34,8 +35,31 @@ def inspect(archive,out):
     print('A06_RETAINED_ORIGINALS '+json.dumps([{'id':c['originalCase']['id'],'status':c['status'],'reason':c.get('reason')} for c in cases]),flush=True)
     print('A06_RETAINED_CONTROLS '+json.dumps([{'id':c['id'],'status':c['status'],'reason':c.get('reason')} for c in summary['a06-controls-results.json']['cases']]),flush=True)
 
+def pack(root,out):
+    root=Path(root).resolve();out=Path(out).resolve()
+    if out.is_relative_to(root):raise ValueError('Transport output must be outside the native evidence root')
+    files=sorted(path for path in root.rglob('*') if path.is_file())
+    if not files:raise ValueError('Native evidence root contains no files')
+    out.mkdir(parents=True,exist_ok=True)
+    with TemporaryDirectory(dir=out) as folder:
+        archive=Path(folder)/'native.zip'
+        with ZipFile(archive,'w',ZIP_DEFLATED,compresslevel=3) as zipped:
+            for path in files:zipped.write(path,path.relative_to(root).as_posix())
+        with archive.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
+        return split(archive,out,digest)
+
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--archive',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--sha256',required=True);a=p.parse_args()
-    print('A06_LOSSLESS_ARCHIVE_PARTS '+json.dumps(split(a.archive,a.out,a.sha256)),flush=True);inspect(a.archive,a.out)
+    p=argparse.ArgumentParser(description=__doc__)
+    source=p.add_mutually_exclusive_group(required=True)
+    source.add_argument('--archive',type=Path);source.add_argument('--root',type=Path)
+    p.add_argument('--out',type=Path,required=True);p.add_argument('--sha256')
+    a=p.parse_args()
+    if a.root:
+        manifest=pack(a.root,a.out)
+    else:
+        if not a.sha256:p.error('--archive requires --sha256')
+        manifest=split(a.archive,a.out,a.sha256)
+    print('A06_LOSSLESS_ARCHIVE_PARTS '+json.dumps(manifest),flush=True)
+    if a.archive:inspect(a.archive,a.out)
 
 if __name__=='__main__':main()

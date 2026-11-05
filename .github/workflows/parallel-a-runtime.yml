@@ -384,9 +384,62 @@ jobs:
           mkdir -p "$root"
           docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$root:$root:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_recovery_current.py --root build/parallel-a/native-a06-recovery --repo "$PWD" --source "${{ github.sha }}" --out "$root"
           docker image inspect --format '{{.Id}}' python:3.12-slim > "$root/python-image-id.txt"
-      - name: Retain all twelve native worlds original owners and failed assertions
+      - name: Pack all A06 native evidence into bounded lossless parts
+        id: a06_current_transport
         if: >-
           ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') }}
+        run: |
+          output=build/parallel-a/current-a06-transport
+          python3 e2e/parallel_a/recovery_archive.py --root build/parallel-a/native-a06-recovery --out "$output"
+          mkdir -p build/parallel-a/source-audit/a06-current-recovery-review
+          cp "$output/parts-manifest.json" build/parallel-a/source-audit/a06-current-recovery-review/
+      - name: Retain current A06 native archive part 0
+        if: ${{ always() && steps.a06_current_transport.outcome == 'success' && hashFiles('build/parallel-a/current-a06-transport/part-000.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-recovery-native-part-0-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/current-a06-transport/part-000.bin
+            build/parallel-a/current-a06-transport/parts-manifest.json
+      - name: Retain current A06 native archive part 1
+        if: ${{ always() && steps.a06_current_transport.outcome == 'success' && hashFiles('build/parallel-a/current-a06-transport/part-001.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-recovery-native-part-1-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/current-a06-transport/part-001.bin
+            build/parallel-a/current-a06-transport/parts-manifest.json
+      - name: Retain current A06 native archive part 2
+        if: ${{ always() && steps.a06_current_transport.outcome == 'success' && hashFiles('build/parallel-a/current-a06-transport/part-002.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-recovery-native-part-2-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/current-a06-transport/part-002.bin
+            build/parallel-a/current-a06-transport/parts-manifest.json
+      - name: Retain current A06 native archive part 3
+        if: ${{ always() && steps.a06_current_transport.outcome == 'success' && hashFiles('build/parallel-a/current-a06-transport/part-003.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a06-recovery-native-part-3-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/current-a06-transport/part-003.bin
+            build/parallel-a/current-a06-transport/parts-manifest.json
+      - name: Retain the complete native evidence if lossless packing failed
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A06 recovery-native') && steps.a06_current_transport.outcome != 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a06-recovery-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}

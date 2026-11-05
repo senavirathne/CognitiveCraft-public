@@ -127,7 +127,13 @@ public final class ResourceLeaseService {
             if(missing!=null && Boolean.getBoolean("cognitivecraft.gametest.trace"))
                 System.out.println("CognitiveCraft LEASE_OBSERVATION resource="+demand.resource()+" status="+observation.status()+" quantity="+observation.quantity()
                         +" inspected="+observation.inspected()+" identity="+observation.identity()+" reason="+missing+" tick="+tick);
-            if(missing!=null)return new Result(Code.REJECTED,missing,null,List.of(),0,inspected);
+            if (missing != null) {
+                // Native discovery can be unknown before the worker and target are both observable.
+                // This pending answer has no claim and requires another observation before any grant.
+                Code code = observation.status() == ObservationStatus.UNKNOWN && missing == Reason.AUTHORITY_DENIED
+                        ? Code.PENDING : Code.REJECTED;
+                return new Result(code, missing, null, List.of(), 0, inspected);
+            }
             long free=free(demand.resource(),observation.quantity(),rows,tick);
             if(free<demand.quantity())return new Result(Code.CONFLICT,
                     observation.quantity()<demand.quantity()?Reason.RESOURCE_MISSING:Reason.TARGET_UNAVAILABLE,

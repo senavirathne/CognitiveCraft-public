@@ -38,7 +38,7 @@ public final class NativeHarvest {
                     || !new ResourceDelivery.BlockPosition(source.dimension,source.x,source.y,source.z).inside(area))
                 throw new IllegalArgumentException("Original harvest intent binding");
         }
-        public String digest(){return sha(StrictJson.canonical(intent(this)));}
+        public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(intent(this))));}
     }
     public record Result(String intent,Live live,Source source,List<Drop> drops,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor,CropDelivery.CropReceipt cropReceipt) {
         public Result(String intent,Live live,Source source,List<Drop> drops,ResourceDelivery.Receipt receipt,Map<Budgets.Kind,Long> usage,String failure,Participant actor) {
@@ -55,7 +55,7 @@ public final class NativeHarvest {
                 throw new IllegalArgumentException("Original harvest receipt required");
             if(cropReceipt!=null && cropReceipt.stage()!=CropDelivery.Stage.HARVEST)throw new IllegalArgumentException("Actual crop harvest receipt required");
         }
-        public String digest(){return sha(StrictJson.canonical(result(this)));}
+        public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(result(this))));}
     }
     public record SourceWitness(Source source,Marker marker,boolean restoredFromNativeSave){public SourceWitness{Objects.requireNonNull(source);}}
     public record DropWitness(Drop drop,Marker marker,boolean restoredFromNativeSave){public DropWitness{Objects.requireNonNull(drop);}}

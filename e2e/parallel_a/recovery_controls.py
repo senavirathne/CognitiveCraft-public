@@ -127,6 +127,8 @@ def remaining(h,seed,template):
 
 def expired(h,cases):
     options=[(read(h.root/'original-cases'/c['id']/'result.json'),c) for c in cases]
+    options=[(original,case) for original,case in options if original and 'originalAtCut' in original]
+    require(options,'Expiry control requires an actually reached original saved cut')
     original,case=min(options,key=lambda pair:pair[0]['originalAtCut']['allowance']['deadlineEpochMillis'])
     deadline=original['originalAtCut']['allowance']['deadlineEpochMillis'];require(int(time.time()*1000)>deadline,'No original deadline has actually expired; expiry control remains required')
     name='expired-original-accounting';directory=h.root/'controls'/name;directory.mkdir(parents=True,exist_ok=True)
@@ -140,14 +142,28 @@ def expired(h,cases):
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'custody':custody,'terminalWorldHashes':retain(h,directory)}
     atomic(directory/'result.json',value);return value
 
+def prepare_cost_case(h,seed,template,identifier):
+    case=copy.deepcopy(template);case.update(id=identifier,requested=1)
+    h.case_stage='DEPOSIT';h.restore(seed,identifier)
+    destination=[case['destination'][k] for k in ('x','y','z')]
+    h.reset({},destination=destination,table=False);h.logs(positions(case),item=case['item'])
+    return case,destination
+
+def run_cost_case(h,case,destination):
+    source=case['source']
+    run=h.submit(case['item'],1,minimum=[source[k] for k in ('minX','minY','minZ')],
+                 maximum=[source[k] for k in ('maxX','maxY','maxZ')],destination=destination)
+    view=h.finish_run(run)
+    require(all(receipts(view,s,case['item'])==1 for s in ('HARVEST','PICKUP','DEPOSIT')) and physical(h,case)['destination']==1,
+            'Cost interval lacks actual successful uninterrupted H/P/D')
+    return run,view
+
 def cost(h,seed,templates):
     directory=h.root/'controls/representative-active-cost';directory.mkdir(parents=True,exist_ok=True);windows=[];captures={s:[] for s in ('HARVEST','PICKUP','DEPOSIT')};ack=[]
     for n,template in enumerate(templates):
-        case=copy.deepcopy(template);case.update(id='cost-'+str(n),requested=1);h.case_stage='DEPOSIT';h.restore(seed,case['id'])
-        dst=[case['destination'][k] for k in ('x','y','z')];h.reset({},destination=dst,table=False);h.logs(positions(case),item=case['item'])
-        start=int(time.time()*1000);calls=h.model_calls();src=case['source']
-        run=h.submit(case['item'],1,minimum=[src[k] for k in ('minX','minY','minZ')],maximum=[src[k] for k in ('maxX','maxY','maxZ')],destination=dst);view=h.finish_run(run)
-        require(all(receipts(view,s,case['item'])==1 for s in ('HARVEST','PICKUP','DEPOSIT')) and physical(h,case)['destination']==1,'Cost interval lacks actual successful uninterrupted H/P/D')
+        case,dst=prepare_cost_case(h,seed,template,'cost-'+str(n))
+        start=int(time.time()*1000);calls=h.model_calls()
+        run,view=run_cost_case(h,case,dst)
         end=int(time.time()*1000);h.quiet(400);raw=read(h.root/'server/runtime-a-ticks.json');active=[r for r in raw['samples'] if start<=r['time']<=end];require(len(active)>=40,'Cost interval lacks active tick coverage')
         evidence=h.evidence();metrics={s:v['metrics'] for s,v in evidence['stages'].items()};captures['HARVEST']+=metrics['HARVEST']['preparationNanos'];captures['PICKUP']+=metrics['PICKUP']['captureNanos'];captures['DEPOSIT']+=metrics['DEPOSIT']['beginNanos']
         for v in metrics.values():ack+=v['acknowledgementNanos']
@@ -157,17 +173,53 @@ def cost(h,seed,templates):
         window['worldHashes']=retain(h,target);window['nativeSaved']=native_saved(target/'terminal-world','DEPOSIT',case);window['originalCase']=case
         atomic(directory/(case['id']+'.json'),window);windows.append(window)
     wheat=next(c for c in read(h.root/'a06-original-results.json')['cases'] if c['originalCase']['item']=='minecraft:wheat')
-    captures['HARVEST']+=wheat['reached']['stages']['HARVEST']['metrics']['preparationNanos']
+    wheat_captures=wheat.get('reached',{}).get('stages',{}).get('HARVEST',{}).get('metrics',{}).get('preparationNanos',[])
+    captures['HARVEST']+=wheat_captures
     ticks=percentiles([s['nanos'] for w in windows for s in w['activeSamples']]);capture={s:percentiles(v) for s,v in captures.items()};ack_value=percentiles(ack)
-    value={'id':'representative-active-cost','status':'PASS_REPRESENTATIVE_ACTIVE_COST' if ticks['p95']<=20 and ticks['p99']<=40 and all(v['p99']<=2 for v in capture.values()) and ack_value['max']<=30000 else 'FAIL_COST_TARGET',
-           'windows':len(windows),'nativeEffects':3*len(windows),'tick':ticks,'capture':capture,'acknowledgement':ack_value,'limits':{'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackMaxMs':30000},'warmupExcluded':False}
-    atomic(directory/'result.json',value);return value
+    passed=bool(wheat_captures) and ticks['p95']<=20 and ticks['p99']<=40 and all(v['p99']<=2 for v in capture.values()) and ack_value['max']<=30000
+    value={'id':'representative-active-cost','status':'PASS_REPRESENTATIVE_ACTIVE_COST' if passed else 'FAIL_COST_TARGET',
+           'windows':len(windows),'nativeEffects':3*len(windows),'tick':ticks,'capture':capture,'acknowledgement':ack_value,
+           'limits':{'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackMaxMs':30000},'warmupExcluded':False,
+           'requiredWheatSamples':len(wheat_captures)}
+    if not wheat_captures:value['reason']='Missing required native wheat preparation samples'
+    atomic(directory/'result.json',value)
+    print('A06_COST_METRICS '+json.dumps(value),flush=True)
+    return value
+
+def profile_failed_cost(h,seed,template):
+    from profile_native import summarize
+    directory=h.root/'diagnostics/active-cost';directory.mkdir(parents=True,exist_ok=True)
+    value={'diagnostic':True,'qualifyingSamples':0}
+    try:
+        case,destination=prepare_cost_case(h,seed,template,'diagnostic-active-cost')
+        pid=str(native_process(h)['namespaceProcess']['pid'])
+        path=directory/'native-active-cost.jfr'
+        command=('exec','-T','minecraft','jcmd',pid)
+        h.compose(*command,'JFR.start','name=a06-cost','settings=profile','maxsize=16m')
+        try:
+            run,view=run_cost_case(h,case,destination)
+            value.update(run=run,view=view)
+        finally:
+            h.compose(*command,'JFR.stop','name=a06-cost','filename=/evidence/'+path.relative_to(h.root).as_posix())
+        profile=summarize(path)
+        atomic(path.with_suffix('.summary.json'),profile)
+        value.update(recordingSha256=profile['sha256'],serverThread=profile['threads'].get('Server thread'))
+    except Exception as error:
+        value.update(reason=str(error),trace=traceback.format_exc())
+    atomic(directory/'result.json',value)
+    print('A06_COST_CPU '+json.dumps({k:v for k,v in value.items() if k not in ('view','trace')}),flush=True)
 
 def campaign(h,seed,cases):
     result={'schema':1,'status':'FAIL_REQUIRED_CONTROLS','required':list(REQUIRED),'cases':[]};root=h.root/'a06-controls-results.json'
     def attempt(name,call):
         try:value=call()
-        except Exception as error:value={'id':name,'status':'FAIL','reason':str(error),'trace':traceback.format_exc()}
+        except Exception as error:
+            value={'id':name,'status':'FAIL','reason':str(error),'trace':traceback.format_exc()}
+            directory=h.root/'controls'/name;directory.mkdir(parents=True,exist_ok=True)
+            for key,observe in (('lastEvidence',h.evidence),('lastSnapshot',h.snapshot)):
+                try:value[key]=observe()
+                except Exception as unavailable:value[key]={'unavailable':str(unavailable)}
+            atomic(directory/'failure.json',value)
         result['cases'].append(value);atomic(root,result)
         print('A06_NATIVE_CONTROL '+json.dumps({'id':name,'status':value['status'],'reason':value.get('reason')}),flush=True)
         return value
@@ -178,8 +230,11 @@ def campaign(h,seed,cases):
     attempt('unsaved-pickup-containment',lambda:unsaved(h,seed,by_stage['PICKUP']))
     attempt('two-unit-prepared-no-effect',lambda:no_effect(h,seed,by_stage['DEPOSIT']))
     attempt('two-unit-delivered-remaining-one',lambda:remaining(h,seed,by_stage['DEPOSIT']))
-    attempt('representative-active-cost',lambda:cost(h,seed,[c for c in cases if c['item']!='minecraft:wheat']))
+    cost_result=attempt('representative-active-cost',lambda:cost(h,seed,[c for c in cases if c['item']!='minecraft:wheat']))
     attempt('expired-original-accounting',lambda:expired(h,cases))
     require({v['id'] for v in result['cases']}==set(REQUIRED) and len(result['cases'])==len(REQUIRED),'A mandatory control was omitted')
     if all(v['status'].startswith('PASS_') for v in result['cases']):result['status']='PASS_ALL_REQUIRED_NATIVE_CONTROLS'
-    atomic(root,result);require(result['status']=='PASS_ALL_REQUIRED_NATIVE_CONTROLS','One or more mandatory A06 native controls failed');return result
+    atomic(root,result)
+    if cost_result['status']=='FAIL_COST_TARGET':profile_failed_cost(h,seed,by_stage['DEPOSIT'])
+    require(result['status']=='PASS_ALL_REQUIRED_NATIVE_CONTROLS','One or more mandatory A06 native controls failed')
+    return result

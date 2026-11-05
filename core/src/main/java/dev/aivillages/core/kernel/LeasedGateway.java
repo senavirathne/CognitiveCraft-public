@@ -149,7 +149,7 @@ public final class LeasedGateway implements GatewayPort {
         var result=leases.acquire(run.binding.owner(),run.binding.demands(),duration,run.request.context());
         // An initial unavailable native observation creates no claims or effects. Keep
         // this same action pending within its existing waiting budget and reobserve.
-        if(result.code()==Code.REJECTED && result.reason()==Reason.TARGET_UNAVAILABLE && result.group()==null)
+        if(result.group()==null && (result.code()==Code.PENDING || result.code()==Code.REJECTED && result.reason()==Reason.TARGET_UNAVAILABLE))
             return new Result(Code.PENDING,result.reason(),null,List.of(),0,result.inspected());
         run.acquisition=result;return result;
     }

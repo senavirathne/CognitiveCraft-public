@@ -28,9 +28,9 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
                 var kernel=AiVillages.kernel();if(kernel==null)return;var protocol=kernel.harvestEvidenceOwner();if(protocol==null)return;
                 var evidence=protocol.evidence();
                 if(!ready){ready=true;var body=Map.of("process",process,"pid",ProcessHandle.current().pid(),"world",evidence.snapshot().world());writer.execute(()->write("harvest-ready.json",body));}
-                var classified=new LinkedHashMap<String,String>();for(var entry:evidence.snapshot().entries())classified.put(entry.token(),protocol.reconcile(entry.intent().key()).result().name());
+                var stageViews=stages(kernel);
                 pending.set(Map.ofEntries(Map.entry("process",process),Map.entry("runtime",kernel.runtimeStorageView()),Map.entry("time",System.currentTimeMillis()),Map.entry("gameTick",server.overworld().getGameTime()),
-                        Map.entry("journal",evidence.snapshot()),Map.entry("pending",evidence.pending()),Map.entry("fenced",evidence.fenced()),Map.entry("reconciliation",classified),Map.entry("protectedJobs",evidence.protectedJobs()),Map.entry("metrics",protocol.metrics()),Map.entry("membershipBirths",protocol.membershipBirths()),Map.entry("stages",stages(kernel))));
+                        Map.entry("journal",evidence.snapshot()),Map.entry("pending",evidence.pending()),Map.entry("fenced",evidence.fenced()),Map.entry("reconciliation",stageViews.get("HARVEST").get("reconciliation")),Map.entry("protectedJobs",evidence.protectedJobs()),Map.entry("metrics",stageViews.get("HARVEST").get("metrics")),Map.entry("membershipBirths",protocol.membershipBirths()),Map.entry("stages",stageViews)));
                 var command=request.getAndSet(null);if(command==null)return;active=command;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
                 if(op.equals("storage-contracts")){reply(id,RuntimeAEntityStorageChecks.run(server,root),null);return;}
@@ -69,8 +69,8 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
         while(System.nanoTime()<until)try{Thread.sleep(10);}catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IllegalStateException(stopped);}
         throw new IllegalStateException("Intended harvest process kill was not witnessed");
     }
-    private Map<String,Object> stages(KernelSession kernel) {
-        var result=new LinkedHashMap<String,Object>();var h=kernel.harvestEvidenceOwner();var hc=new LinkedHashMap<String,String>();
+    private Map<String,Map<String,Object>> stages(KernelSession kernel) {
+        var result=new LinkedHashMap<String,Map<String,Object>>();var h=kernel.harvestEvidenceOwner();var hc=new LinkedHashMap<String,String>();
         for(var e:h.evidence().snapshot().entries())hc.put(e.token(),h.reconcile(e.intent().key()).result().name());
         result.put("HARVEST",Map.of("journal",h.evidence().snapshot(),"pending",h.evidence().pending(),"fenced",h.evidence().fenced(),"reconciliation",hc,"metrics",h.metrics()));
         var p=kernel.pickupEvidenceOwner();if(p!=null) {

@@ -996,12 +996,13 @@ public final class SurvivalGateway implements GatewayPort {
                 public boolean current(){
                     if(action.current.terminal() || clock.millis()>action.deadlineMillis || clock.millis()>action.usage.deadline()
                             || !world.holds(run.actor,run.id) || !allows(action,Effect.HARVEST,cell)
-                            || !inventoryCurrent(run,world.resourceInventory(run.actor,run.item))
                             || world.resourceBreakEligibility(run.actor,cell,run.item)!=null
                             || !action.usage.canDebit(Kind.ATTEMPTED_EFFECTS,1) || !action.usage.canDebit(Kind.COMMITTED_EFFECTS,1)
                             || run.receipts.size()+run.resourceReceipts.size()>=limits.maxReceiptsPerRun())return false;
+                    var actorStock=world.resourceInventory(run.actor,run.item);
+                    if(!inventoryCurrent(run,actorStock))return false;
                     var crop=world.resourceBlock(cell,run.item);var box=destination(run.request);
-                    var stock=world.resourceContainer(box,run.item);var actorStock=world.resourceInventory(run.actor,run.item);
+                    var stock=world.resourceContainer(box,run.item);
                     long requested=((IntValue)run.request.request().arguments().get("amount")).value();
                     return crop.status()==ObservationStatus.PRESENT && crop.eligible() && action.breakIdentity.equals(crop.identity())
                             && stock.status()==ObservationStatus.PRESENT && stock.reason()==null && (!LogAcquisition.log(run.item) || stock.capacity()>=requested-run.deposited && actorStock.capacity()>=requested-run.harvested) && world.permit(run.request,Effect.HARVEST,cell)==null
