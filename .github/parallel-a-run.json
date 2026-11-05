@@ -3,7 +3,7 @@
   "sequence": 29,
   "parentSource": "eb135fa918e9b66e7ff112f3e8338f06e6dfa9a9",
   "stage": "A06",
-  "scope": "Fresh twelve originals, compact native wheat palette and exact saved output custody, same original remaining unit through H/P/D, nine controls and strict measured cost",
+  "scope": "All twelve frozen original saved cases independently verified; remaining-unit save and representative cost controls remain open",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -908,34 +908,39 @@
     }
   },
   "latestOriginalCoverage": {
-    "source": "448946d9f735989d920ca8427161ebb5df460bbe",
-    "run": 42078774329,
-    "job": 127425960215,
+    "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
+    "source": "b6a56484ae8051a0729c897cdaf31c8b051da589",
+    "tree": "acaf965e07b2adc5d8fa9584fc1d7ebdc41c4892",
+    "run": 42089993167,
+    "job": 127465202893,
     "attempt": 1,
-    "independentlyReviewedOriginalCases": 11,
+    "independentlyReviewedOriginalCases": 12,
     "requiredOriginalCases": 12,
     "stageCounts": {
-      "HARVEST": 3,
+      "HARVEST": 4,
       "PICKUP": 4,
       "DEPOSIT": 4
     },
-    "pendingOriginalCaseIds": [
-      "W6-008"
+    "originalCaseIds": [
+      "W6-002",
+      "W6-003",
+      "W6-004",
+      "W6-008",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-002",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-008",
+      "heldout-W6-009",
+      "heldout-W6-010"
     ],
-    "wheatActualCut": {
-      "status": "RAW_KILLED_WORLD_HARVEST_PROVED_AFTER_COMPACT_PALETTE_FIX",
-      "dropQuantities": {
-        "minecraft:wheat": 1,
-        "minecraft:wheat_seeds": 2
-      },
-      "settled": false
-    },
-    "a06Qualified": false,
-    "fullBranchQualified": false
+    "importedRecoverySettlements": 0,
+    "a06Qualified": false
   },
   "currentValidation": {
     "source": "eb135fa918e9b66e7ff112f3e8338f06e6dfa9a9",
-    "status": "PENDING_FULL_A06_CURRENT_CANDIDATE",
+    "status": "PASS_ALL_TWELVE_ORIGINALS_TWO_CONTROLS_OPEN",
     "nativeOriginalCasesThisBatch": 12,
     "requiredOriginalCases": 12,
     "nativeControls": 9,
@@ -962,7 +967,117 @@
       "g1HeapRegionMiB": 2,
       "g1PauseTargetMillis": 10
     },
-    "originalWorkloadsAndWindowsPreserved": true
+    "originalWorkloadsAndWindowsPreserved": true,
+    "testedSource": "b6a56484ae8051a0729c897cdaf31c8b051da589",
+    "testedTree": "acaf965e07b2adc5d8fa9584fc1d7ebdc41c4892",
+    "run": 42089993167,
+    "job": 127465202893,
+    "originalsVerified": 12,
+    "nativeControlsPassed": 7,
+    "nativeControlsRequired": 9,
+    "failedControls": [
+      {
+        "id": "two-unit-delivered-remaining-one",
+        "status": "FAIL",
+        "reason": "Fresh vanilla save acknowledged; last=False"
+      },
+      {
+        "id": "representative-active-cost",
+        "status": "FAIL_COST_TARGET",
+        "reason": null
+      }
+    ],
+    "measuredCost": {
+      "id": "representative-active-cost",
+      "status": "FAIL_COST_TARGET",
+      "windows": 11,
+      "nativeEffects": 33,
+      "tick": {
+        "p50": 13.89043,
+        "p95": 31.322779,
+        "p99": 47.2055,
+        "max": 84.669184,
+        "samples": 2326,
+        "unit": "milliseconds"
+      },
+      "capture": {
+        "HARVEST": {
+          "p50": 4.550345,
+          "p95": 13.173858,
+          "p99": 13.173858,
+          "max": 13.173858,
+          "samples": 12,
+          "unit": "milliseconds"
+        },
+        "PICKUP": {
+          "p50": 5.91047,
+          "p95": 19.003194,
+          "p99": 19.003194,
+          "max": 19.003194,
+          "samples": 11,
+          "unit": "milliseconds"
+        },
+        "DEPOSIT": {
+          "p50": 3.459249,
+          "p95": 6.007944,
+          "p99": 6.007944,
+          "max": 6.007944,
+          "samples": 11,
+          "unit": "milliseconds"
+        }
+      },
+      "acknowledgement": {
+        "p50": 21.827105,
+        "p95": 32.526212,
+        "p99": 43.755883,
+        "max": 43.755883,
+        "samples": 66,
+        "unit": "milliseconds"
+      },
+      "limits": {
+        "tickP95Ms": 20,
+        "tickP99Ms": 40,
+        "captureP99Ms": 2,
+        "ackMaxMs": 30000
+      },
+      "warmupExcluded": false,
+      "requiredWheatSamples": 1
+    },
+    "moduleCases": 2600,
+    "requiredHostsPassed": 9,
+    "mainVerification": {
+      "run": 42089993140,
+      "status": "PASS"
+    },
+    "archiveManifest": {
+      "schema": 1,
+      "archiveBytes": 862753079,
+      "archiveSha256": "de0c8b13d8f1c0e83221f57b417cc167b8059d6a5979a08d92413f6f6082306e",
+      "parts": [
+        {
+          "name": "part-000.bin",
+          "bytes": 419430400,
+          "sha256": "d49e6244112c03797767483dd5ebf838da11ab68100b71e2542feeee10b427b2"
+        },
+        {
+          "name": "part-001.bin",
+          "bytes": 419430400,
+          "sha256": "2ee991d3591c6814098f9742060781669054352b89c350483e3628345a77756d"
+        },
+        {
+          "name": "part-002.bin",
+          "bytes": 23892279,
+          "sha256": "9a27aca93cd08f895ede94d35e6f195ad5c4b15fbe42d7cda7bbad1ce488e274"
+        }
+      ]
+    },
+    "artifacts": [
+      13448780618,
+      13448370880,
+      13448157714,
+      13447648356
+    ],
+    "a06Qualified": false
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
