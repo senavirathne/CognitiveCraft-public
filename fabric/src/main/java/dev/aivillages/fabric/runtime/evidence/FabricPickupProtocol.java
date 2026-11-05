@@ -33,8 +33,11 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final ArrayDeque<Long> captureNanos=new ArrayDeque<>();
     private final class NativeTicket implements Ticket {
         final Request request;final Action action;final FabricHarvestProtocol.PickupLineage lineage;final NativePickup.Intent intent;final Reason failure;
+        final Jobs.Job authority;
         boolean acknowledged,forgotten;Marker actorPredecessor;
-        NativeTicket(Request r,Action a,FabricHarvestProtocol.PickupLineage l,NativePickup.Intent i,Reason f){request=r;action=a;lineage=l;intent=i;failure=f;}
+        NativeTicket(Request r,Action a,FabricHarvestProtocol.PickupLineage l,NativePickup.Intent i,Reason f,Jobs.Job authority){
+            request=r;action=a;lineage=l;intent=i;failure=f;this.authority=authority;
+        }
     }
     public FabricPickupProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,FabricHarvestProtocol harvest,
                                 PickupJournal journal,PickupJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled) {
@@ -82,8 +85,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var intent=new NativePickup.Intent(new Key(k.world(),k.root(),k.step(),k.attempt(),k.generation(),2),h,request.operation(),request.expected(),conditions,lineage.actorTrail(),lineage.dropTrail());
             var port=NativeEntityStorage.get(level);if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
             for(var member:NativePickup.members(intent))frame(member.chunk());
-            var ticket=new NativeTicket(request,action,lineage,intent,null);tickets.add(ticket);return ticket;
-        }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED);}
+            var ticket=new NativeTicket(request,action,lineage,intent,null,job);tickets.add(ticket);return ticket;
+        }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null);}
         finally{if(captureNanos.size()==128)captureNanos.removeFirst();captureNanos.addLast(System.nanoTime()-began);}
     }
     public Progress poll(Ticket value) {
@@ -97,7 +100,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
         store.tick();PickupEvidenceStore.Status status;
         try {
             status=store.prepare(ticket.intent,ticket.lineage.acknowledged());
-            if(status.code()==PickupEvidenceStore.Code.PREPARED)status=store.perform(status.prepared());
+            if(status.code()==PickupEvidenceStore.Code.PREPARED) {
+                if(!jobs.ready() || !leases.ready())return new Progress(Code.PENDING,null);
+                status=store.perform(status.prepared());
+            }
         }catch(RuntimeException unknown){return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);}
         return switch(status.code()) {
             case PENDING,PREPARED->new Progress(Code.PENDING,null);
@@ -118,7 +124,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private boolean nativeCurrent(NativePickup.Intent intent) {
         var ticket=ticket(intent);if(closed || !enabled || ticket==null || !jobs.ready() || !leases.ready() || !harvest.pickupTrailsCurrent(ticket.lineage))return false;
         var h=intent.harvest();var job=jobs.query(intent.key().step(),h.intent().origin());var attempt=job.current();
-        if(job.revision()!=intent.conditions().jobRevision() || attempt==null || !attempt.open() || !attempt.id().equals(intent.key().attempt())
+        if(!LiveAttemptAuthority.unchanged(ticket.authority,job) || attempt==null || !attempt.open() || !attempt.id().equals(intent.key().attempt())
                 || attempt.generation()!=intent.key().generation() || jobs.stopPending(job.id(),job.generation(),job.origin())
                 || Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis())!=intent.conditions().deadlineEpochMillis())return false;
         var owner=new JobLeaseOwners(jobs,clock).byRun(ticket.request.bound(),ticket.request.correlation());

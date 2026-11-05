@@ -299,6 +299,18 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         return result;
     }
     public HarvestEvidenceStore.Reconciled reconcile(Key key){check();return store.reconcile(key);}
+    public boolean retainsCropOutput(ItemEntity drop) {
+        check();
+        if(closed || !enabled || drop.level()!=level || !drop.isAlive())return false;
+        var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();
+        var marker=state.marker();
+        if(!state.active() || !state.valid() || marker==null || marker.phase()!=MarkerPhase.RESULT)return false;
+        for(var entry:store.snapshot().entries())if(entry.token().equals(marker.effect())) {
+            try{return NativeHarvest.retainsCropOutput(entry,dropSnapshot(drop,false),marker);}
+            catch(IllegalArgumentException invalid){return false;}
+        }
+        return false;
+    }
     public HarvestEvidenceStore.Code verify(HarvestEvidenceStore.Reconciled proof){
         check();var code=store.verify(proof);if(code==HarvestEvidenceStore.Code.RESOLVED)observer.accept(Point.VERIFICATION_ACKNOWLEDGED);return code;
     }

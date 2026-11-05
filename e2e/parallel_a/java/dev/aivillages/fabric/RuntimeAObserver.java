@@ -16,7 +16,7 @@ public final class RuntimeAObserver implements ModInitializer {
         var t = new Thread(r,"runtime-a-measurement-writer"); t.setDaemon(true); return t;
     });
     private long start, tick;
-    private volatile String activitySnapshot;
+    private volatile Map<String,Object> activitySnapshot;
     public void onInitialize() {
         ServerTickEvents.START_SERVER_TICK.register(s -> start = System.nanoTime());
         ServerTickEvents.END_SERVER_TICK.register(s -> {
@@ -30,8 +30,8 @@ public final class RuntimeAObserver implements ModInitializer {
                         var players = new LinkedHashMap<String,Object>();
                         for (var player : s.getPlayerList().getPlayers().stream().limit(2).toList())
                             players.put(player.getGameProfile().name(), kernel.activities(player,0,4));
-                        activitySnapshot = new Gson().toJson(Map.of("schema",1,"time",System.currentTimeMillis(),
-                                "players",players,"counters",kernel.recoveryOwner().counters()));
+                        activitySnapshot = Map.of("schema",1,"time",System.currentTimeMillis(),
+                                "players",Map.copyOf(players),"counters",kernel.recoveryOwner().counters());
                     }
                 } catch (IllegalStateException starting) { /* native startup is not a fabricated activity view */ }
             }
@@ -49,11 +49,11 @@ public final class RuntimeAObserver implements ModInitializer {
             var temp = target.resolveSibling(target.getFileName()+".next");
             Files.writeString(temp,new Gson().toJson(body));
             Files.move(temp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
-            String activities = activitySnapshot;
+            var activities = activitySnapshot;
             if (activities != null) {
                 var activityTarget = target.resolveSibling("runtime-a-activities.json");
                 var staged = activityTarget.resolveSibling("runtime-a-activities.next");
-                Files.writeString(staged,activities);
+                Files.writeString(staged,new Gson().toJson(activities));
                 Files.move(staged,activityTarget,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             }
         } catch(Exception e) { System.err.println("Runtime A observation write failed: "+e); }

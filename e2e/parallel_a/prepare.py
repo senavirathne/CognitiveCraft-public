@@ -58,12 +58,15 @@ deferred={
     'if (++ticks % snapshotTicks == 0) pending.set(JSON.toJson(snapshot(server)));':
         'if (++ticks % snapshotTicks == 0) {\n'
         '                var captured = snapshot(server);\n'
-        '                pending.set("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE")) ? captured : JSON.toJson(captured));\n'
+        '                boolean defer = "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE"))\n'
+        '                        || "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"));\n'
+        '                pending.set(defer ? captured : JSON.toJson(captured));\n'
         '            }',
     'var data = pending.getAndSet(null);\n        if (data == null) return;':
         'var captured = pending.getAndSet(null);\n        if (captured == null) return;\n'
-        '        var encoded = captured instanceof JsonObject frame ? RuntimeAObservationJson.encode(frame) : null;\n'
-        '        String data = encoded != null ? encoded.data() : (String)captured;',
+        '        var encoded = captured instanceof JsonObject frame && "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE"))\n'
+        '                ? RuntimeAObservationJson.encode(frame) : null;\n'
+        '        String data = encoded != null ? encoded.data() : captured instanceof JsonObject frame ? JSON.toJson(frame) : (String)captured;',
 }
 for original,replacement in deferred.items():
     assert adapted.count(original)==1,original
@@ -129,6 +132,7 @@ assert digest(release) == before
     'adaptedSourceSha256': digest(generated), 'releaseSha256': before,
     'secondarySourceSha256': digest(secondary_source), 'secondaryArea': [319,208,63,340,78],
     'observerSha256': digest(observer), 'claim': 'test-only existing chunk reads; unload gate still required',
+    'a06ObservationSerialization': 'Full original Gson snapshot encoding on the existing observer writer at the same capture cadence',
     'replacements': replacements,
     'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',

@@ -27,7 +27,13 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
             try {
                 var kernel=AiVillages.kernel();if(kernel==null)return;var protocol=kernel.harvestEvidenceOwner();if(protocol==null)return;
                 var evidence=protocol.evidence();
-                if(!ready){ready=true;var body=Map.of("process",process,"pid",ProcessHandle.current().pid(),"world",evidence.snapshot().world());writer.execute(()->write("harvest-ready.json",body));}
+                if(!ready){
+                    ready=true;
+                    var body=Map.of("process",process,"pid",ProcessHandle.current().pid(),"world",evidence.snapshot().world(),
+                            "availableProcessors",Runtime.getRuntime().availableProcessors(),
+                            "inputArguments",java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments());
+                    writer.execute(()->write("harvest-ready.json",body));
+                }
                 var stageViews=stages(kernel);
                 pending.set(Map.ofEntries(Map.entry("process",process),Map.entry("runtime",kernel.runtimeStorageView()),Map.entry("time",System.currentTimeMillis()),Map.entry("gameTick",server.overworld().getGameTime()),
                         Map.entry("journal",evidence.snapshot()),Map.entry("pending",evidence.pending()),Map.entry("fenced",evidence.fenced()),Map.entry("reconciliation",stageViews.get("HARVEST").get("reconciliation")),Map.entry("protectedJobs",evidence.protectedJobs()),Map.entry("metrics",stageViews.get("HARVEST").get("metrics")),Map.entry("membershipBirths",protocol.membershipBirths()),Map.entry("stages",stageViews)));

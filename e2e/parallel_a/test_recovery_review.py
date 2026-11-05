@@ -1,10 +1,25 @@
 """Tamper guards for the independent recovery inspector; these fixtures count as no native successes."""
 import copy,json,tempfile,unittest
 from pathlib import Path
+from unittest.mock import patch
 from recovery_fixture import participant,PARTICIPANT
+from review_receipt_prefix import block_name
 from review_recovery_current import controls,closed_native_claims
 
 class RecoveryReviewTest(unittest.TestCase):
+    def test_native_palette_reads_compact_air_and_wheat_at_the_exact_saved_positions(self):
+        states={'palette':[{'':'minecraft:air'},{'':'minecraft:chest'},{'id':'minecraft:wheat','properties':{'age':'7'}},
+                           {'Name':'minecraft:glass'}],
+                'data':[0]*256}
+        states['data'][0]=2<<4 | 3<<8
+        region={'sections':[{'Y':13,'block_states':states}]}
+        with patch('review_receipt_prefix.dimension_root',return_value=Path('/raw-world')),patch('review_receipt_prefix.chunk',return_value=region):
+            self.assertEqual(block_name(Path('/raw-world'),[64,208,64]),'minecraft:air')
+            self.assertEqual(block_name(Path('/raw-world'),[65,208,64]),'minecraft:wheat')
+            self.assertEqual(block_name(Path('/raw-world'),[66,208,64]),'minecraft:glass')
+            states['palette'][0]={'':'minecraft:air','id':'minecraft:stone'}
+            with self.assertRaises(AssertionError):block_name(Path('/raw-world'),[64,208,64])
+
     def test_native_claims_use_the_flat_journal_codec_and_reject_active_originals(self):
         key={'step':'original','world':'world','generation':1}
         row={'schema':1,'job':'original','world':'world','jobGeneration':1,'state':'RELEASED'}

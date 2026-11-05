@@ -32,6 +32,18 @@ final class NativeCropHarvestTest {
     @Test void missingSeedParticipantDoesNotProveTheOriginalHarvest() {
         var e=entry();assertEquals(NativeHarvest.Reconciliation.WAIT_WORLD,NativeHarvest.classify(e,actor(e),source(e),drops(e).subList(0,1)));
     }
+    @Test void exactRetainedCropOutputsAreProtectedAcrossVerification() {
+        var e=entry();
+        var verified=new NativeHarvest.Entry(e.intent(),e.result(),new NativeHarvest.Verification(
+                NativeHarvest.Reconciliation.SAVED_COMPLETE,actor(e),source(e),drops(e),UUID.randomUUID(),100));
+        for(var drop:e.result().drops()) {
+            assertTrue(NativeHarvest.retainsCropOutput(e,drop,marker(e)));
+            assertTrue(NativeHarvest.retainsCropOutput(verified,drop,marker(e)));
+            assertFalse(NativeHarvest.retainsCropOutput(e,new NativeHarvest.Drop(drop.dimension(),UUID.randomUUID(),
+                    drop.incarnation(),drop.revision(),drop.item(),drop.quantity()),marker(e)));
+            assertFalse(NativeHarvest.retainsCropOutput(e,drop,new Marker(e.token(),e.intent().digest(),MarkerPhase.PREPARED,"")));
+        }
+    }
     @Test void mergedOrChangedSeedCountCannotBeReconstructedFromTheWheatCount() {
         var e=entry();var witnesses=new ArrayList<>(drops(e));var d=e.result().drops().getLast();
         witnesses.set(1,new NativeHarvest.DropWitness(new NativeHarvest.Drop(d.dimension(),d.entity(),d.incarnation(),d.revision()+1,d.item(),4),marker(e),true));

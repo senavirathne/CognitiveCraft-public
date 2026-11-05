@@ -190,8 +190,19 @@ public final class NativePickup {
         return r.live()==Live.COMPLETE?Reconciliation.SAVED_COMPLETE:Reconciliation.SAVED_NO_EFFECT;
     }
     public static byte[] encode(Entry entry) {
+        return boundedBytes(entryRow(entry));
+    }
+    static Map<String,Object> boundedEntryRow(Entry entry) {
+        var row=entryRow(entry);
+        boundedBytes(row);
+        return row;
+    }
+    private static Map<String,Object> entryRow(Entry entry) {
         var row=new LinkedHashMap<String,Object>();row.put("schema",1L);row.put("intent",intent(entry.intent()));
         if(entry.result()!=null)row.put("result",result(entry.result()));if(entry.verification()!=null)row.put("verification",verification(entry.verification()));
+        return row;
+    }
+    private static byte[] boundedBytes(Map<String,Object> row) {
         byte[] raw=StrictJson.canonical(row).getBytes(StandardCharsets.UTF_8);
         if(raw.length>MAX_RECORD_BYTES)throw new IllegalArgumentException("Pickup record quota");return raw;
     }
@@ -215,8 +226,7 @@ public final class NativePickup {
     private static Map<String,Object> drop(NativeHarvest.Drop d){return Map.of("dimension",d.dimension(),"entity",d.entity().toString(),"incarnation",d.incarnation().toString(),"revision",d.revision(),"item",d.item(),"quantity",d.quantity());}
     private static NativeHarvest.Drop drop(Map<String,Object> m){keys(m,Set.of("dimension","entity","incarnation","revision","item","quantity"));return new NativeHarvest.Drop(string(m,"dimension"),id(m,"entity"),id(m,"incarnation"),number(m,"revision"),string(m,"item"),integer(m,"quantity"));}
     private static Map<String,Object> intent(Intent i) {
-        Map<String,Object> ancestor;
-        try{ancestor=StrictJson.object(new String(NativeHarvest.encode(i.harvest()),StandardCharsets.UTF_8));}catch(StrictJson.Invalid impossible){throw new IllegalStateException(impossible);}
+        var ancestor=NativeHarvest.boundedEntryRow(i.harvest());
         return Map.of("key",key(i.key()),"harvest",ancestor,"operation",i.operation().toString(),"requested",i.requested(),"conditions",conditions(i.conditions()),"actorTrail",trail(i.actorTrail()),"dropTrail",trail(i.dropTrail()));
     }
     private static Intent intent(Map<String,Object> m) {

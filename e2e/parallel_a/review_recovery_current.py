@@ -22,7 +22,7 @@ def modules(repo):
     required=[('core','dev.aivillages.core.kernel.CropHarvestGatewayTest',2),
               ('core','dev.aivillages.core.kernel.PickupDelayGatewayTest',2),
               ('core','dev.aivillages.core.kernel.PickupGatewayTest',8),
-              ('core','dev.aivillages.core.kernel.runtime.evidence.NativeCropHarvestTest',6),
+              ('core','dev.aivillages.core.kernel.runtime.evidence.NativeCropHarvestTest',7),
               ('core','dev.aivillages.core.kernel.runtime.evidence.NativeJoinedDepositTest',9),
               ('core','dev.aivillages.core.kernel.DeliveredUnitRecoveryTest',4),
               ('core','dev.aivillages.core.kernel.HarvestLeasePublicationTest',10),
@@ -58,7 +58,7 @@ def replaced(value):
 
 def one(root,case):
     directory=root/'original-cases'/case['id'];result=read(directory/'result.json')
-    assert result['originalCase']==case and result['status']=='PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW'
+    assert result['originalCase']==case and result['status']=='PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW',(case['id'],result.get('reason'))
     assert result['nativeOriginalOwnerSettlements']==1
     killed,terminal=(directory/name for name in ('killed-world','terminal-world'))
     assert manifest(killed)==result['killedWorldHashes'] and manifest(terminal)==result['terminalWorldHashes']
@@ -204,6 +204,7 @@ def review(root,repo,out,source):
                 reviews.append(row)
             except Exception as error:failures.append({'id':case['id'],'reason':str(error),'trace':traceback.format_exc()})
         value.update(modules=counts,moduleCases=sum(v[0] for v in counts.values()),releaseSha256=release,observerSha256=observer,
+                     originalOwnerSettlements=len(reviews),
                      individuallyReviewedOriginalCases=[r['originalCase']['id'] for r in reviews],nativeStorageMechanics=storage_review(root))
         if not failures:
             assert plan['originalStatus']=='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' and plan['originalOwnerSettlements']==12

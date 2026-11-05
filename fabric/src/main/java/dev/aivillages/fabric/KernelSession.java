@@ -1686,6 +1686,9 @@ public final class KernelSession implements AutoCloseable {
     JobLifecycleStore jobLifecycleOwner() { return jobs; }
     FabricDepositProtocol depositEvidenceOwner() { return depositProtocol; }
     FabricHarvestProtocol harvestEvidenceOwner() { return harvestProtocol; }
+    public boolean retainsNativeCropOutput(net.minecraft.world.entity.item.ItemEntity drop) {
+        return harvestProtocol!=null && harvestProtocol.retainsCropOutput(drop);
+    }
     FabricPickupProtocol pickupEvidenceOwner() { return pickupProtocol; }
     boolean identityReady() { return citizens != null && citizens.ready() && lifecycle != null
             && lifecycle.counters().queued() == 0 && citizens.snapshot().citizens().stream().noneMatch(c -> c.lifecycle().pending()); }

@@ -9,6 +9,7 @@ services:
       COGNITIVECRAFT_A06_HARVEST_PROBE: '${A06_HARVEST_ENABLED:-false}'
       COGNITIVECRAFT_ACTIVITY_VIEW: 'true'
       COGNITIVECRAFT_A05_PROBE: 'true'
+      JAVA_TOOL_OPTIONS: '${A06_NATIVE_JAVA_TOOL_OPTIONS:-}'
   client-a:
     cpuset: '2'
   client-b:

@@ -13,6 +13,12 @@ WHEAT='minecraft:wheat'
 
 class RecoveryHarness(HarvestHarness):
     case_stage='HARVEST'
+    def __init__(self,root):
+        super().__init__(root)
+        # Use the already qualified A04 pause target on the same two-core server cap.
+        self.env['A06_NATIVE_JAVA_TOOL_OPTIONS']=(
+            '-XX:G1HeapRegionSize=2M -XX:MaxGCPauseMillis=10 '
+            '-Xlog:gc*,safepoint:file=/evidence/server/a06-gc-%t-%p.log:time,uptime,level,tags:filecount=4,filesize=8M')
     def start(self,component):
         result=super().start(component)
         if component=='server' and self.env.get('A06_HARVEST_ENABLED')=='true':
@@ -20,8 +26,14 @@ class RecoveryHarness(HarvestHarness):
                 current=(self.root/'server/game/logs/latest.log').read_text()
                 if 'CognitiveCraft kernel disabled' in current:
                     raise RuntimeError('Experimental kernel startup failed: '+current[current.index('CognitiveCraft kernel disabled'):][-4500:])
-                return self.evidence()
-            self.wait(ready,'Current experimental kernel and native evidence owners ready',60)
+                value=self.evidence()
+                runtime=read(self.root/'server/harvest-ready.json')
+                return runtime if value and runtime and runtime['process']==value['process'] else None
+            runtime=self.wait(ready,'Current experimental kernel and native evidence owners ready',60)
+            require(runtime['availableProcessors']==2 and
+                    {'-Xms256M','-Xmx1536M','-XX:G1HeapRegionSize=2M','-XX:MaxGCPauseMillis=10'}<=set(runtime['inputArguments']),
+                    'Native server differs from the declared A06 CPU and JVM budget')
+            self.event('a06-native-jvm',runtime)
         return result
     def quiet(self,tick_count=40):
         start=self.snapshot()['tick'];self.wait(lambda:self.snapshot()['tick']>=start+tick_count,'Post-boundary physical fence',max(20,tick_count/20+20))
@@ -101,12 +113,13 @@ def one(h,seed,case):
         require(original['state']=='ACTIVE' and attempt.get('terminal') is None,'Original owner was not live at the cut')
         require(original['request']['request']['arguments']['amount']['value']==case['requested'] and original['request']['request']['capability']==case['capability'],'Original request changed')
         require(attempt['executions'][0]['artifact']['sha256']==h.hashes[case['capability']['name']],'Original used a different admitted method')
+        result.update(run=run,initialCustody=initial,reached=cut,key=key,originalAtCut=original)
         before=native_process(h);clients={p:read(h.root/'clients'/p/'process.json') for p in h.players}
         h.stop('server',hard=True);h.wait(lambda:not same_native_alive(before),'Actual original JVM killed',25)
         killed=directory/'killed-world';shutil.copytree(h.root/'server/game/world',killed,ignore=shutil.ignore_patterns('session.lock'))
         saved_game=directory/'cut-game';shutil.copytree(h.root/'server/game',saved_game,ignore=shutil.ignore_patterns('session.lock'))
         proof=native_saved(killed,case['checkpoint'],case)
-        result.update(run=run,initialCustody=initial,reached=cut,key=key,originalAtCut=original,killedWorldHashes=manifest(killed),nativeSavedProof=proof,
+        result.update(killedWorldHashes=manifest(killed),nativeSavedProof=proof,
                       firstRestart=restart_after_cut(h,before,clients))
         h.wait(lambda:(v if (v:=h.stable_entry()) and list(v['reconciliation'].values())==['SAVED_COMPLETE'] else None),'Complete independently saved native cohort',65)
         current=h.wait(lambda:(j if (v:=h.run_view('PlayerA',run)) and (j:=v.get('responsibility')) and j['state']=='INTERRUPTED' and j['attempts'][-1]['uncertain'] else None),'Original interrupted owner before cancellation',45)
@@ -143,7 +156,7 @@ def one(h,seed,case):
                       executionStartTime=start,modelCallsBefore=calls,modelCallsAfter=h.model_calls())
         atomic(directory/'result.json',result);return result
     except Exception as error:
-        result.update(status='FAIL',reason=str(error),trace=traceback.format_exc())
+        result.update(status='FAIL',reason=str(error) or type(error).__name__,trace=traceback.format_exc())
         for name,observe in (('lastEvidence',h.evidence),('lastSnapshot',h.snapshot)):
             try:result[name]=observe()
             except Exception as observation_error:result[name]={'unavailable':str(observation_error)}
@@ -165,6 +178,7 @@ def main():
             atomic(root/'a06-original-results.json',result)
             current=result['cases'][-1]
             print('A06_ORIGINAL_PROGRESS '+json.dumps({'id':case['id'],'status':current['status'],'reason':current.get('reason'),
+                  'failureSite':current.get('trace','').splitlines()[-4:],'actualCutReached':bool(current.get('reached')),
                   'completed':len(result['cases']),'required':12}),flush=True)
         originals_pass=len(result['cases'])==12 and all(c['status']=='PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW' for c in result['cases'])
         result.update(status='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' if originals_pass else 'FAIL_REQUIRED_ORIGINALS',

@@ -104,6 +104,13 @@ public final class NativeHarvest {
         }
         public String token(){return intent.key.token();}
     }
+    /** A retained crop result can exclude autonomous collection of its exact physical output. */
+    public static boolean retainsCropOutput(Entry entry,Drop actual,Marker marker) {
+        var result=entry.result();
+        return result!=null && result.live()==Live.COMPLETE && result.cropReceipt()!=null
+                && result.drops().contains(actual)
+                && new Marker(entry.token(),entry.intent().digest(),MarkerPhase.RESULT,result.digest()).equals(marker);
+    }
     private static Live delta(Intent intent,Source source,List<Drop> drops,Participant actor) {
         if(!intent.actorBefore.sameIdentity(actor) || !intent.source.sameIdentity(source))throw new IllegalArgumentException("Harvest source replaced");
         if(intent.actorBefore.equals(actor) && intent.source.equals(source) && drops.isEmpty())return Live.NO_EFFECT;
@@ -138,8 +145,19 @@ public final class NativeHarvest {
         return switch(entry.result.live){case COMPLETE->Reconciliation.SAVED_COMPLETE;case NO_EFFECT->Reconciliation.SAVED_NO_EFFECT;case PARTIAL,UNRECEIPTED_EFFECT->Reconciliation.PARTIAL_UNRESOLVED;};
     }
     public static byte[] encode(Entry entry) {
+        return boundedBytes(entryRow(entry));
+    }
+    static Map<String,Object> boundedEntryRow(Entry entry) {
+        var row=entryRow(entry);
+        boundedBytes(row);
+        return row;
+    }
+    private static Map<String,Object> entryRow(Entry entry) {
         var row=new LinkedHashMap<String,Object>();row.put("schema",entry.intent.item.equals("minecraft:wheat")?2L:1L);row.put("intent",intent(entry.intent));
         if(entry.result!=null)row.put("result",result(entry.result));if(entry.verification!=null)row.put("verification",verification(entry.verification));
+        return row;
+    }
+    private static byte[] boundedBytes(Map<String,Object> row) {
         byte[] raw=StrictJson.canonical(row).getBytes(StandardCharsets.UTF_8);if(raw.length>MAX_RECORD_BYTES)throw new IllegalArgumentException("Harvest record quota");return raw;
     }
     public static Entry decode(byte[] raw) {

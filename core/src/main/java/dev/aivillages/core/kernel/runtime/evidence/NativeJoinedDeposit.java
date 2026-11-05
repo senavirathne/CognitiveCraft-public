@@ -69,8 +69,7 @@ public final class NativeJoinedDeposit {
         return r.live()==Live.COMPLETE?Reconciliation.SAVED_COMPLETE:r.live()==Live.NO_EFFECT?Reconciliation.SAVED_NO_EFFECT:Reconciliation.PARTIAL_UNRESOLVED;
     }
     static Map<String,Object> encode(Prefix prefix) {
-        try{return Map.of("pickup",StrictJson.object(new String(NativePickup.encode(prefix.pickup()),StandardCharsets.UTF_8)),"actorTrail",NativePickup.trail(prefix.actorTrail()));}
-        catch(StrictJson.Invalid impossible){throw new IllegalStateException(impossible);}
+        return Map.of("pickup",NativePickup.boundedEntryRow(prefix.pickup()),"actorTrail",NativePickup.trail(prefix.actorTrail()));
     }
     static Prefix decode(Map<String,Object> row) {
         keys(row,Set.of("pickup","actorTrail"));

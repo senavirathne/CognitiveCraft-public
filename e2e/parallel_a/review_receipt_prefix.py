@@ -61,7 +61,13 @@ def block_name(world,pos):
     section=next(s for s in data['sections'] if s['Y']==y//16);states=section['block_states'];palette=states['palette']
     def name(value):
         if isinstance(value,str):return value
-        assert isinstance(value,dict) and isinstance(value.get('Name'),str)
+        assert isinstance(value,dict),('Invalid native block palette entry',value)
+        if set(value)=={''} and isinstance(value[''],str):return value['']
+        if set(value)=={'id','properties'} and isinstance(value['id'],str):
+            properties=value['properties']
+            assert isinstance(properties,dict) and all(isinstance(v,str) for v in properties.values()),('Invalid native block properties',value)
+            return value['id']
+        assert isinstance(value.get('Name'),str),('Unsupported native block palette entry',value)
         return value['Name']
     if len(palette)==1:return name(palette[0])
     bits=max(4,(len(palette)-1).bit_length());per=64//bits;index=((y&15)<<8)|((z&15)<<4)|(x&15)
