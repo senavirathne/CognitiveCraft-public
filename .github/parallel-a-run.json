@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "sequence": 27,
-  "parentSource": "ac9719d72e897f344b5f92ef3384128a6e37edb6",
+  "sequence": 28,
+  "parentSource": "4ef18e71bd5a9a94416b64fa7102883c480e1aef",
   "stage": "A06",
-  "scope": "Recover the exact oversized batch25 native archive; diagnose all12 originals and9 controls; validate corrected native lease reviewer and live wheat custody against full modules and all required host regressions",
-  "nativeHarvestProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_H_ONLY",
-  "nativePickupProducer": "EXPERIMENTAL_DEFAULT_OFF_FIRST_P; implementation pending native qualification",
+  "scope": "Run all twelve frozen originals and nine mandatory native controls on the crop-lease and original remaining-unit fixes, then independently review saved evidence in Docker",
+  "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
+  "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
   "originalQuantity": 2,
   "requiredRegressionWorkflows": 9,
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "Read-only retained native evidence transport and diagnostics, plus complete current module/native host regressions; fresh12-case campaign remains mandatory after diagnosis",
+  "execution": "One grouped run with full modules, all related host regressions, fresh original cuts, all controls, independent offline Docker review, and lossless raw evidence",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -908,36 +908,59 @@
     }
   },
   "latestOriginalCoverage": {
-    "source": "5b95effe980a93e31c9d2d2b005f131da9371a18",
-    "run": 40859317054,
-    "job": 123404713551,
-    "attempt": 2,
-    "qualifiedUniqueOriginalCases": 3,
+    "source": "297832dabba8d7978376f86c79a06c5c9c0af61b",
+    "run": 41834140991,
+    "job": 126588603378,
+    "attempt": 1,
+    "independentlyReviewedOriginalCases": 11,
     "requiredOriginalCases": 12,
     "originalCaseIds": [
+      "W6-002",
+      "W6-003",
+      "W6-004",
+      "W6-009",
+      "W6-010",
       "heldout-W6-002",
+      "heldout-W6-003",
+      "heldout-W6-004",
       "heldout-W6-008",
-      "W6-002"
+      "heldout-W6-009",
+      "heldout-W6-010"
     ],
-    "nativePickupProducer": "INACTIVE",
+    "pendingOriginalCaseIds": [
+      "W6-008"
+    ],
+    "nativeArtifact": 13329191415,
+    "review": "Recovered the complete exact ZIP and inspected raw saved worlds with the corrected flat lease-row reader",
     "a06Qualified": false,
     "fullBranchQualified": false
   },
   "currentValidation": {
-    "status": "PENDING_RETAINED_DIAGNOSTICS_AND_COMPLETE_REGRESSIONS",
-    "source": "ac9719d72e897f344b5f92ef3384128a6e37edb6",
-    "nativeOriginalCasesThisBatch": 0,
-    "retainedOriginalCasesDiagnosed": 12,
-    "retainedNativeControlsDiagnosed": 9,
-    "freshNativeCampaignStillRequired": true,
+    "status": "PENDING_FULL_A06_CURRENT_CANDIDATE",
+    "source": "4ef18e71bd5a9a94416b64fa7102883c480e1aef",
     "requiredOriginalCases": 12,
-    "qualifiedOriginalCasesPreviously": 3,
+    "nativeOriginalCasesThisBatch": 12,
+    "nativeControls": 9,
     "allOriginalCasesMandatory": true,
     "widerControlsRequired": true,
-    "focusedPythonTests": 87,
+    "focusedPythonTests": 88,
     "baselinePythonTests": 72,
-    "originalArchivePreservedLosslessly": true,
-    "nativePassesImported": 0,
+    "retainedAdmissionArtifact": 13311090608,
+    "importedRecoverySettlements": 0,
+    "qualifiedOriginalCasesPreviously": 11,
+    "tickLimitsMillis": {
+      "p95": 20,
+      "p99": 40,
+      "captureP99": 2,
+      "ackMax": 30000
+    },
+    "priorCostMillis": {
+      "tickP95": 28.12803,
+      "tickP99": 40.715293,
+      "harvestP99": 3.603001,
+      "pickupP99": 9.63845,
+      "depositP99": 10.08797
+    },
     "yamlSyntax": "PASS_FULL_WORKFLOW_PARSE_13_JOBS"
   },
   "priorCheckpointCompletion": {
@@ -975,5 +998,22 @@
     "baselinePythonTests": 72,
     "retainedAdmissionArtifact": 13311090608,
     "importedRecoverySettlements": 0
+  },
+  "priorRetainedArchiveReview": {
+    "source": "f59a6a4cbb27abc56599d74ca1aa836166aa37a4",
+    "run": 41843785657,
+    "attempt": 2,
+    "regressions": "ALL_NINE_REQUIRED_HOSTS_PASS_AFTER_GP19_AND_GP22_RETRY",
+    "gp19Job": 127413959659,
+    "gp22Job": 127413959656,
+    "gp22ColdStock": 8,
+    "gp22WarmStock": 10,
+    "priorOriginalArtifactParts": [
+      13329977765,
+      13330312263
+    ],
+    "priorDiagnosticsArtifact": 13329659081,
+    "mainCiRun": 41843785711,
+    "moduleCases": 2591
   }
 }
