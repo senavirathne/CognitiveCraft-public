@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 35,
-  "parentSource": "a418da5d0ffc049cf6eb673c68e5bd3311cdabf6",
+  "sequence": 36,
+  "parentSource": "38fd6cb3e9ae32de1b359972a21a709b3af1d50d",
   "stage": "A06",
-  "scope": "Batch 34 independently verified all twelve originals, eight controls and nine host suites. Batch 35 targets the remaining active tick and capture cost gate.",
+  "scope": "Batch 35 independently verified all twelve originals, eight native controls and nine host suites. Batch 36 targets the remaining tick and capture cost gate.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -909,10 +909,10 @@
   },
   "latestOriginalCoverage": {
     "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
-    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
-    "run": 42227813725,
-    "job": 127925682077,
+    "source": "b95405c6e69bae69e1fdb726af2e1a4a11ba6588",
+    "tree": "3562f8952b51e742d0e5e7a5a5d18ddf313bc703",
+    "run": 42236986762,
+    "job": 127957059246,
     "attempt": 1,
     "independentlyReviewedOriginalCases": 12,
     "requiredOriginalCases": 12,
@@ -939,16 +939,16 @@
     "a06Qualified": false
   },
   "currentValidation": {
-    "sequence": 34,
+    "sequence": 35,
     "status": "PASS_ALL_TWELVE_ORIGINALS_PERFORMANCE_OPEN",
-    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
-    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
-    "codeCheckpoint": "8d2e92b94f6b0803f699a449a863f44bc7955586",
-    "run": 42227813725,
-    "job": 127925682077,
+    "source": "b95405c6e69bae69e1fdb726af2e1a4a11ba6588",
+    "tree": "3562f8952b51e742d0e5e7a5a5d18ddf313bc703",
+    "codeCheckpoint": "a418da5d0ffc049cf6eb673c68e5bd3311cdabf6",
+    "run": 42236986762,
+    "job": 127957059246,
     "attempt": 1,
     "main": {
-      "run": 42227813740,
+      "run": 42236986716,
       "status": "PASS"
     },
     "workflowCount": 2,
@@ -969,10 +969,10 @@
     },
     "originalCoverage": {
       "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-      "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
-      "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
-      "run": 42227813725,
-      "job": 127925682077,
+      "source": "b95405c6e69bae69e1fdb726af2e1a4a11ba6588",
+      "tree": "3562f8952b51e742d0e5e7a5a5d18ddf313bc703",
+      "run": 42236986762,
+      "job": 127957059246,
       "attempt": 1,
       "independentlyReviewedOriginalCases": 12,
       "requiredOriginalCases": 12,
@@ -996,7 +996,237 @@
         "heldout-W6-010"
       ],
       "importedRecoverySettlements": 0,
-      "a06Qualified": false
+      "a06Qualified": false,
+      "cases": [
+        {
+          "id": "W6-002",
+          "stage": "HARVEST",
+          "item": "minecraft:birch_log",
+          "requested": 2,
+          "key": {
+            "attempt": "ddd98b16-d511-4e60-99a0-621d8c0d10ee",
+            "generation": 1,
+            "ordinal": 1,
+            "root": "1d3b69bb-d000-41fe-8afa-868081f8ca64",
+            "step": "1d3b69bb-d000-41fe-8afa-868081f8ca64",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "1d3b69bb-d000-41fe-8afa-868081f8ca64",
+          "originalAttempt": "ddd98b16-d511-4e60-99a0-621d8c0d10ee",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-003",
+          "stage": "PICKUP",
+          "item": "minecraft:oak_log",
+          "requested": 4,
+          "key": {
+            "attempt": "f24a0df2-7f5d-4f3d-9f70-f0ce4231a537",
+            "generation": 1,
+            "ordinal": 2,
+            "root": "bc6e927d-72af-4716-a50c-2872b2884707",
+            "step": "bc6e927d-72af-4716-a50c-2872b2884707",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "bc6e927d-72af-4716-a50c-2872b2884707",
+          "originalAttempt": "f24a0df2-7f5d-4f3d-9f70-f0ce4231a537",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-004",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "attempt": "688aa5ae-1e20-4128-80e9-5d5b019961e3",
+            "generation": 1,
+            "ordinal": 3,
+            "root": "273b0b78-1564-4a00-a33f-906054350345",
+            "step": "273b0b78-1564-4a00-a33f-906054350345",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "273b0b78-1564-4a00-a33f-906054350345",
+          "originalAttempt": "688aa5ae-1e20-4128-80e9-5d5b019961e3",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-008",
+          "stage": "HARVEST",
+          "item": "minecraft:wheat",
+          "requested": 4,
+          "key": {
+            "attempt": "c286130d-2255-432a-a25e-be7872469540",
+            "generation": 1,
+            "ordinal": 1,
+            "root": "40bd3575-71dc-4903-8ae4-9244a11e5c14",
+            "step": "40bd3575-71dc-4903-8ae4-9244a11e5c14",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "40bd3575-71dc-4903-8ae4-9244a11e5c14",
+          "originalAttempt": "c286130d-2255-432a-a25e-be7872469540",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-009",
+          "stage": "PICKUP",
+          "item": "minecraft:oak_log",
+          "requested": 1,
+          "key": {
+            "attempt": "43a9b7f6-81d9-49b4-990b-a9c7b9134609",
+            "generation": 1,
+            "ordinal": 2,
+            "root": "638bd581-ad56-4447-b8f5-40fc9a5f8ee8",
+            "step": "638bd581-ad56-4447-b8f5-40fc9a5f8ee8",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "638bd581-ad56-4447-b8f5-40fc9a5f8ee8",
+          "originalAttempt": "43a9b7f6-81d9-49b4-990b-a9c7b9134609",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-010",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "attempt": "66baabca-eb9f-4af9-946e-951bfc5affb8",
+            "generation": 1,
+            "ordinal": 3,
+            "root": "1c51db34-8d27-4c69-bf19-0043d043a802",
+            "step": "1c51db34-8d27-4c69-bf19-0043d043a802",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "1c51db34-8d27-4c69-bf19-0043d043a802",
+          "originalAttempt": "66baabca-eb9f-4af9-946e-951bfc5affb8",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-002",
+          "stage": "HARVEST",
+          "item": "minecraft:oak_log",
+          "requested": 2,
+          "key": {
+            "attempt": "b7c4c6f7-6379-4181-90e6-47965d71ea82",
+            "generation": 1,
+            "ordinal": 1,
+            "root": "2dbff141-99e9-4e41-8bbd-e24d63250626",
+            "step": "2dbff141-99e9-4e41-8bbd-e24d63250626",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "2dbff141-99e9-4e41-8bbd-e24d63250626",
+          "originalAttempt": "b7c4c6f7-6379-4181-90e6-47965d71ea82",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-003",
+          "stage": "PICKUP",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "attempt": "7f65d86d-186b-4b22-8113-543ea3959397",
+            "generation": 1,
+            "ordinal": 2,
+            "root": "fd29226e-a95c-4f11-90fd-f43e0c92527b",
+            "step": "fd29226e-a95c-4f11-90fd-f43e0c92527b",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "fd29226e-a95c-4f11-90fd-f43e0c92527b",
+          "originalAttempt": "7f65d86d-186b-4b22-8113-543ea3959397",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-004",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "attempt": "f9094e6f-de1b-40ea-a337-5eb580173523",
+            "generation": 1,
+            "ordinal": 3,
+            "root": "92b8a782-b95d-439d-9286-0c05855aa297",
+            "step": "92b8a782-b95d-439d-9286-0c05855aa297",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "92b8a782-b95d-439d-9286-0c05855aa297",
+          "originalAttempt": "f9094e6f-de1b-40ea-a337-5eb580173523",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-008",
+          "stage": "HARVEST",
+          "item": "minecraft:oak_log",
+          "requested": 3,
+          "key": {
+            "attempt": "3a82a801-bd7e-4650-a494-8d5a49a9d6a6",
+            "generation": 1,
+            "ordinal": 1,
+            "root": "77af2275-e806-493b-8814-0f0df62d95ba",
+            "step": "77af2275-e806-493b-8814-0f0df62d95ba",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "77af2275-e806-493b-8814-0f0df62d95ba",
+          "originalAttempt": "3a82a801-bd7e-4650-a494-8d5a49a9d6a6",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-009",
+          "stage": "PICKUP",
+          "item": "minecraft:oak_log",
+          "requested": 4,
+          "key": {
+            "attempt": "8375ddaf-c612-4001-963e-f7058eca3a8b",
+            "generation": 1,
+            "ordinal": 2,
+            "root": "d618d87a-64da-43a0-a622-b6dcc352805b",
+            "step": "d618d87a-64da-43a0-a622-b6dcc352805b",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "d618d87a-64da-43a0-a622-b6dcc352805b",
+          "originalAttempt": "8375ddaf-c612-4001-963e-f7058eca3a8b",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-010",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "attempt": "b2a15228-d400-42ed-8338-4283d3558aec",
+            "generation": 1,
+            "ordinal": 3,
+            "root": "880e27a4-68cb-4ee7-88b2-e8e9bbbb1d8c",
+            "step": "880e27a4-68cb-4ee7-88b2-e8e9bbbb1d8c",
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7"
+          },
+          "originalJob": "880e27a4-68cb-4ee7-88b2-e8e9bbbb1d8c",
+          "originalAttempt": "b2a15228-d400-42ed-8338-4283d3558aec",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        }
+      ]
     },
     "nativeControls": {
       "passed": 8,
@@ -1035,7 +1265,7 @@
           "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
           "nativeStatus": "FAIL_COST_TARGET",
           "nativeReason": null,
-          "reason": "{'tickP95': 26.931379, 'tickP99': 46.086432, 'captureP99': {'HARVEST': 5.400568, 'PICKUP': 12.942658, 'DEPOSIT': 7.169046}, 'ackMax': 40.31175}"
+          "reason": "{'tickP95': 21.971941, 'tickP99': 41.076884, 'captureP99': {'HARVEST': 4.980676, 'PICKUP': 3.72727, 'DEPOSIT': 3.252293}, 'ackMax': 38.436437}"
         },
         {
           "id": "expired-original-accounting",
@@ -1048,44 +1278,44 @@
         "windows": 11,
         "nativeEffects": 33,
         "tick": {
-          "p50": 9.477477,
-          "p95": 26.931379,
-          "p99": 46.086432,
-          "max": 120.155513,
-          "samples": 2349,
+          "p50": 8.564052,
+          "p95": 21.971941,
+          "p99": 41.076884,
+          "max": 68.676379,
+          "samples": 2323,
           "unit": "milliseconds"
         },
         "capture": {
           "HARVEST": {
-            "p50": 3.096435,
-            "p95": 5.400568,
-            "p99": 5.400568,
-            "max": 5.400568,
+            "p50": 1.787823,
+            "p95": 4.980676,
+            "p99": 4.980676,
+            "max": 4.980676,
             "samples": 12,
             "unit": "milliseconds"
           },
           "PICKUP": {
-            "p50": 3.000491,
-            "p95": 12.942658,
-            "p99": 12.942658,
-            "max": 12.942658,
+            "p50": 1.458228,
+            "p95": 3.72727,
+            "p99": 3.72727,
+            "max": 3.72727,
             "samples": 11,
             "unit": "milliseconds"
           },
           "DEPOSIT": {
-            "p50": 3.2777,
-            "p95": 7.169046,
-            "p99": 7.169046,
-            "max": 7.169046,
+            "p50": 2.852085,
+            "p95": 3.252293,
+            "p99": 3.252293,
+            "max": 3.252293,
             "samples": 11,
             "unit": "milliseconds"
           }
         },
         "acknowledgement": {
-          "p50": 15.92207,
-          "p95": 34.436537,
-          "p99": 40.31175,
-          "max": 40.31175,
+          "p50": 14.309818,
+          "p95": 26.415623,
+          "p99": 38.436437,
+          "max": 38.436437,
           "samples": 66,
           "unit": "milliseconds"
         },
@@ -1099,28 +1329,47 @@
         "requiredWheatSamples": 1,
         "diagnosticCaptureCpu": {
           "HARVEST": {
-            "p50": 3.014904,
-            "p95": 3.121642,
-            "p99": 3.121642,
-            "max": 3.121642,
+            "p50": 1.80625,
+            "p95": 2.242742,
+            "p99": 2.242742,
+            "max": 2.242742,
             "samples": 12,
             "unit": "milliseconds"
           },
           "PICKUP": {
-            "p50": 2.850569,
-            "p95": 3.117708,
-            "p99": 3.117708,
-            "max": 3.117708,
+            "p50": 1.475673,
+            "p95": 1.690475,
+            "p99": 1.690475,
+            "max": 1.690475,
             "samples": 11,
             "unit": "milliseconds"
           },
           "DEPOSIT": {
-            "p50": 3.061954,
-            "p95": 3.401779,
-            "p99": 3.401779,
-            "max": 3.401779,
+            "p50": 2.879433,
+            "p95": 3.198207,
+            "p99": 3.198207,
+            "max": 3.198207,
             "samples": 11,
             "unit": "milliseconds"
+          }
+        },
+        "diagnosticCapturePhaseMaxMs": {
+          "HARVEST": {
+            "authority": 0.656995,
+            "owner": 0.111007,
+            "participants": 4.140349,
+            "claims": 0.188311,
+            "allowance": 0.14467,
+            "intent": 0.122278,
+            "exclusion": 0.24115
+          },
+          "PICKUP": {
+            "owner": 0.09091,
+            "original-harvest": 0.065462,
+            "native-lineage": 0.458515,
+            "allowance": 0.126746,
+            "intent": 2.701157,
+            "storage-and-ticket": 0.609817
           }
         }
       },
@@ -1128,8 +1377,28 @@
       "tickP99Passed": false,
       "ackLimitPassed": true,
       "resumedRemainingUnit": {
-        "status": "PASS_INDEPENDENT_NATIVE_CONTROL",
-        "previousBatch33FailedBeforeInitialDeposit": true
+        "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+      },
+      "depositPhaseReview": {
+        "windows": 11,
+        "medianMs": {
+          "authority": 1.070626,
+          "owner": 0.065933,
+          "participants": 1.162828,
+          "claims": 0.142075,
+          "conditions": 0.058429,
+          "intent": 0.186537,
+          "exclusion": 0.223056
+        },
+        "maxMs": {
+          "authority": 1.278193,
+          "owner": 0.095508,
+          "participants": 1.22782,
+          "claims": 0.188191,
+          "conditions": 0.081602,
+          "intent": 0.249545,
+          "exclusion": 0.32702
+        }
       }
     },
     "requiredHosts": {
@@ -1138,8 +1407,8 @@
       "originalConditionalNotApplicable": 3,
       "gp22": {
         "status": "PASS_BOTH_JVMS",
-        "job": 127925681744,
-        "artifact": 13506941652,
+        "job": 127957059349,
+        "artifact": 13513300803,
         "backendStopped": true,
         "cold": {
           "stock": 8,
@@ -1150,10 +1419,10 @@
           "grants": 2,
           "practices": 3,
           "bodies": 1,
-          "process": 4109,
-          "processStarted": 1793972732974,
+          "process": 3644,
+          "processStarted": 1793976522566,
           "modelCalls": 0,
-          "accessSha256": "a601512133acf73ddc4dc5299e80e7a6aae4cea529b7521db78fe23d868c1291"
+          "accessSha256": "1f33de4de08ab15ffc8205823b683734d98f59b5438c49d26b84dd3aaa1e8c0a"
         },
         "warm": {
           "stock": 10,
@@ -1164,97 +1433,88 @@
           "grants": 2,
           "practices": 3,
           "bodies": 1,
-          "process": 4612,
-          "processStarted": 1793972817490,
+          "process": 4148,
+          "processStarted": 1793976607991,
           "modelCalls": 0,
-          "accessSha256": "a601512133acf73ddc4dc5299e80e7a6aae4cea529b7521db78fe23d868c1291"
+          "accessSha256": "1f33de4de08ab15ffc8205823b683734d98f59b5438c49d26b84dd3aaa1e8c0a"
         }
       },
       "jobIds": [
-        127925681744,
-        127925681815,
-        127925681854,
-        127925681914,
-        127925681983,
-        127925682050,
-        127925682067,
-        127925682099,
-        127925682120
+        127957058739,
+        127957059003,
+        127957059082,
+        127957059097,
+        127957059108,
+        127957059189,
+        127957059192,
+        127957059194,
+        127957059349
       ]
     },
     "evidence": {
-      "releaseSha256": "c2820f815246bce633d4f6a904fcbdfd9169a042957fafcd3dd9af6d45cec35e",
-      "observerSha256": "cb068c00ef469b5ce5c8279647e4e4918f3effe73267565e1c0bc3fa6c683509",
+      "releaseSha256": "2012fd30f6a5bbabd2c71ba5399b7f3360ecf4c75a7e0969d8064655d94b6519",
+      "observerSha256": "bde79ca51bbbd8f67be6f78f8bcb1eca1e9ca80222e9004d93fe4a97678cbccd",
       "archive": {
         "schema": 1,
-        "archiveBytes": 857284651,
-        "archiveSha256": "dab926f6f66d3b032d3a57145eb5528ecc68cd8032a59557f9b1c9484dc6e3f2",
+        "archiveBytes": 858468848,
+        "archiveSha256": "67e6bb30e20ae2ecdd0238346850dd95ef41ea6d3e06ecc5da7e927d7db27338",
         "parts": [
           {
             "name": "part-000.bin",
             "bytes": 419430400,
-            "sha256": "4192df694be9a006a6b859c13c4e7b8ff09fc590677ef3d9de0773248f509b01"
+            "sha256": "5b9d0038676109fcd5c01b2cd72e72784d3d1106e5b0786f04c1ceea35f65b60"
           },
           {
             "name": "part-001.bin",
             "bytes": 419430400,
-            "sha256": "678ae62461d4b4d5345cc994d5b4fc04617993160d34824a1c8b2e48c66b5d9b"
+            "sha256": "8e92fb3b799822e25f95d38c5c545198c2c683d580229239e394a0049b354587"
           },
           {
             "name": "part-002.bin",
-            "bytes": 18423851,
-            "sha256": "244ff197f94b3bd0d2ba203642a5641962607f7e73df23306928f1fc265a01b4"
+            "bytes": 19608048,
+            "sha256": "ed31bdf7e5937c6155239a74845816b15f65bbc60718dba8ddc3f26b04821367"
           }
         ]
       },
       "artifacts": [
         {
-          "id": 13512510120,
-          "name": "cc-runtime-a-a06-recovery-native-part-0-42227813725-1",
+          "id": 13517014728,
+          "name": "cc-runtime-a-a06-recovery-native-part-0-42236986762-1",
           "bytes": 419431274,
-          "digest": "sha256:0591ead7475997ecc34234e969fa6d00817f9b8094c512b066860ff9314debb5"
+          "digest": "sha256:3d4a52b2d873a38b7b722f53b2b1e1335247491907a14031400cdb00870de934"
         },
         {
-          "id": 13512045358,
-          "name": "cc-runtime-a-a04-contracts-7fc24c59ac17f42272c26e309f2f3a29cb910dab-42227813725-1",
-          "bytes": 3753925,
-          "digest": "sha256:04c24ee46fc8cf6ddbbd430fe1f2352eac7758d056f01842aa341176fff29ebc"
+          "id": 13515809636,
+          "name": "cc-runtime-a-a06-recovery-native-part-2-42236986762-1",
+          "bytes": 19608922,
+          "digest": "sha256:dbc6e084375436351ac3a9e4350435b4cbdc978e035dafeb527cc0db57bedfa3"
         },
         {
-          "id": 13510734651,
-          "name": "cc-runtime-a-a06-recovery-native-part-1-42227813725-1",
+          "id": 13515774942,
+          "name": "cc-runtime-a-a04-contracts-b95405c6e69bae69e1fdb726af2e1a4a11ba6588-42236986762-1",
+          "bytes": 3758308,
+          "digest": "sha256:6a518288cb9a586dd1cd72d4a73521ecbf4b106adf788e4dd69aa970f9f7a403"
+        },
+        {
+          "id": 13515749891,
+          "name": "cc-runtime-a-a06-recovery-native-part-1-42236986762-1",
           "bytes": 419431274,
-          "digest": "sha256:420414a3fdfe60536026dfa7f320bae0b6238313350c0516fc9b7ea4b3198d8e"
+          "digest": "sha256:b82573ba00cc93e64f1d62c4dace622800c577e89f10fdfe0e4e5ee07504f550"
         },
         {
-          "id": 13510329914,
-          "name": "cc-runtime-a-a06-recovery-native-part-2-42227813725-1",
-          "bytes": 18424725,
-          "digest": "sha256:c1f8e949cc83d7a82cbcce35de88fadc9b0bcc01115d26c9b15beda5f1d26f5f"
-        },
-        {
-          "id": 13506941652,
+          "id": 13513300803,
           "name": "imp-022-knowledge-apprenticeship-acceptance",
-          "bytes": 4121987,
-          "digest": "sha256:b92f4594a07be1196744a3365f3dfa37f829577b8e62700bfd7e7d7018603f66"
+          "bytes": 4120359,
+          "digest": "sha256:66a478813a0d4c1d4fe9a0d62b069534cae1013159f21a07cb3be370329cecb2"
         }
       ],
-      "profile": {
-        "diagnostic": true,
-        "qualifyingSamples": 0,
-        "sha256": "43ff08aa52f2ab39a17e166c6b1c45a68df121e93afe102390b5c94aa874e89d",
-        "captureStackSamples": {
-          "DEPOSIT": {
-            "samples": 1,
-            "topFrames": [
-              [
-                "dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol.beginNative",
-                1
-              ]
-            ]
-          }
-        }
-      }
+      "postFailureCpuDiagnostic": {
+        "recordingSha256": "80921d04a996fb782613c10a17600e61f9941ec56f379ecd350b5d01785e1359",
+        "serverThreadSamples": 968,
+        "captureStackSamples": {},
+        "qualifyingSamples": 0
+      },
+      "caseReviewSha256": "c473d07f8a140150c71c3ea384cf8796a56163e794dd616e1f5c6601b102a6d5"
     },
     "a06Qualified": false,
     "omittedTasks": 0,
@@ -1530,13 +1790,14 @@
     "priorNativeControlsIndependentlyVerified": 7
   },
   "validationCandidate": {
-    "sequence": 35,
-    "sourceCheckpoint": "a418da5d0ffc049cf6eb673c68e5bd3311cdabf6",
+    "sequence": 36,
+    "sourceCheckpoint": "38fd6cb3e9ae32de1b359972a21a709b3af1d50d",
     "status": "PENDING_EXACT_SOURCE_VALIDATION",
     "changes": [
-      "Reuse completed arena block JSON after reading the same immutable states at every original native observation position.",
-      "Initialize the immutable capture schemas during native owner setup.",
-      "Keep every real qualifying wall-clock measurement and retain native harvest and pickup phase times for diagnosis."
+      "Link the native participant, lineage and ticket types during owner startup.",
+      "Reuse the original acknowledged actor trail during synchronous deposit preflight and validate receipt fields without temporary serialization.",
+      "Check bounded original pickup claims directly and reuse exact encoded immutable block rows on the observer writer.",
+      "Report named phases for all three stages across the same qualification windows."
     ],
     "originalCases": 12,
     "nativeControls": 9,
@@ -1746,10 +2007,10 @@
   },
   "bestOriginalCoverage": {
     "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
-    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
-    "run": 42227813725,
-    "job": 127925682077,
+    "source": "b95405c6e69bae69e1fdb726af2e1a4a11ba6588",
+    "tree": "3562f8952b51e742d0e5e7a5a5d18ddf313bc703",
+    "run": 42236986762,
+    "job": 127957059246,
     "attempt": 1,
     "independentlyReviewedOriginalCases": 12,
     "requiredOriginalCases": 12,
@@ -2977,6 +3238,328 @@
         "diagnostic": true,
         "qualifyingSamples": 0,
         "sha256": "ad8e0fdacd764edae955cbed7077050c8173bdb30093d15f352375e2e8fb497b"
+      }
+    },
+    "a06Qualified": false,
+    "omittedTasks": 0,
+    "omittedTests": 0
+  },
+  "priorBatch34Validation": {
+    "sequence": 34,
+    "status": "PASS_ALL_TWELVE_ORIGINALS_PERFORMANCE_OPEN",
+    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
+    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
+    "codeCheckpoint": "8d2e92b94f6b0803f699a449a863f44bc7955586",
+    "run": 42227813725,
+    "job": 127925682077,
+    "attempt": 1,
+    "main": {
+      "run": 42227813740,
+      "status": "PASS"
+    },
+    "workflowCount": 2,
+    "codeCheckpointWorkflows": 0,
+    "modules": {
+      "core": 2345,
+      "providers": 131,
+      "fabric": 130,
+      "total": 2606,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "python": {
+      "focused": 89,
+      "baseline": 72,
+      "status": "PASS"
+    },
+    "originalCoverage": {
+      "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
+      "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
+      "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
+      "run": 42227813725,
+      "job": 127925682077,
+      "attempt": 1,
+      "independentlyReviewedOriginalCases": 12,
+      "requiredOriginalCases": 12,
+      "stageCounts": {
+        "HARVEST": 4,
+        "PICKUP": 4,
+        "DEPOSIT": 4
+      },
+      "originalCaseIds": [
+        "W6-002",
+        "W6-003",
+        "W6-004",
+        "W6-008",
+        "W6-009",
+        "W6-010",
+        "heldout-W6-002",
+        "heldout-W6-003",
+        "heldout-W6-004",
+        "heldout-W6-008",
+        "heldout-W6-009",
+        "heldout-W6-010"
+      ],
+      "importedRecoverySettlements": 0,
+      "a06Qualified": false
+    },
+    "nativeControls": {
+      "passed": 8,
+      "required": 9,
+      "results": [
+        {
+          "id": "source-replacement-HARVEST",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "source-replacement-PICKUP",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "unrelated-native-progress",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "source-replacement-DEPOSIT",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "unsaved-pickup-containment",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "two-unit-prepared-no-effect",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "two-unit-delivered-remaining-one",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "representative-active-cost",
+          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+          "nativeStatus": "FAIL_COST_TARGET",
+          "nativeReason": null,
+          "reason": "{'tickP95': 26.931379, 'tickP99': 46.086432, 'captureP99': {'HARVEST': 5.400568, 'PICKUP': 12.942658, 'DEPOSIT': 7.169046}, 'ackMax': 40.31175}"
+        },
+        {
+          "id": "expired-original-accounting",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        }
+      ],
+      "cost": {
+        "id": "representative-active-cost",
+        "status": "FAIL_COST_TARGET",
+        "windows": 11,
+        "nativeEffects": 33,
+        "tick": {
+          "p50": 9.477477,
+          "p95": 26.931379,
+          "p99": 46.086432,
+          "max": 120.155513,
+          "samples": 2349,
+          "unit": "milliseconds"
+        },
+        "capture": {
+          "HARVEST": {
+            "p50": 3.096435,
+            "p95": 5.400568,
+            "p99": 5.400568,
+            "max": 5.400568,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 3.000491,
+            "p95": 12.942658,
+            "p99": 12.942658,
+            "max": 12.942658,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 3.2777,
+            "p95": 7.169046,
+            "p99": 7.169046,
+            "max": 7.169046,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "acknowledgement": {
+          "p50": 15.92207,
+          "p95": 34.436537,
+          "p99": 40.31175,
+          "max": 40.31175,
+          "samples": 66,
+          "unit": "milliseconds"
+        },
+        "limits": {
+          "tickP95Ms": 20,
+          "tickP99Ms": 40,
+          "captureP99Ms": 2,
+          "ackMaxMs": 30000
+        },
+        "warmupExcluded": false,
+        "requiredWheatSamples": 1,
+        "diagnosticCaptureCpu": {
+          "HARVEST": {
+            "p50": 3.014904,
+            "p95": 3.121642,
+            "p99": 3.121642,
+            "max": 3.121642,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 2.850569,
+            "p95": 3.117708,
+            "p99": 3.117708,
+            "max": 3.117708,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 3.061954,
+            "p95": 3.401779,
+            "p99": 3.401779,
+            "max": 3.401779,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        }
+      },
+      "tickP95Passed": false,
+      "tickP99Passed": false,
+      "ackLimitPassed": true,
+      "resumedRemainingUnit": {
+        "status": "PASS_INDEPENDENT_NATIVE_CONTROL",
+        "previousBatch33FailedBeforeInitialDeposit": true
+      }
+    },
+    "requiredHosts": {
+      "pass": 9,
+      "fail": 0,
+      "originalConditionalNotApplicable": 3,
+      "gp22": {
+        "status": "PASS_BOTH_JVMS",
+        "job": 127925681744,
+        "artifact": 13506941652,
+        "backendStopped": true,
+        "cold": {
+          "stock": 8,
+          "mature": 3,
+          "failedDrops": 1,
+          "failedInventory": 0,
+          "failedResources": 1,
+          "grants": 2,
+          "practices": 3,
+          "bodies": 1,
+          "process": 4109,
+          "processStarted": 1793972732974,
+          "modelCalls": 0,
+          "accessSha256": "a601512133acf73ddc4dc5299e80e7a6aae4cea529b7521db78fe23d868c1291"
+        },
+        "warm": {
+          "stock": 10,
+          "mature": 1,
+          "failedDrops": 1,
+          "failedInventory": 0,
+          "failedResources": 1,
+          "grants": 2,
+          "practices": 3,
+          "bodies": 1,
+          "process": 4612,
+          "processStarted": 1793972817490,
+          "modelCalls": 0,
+          "accessSha256": "a601512133acf73ddc4dc5299e80e7a6aae4cea529b7521db78fe23d868c1291"
+        }
+      },
+      "jobIds": [
+        127925681744,
+        127925681815,
+        127925681854,
+        127925681914,
+        127925681983,
+        127925682050,
+        127925682067,
+        127925682099,
+        127925682120
+      ]
+    },
+    "evidence": {
+      "releaseSha256": "c2820f815246bce633d4f6a904fcbdfd9169a042957fafcd3dd9af6d45cec35e",
+      "observerSha256": "cb068c00ef469b5ce5c8279647e4e4918f3effe73267565e1c0bc3fa6c683509",
+      "archive": {
+        "schema": 1,
+        "archiveBytes": 857284651,
+        "archiveSha256": "dab926f6f66d3b032d3a57145eb5528ecc68cd8032a59557f9b1c9484dc6e3f2",
+        "parts": [
+          {
+            "name": "part-000.bin",
+            "bytes": 419430400,
+            "sha256": "4192df694be9a006a6b859c13c4e7b8ff09fc590677ef3d9de0773248f509b01"
+          },
+          {
+            "name": "part-001.bin",
+            "bytes": 419430400,
+            "sha256": "678ae62461d4b4d5345cc994d5b4fc04617993160d34824a1c8b2e48c66b5d9b"
+          },
+          {
+            "name": "part-002.bin",
+            "bytes": 18423851,
+            "sha256": "244ff197f94b3bd0d2ba203642a5641962607f7e73df23306928f1fc265a01b4"
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "id": 13512510120,
+          "name": "cc-runtime-a-a06-recovery-native-part-0-42227813725-1",
+          "bytes": 419431274,
+          "digest": "sha256:0591ead7475997ecc34234e969fa6d00817f9b8094c512b066860ff9314debb5"
+        },
+        {
+          "id": 13512045358,
+          "name": "cc-runtime-a-a04-contracts-7fc24c59ac17f42272c26e309f2f3a29cb910dab-42227813725-1",
+          "bytes": 3753925,
+          "digest": "sha256:04c24ee46fc8cf6ddbbd430fe1f2352eac7758d056f01842aa341176fff29ebc"
+        },
+        {
+          "id": 13510734651,
+          "name": "cc-runtime-a-a06-recovery-native-part-1-42227813725-1",
+          "bytes": 419431274,
+          "digest": "sha256:420414a3fdfe60536026dfa7f320bae0b6238313350c0516fc9b7ea4b3198d8e"
+        },
+        {
+          "id": 13510329914,
+          "name": "cc-runtime-a-a06-recovery-native-part-2-42227813725-1",
+          "bytes": 18424725,
+          "digest": "sha256:c1f8e949cc83d7a82cbcce35de88fadc9b0bcc01115d26c9b15beda5f1d26f5f"
+        },
+        {
+          "id": 13506941652,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4121987,
+          "digest": "sha256:b92f4594a07be1196744a3365f3dfa37f829577b8e62700bfd7e7d7018603f66"
+        }
+      ],
+      "profile": {
+        "diagnostic": true,
+        "qualifyingSamples": 0,
+        "sha256": "43ff08aa52f2ab39a17e166c6b1c45a68df121e93afe102390b5c94aa874e89d",
+        "captureStackSamples": {
+          "DEPOSIT": {
+            "samples": 1,
+            "topFrames": [
+              [
+                "dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol.beginNative",
+                1
+              ]
+            ]
+          }
+        }
       }
     },
     "a06Qualified": false,
