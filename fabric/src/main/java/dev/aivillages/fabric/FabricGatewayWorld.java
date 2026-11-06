@@ -349,10 +349,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             }
         return samples;
     }
-    private boolean oakApproachGeometry(Villager v, BlockPos target) {
-        BlockPos now=v.blockPosition();
-        if (Math.abs((long)now.getX()-target.getX())+Math.abs((long)now.getZ()-target.getZ())!=1) return false;
-        double dx=v.getX()-(target.getX()+.5),dz=v.getZ()-(target.getZ()+.5);
+    static boolean logFooting(BlockPos standing,BlockPos target,double x,double z,boolean faceOnly) {
+        long adjacentX=Math.abs((long)standing.getX()-target.getX());
+        long adjacentZ=Math.abs((long)standing.getZ()-target.getZ());
+        if(adjacentX>1 || adjacentZ>1 || adjacentX+adjacentZ==0 || faceOnly && adjacentX+adjacentZ!=1)return false;
+        double dx=x-(target.getX()+.5),dz=z-(target.getZ()+.5);
         return dx*dx+dz*dz<=OAK_APPROACH_DISTANCE_SQUARED;
     }
     @Override public Movement move(ActorRef actor, Cell target, int maxNavigationCalls) {
@@ -422,7 +423,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         // alternate harvest points and tighter radius are not placement reach.
         boolean adjacent=reserved!=null && solidApproach
                 ? Math.abs((long)now.getX()-targetPos.getX())+Math.abs((long)now.getZ()-targetPos.getZ())==1
-                : oakApproachGeometry(v,targetPos);
+                : logFooting(now,targetPos,v.getX(),v.getZ(),true);
         // A worker can still be falling or jumping when a request starts. Wait
         // for ordinary landing before spending finite ground-path approaches.
         Route route = routes.get(v.getUUID());
@@ -738,11 +739,14 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !level.getGameRules().get(GameRules.BLOCK_DROPS)) return Reason.AUTHORITY_DENIED;
         if(!v.getMainHandItem().isEmpty() || !v.getOffhandItem().isEmpty() || !v.getActiveEffects().isEmpty())
             return Reason.TARGET_INVALID;
-        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || oakInteractionPoint(v,p)==null) {
+        // Navigation selects a face. The actual break can continue from a nearby
+        // corner while the same physical distance and line of sight still hold.
+        boolean footing=logFooting(v.blockPosition(),p,v.getX(),v.getZ(),false);
+        if(!v.onGround() || v.isInWater() || v.isInLava() || !footing || oakInteractionPoint(v,p)==null) {
             if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
                 System.out.println("CognitiveCraft LOG_BREAK unavailable actor="+v.getUUID()+" position="+v.position()
                         +" target="+p+" onGround="+v.onGround()+" water="+v.isInWater()+" lava="+v.isInLava()
-                        +" approach="+oakApproachGeometry(v,p)+" tick="+tick());
+                        +" footing="+footing+" tick="+tick());
             return Reason.TARGET_UNAVAILABLE;
         }
         return resourceBlock(target,item).eligible() ? null : Reason.TARGET_INVALID;

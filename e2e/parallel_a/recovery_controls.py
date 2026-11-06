@@ -203,7 +203,8 @@ def profile_failed_cost(h,seed,template):
         pid=str(native_process(h)['namespaceProcess']['pid'])
         path=directory/'native-active-cost.jfr'
         command=('exec','-T','minecraft','jcmd',pid)
-        h.compose(*command,'JFR.start','name=a06-cost','settings=profile','maxsize=16m')
+        h.compose(*command,'JFR.start','name=a06-cost','settings=profile',
+                  'jdk.ExecutionSample#period=1ms','maxsize=16m')
         try:
             run,view=run_cost_case(h,case,destination)
             value.update(run=run,view=view)
@@ -211,7 +212,8 @@ def profile_failed_cost(h,seed,template):
             h.compose(*command,'JFR.stop','name=a06-cost','filename=/evidence/'+path.relative_to(h.root).as_posix())
         profile=summarize(path)
         atomic(path.with_suffix('.summary.json'),profile)
-        value.update(recordingSha256=profile['sha256'],serverThread=profile['threads'].get('Server thread'))
+        value.update(recordingSha256=profile['sha256'],serverThread=profile['threads'].get('Server thread'),
+                     captureStackSamples=profile['captureStackSamples'])
     except Exception as error:
         value.update(reason=str(error),trace=traceback.format_exc())
     atomic(directory/'result.json',value)

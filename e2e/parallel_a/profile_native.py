@@ -11,16 +11,29 @@ from runtime import java,digest
 def summarize(path):
     result=subprocess.run([java('jfr'),'print','--json','--events','jdk.ExecutionSample,jdk.NativeMethodSample,jdk.GCPhasePause',str(path)],text=True,capture_output=True,check=True)
     groups=defaultdict(Counter);inclusive=defaultdict(Counter);pauses=[]
+    capture=defaultdict(Counter)
+    capture_methods={
+        'dev.aivillages.fabric.runtime.evidence.FabricHarvestProtocol.beginNative':'HARVEST',
+        'dev.aivillages.fabric.runtime.evidence.FabricPickupProtocol.begin':'PICKUP',
+        'dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol.beginNative':'DEPOSIT',
+    }
     for event in json.loads(result.stdout)['recording']['events']:
         values=event['values'];trace=values.get('stackTrace')
         if event['type']=='jdk.GCPhasePause':pauses.append({k:values.get(k) for k in ('startTime','duration','gcId','name')})
         if not trace:continue
         thread=values.get('sampledThread') or values.get('eventThread') or {};name=thread.get('javaName',thread.get('osName','unknown'))
         frames=[f['method']['type']['name'].replace('/','.')+'.'+f['method']['name'] for f in trace['frames']]
-        if frames:groups[name][frames[0]]+=1;inclusive[name].update(set(frames))
+        if frames:
+            groups[name][frames[0]]+=1
+            inclusive[name].update(set(frames))
+            if name=='Server thread':
+                stage=next((capture_methods[f] for f in frames if f in capture_methods),None)
+                if stage:capture[stage][frames[0]]+=1
     return {'diagnostic':True,'recording':path.name,'sha256':digest(path),
             'threads':{name:{'samples':sum(counter.values()),'topFrames':counter.most_common(25),'inclusiveFrames':inclusive[name].most_common(35)} for name,counter in groups.items()},
-            'gcPauseEvents':pauses}
+            'gcPauseEvents':pauses,
+            'captureStackSamples':{stage:{'samples':sum(rows.values()),'topFrames':rows.most_common(12)}
+                                   for stage,rows in capture.items()}}
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--root',required=True,type=Path);args=parser.parse_args()
