@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 29,
-  "parentSource": "eb135fa918e9b66e7ff112f3e8338f06e6dfa9a9",
+  "sequence": 30,
+  "parentSource": "3c673f20219098cf934279134453e9eecbbd2ea7",
   "stage": "A06",
-  "scope": "All twelve frozen original saved cases independently verified; remaining-unit save and representative cost controls remain open",
+  "scope": "Keep the verified twelve-original denominator and close remaining-unit native entity persistence and representative active cost",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "A separate CI-skipped source checkpoint and one control-only branch update. All twelve frozen originals, nine controls, complete modules and required host regressions, offline Docker review, and lossless retained evidence.",
+  "execution": "One grouped run with exact twelve fresh original cases, nine native controls, full modules and host regressions, and independent Docker review of every control even when another fails.",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -939,6 +939,150 @@
     "a06Qualified": false
   },
   "currentValidation": {
+    "source": "3c673f20219098cf934279134453e9eecbbd2ea7",
+    "status": "PENDING_FULL_A06_CURRENT_CANDIDATE",
+    "nativeOriginalCasesThisBatch": 12,
+    "requiredOriginalCases": 12,
+    "nativeControls": 9,
+    "allOriginalCasesMandatory": true,
+    "widerControlsRequired": true,
+    "focusedPythonTests": 89,
+    "baselinePythonTests": 72,
+    "retainedAdmissionArtifact": 13311090608,
+    "importedRecoverySettlements": 0,
+    "qualifiedOriginalCasesPreviously": 12,
+    "tickLimitsMillis": {
+      "p95": 20,
+      "p99": 40,
+      "captureP99": 2,
+      "ackMax": 30000
+    },
+    "serverBudget": {
+      "cpuset": "0-1",
+      "availableProcessors": 2,
+      "heapMiB": [
+        256,
+        1536
+      ],
+      "g1HeapRegionMiB": 2,
+      "g1PauseTargetMillis": 10
+    },
+    "preservedRequiredWorkflows": 9,
+    "preservedRequiredJobs": 12,
+    "preservedRequiredSteps": 140,
+    "originalWorkloadsAndWindowsPreserved": true
+  },
+  "priorCheckpointCompletion": {
+    "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
+    "testedImplementationSource": "5b95effe980a93e31c9d2d2b005f131da9371a18",
+    "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
+    "metadataOnlyCheckpoint": true,
+    "defaultActivationChanged": false,
+    "automaticContinuationChanged": false,
+    "mainMerged": false,
+    "nextStageStarted": false,
+    "additionalWorkflowRunsRequested": 0,
+    "remainingOriginalCaseIds": [
+      "W6-003",
+      "W6-004",
+      "W6-008",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-009",
+      "heldout-W6-010"
+    ]
+  },
+  "previousValidation": {
+    "status": "PENDING",
+    "source": "7f65e89df2d92d0ae6551d3211b903089568e153",
+    "nativeOriginalCasesThisBatch": 12,
+    "qualifiedOriginalCasesPreviously": 3,
+    "requiredOriginalCases": 12,
+    "allOriginalCasesMandatory": true,
+    "widerControlsRequired": true,
+    "nativeControls": 9,
+    "focusedPythonTests": 83,
+    "baselinePythonTests": 72,
+    "retainedAdmissionArtifact": 13311090608,
+    "importedRecoverySettlements": 0
+  },
+  "priorRetainedArchiveReview": {
+    "source": "f59a6a4cbb27abc56599d74ca1aa836166aa37a4",
+    "run": 41843785657,
+    "attempt": 2,
+    "regressions": "ALL_NINE_REQUIRED_HOSTS_PASS_AFTER_GP19_AND_GP22_RETRY",
+    "gp19Job": 127413959659,
+    "gp22Job": 127413959656,
+    "gp22ColdStock": 8,
+    "gp22WarmStock": 10,
+    "priorOriginalArtifactParts": [
+      13329977765,
+      13330312263
+    ],
+    "priorDiagnosticsArtifact": 13329659081,
+    "mainCiRun": 41843785711,
+    "moduleCases": 2591
+  },
+  "priorBatch25OriginalCoverage": {
+    "source": "297832dabba8d7978376f86c79a06c5c9c0af61b",
+    "run": 41834140991,
+    "job": 126588603378,
+    "attempt": 1,
+    "independentlyReviewedOriginalCases": 11,
+    "requiredOriginalCases": 12,
+    "originalCaseIds": [
+      "W6-002",
+      "W6-003",
+      "W6-004",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-002",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-008",
+      "heldout-W6-009",
+      "heldout-W6-010"
+    ],
+    "pendingOriginalCaseIds": [
+      "W6-008"
+    ],
+    "nativeArtifact": 13329191415,
+    "review": "Recovered the complete exact ZIP and inspected raw saved worlds with the corrected flat lease-row reader",
+    "a06Qualified": false,
+    "fullBranchQualified": false
+  },
+  "priorBatch28Validation": {
+    "source": "448946d9f735989d920ca8427161ebb5df460bbe",
+    "tree": "46fead56477c9d6086dd679721253bc4e54ac2d2",
+    "run": 42078774329,
+    "main": 42078774184,
+    "mainStatus": "PASS",
+    "moduleCases": 2599,
+    "requiredHostsPassed": 9,
+    "originalsPassedIndependent": 11,
+    "expiryControl": "PASS",
+    "remainingControl": "FAIL_PICKUP_PREPARED_AT_JOB_REVISION_145_OBSERVED_146_147",
+    "priorWheatFailure": "Reader rejected actual compact palette entry with an empty-string key. The native cut and exact saved H outputs are present.",
+    "costMillis": {
+      "tickP95": 38.812568,
+      "tickP99": 57.144257,
+      "harvestP99": 9.021358,
+      "pickupP99": 18.699396,
+      "depositP99": 22.594882,
+      "ackMax": 49.925348
+    },
+    "nativeParts": [
+      13444270791,
+      13444105893,
+      13444330757
+    ],
+    "contracts": 13443811110,
+    "nativeArchiveSha256": "bc7915fd676b33659a2a2923492253d32e9889345a974b26a5f5928e0d59639d",
+    "duplicateStandaloneRuns": 9
+  },
+  "priorBatch29Validation": {
     "source": "eb135fa918e9b66e7ff112f3e8338f06e6dfa9a9",
     "status": "PASS_ALL_TWELVE_ORIGINALS_TWO_CONTROLS_OPEN",
     "nativeOriginalCasesThisBatch": 12,
@@ -1079,114 +1223,22 @@
     ],
     "a06Qualified": false
   },
-  "priorCheckpointCompletion": {
-    "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
-    "testedImplementationSource": "5b95effe980a93e31c9d2d2b005f131da9371a18",
-    "documentationHead": "fee9a5dd0f9bb13643dc51a4e32046a3201deacc",
-    "metadataOnlyCheckpoint": true,
-    "defaultActivationChanged": false,
-    "automaticContinuationChanged": false,
-    "mainMerged": false,
-    "nextStageStarted": false,
-    "additionalWorkflowRunsRequested": 0,
-    "remainingOriginalCaseIds": [
-      "W6-003",
-      "W6-004",
-      "W6-008",
-      "W6-009",
-      "W6-010",
-      "heldout-W6-003",
-      "heldout-W6-004",
-      "heldout-W6-009",
-      "heldout-W6-010"
-    ]
-  },
-  "previousValidation": {
-    "status": "PENDING",
-    "source": "7f65e89df2d92d0ae6551d3211b903089568e153",
-    "nativeOriginalCasesThisBatch": 12,
-    "qualifiedOriginalCasesPreviously": 3,
-    "requiredOriginalCases": 12,
-    "allOriginalCasesMandatory": true,
-    "widerControlsRequired": true,
-    "nativeControls": 9,
-    "focusedPythonTests": 83,
-    "baselinePythonTests": 72,
-    "retainedAdmissionArtifact": 13311090608,
-    "importedRecoverySettlements": 0
-  },
-  "priorRetainedArchiveReview": {
-    "source": "f59a6a4cbb27abc56599d74ca1aa836166aa37a4",
-    "run": 41843785657,
-    "attempt": 2,
-    "regressions": "ALL_NINE_REQUIRED_HOSTS_PASS_AFTER_GP19_AND_GP22_RETRY",
-    "gp19Job": 127413959659,
-    "gp22Job": 127413959656,
-    "gp22ColdStock": 8,
-    "gp22WarmStock": 10,
-    "priorOriginalArtifactParts": [
-      13329977765,
-      13330312263
+  "priorBatch29RemainingUnitDiagnosis": {
+    "source": "b6a56484ae8051a0729c897cdaf31c8b051da589",
+    "run": 42089993167,
+    "job": "55016a69-6e39-41ca-b98d-470e7d6033ea",
+    "jobState": "SUCCEEDED",
+    "nativeEffectsByAttempt": [
+      3,
+      3
     ],
-    "priorDiagnosticsArtifact": 13329659081,
-    "mainCiRun": 41843785711,
-    "moduleCases": 2591
-  },
-  "priorBatch25OriginalCoverage": {
-    "source": "297832dabba8d7978376f86c79a06c5c9c0af61b",
-    "run": 41834140991,
-    "job": 126588603378,
-    "attempt": 1,
-    "independentlyReviewedOriginalCases": 11,
-    "requiredOriginalCases": 12,
-    "originalCaseIds": [
-      "W6-002",
-      "W6-003",
-      "W6-004",
-      "W6-009",
-      "W6-010",
-      "heldout-W6-002",
-      "heldout-W6-003",
-      "heldout-W6-004",
-      "heldout-W6-008",
-      "heldout-W6-009",
-      "heldout-W6-010"
+    "nativeCreditByAttempt": [
+      1,
+      1
     ],
-    "pendingOriginalCaseIds": [
-      "W6-008"
-    ],
-    "nativeArtifact": 13329191415,
-    "review": "Recovered the complete exact ZIP and inspected raw saved worlds with the corrected flat lease-row reader",
-    "a06Qualified": false,
-    "fullBranchQualified": false
-  },
-  "priorBatch28Validation": {
-    "source": "448946d9f735989d920ca8427161ebb5df460bbe",
-    "tree": "46fead56477c9d6086dd679721253bc4e54ac2d2",
-    "run": 42078774329,
-    "main": 42078774184,
-    "mainStatus": "PASS",
-    "moduleCases": 2599,
-    "requiredHostsPassed": 9,
-    "originalsPassedIndependent": 11,
-    "expiryControl": "PASS",
-    "remainingControl": "FAIL_PICKUP_PREPARED_AT_JOB_REVISION_145_OBSERVED_146_147",
-    "priorWheatFailure": "Reader rejected actual compact palette entry with an empty-string key. The native cut and exact saved H outputs are present.",
-    "costMillis": {
-      "tickP95": 38.812568,
-      "tickP99": 57.144257,
-      "harvestP99": 9.021358,
-      "pickupP99": 18.699396,
-      "depositP99": 22.594882,
-      "ackMax": 49.925348
-    },
-    "nativeParts": [
-      13444270791,
-      13444105893,
-      13444330757
-    ],
-    "contracts": 13443811110,
-    "nativeArchiveSha256": "bc7915fd676b33659a2a2923492253d32e9889345a974b26a5f5928e0d59639d",
-    "duplicateStandaloneRuns": 9
+    "nativeSaveFailure": "Unproved membership successor at EntityChunkMembershipState.record during vanilla entity storage flush",
+    "rootCause": "The staged deposit replaced its actual pickup predecessor before the next native write.",
+    "originalsIndependentlyVerified": 12,
+    "priorNativeControlsIndependentlyVerified": 7
   }
 }
