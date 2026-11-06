@@ -21,6 +21,39 @@ public final class EntityChunkMembershipState {
         }
         public String key(){return trail.entity().toString();}
     }
+    /** Live staged transitions may span both pickup and deposit between native writes. */
+    static final class Pending {
+        private static final int MAX_STAGES=4;
+        private final List<Row> stages;
+        Pending(Row row){stages=List.of(row);}
+        private Pending(List<Row> stages){this.stages=List.copyOf(stages);}
+        Row latest(){return stages.getLast();}
+        Pending stage(Row row) {
+            Row previous=latest();
+            Row next=successor(previous,row);
+            if(previous.equals(next))return this;
+            var updates=new ArrayList<>(stages);
+            if(previous.marker().equals(next.marker()))updates.set(updates.size()-1,next);
+            else {
+                if(updates.size()==MAX_STAGES)throw new IllegalArgumentException("Pending membership transition quota");
+                updates.add(next);
+            }
+            return new Pending(updates);
+        }
+        Pending acknowledged(Marker marker) {
+            for(int n=1;n<stages.size();n++)if(stages.get(n).marker().equals(marker))
+                return new Pending(stages.subList(n,stages.size()));
+            return this;
+        }
+        void apply(EntityChunkMembershipState state) {
+            Row saved=state.rows.get(latest().key());
+            int start=0;
+            if(saved!=null)for(int n=0;n<stages.size();n++) {
+                if(saved.marker().equals(stages.get(n).marker())){start=n;break;}
+            }
+            for(int n=start;n<stages.size();n++)state.record(stages.get(n));
+        }
+    }
     private final String dimension;private final ChunkPos chunk;
     private final NavigableMap<String,Row> rows=new TreeMap<>();
     private boolean valid=true;private CompoundTag original;
@@ -28,6 +61,7 @@ public final class EntityChunkMembershipState {
     public boolean valid(){return valid;}
     public int size(){return rows.size();}
     public Row row(UUID entity){return valid?rows.get(entity.toString()):null;}
+    Map<String,Row> rows(){return valid?Map.copyOf(rows):Map.of();}
     private NativePickup.Chunk location(){return new NativePickup.Chunk(dimension,chunk.x(),chunk.z());}
     private void check(Row row) {
         if(!row.trail().chunks().contains(location()) || row.present() && !row.trail().current().equals(location()))
@@ -36,16 +70,20 @@ public final class EntityChunkMembershipState {
     /** Called only with detached declarations made by the native producer's live lifetime. */
     public void record(Row row) {
         if(!valid)throw new IllegalStateException("Unsupported membership metadata");check(row);Row before=rows.get(row.key());
-        if(before!=null && row.marker().equals(before.marker()) && row.predecessor()==null && before.predecessor()!=null)
+        if(before!=null)row=successor(before,row);
+        if(before==null && rows.size()==MAX_ROWS)throw new IllegalStateException("Native membership quota");
+        rows.put(row.key(),row);
+    }
+    private static Row successor(Row before,Row row) {
+        if(row.marker().equals(before.marker()) && row.predecessor()==null && before.predecessor()!=null)
             row=new Row(row.role(),row.trail(),row.revision(),row.marker(),row.present(),before.predecessor());
-        if(before!=null && !before.equals(row)) {
+        if(!before.equals(row)) {
             if(!row.trail().incarnation().equals(before.trail().incarnation()) || row.role()!=before.role()
                     || !row.trail().chunks().containsAll(before.trail().chunks()) || row.revision()<before.revision()
                     || !(row.marker().equals(before.marker()) || before.marker().equals(row.predecessor())))
                 throw new IllegalArgumentException("Unproved membership successor");
         }
-        if(before==null && rows.size()==MAX_ROWS)throw new IllegalStateException("Native membership quota");
-        rows.put(row.key(),row);
+        return row;
     }
     public CompoundTag capture(Set<UUID> members) {
         var out=new CompoundTag();

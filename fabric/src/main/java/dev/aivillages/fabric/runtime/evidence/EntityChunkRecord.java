@@ -16,12 +16,18 @@ public final class EntityChunkRecord {
     public static final class Frame {
         private final ChunkPos position;private final Set<UUID> members;private final CompoundTag metadata;
         private final String digest;private final boolean supported,exists;
+        private final Map<String,EntityChunkMembershipState.Row> membership;
         private Frame(ChunkPos p,Set<UUID> m,CompoundTag tag,String hash,boolean valid,boolean present) {
+            this(p,m,tag,hash,valid,present,Map.of());
+        }
+        private Frame(ChunkPos p,Set<UUID> m,CompoundTag tag,String hash,boolean valid,boolean present,Map<String,EntityChunkMembershipState.Row> membership) {
             position=p;members=Set.copyOf(m);metadata=tag;digest=hash;supported=valid;exists=present;
+            this.membership=membership;
         }
         public ChunkPos position(){return position;}public Set<UUID> members(){return members;}public String digest(){return digest;}
         public boolean supported(){return supported;}public boolean exists(){return exists;}
         public CompoundTag metadata(){if(metadata.sizeInBytes()>MAX_ROOT_BYTES)throw new IllegalStateException("Unsupported metadata size");return metadata.copy();}
+        EntityChunkMembershipState.Row membership(UUID entity){return membership.get(entity.toString());}
     }
     public static boolean hasMetadata(CompoundTag root){return root!=null&&KEYS.stream().anyMatch(root::contains);}
     private static CompoundTag feature(CompoundTag root,boolean copy) {
@@ -52,10 +58,11 @@ public final class EntityChunkRecord {
         try {
             Set<UUID> members=members(root,position);
             var state=EntityChunkRemovalState.load(metadata,true,dimension,position,members);
-            if(!state.valid()||!EntityChunkMembershipState.load(metadata,dimension,position,members).valid())return new Frame(position,members,metadata,"",false,true);
+            var membership=EntityChunkMembershipState.load(metadata,dimension,position,members);
+            if(!state.valid()||!membership.valid())return new Frame(position,members,metadata,"",false,true);
             var bytes=new ByteArrayOutputStream();try(var out=new DataOutputStream(bytes)){root.write(out);}
             if(bytes.size()>MAX_ROOT_BYTES)throw new IllegalArgumentException("Native byte quota");
-            return new Frame(position,members,metadata.copy(),NativeDeposit.sha(bytes.toByteArray()),true,true);
+            return new Frame(position,members,metadata.copy(),NativeDeposit.sha(bytes.toByteArray()),true,true,membership.rows());
         }catch(RuntimeException|IOException invalid){return new Frame(position,Set.of(),metadata,"",false,true);}
     }
     private static CompoundTag quarantine(CompoundTag metadata) {
@@ -69,22 +76,28 @@ public final class EntityChunkRecord {
     }
     public static CompoundTag merge(CompoundTag previous,CompoundTag fresh,String dimension,ChunkPos position,List<EntityChunkRemovalState.Removal> desired,
                                     List<EntityChunkMembershipState.Row> membership) {
+        return mergeStaged(previous,fresh,dimension,position,desired,membership.stream().map(EntityChunkMembershipState.Pending::new).toList()).root();
+    }
+    record Merge(CompoundTag root,boolean membershipWritten) { }
+    static Merge mergeStaged(CompoundTag previous,CompoundTag fresh,String dimension,ChunkPos position,List<EntityChunkRemovalState.Removal> desired,
+                                    List<EntityChunkMembershipState.Pending> membership) {
         Objects.requireNonNull(position);desired=List.copyOf(desired);membership=List.copyOf(membership);
         if(membership.size()>EntityChunkMembershipState.MAX_ROWS)throw new IllegalArgumentException("Native membership write quota");
         if(desired.size()>EntityChunkRemovalState.MAX_REMOVALS)throw new IllegalArgumentException("Native removal write quota");
-        if(fresh==null&&!hasMetadata(previous)&&desired.isEmpty()&&membership.isEmpty())return null;
+        if(fresh==null&&!hasMetadata(previous)&&desired.isEmpty()&&membership.isEmpty())return new Merge(null,false);
         CompoundTag target=fresh==null?empty(position):fresh,metadata=feature(previous,false);
         Set<UUID> oldMembers=Set.of(),newMembers=Set.of();boolean structural=true;
         try{if(previous!=null)oldMembers=members(previous,position);newMembers=members(target,position);}catch(RuntimeException invalid){structural=false;}
-        if(!structural){append(target,quarantine(metadata));return target;}
+        if(!structural){append(target,quarantine(metadata));return new Merge(target,false);}
         var state=EntityChunkRemovalState.load(metadata,true,dimension,position,oldMembers);
         if(state.valid()&&!metadata.contains(MEMBERSHIP_TAG)&&!metadata.contains(MEMBERSHIP_TAG+"_original"))for(var row:desired)state.record(row);
         var captured=state.capture(newMembers);var next=feature(metadata,false);var removal=captured.metadata();
         for(String key:List.of(EntityChunkRemovalState.TAG,EntityChunkRemovalState.TAG+"_original"))if(removal.contains(key))next.put(key,Objects.requireNonNull(removal.get(key)));
         var members=EntityChunkMembershipState.load(metadata,dimension,position,oldMembers);
-        if(members.valid())for(var row:membership)members.record(row);
+        if(members.valid())for(var update:membership)update.apply(members);
         var capturedMembers=members.capture(newMembers);
         for(String key:List.of(MEMBERSHIP_TAG,MEMBERSHIP_TAG+"_original"))if(capturedMembers.contains(key))next.put(key,Objects.requireNonNull(capturedMembers.get(key)));
-        append(target,next);return target;
+        append(target,next);
+        return new Merge(target,members.valid()&&!membership.isEmpty()&&!capturedMembers.contains(MEMBERSHIP_TAG+"_original"));
     }
 }

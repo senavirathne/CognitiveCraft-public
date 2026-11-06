@@ -1,5 +1,6 @@
 package dev.aivillages.fabric.runtime.evidence;
 
+import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Marker;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -16,7 +17,7 @@ public final class EntityStorageEvidence {
     }
     private final Thread owner=Thread.currentThread();private final Access access;private final String dimension;private final Executor metadataWorker;
     private final Map<ChunkPos,List<EntityChunkRemovalState.Removal>> desired=new HashMap<>();
-    private final Map<ChunkPos,List<EntityChunkMembershipState.Row>> membership=new HashMap<>();
+    private final Map<ChunkPos,List<EntityChunkMembershipState.Pending>> membership=new HashMap<>();
     private final Set<ChunkPos> retained=ConcurrentHashMap.newKeySet();
     private final Map<ChunkPos,CompletableFuture<Void>> writes=new HashMap<>();
     private final Map<ChunkPos,Long> revisions=new ConcurrentHashMap<>();
@@ -44,14 +45,27 @@ public final class EntityStorageEvidence {
         synchronized(desired) {
             if(!available())return false;var existing=membership.getOrDefault(pos,List.of());
             var next=new ArrayList<>(existing);int index=-1;
-            for(int n=0;n<next.size();n++)if(next.get(n).key().equals(row.key())){index=n;break;}
+            for(int n=0;n<next.size();n++)if(next.get(n).latest().key().equals(row.key())){index=n;break;}
             if(index<0 && (rows==MAX_ROWS || next.size()+desired.getOrDefault(pos,List.of()).size()==EntityChunkMembershipState.MAX_ROWS))return false;
             synchronized(retained){if(!retained.contains(pos)&&retained.size()==MAX_CHUNKS)return false;retain(pos);}
-            if(index<0){next.add(row);rows++;}else next.set(index,row);
+            if(index<0){next.add(new EntityChunkMembershipState.Pending(row));rows++;}
+            else {
+                try{next.set(index,next.get(index).stage(row));}
+                catch(IllegalArgumentException unproved){return false;}
+            }
             membership.put(pos,List.copyOf(next));return true;
         }
     }
-    private List<EntityChunkMembershipState.Row> membership(ChunkPos pos){synchronized(desired){return membership.getOrDefault(pos,List.of());}}
+    private List<EntityChunkMembershipState.Pending> membership(ChunkPos pos){synchronized(desired){return membership.getOrDefault(pos,List.of());}}
+    private void acknowledgeMembership(ChunkPos pos,List<EntityChunkMembershipState.Pending> written) {
+        var markers=new HashMap<String,Marker>();
+        for(var update:written)markers.put(update.latest().key(),update.latest().marker());
+        synchronized(desired) {
+            var current=membership.get(pos);
+            if(current!=null)membership.put(pos,current.stream()
+                    .map(update->update.acknowledged(markers.get(update.latest().key()))).toList());
+        }
+    }
     private List<EntityChunkRemovalState.Removal> snapshot(ChunkPos pos){synchronized(desired){return desired.getOrDefault(pos,List.of());}}
     private CompletableFuture<Void> preceding(ChunkPos pos){synchronized(writes){return writes.getOrDefault(pos,CompletableFuture.completedFuture(null));}}
     public CompletableFuture<Optional<CompoundTag>> readForLoad(ChunkPos pos) {
@@ -68,8 +82,11 @@ public final class EntityStorageEvidence {
             if(pendingWrites==MAX_PENDING_WRITES){failure=new IOException("Native metadata queue full; previous file retained");return CompletableFuture.failedFuture(failure);}
             var prior=writes.getOrDefault(pos,CompletableFuture.completedFuture(null));pendingWrites++;
             var next=prior.thenCompose(ignored->access.read(pos)).thenComposeAsync(previous->{
-                CompoundTag merged=EntityChunkRecord.merge(previous.orElse(null),root.get(),dimension,pos,wanted,members);
-                if(EntityChunkRecord.hasMetadata(merged))retain(pos);return access.write(pos,merged);
+                var merged=EntityChunkRecord.mergeStaged(previous.orElse(null),root.get(),dimension,pos,wanted,members);
+                if(EntityChunkRecord.hasMetadata(merged.root()))retain(pos);
+                return access.write(pos,merged.root()).thenRun(()->{
+                    if(merged.membershipWritten())acknowledgeMembership(pos,members);
+                });
             },metadataWorker);
             writes.put(pos,next);next.whenComplete((ignored,error)->{synchronized(writes){pendingWrites--;if(error!=null)failure=error;else if(retained.contains(pos))revisions.merge(pos,1L,Math::addExact);}});return next;
         }

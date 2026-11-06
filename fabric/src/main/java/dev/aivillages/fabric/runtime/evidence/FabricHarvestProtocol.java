@@ -339,12 +339,15 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     Participant actorSnapshot(Villager actor,boolean activate) {
         var state=((DepositParticipant)actor).cognitivecraft$depositParticipant();if(activate)state.activate();
         if(!state.active() || !state.valid())throw new IllegalStateException("Invalid native harvest actor");
-        var slots=new ArrayList<Slot>();var stacks=new ArrayList<ItemStack>();var inventory=actor.getInventory();
-        for(int n=0;n<inventory.getContainerSize();n++) {
-            ItemStack stack=inventory.getItem(n);stacks.add(stack);
+        var inventory=actor.getInventory();
+        int size=inventory.getContainerSize();
+        var slots=new ArrayList<Slot>(size);var stacks=activate?new ArrayList<ItemStack>(size):null;
+        for(int n=0;n<size;n++) {
+            ItemStack stack=inventory.getItem(n);
             if(stack.isEmpty())slots.add(EMPTY_SLOT);
             else {
                 if(!ItemStack.isSameItemSameComponents(stack,new ItemStack(stack.getItem())))throw new IllegalArgumentException("Native harvest actor components");
+                if(activate)stacks.add(stack);
                 slots.add(new Slot(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),stack.getCount()));
             }
         }

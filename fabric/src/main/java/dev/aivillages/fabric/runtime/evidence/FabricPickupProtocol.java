@@ -34,9 +34,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final class NativeTicket implements Ticket {
         final Request request;final Action action;final FabricHarvestProtocol.PickupLineage lineage;final NativePickup.Intent intent;final Reason failure;
         final Jobs.Job authority;
+        final List<NativePickup.Chunk> chunks;
         boolean acknowledged,forgotten;Marker actorPredecessor;
-        NativeTicket(Request r,Action a,FabricHarvestProtocol.PickupLineage l,NativePickup.Intent i,Reason f,Jobs.Job authority){
-            request=r;action=a;lineage=l;intent=i;failure=f;this.authority=authority;
+        NativeTicket(Request r,Action a,FabricHarvestProtocol.PickupLineage l,NativePickup.Intent i,Reason f,Jobs.Job authority,List<NativePickup.Chunk> chunks){
+            request=r;action=a;lineage=l;intent=i;failure=f;this.authority=authority;this.chunks=chunks;
         }
     }
     public FabricPickupProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,FabricHarvestProtocol harvest,
@@ -84,16 +85,18 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var k=h.intent().key();
             var intent=new NativePickup.Intent(new Key(k.world(),k.root(),k.step(),k.attempt(),k.generation(),2),h,request.operation(),request.expected(),conditions,lineage.actorTrail(),lineage.dropTrail());
             var port=NativeEntityStorage.get(level);if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
-            for(var member:NativePickup.members(intent))frame(member.chunk());
-            var ticket=new NativeTicket(request,action,lineage,intent,null,job);tickets.add(ticket);return ticket;
-        }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null);}
+            var touched=new LinkedHashSet<>(lineage.actorTrail().chunks());touched.addAll(lineage.dropTrail().chunks());
+            var chunks=List.copyOf(touched);
+            for(var chunk:chunks)frame(chunk);
+            var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);return ticket;
+        }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null,List.of());}
         finally{if(captureNanos.size()==128)captureNanos.removeFirst();captureNanos.addLast(System.nanoTime()-began);}
     }
     public Progress poll(Ticket value) {
         check();if(!(value instanceof NativeTicket ticket) || ticket.forgotten || closed)return failed();
         if(ticket.failure!=null || !tickets.contains(ticket))return failed();
-        for(var member:NativePickup.members(ticket.intent)) {
-            var frame=frame(member.chunk());if(frame==null)return new Progress(Code.PENDING,null);
+        for(var chunk:ticket.chunks) {
+            var frame=frame(chunk);if(frame==null)return new Progress(Code.PENDING,null);
             if(!frame.supported())return failed();
         }
         try{ticket.actorPredecessor=actorPredecessor(ticket);}catch(RuntimeException unprovedSuccessor){return failed();}
@@ -180,8 +183,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private Marker actorPredecessor(NativeTicket ticket) {
         Marker predecessor=null;var intent=ticket.intent;var before=intent.harvest().intent().actorBefore();
         for(var c:intent.actorTrail().chunks()) {
-            var f=Objects.requireNonNull(frame(c));var state=EntityChunkMembershipState.load(f.metadata(),c.dimension(),f.position(),f.members());
-            if(!state.valid())throw new IllegalStateException("Unsupported prior membership");var row=state.row(intent.actorTrail().entity());if(row==null)continue;
+            var f=Objects.requireNonNull(frame(c));
+            if(!f.supported())throw new IllegalStateException("Unsupported prior membership");var row=f.membership(intent.actorTrail().entity());if(row==null)continue;
             if(row.marker().effect().equals(intent.key().token()))continue;
             if(deposits==null || deposits.fenced() || deposits.pending())throw new IllegalStateException("Unproved prior actor custody");
             var match=deposits.snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null && e.verification()!=null
@@ -203,7 +206,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     }
     private NativePickup.Trail savedTrail(NativePickup.Trail original) {
         var f=frame(original.chunks().getFirst());if(f==null || !f.supported())return null;
-        var state=EntityChunkMembershipState.load(f.metadata(),original.current().dimension(),f.position(),f.members());var row=state.row(original.entity());
+        var row=f.membership(original.entity());
         return row==null?null:row.trail();
     }
     private NativePickup.Observation observeCohort(Participant expectedActor,NativeHarvest.Source expectedSource,NativePickup.Trail actorTrail,NativePickup.Trail dropTrail) {
@@ -221,7 +224,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         for(var member:refs) {
             var c=member.chunk();if(level.getChunkSource().getChunkNow(c.x(),c.z())==null)return null;
             var f=frame(c);if(f==null || !f.supported())return null;
-            var state=EntityChunkMembershipState.load(f.metadata(),c.dimension(),f.position(),f.members());var row=state.row(member.entity());if(row==null)return null;
+            var row=f.membership(member.entity());if(row==null)return null;
             var witness=new NativePickup.TrailWitness(row.trail(),row.marker(),true);
             if(member.role()==NativePickup.Role.ACTOR){if(at!=null&&!at.equals(witness))return null;at=witness;}else{if(dt!=null&&!dt.equals(witness))return null;dt=witness;}
             members.add(new NativePickup.MembershipWitness(member,row.trail().incarnation(),row.revision(),row.marker(),true,f.members().contains(member.entity()),present(member.entity(),c),f.digest()));

@@ -650,24 +650,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 "plank-container:"+p.asLong()+":"+System.identityHashCode(c));
     }
     private static ItemContainerCapacity.Sample itemCapacity(Container c,ItemStack item) {
+        int itemLimit=Math.min(item.getMaxStackSize(),c.getMaxStackSize(item));
         return ItemContainerCapacity.inspect(c.getContainerSize(),slot -> {
             ItemStack current=c.getItem(slot);
-            int limit=Math.min(item.getMaxStackSize(),c.getMaxStackSize(item));
-            if(!current.isEmpty()) limit=Math.min(limit,current.getMaxStackSize());
+            int limit=current.isEmpty()?itemLimit:Math.min(itemLimit,current.getMaxStackSize());
             return new ItemContainerCapacity.Slot(c.canPlaceItem(slot,item),current.isEmpty(),
                     ItemStack.isSameItemSameComponents(current,item),current.getCount(),limit);
         });
     }
-    private static String logInventoryFingerprint(Container c,ResourceDelivery.ItemIdentity item) {
-        // Default oak stacks are fungible, but their slot/count footprint may not change
-        // outside a witnessed pickup/transfer. Other slots still affect live capacity.
-        StringBuilder rows=new StringBuilder();
-        for(int i=0;i<c.getContainerSize();i++) {
-            ItemStack stack=c.getItem(i);
-            rows.append(i).append(':').append(stack.isEmpty() ? "empty" :
-                    defaultLog(stack,item) ? (item.equals(ResourceDelivery.OAK_LOG) ? "oak" : "birch") : stack.is(FabricResourceItems.item(item)) ? (item.equals(ResourceDelivery.OAK_LOG) ? "unsupported-oak" : "unsupported-birch") : "other")
-                    .append(':').append(stack.getCount()).append(';');
-        }
+    private static String logInventoryFingerprint(StringBuilder rows) {
         try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                 .digest(rows.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
         catch(java.security.NoSuchAlgorithmException impossible) { throw new AssertionError(impossible); }
@@ -695,15 +686,28 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(v==null || !loaded(v.blockPosition()))
             return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",null);
         Container c=v.getInventory(); long quantity=0; Reason reason=null;
-        if(c.getContainerSize()>128) return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",Reason.BUDGET_EXHAUSTED);
-        for(int slot=0;slot<c.getContainerSize();slot++) {
+        int size=c.getContainerSize();
+        if(size>128) return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",Reason.BUDGET_EXHAUSTED);
+        var nativeItem=FabricResourceItems.item(item);
+        var prototype=new ItemStack(nativeItem);
+        String log=item.equals(ResourceDelivery.OAK_LOG)?"oak":"birch";
+        String unsupported="unsupported-"+log;
+        // Bind the amount and its exact slot/count fingerprint to the same inventory read.
+        var rows=new StringBuilder();
+        for(int slot=0;slot<size;slot++) {
             ItemStack stack=c.getItem(slot);
-            if(defaultLog(stack,item)) quantity=Math.addExact(quantity,stack.getCount());
-            else if(stack.is(FabricResourceItems.item(item))) reason=Reason.TARGET_INVALID;
+            String kind="other";
+            if(stack.isEmpty())kind="empty";
+            else if(ItemStack.isSameItemSameComponents(stack,prototype)) {
+                kind=log;quantity=Math.addExact(quantity,stack.getCount());
+            }else if(stack.is(nativeItem)) {
+                kind=unsupported;reason=Reason.TARGET_INVALID;
+            }
+            rows.append(slot).append(':').append(kind).append(':').append(stack.getCount()).append(';');
         }
-        var capacity=itemCapacity(c,new ItemStack(FabricResourceItems.item(item)));
+        var capacity=itemCapacity(c,prototype);
         return new ItemStock(ObservationStatus.PRESENT,"actor:"+actor.entityId(),quantity,capacity.capacity(),
-                logInventoryFingerprint(c,item),reason);
+                logInventoryFingerprint(rows),reason);
     }
     @Override public ItemStock resourceContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
         if(item.equals(ResourceDelivery.BIRCH_PLANKS) || item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {

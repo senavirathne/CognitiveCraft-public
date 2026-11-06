@@ -283,11 +283,13 @@ public final class FabricDepositProtocol implements DepositProtocol {
     }
     private Participant snapshot(Kind kind,String dimension,String address,DepositParticipantState state,Container inventory,boolean activate) {
         if(activate)state.activate();if(!state.valid())throw new IllegalStateException("Native deposit metadata invalid");
-        var slots=new ArrayList<Slot>();var stacks=new ArrayList<ItemStack>();
-        for(int n=0;n<inventory.getContainerSize();n++) {
-            ItemStack stack=inventory.getItem(n);stacks.add(stack);
+        int size=inventory.getContainerSize();
+        var slots=new ArrayList<Slot>(size);var stacks=activate?new ArrayList<ItemStack>(size):null;
+        for(int n=0;n<size;n++) {
+            ItemStack stack=inventory.getItem(n);
             if(stack.isEmpty()){slots.add(EMPTY_SLOT);continue;}
             if(!ItemStack.isSameItemSameComponents(stack,new ItemStack(stack.getItem())))throw new IllegalArgumentException("Native deposit component envelope");
+            if(activate)stacks.add(stack);
             slots.add(new Slot(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),stack.getCount()));
         }
         if(activate)state.track(stacks);

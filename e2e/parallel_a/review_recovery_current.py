@@ -31,7 +31,7 @@ def modules(repo):
               ('core','dev.aivillages.core.kernel.runtime.evidence.NativeDigestsTest',3),
               ('fabric','dev.aivillages.fabric.runtime.evidence.LiveDropCustodyTest',3),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityTrailRecordTest',5),
-              ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkMembershipStateTest',7),
+              ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkMembershipStateTest',8),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkRemovalStateTest',16)]
     for module,suite,number in required:
         tree=ET.parse(repo/module/'build/test-results/test'/('TEST-'+suite+'.xml')).getroot()
@@ -112,51 +112,46 @@ def one(root,case):
     return {'originalCase':case,'status':'PASS_INDEPENDENT_ORIGINAL_REVIEW','key':key,'owner':owner,
             'nativeCustodyNoReplay':True,'originalOwnerSettled':True,'nativeProof':{'before':before,'after':after}}
 
-def controls(root):
-    required={'source-replacement-HARVEST','source-replacement-PICKUP','source-replacement-DEPOSIT','unrelated-native-progress',
-              'unsaved-pickup-containment','two-unit-prepared-no-effect','two-unit-delivered-remaining-one','expired-original-accounting','representative-active-cost'}
-    report=read(root/'a06-controls-results.json');assert report['status']=='PASS_ALL_REQUIRED_NATIVE_CONTROLS'
-    assert set(report['required'])==required and {r['id'] for r in report['cases']}==required and len(report['cases'])==len(required)
-    assert all(r['status'].startswith('PASS_') for r in report['cases'])
-    reviews=[]
-    for name in sorted(required-{'unrelated-native-progress','representative-active-cost'}):
-        directory=root/'controls'/name;r=read(directory/'result.json');world=directory/'terminal-world'
-        assert manifest(world)==r['terminalWorldHashes'] and r['modelCallsBefore']==r['modelCallsAfter']
-        if name.startswith('source-replacement-'):
-            key=r['originalKey'];job,a=original_row(world,key);assert a['uncertain'] and job['state']!='CANCELLED'
-            actual=source_row(world,r['expectedSource']);assert (actual['incarnation'],actual['revision'])!=(r['expectedSource']['incarnation'],r['expectedSource']['revision'])
-            assert block_name(world,[r['expectedSource'][k] for k in ('x','y','z')])=='minecraft:air'
-            if name=='source-replacement-PICKUP':
-                other=r['unrelated'];other_job=other['view']['responsibility'];p=native_saved(world,'DEPOSIT',job_id=other_job['id'])
-                raw,_=original_row(world,p['key']);assert raw['state']=='SUCCEEDED' and raw['attempts'][-1]['credited']==1
-        elif name=='unsaved-pickup-containment':
-            _,rows=journal(directory/'killed-world/data/cognitivecraft/pickup-evidence/v1/state.jsonl');assert len(rows)==1 and rows[0].get('result') is None
-            job,a=original_row(world,r['key']);assert job['state']!='CANCELLED' and a['uncertain'] and r['settlementClaim'] is False and r['resumedCompletion'] is False
-            assert r['reached']['point']=='AFTER_MUTATION' and r['reached']['commands']==[{'command':'tick freeze','result':1}]
-        elif name=='two-unit-prepared-no-effect':
-            p=prepared_deposit(directory/'killed-world',r['originalCase']);assert p==r['independentNative']
-            job,a=original_row(world,r['key']);assert job['state']=='CANCELLED' and not a['uncertain'] and a['effects']==2 and a['credited']==0
-            assert [v['stage'] for v in a['resourceReceipts']]==['HARVEST','PICKUP']
-            actual=prepared_deposit(world,r['originalCase'])['pickupProof']['native'];expected=p['pickupProof']['native']
-            assert {k:v for k,v in actual.items() if k!='memberships'}=={k:v for k,v in expected.items() if k!='memberships'}
-        elif name=='two-unit-delivered-remaining-one':
-            before=native_saved(directory/'killed-world','DEPOSIT',r['originalCase']);assert before==r['independentNative']
-            _,jobs=journal(world/'data/cognitivecraft/jobs/v1/state.jsonl');job=next(j for j in jobs if j.get('id')==r['key']['step'])
-            assert job['state']=='SUCCEEDED' and len(job['attempts'])==2 and job['generation']==r['key']['generation']+1
-            first,last=job['attempts'];assert first['id']==r['key']['attempt'] and first['credited']==last['credited']==1 and first['effects']==last['effects']==3
-            assert not first['uncertain'] and not last['uncertain']
-            # The durable attempt request, rather than a driver-supplied count, binds the remaining one.
-            assert last['request']['request']['arguments']['amount']['value']==1
-            after=native_saved(world,'DEPOSIT',r['originalCase'],job_id=job['id'],attempt_id=last['id'],chest_units=2)
-            assert sum(s['count'] for s in after['deposit']['result']['chest']['slots'])==2
-            assert first['allowance']['deadline']==last['allowance']['deadline']==job['allowance']['deadline']
-            assert all(v<=job['allowance']['maxima'][k] for k,v in job['usage'].items())
-            replaced(r['restart']);replaced(r['terminalRestart'])
-        else:
-            assert r['observedAt']>r['deadline'] and r['originalJob']['allowance']['deadlineEpochMillis']==r['deadline']
-            job,a=original_row(world,r['key']);assert job['state']=='CANCELLED' and not a['uncertain']
-            assert job['allowance']['deadline']==r['deadline'] and job['generation']==r['key']['generation']
-        reviews.append({'id':name,'status':'PASS_INDEPENDENT_NATIVE_CONTROL'})
+def review_control(root,name):
+    directory=root/'controls'/('source-replacement-PICKUP' if name=='unrelated-native-progress' else name)
+    r=read(directory/'result.json');world=directory/'terminal-world'
+    assert manifest(world)==r['terminalWorldHashes'] and r['modelCallsBefore']==r['modelCallsAfter']
+    if name.startswith('source-replacement-'):
+        key=r['originalKey'];job,a=original_row(world,key);assert a['uncertain'] and job['state']!='CANCELLED'
+        actual=source_row(world,r['expectedSource']);assert (actual['incarnation'],actual['revision'])!=(r['expectedSource']['incarnation'],r['expectedSource']['revision'])
+        assert block_name(world,[r['expectedSource'][k] for k in ('x','y','z')])=='minecraft:air'
+    elif name=='unrelated-native-progress':
+        other=r['unrelated'];other_job=other['view']['responsibility'];p=native_saved(world,'DEPOSIT',job_id=other_job['id'])
+        raw,_=original_row(world,p['key']);assert raw['state']=='SUCCEEDED' and raw['attempts'][-1]['credited']==1
+    elif name=='unsaved-pickup-containment':
+        _,rows=journal(directory/'killed-world/data/cognitivecraft/pickup-evidence/v1/state.jsonl');assert len(rows)==1 and rows[0].get('result') is None
+        job,a=original_row(world,r['key']);assert job['state']!='CANCELLED' and a['uncertain'] and r['settlementClaim'] is False and r['resumedCompletion'] is False
+        assert r['reached']['point']=='AFTER_MUTATION' and r['reached']['commands']==[{'command':'tick freeze','result':1}]
+    elif name=='two-unit-prepared-no-effect':
+        p=prepared_deposit(directory/'killed-world',r['originalCase']);assert p==r['independentNative']
+        job,a=original_row(world,r['key']);assert job['state']=='CANCELLED' and not a['uncertain'] and a['effects']==2 and a['credited']==0
+        assert [v['stage'] for v in a['resourceReceipts']]==['HARVEST','PICKUP']
+        actual=prepared_deposit(world,r['originalCase'])['pickupProof']['native'];expected=p['pickupProof']['native']
+        assert {k:v for k,v in actual.items() if k!='memberships'}=={k:v for k,v in expected.items() if k!='memberships'}
+    elif name=='two-unit-delivered-remaining-one':
+        before=native_saved(directory/'killed-world','DEPOSIT',r['originalCase']);assert before==r['independentNative']
+        _,jobs=journal(world/'data/cognitivecraft/jobs/v1/state.jsonl');job=next(j for j in jobs if j.get('id')==r['key']['step'])
+        assert job['state']=='SUCCEEDED' and len(job['attempts'])==2 and job['generation']==r['key']['generation']+1
+        first,last=job['attempts'];assert first['id']==r['key']['attempt'] and first['credited']==last['credited']==1 and first['effects']==last['effects']==3
+        assert not first['uncertain'] and not last['uncertain']
+        # The durable attempt request, rather than a driver-supplied count, binds the remaining one.
+        assert last['request']['request']['arguments']['amount']['value']==1
+        after=native_saved(world,'DEPOSIT',r['originalCase'],job_id=job['id'],attempt_id=last['id'],chest_units=2)
+        assert sum(s['count'] for s in after['deposit']['result']['chest']['slots'])==2
+        assert first['allowance']['deadline']==last['allowance']['deadline']==job['allowance']['deadline']
+        assert all(v<=job['allowance']['maxima'][k] for k,v in job['usage'].items())
+        replaced(r['restart']);replaced(r['terminalRestart'])
+    else:
+        assert r['observedAt']>r['deadline'] and r['originalJob']['allowance']['deadlineEpochMillis']==r['deadline']
+        job,a=original_row(world,r['key']);assert job['state']=='CANCELLED' and not a['uncertain']
+        assert job['allowance']['deadline']==r['deadline'] and job['generation']==r['key']['generation']
+
+def review_cost(root):
     directory=root/'controls/representative-active-cost';cost=read(directory/'result.json');windows=[read(p) for p in sorted(directory.glob('cost-*.json'))]
     assert len(windows)==cost['windows']==11 and cost['nativeEffects']==33
     ticks=[];capture={'HARVEST':[],'PICKUP':[],'DEPOSIT':[]};ack=[]
@@ -172,10 +167,32 @@ def controls(root):
     assert wheat_samples and len(wheat_samples)==cost['requiredWheatSamples']
     capture['HARVEST']+=wheat_samples
     def percentile(values,p):assert values;return sorted(values)[max(0,math.ceil(len(values)*p/100)-1)]/1e6
-    assert percentile(ticks,95)<=20 and percentile(ticks,99)<=40 and all(percentile(v,99)<=2 for v in capture.values()) and max(ack)/1e6<=30000
+    measured={'tickP95':percentile(ticks,95),'tickP99':percentile(ticks,99),
+              'captureP99':{s:percentile(v,99) for s,v in capture.items()},'ackMax':max(ack)/1e6}
+    assert measured['tickP95']<=20 and measured['tickP99']<=40 and all(v<=2 for v in measured['captureP99'].values()) and measured['ackMax']<=30000,measured
     assert cost['status']=='PASS_REPRESENTATIVE_ACTIVE_COST' and cost['warmupExcluded'] is False
-    reviews.extend([{'id':'unrelated-native-progress','status':'PASS_INDEPENDENT_NATIVE_CONTROL'},{'id':'representative-active-cost','status':'PASS_INDEPENDENT_NATIVE_CONTROL','activeTicks':len(ticks)}])
-    return {'status':'PASS_INDEPENDENT_REQUIRED_CONTROLS','cases':reviews}
+    return {'activeTicks':len(ticks),'measuredMillis':measured}
+
+def controls(root):
+    required={'source-replacement-HARVEST','source-replacement-PICKUP','source-replacement-DEPOSIT','unrelated-native-progress',
+              'unsaved-pickup-containment','two-unit-prepared-no-effect','two-unit-delivered-remaining-one','expired-original-accounting','representative-active-cost'}
+    report=read(root/'a06-controls-results.json')
+    assert set(report['required'])==required and {r['id'] for r in report['cases']}==required and len(report['cases'])==len(required)
+    reviews=[]
+    for row in report['cases']:
+        name=row['id']
+        try:
+            details=review_cost(root) if name=='representative-active-cost' else (review_control(root,name) or {})
+            assert row['status'].startswith('PASS_'),row.get('reason') or row['status']
+            review={'id':name,'status':'PASS_INDEPENDENT_NATIVE_CONTROL',**details}
+        except Exception as error:
+            review={'id':name,'status':'FAIL_INDEPENDENT_NATIVE_CONTROL','nativeStatus':row['status'],
+                    'nativeReason':row.get('reason'),'reason':str(error) or type(error).__name__}
+        reviews.append(review)
+        print('A06_INDEPENDENT_CONTROL '+json.dumps(review),flush=True)
+    passed=all(r['status']=='PASS_INDEPENDENT_NATIVE_CONTROL' for r in reviews)
+    status='PASS_INDEPENDENT_REQUIRED_CONTROLS' if passed and report['status']=='PASS_ALL_REQUIRED_NATIVE_CONTROLS' else 'FAIL_REQUIRED_CONTROL_REVIEW'
+    return {'status':status,'cases':reviews}
 
 def review(root,repo,out,source):
     out.mkdir(parents=True,exist_ok=True);value={'schema':1,'source':source,'status':'FAIL_REQUIRED_ORIGINAL_REVIEW','originalOwnerSettlements':0,'a06Qualified':False}
@@ -211,8 +228,12 @@ def review(root,repo,out,source):
             original_review=complete(cases,reviews)
             value.update(original_review)
             value.update(originalStatus=original_review['status'],status='FAIL_REQUIRED_CONTROL_REVIEW')
-            value['controls']=controls(root)
-            value['status']=original_review['status']
+        value['controls']=controls(root)
+        if value['controls']['status']!='PASS_INDEPENDENT_REQUIRED_CONTROLS':
+            failures.extend(r for r in value['controls']['cases'] if r['status']!='PASS_INDEPENDENT_NATIVE_CONTROL')
+            if not failures:failures.append({'id':'controls','reason':'Native control campaign summary failed'})
+        if not failures:
+            value['status']=value['originalStatus']
             value['claim']='Twelve saved originals and their required native controls independently reviewed. Full branch qualification additionally requires every related host regression.'
     except Exception as error:failures.append({'id':'campaign','reason':str(error),'trace':traceback.format_exc()})
     value.update(failures=failures,reviews=reviews)

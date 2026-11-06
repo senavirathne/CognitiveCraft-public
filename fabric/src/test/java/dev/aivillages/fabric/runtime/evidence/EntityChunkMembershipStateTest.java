@@ -3,6 +3,8 @@ package dev.aivillages.fabric.runtime.evidence;
 import dev.aivillages.core.kernel.runtime.evidence.*;
 import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.*;
 import net.minecraft.world.level.ChunkPos;
@@ -50,6 +52,29 @@ final class EntityChunkMembershipStateTest {
         assertThrows(IllegalArgumentException.class,()->EntityChunkRecord.merge(initial,nativeFrame(a,true),dim,a,List.of(),List.of(row(a,true,d,null))));
         var next=EntityChunkRecord.merge(initial,nativeFrame(a,true),dim,a,List.of(),List.of(row(a,true,d,marker)));
         assertTrue(EntityChunkRecord.read(next,dim,a).supported());
+    }
+    @Test void stagedPickupAndDepositKeepTheSavedPredecessorAcrossBothNativeWriteOrders(){
+        var pickup=new Marker("d".repeat(64),"e".repeat(64),MarkerPhase.RESULT,"f".repeat(64));
+        var deposit=new Marker("1".repeat(64),"2".repeat(64),MarkerPhase.RESULT,"3".repeat(64));
+        for(boolean savePickup:List.of(false,true)) {
+            var saved=new AtomicReference<>(EntityChunkRecord.merge(null,nativeFrame(a,true),dim,a,List.of(),List.of(row(a,true,marker,null))));
+            var port=new EntityStorageEvidence(new EntityStorageEvidence.Access(){
+                public CompletableFuture<Optional<CompoundTag>> read(ChunkPos pos){return CompletableFuture.completedFuture(Optional.of(saved.get().copy()));}
+                public CompletableFuture<Void> write(ChunkPos pos,CompoundTag root){
+                    saved.set(root.copy());
+                    return CompletableFuture.completedFuture(null);
+                }
+            },dim,Runnable::run);
+            assertTrue(port.stageMembership(a,row(a,true,pickup,marker)));
+            if(savePickup)port.write(a,nativeFrame(a,true)).join();
+            assertFalse(port.stageMembership(a,row(a,true,deposit,marker)));
+            assertTrue(port.stageMembership(a,row(a,true,deposit,pickup)));
+            port.write(a,nativeFrame(a,true)).join();
+            assertEquals(row(a,true,deposit,pickup),port.readFrame(a).join().membership(entity));
+            assertTrue(port.stageMembership(a,row(b,false,deposit,null)));
+            port.write(a,nativeFrame(a,false)).join();
+            assertEquals(row(b,false,deposit,pickup),port.readFrame(a).join().membership(entity));
+        }
     }
     @Test void unknownNativeMembershipIsPreservedWithoutAuthority(){
         var unknown=nativeFrame(a,false);unknown.putInt(EntityChunkMembershipState.TAG,77);

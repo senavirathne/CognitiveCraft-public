@@ -99,6 +99,8 @@ public final class KernelSession implements AutoCloseable {
     private LanguageRequests language;
     private ServerPlayer interpretingPlayer;
     private Loaded loaded;
+    private record CatalogDisplay(VersionedSkillRepository.CatalogRevision revision,String rows) { }
+    private volatile CatalogDisplay catalogDisplay;
     private BootstrapController controller;
     private SurvivalGateway gateway;
     private FabricGatewayWorld worldAccess;
@@ -1638,14 +1640,24 @@ public final class KernelSession implements AutoCloseable {
         ready(); var owner = caller(player);
         if (citizens.snapshot().citizens().stream().noneMatch(c -> c.owner().equals(owner)))
             throw new SecurityException("This kernel catalog requires an enrolled citizen in your scope");
-        var page = loaded.repository().page(CropDelivery.ID, "", 8);
-        var birch=loaded.repository().page(BirchLogDelivery.ID,"",8);var birchPlanks=loaded.repository().page(BirchPlankProduction.ID,"",8);
-        var oak=loaded.repository().page(OakLogDelivery.ID,"",8);
-        var planks=loaded.repository().page(OakPlankProduction.ID,"",8);
-        var sticks=loaded.repository().page(StickProduction.ID,"",8);
-        var axes=loaded.repository().page(WoodenAxeProduction.ID,"",8);
-        var tables=loaded.repository().page(CraftingTableProduction.ID,"",8);
-        var placement=loaded.repository().page(CraftingTablePlacement.ID,"",8);
+        var repository=loaded.repository();
+        var revision=repository.catalogRevision();
+        var display=catalogDisplay;
+        if(display==null || !display.revision().equals(revision) || !revision.available()) {
+            display=new CatalogDisplay(revision,catalogRows(repository));
+            if(revision.available() && repository.catalogRevision().equals(revision))catalogDisplay=display;
+        }
+        return display.rows()+" recentModelCalls="+controller.modelCalls(owner)+" inference="+controller.inferenceEnabled();
+    }
+    private String catalogRows(VersionedSkillRepository repository) {
+        var page = repository.page(CropDelivery.ID, "", 8);
+        var birch=repository.page(BirchLogDelivery.ID,"",8);var birchPlanks=repository.page(BirchPlankProduction.ID,"",8);
+        var oak=repository.page(OakLogDelivery.ID,"",8);
+        var planks=repository.page(OakPlankProduction.ID,"",8);
+        var sticks=repository.page(StickProduction.ID,"",8);
+        var axes=repository.page(WoodenAxeProduction.ID,"",8);
+        var tables=repository.page(CraftingTableProduction.ID,"",8);
+        var placement=repository.page(CraftingTablePlacement.ID,"",8);
         return "catalog=" + page.candidates().stream().map(candidate ->
                 candidate.ref().sha256() + "/" + candidate.admission() + "/"
                         + candidate.compatibility().status()).toList()
@@ -1657,8 +1669,7 @@ public final class KernelSession implements AutoCloseable {
                 + " axeCatalog="+axes.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " tableItemCatalog="+tables.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
                 + " placementCatalog="+placement.candidates().stream().map(c->c.ref().sha256()+"/"+c.admission()+"/"+c.compatibility().status()).toList()
-                + " revision=" + page.revision() + " recentModelCalls=" + controller.modelCalls(owner)
-                + " inference=" + controller.inferenceEnabled();
+                + " revision=" + page.revision();
     }
 
     public CitizenRegistry.Change name(ServerPlayer player, UUID citizenId, String name) {
