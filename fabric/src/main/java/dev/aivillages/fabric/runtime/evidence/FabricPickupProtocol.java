@@ -48,6 +48,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.harvest=Objects.requireNonNull(harvest);this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
         NativePickup.initializeCaptureSchema();
+        NativeCaptureSchema.link(NativeTicket.class,DepositLineage.class);
         store=new PickupEvidenceStore(initial,harvest.evidence(),(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Pickup I/O on game thread");
             try{return journal.replace(expected,next);}catch(java.io.IOException error){throw new CompletionException(error);}
@@ -288,12 +289,14 @@ public final class FabricPickupProtocol implements PickupProtocol {
                 || !FabricHarvestProtocol.matchesResultMarker(source.marker(),p.token(),p.intent().digest(),p.result().digest())
                 || level.getEntity(p.intent().dropTrail().entity())!=null
                 || !harvest.actorMatches(actor,p.result().actor(),source.marker(),true))return null;
-        NativeJoinedDeposit.Prefix prefix;
-        try{prefix=new NativeJoinedDeposit.Prefix(p,harvest.actorTrail(link));}catch(RuntimeException gap){return null;}
-        // Acknowledgement, live participants, and the exact trail were just checked.
+        var exactPickup=p;
         descendant=p.token();
         try {
-            return harvest.descendantScope(link,preflight::getAsBoolean)?new DepositLineage(this,acknowledged,link,prefix):null;
+            return harvest.prepareDescendant(link,trail->{
+                NativeJoinedDeposit.Prefix prefix;
+                try{prefix=new NativeJoinedDeposit.Prefix(exactPickup,trail);}catch(RuntimeException gap){return null;}
+                return preflight.getAsBoolean()?new DepositLineage(this,acknowledged,link,prefix):null;
+            });
         }finally{descendant="";}
     }
     boolean currentDeposit(DepositLineage lineage) {

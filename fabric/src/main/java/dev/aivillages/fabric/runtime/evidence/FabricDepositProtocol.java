@@ -45,8 +45,8 @@ public final class FabricDepositProtocol implements DepositProtocol {
     public static final List<String> PREPARATION_PHASES=List.of("authority","owner","participants","claims","conditions","intent","exclusion");
     private final ArrayDeque<PreparationProfile> preparations=new ArrayDeque<>();
     public record PreparationProfile(List<Long> completedAtNanos,long bodyNanos) {public PreparationProfile{completedAtNanos=List.copyOf(completedAtNanos);}}
-    public record Metrics(List<Long> beginNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<PreparationProfile> preparations,long participantInitializationNanos,List<Long> captureCpuNanos) { }
-    public Metrics metrics(){check();return new Metrics(List.copyOf(beginNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(preparations),participantInitializationNanos,captureThreadTime.nanos());}
+    public record Metrics(List<Long> beginNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<PreparationProfile> preparations,long participantInitializationNanos,List<Long> captureCpuNanos,List<String> capturePhaseNames) { }
+    public Metrics metrics(){check();return new Metrics(List.copyOf(beginNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(preparations),participantInitializationNanos,captureThreadTime.nanos(),PREPARATION_PHASES);}
     private void measured(ArrayDeque<Long> values,long began){if(values.size()==128)values.removeFirst();values.addLast(System.nanoTime()-began);}
 
     private final class NativeTicket implements Ticket {
@@ -77,6 +77,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.clock=Objects.requireNonNull(clock);this.enabled=enabled;this.retainReceiptPrefix=retainReceiptPrefix;
         long initialized=System.nanoTime();NativeDeposit.initializeCaptureSchema();DepositStackOwners.initialize();
+        NativeCaptureSchema.link(Pair.class,NativeTicket.class,PreparationProfile.class);
         participantInitializationNanos=System.nanoTime()-initialized;
         store=new DepositEvidenceStore(initial,(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Deposit I/O executor ran on the game thread");

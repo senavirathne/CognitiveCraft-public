@@ -11,6 +11,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
@@ -140,9 +142,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     void observeActorTrail(PickupLineage lineage,java.util.function.Consumer<NativePickup.Trail> observer) {
         check();actorTrail(lineage);lineage.birth.actor.observe(observer);
     }
-    <T> T descendantScope(PickupLineage lineage,java.util.function.Supplier<T> action) {
-        check();actorTrail(lineage);if(!descendant.isEmpty())throw new IllegalStateException("Nested H descendant scope");
-        descendant=lineage.harvest().token();try{return action.get();}finally{descendant="";}
+    <T> T descendantScope(PickupLineage lineage,Supplier<T> action) {
+        return descendantScope(lineage,actorTrail(lineage),ignored->action.get());
+    }
+    <T> T prepareDescendant(PickupLineage lineage,Function<NativePickup.Trail,T> action) {
+        NativePickup.Trail trail;
+        try{trail=actorTrail(lineage);}catch(RuntimeException gap){return null;}
+        return descendantScope(lineage,trail,action);
+    }
+    private <T> T descendantScope(PickupLineage lineage,NativePickup.Trail trail,Function<NativePickup.Trail,T> action) {
+        if(!descendant.isEmpty())throw new IllegalStateException("Nested H descendant scope");
+        descendant=lineage.harvest().token();try{return action.apply(trail);}finally{descendant="";}
     }
     public List<MembershipBirth> membershipBirths() {
         check();var views=new ArrayList<MembershipBirth>();
@@ -163,6 +173,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
         NativeDeposit.initializeCaptureSchema();NativeHarvest.initializeCaptureSchema();DepositStackOwners.initialize();
+        HarvestSourceState.initializeCaptureSchema();
+        NativeCaptureSchema.link(Pair.class,NativeTicket.class,PickupLineage.class);
         store=new HarvestEvidenceStore(initial,(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Harvest I/O executor ran on the game thread");
             try{return journal.replace(expected,next);}catch(java.io.IOException error){throw new CompletionException(error);}

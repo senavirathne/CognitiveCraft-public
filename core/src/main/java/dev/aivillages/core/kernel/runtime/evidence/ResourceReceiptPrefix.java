@@ -12,7 +12,7 @@ public record ResourceReceiptPrefix(List<ResourceDelivery.Receipt> receipts) {
         var ids=new HashSet<UUID>();var operations=new HashSet<UUID>();var drops=new HashMap<UUID,UUID>();
         var batches=new HashMap<UUID,ResourceDelivery.Receipt>();var quantities=new HashMap<UUID,long[]>();
         for(var receipt:receipts) {
-            ResourceReceiptPrefixCodec.encode(receipt);
+            ResourceReceiptPrefixCodec.validate(receipt);
             if(!receipt.origin().equals(first.origin()) || !receipt.runId().equals(first.runId())
                     || !receipt.actor().equals(first.actor()) || !receipt.source().equals(first.source())
                     || !receipt.destination().equals(first.destination()) || !receipt.item().equals(first.item())

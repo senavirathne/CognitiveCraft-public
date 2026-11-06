@@ -186,7 +186,10 @@ def cost(h,seed,templates):
     for metrics in [w['metrics'] for w in windows]+[{'HARVEST':wheat_metrics}]:
         for stage,value in metrics.items():
             names=value.get('capturePhaseNames',[])
-            for row in value.get('capturePhaseNanos',[]):
+            rows=value.get('capturePhaseNanos')
+            if rows is None:
+                rows=(sample['completedAtNanos'] for sample in value.get('preparations',[]))
+            for row in rows:
                 previous=0
                 for name,end in zip(names,row):
                     if not end:break

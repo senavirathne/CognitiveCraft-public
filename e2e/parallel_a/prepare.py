@@ -64,7 +64,7 @@ deferred={
         '            }',
     'var data = pending.getAndSet(null);\n        if (data == null) return;':
         'var captured = pending.getAndSet(null);\n        if (captured == null) return;\n'
-        '        var encoded = captured instanceof JsonObject frame ? RuntimeAObservationJson.encode(frame) : null;\n'
+        '        var encoded = captured instanceof JsonObject frame ? RuntimeAObservationJson.encodeCapture(frame) : null;\n'
         '        String data = encoded != null ? encoded.data() : (String)captured;',
 }
 for original,replacement in deferred.items():

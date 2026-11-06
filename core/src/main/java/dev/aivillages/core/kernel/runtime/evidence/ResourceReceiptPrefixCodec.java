@@ -8,11 +8,14 @@ import static dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 /** Separate closed schema for actual log HARVEST/PICKUP/DEPOSIT data; old deposit receipt bytes stay unchanged. */
 final class ResourceReceiptPrefixCodec {
     private ResourceReceiptPrefixCodec() { }
-    static Map<String,Object> encode(ResourceDelivery.Receipt r) {
+    static void validate(ResourceDelivery.Receipt r) {
         if(!Set.of(ResourceDelivery.Stage.HARVEST,ResourceDelivery.Stage.PICKUP,ResourceDelivery.Stage.DEPOSIT).contains(r.stage())
                 || r.quantity()<1 || r.quantity()>64 || r.transformation()!=null || r.placement()!=null
                 || !Set.of("minecraft:oak_log","minecraft:birch_log").contains(r.item().id()) || !r.item().components().equals("default"))
             throw new IllegalArgumentException("Unsupported original resource prefix receipt");
+    }
+    static Map<String,Object> encode(ResourceDelivery.Receipt r) {
+        validate(r);
         var row=new LinkedHashMap<String,Object>();row.put("schema",1L);row.put("stage",r.stage().name());row.put("id",r.receiptId().toString());
         row.put("principal",r.origin().principal().id().toString());row.put("world",r.origin().scope().worldId().toString());row.put("domain",r.origin().scope().domainId().toString());
         row.put("run",r.runId().toString());row.put("operation",r.operationId().toString());row.put("batch",r.batchId().toString());row.put("citizen",r.actor().citizenId().toString());
@@ -31,7 +34,7 @@ final class ResourceReceiptPrefixCodec {
                 id(row,"run"),id(row,"operation"),id(row,"batch"),new ActorRef(id(row,"citizen"),id(row,"entity"),dimension),new Cuboid(dimension,s[0],s[1],s[2],s[3],s[4],s[5]),
                 new ContainerRef(dimension,d[0],d[1],d[2]),new ResourceDelivery.ItemIdentity(string(row,"item"),"default"),ResourceDelivery.Stage.valueOf(string(row,"stage")),number(row,"quantity"),
                 new ResourceDelivery.BlockPosition(dimension,b[0],b[1],b[2]),drops);
-        encode(receipt);return receipt;
+        validate(receipt);return receipt;
     }
     private static int[] cell(Map<String,Object> row,String key,int size) {
         if(!(row.get(key) instanceof List<?> list) || list.size()!=size)throw new IllegalArgumentException("Resource prefix coordinate");

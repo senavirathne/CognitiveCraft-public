@@ -44,12 +44,14 @@ public final class NativePickup {
                     || !key.attempt().equals(old.attempt()) || key.generation()!=old.generation()
                     || operation.equals(h.operation()) || requested<1 || requested>64
                     || r.drops().size()!=1 || r.receipt().quantity()>requested || !r.actor().equals(h.actorBefore())
-                    || h.actorBefore().slots().stream().anyMatch(s->s.count()!=0)
                     || h.conditions().usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=0
                     || h.conditions().usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)!=0
                     || r.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=1
                     || r.usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)!=1)
                 throw new IllegalArgumentException("Original first H/P binding");
+            for(var slot:h.actorBefore().slots()) {
+                if(slot.count()!=0)throw new IllegalArgumentException("Original first H/P binding");
+            }
             var drop=r.drops().getFirst();
             if(!actorTrail.entity().toString().equals(r.actor().address()) || !actorTrail.incarnation().equals(r.actor().incarnation())
                     || !dropTrail.entity().equals(drop.entity()) || !dropTrail.incarnation().equals(drop.incarnation())
@@ -63,10 +65,13 @@ public final class NativePickup {
                     || conditions.usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)!=1)
                 throw new IllegalArgumentException("Original pickup trail or cumulative allowance");
             for(var before:r.usage().entrySet())if(conditions.usage().getOrDefault(before.getKey(),0L)<before.getValue())throw new IllegalArgumentException("Pickup usage decreased");
-            Map<UUID,Claim> claims=new HashMap<>();h.conditions().claims().forEach(c->claims.put(c.id(),c));
+            var claims=h.conditions().claims();
             if(claims.size()!=conditions.claims().size())throw new IllegalArgumentException("Changed original pickup claims");
             for(Claim c:conditions.claims()) {
-                Claim prior=claims.get(c.id());
+                Claim prior=null;
+                for(Claim candidate:claims) {
+                    if(candidate.id().equals(c.id())){prior=candidate;break;}
+                }
                 if(prior==null || !prior.epoch().equals(c.epoch()) || !prior.group().equals(c.group()) || c.generation()<prior.generation())
                     throw new IllegalArgumentException("Changed original pickup claims");
             }

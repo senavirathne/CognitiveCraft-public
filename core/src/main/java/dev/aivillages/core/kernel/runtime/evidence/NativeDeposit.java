@@ -22,7 +22,8 @@ public final class NativeDeposit {
     }
     public static void initializeCaptureSchema() {
         initializeParticipantSchema();
-        initializeSchemas(Slot.class,Claim.class,Conditions.class,Key.class,Intent.class);
+        initializeSchemas(Slot.class,Claim.class,Conditions.class,Key.class,Intent.class,
+                ResourceReceiptPrefix.class,NativeJoinedDeposit.Prefix.class);
     }
     static void initializeSchemas(Class<?>... types) {
         for(Class<?> type:types) {

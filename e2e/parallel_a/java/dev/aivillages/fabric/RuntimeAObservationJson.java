@@ -27,9 +27,18 @@ public final class RuntimeAObservationJson {
     /** Writer-local scratch only; completed Strings never alias its mutable storage. */
     private static final class FrameBuffer extends Writer {
         private StringBuilder data=new StringBuilder(65536);
+        private JsonElement blockRows;
+        private String blockJson;
         int length(){return data.length();}
         String result(){return data.toString();}
         void recycle(){if(data.capacity()>RETAINED_BUFFER_CHARS)data=new StringBuilder(65536);else data.setLength(0);}
+        String encodeBlocks(JsonElement rows) {
+            if(rows==blockRows)return blockJson;
+            String encoded=JSON.toJson(rows);
+            if(encoded.length()<=RETAINED_BUFFER_CHARS){blockRows=rows;blockJson=encoded;}
+            else{blockRows=null;blockJson=null;}
+            return encoded;
+        }
         @Override public void write(char[] value,int offset,int length){data.append(value,offset,length);}
         @Override public void write(String value,int offset,int length){data.append(value,offset,offset+length);}
         @Override public void write(int value){data.append((char)value);}
@@ -116,10 +125,28 @@ public final class RuntimeAObservationJson {
     /** Encode every field, reusing only exact strings of immutable captured children. */
     public static String frame(JsonObject frame) {return encode(frame).data();}
     public static Encoded encode(JsonObject frame) {
+        return encode(frame,false);
+    }
+    /** The generated arena observer publishes complete, immutable block rows. */
+    static Encoded encodeCapture(JsonObject frame) {
+        return encode(frame,true);
+    }
+    private static Encoded encode(JsonObject frame,boolean immutableBlocks) {
         FrameBuffer output=FRAME_BUFFERS.get();output.recycle();
         var spans=new ArrayList<RuntimeAObservationLog.Span>();
         try {var writer=JSON.newJsonWriter(output);writer.setHtmlSafe(true);writer.setSerializeNulls(false);
-            write(frame,writer,rawLiterals,0,output,spans);writer.flush();
+            var literals=rawLiterals;
+            if(immutableBlocks) {
+                writer.beginObject();
+                for(var field:frame.entrySet()) {
+                    String name=field.getKey();
+                    writer.name(name);
+                    if(name.equals("blocks"))writer.jsonValue(output.encodeBlocks(field.getValue()));
+                    else write(field.getValue(),writer,literals,mode(0,name),output,spans);
+                }
+                writer.endObject();
+            }else write(frame,writer,literals,0,output,spans);
+            writer.flush();
             return new Encoded(output.result(),frame.has("time")?frame.get("time").getAsLong():-1,frame.has("pid")?frame.get("pid").getAsLong():-1,spans);
         }catch(IOException impossible){throw new IllegalStateException("In-memory observation encoding",impossible);}
         finally{output.recycle();}
@@ -189,6 +216,13 @@ public final class RuntimeAObservationJson {
         var replacedBlocks=blockRows.finish();
         if(replacedBlocks==firstBlocks || !replacedBlocks.get("2,208,1").getAsString().equals(stone)
                 || !JSON.toJson(firstBlocks).equals(JSON.toJson(expectedBlocks)))throw new IllegalStateException("Block capture reused stale or mutated published rows");
+        var beforeBlockFrame=new JsonObject();beforeBlockFrame.add("blocks",firstBlocks);beforeBlockFrame.add("rest",full);
+        var afterBlockFrame=new JsonObject();afterBlockFrame.add("blocks",replacedBlocks);afterBlockFrame.add("rest",full);
+        var encodedBefore=encodeCapture(beforeBlockFrame);
+        if(!encodedBefore.equals(encode(beforeBlockFrame)) || !encodeCapture(beforeBlockFrame).equals(encodedBefore)
+                || !encodeCapture(afterBlockFrame).equals(encode(afterBlockFrame))
+                || !encodeCapture(beforeBlockFrame).equals(encodedBefore))
+            throw new IllegalStateException("Cached block encoding changed full frame bytes or spans");
         blockRows.begin();
         if(blockRows.finish().size()!=0 || replacedBlocks.size()!=2)throw new IllegalStateException("Unloaded blocks stayed visible");
         System.out.println("A04_OBSERVATION_JSON_SELF_TEST_PASS exact-full-frame-bytes immutable-captures replacement-origin principal-filtered-views bounded-cache");

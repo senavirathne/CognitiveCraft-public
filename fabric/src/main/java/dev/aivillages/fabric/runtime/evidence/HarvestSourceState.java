@@ -17,6 +17,10 @@ public final class HarvestSourceState {
     private static final String ORIGINAL=TAG+"_original";
     private static final Map<BlockState,String> STATE_TEXT=new IdentityHashMap<>();
 
+    static void initializeCaptureSchema() {
+        NativeCaptureSchema.link(Position.class,Tracked.class);
+    }
+
     /** Block states are immutable. Always read the loaded state before using its canonical text. */
     public static synchronized String blockStateText(BlockState state) {
         if(state.isAir())return "minecraft:air";
