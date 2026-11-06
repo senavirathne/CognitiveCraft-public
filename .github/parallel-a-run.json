@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 31,
-  "parentSource": "af6eee8689d8d1e48b08800b882e5db121605b04",
+  "sequence": 32,
+  "parentSource": "b3c24fb3976f53732aaaaa2ba8205325b979a7ee",
   "stage": "A06",
-  "scope": "A06 exact-source qualification of same-call capture reuse and native wheat custody. Batch 30 independently settled all twelve originals and eight controls. The current capture and GP-22 changes require fresh qualification.",
+  "scope": "A06 exact-source qualification of bounded harvest stance recovery and faster native capture. Batch 31 passed all nine host regressions including GP-22, eleven original cases and six controls. W6-003 and capture cost require fresh qualification.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -908,22 +908,21 @@
     }
   },
   "latestOriginalCoverage": {
-    "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-    "source": "326b9209468afac3c561da61997cca5e8bdd3fba",
-    "tree": "e78dbef0ed3007461e42ef74a9636705bf0f5a6a",
-    "run": 42167606541,
-    "job": 127727599374,
+    "status": "FAIL_ONE_REQUIRED_ORIGINAL",
+    "source": "24aa8b4a6c0e6890fa4ff3be599c0863e705ed69",
+    "tree": "2677f29d8d5a989b5a3de2ce6686a841c5bed660",
+    "run": 42175702283,
+    "job": 127753536432,
     "attempt": 1,
-    "independentlyReviewedOriginalCases": 12,
+    "independentlyReviewedOriginalCases": 11,
     "requiredOriginalCases": 12,
     "stageCounts": {
       "HARVEST": 4,
-      "PICKUP": 4,
+      "PICKUP": 3,
       "DEPOSIT": 4
     },
     "originalCaseIds": [
       "W6-002",
-      "W6-003",
       "W6-004",
       "W6-008",
       "W6-009",
@@ -935,203 +934,326 @@
       "heldout-W6-009",
       "heldout-W6-010"
     ],
+    "failedCase": {
+      "id": "W6-003",
+      "stage": "PICKUP",
+      "item": "minecraft:oak_log",
+      "job": "f6e01515-e0da-4661-b874-c3f02e68beb5",
+      "attempt": "0e0717df-5025-4919-977c-b035936add0f",
+      "actualApproach": "Native route reached the intended log face, physical reach and line of sight",
+      "reason": "TARGET_UNAVAILABLE",
+      "effects": 0,
+      "credited": 0,
+      "actualCutReached": false,
+      "diagnosis": "Native harvest, pickup and deposit stores were empty after the zero-effect stop. The exact failed harvest eligibility predicate was not logged."
+    },
     "importedRecoverySettlements": 0,
     "a06Qualified": false
   },
   "currentValidation": {
-    "source": "3c673f20219098cf934279134453e9eecbbd2ea7",
-    "status": "PASS_ALL_TWELVE_ORIGINALS_CAPTURE_COST_AND_GP22_OPEN",
-    "nativeOriginalCasesThisBatch": 12,
-    "requiredOriginalCases": 12,
-    "nativeControls": 9,
-    "allOriginalCasesMandatory": true,
-    "widerControlsRequired": true,
-    "focusedPythonTests": 89,
-    "baselinePythonTests": 72,
-    "retainedAdmissionArtifact": 13311090608,
-    "importedRecoverySettlements": 0,
-    "qualifiedOriginalCasesPreviously": 12,
-    "tickLimitsMillis": {
-      "p95": 20,
-      "p99": 40,
-      "captureP99": 2,
-      "ackMax": 30000
-    },
-    "serverBudget": {
-      "cpuset": "0-1",
-      "availableProcessors": 2,
-      "heapMiB": [
-        256,
-        1536
-      ],
-      "g1HeapRegionMiB": 2,
-      "g1PauseTargetMillis": 10
-    },
-    "preservedRequiredWorkflows": 9,
-    "preservedRequiredJobs": 12,
-    "preservedRequiredSteps": 140,
-    "originalWorkloadsAndWindowsPreserved": true,
-    "testedSource": "326b9209468afac3c561da61997cca5e8bdd3fba",
-    "testedTree": "e78dbef0ed3007461e42ef74a9636705bf0f5a6a",
-    "run": 42167606541,
-    "job": 127727599374,
-    "originalsVerified": 12,
-    "nativeControlsPassed": 8,
-    "nativeControlsRequired": 9,
-    "failedControls": [
-      {
-        "id": "representative-active-cost",
-        "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
-        "nativeStatus": "FAIL_COST_TARGET",
-        "nativeReason": null,
-        "reason": "{'tickP95': 16.542091, 'tickP99': 28.738889, 'captureP99': {'HARVEST': 6.374962, 'PICKUP': 4.974481, 'DEPOSIT': 6.212056}, 'ackMax': 23.902206}"
-      }
-    ],
-    "remainingUnit": {
-      "job": "287c56fc-6c73-4422-99e4-8bb217ae2857",
-      "state": "SUCCEEDED",
-      "attempts": [
-        {
-          "id": "2104edab-661f-467c-978c-63e133ae1ac8",
-          "generation": 1,
-          "effects": 3,
-          "credited": 1,
-          "uncertain": false
-        },
-        {
-          "id": "a9458a67-5a71-341c-ae45-d31c7471d61f",
-          "generation": 2,
-          "effects": 3,
-          "credited": 1,
-          "uncertain": false
-        }
-      ],
-      "destination": 2,
-      "terminalRestart": {
-        "before": 30428,
-        "after": 30866,
-        "sameClients": true
-      },
-      "modelCallsBefore": {
-        "needleCalls": 0,
-        "generationCalls": 3
-      },
-      "modelCallsAfter": {
-        "needleCalls": 0,
-        "generationCalls": 3
-      },
-      "status": "PASS_ORIGINAL_JOB_RESUMED_ONLY_REMAINING_ONE"
-    },
-    "measuredCost": {
-      "id": "representative-active-cost",
-      "status": "FAIL_COST_TARGET",
-      "windows": 11,
-      "nativeEffects": 33,
-      "tick": {
-        "p50": 6.674227,
-        "p95": 16.542091,
-        "p99": 28.738889,
-        "max": 50.206184,
-        "samples": 2319,
-        "unit": "milliseconds"
-      },
-      "capture": {
-        "HARVEST": {
-          "p50": 2.698959,
-          "p95": 6.374962,
-          "p99": 6.374962,
-          "max": 6.374962,
-          "samples": 12,
-          "unit": "milliseconds"
-        },
-        "PICKUP": {
-          "p50": 2.85108,
-          "p95": 4.974481,
-          "p99": 4.974481,
-          "max": 4.974481,
-          "samples": 11,
-          "unit": "milliseconds"
-        },
-        "DEPOSIT": {
-          "p50": 2.522724,
-          "p95": 6.212056,
-          "p99": 6.212056,
-          "max": 6.212056,
-          "samples": 11,
-          "unit": "milliseconds"
-        }
-      },
-      "acknowledgement": {
-        "p50": 11.850172,
-        "p95": 20.467047,
-        "p99": 23.902206,
-        "max": 23.902206,
-        "samples": 66,
-        "unit": "milliseconds"
-      },
-      "limits": {
-        "tickP95Ms": 20,
-        "tickP99Ms": 40,
-        "captureP99Ms": 2,
-        "ackMaxMs": 30000
-      },
-      "warmupExcluded": false,
-      "requiredWheatSamples": 1
-    },
-    "moduleCases": 2601,
-    "requiredHosts": {
-      "pass": 8,
-      "fail": 1,
-      "originalConditionalNotApplicable": 3,
-      "gp22": {
-        "status": "FAIL_BOTH_ATTEMPTS",
-        "first": {
-          "attempt": 1,
-          "job": 127727599466,
-          "phase": "warm",
-          "stock": 10,
-          "mature": 1,
-          "failedDrops": 0,
-          "failedInventory": 0,
-          "reason": "Conservation check for the earlier interrupted wheat output"
-        },
-        "retry": {
-          "attempt": 2,
-          "job": 127741720621,
-          "phase": "cold",
-          "work": 0,
-          "reason": "TARGET_UNAVAILABLE",
-          "committedEffects": 1
-        }
-      }
-    },
-    "mainVerification": {
-      "run": 42167606585,
+    "sequence": 31,
+    "status": "FAIL_W6_003_PICKUP_AND_CAPTURE_COST_GP22_PASSED",
+    "source": "24aa8b4a6c0e6890fa4ff3be599c0863e705ed69",
+    "tree": "2677f29d8d5a989b5a3de2ce6686a841c5bed660",
+    "codeCheckpoint": "af6eee8689d8d1e48b08800b882e5db121605b04",
+    "run": 42175702283,
+    "job": 127753536432,
+    "attempt": 1,
+    "main": {
+      "run": 42175702323,
       "status": "PASS"
     },
-    "archiveManifest": {
-      "schema": 1,
-      "archiveBytes": 835499645,
-      "archiveSha256": "88b1fcaae0c5369d3b19cb71fcd983e411e2660fede6240529a204df70afcd91",
-      "parts": [
+    "workflowCount": 2,
+    "codeCheckpointWorkflows": 0,
+    "modules": {
+      "core": 2344,
+      "providers": 131,
+      "fabric": 127,
+      "total": 2602,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "python": {
+      "focused": 89,
+      "baseline": 72,
+      "status": "PASS"
+    },
+    "originalCoverage": {
+      "status": "FAIL_ONE_REQUIRED_ORIGINAL",
+      "source": "24aa8b4a6c0e6890fa4ff3be599c0863e705ed69",
+      "tree": "2677f29d8d5a989b5a3de2ce6686a841c5bed660",
+      "run": 42175702283,
+      "job": 127753536432,
+      "attempt": 1,
+      "independentlyReviewedOriginalCases": 11,
+      "requiredOriginalCases": 12,
+      "stageCounts": {
+        "HARVEST": 4,
+        "PICKUP": 3,
+        "DEPOSIT": 4
+      },
+      "originalCaseIds": [
+        "W6-002",
+        "W6-004",
+        "W6-008",
+        "W6-009",
+        "W6-010",
+        "heldout-W6-002",
+        "heldout-W6-003",
+        "heldout-W6-004",
+        "heldout-W6-008",
+        "heldout-W6-009",
+        "heldout-W6-010"
+      ],
+      "failedCase": {
+        "id": "W6-003",
+        "stage": "PICKUP",
+        "item": "minecraft:oak_log",
+        "job": "f6e01515-e0da-4661-b874-c3f02e68beb5",
+        "attempt": "0e0717df-5025-4919-977c-b035936add0f",
+        "actualApproach": "Native route reached the intended log face, physical reach and line of sight",
+        "reason": "TARGET_UNAVAILABLE",
+        "effects": 0,
+        "credited": 0,
+        "actualCutReached": false,
+        "diagnosis": "Native harvest, pickup and deposit stores were empty after the zero-effect stop. The exact failed harvest eligibility predicate was not logged."
+      },
+      "importedRecoverySettlements": 0,
+      "a06Qualified": false
+    },
+    "nativeControls": {
+      "passed": 6,
+      "required": 9,
+      "results": [
         {
-          "name": "part-000.bin",
-          "bytes": 419430400,
-          "sha256": "5c51abd34d63ddc085336138027254da2d1a5d4d29acf739214cdf61bd6a7e75"
+          "id": "source-replacement-HARVEST",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
         },
         {
-          "name": "part-001.bin",
-          "bytes": 416069245,
-          "sha256": "80cf77abed46e160467afe9ddb8538fe0036bc80612706895ed44a259ddb1342"
+          "id": "source-replacement-PICKUP",
+          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+          "nativeStatus": "FAIL",
+          "nativeReason": "'key'",
+          "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-a06-recovery/controls/source-replacement-PICKUP/result.json'"
+        },
+        {
+          "id": "unrelated-native-progress",
+          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+          "nativeStatus": "FAIL",
+          "nativeReason": "Unrelated native progress was not reached",
+          "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-a06-recovery/controls/source-replacement-PICKUP/result.json'"
+        },
+        {
+          "id": "source-replacement-DEPOSIT",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "unsaved-pickup-containment",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "two-unit-prepared-no-effect",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "two-unit-delivered-remaining-one",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "representative-active-cost",
+          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+          "nativeStatus": "FAIL_COST_TARGET",
+          "nativeReason": null,
+          "reason": "{'tickP95': 16.127665, 'tickP99': 26.059003, 'captureP99': {'HARVEST': 3.038746, 'PICKUP': 4.868356, 'DEPOSIT': 3.918924}, 'ackMax': 137.170327}"
+        },
+        {
+          "id": "expired-original-accounting",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
         }
+      ],
+      "cost": {
+        "id": "representative-active-cost",
+        "status": "FAIL_COST_TARGET",
+        "windows": 11,
+        "nativeEffects": 33,
+        "tick": {
+          "p50": 6.643311,
+          "p95": 16.127665,
+          "p99": 26.059003,
+          "max": 41.394041,
+          "samples": 2286,
+          "unit": "milliseconds"
+        },
+        "capture": {
+          "HARVEST": {
+            "p50": 2.405229,
+            "p95": 3.038746,
+            "p99": 3.038746,
+            "max": 3.038746,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 2.061373,
+            "p95": 4.868356,
+            "p99": 4.868356,
+            "max": 4.868356,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 2.243852,
+            "p95": 3.918924,
+            "p99": 3.918924,
+            "max": 3.918924,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "acknowledgement": {
+          "p50": 12.62876,
+          "p95": 83.682338,
+          "p99": 137.170327,
+          "max": 137.170327,
+          "samples": 66,
+          "unit": "milliseconds"
+        },
+        "limits": {
+          "tickP95Ms": 20,
+          "tickP99Ms": 40,
+          "captureP99Ms": 2,
+          "ackMaxMs": 30000
+        },
+        "warmupExcluded": false,
+        "requiredWheatSamples": 1
+      },
+      "tickLimitsPassed": true,
+      "ackLimitPassed": true,
+      "offCpuExample": {
+        "stage": "PICKUP",
+        "window": 2,
+        "wallMs": 4.868356,
+        "threadCpuMs": 1.856
+      },
+      "resumedRemainingUnit": "PASS_INDEPENDENT_NATIVE_CONTROL"
+    },
+    "requiredHosts": {
+      "pass": 9,
+      "fail": 0,
+      "originalConditionalNotApplicable": 3,
+      "gp22": {
+        "status": "PASS_BOTH_JVMS",
+        "job": 127753536493,
+        "artifact": 13483600490,
+        "cold": {
+          "stock": 8,
+          "mature": 3,
+          "failedDrops": 1,
+          "failedInventory": 0,
+          "failedResources": 1,
+          "grants": 2,
+          "practices": 3,
+          "bodies": 1,
+          "process": 3667,
+          "processStarted": 1793947189287,
+          "modelCalls": 0,
+          "accessSha256": "a80dd3e7c8e42eb00ec4eb1cc7ff39472528aa41998229ab6010587f4f4a8bab"
+        },
+        "warm": {
+          "stock": 10,
+          "mature": 1,
+          "failedDrops": 1,
+          "failedInventory": 0,
+          "failedResources": 1,
+          "grants": 2,
+          "practices": 3,
+          "bodies": 1,
+          "process": 4174,
+          "processStarted": 1793947277761,
+          "modelCalls": 0,
+          "accessSha256": "a80dd3e7c8e42eb00ec4eb1cc7ff39472528aa41998229ab6010587f4f4a8bab"
+        },
+        "backendStopped": true
+      },
+      "jobIds": [
+        127753536039,
+        127753536363,
+        127753536378,
+        127753536401,
+        127753536407,
+        127753536416,
+        127753536493,
+        127753536505,
+        127753536528
       ]
     },
-    "artifacts": [
-      13482035574,
-      13481806382,
-      13481342872
-    ],
-    "a06Qualified": false
+    "evidence": {
+      "releaseSha256": "8b00a0150053562082ec64ae8a0f4c706e54f98aa46e0b65827717e6def18348",
+      "observerSha256": "16d80d239ba2d98ecdd8d344b103ba3d411e6ed6ec2b1dad88c0f51aa7c1c535",
+      "archive": {
+        "schema": 1,
+        "archiveBytes": 846575673,
+        "archiveSha256": "29376b35468ca47fae9dbac97f7ff61d1c1bce7cbe0a85cf3d5dfa1b24d0fb5a",
+        "parts": [
+          {
+            "name": "part-000.bin",
+            "bytes": 419430400,
+            "sha256": "90ae3f19bec1f9e5daae14ddfb4af85f97ff8ee867608081995f94767b49a361"
+          },
+          {
+            "name": "part-001.bin",
+            "bytes": 419430400,
+            "sha256": "d3a32ec6c48583daaac657eaee1d8f6c2220011a90e11f689860724403b4a5ce"
+          },
+          {
+            "name": "part-002.bin",
+            "bytes": 7714873,
+            "sha256": "7be0d35005d318d3ed37eb0471b874277dc30ffe3e4ec1aff91fdafc2dbfb8c2"
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "id": 13486314140,
+          "name": "cc-runtime-a-a06-recovery-native-part-2-42175702283-1",
+          "bytes": 7715746,
+          "digest": "sha256:1ce7a4bda41253e551c3408e7ece7a2c5c145f282484981a886ab8a0b2d5073b"
+        },
+        {
+          "id": 13486203105,
+          "name": "cc-runtime-a-a06-recovery-native-part-1-42175702283-1",
+          "bytes": 419431273,
+          "digest": "sha256:a065518c67fab430a8e0af642c5f975aaf9757b34981671a91dcfa0704bbc48f"
+        },
+        {
+          "id": 13486038400,
+          "name": "cc-runtime-a-a06-recovery-native-part-0-42175702283-1",
+          "bytes": 419431273,
+          "digest": "sha256:a16632b959c5b6d341f2dbc5bd87ba4b937b6ec30cd13d10cf7b1f1b36ac867d"
+        },
+        {
+          "id": 13485984687,
+          "name": "cc-runtime-a-a04-contracts-24aa8b4a6c0e6890fa4ff3be599c0863e705ed69-42175702283-1",
+          "bytes": 3745775,
+          "digest": "sha256:cd122caa76bcdc0005a1c9c7244968fde062a60105c38bfbd07e65a59e1b216e"
+        },
+        {
+          "id": 13483600490,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4117722,
+          "digest": "sha256:8542cca2403f9e21972543dcf7e8f92d62d8834b7466590f79062dc6dbf08085"
+        }
+      ],
+      "profile": {
+        "diagnostic": true,
+        "qualifyingSamples": 0,
+        "sha256": "e8b90c0115710feb93191a9678382a2fc90ab259440b1c8dfb1ecb315b5bb486"
+      }
+    },
+    "a06Qualified": false,
+    "omittedTasks": 0,
+    "omittedTests": 0
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
@@ -1403,13 +1525,13 @@
     "priorNativeControlsIndependentlyVerified": 7
   },
   "validationCandidate": {
-    "sequence": 31,
-    "sourceCheckpoint": "af6eee8689d8d1e48b08800b882e5db121605b04",
+    "sequence": 32,
+    "sourceCheckpoint": "b3c24fb3976f53732aaaaa2ba8205325b979a7ee",
     "status": "PENDING_EXACT_SOURCE_VALIDATION",
     "changes": [
-      "Reuse observations already validated on the same server-thread capture call. Recheck full live authority, native participants and permits after each durable wait.",
-      "Reuse unchanged exact actor and entity-membership witnesses during capture. Retain fresh capture wall-clock measurements with aligned diagnostic thread CPU samples.",
-      "Spawn the controlled wheat drop at its crop with no lateral throw and save its exact native worker origin. A saved origin provides custody exclusion without a live run grant."
+      "Bounded four-tick in-place stance recovery before PREPARED restarts the full native log break timer. Retain actual stopped-run and eligibility diagnostics.",
+      "Compare the live actor and drop directly to their exact validated evidence, reuse immutable native state text and source descriptors, and keep canonical claim, marker and membership checks.",
+      "Run the native Docker cohort with ZGC and one concurrent GC thread on the original two-core and 256–1536 MiB heap budget. Keep all wall-clock gates and measurement windows."
     ],
     "originalCases": 12,
     "nativeControls": 9,
@@ -1421,5 +1543,231 @@
     "tickP99LimitMs": 40,
     "ackMaxLimitMs": 30000,
     "requiredWarmupExcluded": false
+  },
+  "priorBatch30Validation": {
+    "source": "3c673f20219098cf934279134453e9eecbbd2ea7",
+    "status": "PASS_ALL_TWELVE_ORIGINALS_CAPTURE_COST_AND_GP22_OPEN",
+    "nativeOriginalCasesThisBatch": 12,
+    "requiredOriginalCases": 12,
+    "nativeControls": 9,
+    "allOriginalCasesMandatory": true,
+    "widerControlsRequired": true,
+    "focusedPythonTests": 89,
+    "baselinePythonTests": 72,
+    "retainedAdmissionArtifact": 13311090608,
+    "importedRecoverySettlements": 0,
+    "qualifiedOriginalCasesPreviously": 12,
+    "tickLimitsMillis": {
+      "p95": 20,
+      "p99": 40,
+      "captureP99": 2,
+      "ackMax": 30000
+    },
+    "serverBudget": {
+      "cpuset": "0-1",
+      "availableProcessors": 2,
+      "heapMiB": [
+        256,
+        1536
+      ],
+      "g1HeapRegionMiB": 2,
+      "g1PauseTargetMillis": 10
+    },
+    "preservedRequiredWorkflows": 9,
+    "preservedRequiredJobs": 12,
+    "preservedRequiredSteps": 140,
+    "originalWorkloadsAndWindowsPreserved": true,
+    "testedSource": "326b9209468afac3c561da61997cca5e8bdd3fba",
+    "testedTree": "e78dbef0ed3007461e42ef74a9636705bf0f5a6a",
+    "run": 42167606541,
+    "job": 127727599374,
+    "originalsVerified": 12,
+    "nativeControlsPassed": 8,
+    "nativeControlsRequired": 9,
+    "failedControls": [
+      {
+        "id": "representative-active-cost",
+        "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+        "nativeStatus": "FAIL_COST_TARGET",
+        "nativeReason": null,
+        "reason": "{'tickP95': 16.542091, 'tickP99': 28.738889, 'captureP99': {'HARVEST': 6.374962, 'PICKUP': 4.974481, 'DEPOSIT': 6.212056}, 'ackMax': 23.902206}"
+      }
+    ],
+    "remainingUnit": {
+      "job": "287c56fc-6c73-4422-99e4-8bb217ae2857",
+      "state": "SUCCEEDED",
+      "attempts": [
+        {
+          "id": "2104edab-661f-467c-978c-63e133ae1ac8",
+          "generation": 1,
+          "effects": 3,
+          "credited": 1,
+          "uncertain": false
+        },
+        {
+          "id": "a9458a67-5a71-341c-ae45-d31c7471d61f",
+          "generation": 2,
+          "effects": 3,
+          "credited": 1,
+          "uncertain": false
+        }
+      ],
+      "destination": 2,
+      "terminalRestart": {
+        "before": 30428,
+        "after": 30866,
+        "sameClients": true
+      },
+      "modelCallsBefore": {
+        "needleCalls": 0,
+        "generationCalls": 3
+      },
+      "modelCallsAfter": {
+        "needleCalls": 0,
+        "generationCalls": 3
+      },
+      "status": "PASS_ORIGINAL_JOB_RESUMED_ONLY_REMAINING_ONE"
+    },
+    "measuredCost": {
+      "id": "representative-active-cost",
+      "status": "FAIL_COST_TARGET",
+      "windows": 11,
+      "nativeEffects": 33,
+      "tick": {
+        "p50": 6.674227,
+        "p95": 16.542091,
+        "p99": 28.738889,
+        "max": 50.206184,
+        "samples": 2319,
+        "unit": "milliseconds"
+      },
+      "capture": {
+        "HARVEST": {
+          "p50": 2.698959,
+          "p95": 6.374962,
+          "p99": 6.374962,
+          "max": 6.374962,
+          "samples": 12,
+          "unit": "milliseconds"
+        },
+        "PICKUP": {
+          "p50": 2.85108,
+          "p95": 4.974481,
+          "p99": 4.974481,
+          "max": 4.974481,
+          "samples": 11,
+          "unit": "milliseconds"
+        },
+        "DEPOSIT": {
+          "p50": 2.522724,
+          "p95": 6.212056,
+          "p99": 6.212056,
+          "max": 6.212056,
+          "samples": 11,
+          "unit": "milliseconds"
+        }
+      },
+      "acknowledgement": {
+        "p50": 11.850172,
+        "p95": 20.467047,
+        "p99": 23.902206,
+        "max": 23.902206,
+        "samples": 66,
+        "unit": "milliseconds"
+      },
+      "limits": {
+        "tickP95Ms": 20,
+        "tickP99Ms": 40,
+        "captureP99Ms": 2,
+        "ackMaxMs": 30000
+      },
+      "warmupExcluded": false,
+      "requiredWheatSamples": 1
+    },
+    "moduleCases": 2601,
+    "requiredHosts": {
+      "pass": 8,
+      "fail": 1,
+      "originalConditionalNotApplicable": 3,
+      "gp22": {
+        "status": "FAIL_BOTH_ATTEMPTS",
+        "first": {
+          "attempt": 1,
+          "job": 127727599466,
+          "phase": "warm",
+          "stock": 10,
+          "mature": 1,
+          "failedDrops": 0,
+          "failedInventory": 0,
+          "reason": "Conservation check for the earlier interrupted wheat output"
+        },
+        "retry": {
+          "attempt": 2,
+          "job": 127741720621,
+          "phase": "cold",
+          "work": 0,
+          "reason": "TARGET_UNAVAILABLE",
+          "committedEffects": 1
+        }
+      }
+    },
+    "mainVerification": {
+      "run": 42167606585,
+      "status": "PASS"
+    },
+    "archiveManifest": {
+      "schema": 1,
+      "archiveBytes": 835499645,
+      "archiveSha256": "88b1fcaae0c5369d3b19cb71fcd983e411e2660fede6240529a204df70afcd91",
+      "parts": [
+        {
+          "name": "part-000.bin",
+          "bytes": 419430400,
+          "sha256": "5c51abd34d63ddc085336138027254da2d1a5d4d29acf739214cdf61bd6a7e75"
+        },
+        {
+          "name": "part-001.bin",
+          "bytes": 416069245,
+          "sha256": "80cf77abed46e160467afe9ddb8538fe0036bc80612706895ed44a259ddb1342"
+        }
+      ]
+    },
+    "artifacts": [
+      13482035574,
+      13481806382,
+      13481342872
+    ],
+    "a06Qualified": false
+  },
+  "bestOriginalCoverage": {
+    "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
+    "source": "326b9209468afac3c561da61997cca5e8bdd3fba",
+    "tree": "e78dbef0ed3007461e42ef74a9636705bf0f5a6a",
+    "run": 42167606541,
+    "job": 127727599374,
+    "attempt": 1,
+    "independentlyReviewedOriginalCases": 12,
+    "requiredOriginalCases": 12,
+    "stageCounts": {
+      "HARVEST": 4,
+      "PICKUP": 4,
+      "DEPOSIT": 4
+    },
+    "originalCaseIds": [
+      "W6-002",
+      "W6-003",
+      "W6-004",
+      "W6-008",
+      "W6-009",
+      "W6-010",
+      "heldout-W6-002",
+      "heldout-W6-003",
+      "heldout-W6-004",
+      "heldout-W6-008",
+      "heldout-W6-009",
+      "heldout-W6-010"
+    ],
+    "importedRecoverySettlements": 0,
+    "a06Qualified": false
   }
 }
