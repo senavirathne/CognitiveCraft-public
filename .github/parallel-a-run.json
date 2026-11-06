@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 34,
-  "parentSource": "8d2e92b94f6b0803f699a449a863f44bc7955586",
+  "sequence": 35,
+  "parentSource": "a418da5d0ffc049cf6eb673c68e5bd3311cdabf6",
   "stage": "A06",
-  "scope": "Batch 33 independently verified all twelve originals and all nine host suites. Batch 34 targets the lost log footing in the remaining-unit control and adds a more detailed post-failure capture profile.",
+  "scope": "Batch 34 independently verified all twelve originals, eight controls and nine host suites. Batch 35 targets the remaining active tick and capture cost gate.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -909,10 +909,10 @@
   },
   "latestOriginalCoverage": {
     "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-    "source": "f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c",
-    "tree": "9c72c767379e5b1453c83e63553556de466f671f",
-    "run": 42218905312,
-    "job": 127895727094,
+    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
+    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
+    "run": 42227813725,
+    "job": 127925682077,
     "attempt": 1,
     "independentlyReviewedOriginalCases": 12,
     "requiredOriginalCases": 12,
@@ -936,249 +936,19 @@
       "heldout-W6-010"
     ],
     "importedRecoverySettlements": 0,
-    "a06Qualified": false,
-    "cases": [
-      {
-        "id": "W6-002",
-        "stage": "HARVEST",
-        "item": "minecraft:birch_log",
-        "requested": 2,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-          "step": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-          "attempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-        "originalAttempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-003",
-        "stage": "PICKUP",
-        "item": "minecraft:oak_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-          "step": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-          "attempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-        "originalAttempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-004",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-          "step": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-          "attempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-        "originalAttempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-008",
-        "stage": "HARVEST",
-        "item": "minecraft:wheat",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-          "step": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-          "attempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-        "originalAttempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-009",
-        "stage": "PICKUP",
-        "item": "minecraft:oak_log",
-        "requested": 1,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "616c0198-5580-442b-bd66-c646c51c0a92",
-          "step": "616c0198-5580-442b-bd66-c646c51c0a92",
-          "attempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "616c0198-5580-442b-bd66-c646c51c0a92",
-        "originalAttempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-010",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-          "step": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-          "attempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-        "originalAttempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-002",
-        "stage": "HARVEST",
-        "item": "minecraft:oak_log",
-        "requested": 2,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-          "step": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-          "attempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-        "originalAttempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-003",
-        "stage": "PICKUP",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-          "step": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-          "attempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-        "originalAttempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-004",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-          "step": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-          "attempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-        "originalAttempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-008",
-        "stage": "HARVEST",
-        "item": "minecraft:oak_log",
-        "requested": 3,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-          "step": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-          "attempt": "b84b133e-5c44-404c-a802-268f21914919",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-        "originalAttempt": "b84b133e-5c44-404c-a802-268f21914919",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-009",
-        "stage": "PICKUP",
-        "item": "minecraft:oak_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-          "step": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-          "attempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-        "originalAttempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-010",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-          "step": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-          "attempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-        "originalAttempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      }
-    ]
+    "a06Qualified": false
   },
   "currentValidation": {
-    "sequence": 33,
-    "status": "PASS_ALL_TWELVE_ORIGINALS_REMAINING_UNIT_AND_COST_OPEN",
-    "source": "f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c",
-    "tree": "9c72c767379e5b1453c83e63553556de466f671f",
-    "codeCheckpoint": "bf1c05a5aec54a3d500866c5c4e4aede9f94706a",
-    "run": 42218905312,
-    "job": 127895727094,
+    "sequence": 34,
+    "status": "PASS_ALL_TWELVE_ORIGINALS_PERFORMANCE_OPEN",
+    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
+    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
+    "codeCheckpoint": "8d2e92b94f6b0803f699a449a863f44bc7955586",
+    "run": 42227813725,
+    "job": 127925682077,
     "attempt": 1,
     "main": {
-      "run": 42218905407,
+      "run": 42227813740,
       "status": "PASS"
     },
     "workflowCount": 2,
@@ -1186,8 +956,8 @@
     "modules": {
       "core": 2345,
       "providers": 131,
-      "fabric": 127,
-      "total": 2603,
+      "fabric": 130,
+      "total": 2606,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -1199,10 +969,10 @@
     },
     "originalCoverage": {
       "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-      "source": "f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c",
-      "tree": "9c72c767379e5b1453c83e63553556de466f671f",
-      "run": 42218905312,
-      "job": 127895727094,
+      "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
+      "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
+      "run": 42227813725,
+      "job": 127925682077,
       "attempt": 1,
       "independentlyReviewedOriginalCases": 12,
       "requiredOriginalCases": 12,
@@ -1226,240 +996,10 @@
         "heldout-W6-010"
       ],
       "importedRecoverySettlements": 0,
-      "a06Qualified": false,
-      "cases": [
-        {
-          "id": "W6-002",
-          "stage": "HARVEST",
-          "item": "minecraft:birch_log",
-          "requested": 2,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-            "step": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-            "attempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
-            "generation": 1,
-            "ordinal": 1
-          },
-          "originalJob": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-          "originalAttempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
-          "effects": 1,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "W6-003",
-          "stage": "PICKUP",
-          "item": "minecraft:oak_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-            "step": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-            "attempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
-            "generation": 1,
-            "ordinal": 2
-          },
-          "originalJob": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-          "originalAttempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
-          "effects": 2,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "W6-004",
-          "stage": "DEPOSIT",
-          "item": "minecraft:birch_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-            "step": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-            "attempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
-            "generation": 1,
-            "ordinal": 3
-          },
-          "originalJob": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-          "originalAttempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
-          "effects": 3,
-          "credited": 1,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "W6-008",
-          "stage": "HARVEST",
-          "item": "minecraft:wheat",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-            "step": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-            "attempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
-            "generation": 1,
-            "ordinal": 1
-          },
-          "originalJob": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-          "originalAttempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
-          "effects": 1,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "W6-009",
-          "stage": "PICKUP",
-          "item": "minecraft:oak_log",
-          "requested": 1,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "616c0198-5580-442b-bd66-c646c51c0a92",
-            "step": "616c0198-5580-442b-bd66-c646c51c0a92",
-            "attempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
-            "generation": 1,
-            "ordinal": 2
-          },
-          "originalJob": "616c0198-5580-442b-bd66-c646c51c0a92",
-          "originalAttempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
-          "effects": 2,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "W6-010",
-          "stage": "DEPOSIT",
-          "item": "minecraft:birch_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-            "step": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-            "attempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
-            "generation": 1,
-            "ordinal": 3
-          },
-          "originalJob": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-          "originalAttempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
-          "effects": 3,
-          "credited": 1,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "heldout-W6-002",
-          "stage": "HARVEST",
-          "item": "minecraft:oak_log",
-          "requested": 2,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-            "step": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-            "attempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
-            "generation": 1,
-            "ordinal": 1
-          },
-          "originalJob": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-          "originalAttempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
-          "effects": 1,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "heldout-W6-003",
-          "stage": "PICKUP",
-          "item": "minecraft:birch_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-            "step": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-            "attempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
-            "generation": 1,
-            "ordinal": 2
-          },
-          "originalJob": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-          "originalAttempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
-          "effects": 2,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "heldout-W6-004",
-          "stage": "DEPOSIT",
-          "item": "minecraft:birch_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-            "step": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-            "attempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
-            "generation": 1,
-            "ordinal": 3
-          },
-          "originalJob": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-          "originalAttempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
-          "effects": 3,
-          "credited": 1,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "heldout-W6-008",
-          "stage": "HARVEST",
-          "item": "minecraft:oak_log",
-          "requested": 3,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-            "step": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-            "attempt": "b84b133e-5c44-404c-a802-268f21914919",
-            "generation": 1,
-            "ordinal": 1
-          },
-          "originalJob": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-          "originalAttempt": "b84b133e-5c44-404c-a802-268f21914919",
-          "effects": 1,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "heldout-W6-009",
-          "stage": "PICKUP",
-          "item": "minecraft:oak_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-            "step": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-            "attempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
-            "generation": 1,
-            "ordinal": 2
-          },
-          "originalJob": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-          "originalAttempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
-          "effects": 2,
-          "credited": 0,
-          "status": "PASS_ORIGINAL_OWNER"
-        },
-        {
-          "id": "heldout-W6-010",
-          "stage": "DEPOSIT",
-          "item": "minecraft:birch_log",
-          "requested": 4,
-          "key": {
-            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-            "root": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-            "step": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-            "attempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
-            "generation": 1,
-            "ordinal": 3
-          },
-          "originalJob": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-          "originalAttempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
-          "effects": 3,
-          "credited": 1,
-          "status": "PASS_ORIGINAL_OWNER"
-        }
-      ]
+      "a06Qualified": false
     },
     "nativeControls": {
-      "passed": 7,
+      "passed": 8,
       "required": 9,
       "results": [
         {
@@ -1488,17 +1028,14 @@
         },
         {
           "id": "two-unit-delivered-remaining-one",
-          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
-          "nativeStatus": "FAIL",
-          "nativeReason": "Actual control boundary two-unit-delivered-remaining-one; last=None",
-          "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-a06-recovery/controls/two-unit-delivered-remaining-one/result.json'"
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
         },
         {
           "id": "representative-active-cost",
           "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
           "nativeStatus": "FAIL_COST_TARGET",
           "nativeReason": null,
-          "reason": "{'tickP95': 23.722237, 'tickP99': 38.704962, 'captureP99': {'HARVEST': 3.255254, 'PICKUP': 6.644519, 'DEPOSIT': 3.539265}, 'ackMax': 35.003748}"
+          "reason": "{'tickP95': 26.931379, 'tickP99': 46.086432, 'captureP99': {'HARVEST': 5.400568, 'PICKUP': 12.942658, 'DEPOSIT': 7.169046}, 'ackMax': 40.31175}"
         },
         {
           "id": "expired-original-accounting",
@@ -1511,44 +1048,44 @@
         "windows": 11,
         "nativeEffects": 33,
         "tick": {
-          "p50": 8.804811,
-          "p95": 23.722237,
-          "p99": 38.704962,
-          "max": 79.999493,
-          "samples": 2305,
+          "p50": 9.477477,
+          "p95": 26.931379,
+          "p99": 46.086432,
+          "max": 120.155513,
+          "samples": 2349,
           "unit": "milliseconds"
         },
         "capture": {
           "HARVEST": {
-            "p50": 2.91645,
-            "p95": 3.255254,
-            "p99": 3.255254,
-            "max": 3.255254,
+            "p50": 3.096435,
+            "p95": 5.400568,
+            "p99": 5.400568,
+            "max": 5.400568,
             "samples": 12,
             "unit": "milliseconds"
           },
           "PICKUP": {
-            "p50": 2.587896,
-            "p95": 6.644519,
-            "p99": 6.644519,
-            "max": 6.644519,
+            "p50": 3.000491,
+            "p95": 12.942658,
+            "p99": 12.942658,
+            "max": 12.942658,
             "samples": 11,
             "unit": "milliseconds"
           },
           "DEPOSIT": {
-            "p50": 2.864322,
-            "p95": 3.539265,
-            "p99": 3.539265,
-            "max": 3.539265,
+            "p50": 3.2777,
+            "p95": 7.169046,
+            "p99": 7.169046,
+            "max": 7.169046,
             "samples": 11,
             "unit": "milliseconds"
           }
         },
         "acknowledgement": {
-          "p50": 14.619817,
-          "p95": 25.408317,
-          "p99": 35.003748,
-          "max": 35.003748,
+          "p50": 15.92207,
+          "p95": 34.436537,
+          "p99": 40.31175,
+          "max": 40.31175,
           "samples": 66,
           "unit": "milliseconds"
         },
@@ -1562,72 +1099,37 @@
         "requiredWheatSamples": 1,
         "diagnosticCaptureCpu": {
           "HARVEST": {
-            "p50": 2.82609,
-            "p95": 2.984435,
-            "p99": 2.984435,
-            "max": 2.984435,
+            "p50": 3.014904,
+            "p95": 3.121642,
+            "p99": 3.121642,
+            "max": 3.121642,
             "samples": 12,
             "unit": "milliseconds"
           },
           "PICKUP": {
-            "p50": 2.460228,
-            "p95": 2.730411,
-            "p99": 2.730411,
-            "max": 2.730411,
+            "p50": 2.850569,
+            "p95": 3.117708,
+            "p99": 3.117708,
+            "max": 3.117708,
             "samples": 11,
             "unit": "milliseconds"
           },
           "DEPOSIT": {
-            "p50": 2.87494,
-            "p95": 3.552754,
-            "p99": 3.552754,
-            "max": 3.552754,
+            "p50": 3.061954,
+            "p95": 3.401779,
+            "p99": 3.401779,
+            "max": 3.401779,
             "samples": 11,
             "unit": "milliseconds"
           }
         }
       },
       "tickP95Passed": false,
-      "tickP99Passed": true,
+      "tickP99Passed": false,
       "ackLimitPassed": true,
       "resumedRemainingUnit": {
-        "status": "FAIL_BEFORE_INITIAL_SAVED_DEPOSIT_BOUNDARY",
-        "priorBatch32Pass": true,
-        "originalJob": "8acd95ac-1871-4d70-a516-d31391486033",
-        "attempt": "aa26af8b-b31c-40f2-8e38-5cbc8d7913bb",
-        "generation": 1,
-        "state": "WAITING",
-        "reason": "TARGET_UNAVAILABLE",
-        "committedEffects": 0,
-        "credited": 0,
-        "nativeJournalRows": {
-          "HARVEST": 0,
-          "PICKUP": 0,
-          "DEPOSIT": 0
-        },
-        "observedFooting": {
-          "logCell": [
-            73,
-            208,
-            73
-          ],
-          "approachPosition": [
-            73.63784427728504,
-            208.0,
-            72.63779065260199
-          ],
-          "lastBreakPosition": [
-            72.71738213210249,
-            208.0,
-            72.69999998807907
-          ],
-          "lastBreakTick": 18265,
-          "grounded": true,
-          "faceOnlyGuard": false,
-          "insideOriginalHorizontalRadius": true,
-          "log": "retained-before-cost-0/logs/latest.log",
-          "logSha256": "1ac2c47d61eaf17fb8594141ce9819018647b8c9bfa0bced4176903c5e80784f"
-        }
+        "status": "PASS_INDEPENDENT_NATIVE_CONTROL",
+        "previousBatch33FailedBeforeInitialDeposit": true
       }
     },
     "requiredHosts": {
@@ -1636,8 +1138,8 @@
       "originalConditionalNotApplicable": 3,
       "gp22": {
         "status": "PASS_BOTH_JVMS",
-        "job": 127895726992,
-        "artifact": 13502079665,
+        "job": 127925681744,
+        "artifact": 13506941652,
         "backendStopped": true,
         "cold": {
           "stock": 8,
@@ -1648,10 +1150,10 @@
           "grants": 2,
           "practices": 3,
           "bodies": 1,
-          "process": 3611,
-          "processStarted": 1793968657180,
+          "process": 4109,
+          "processStarted": 1793972732974,
           "modelCalls": 0,
-          "accessSha256": "068c4b62fa678cde78ba3bd16ca62aa8583fbef3d78b2b3419b6a9c7db086905"
+          "accessSha256": "a601512133acf73ddc4dc5299e80e7a6aae4cea529b7521db78fe23d868c1291"
         },
         "warm": {
           "stock": 10,
@@ -1662,85 +1164,96 @@
           "grants": 2,
           "practices": 3,
           "bodies": 1,
-          "process": 4198,
-          "processStarted": 1793968754986,
+          "process": 4612,
+          "processStarted": 1793972817490,
           "modelCalls": 0,
-          "accessSha256": "068c4b62fa678cde78ba3bd16ca62aa8583fbef3d78b2b3419b6a9c7db086905"
+          "accessSha256": "a601512133acf73ddc4dc5299e80e7a6aae4cea529b7521db78fe23d868c1291"
         }
       },
       "jobIds": [
-        127895726587,
-        127895726896,
-        127895726957,
-        127895726976,
-        127895726992,
-        127895727016,
-        127895727021,
-        127895727117,
-        127895727208
+        127925681744,
+        127925681815,
+        127925681854,
+        127925681914,
+        127925681983,
+        127925682050,
+        127925682067,
+        127925682099,
+        127925682120
       ]
     },
     "evidence": {
-      "releaseSha256": "2376d08ba38a37a46f1bb25fd64d17a28c5a859bb45e6eb1aa5f5a166760288d",
-      "observerSha256": "886bc4ff97afed5fada5e5596fa898d068a4bfb6e91fafc9a1f55c1ab7e60807",
+      "releaseSha256": "c2820f815246bce633d4f6a904fcbdfd9169a042957fafcd3dd9af6d45cec35e",
+      "observerSha256": "cb068c00ef469b5ce5c8279647e4e4918f3effe73267565e1c0bc3fa6c683509",
       "archive": {
         "schema": 1,
-        "archiveBytes": 902799671,
-        "archiveSha256": "62caba4786a630c2383c66f923773d3f13fc2375ec128362c62e6a7bfd842ed9",
+        "archiveBytes": 857284651,
+        "archiveSha256": "dab926f6f66d3b032d3a57145eb5528ecc68cd8032a59557f9b1c9484dc6e3f2",
         "parts": [
           {
             "name": "part-000.bin",
             "bytes": 419430400,
-            "sha256": "0df929e2628ba583fcb1673c3938291c4b4056ab1e9f120be3eef1b81c9fb3a3"
+            "sha256": "4192df694be9a006a6b859c13c4e7b8ff09fc590677ef3d9de0773248f509b01"
           },
           {
             "name": "part-001.bin",
             "bytes": 419430400,
-            "sha256": "8332989672f2839fa5a4403935770c9cf9269f92e089cd462b0257c7b2f9f4d9"
+            "sha256": "678ae62461d4b4d5345cc994d5b4fc04617993160d34824a1c8b2e48c66b5d9b"
           },
           {
             "name": "part-002.bin",
-            "bytes": 63938871,
-            "sha256": "2379048cd3a04bd2df672ec27850c9aa0c0f4a0eac4a76e21768a1cb8a4f1f0c"
+            "bytes": 18423851,
+            "sha256": "244ff197f94b3bd0d2ba203642a5641962607f7e73df23306928f1fc265a01b4"
           }
         ]
       },
       "artifacts": [
         {
-          "id": 13506215808,
-          "name": "cc-runtime-a-a04-contracts-f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c-42218905312-1",
-          "bytes": 3753421,
-          "digest": "sha256:0d48c5b9ebc6ed14be693cb04ef62c80f419685070b5f62497e1bf9752904e5a"
-        },
-        {
-          "id": 13505961251,
-          "name": "cc-runtime-a-a06-recovery-native-part-0-42218905312-1",
+          "id": 13512510120,
+          "name": "cc-runtime-a-a06-recovery-native-part-0-42227813725-1",
           "bytes": 419431274,
-          "digest": "sha256:a33ecbd4020cc39bf90c4d289c7218eec8a45f8cb52f44c9d6f853f3fc02a987"
+          "digest": "sha256:0591ead7475997ecc34234e969fa6d00817f9b8094c512b066860ff9314debb5"
         },
         {
-          "id": 13505646712,
-          "name": "cc-runtime-a-a06-recovery-native-part-2-42218905312-1",
-          "bytes": 63939745,
-          "digest": "sha256:099af30b9bbacad496bcb5861c7d26fc7ddb1a6e872d8e89c91ccf8a1b38ccb6"
+          "id": 13512045358,
+          "name": "cc-runtime-a-a04-contracts-7fc24c59ac17f42272c26e309f2f3a29cb910dab-42227813725-1",
+          "bytes": 3753925,
+          "digest": "sha256:04c24ee46fc8cf6ddbbd430fe1f2352eac7758d056f01842aa341176fff29ebc"
         },
         {
-          "id": 13504524753,
-          "name": "cc-runtime-a-a06-recovery-native-part-1-42218905312-1",
+          "id": 13510734651,
+          "name": "cc-runtime-a-a06-recovery-native-part-1-42227813725-1",
           "bytes": 419431274,
-          "digest": "sha256:82e1c2cfa28fe6eb08376db7ce6b5eea9024ad20c97bd722af9b804484bce974"
+          "digest": "sha256:420414a3fdfe60536026dfa7f320bae0b6238313350c0516fc9b7ea4b3198d8e"
         },
         {
-          "id": 13502079665,
+          "id": 13510329914,
+          "name": "cc-runtime-a-a06-recovery-native-part-2-42227813725-1",
+          "bytes": 18424725,
+          "digest": "sha256:c1f8e949cc83d7a82cbcce35de88fadc9b0bcc01115d26c9b15beda5f1d26f5f"
+        },
+        {
+          "id": 13506941652,
           "name": "imp-022-knowledge-apprenticeship-acceptance",
-          "bytes": 4119456,
-          "digest": "sha256:f4405246e5329a4890460c7d76fa5fc73d5031449022ed2a583e3723006a7439"
+          "bytes": 4121987,
+          "digest": "sha256:b92f4594a07be1196744a3365f3dfa37f829577b8e62700bfd7e7d7018603f66"
         }
       ],
       "profile": {
         "diagnostic": true,
         "qualifyingSamples": 0,
-        "sha256": "ad8e0fdacd764edae955cbed7077050c8173bdb30093d15f352375e2e8fb497b"
+        "sha256": "43ff08aa52f2ab39a17e166c6b1c45a68df121e93afe102390b5c94aa874e89d",
+        "captureStackSamples": {
+          "DEPOSIT": {
+            "samples": 1,
+            "topFrames": [
+              [
+                "dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol.beginNative",
+                1
+              ]
+            ]
+          }
+        }
       }
     },
     "a06Qualified": false,
@@ -2017,13 +1530,13 @@
     "priorNativeControlsIndependentlyVerified": 7
   },
   "validationCandidate": {
-    "sequence": 34,
-    "sourceCheckpoint": "8d2e92b94f6b0803f699a449a863f44bc7955586",
+    "sequence": 35,
+    "sourceCheckpoint": "a418da5d0ffc049cf6eb673c68e5bd3311cdabf6",
     "status": "PENDING_EXACT_SOURCE_VALIDATION",
     "changes": [
-      "Allow diagonal log-break footing within the same horizontal distance and fresh native line of sight. Face targeting remains required for the approach.",
-      "Retain three footing regressions and inspect their module XML.",
-      "If the unchanged capture gate fails, capture one diagnostic at 1 ms JFR execution-sample intervals and retain the H, P and D stack samples separately."
+      "Reuse completed arena block JSON after reading the same immutable states at every original native observation position.",
+      "Initialize the immutable capture schemas during native owner setup.",
+      "Keep every real qualifying wall-clock measurement and retain native harvest and pickup phase times for diagnosis."
     ],
     "originalCases": 12,
     "nativeControls": 9,
@@ -2233,10 +1746,10 @@
   },
   "bestOriginalCoverage": {
     "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-    "source": "f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c",
-    "tree": "9c72c767379e5b1453c83e63553556de466f671f",
-    "run": 42218905312,
-    "job": 127895727094,
+    "source": "7fc24c59ac17f42272c26e309f2f3a29cb910dab",
+    "tree": "db2cbd3d403e8914f4b7f7c5610b43f895c4263f",
+    "run": 42227813725,
+    "job": 127925682077,
     "attempt": 1,
     "independentlyReviewedOriginalCases": 12,
     "requiredOriginalCases": 12,
@@ -2260,237 +1773,7 @@
       "heldout-W6-010"
     ],
     "importedRecoverySettlements": 0,
-    "a06Qualified": false,
-    "cases": [
-      {
-        "id": "W6-002",
-        "stage": "HARVEST",
-        "item": "minecraft:birch_log",
-        "requested": 2,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-          "step": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-          "attempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
-        "originalAttempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-003",
-        "stage": "PICKUP",
-        "item": "minecraft:oak_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-          "step": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-          "attempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
-        "originalAttempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-004",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-          "step": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-          "attempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
-        "originalAttempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-008",
-        "stage": "HARVEST",
-        "item": "minecraft:wheat",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-          "step": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-          "attempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
-        "originalAttempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-009",
-        "stage": "PICKUP",
-        "item": "minecraft:oak_log",
-        "requested": 1,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "616c0198-5580-442b-bd66-c646c51c0a92",
-          "step": "616c0198-5580-442b-bd66-c646c51c0a92",
-          "attempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "616c0198-5580-442b-bd66-c646c51c0a92",
-        "originalAttempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "W6-010",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-          "step": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-          "attempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "9ee02ebf-5967-4231-bea3-f92c570abd16",
-        "originalAttempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-002",
-        "stage": "HARVEST",
-        "item": "minecraft:oak_log",
-        "requested": 2,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-          "step": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-          "attempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "1a2370df-ce79-4f47-a898-00eedd3587f9",
-        "originalAttempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-003",
-        "stage": "PICKUP",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-          "step": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-          "attempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
-        "originalAttempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-004",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-          "step": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-          "attempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
-        "originalAttempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-008",
-        "stage": "HARVEST",
-        "item": "minecraft:oak_log",
-        "requested": 3,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-          "step": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-          "attempt": "b84b133e-5c44-404c-a802-268f21914919",
-          "generation": 1,
-          "ordinal": 1
-        },
-        "originalJob": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
-        "originalAttempt": "b84b133e-5c44-404c-a802-268f21914919",
-        "effects": 1,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-009",
-        "stage": "PICKUP",
-        "item": "minecraft:oak_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-          "step": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-          "attempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
-          "generation": 1,
-          "ordinal": 2
-        },
-        "originalJob": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
-        "originalAttempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
-        "effects": 2,
-        "credited": 0,
-        "status": "PASS_ORIGINAL_OWNER"
-      },
-      {
-        "id": "heldout-W6-010",
-        "stage": "DEPOSIT",
-        "item": "minecraft:birch_log",
-        "requested": 4,
-        "key": {
-          "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
-          "root": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-          "step": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-          "attempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
-          "generation": 1,
-          "ordinal": 3
-        },
-        "originalJob": "3d4b5981-409f-473e-8792-c7ae403b0f71",
-        "originalAttempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
-        "effects": 3,
-        "credited": 1,
-        "status": "PASS_ORIGINAL_OWNER"
-      }
-    ]
+    "a06Qualified": false
   },
   "priorBatch31Validation": {
     "sequence": 31,
@@ -3115,6 +2398,585 @@
         "diagnostic": true,
         "qualifyingSamples": 0,
         "sha256": "759f71f288e4725d1fa7bfce7eb9a414cea7f5c8a06ad191e9a914caed7cc2e0"
+      }
+    },
+    "a06Qualified": false,
+    "omittedTasks": 0,
+    "omittedTests": 0
+  },
+  "priorBatch33Validation": {
+    "sequence": 33,
+    "status": "PASS_ALL_TWELVE_ORIGINALS_REMAINING_UNIT_AND_COST_OPEN",
+    "source": "f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c",
+    "tree": "9c72c767379e5b1453c83e63553556de466f671f",
+    "codeCheckpoint": "bf1c05a5aec54a3d500866c5c4e4aede9f94706a",
+    "run": 42218905312,
+    "job": 127895727094,
+    "attempt": 1,
+    "main": {
+      "run": 42218905407,
+      "status": "PASS"
+    },
+    "workflowCount": 2,
+    "codeCheckpointWorkflows": 0,
+    "modules": {
+      "core": 2345,
+      "providers": 131,
+      "fabric": 127,
+      "total": 2603,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "python": {
+      "focused": 89,
+      "baseline": 72,
+      "status": "PASS"
+    },
+    "originalCoverage": {
+      "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
+      "source": "f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c",
+      "tree": "9c72c767379e5b1453c83e63553556de466f671f",
+      "run": 42218905312,
+      "job": 127895727094,
+      "attempt": 1,
+      "independentlyReviewedOriginalCases": 12,
+      "requiredOriginalCases": 12,
+      "stageCounts": {
+        "HARVEST": 4,
+        "PICKUP": 4,
+        "DEPOSIT": 4
+      },
+      "originalCaseIds": [
+        "W6-002",
+        "W6-003",
+        "W6-004",
+        "W6-008",
+        "W6-009",
+        "W6-010",
+        "heldout-W6-002",
+        "heldout-W6-003",
+        "heldout-W6-004",
+        "heldout-W6-008",
+        "heldout-W6-009",
+        "heldout-W6-010"
+      ],
+      "importedRecoverySettlements": 0,
+      "a06Qualified": false,
+      "cases": [
+        {
+          "id": "W6-002",
+          "stage": "HARVEST",
+          "item": "minecraft:birch_log",
+          "requested": 2,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
+            "step": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
+            "attempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
+            "generation": 1,
+            "ordinal": 1
+          },
+          "originalJob": "0bf35f74-65d1-4aa1-b2c4-d826f96415c7",
+          "originalAttempt": "0b16d355-2351-4826-8fed-8cae52d5de96",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-003",
+          "stage": "PICKUP",
+          "item": "minecraft:oak_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
+            "step": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
+            "attempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
+            "generation": 1,
+            "ordinal": 2
+          },
+          "originalJob": "c76f79d6-ce90-412d-b99e-d92cf7708c05",
+          "originalAttempt": "2bf53372-87d0-4cea-848e-e30ad4938392",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-004",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
+            "step": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
+            "attempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
+            "generation": 1,
+            "ordinal": 3
+          },
+          "originalJob": "9bc8d124-bb0c-48cb-987f-2f5777495d2d",
+          "originalAttempt": "90576637-3a9c-4c47-9cf3-9bc6a0593ae3",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-008",
+          "stage": "HARVEST",
+          "item": "minecraft:wheat",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
+            "step": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
+            "attempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
+            "generation": 1,
+            "ordinal": 1
+          },
+          "originalJob": "c3a7cc4b-8e14-4bc1-91c9-cfaa8ffe8c28",
+          "originalAttempt": "8a8b2b3e-6d41-454b-885a-ccf6920b128f",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-009",
+          "stage": "PICKUP",
+          "item": "minecraft:oak_log",
+          "requested": 1,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "616c0198-5580-442b-bd66-c646c51c0a92",
+            "step": "616c0198-5580-442b-bd66-c646c51c0a92",
+            "attempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
+            "generation": 1,
+            "ordinal": 2
+          },
+          "originalJob": "616c0198-5580-442b-bd66-c646c51c0a92",
+          "originalAttempt": "7cbcc6b0-d3d1-44bb-8000-c1f912191449",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "W6-010",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "9ee02ebf-5967-4231-bea3-f92c570abd16",
+            "step": "9ee02ebf-5967-4231-bea3-f92c570abd16",
+            "attempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
+            "generation": 1,
+            "ordinal": 3
+          },
+          "originalJob": "9ee02ebf-5967-4231-bea3-f92c570abd16",
+          "originalAttempt": "6061a0c9-b60f-430f-b05b-a641015958c8",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-002",
+          "stage": "HARVEST",
+          "item": "minecraft:oak_log",
+          "requested": 2,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "1a2370df-ce79-4f47-a898-00eedd3587f9",
+            "step": "1a2370df-ce79-4f47-a898-00eedd3587f9",
+            "attempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
+            "generation": 1,
+            "ordinal": 1
+          },
+          "originalJob": "1a2370df-ce79-4f47-a898-00eedd3587f9",
+          "originalAttempt": "dea57d15-698c-4c30-82f3-0d420b3b7f65",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-003",
+          "stage": "PICKUP",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
+            "step": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
+            "attempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
+            "generation": 1,
+            "ordinal": 2
+          },
+          "originalJob": "12c0d5fc-b643-46b0-8cdf-4f14322f3300",
+          "originalAttempt": "f34672c9-cc61-46d9-aa30-aa36b15d05a7",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-004",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
+            "step": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
+            "attempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
+            "generation": 1,
+            "ordinal": 3
+          },
+          "originalJob": "dbdcd133-eaf4-4757-9e44-2d3b99584b90",
+          "originalAttempt": "75dc731e-9b37-406d-a258-ea03993a28f1",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-008",
+          "stage": "HARVEST",
+          "item": "minecraft:oak_log",
+          "requested": 3,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
+            "step": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
+            "attempt": "b84b133e-5c44-404c-a802-268f21914919",
+            "generation": 1,
+            "ordinal": 1
+          },
+          "originalJob": "9a1e064d-8d0a-4778-9323-a6b06e7db229",
+          "originalAttempt": "b84b133e-5c44-404c-a802-268f21914919",
+          "effects": 1,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-009",
+          "stage": "PICKUP",
+          "item": "minecraft:oak_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
+            "step": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
+            "attempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
+            "generation": 1,
+            "ordinal": 2
+          },
+          "originalJob": "ce1c00ff-10c8-4800-a42b-c342a8ceb24c",
+          "originalAttempt": "30f884b4-d789-40dc-b427-b2b8ba89bf6e",
+          "effects": 2,
+          "credited": 0,
+          "status": "PASS_ORIGINAL_OWNER"
+        },
+        {
+          "id": "heldout-W6-010",
+          "stage": "DEPOSIT",
+          "item": "minecraft:birch_log",
+          "requested": 4,
+          "key": {
+            "world": "fbc6e39c-49e4-40e4-94be-0c1e77c995f7",
+            "root": "3d4b5981-409f-473e-8792-c7ae403b0f71",
+            "step": "3d4b5981-409f-473e-8792-c7ae403b0f71",
+            "attempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
+            "generation": 1,
+            "ordinal": 3
+          },
+          "originalJob": "3d4b5981-409f-473e-8792-c7ae403b0f71",
+          "originalAttempt": "085cafe9-66f3-49d6-b6ea-6f26580fd4a9",
+          "effects": 3,
+          "credited": 1,
+          "status": "PASS_ORIGINAL_OWNER"
+        }
+      ]
+    },
+    "nativeControls": {
+      "passed": 7,
+      "required": 9,
+      "results": [
+        {
+          "id": "source-replacement-HARVEST",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "source-replacement-PICKUP",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "unrelated-native-progress",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "source-replacement-DEPOSIT",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "unsaved-pickup-containment",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "two-unit-prepared-no-effect",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        },
+        {
+          "id": "two-unit-delivered-remaining-one",
+          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+          "nativeStatus": "FAIL",
+          "nativeReason": "Actual control boundary two-unit-delivered-remaining-one; last=None",
+          "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-a06-recovery/controls/two-unit-delivered-remaining-one/result.json'"
+        },
+        {
+          "id": "representative-active-cost",
+          "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+          "nativeStatus": "FAIL_COST_TARGET",
+          "nativeReason": null,
+          "reason": "{'tickP95': 23.722237, 'tickP99': 38.704962, 'captureP99': {'HARVEST': 3.255254, 'PICKUP': 6.644519, 'DEPOSIT': 3.539265}, 'ackMax': 35.003748}"
+        },
+        {
+          "id": "expired-original-accounting",
+          "status": "PASS_INDEPENDENT_NATIVE_CONTROL"
+        }
+      ],
+      "cost": {
+        "id": "representative-active-cost",
+        "status": "FAIL_COST_TARGET",
+        "windows": 11,
+        "nativeEffects": 33,
+        "tick": {
+          "p50": 8.804811,
+          "p95": 23.722237,
+          "p99": 38.704962,
+          "max": 79.999493,
+          "samples": 2305,
+          "unit": "milliseconds"
+        },
+        "capture": {
+          "HARVEST": {
+            "p50": 2.91645,
+            "p95": 3.255254,
+            "p99": 3.255254,
+            "max": 3.255254,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 2.587896,
+            "p95": 6.644519,
+            "p99": 6.644519,
+            "max": 6.644519,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 2.864322,
+            "p95": 3.539265,
+            "p99": 3.539265,
+            "max": 3.539265,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "acknowledgement": {
+          "p50": 14.619817,
+          "p95": 25.408317,
+          "p99": 35.003748,
+          "max": 35.003748,
+          "samples": 66,
+          "unit": "milliseconds"
+        },
+        "limits": {
+          "tickP95Ms": 20,
+          "tickP99Ms": 40,
+          "captureP99Ms": 2,
+          "ackMaxMs": 30000
+        },
+        "warmupExcluded": false,
+        "requiredWheatSamples": 1,
+        "diagnosticCaptureCpu": {
+          "HARVEST": {
+            "p50": 2.82609,
+            "p95": 2.984435,
+            "p99": 2.984435,
+            "max": 2.984435,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 2.460228,
+            "p95": 2.730411,
+            "p99": 2.730411,
+            "max": 2.730411,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 2.87494,
+            "p95": 3.552754,
+            "p99": 3.552754,
+            "max": 3.552754,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        }
+      },
+      "tickP95Passed": false,
+      "tickP99Passed": true,
+      "ackLimitPassed": true,
+      "resumedRemainingUnit": {
+        "status": "FAIL_BEFORE_INITIAL_SAVED_DEPOSIT_BOUNDARY",
+        "priorBatch32Pass": true,
+        "originalJob": "8acd95ac-1871-4d70-a516-d31391486033",
+        "attempt": "aa26af8b-b31c-40f2-8e38-5cbc8d7913bb",
+        "generation": 1,
+        "state": "WAITING",
+        "reason": "TARGET_UNAVAILABLE",
+        "committedEffects": 0,
+        "credited": 0,
+        "nativeJournalRows": {
+          "HARVEST": 0,
+          "PICKUP": 0,
+          "DEPOSIT": 0
+        },
+        "observedFooting": {
+          "logCell": [
+            73,
+            208,
+            73
+          ],
+          "approachPosition": [
+            73.63784427728504,
+            208.0,
+            72.63779065260199
+          ],
+          "lastBreakPosition": [
+            72.71738213210249,
+            208.0,
+            72.69999998807907
+          ],
+          "lastBreakTick": 18265,
+          "grounded": true,
+          "faceOnlyGuard": false,
+          "insideOriginalHorizontalRadius": true,
+          "log": "retained-before-cost-0/logs/latest.log",
+          "logSha256": "1ac2c47d61eaf17fb8594141ce9819018647b8c9bfa0bced4176903c5e80784f"
+        }
+      }
+    },
+    "requiredHosts": {
+      "pass": 9,
+      "fail": 0,
+      "originalConditionalNotApplicable": 3,
+      "gp22": {
+        "status": "PASS_BOTH_JVMS",
+        "job": 127895726992,
+        "artifact": 13502079665,
+        "backendStopped": true,
+        "cold": {
+          "stock": 8,
+          "mature": 3,
+          "failedDrops": 1,
+          "failedInventory": 0,
+          "failedResources": 1,
+          "grants": 2,
+          "practices": 3,
+          "bodies": 1,
+          "process": 3611,
+          "processStarted": 1793968657180,
+          "modelCalls": 0,
+          "accessSha256": "068c4b62fa678cde78ba3bd16ca62aa8583fbef3d78b2b3419b6a9c7db086905"
+        },
+        "warm": {
+          "stock": 10,
+          "mature": 1,
+          "failedDrops": 1,
+          "failedInventory": 0,
+          "failedResources": 1,
+          "grants": 2,
+          "practices": 3,
+          "bodies": 1,
+          "process": 4198,
+          "processStarted": 1793968754986,
+          "modelCalls": 0,
+          "accessSha256": "068c4b62fa678cde78ba3bd16ca62aa8583fbef3d78b2b3419b6a9c7db086905"
+        }
+      },
+      "jobIds": [
+        127895726587,
+        127895726896,
+        127895726957,
+        127895726976,
+        127895726992,
+        127895727016,
+        127895727021,
+        127895727117,
+        127895727208
+      ]
+    },
+    "evidence": {
+      "releaseSha256": "2376d08ba38a37a46f1bb25fd64d17a28c5a859bb45e6eb1aa5f5a166760288d",
+      "observerSha256": "886bc4ff97afed5fada5e5596fa898d068a4bfb6e91fafc9a1f55c1ab7e60807",
+      "archive": {
+        "schema": 1,
+        "archiveBytes": 902799671,
+        "archiveSha256": "62caba4786a630c2383c66f923773d3f13fc2375ec128362c62e6a7bfd842ed9",
+        "parts": [
+          {
+            "name": "part-000.bin",
+            "bytes": 419430400,
+            "sha256": "0df929e2628ba583fcb1673c3938291c4b4056ab1e9f120be3eef1b81c9fb3a3"
+          },
+          {
+            "name": "part-001.bin",
+            "bytes": 419430400,
+            "sha256": "8332989672f2839fa5a4403935770c9cf9269f92e089cd462b0257c7b2f9f4d9"
+          },
+          {
+            "name": "part-002.bin",
+            "bytes": 63938871,
+            "sha256": "2379048cd3a04bd2df672ec27850c9aa0c0f4a0eac4a76e21768a1cb8a4f1f0c"
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "id": 13506215808,
+          "name": "cc-runtime-a-a04-contracts-f0ed347ee0a6d126b1850d2b1a8a1baf6e6dfa8c-42218905312-1",
+          "bytes": 3753421,
+          "digest": "sha256:0d48c5b9ebc6ed14be693cb04ef62c80f419685070b5f62497e1bf9752904e5a"
+        },
+        {
+          "id": 13505961251,
+          "name": "cc-runtime-a-a06-recovery-native-part-0-42218905312-1",
+          "bytes": 419431274,
+          "digest": "sha256:a33ecbd4020cc39bf90c4d289c7218eec8a45f8cb52f44c9d6f853f3fc02a987"
+        },
+        {
+          "id": 13505646712,
+          "name": "cc-runtime-a-a06-recovery-native-part-2-42218905312-1",
+          "bytes": 63939745,
+          "digest": "sha256:099af30b9bbacad496bcb5861c7d26fc7ddb1a6e872d8e89c91ccf8a1b38ccb6"
+        },
+        {
+          "id": 13504524753,
+          "name": "cc-runtime-a-a06-recovery-native-part-1-42218905312-1",
+          "bytes": 419431274,
+          "digest": "sha256:82e1c2cfa28fe6eb08376db7ce6b5eea9024ad20c97bd722af9b804484bce974"
+        },
+        {
+          "id": 13502079665,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4119456,
+          "digest": "sha256:f4405246e5329a4890460c7d76fa5fc73d5031449022ed2a583e3723006a7439"
+        }
+      ],
+      "profile": {
+        "diagnostic": true,
+        "qualifyingSamples": 0,
+        "sha256": "ad8e0fdacd764edae955cbed7077050c8173bdb30093d15f352375e2e8fb497b"
       }
     },
     "a06Qualified": false,
