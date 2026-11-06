@@ -281,22 +281,19 @@ public final class FabricPickupProtocol implements PickupProtocol {
             p=entry;
         }
         if(p==null)return null;
-        var link=live.get(p.token());var acknowledged=store.acknowledged(p.intent().key());
+        String token=p.token();
+        var link=live.get(token);var acknowledged=store.acknowledged(p.intent().key());
         if(link==null || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
         var entity=level.getEntity(request.actor().entityId());var source=harvest.sourceWitness(p.result().source());
         if(!(entity instanceof Villager actor) || source==null || !source.source().equals(p.result().source())
-                || !FabricHarvestProtocol.matchesResultMarker(source.marker(),p.token(),p.intent().digest(),p.result().digest())
+                || !FabricHarvestProtocol.matchesResultMarker(source.marker(),token,p.intent().digest(),p.result().digest())
                 || level.getEntity(p.intent().dropTrail().entity())!=null
                 || !harvest.actorMatches(actor,p.result().actor(),source.marker(),true))return null;
-        var exactPickup=p;
-        descendant=p.token();
+        descendant=token;
         try {
-            return harvest.prepareDescendant(link,trail->{
-                NativeJoinedDeposit.Prefix prefix;
-                try{prefix=new NativeJoinedDeposit.Prefix(exactPickup,trail);}catch(RuntimeException gap){return null;}
-                return preflight.getAsBoolean()?new DepositLineage(this,acknowledged,link,prefix):null;
-            });
+            var prefix=harvest.prepareDepositLineage(link,p,preflight);
+            return prefix==null?null:new DepositLineage(this,acknowledged,link,prefix);
         }finally{descendant="";}
     }
     boolean currentDeposit(DepositLineage lineage) {

@@ -97,6 +97,27 @@ block_rows = {
 for original, replacement in block_rows.items():
     assert adapted.count(original) == 1, original
     adapted = adapted.replace(original, replacement)
+# One current native query covers the arena. Potentially occupied columns
+# still use the original narrow query, including native multipart handling.
+column_queries = {
+    'var placementColumnsClear = new JsonObject();':
+        'var placementColumnsClear = new JsonObject();\n'
+        '        var placementOccupants = level.getEntities((net.minecraft.world.entity.Entity)null,\n'
+        '                new AABB(observationArea[0], observationArea[1], observationArea[2],\n'
+        '                        observationArea[3] + 1, observationArea[1] + 3, observationArea[4] + 1),\n'
+        '                e -> e.isAlive() && !e.isSpectator());',
+    'placementColumnsClear.addProperty(key, level.getEntities((net.minecraft.world.entity.Entity)null,\n'
+    '                    column, e -> e.isAlive() && !e.isSpectator()).isEmpty());':
+        'boolean overlaps = false;\n'
+        '            for (var entity : placementOccupants) {\n'
+        '                if (entity.getBoundingBox().intersects(column)) { overlaps = true; break; }\n'
+        '            }\n'
+        '            placementColumnsClear.addProperty(key, !overlaps || level.getEntities((net.minecraft.world.entity.Entity)null,\n'
+        '                    column, e -> e.isAlive() && !e.isSpectator()).isEmpty());',
+}
+for original, replacement in column_queries.items():
+    assert adapted.count(original) == 1, original
+    adapted = adapted.replace(original, replacement)
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)

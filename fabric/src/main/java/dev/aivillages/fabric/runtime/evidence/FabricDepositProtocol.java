@@ -251,12 +251,13 @@ public final class FabricDepositProtocol implements DepositProtocol {
         if(store.fenced())return true;
         if(!store.pending() && store.snapshot().entries().isEmpty())return false;
         String allowed="";
+        String address=NativeDeposit.chestAddress(target.x(),target.y(),target.z());
         for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming)
                 && effect==Effect.TRANSFER && target.dimension().equals(ticket.intent.chest().dimension())
-                && (target.x()+","+target.y()+","+target.z()).equals(ticket.intent.chest().address())){allowed=ticket.intent.key().token();break;}
+                && address.equals(ticket.intent.chest().address())){allowed=ticket.intent.key().token();break;}
         var actor=(ActorValue)incoming.request().arguments().get("actor");
         return actor!=null && store.conflicts(Kind.ACTOR,actor.value().dimension(),actor.value().entityId().toString(),allowed)
-                || store.conflicts(Kind.CHEST,target.dimension(),target.x()+","+target.y()+","+target.z(),allowed);
+                || store.conflicts(Kind.CHEST,target.dimension(),address,allowed);
     }
     private Witness witness(Participant expected) {
         check();try {
@@ -294,7 +295,8 @@ public final class FabricDepositProtocol implements DepositProtocol {
         if(capturedActor!=null && (!actorState.active() || !actorState.valid()
                 || !capturedActor.incarnation().equals(actorState.incarnation()) || capturedActor.revision()!=actorState.revision()))return null;
         var actorSnapshot=capturedActor==null?snapshot(Kind.ACTOR,dimension,actorRef.entityId().toString(),actorState,actor.getInventory(),true):capturedActor;
-        return new Pair(actor,chest,actorSnapshot,snapshot(Kind.CHEST,dimension,pos.getX()+","+pos.getY()+","+pos.getZ(),chestState,chest,true));
+        String address=NativeDeposit.chestAddress(pos.getX(),pos.getY(),pos.getZ());
+        return new Pair(actor,chest,actorSnapshot,snapshot(Kind.CHEST,dimension,address,chestState,chest,true));
     }
     private Participant snapshot(Kind kind,String dimension,String address,DepositParticipantState state,Container inventory,boolean activate) {
         if(activate)state.activate();if(!state.valid())throw new IllegalStateException("Native deposit metadata invalid");

@@ -37,6 +37,10 @@ public final class NativeDeposit {
     public enum Reconciliation { WAIT_WORLD, UNPROVEN, PREPARED_NO_EFFECT, SAVED_COMPLETE,
         SAVED_NO_EFFECT, TORN_PARTICIPANTS, JOURNAL_AHEAD_OF_PARTICIPANTS, PARTIAL_UNRESOLVED }
 
+    public static String chestAddress(int x,int y,int z) {
+        return new StringBuilder(32).append(x).append(',').append(y).append(',').append(z).toString();
+    }
+
     public record Key(UUID world,UUID root,UUID step,UUID attempt,long generation,int ordinal) {
         public Key {
             Objects.requireNonNull(world);Objects.requireNonNull(root);Objects.requireNonNull(step);Objects.requireNonNull(attempt);
@@ -62,7 +66,7 @@ public final class NativeDeposit {
                 int first=address.indexOf(','),second=address.indexOf(',',first+1);
                 if(first<0 || second<0)throw new IllegalArgumentException("Single chest address");
                 int x=Integer.parseInt(address,0,first,10),y=Integer.parseInt(address,first+1,second,10),z=Integer.parseInt(address,second+1,address.length(),10);
-                if(!address.equals(x+","+y+","+z))throw new IllegalArgumentException("Canonical chest address");
+                if(!address.equals(chestAddress(x,y,z)))throw new IllegalArgumentException("Canonical chest address");
                 requireDimension(dimension);
             }
         }

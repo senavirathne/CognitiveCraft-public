@@ -11,7 +11,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -143,16 +142,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         check();actorTrail(lineage);lineage.birth.actor.observe(observer);
     }
     <T> T descendantScope(PickupLineage lineage,Supplier<T> action) {
-        return descendantScope(lineage,actorTrail(lineage),ignored->action.get());
-    }
-    <T> T prepareDescendant(PickupLineage lineage,Function<NativePickup.Trail,T> action) {
-        NativePickup.Trail trail;
-        try{trail=actorTrail(lineage);}catch(RuntimeException gap){return null;}
-        return descendantScope(lineage,trail,action);
-    }
-    private <T> T descendantScope(PickupLineage lineage,NativePickup.Trail trail,Function<NativePickup.Trail,T> action) {
+        actorTrail(lineage);
         if(!descendant.isEmpty())throw new IllegalStateException("Nested H descendant scope");
-        descendant=lineage.harvest().token();try{return action.apply(trail);}finally{descendant="";}
+        descendant=lineage.harvest().token();
+        try{return action.get();}finally{descendant="";}
+    }
+    NativeJoinedDeposit.Prefix prepareDepositLineage(PickupLineage lineage,NativePickup.Entry pickup,BooleanSupplier preflight) {
+        NativeJoinedDeposit.Prefix prefix;
+        try{prefix=new NativeJoinedDeposit.Prefix(pickup,actorTrail(lineage));}catch(RuntimeException gap){return null;}
+        if(!descendant.isEmpty())throw new IllegalStateException("Nested H descendant scope");
+        descendant=lineage.harvest().token();
+        try{return preflight.getAsBoolean()?prefix:null;}finally{descendant="";}
     }
     public List<MembershipBirth> membershipBirths() {
         check();var views=new ArrayList<MembershipBirth>();
