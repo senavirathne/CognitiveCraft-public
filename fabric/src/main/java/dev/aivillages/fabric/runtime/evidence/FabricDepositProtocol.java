@@ -115,9 +115,9 @@ public final class FabricDepositProtocol implements DepositProtocol {
             if(closed || !enabled)throw new Refused(Reason.UNSUPPORTED_PRIMITIVE);
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=MAX_TICKETS)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
-            var lineage=pickups==null?null:pickups.captureDeposit(request);
-            if(pickups!=null && lineage==null)throw new Refused(Reason.INTERRUPTED);
-            if(!(lineage==null?preflight.getAsBoolean():pickups.depositScope(lineage,preflight::getAsBoolean)))throw new Refused(Reason.INTERRUPTED);
+            var lineage=pickups==null?null:pickups.prepareDeposit(request,preflight);
+            boolean permitted=pickups==null?preflight.getAsBoolean():lineage!=null;
+            if(!permitted)throw new Refused(Reason.INTERRUPTED);
             phases[0]=System.nanoTime();
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
@@ -248,6 +248,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
     public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;
         if(store.fenced())return true;
+        if(!store.pending() && store.snapshot().entries().isEmpty())return false;
         String allowed="";
         for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming)
                 && effect==Effect.TRANSFER && target.dimension().equals(ticket.intent.chest().dimension())
@@ -287,7 +288,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
         if(!block.is(Blocks.CHEST) || block.getValue(ChestBlock.TYPE)!=ChestType.SINGLE
                 || !(chunk.getBlockEntities().get(pos) instanceof ChestBlockEntity chest))return null;
         var actorState=((DepositParticipant)actor).cognitivecraft$depositParticipant();var chestState=((DepositParticipant)chest).cognitivecraft$depositParticipant();
-        // Only begin supplies the actor just read in the same call by captureDeposit.
+        // Only begin supplies the actor just read in the same call by prepareDeposit.
         // A later durability poll builds a fresh actor snapshot together with the chest.
         if(capturedActor!=null && (!actorState.active() || !actorState.valid()
                 || !capturedActor.incarnation().equals(actorState.incarnation()) || capturedActor.revision()!=actorState.revision()))return null;

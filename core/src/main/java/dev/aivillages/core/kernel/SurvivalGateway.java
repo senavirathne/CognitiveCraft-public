@@ -228,6 +228,10 @@ public final class SurvivalGateway implements GatewayPort {
             return new ItemStock(item.equals(ResourceDelivery.WHEAT) ? s.status() : ObservationStatus.UNKNOWN,
                     s.identity(),item.equals(ResourceDelivery.WHEAT) ? s.wheat() : 0,0,"",null);
         }
+        default boolean resourceContainerAvailable(ContainerRef target,ResourceDelivery.ItemIdentity item) {
+            ItemStock stock=resourceContainer(target,item);
+            return stock.status()==ObservationStatus.PRESENT && stock.reason()==null;
+        }
         default Reason resourceBreakEligibility(ActorRef actor, Cell cell, ResourceDelivery.ItemIdentity item) {
             return item.equals(ResourceDelivery.WHEAT) ? null : Reason.UNSUPPORTED_PRIMITIVE;
         }
@@ -1011,18 +1015,7 @@ public final class SurvivalGateway implements GatewayPort {
             action.pendingReceiptStart=action.resourceReceipts.size();
             action.pendingCropReceiptStart=action.receipts.size();
             var original=new dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Action() {
-                public boolean current(){
-                    if(!nativeActionLive(action) || !allows(action,Effect.HARVEST,cell)
-                            || world.resourceBreakEligibility(run.actor,cell,run.item)!=null)return false;
-                    var actorStock=world.resourceInventory(run.actor,run.item);
-                    if(!inventoryCurrent(run,actorStock))return false;
-                    var crop=world.resourceBlock(cell,run.item);var box=destination(run.request);
-                    var stock=world.resourceContainer(box,run.item);
-                    long requested=((IntValue)run.request.request().arguments().get("amount")).value();
-                    return crop.status()==ObservationStatus.PRESENT && crop.eligible() && action.breakIdentity.equals(crop.identity())
-                            && stock.status()==ObservationStatus.PRESENT && stock.reason()==null && (!LogAcquisition.log(run.item) || stock.capacity()>=requested-run.deposited && actorStock.capacity()>=requested-run.harvested) && world.permit(run.request,Effect.HARVEST,cell)==null
-                            && world.permit(run.request,Effect.TRANSFER,new Cell(box.dimension(),box.x(),box.y(),box.z()))==null;
-                }
+                public boolean current(){return nativeHarvestCurrent(action,cell,false);}
                 public dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Observed execute(){
                     int before=action.resourceReceipts.size(),cropBefore=action.receipts.size();action.harvestOutcome=performHarvest(action,cell);
                     var receipt=action.resourceReceipts.size()>before?action.resourceReceipts.getLast():null;
@@ -1030,10 +1023,7 @@ public final class SurvivalGateway implements GatewayPort {
                 }
                 public Map<Kind,Long> usage(){return action.usage.snapshot();}
             };
-            // The log harvest preflight already checked both loaded participants,
-            // source eligibility, and both permits in this server-thread call.
-            action.harvestTicket=protocol.begin(request,original,()->LogAcquisition.log(run.item)
-                    ? nativeActionLive(action) : original.current());
+            action.harvestTicket=protocol.begin(request,original,()->nativeHarvestCurrent(action,cell,true));
         }
         var progress=protocol.poll(action.harvestTicket);
         if(progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.PENDING){
@@ -1045,6 +1035,32 @@ public final class SurvivalGateway implements GatewayPort {
                 || progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.UNRESOLVED){finish(action,progress.reason(),null,null);return;}
         if(action.harvestOutcome==null){finish(action,Reason.STALE_OBSERVATION,null,null);return;}
         action.pendingReceiptStart=-1;action.pendingCropReceiptStart=-1;finishHarvest(action,action.harvestOutcome);action.harvestOutcome=null;
+    }
+    private boolean nativeHarvestCurrent(Active action,Cell cell,boolean capturing) {
+        if(!nativeActionLive(action))return false;
+        Run run=action.run;
+        boolean log=LogAcquisition.log(run.item);
+        // Capture is on the same call stack as harvest's verified source and authority.
+        // A log harvest has also checked both inventories and permits on this call.
+        if(capturing && log)return true;
+        if(!capturing) {
+            if(!allows(action,Effect.HARVEST,cell))return false;
+            var crop=world.resourceBlock(cell,run.item);
+            if(crop.status()!=ObservationStatus.PRESENT || !crop.eligible() || !action.breakIdentity.equals(crop.identity()))return false;
+        }
+        if(world.resourceBreakEligibility(run.actor,cell,run.item)!=null)return false;
+        var box=destination(run.request);
+        if(run.item.equals(ResourceDelivery.WHEAT)) {
+            if(inventoryQuantity(run)!=run.expectedItems || !world.resourceContainerAvailable(box,run.item))return false;
+        }else {
+            var actorStock=world.resourceInventory(run.actor,run.item);
+            var stock=world.resourceContainer(box,run.item);
+            if(!inventoryCurrent(run,actorStock) || stock.status()!=ObservationStatus.PRESENT || stock.reason()!=null)return false;
+            long requested=((IntValue)run.request.request().arguments().get("amount")).value();
+            if(log && (stock.capacity()<requested-run.deposited || actorStock.capacity()<requested-run.harvested))return false;
+        }
+        return world.permit(run.request,Effect.HARVEST,cell)==null
+                && world.permit(run.request,Effect.TRANSFER,new Cell(box.dimension(),box.x(),box.y(),box.z()))==null;
     }
     private void pickupTracked(Active action) {
         Run run = action.run;

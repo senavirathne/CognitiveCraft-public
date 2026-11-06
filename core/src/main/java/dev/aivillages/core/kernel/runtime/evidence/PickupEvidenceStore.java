@@ -77,10 +77,15 @@ public final class PickupEvidenceStore {
         }
         if(pending!=null&&clock.millis()>deadline)fenced=true;
     }
-    private static Entry find(Snapshot snapshot,String token){return snapshot.entries().stream().filter(e->e.token().equals(token)).findFirst().orElse(null);}
+    private static Entry find(Snapshot snapshot,String token) {
+        for(Entry entry:snapshot.entries())if(entry.token().equals(token))return entry;
+        return null;
+    }
     private boolean ancestry(Entry entry) {
         if(harvest.fenced()||harvest.pending())return false;
-        return harvest.snapshot().entries().stream().anyMatch(h->h.equals(entry.intent().harvest()));
+        var expected=entry.intent().harvest();
+        for(var row:harvest.snapshot().entries())if(row==expected || row.equals(expected))return true;
+        return false;
     }
     public Status prepare(Intent intent,HarvestEvidenceStore.Acknowledged original) {
         thread();Objects.requireNonNull(intent);if(fenced)return new Status(Code.FENCED,null);

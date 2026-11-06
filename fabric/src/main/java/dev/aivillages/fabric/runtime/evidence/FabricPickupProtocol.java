@@ -91,17 +91,15 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var claims=new ArrayList<Claim>();
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin()) && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime())
                 claims.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
-            var actor=actor(request.actor());var drop=drop(request.drop());if(actor==null || drop==null)throw new IllegalStateException("Pickup participants unavailable");
             long deadline=Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis());
             if(request.deadline()>deadline || request.effectsRemaining()>attempt.allowance().maximum(Budgets.Kind.COMMITTED_EFFECTS)-request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L))throw new IllegalStateException("Pickup allowance");
             var conditions=new Conditions(request.actor().citizenId(),job.revision(),deadline,request.deadline(),request.effectsRemaining(),level.getGameTime(),2500,
-                    (int)Math.ceil(Math.sqrt(actor.distanceToSqr(drop))*1000),claims,request.usage());
+                    lineage.reachMilli(),claims,request.usage());
             var k=h.intent().key();
             var intent=new NativePickup.Intent(new Key(k.world(),k.root(),k.step(),k.attempt(),k.generation(),2),h,request.operation(),request.expected(),conditions,lineage.actorTrail(),lineage.dropTrail());
             var port=NativeEntityStorage.get(level);if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
             var touched=new LinkedHashSet<>(lineage.actorTrail().chunks());touched.addAll(lineage.dropTrail().chunks());
             var chunks=List.copyOf(touched);
-            for(var chunk:chunks)frame(chunk);
             var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);return ticket;
         }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null,List.of());}
         finally{
@@ -113,10 +111,14 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public Progress poll(Ticket value) {
         check();if(!(value instanceof NativeTicket ticket) || ticket.forgotten || closed)return failed();
         if(ticket.failure!=null || !tickets.contains(ticket))return failed();
+        // Start each required read once the capture has produced the full chunk set.
+        boolean loading=false;
         for(var chunk:ticket.chunks) {
-            var frame=frame(chunk);if(frame==null)return new Progress(Code.PENDING,null);
-            if(!frame.supported())return failed();
+            var frame=frame(chunk);
+            if(frame==null)loading=true;
+            else if(!frame.supported())return failed();
         }
+        if(loading)return new Progress(Code.PENDING,null);
         try{ticket.actorPredecessor=actorPredecessor(ticket);}catch(RuntimeException unprovedSuccessor){return failed();}
         store.tick();PickupEvidenceStore.Status status;
         try {
@@ -257,8 +259,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
         }
         NativeJoinedDeposit.Prefix prefix(){return prefix;}
     }
-    DepositLineage captureDeposit(DepositProtocol.Request request) {
-        check();if(closed || !enabled || store.fenced() || store.pending())return null;
+    DepositLineage prepareDeposit(DepositProtocol.Request request,BooleanSupplier preflight) {
+        check();if(closed || !enabled || store.fenced() || store.pending() || !descendant.isEmpty())return null;
         NativePickup.Entry p=null;
         for(var entry:store.snapshot().entries()) {
             if(!entry.intent().harvest().intent().run().equals(request.correlation().runId()))continue;
@@ -269,12 +271,18 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var link=live.get(p.token());var acknowledged=store.acknowledged(p.intent().key());
         if(link==null || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
-        var actor=actor(request.actor());var source=harvest.sourceWitness(p.result().source());
-        if(actor==null || source==null || !source.source().equals(p.result().source())
+        var entity=level.getEntity(request.actor().entityId());var source=harvest.sourceWitness(p.result().source());
+        if(!(entity instanceof Villager actor) || source==null || !source.source().equals(p.result().source())
                 || !FabricHarvestProtocol.matchesResultMarker(source.marker(),p.token(),p.intent().digest(),p.result().digest())
                 || level.getEntity(p.intent().dropTrail().entity())!=null
                 || !harvest.actorMatches(actor,p.result().actor(),source.marker(),true))return null;
-        try{return new DepositLineage(this,acknowledged,link,new NativeJoinedDeposit.Prefix(p,harvest.actorTrail(link)));}catch(RuntimeException gap){return null;}
+        NativeJoinedDeposit.Prefix prefix;
+        try{prefix=new NativeJoinedDeposit.Prefix(p,harvest.actorTrail(link));}catch(RuntimeException gap){return null;}
+        // Acknowledgement, live participants, and the exact trail were just checked.
+        descendant=p.token();
+        try {
+            return harvest.descendantScope(link,preflight::getAsBoolean)?new DepositLineage(this,acknowledged,link,prefix):null;
+        }finally{descendant="";}
     }
     boolean currentDeposit(DepositLineage lineage) {
         check();return !closed && lineage!=null && lineage.owner==this && store.owns(lineage.pickup)
@@ -304,8 +312,15 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public boolean blocked(ValidatedRequest request,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
         var value=request.request().arguments().get("actor");if(!(value instanceof ActorValue actor))return false;
-        for(var e:store.snapshot().entries())if(!store.settled(e) && !e.token().equals(descendant) && e.intent().harvest().intent().actor().equals(actor.value())) {
-            boolean own=tickets.stream().anyMatch(t->t.intent==e.intent() && !t.forgotten && t.request.bound().equals(request) && effect==Effect.PICKUP && t.request.target().equals(target));
+        for(var e:store.snapshot().entries()) {
+            if(e.token().equals(descendant) || !e.intent().harvest().intent().actor().equals(actor.value()) || store.settled(e))continue;
+            boolean own=false;
+            if(effect==Effect.PICKUP)for(var ticket:tickets) {
+                if(ticket.intent==e.intent() && !ticket.forgotten && ticket.request.bound().equals(request) && ticket.request.target().equals(target)){
+                    own=true;
+                    break;
+                }
+            }
             if(!own)return true;
         }
         return false;

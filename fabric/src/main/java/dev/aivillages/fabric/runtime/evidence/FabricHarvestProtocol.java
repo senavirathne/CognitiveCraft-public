@@ -19,6 +19,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 /** Experimental stopped-harvest envelope. It deliberately fences later pickup until native pickup proof exists. */
@@ -49,7 +50,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         Jobs.Job authority;
         NativeTicket(Request request,Action original,NativeHarvest.Intent intent,Reason failure){this.request=request;this.original=original;this.intent=intent;this.failure=failure;}
     }
-    private record Pair(Villager actor,LevelChunk chunk,Participant actorSnapshot,Source source) { }
+    private record Pair(Villager actor,LevelChunk chunk,Participant actorSnapshot,Source source,BlockState block) { }
     private static NativePickup.Chunk membershipChunk(net.minecraft.world.entity.Entity entity) {
         var chunk=entity.chunkPosition();return new NativePickup.Chunk(entity.level().dimension().identifier().toString(),chunk.x(),chunk.z());
     }
@@ -65,8 +66,12 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public static final class PickupLineage {
         private final FabricHarvestProtocol owner;private final NativeBirth birth;private final HarvestEvidenceStore.Acknowledged original;
         private final NativePickup.Trail actor,drop;
-        private PickupLineage(FabricHarvestProtocol owner,NativeBirth birth,HarvestEvidenceStore.Acknowledged original,NativePickup.Trail actor,NativePickup.Trail drop){this.owner=owner;this.birth=birth;this.original=original;this.actor=actor;this.drop=drop;}
+        private final int reachMilli;
+        private PickupLineage(FabricHarvestProtocol owner,NativeBirth birth,HarvestEvidenceStore.Acknowledged original,NativePickup.Trail actor,NativePickup.Trail drop,int reachMilli){
+            this.owner=owner;this.birth=birth;this.original=original;this.actor=actor;this.drop=drop;this.reachMilli=reachMilli;
+        }
         public NativePickup.Trail actorTrail(){return actor;}public NativePickup.Trail dropTrail(){return drop;}
+        int reachMilli(){return reachMilli;}
         public NativeHarvest.Entry harvest(){return original.entry();}
         HarvestEvidenceStore.Acknowledged acknowledged(){return original;}
     }
@@ -101,7 +106,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         try {
             var actorTrail=birth.actor.capture();var dropTrail=born.trail().capture();
             if(!actorTrail.current().equals(membershipChunk(actor)) || !dropTrail.current().equals(membershipChunk(drop)))return null;
-            return new PickupLineage(this,birth,original,actorTrail,dropTrail);
+            int reach=(int)Math.ceil(Math.sqrt(actor.distanceToSqr(drop))*1000);
+            return new PickupLineage(this,birth,original,actorTrail,dropTrail,reach);
         }catch(RuntimeException incomplete){return null;}
     }
     public boolean currentPickupLineage(PickupLineage lineage) {
@@ -193,7 +199,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new Refused(Reason.INTERRUPTED);
             phase="participants";
             Pair pair=pair(request,true);if(pair==null)throw new Refused(Reason.TARGET_UNAVAILABLE);
-            if(!BuiltInRegistries.BLOCK.getKey(pair.chunk.getBlockState(pos(request.source())).getBlock()).toString().equals(request.item().id()))throw new Refused(Reason.TARGET_INVALID);
+            if(!BuiltInRegistries.BLOCK.getKey(pair.block.getBlock()).toString().equals(request.item().id()))throw new Refused(Reason.TARGET_INVALID);
             phase="claims";
             var claims=new ArrayList<ResourceLeases.Lease>(4);
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin()) && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime()) {
@@ -332,6 +338,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     }
     public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
+        if(!store.pending() && store.snapshot().entries().isEmpty())return false;
         String allowed=descendant;
         for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming) && (effect==Effect.HARVEST && target.equals(ticket.request.source()) || preflight.destination(ticket.request,incoming,effect,target))){allowed=ticket.intent.key().token();break;}
         var value=incoming.request().arguments().get("actor");
@@ -340,16 +347,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private static BlockPos pos(SurvivalGateway.Cell source){return new BlockPos(source.x(),source.y(),source.z());}
     private static BlockPos pos(Source source){return new BlockPos(source.x(),source.y(),source.z());}
     private String dimension(){return level.dimension().identifier().toString();}
-    private Source source(LevelChunk chunk,BlockPos pos,boolean activate) {
-        return ((HarvestSourceParticipant)chunk).cognitivecraft$harvestSources().snapshot(dimension(),chunk.getPos(),pos,HarvestSourceState.blockStateText(chunk.getBlockState(pos)),activate);
+    private Source source(LevelChunk chunk,BlockPos pos,BlockState block,boolean activate) {
+        return ((HarvestSourceParticipant)chunk).cognitivecraft$harvestSources().snapshot(dimension(),chunk.getPos(),pos,HarvestSourceState.blockStateText(block),activate);
     }
     private Pair pair(Request request,boolean activate) {
         if(!request.actor().dimension().equals(dimension()) || !request.source().dimension().equals(dimension()))return null;
         var entity=level.getEntity(request.actor().entityId());if(!(entity instanceof Villager actor) || !actor.isAlive())return null;
         if(level.getChunkSource().getChunkNow(actor.blockPosition().getX()>>4,actor.blockPosition().getZ()>>4)==null)return null;
         BlockPos pos=pos(request.source());var chunk=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);if(chunk==null)return null;
-        Source source=source(chunk,pos,activate);if(source==null)return null;
-        return new Pair(actor,chunk,actorSnapshot(actor,activate),source);
+        var block=chunk.getBlockState(pos);
+        Source source=source(chunk,pos,block,activate);if(source==null)return null;
+        return new Pair(actor,chunk,actorSnapshot(actor,activate),source,block);
     }
     static boolean matchesResultMarker(Marker marker,String effect,String intent,String result) {
         return marker!=null && marker.phase()==MarkerPhase.RESULT && marker.effect().equals(effect)
@@ -379,7 +387,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     }
     private boolean dropMatches(ItemEntity drop,Drop expected,Marker marker) {
         var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();
-        return !drop.isRemoved() && loaded(drop) && expected.dimension().equals(dimension())
+        return drop.isAlive() && loaded(drop) && expected.dimension().equals(dimension())
                 && expected.entity().equals(drop.getUUID()) && state.active() && state.valid()
                 && expected.incarnation().equals(state.incarnation()) && expected.revision()==state.revision()
                 && marker.equals(state.marker()) && stackMatches(drop.getItem(),expected.item(),expected.quantity());
@@ -427,7 +435,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     SourceWitness sourceWitness(Source expected) {
         if(!expected.dimension().equals(dimension()))return null;BlockPos pos=pos(expected);var chunk=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);if(chunk==null)return null;
         var state=((HarvestSourceParticipant)chunk).cognitivecraft$harvestSources();
-        try{Source actual=source(chunk,pos,false);return actual==null?new SourceWitness(expected,null,false):new SourceWitness(actual,state.marker(pos),state.restored(pos));}
+        try{Source actual=source(chunk,pos,chunk.getBlockState(pos),false);return actual==null?new SourceWitness(expected,null,false):new SourceWitness(actual,state.marker(pos),state.restored(pos));}
         catch(RuntimeException invalid){return new SourceWitness(expected,null,false);}
     }
     List<DropWitness> dropWitnesses(List<Drop> expected) {

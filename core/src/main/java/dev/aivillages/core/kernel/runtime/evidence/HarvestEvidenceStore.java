@@ -166,15 +166,20 @@ public final class HarvestEvidenceStore {
     }
     public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
-            if(!unresolved(entry) || entry.token().equals(allowedEffect))continue;
+            if(entry.token().equals(allowedEffect))continue;
             Source source=entry.intent().source();
-            if(sameActor(entry.intent().actor(),actor) || source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z)return true;
+            boolean overlaps=sameActor(entry.intent().actor(),actor)
+                    || source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z;
+            if(overlaps && unresolved(entry))return true;
         }
         return false;
     }
     private static boolean sameActor(ActorRef a,ActorRef b){return a.entityId().equals(b.entityId()) && a.dimension().equals(b.dimension());}
     private static boolean sameSource(Source a,Source b){return a.dimension().equals(b.dimension()) && a.x()==b.x() && a.y()==b.y() && a.z()==b.z();}
-    private static Entry find(Snapshot snapshot,String token){return snapshot.entries().stream().filter(e->e.token().equals(token)).findFirst().orElse(null);}
+    private static Entry find(Snapshot snapshot,String token) {
+        for(Entry entry:snapshot.entries())if(entry.token().equals(token))return entry;
+        return null;
+    }
     private Status status(Code code,Prepared prepared){return new Status(code,prepared);}
     private void publish(Snapshot next) {
         if(pending!=null || fenced)throw new IllegalStateException("Harvest publication already in flight");

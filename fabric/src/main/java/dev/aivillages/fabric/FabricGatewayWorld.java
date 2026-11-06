@@ -725,6 +725,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         }
         return new ItemStock(inspection.status(),inspection.identity(),quantity,inspection.capacity(),"",null);
     }
+    @Override public boolean resourceContainerAvailable(ContainerRef target,ResourceDelivery.ItemIdentity item) {
+        if(!item.equals(ResourceDelivery.WHEAT))return SurvivalGateway.WorldAccess.super.resourceContainerAvailable(target,item);
+        var pos=new BlockPos(target.x(),target.y(),target.z());
+        return target.dimension().equals(dimension()) && loaded(pos) && box(pos)!=null;
+    }
     @Override public Reason resourceBreakEligibility(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item) {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceBreakEligibility(actor,target,item);
         Villager v=villager(actor); BlockPos p=position(target);

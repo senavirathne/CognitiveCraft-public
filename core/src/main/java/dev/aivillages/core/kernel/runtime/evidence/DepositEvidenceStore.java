@@ -146,7 +146,10 @@ public final class DepositEvidenceStore {
         return false;
     }
     private static boolean sameAddress(Participant a,Participant b){return a.kind()==b.kind() && a.dimension().equals(b.dimension()) && a.address().equals(b.address());}
-    private static Entry find(Snapshot snapshot,String token){return snapshot.entries().stream().filter(e->e.token().equals(token)).findFirst().orElse(null);}
+    private static Entry find(Snapshot snapshot,String token) {
+        for(Entry entry:snapshot.entries())if(entry.token().equals(token))return entry;
+        return null;
+    }
     private Status status(Code code,Prepared prepared){return new Status(code,prepared);}
     private void publish(Snapshot next) {
         if(pending!=null || fenced)throw new IllegalStateException("Deposit publication already in flight");
