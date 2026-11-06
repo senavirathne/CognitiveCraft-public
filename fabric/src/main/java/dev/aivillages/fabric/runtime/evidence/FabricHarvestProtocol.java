@@ -9,6 +9,7 @@ import dev.aivillages.core.kernel.runtime.evidence.NativeHarvest.*;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -33,12 +34,13 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private boolean closed;
     private String descendant="";
     private final Map<String,NativeBirth> membershipBirths=new HashMap<>();
+    private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
     private final ArrayDeque<Long> preparationNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
     private final ArrayDeque<Refusal> refusals=new ArrayDeque<>();
     public record Refusal(String phase,String reason,String detail) { }
     private void refused(String phase,String reason,String detail){if(refusals.size()==32)refusals.removeFirst();refusals.addLast(new Refusal(phase,reason,detail==null?"":detail.substring(0,Math.min(128,detail.length()))));}
-    public record Metrics(List<Long> preparationNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<Refusal> refusals) { }
-    public Metrics metrics(){check();return new Metrics(List.copyOf(preparationNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(refusals));}
+    public record Metrics(List<Long> preparationNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<Refusal> refusals,List<Long> captureCpuNanos) { }
+    public Metrics metrics(){check();return new Metrics(List.copyOf(preparationNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(refusals),captureThreadTime.nanos());}
     private void measured(ArrayDeque<Long> values,long began){if(values.size()==128)values.removeFirst();values.addLast(System.nanoTime()-began);}
     private final class NativeTicket implements Ticket {
         final Request request;final Action original;final NativeHarvest.Intent intent;final Reason failure;
@@ -102,6 +104,13 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         check();if(lineage==null||lineage.owner!=this||membershipBirths.get(lineage.birth.intent.key().token())!=lineage.birth)return false;
         var current=capturePickupLineage(lineage.original);return current!=null&&current.actor.equals(lineage.actor)&&current.drop.equals(lineage.drop);
     }
+    PickupLineage preparePickupLineage(HarvestEvidenceStore.Acknowledged original,BooleanSupplier preflight) {
+        var lineage=capturePickupLineage(original);
+        if(lineage==null || !descendant.isEmpty())return null;
+        // The capture above already verified the loaded participants and both trails.
+        descendant=lineage.harvest().token();
+        try{return preflight.getAsBoolean()?lineage:null;}finally{descendant="";}
+    }
     boolean pickupTrailsCurrent(PickupLineage lineage) {
         check();if(closed || lineage==null || lineage.owner!=this || !store.owns(lineage.original))return false;
         try {
@@ -160,17 +169,20 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public void tick(){check();store.tick();}
     public void close(){check();closed=true;for(var ticket:tickets)ticket.forgotten=true;tickets.clear();membershipBirths.clear();}
     @Override public Ticket begin(Request request,Action original) {
-        check();long began=System.nanoTime();
-        try{return beginNative(Objects.requireNonNull(request),Objects.requireNonNull(original));}
-        finally{measured(preparationNanos,began);}
+        return begin(request,original,original::current);
     }
-    private Ticket beginNative(Request request,Action original) {
+    @Override public Ticket begin(Request request,Action original,BooleanSupplier preflight) {
+        check();long cpuStarted=captureThreadTime.start();long began=System.nanoTime();
+        try{return beginNative(Objects.requireNonNull(request),Objects.requireNonNull(original),preflight);}
+        finally{measured(preparationNanos,began);captureThreadTime.record(cpuStarted);}
+    }
+    private Ticket beginNative(Request request,Action original,BooleanSupplier preflight) {
         String phase="authority";
         try {
             if(closed || !enabled)throw new Refused(Reason.UNSUPPORTED_PRIMITIVE);
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=8)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
-            if(!original.current())throw new Refused(Reason.INTERRUPTED);
+            if(!preflight.getAsBoolean())throw new Refused(Reason.INTERRUPTED);
             phase="owner";
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();

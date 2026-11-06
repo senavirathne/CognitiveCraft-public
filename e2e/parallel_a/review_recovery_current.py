@@ -29,7 +29,7 @@ def modules(repo):
               ('core','dev.aivillages.core.kernel.LeaseAvailabilityTest',5),
               ('core','dev.aivillages.core.kernel.runtime.evidence.LiveAttemptAuthorityTest',3),
               ('core','dev.aivillages.core.kernel.runtime.evidence.NativeDigestsTest',3),
-              ('fabric','dev.aivillages.fabric.runtime.evidence.LiveDropCustodyTest',3),
+              ('fabric','dev.aivillages.fabric.runtime.evidence.LiveDropCustodyTest',4),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityTrailRecordTest',5),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkMembershipStateTest',8),
               ('fabric','dev.aivillages.fabric.runtime.evidence.EntityChunkRemovalStateTest',16)]

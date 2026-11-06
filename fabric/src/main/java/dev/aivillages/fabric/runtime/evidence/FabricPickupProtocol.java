@@ -8,6 +8,7 @@ import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +31,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private Consumer<Point> observer=p->{};
     private final Map<String,FabricHarvestProtocol.PickupLineage> live=new HashMap<>();
     private String descendant="";
+    private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
     private final ArrayDeque<Long> captureNanos=new ArrayDeque<>();
     private final class NativeTicket implements Ticket {
         final Request request;final Action action;final FabricHarvestProtocol.PickupLineage lineage;final NativePickup.Intent intent;final Reason failure;
@@ -57,10 +59,14 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public PickupEvidenceStore evidence(){check();return store;}
     public void observe(Consumer<Point> observer){check();this.observer=Objects.requireNonNull(observer);}
     public List<Long> captureNanos(){check();return List.copyOf(captureNanos);}
+    public List<Long> captureCpuNanos(){check();return captureThreadTime.nanos();}
     public void tick(){check();store.tick();}
     public void close(){check();closed=true;tickets.clear();frames.clear();live.clear();}
-    public Ticket begin(Request request,Action action) {
-        check();long began=System.nanoTime();
+    @Override public Ticket begin(Request request,Action action) {
+        return begin(request,action,action::current);
+    }
+    @Override public Ticket begin(Request request,Action action,BooleanSupplier preflight) {
+        check();long cpuStarted=captureThreadTime.start();long began=System.nanoTime();
         try {
             if(closed || !enabled || store.fenced() || store.pending() || tickets.size()==8)throw new IllegalStateException("Pickup unavailable");
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
@@ -69,11 +75,15 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var ancestors=harvest.evidence().snapshot().entries().stream().filter(e->e.intent().key().step().equals(job.id())
                     && e.intent().key().attempt().equals(attempt.id()) && e.intent().key().generation()==attempt.generation()).toList();
             if(ancestors.size()!=1)throw new IllegalStateException("Original first-H required");
-            var h=ancestors.getFirst();var acknowledged=harvest.evidence().acknowledged(h.intent().key());
-            var lineage=harvest.capturePickupLineage(acknowledged);
-            if(lineage==null || !h.intent().run().equals(request.correlation().runId()) || !h.intent().actor().equals(request.actor())
-                    || !h.result().drops().getFirst().entity().equals(request.drop()) || h.result().drops().getFirst().quantity()!=request.expected()
-                    || !h.intent().item().equals(request.item().id()) || !harvest.pickupScope(lineage,action::current))throw new IllegalStateException("Original pickup custody");
+            var h=ancestors.getFirst();
+            if(!h.intent().run().equals(request.correlation().runId()) || !h.intent().actor().equals(request.actor())
+                    || !h.intent().item().equals(request.item().id()) || h.result()==null || h.result().drops().size()!=1)
+                throw new IllegalStateException("Original pickup custody");
+            var output=h.result().drops().getFirst();
+            if(!output.entity().equals(request.drop()) || output.quantity()!=request.expected())
+                throw new IllegalStateException("Original pickup output");
+            var lineage=harvest.preparePickupLineage(harvest.evidence().acknowledged(h.intent().key()),preflight);
+            if(lineage==null)throw new IllegalStateException("Original pickup lineage");
             var claims=new ArrayList<Claim>();
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin()) && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime())
                 claims.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
@@ -90,7 +100,11 @@ public final class FabricPickupProtocol implements PickupProtocol {
             for(var chunk:chunks)frame(chunk);
             var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);return ticket;
         }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null,List.of());}
-        finally{if(captureNanos.size()==128)captureNanos.removeFirst();captureNanos.addLast(System.nanoTime()-began);}
+        finally{
+            if(captureNanos.size()==128)captureNanos.removeFirst();
+            captureNanos.addLast(System.nanoTime()-began);
+            captureThreadTime.record(cpuStarted);
+        }
     }
     public Progress poll(Ticket value) {
         check();if(!(value instanceof NativeTicket ticket) || ticket.forgotten || closed)return failed();
@@ -247,8 +261,9 @@ public final class FabricPickupProtocol implements PickupProtocol {
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
         var actor=actor(request.actor());var source=harvest.sourceWitness(p.result().source());var marker=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
         if(actor==null || source==null || !source.source().equals(p.result().source()) || !marker.equals(source.marker())
-                || !harvest.actorSnapshot(actor,false).equals(p.result().actor()) || !marker.equals(((DepositParticipant)actor).cognitivecraft$depositParticipant().marker())
-                || level.getEntity(p.intent().dropTrail().entity())!=null)return null;
+                || !marker.equals(((DepositParticipant)actor).cognitivecraft$depositParticipant().marker())
+                || level.getEntity(p.intent().dropTrail().entity())!=null
+                || !harvest.actorSnapshot(actor,true).equals(p.result().actor()))return null;
         try{return new DepositLineage(this,acknowledged,link,new NativeJoinedDeposit.Prefix(p,harvest.actorTrail(link)));}catch(RuntimeException gap){return null;}
     }
     boolean currentDeposit(DepositLineage lineage) {

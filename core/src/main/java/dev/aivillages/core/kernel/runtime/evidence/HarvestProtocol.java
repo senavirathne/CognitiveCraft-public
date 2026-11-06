@@ -5,6 +5,7 @@ import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.SurvivalGateway.*;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 
 /** Trusted composition port around the original harvest; player/model data cannot supply its action. */
 public interface HarvestProtocol {
@@ -34,6 +35,13 @@ public interface HarvestProtocol {
         public Progress {Objects.requireNonNull(code);if(((code==Code.FAILED || code==Code.UNRESOLVED)!=(reason!=null) || code==Code.UNRESOLVED && reason!=Reason.INTERRUPTED))throw new IllegalArgumentException("Harvest protocol progress");}
     }
     Ticket begin(Request request,Action original);
+
+    /** The preflight may reuse observations made on the same server-thread call stack.
+     *  Invoke it during capture only. Before any mutation use the original action's current check.
+     */
+    default Ticket begin(Request request, Action original, BooleanSupplier preflight) {
+        return begin(request, original);
+    }
     Progress poll(Ticket ticket);
     void forget(Ticket ticket);
 }

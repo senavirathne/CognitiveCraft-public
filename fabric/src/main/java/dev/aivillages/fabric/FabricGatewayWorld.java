@@ -877,9 +877,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             if(stack.is(Items.WHEAT)) {
                 UUID originalRun=GatewayControl.owner(v);
                 if(originalRun!=null) {
+                    // Put the actual harvest output down at its crop instead of tossing
+                    // it outside the stationary worker's already checked reach.
+                    entity.setDeltaMovement(new Vec3(0,entity.getDeltaMovement().y,0));
                     entity.setThrower(v);entity.setTarget(entity.getUUID());
                     ((dev.aivillages.fabric.runtime.evidence.LiveHarvestDrop)entity).cognitivecraft$liveCustody(
-                            ()->v.isAlive() && !v.isRemoved() && GatewayControl.holds(v,originalRun));
+                            v.getUUID(),()->v.isAlive() && !v.isRemoved() && GatewayControl.holds(v,originalRun));
                 }
             }
             dev.aivillages.fabric.runtime.evidence.HarvestBirthScope.spawned(entity);

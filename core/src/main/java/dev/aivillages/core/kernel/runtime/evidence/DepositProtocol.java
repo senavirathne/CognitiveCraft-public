@@ -6,6 +6,7 @@ import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.ResourceDelivery;
 import dev.aivillages.core.kernel.SurvivalGateway.ItemTransfer;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 
 /** Composition-owned native deposit port. Its action is the original gateway call, never player data. */
 public interface DepositProtocol {
@@ -38,6 +39,13 @@ public interface DepositProtocol {
         public Progress {Objects.requireNonNull(code);if((code==Code.FAILED)!=(reason!=null))throw new IllegalArgumentException("Deposit protocol progress");}
     }
     Ticket begin(Request request,Action original);
+
+    /** The preflight may reuse observations made on the same server-thread call stack.
+     *  Invoke it during capture only. Before any mutation use the original action's current check.
+     */
+    default Ticket begin(Request request, Action original, BooleanSupplier preflight) {
+        return begin(request, original);
+    }
     Progress poll(Ticket ticket);
     void forget(Ticket ticket);
 }

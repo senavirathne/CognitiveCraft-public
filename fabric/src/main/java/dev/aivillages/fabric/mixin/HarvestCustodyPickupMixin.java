@@ -20,7 +20,7 @@ public abstract class HarvestCustodyPickupMixin {
         boolean wheat=item.getItem().is(Items.WHEAT);
         if(!wheat && !item.getItem().is(Items.WHEAT_SEEDS))return;
         var kernel=AiVillages.kernel();
-        if(wheat && ((LiveHarvestDrop)item).cognitivecraft$liveCustody()
+        if(wheat && ((LiveHarvestDrop)item).cognitivecraft$blocksNativePickup(((Mob)(Object)this).getUUID())
                 || kernel!=null && kernel.retainsNativeCropOutput(item))ci.cancel();
     }
 }
