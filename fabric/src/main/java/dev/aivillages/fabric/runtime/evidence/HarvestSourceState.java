@@ -8,17 +8,30 @@ import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
 
 /** Bounded metadata in the source's own chunk save; live marks never claim a saved cohort. */
 public final class HarvestSourceState {
     public static final String TAG="cognitivecraft_harvest_sources";
     public static final int MAX_SOURCES=64,MAX_TEXT=60_000;
     private static final String ORIGINAL=TAG+"_original";
+    private static final Map<BlockState,String> STATE_TEXT=new IdentityHashMap<>();
+
+    /** Block states are immutable. Always read the loaded state before using its canonical text. */
+    public static synchronized String blockStateText(BlockState state) {
+        if(state.isAir())return "minecraft:air";
+        String text=STATE_TEXT.get(state);
+        if(text!=null)return text;
+        text=state.toString();
+        if(STATE_TEXT.size()<64)STATE_TEXT.put(state,text);
+        return text;
+    }
     private record Position(int x,int y,int z) implements Comparable<Position> {
         @Override public int compareTo(Position b){int c=Integer.compare(x,b.x);if(c==0)c=Integer.compare(y,b.y);return c==0?Integer.compare(z,b.z):c;}
     }
     private static final class Tracked {
         final UUID incarnation;long revision;Marker marker;boolean restored;
+        Source snapshot;
         Tracked(UUID incarnation,long revision,Marker marker,boolean restored){this.incarnation=incarnation;this.revision=revision;this.marker=marker;this.restored=restored;}
     }
     private final NavigableMap<Position,Tracked> sources=new TreeMap<>();
@@ -47,7 +60,10 @@ public final class HarvestSourceState {
             if(sources.size()>=MAX_SOURCES)throw new IllegalStateException("Native source metadata quota");
             row=new Tracked(UUID.randomUUID(),0,null,false);sources.put(key,row);
         }
-        return row==null?null:new Source(dim,key.x,key.y,key.z,row.incarnation,row.revision,blockState);
+        if(row==null)return null;
+        if(row.snapshot==null || row.snapshot.revision()!=row.revision || !row.snapshot.state().equals(blockState))
+            row.snapshot=new Source(dim,key.x,key.y,key.z,row.incarnation,row.revision,blockState);
+        return row.snapshot;
     }
     public Marker marker(BlockPos pos){Tracked row=sources.get(position(pos));return row==null?null:row.marker;}
     public boolean restored(BlockPos pos){Tracked row=sources.get(position(pos));return valid && row!=null && row.restored;}

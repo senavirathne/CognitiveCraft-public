@@ -21,6 +21,7 @@ public final class DepositParticipantState {
     private volatile boolean active,valid=true,restored,quarantined;
     private Thread gameThread;
     private int metadataDepth;
+    private boolean trackedStacks;
     private Dynamic<?> original,originalExtra;
     private String previous="";
     public boolean active(){return active;}
@@ -35,11 +36,16 @@ public final class DepositParticipantState {
         if(gameThread!=Thread.currentThread())throw new IllegalStateException("Native deposit participant thread");
         if(!active){incarnation=UUID.randomUUID();revision=0;active=true;restored=false;}
     }
-    public void track(List<ItemStack> slots){activate();DepositStackOwners.bind(this,slots);}
+    public void track(List<ItemStack> slots){activate();bindStacks(slots);}
+    private void bindStacks(List<ItemStack> slots) {
+        if(!trackedStacks && slots.isEmpty())return;
+        DepositStackOwners.bind(this,slots);
+        trackedStacks=!slots.isEmpty();
+    }
     /** Initial deserialization may use its native worker; do not bind the future game thread here. */
     public void trackLoaded(List<ItemStack> slots) {
         if(!active || !valid)return;
-        try{DepositStackOwners.bind(this,slots);}catch(RuntimeException unsupported){valid=false;quarantined=true;restored=false;}
+        try{bindStacks(slots);}catch(RuntimeException unsupported){valid=false;quarantined=true;restored=false;}
     }
     public void mutation() {
         if(!active || metadataDepth!=0)return;

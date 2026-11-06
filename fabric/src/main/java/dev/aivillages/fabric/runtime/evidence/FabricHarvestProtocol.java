@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
@@ -89,14 +90,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         if(birth==null||!birth.complete||!birth.finished||!birth.intent.equals(e.intent())||e.result()==null||e.result().live()!=NativeHarvest.Live.COMPLETE
                 ||e.result().drops().size()!=1||birth.drops.size()!=1)return null;
         var ref=e.result().drops().getFirst();var born=birth.drops.get(ref.entity());if(born==null||!born.incarnation().equals(ref.incarnation())||!born.beforeNativeAdd())return null;
-        var expected=new Marker(e.token(),e.intent().digest(),MarkerPhase.RESULT,e.result().digest());
-        var actor=actorWitness(e.result().actor());var source=sourceWitness(e.result().source());var drops=dropWitnesses(e.result().drops());
-        if(actor==null||source==null||drops==null||drops.size()!=1||!actor.participant().equals(e.result().actor())||!source.source().equals(e.result().source())
-                ||!drops.getFirst().drop().equals(ref)||!expected.equals(actor.marker())||!expected.equals(source.marker())||!expected.equals(drops.getFirst().marker()))return null;
+        var source=sourceWitness(e.result().source());
+        if(source==null || !source.source().equals(e.result().source()))return null;
+        var marker=source.marker();
+        if(!matchesResultMarker(marker,e.token(),e.intent().digest(),e.result().digest()))return null;
+        var nativeActor=level.getEntity(e.intent().actor().entityId());
+        var nativeDrop=level.getEntity(ref.entity());
+        if(!(nativeActor instanceof Villager actor) || !actorMatches(actor,e.result().actor(),marker,false)
+                || !(nativeDrop instanceof ItemEntity drop) || !dropMatches(drop,ref,marker))return null;
         try {
             var actorTrail=birth.actor.capture();var dropTrail=born.trail().capture();
-            var nativeActor=level.getEntity(UUID.fromString(e.result().actor().address()));var nativeDrop=level.getEntity(ref.entity());
-            if(nativeActor==null||nativeDrop==null||!actorTrail.current().equals(membershipChunk(nativeActor))||!dropTrail.current().equals(membershipChunk(nativeDrop)))return null;
+            if(!actorTrail.current().equals(membershipChunk(actor)) || !dropTrail.current().equals(membershipChunk(drop)))return null;
             return new PickupLineage(this,birth,original,actorTrail,dropTrail);
         }catch(RuntimeException incomplete){return null;}
     }
@@ -336,9 +340,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private static BlockPos pos(SurvivalGateway.Cell source){return new BlockPos(source.x(),source.y(),source.z());}
     private static BlockPos pos(Source source){return new BlockPos(source.x(),source.y(),source.z());}
     private String dimension(){return level.dimension().identifier().toString();}
-    private String blockState(LevelChunk chunk,BlockPos pos){var state=chunk.getBlockState(pos);return state.isAir()?"minecraft:air":state.toString();}
     private Source source(LevelChunk chunk,BlockPos pos,boolean activate) {
-        return ((HarvestSourceParticipant)chunk).cognitivecraft$harvestSources().snapshot(dimension(),chunk.getPos(),pos,blockState(chunk,pos),activate);
+        return ((HarvestSourceParticipant)chunk).cognitivecraft$harvestSources().snapshot(dimension(),chunk.getPos(),pos,HarvestSourceState.blockStateText(chunk.getBlockState(pos)),activate);
     }
     private Pair pair(Request request,boolean activate) {
         if(!request.actor().dimension().equals(dimension()) || !request.source().dimension().equals(dimension()))return null;
@@ -347,6 +350,47 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         BlockPos pos=pos(request.source());var chunk=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);if(chunk==null)return null;
         Source source=source(chunk,pos,activate);if(source==null)return null;
         return new Pair(actor,chunk,actorSnapshot(actor,activate),source);
+    }
+    static boolean matchesResultMarker(Marker marker,String effect,String intent,String result) {
+        return marker!=null && marker.phase()==MarkerPhase.RESULT && marker.effect().equals(effect)
+                && marker.intent().equals(intent) && marker.result().equals(result);
+    }
+    boolean actorMatches(Villager actor,Participant expected,Marker marker,boolean track) {
+        if(!actor.isAlive() || !loaded(actor) || !expected.dimension().equals(dimension())
+                || !expected.address().equals(actor.getUUID().toString()))return false;
+        var state=((DepositParticipant)actor).cognitivecraft$depositParticipant();
+        var inventory=actor.getInventory();
+        if(!state.active() || !state.valid() || !expected.incarnation().equals(state.incarnation())
+                || expected.revision()!=state.revision() || !marker.equals(state.marker())
+                || inventory.getContainerSize()!=expected.slots().size())return false;
+        var stacks=track?new ArrayList<ItemStack>():null;
+        for(int n=0;n<expected.slots().size();n++) {
+            var stack=inventory.getItem(n);
+            var slot=expected.slots().get(n);
+            if(slot.count()==0) {
+                if(!stack.isEmpty())return false;
+            }else {
+                if(!stackMatches(stack,slot.item(),slot.count()))return false;
+                if(track)stacks.add(stack);
+            }
+        }
+        if(track)state.track(stacks);
+        return true;
+    }
+    private boolean dropMatches(ItemEntity drop,Drop expected,Marker marker) {
+        var state=((DepositParticipant)drop).cognitivecraft$depositParticipant();
+        return !drop.isRemoved() && loaded(drop) && expected.dimension().equals(dimension())
+                && expected.entity().equals(drop.getUUID()) && state.active() && state.valid()
+                && expected.incarnation().equals(state.incarnation()) && expected.revision()==state.revision()
+                && marker.equals(state.marker()) && stackMatches(drop.getItem(),expected.item(),expected.quantity());
+    }
+    private boolean loaded(Entity entity) {
+        var pos=entity.blockPosition();
+        return level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)!=null;
+    }
+    private static boolean stackMatches(ItemStack stack,String item,int count) {
+        return !stack.isEmpty() && stack.getCount()==count && BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(item)
+                && ItemStack.isSameItemSameComponents(stack,new ItemStack(stack.getItem()));
     }
     Participant actorSnapshot(Villager actor,boolean activate) {
         var state=((DepositParticipant)actor).cognitivecraft$depositParticipant();if(activate)state.activate();

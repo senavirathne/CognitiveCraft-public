@@ -72,10 +72,14 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new IllegalStateException("Original owner stopping");
-            var ancestors=harvest.evidence().snapshot().entries().stream().filter(e->e.intent().key().step().equals(job.id())
-                    && e.intent().key().attempt().equals(attempt.id()) && e.intent().key().generation()==attempt.generation()).toList();
-            if(ancestors.size()!=1)throw new IllegalStateException("Original first-H required");
-            var h=ancestors.getFirst();
+            NativeHarvest.Entry h=null;
+            for(var entry:harvest.evidence().snapshot().entries()) {
+                var key=entry.intent().key();
+                if(!key.step().equals(job.id()) || !key.attempt().equals(attempt.id()) || key.generation()!=attempt.generation())continue;
+                if(h!=null)throw new IllegalStateException("Original first-H required");
+                h=entry;
+            }
+            if(h==null)throw new IllegalStateException("Original first-H required");
             if(!h.intent().run().equals(request.correlation().runId()) || !h.intent().actor().equals(request.actor())
                     || !h.intent().item().equals(request.item().id()) || h.result()==null || h.result().drops().size()!=1)
                 throw new IllegalStateException("Original pickup custody");
@@ -255,15 +259,21 @@ public final class FabricPickupProtocol implements PickupProtocol {
     }
     DepositLineage captureDeposit(DepositProtocol.Request request) {
         check();if(closed || !enabled || store.fenced() || store.pending())return null;
-        var matches=store.snapshot().entries().stream().filter(e->e.intent().harvest().intent().run().equals(request.correlation().runId())).toList();
-        if(matches.size()!=1)return null;var p=matches.getFirst();var link=live.get(p.token());var acknowledged=store.acknowledged(p.intent().key());
+        NativePickup.Entry p=null;
+        for(var entry:store.snapshot().entries()) {
+            if(!entry.intent().harvest().intent().run().equals(request.correlation().runId()))continue;
+            if(p!=null)return null;
+            p=entry;
+        }
+        if(p==null)return null;
+        var link=live.get(p.token());var acknowledged=store.acknowledged(p.intent().key());
         if(link==null || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
-        var actor=actor(request.actor());var source=harvest.sourceWitness(p.result().source());var marker=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
-        if(actor==null || source==null || !source.source().equals(p.result().source()) || !marker.equals(source.marker())
-                || !marker.equals(((DepositParticipant)actor).cognitivecraft$depositParticipant().marker())
+        var actor=actor(request.actor());var source=harvest.sourceWitness(p.result().source());
+        if(actor==null || source==null || !source.source().equals(p.result().source())
+                || !FabricHarvestProtocol.matchesResultMarker(source.marker(),p.token(),p.intent().digest(),p.result().digest())
                 || level.getEntity(p.intent().dropTrail().entity())!=null
-                || !harvest.actorSnapshot(actor,true).equals(p.result().actor()))return null;
+                || !harvest.actorMatches(actor,p.result().actor(),source.marker(),true))return null;
         try{return new DepositLineage(this,acknowledged,link,new NativeJoinedDeposit.Prefix(p,harvest.actorTrail(link)));}catch(RuntimeException gap){return null;}
     }
     boolean currentDeposit(DepositLineage lineage) {

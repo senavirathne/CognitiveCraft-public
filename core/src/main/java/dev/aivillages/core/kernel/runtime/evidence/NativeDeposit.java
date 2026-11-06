@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 public final class NativeDeposit {
     public static final int SCHEMA=1, MAX_ENTRIES=64, MAX_RECORD_BYTES=32_768;
     private static final Pattern IDENTIFIER=Pattern.compile("[a-z0-9_.-]+:[a-z0-9_/.-]+");
+    private static final Pattern DIMENSION=Pattern.compile("[a-z0-9_.-]+:[a-z0-9_/.-]{1,96}");
     private static final Pattern SHA256=Pattern.compile("[0-9a-f]{64}");
     private NativeDeposit() { }
     /** Link the immutable snapshot schema during service setup, before an effect is admitted. */
@@ -48,10 +49,11 @@ public final class NativeDeposit {
                 throw new IllegalArgumentException("Deposit participant envelope");
             if(kind==Kind.ACTOR)uuid(address);
             else {
-                String[] cell=address.split(",",-1);if(cell.length!=3)throw new IllegalArgumentException("Single chest address");
-                int x=Integer.parseInt(cell[0]),y=Integer.parseInt(cell[1]),z=Integer.parseInt(cell[2]);
+                int first=address.indexOf(','),second=address.indexOf(',',first+1);
+                if(first<0 || second<0)throw new IllegalArgumentException("Single chest address");
+                int x=Integer.parseInt(address,0,first,10),y=Integer.parseInt(address,first+1,second,10),z=Integer.parseInt(address,second+1,address.length(),10);
                 if(!address.equals(x+","+y+","+z))throw new IllegalArgumentException("Canonical chest address");
-                new ContainerRef(dimension,x,y,z);
+                requireDimension(dimension);
             }
         }
         public boolean sameIdentity(Participant other) {
@@ -309,6 +311,10 @@ public final class NativeDeposit {
     static String string(Map<String,Object> row,String key){if(!(row.get(key) instanceof String value))throw new IllegalArgumentException("Deposit string");return value;}
     static UUID id(Map<String,Object> row,String key){return uuid(string(row,key));}
     private static UUID uuid(String value){UUID id=UUID.fromString(value);if(!id.toString().equals(value))throw new IllegalArgumentException("Canonical deposit UUID");return id;}
+    static void requireDimension(String dimension) {
+        if(dimension==null || dimension.length()>128 || !DIMENSION.matcher(dimension).matches())
+            throw new IllegalArgumentException("Dimension");
+    }
     static void hash(String value){if(value==null || !SHA256.matcher(value).matches())throw new IllegalArgumentException("Deposit SHA-256");}
     public static String sha(String value){return sha(value.getBytes(StandardCharsets.UTF_8));}
     public static String sha(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}

@@ -15,9 +15,10 @@ class RecoveryHarness(HarvestHarness):
     case_stage='HARVEST'
     def __init__(self,root):
         super().__init__(root)
-        # Use the already qualified A04 pause target on the same two-core server cap.
+        # Capture includes wall-clock pauses. Select a low-pause collector
+        # within the same two-core server and heap cap.
         self.env['A06_NATIVE_JAVA_TOOL_OPTIONS']=(
-            '-XX:G1HeapRegionSize=2M -XX:MaxGCPauseMillis=10 '
+            '-XX:+UseZGC -XX:ConcGCThreads=1 '
             '-Xlog:gc*,safepoint:file=/evidence/server/a06-gc-%t-%p.log:time,uptime,level,tags:filecount=4,filesize=8M')
     def start(self,component):
         result=super().start(component)
@@ -31,7 +32,7 @@ class RecoveryHarness(HarvestHarness):
                 return runtime if value and runtime and runtime['process']==value['process'] else None
             runtime=self.wait(ready,'Current experimental kernel and native evidence owners ready',60)
             require(runtime['availableProcessors']==2 and
-                    {'-Xms256M','-Xmx1536M','-XX:G1HeapRegionSize=2M','-XX:MaxGCPauseMillis=10'}<=set(runtime['inputArguments']),
+                    {'-Xms256M','-Xmx1536M','-XX:+UseZGC','-XX:ConcGCThreads=1'}<=set(runtime['inputArguments']),
                     'Native server differs from the declared A06 CPU and JVM budget')
             self.event('a06-native-jvm',runtime)
         return result
@@ -104,6 +105,7 @@ def one(h,seed,case):
         h.save_checkpoint();token=str(uuid.uuid4());result['arm']=h.rpc('arm',stage=case['checkpoint'],point='RESULT_ACKNOWLEDGED',token=token,save=True)
         calls=h.model_calls();start=int(time.time()*1000);src=case['source']
         run=h.submit(case['item'],case['requested'],minimum=[src[k] for k in ('minX','minY','minZ')],maximum=[src[k] for k in ('maxX','maxY','maxZ')],destination=dst)
+        result.update(run=run,initialCustody=initial)
         cut=h.wait(lambda:(v if (v:=read(h.root/'server/harvest-cut-reached.json')) and v['token']==token else None),'Actual original '+case['id']+' '+case['checkpoint']+' boundary',190)
         require(cut['stage']==case['checkpoint'] and cut['point']=='RESULT_ACKNOWLEDGED' and cut['commands']==[{'command':'tick freeze','result':1},{'command':'save-all flush','result':1}],'Original saved cut was not actually reached')
         stage=cut['stages'][case['checkpoint']];entry=stage['journal']['entries'][0];key=entry['intent']['key'];effects,credit=STAGES[case['checkpoint']]
@@ -113,7 +115,7 @@ def one(h,seed,case):
         require(original['state']=='ACTIVE' and attempt.get('terminal') is None,'Original owner was not live at the cut')
         require(original['request']['request']['arguments']['amount']['value']==case['requested'] and original['request']['request']['capability']==case['capability'],'Original request changed')
         require(attempt['executions'][0]['artifact']['sha256']==h.hashes[case['capability']['name']],'Original used a different admitted method')
-        result.update(run=run,initialCustody=initial,reached=cut,key=key,originalAtCut=original)
+        result.update(reached=cut,key=key,originalAtCut=original)
         before=native_process(h);clients={p:read(h.root/'clients'/p/'process.json') for p in h.players}
         h.stop('server',hard=True);h.wait(lambda:not same_native_alive(before),'Actual original JVM killed',25)
         killed=directory/'killed-world';shutil.copytree(h.root/'server/game/world',killed,ignore=shutil.ignore_patterns('session.lock'))
@@ -160,6 +162,9 @@ def one(h,seed,case):
         for name,observe in (('lastEvidence',h.evidence),('lastSnapshot',h.snapshot)):
             try:result[name]=observe()
             except Exception as observation_error:result[name]={'unavailable':str(observation_error)}
+        if 'run' in result:
+            try:result['lastRun']=h.run_view('PlayerA',result['run'])
+            except Exception as observation_error:result['lastRun']={'unavailable':str(observation_error)}
         atomic(directory/'result.json',result);raise
 
 def main():

@@ -21,6 +21,7 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
  * The gateway owns ephemeral handles/custody only; a crash never replays an unfinished action.
  */
 public final class SurvivalGateway implements GatewayPort {
+    private static final long BREAK_STANCE_GRACE_TICKS = 4;
     public enum ObservationKind { SOURCE_CROPS, ACTOR_STOCK, CONTAINER_STOCK,
         SOURCE_OAK_LOGS, ACTOR_OAK_STOCK, CONTAINER_OAK_STOCK, SOURCE_BIRCH_LOGS, ACTOR_BIRCH_STOCK, CONTAINER_BIRCH_STOCK }
     /** Exact bounded context inspected by an observation primitive, never a whole-world assertion. */
@@ -308,6 +309,7 @@ public final class SurvivalGateway implements GatewayPort {
         final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         final List<ResourceDelivery.Receipt> resourceReceipts = new ArrayList<>();
         long breakStarted = -1;
+        long breakObstructed = -1;
         String breakIdentity;
         long lastPolled = Long.MIN_VALUE;
         long elapsedTick = 0;
@@ -935,8 +937,22 @@ public final class SurvivalGateway implements GatewayPort {
             ContainerRef target=destination(run.request);
             if(denied==null) denied=world.permit(run.request,Effect.TRANSFER,
                     new Cell(target.dimension(),target.x(),target.y(),target.z()));
-            if (denied==null) denied=world.resourceBreakEligibility(run.actor,cell,run.item);
             if (denied!=null) { finish(action,denied,null,null); return; }
+            if (action.breakIdentity!=null && !action.breakIdentity.equals(crop.identity())) {
+                finish(action,Reason.STALE_OBSERVATION,null,null); return;
+            }
+            denied=world.resourceBreakEligibility(run.actor,cell,run.item);
+            if (denied!=null) {
+                // A brief loss of native stance during an already started break
+                // can settle in place. Restart the break clock and keep its target.
+                if (harvestProtocol!=null && denied==Reason.TARGET_UNAVAILABLE && action.breakIdentity!=null) {
+                    long tick=world.tick();
+                    if (action.breakObstructed<0) action.breakObstructed=tick;
+                    action.breakStarted=-1;
+                    if (tick-action.breakObstructed<BREAK_STANCE_GRACE_TICKS) return;
+                }
+                finish(action,denied,null,null); return;
+            }
             ItemStock actorStock=world.resourceInventory(run.actor,run.item);
             ItemStock boxStock=world.resourceContainer(destination(run.request),run.item);
             action.usage.debit(Kind.OBSERVATIONS,2);
@@ -947,8 +963,9 @@ public final class SurvivalGateway implements GatewayPort {
                 finish(action,boxStock.reason()==null ? Reason.TARGET_UNAVAILABLE : boxStock.reason(),null,null); return;
             }
             if (crop.breakTicks()<1) { finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null); return; }
-            if (action.breakStarted<0) { action.breakStarted=world.tick(); action.breakIdentity=crop.identity(); }
-            if (!action.breakIdentity.equals(crop.identity())) { finish(action,Reason.STALE_OBSERVATION,null,null); return; }
+            if (action.breakIdentity==null) action.breakIdentity=crop.identity();
+            if (action.breakStarted<0) action.breakStarted=world.tick();
+            action.breakObstructed=-1;
             if (world.tick()-action.breakStarted<crop.breakTicks()) return;
         }
         if (!effectAllowance(action)) return;
@@ -995,7 +1012,7 @@ public final class SurvivalGateway implements GatewayPort {
             action.pendingCropReceiptStart=action.receipts.size();
             var original=new dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Action() {
                 public boolean current(){
-                    if(!nativeActionCurrent(action,Effect.HARVEST,cell)
+                    if(!nativeActionLive(action) || !allows(action,Effect.HARVEST,cell)
                             || world.resourceBreakEligibility(run.actor,cell,run.item)!=null)return false;
                     var actorStock=world.resourceInventory(run.actor,run.item);
                     if(!inventoryCurrent(run,actorStock))return false;
@@ -1016,7 +1033,7 @@ public final class SurvivalGateway implements GatewayPort {
             // The log harvest preflight already checked both loaded participants,
             // source eligibility, and both permits in this server-thread call.
             action.harvestTicket=protocol.begin(request,original,()->LogAcquisition.log(run.item)
-                    ? nativeActionCurrent(action,Effect.HARVEST,cell) : original.current());
+                    ? nativeActionLive(action) : original.current());
         }
         var progress=protocol.poll(action.harvestTicket);
         if(progress.code()==dev.aivillages.core.kernel.runtime.evidence.HarvestProtocol.Code.PENDING){
@@ -1132,11 +1149,12 @@ public final class SurvivalGateway implements GatewayPort {
                 run.actor,target,drop.getKey(),drop.getValue(),run.item,Math.min(action.deadlineMillis,action.usage.deadline()),
                 action.usage.remaining(Kind.COMMITTED_EFFECTS),action.usage.snapshot());
         action.pendingReceiptStart=action.resourceReceipts.size();
-        BooleanSupplier captureCurrent=()->nativeActionCurrent(action,Effect.PICKUP,target)
+        BooleanSupplier captureCurrent=()->nativeActionLive(action)
                 && Objects.equals(batch.drops.get(drop.getKey()),drop.getValue())
                 && world.permit(run.request,Effect.PICKUP,target)==null;
         var original=new dev.aivillages.core.kernel.runtime.evidence.PickupProtocol.Action() {
             public boolean current() {
+                if(!allows(action,Effect.PICKUP,target))return false;
                 var actual=world.resourceDrop(drop.getKey(),run.item);
                 return actual.status()==ObservationStatus.PRESENT && actual.quantity()==drop.getValue()
                         && target.equals(actual.cell()) && inventoryCurrent(run,world.resourceInventory(run.actor,run.item))
@@ -1226,11 +1244,12 @@ public final class SurvivalGateway implements GatewayPort {
             var request=new dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Request(run.request,run.correlation,action.handle.id(),operation,run.actor,destination(run.request),run.item,
                     Math.min(action.deadlineMillis,action.usage.deadline()),action.usage.remaining(Kind.COMMITTED_EFFECTS),action.usage.snapshot(),run.resourceReceipts);
             action.pendingReceiptStart=action.resourceReceipts.size();
-            BooleanSupplier captureCurrent=()->nativeActionCurrent(action,Effect.TRANSFER,target)
+            BooleanSupplier captureCurrent=()->nativeActionLive(action)
                     && world.permit(run.request,Effect.TRANSFER,target)==null;
             var original=new dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Action() {
                 public boolean current(){
-                    return inventoryCurrent(run,world.resourceInventory(run.actor,run.item)) && captureCurrent.getAsBoolean();
+                    return allows(action,Effect.TRANSFER,target)
+                            && inventoryCurrent(run,world.resourceInventory(run.actor,run.item)) && captureCurrent.getAsBoolean();
                 }
                 public dev.aivillages.core.kernel.runtime.evidence.DepositProtocol.Observed execute() {
                     int before=action.resourceReceipts.size();action.depositOutcome=performTransfer(action,batch);
@@ -1253,11 +1272,11 @@ public final class SurvivalGateway implements GatewayPort {
         finishTransfer(action,action.depositOutcome);action.depositOutcome=null;
     }
 
-    private boolean nativeActionCurrent(Active action,Effect effect,Cell target) {
+    private boolean nativeActionLive(Active action) {
         Run run=action.run;
         long now=clock.millis();
         return !action.current.terminal() && now<=action.deadlineMillis && now<=action.usage.deadline()
-                && world.holds(run.actor,run.id) && allows(action,effect,target)
+                && world.holds(run.actor,run.id)
                 && action.usage.canDebit(Kind.ATTEMPTED_EFFECTS,1) && action.usage.canDebit(Kind.COMMITTED_EFFECTS,1)
                 && run.receipts.size()+run.resourceReceipts.size()<limits.maxReceiptsPerRun();
     }

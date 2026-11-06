@@ -674,7 +674,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         long ticks=(long)Math.ceil((double)hardness*30.0);
         boolean supported=Float.isFinite(hardness) && hardness>0 && !state.requiresCorrectToolForDrops()
                 && ticks>=1 && ticks<=200;
-        return new ItemBlock(ObservationStatus.PRESENT,supported,state.toString(),supported ? (int)ticks : 0);
+        return new ItemBlock(ObservationStatus.PRESENT,supported,
+                dev.aivillages.fabric.runtime.evidence.HarvestSourceState.blockStateText(state),supported ? (int)ticks : 0);
     }
     @Override public ItemStock resourceInventory(ActorRef actor,ResourceDelivery.ItemIdentity item) {
         if(item.equals(ResourceDelivery.BIRCH_PLANKS) || item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
@@ -732,7 +733,13 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !level.getGameRules().get(GameRules.BLOCK_DROPS)) return Reason.AUTHORITY_DENIED;
         if(!v.getMainHandItem().isEmpty() || !v.getOffhandItem().isEmpty() || !v.getActiveEffects().isEmpty())
             return Reason.TARGET_INVALID;
-        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || oakInteractionPoint(v,p)==null) return Reason.TARGET_UNAVAILABLE;
+        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || oakInteractionPoint(v,p)==null) {
+            if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
+                System.out.println("CognitiveCraft LOG_BREAK unavailable actor="+v.getUUID()+" position="+v.position()
+                        +" target="+p+" onGround="+v.onGround()+" water="+v.isInWater()+" lava="+v.isInLava()
+                        +" approach="+oakApproachGeometry(v,p)+" tick="+tick());
+            return Reason.TARGET_UNAVAILABLE;
+        }
         return resourceBlock(target,item).eligible() ? null : Reason.TARGET_INVALID;
     }
     @Override public ItemHarvest resourceHarvest(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item,long elapsedTicks) {

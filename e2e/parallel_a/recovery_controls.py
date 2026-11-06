@@ -52,7 +52,10 @@ def original_control(h,seed,template,name,point,save=True):
 
 def torn(h,case,unrelated=False):
     name='source-replacement-'+case['checkpoint'];directory=h.root/'controls'/name;directory.mkdir(parents=True,exist_ok=True)
-    original=read(h.root/'original-cases'/case['id']/'result.json');key=original['key'];run=original['run']
+    original=read(h.root/'original-cases'/case['id']/'result.json')
+    require(original and original.get('reached') and original.get('nativeSavedProof'),
+            'Required saved source-replacement input '+case['id']+' did not reach its native cut')
+    key=original['key'];run=original['run']
     h.case_stage=case['checkpoint'];h.restore(h.root/'original-cases'/case['id']/'cut-game',name)
     source=original['nativeSavedProof']['harvest']['result']['source'];point=[source[k] for k in ('x','y','z')]
     h.console(['setblock '+coord(point)+' '+case['item'],'setblock '+coord(point)+' minecraft:air'])
@@ -159,28 +162,33 @@ def run_cost_case(h,case,destination):
     return run,view
 
 def cost(h,seed,templates):
-    directory=h.root/'controls/representative-active-cost';directory.mkdir(parents=True,exist_ok=True);windows=[];captures={s:[] for s in ('HARVEST','PICKUP','DEPOSIT')};ack=[]
+    directory=h.root/'controls/representative-active-cost';directory.mkdir(parents=True,exist_ok=True);windows=[];captures={s:[] for s in ('HARVEST','PICKUP','DEPOSIT')};capture_cpu={s:[] for s in captures};ack=[]
     for n,template in enumerate(templates):
         case,dst=prepare_cost_case(h,seed,template,'cost-'+str(n))
         start=int(time.time()*1000);calls=h.model_calls()
         run,view=run_cost_case(h,case,dst)
         end=int(time.time()*1000);h.quiet(400);raw=read(h.root/'server/runtime-a-ticks.json');active=[r for r in raw['samples'] if start<=r['time']<=end];require(len(active)>=40,'Cost interval lacks active tick coverage')
         evidence=h.evidence();metrics={s:v['metrics'] for s,v in evidence['stages'].items()};captures['HARVEST']+=metrics['HARVEST']['preparationNanos'];captures['PICKUP']+=metrics['PICKUP']['captureNanos'];captures['DEPOSIT']+=metrics['DEPOSIT']['beginNanos']
-        for v in metrics.values():ack+=v['acknowledgementNanos']
+        for stage,v in metrics.items():
+            ack+=v['acknowledgementNanos']
+            capture_cpu[stage]+=[n for n in v.get('captureCpuNanos',[]) if n>=0]
         require(h.model_calls()==calls,'Active known-work cost interval called a model')
         window={'id':case['id'],'item':case['item'],'run':run,'view':view,'start':start,'end':end,'activeSamples':active,'raw':raw,'metrics':metrics,'modelCallsUnchanged':True}
         target=directory/case['id'];target.mkdir(parents=True,exist_ok=True)
         window['worldHashes']=retain(h,target);window['nativeSaved']=native_saved(target/'terminal-world','DEPOSIT',case);window['originalCase']=case
         atomic(directory/(case['id']+'.json'),window);windows.append(window)
     wheat=next(c for c in read(h.root/'a06-original-results.json')['cases'] if c['originalCase']['item']=='minecraft:wheat')
-    wheat_captures=wheat.get('reached',{}).get('stages',{}).get('HARVEST',{}).get('metrics',{}).get('preparationNanos',[])
+    wheat_metrics=wheat.get('reached',{}).get('stages',{}).get('HARVEST',{}).get('metrics',{})
+    wheat_captures=wheat_metrics.get('preparationNanos',[])
     captures['HARVEST']+=wheat_captures
+    capture_cpu['HARVEST'] += [n for n in wheat_metrics.get('captureCpuNanos',[]) if n>=0]
     ticks=percentiles([s['nanos'] for w in windows for s in w['activeSamples']]);capture={s:percentiles(v) for s,v in captures.items()};ack_value=percentiles(ack)
     passed=bool(wheat_captures) and ticks['p95']<=20 and ticks['p99']<=40 and all(v['p99']<=2 for v in capture.values()) and ack_value['max']<=30000
     value={'id':'representative-active-cost','status':'PASS_REPRESENTATIVE_ACTIVE_COST' if passed else 'FAIL_COST_TARGET',
            'windows':len(windows),'nativeEffects':3*len(windows),'tick':ticks,'capture':capture,'acknowledgement':ack_value,
            'limits':{'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackMaxMs':30000},'warmupExcluded':False,
-           'requiredWheatSamples':len(wheat_captures)}
+           'requiredWheatSamples':len(wheat_captures),
+           'diagnosticCaptureCpu':{stage:percentiles(values) for stage,values in capture_cpu.items() if values}}
     if not wheat_captures:value['reason']='Missing required native wheat preparation samples'
     atomic(directory/'result.json',value)
     print('A06_COST_METRICS '+json.dumps(value),flush=True)

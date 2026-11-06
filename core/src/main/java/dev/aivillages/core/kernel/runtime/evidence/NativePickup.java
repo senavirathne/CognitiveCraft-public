@@ -13,16 +13,21 @@ public final class NativePickup {
     public enum Reconciliation { WAIT_WORLD,UNPROVEN,TORN_SAVED_COHORT,SAVED_COMPLETE,SAVED_NO_EFFECT,PARTIAL_UNRESOLVED }
     public enum Role { ACTOR,DROP }
     public record Chunk(String dimension,int x,int z) implements Comparable<Chunk> {
-        public Chunk {new dev.aivillages.core.kernel.Contracts.ContainerRef(dimension,0,0,0);}
+        public Chunk {requireDimension(dimension);}
         @Override public int compareTo(Chunk b){int c=dimension.compareTo(b.dimension);if(c==0)c=Integer.compare(x,b.x);return c==0?Integer.compare(z,b.z):c;}
     }
     /** Complete capture from the tracked entity's original H lifetime; data alone cannot attest completeness. */
     public record Trail(UUID entity,UUID incarnation,List<Chunk> chunks,Chunk current) {
         public Trail {
             Objects.requireNonNull(entity);Objects.requireNonNull(incarnation);Objects.requireNonNull(current);chunks=List.copyOf(chunks);
-            if(chunks.isEmpty() || chunks.size()>MAX_TRAIL_CHUNKS || !chunks.contains(current)
-                    || chunks.stream().anyMatch(c->!c.dimension().equals(current.dimension()))
-                    || !chunks.equals(chunks.stream().distinct().sorted().toList()))throw new IllegalArgumentException("Canonical complete pickup trail");
+            if(chunks.isEmpty() || chunks.size()>MAX_TRAIL_CHUNKS || !chunks.contains(current))
+                throw new IllegalArgumentException("Canonical complete pickup trail");
+            Chunk previous=null;
+            for(Chunk chunk:chunks) {
+                if(!chunk.dimension().equals(current.dimension()) || previous!=null && previous.compareTo(chunk)>=0)
+                    throw new IllegalArgumentException("Canonical complete pickup trail");
+                previous=chunk;
+            }
         }
     }
     public record Intent(Key key,NativeHarvest.Entry harvest,UUID operation,int requested,Conditions conditions,Trail actorTrail,Trail dropTrail) {

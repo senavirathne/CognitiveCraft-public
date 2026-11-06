@@ -14,15 +14,17 @@ public final class NativeHarvest {
     public enum Reconciliation { WAIT_WORLD,UNPROVEN,TORN_SAVED_COHORT,SAVED_COMPLETE,SAVED_NO_EFFECT,PARTIAL_UNRESOLVED }
     public record Source(String dimension,int x,int y,int z,UUID incarnation,long revision,String state) {
         public Source {
-            Objects.requireNonNull(incarnation);new ContainerRef(dimension,x,y,z);
-            if(revision<0 || state==null || state.isBlank() || state.length()>512 || state.chars().anyMatch(Character::isISOControl))
+            Objects.requireNonNull(incarnation);requireDimension(dimension);
+            if(revision<0 || state==null || state.isBlank() || state.length()>512)
                 throw new IllegalArgumentException("Native source incarnation/state envelope");
+            for(int n=0;n<state.length();n++)
+                if(Character.isISOControl(state.charAt(n)))throw new IllegalArgumentException("Native source incarnation/state envelope");
         }
         public boolean sameIdentity(Source other){return other!=null && dimension.equals(other.dimension) && x==other.x && y==other.y && z==other.z && incarnation.equals(other.incarnation);}
     }
     public record Drop(String dimension,UUID entity,UUID incarnation,long revision,String item,int quantity) {
         public Drop {
-            Objects.requireNonNull(entity);Objects.requireNonNull(incarnation);new ResourceDelivery.ItemIdentity(item,"default");new ContainerRef(dimension,0,0,0);
+            Objects.requireNonNull(entity);Objects.requireNonNull(incarnation);new ResourceDelivery.ItemIdentity(item,"default");requireDimension(dimension);
             if(revision<0 || quantity<1 || quantity>64)throw new IllegalArgumentException("Native tracked drop envelope");
         }
     }
@@ -35,7 +37,8 @@ public final class NativeHarvest {
                     || !key.world().equals(origin.scope().worldId()) || !actor.citizenId().equals(conditions.citizen())
                     || !actor.dimension().equals(area.dimension()) || !actor.dimension().equals(destination.dimension()) || !actor.dimension().equals(source.dimension)
                     || !Set.of("minecraft:oak_log","minecraft:birch_log","minecraft:wheat").contains(item)
-                    || !new ResourceDelivery.BlockPosition(source.dimension,source.x,source.y,source.z).inside(area))
+                    || source.x<area.minX() || source.x>area.maxX() || source.y<area.minY() || source.y>area.maxY()
+                    || source.z<area.minZ() || source.z>area.maxZ())
                 throw new IllegalArgumentException("Original harvest intent binding");
         }
         public String digest(){return NativeDigests.memo(this, () -> sha(StrictJson.canonical(intent(this))));}

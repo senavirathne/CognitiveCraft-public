@@ -72,6 +72,31 @@ final class HarvestGatewayTest {
         var p=new Protocol();var pending=pending(p);p.fail=true;pending.scene().world.tick++;
         assertEquals(Outcomes.Reason.INTERRUPTED,pending.scene().gateway.poll(pending.handle()).reason());assertEquals(0,p.calls);assertEquals(0,pending.scene().world.harvests);
     }
+    @Test void interruptedStanceRequiresAFreshBreakBeforePreparingNativeHarvest() {
+        var p=new Protocol();
+        var s=new GatewayScene(2,0,0);
+        s.gateway.harvestProtocol(p);
+        assertNull(s.action(APPROACH_OAK_LOG).reason());
+        var h=s.start(HARVEST_NEXT_OAK_LOG);
+        s.world.tick++;
+        assertFalse(s.gateway.poll(h).terminal());
+        var stance=s.world.actorPosition;
+        s.world.tick+=35;
+        s.world.actorPosition=new SurvivalGateway.Cell(stance.dimension(),stance.x()-4,stance.y(),stance.z());
+        assertFalse(s.gateway.poll(h).terminal());
+        assertNull(p.action);
+
+        s.world.actorPosition=stance;
+        s.world.tick++;
+        assertFalse(s.gateway.poll(h).terminal());
+        s.world.tick+=59;
+        assertFalse(s.gateway.poll(h).terminal());
+        assertNull(p.action);
+        assertEquals(0,s.world.harvests);
+        s.world.tick++;
+        assertFalse(s.gateway.poll(h).terminal());
+        assertNotNull(p.action);
+    }
     @Test void originalTwoUnitDemandAndAllowanceAreNotReplacedByTheOneHarvestReceipt() {
         var p=new Protocol();var pending=pending(p);var s=pending.scene();
         assertEquals(2,((Contracts.IntValue)p.request.bound().request().arguments().get("amount")).value());
