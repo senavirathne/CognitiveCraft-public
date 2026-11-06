@@ -3,7 +3,7 @@
   "sequence": 30,
   "parentSource": "3c673f20219098cf934279134453e9eecbbd2ea7",
   "stage": "A06",
-  "scope": "Keep the verified twelve-original denominator and close remaining-unit native entity persistence and representative active cost",
+  "scope": "All twelve frozen original saved cases and eight native controls independently verified. Native capture cost and GP-22 remain open.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -909,10 +909,10 @@
   },
   "latestOriginalCoverage": {
     "status": "PASS_ALL_TWELVE_ORIGINAL_SAVED_CASES",
-    "source": "b6a56484ae8051a0729c897cdaf31c8b051da589",
-    "tree": "acaf965e07b2adc5d8fa9584fc1d7ebdc41c4892",
-    "run": 42089993167,
-    "job": 127465202893,
+    "source": "326b9209468afac3c561da61997cca5e8bdd3fba",
+    "tree": "e78dbef0ed3007461e42ef74a9636705bf0f5a6a",
+    "run": 42167606541,
+    "job": 127727599374,
     "attempt": 1,
     "independentlyReviewedOriginalCases": 12,
     "requiredOriginalCases": 12,
@@ -940,7 +940,7 @@
   },
   "currentValidation": {
     "source": "3c673f20219098cf934279134453e9eecbbd2ea7",
-    "status": "PENDING_FULL_A06_CURRENT_CANDIDATE",
+    "status": "PASS_ALL_TWELVE_ORIGINALS_CAPTURE_COST_AND_GP22_OPEN",
     "nativeOriginalCasesThisBatch": 12,
     "requiredOriginalCases": 12,
     "nativeControls": 9,
@@ -970,7 +970,168 @@
     "preservedRequiredWorkflows": 9,
     "preservedRequiredJobs": 12,
     "preservedRequiredSteps": 140,
-    "originalWorkloadsAndWindowsPreserved": true
+    "originalWorkloadsAndWindowsPreserved": true,
+    "testedSource": "326b9209468afac3c561da61997cca5e8bdd3fba",
+    "testedTree": "e78dbef0ed3007461e42ef74a9636705bf0f5a6a",
+    "run": 42167606541,
+    "job": 127727599374,
+    "originalsVerified": 12,
+    "nativeControlsPassed": 8,
+    "nativeControlsRequired": 9,
+    "failedControls": [
+      {
+        "id": "representative-active-cost",
+        "status": "FAIL_INDEPENDENT_NATIVE_CONTROL",
+        "nativeStatus": "FAIL_COST_TARGET",
+        "nativeReason": null,
+        "reason": "{'tickP95': 16.542091, 'tickP99': 28.738889, 'captureP99': {'HARVEST': 6.374962, 'PICKUP': 4.974481, 'DEPOSIT': 6.212056}, 'ackMax': 23.902206}"
+      }
+    ],
+    "remainingUnit": {
+      "job": "287c56fc-6c73-4422-99e4-8bb217ae2857",
+      "state": "SUCCEEDED",
+      "attempts": [
+        {
+          "id": "2104edab-661f-467c-978c-63e133ae1ac8",
+          "generation": 1,
+          "effects": 3,
+          "credited": 1,
+          "uncertain": false
+        },
+        {
+          "id": "a9458a67-5a71-341c-ae45-d31c7471d61f",
+          "generation": 2,
+          "effects": 3,
+          "credited": 1,
+          "uncertain": false
+        }
+      ],
+      "destination": 2,
+      "terminalRestart": {
+        "before": 30428,
+        "after": 30866,
+        "sameClients": true
+      },
+      "modelCallsBefore": {
+        "needleCalls": 0,
+        "generationCalls": 3
+      },
+      "modelCallsAfter": {
+        "needleCalls": 0,
+        "generationCalls": 3
+      },
+      "status": "PASS_ORIGINAL_JOB_RESUMED_ONLY_REMAINING_ONE"
+    },
+    "measuredCost": {
+      "id": "representative-active-cost",
+      "status": "FAIL_COST_TARGET",
+      "windows": 11,
+      "nativeEffects": 33,
+      "tick": {
+        "p50": 6.674227,
+        "p95": 16.542091,
+        "p99": 28.738889,
+        "max": 50.206184,
+        "samples": 2319,
+        "unit": "milliseconds"
+      },
+      "capture": {
+        "HARVEST": {
+          "p50": 2.698959,
+          "p95": 6.374962,
+          "p99": 6.374962,
+          "max": 6.374962,
+          "samples": 12,
+          "unit": "milliseconds"
+        },
+        "PICKUP": {
+          "p50": 2.85108,
+          "p95": 4.974481,
+          "p99": 4.974481,
+          "max": 4.974481,
+          "samples": 11,
+          "unit": "milliseconds"
+        },
+        "DEPOSIT": {
+          "p50": 2.522724,
+          "p95": 6.212056,
+          "p99": 6.212056,
+          "max": 6.212056,
+          "samples": 11,
+          "unit": "milliseconds"
+        }
+      },
+      "acknowledgement": {
+        "p50": 11.850172,
+        "p95": 20.467047,
+        "p99": 23.902206,
+        "max": 23.902206,
+        "samples": 66,
+        "unit": "milliseconds"
+      },
+      "limits": {
+        "tickP95Ms": 20,
+        "tickP99Ms": 40,
+        "captureP99Ms": 2,
+        "ackMaxMs": 30000
+      },
+      "warmupExcluded": false,
+      "requiredWheatSamples": 1
+    },
+    "moduleCases": 2601,
+    "requiredHosts": {
+      "pass": 8,
+      "fail": 1,
+      "originalConditionalNotApplicable": 3,
+      "gp22": {
+        "status": "FAIL_BOTH_ATTEMPTS",
+        "first": {
+          "attempt": 1,
+          "job": 127727599466,
+          "phase": "warm",
+          "stock": 10,
+          "mature": 1,
+          "failedDrops": 0,
+          "failedInventory": 0,
+          "reason": "Conservation check for the earlier interrupted wheat output"
+        },
+        "retry": {
+          "attempt": 2,
+          "job": 127741720621,
+          "phase": "cold",
+          "work": 0,
+          "reason": "TARGET_UNAVAILABLE",
+          "committedEffects": 1
+        }
+      }
+    },
+    "mainVerification": {
+      "run": 42167606585,
+      "status": "PASS"
+    },
+    "archiveManifest": {
+      "schema": 1,
+      "archiveBytes": 835499645,
+      "archiveSha256": "88b1fcaae0c5369d3b19cb71fcd983e411e2660fede6240529a204df70afcd91",
+      "parts": [
+        {
+          "name": "part-000.bin",
+          "bytes": 419430400,
+          "sha256": "5c51abd34d63ddc085336138027254da2d1a5d4d29acf739214cdf61bd6a7e75"
+        },
+        {
+          "name": "part-001.bin",
+          "bytes": 416069245,
+          "sha256": "80cf77abed46e160467afe9ddb8538fe0036bc80612706895ed44a259ddb1342"
+        }
+      ]
+    },
+    "artifacts": [
+      13482035574,
+      13481806382,
+      13481342872
+    ],
+    "a06Qualified": false
   },
   "priorCheckpointCompletion": {
     "status": "PARTIAL_A06_3_OF_12_REQUIRED_HOST_FAILURES_REMAIN",
