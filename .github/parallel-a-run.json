@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 30,
-  "parentSource": "3c673f20219098cf934279134453e9eecbbd2ea7",
+  "sequence": 31,
+  "parentSource": "af6eee8689d8d1e48b08800b882e5db121605b04",
   "stage": "A06",
-  "scope": "All twelve frozen original saved cases and eight native controls independently verified. Native capture cost and GP-22 remain open.",
+  "scope": "A06 exact-source qualification of same-call capture reuse and native wheat custody. Batch 30 independently settled all twelve originals and eight controls. The current capture and GP-22 changes require fresh qualification.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "One grouped run with exact twelve fresh original cases, nine native controls, full modules and host regressions, and independent Docker review of every control even when another fails.",
+  "execution": "One grouped Docker validation with all twelve frozen original cases, all nine native controls, the independent review, full modules and all nine unchanged host regression workflows.",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -1401,5 +1401,25 @@
     "rootCause": "The staged deposit replaced its actual pickup predecessor before the next native write.",
     "originalsIndependentlyVerified": 12,
     "priorNativeControlsIndependentlyVerified": 7
+  },
+  "validationCandidate": {
+    "sequence": 31,
+    "sourceCheckpoint": "af6eee8689d8d1e48b08800b882e5db121605b04",
+    "status": "PENDING_EXACT_SOURCE_VALIDATION",
+    "changes": [
+      "Reuse observations already validated on the same server-thread capture call. Recheck full live authority, native participants and permits after each durable wait.",
+      "Reuse unchanged exact actor and entity-membership witnesses during capture. Retain fresh capture wall-clock measurements with aligned diagnostic thread CPU samples.",
+      "Spawn the controlled wheat drop at its crop with no lateral throw and save its exact native worker origin. A saved origin provides custody exclusion without a live run grant."
+    ],
+    "originalCases": 12,
+    "nativeControls": 9,
+    "hostRegressionWorkflows": 9,
+    "hostRegressionJobs": 12,
+    "hostRegressionSteps": 140,
+    "captureP99LimitMs": 2,
+    "tickP95LimitMs": 20,
+    "tickP99LimitMs": 40,
+    "ackMaxLimitMs": 30000,
+    "requiredWarmupExcluded": false
   }
 }
