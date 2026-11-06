@@ -36,13 +36,14 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private boolean closed;
     private String descendant="";
     private final Map<String,NativeBirth> membershipBirths=new HashMap<>();
+    private static final List<String> CAPTURE_PHASES=List.of("authority","owner","participants","claims","allowance","intent","exclusion");
     private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
     private final ArrayDeque<Long> preparationNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
     private final ArrayDeque<Refusal> refusals=new ArrayDeque<>();
     public record Refusal(String phase,String reason,String detail) { }
     private void refused(String phase,String reason,String detail){if(refusals.size()==32)refusals.removeFirst();refusals.addLast(new Refusal(phase,reason,detail==null?"":detail.substring(0,Math.min(128,detail.length()))));}
-    public record Metrics(List<Long> preparationNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<Refusal> refusals,List<Long> captureCpuNanos) { }
-    public Metrics metrics(){check();return new Metrics(List.copyOf(preparationNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(refusals),captureThreadTime.nanos());}
+    public record Metrics(List<Long> preparationNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<Refusal> refusals,List<Long> captureCpuNanos,List<String> capturePhaseNames,List<List<Long>> capturePhaseNanos) { }
+    public Metrics metrics(){check();return new Metrics(List.copyOf(preparationNanos),List.copyOf(pollNanos),store.acknowledgementNanos(),List.copyOf(refusals),captureThreadTime.nanos(),CAPTURE_PHASES,captureThreadTime.phaseNanos());}
     private void measured(ArrayDeque<Long> values,long began){if(values.size()==128)values.removeFirst();values.addLast(System.nanoTime()-began);}
     private final class NativeTicket implements Ticket {
         final Request request;final Action original;final NativeHarvest.Intent intent;final Reason failure;
@@ -161,7 +162,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
                                  HarvestJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
-        NativeDeposit.initializeParticipantSchema();DepositStackOwners.initialize();
+        NativeDeposit.initializeCaptureSchema();NativeHarvest.initializeCaptureSchema();DepositStackOwners.initialize();
         store=new HarvestEvidenceStore(initial,(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Harvest I/O executor ran on the game thread");
             try{return journal.replace(expected,next);}catch(java.io.IOException error){throw new CompletionException(error);}
@@ -183,23 +184,27 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     }
     @Override public Ticket begin(Request request,Action original,BooleanSupplier preflight) {
         check();long cpuStarted=captureThreadTime.start();long began=System.nanoTime();
-        try{return beginNative(Objects.requireNonNull(request),Objects.requireNonNull(original),preflight);}
-        finally{measured(preparationNanos,began);captureThreadTime.record(cpuStarted);}
+        long[] phases=new long[CAPTURE_PHASES.size()];
+        try{return beginNative(Objects.requireNonNull(request),Objects.requireNonNull(original),preflight,phases);}
+        finally{measured(preparationNanos,began);captureThreadTime.record(cpuStarted,began,phases);}
     }
-    private Ticket beginNative(Request request,Action original,BooleanSupplier preflight) {
+    private Ticket beginNative(Request request,Action original,BooleanSupplier preflight,long[] phases) {
         String phase="authority";
         try {
             if(closed || !enabled)throw new Refused(Reason.UNSUPPORTED_PRIMITIVE);
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=8)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
             if(!preflight.getAsBoolean())throw new Refused(Reason.INTERRUPTED);
+            phases[0]=System.nanoTime();
             phase="owner";
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new Refused(Reason.INTERRUPTED);
+            phases[1]=System.nanoTime();
             phase="participants";
             Pair pair=pair(request,true);if(pair==null)throw new Refused(Reason.TARGET_UNAVAILABLE);
             if(!BuiltInRegistries.BLOCK.getKey(pair.block.getBlock()).toString().equals(request.item().id()))throw new Refused(Reason.TARGET_INVALID);
+            phases[2]=System.nanoTime();
             phase="claims";
             var claims=new ArrayList<ResourceLeases.Lease>(4);
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin()) && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime()) {
@@ -220,6 +225,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
                 references.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
             }
             if(!source || !facility)throw new Refused(Reason.TARGET_UNAVAILABLE);
+            phases[3]=System.nanoTime();
             phase="allowance";
             UUID root=job.id();var ancestor=job;
             for(int n=0;ancestor.parent()!=null;n++) {
@@ -232,12 +238,16 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             int reach=(int)Math.ceil(Math.sqrt(pair.actor.distanceToSqr(Vec3.atCenterOf(pos(request.source()))))*1000);
             var conditions=new Conditions(request.actor().citizenId(),job.revision(),deadline,request.deadline(),request.effectsRemaining(),level.getGameTime(),2500,reach,references,request.usage());
             int ordinal=Math.toIntExact(Math.addExact(request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L),1));
+            phases[4]=System.nanoTime();
             phase="intent";
             var intent=new NativeHarvest.Intent(new Key(job.origin().scope().worldId(),root,job.id(),attempt.id(),attempt.generation(),ordinal),job.origin(),request.correlation().runId(),request.operation(),
                     request.actor(),request.area(),request.destination(),request.item().id(),pair.source,conditions,pair.actorSnapshot);
+            phases[5]=System.nanoTime();
             phase="exclusion";
             if(store.conflicts(request.actor(),request.source().dimension(),request.source().x(),request.source().y(),request.source().z(),""))throw new Refused(Reason.INTERRUPTED);
-            var ticket=new NativeTicket(request,original,intent,null);ticket.authority=job;tickets.add(ticket);return ticket;
+            var ticket=new NativeTicket(request,original,intent,null);ticket.authority=job;tickets.add(ticket);
+            phases[6]=System.nanoTime();
+            return ticket;
         }catch(Refused refused){refused(phase,refused.reason.name(),"");return new NativeTicket(request,original,null,refused.reason);}
         catch(RuntimeException invalid){refused(phase,invalid.getClass().getSimpleName(),invalid.getMessage());return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
     }

@@ -82,7 +82,8 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
         var p=kernel.pickupEvidenceOwner();if(p!=null) {
             var pc=new LinkedHashMap<String,String>();for(var e:p.evidence().snapshot().entries())pc.put(e.token(),p.evidence().reconcile(e.intent().key()).result().name());
             result.put("PICKUP",Map.of("journal",p.evidence().snapshot(),"pending",p.evidence().pending(),"fenced",p.evidence().fenced(),"reconciliation",pc,
-                    "metrics",Map.of("captureNanos",p.captureNanos(),"captureCpuNanos",p.captureCpuNanos(),"acknowledgementNanos",p.evidence().acknowledgementNanos())));
+                    "metrics",Map.of("captureNanos",p.captureNanos(),"captureCpuNanos",p.captureCpuNanos(),"capturePhaseNames",p.capturePhaseNames(),
+                            "capturePhaseNanos",p.capturePhaseNanos(),"acknowledgementNanos",p.evidence().acknowledgementNanos())));
         }
         var d=kernel.depositEvidenceOwner();if(d!=null) {
             var dc=new LinkedHashMap<String,String>();for(var e:d.evidence().snapshot().entries())dc.put(e.token(),d.reconcile(e.intent().key()).result().name());

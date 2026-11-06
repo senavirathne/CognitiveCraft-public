@@ -76,7 +76,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
                                  Executor worker,Clock clock,boolean enabled,boolean retainReceiptPrefix) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.clock=Objects.requireNonNull(clock);this.enabled=enabled;this.retainReceiptPrefix=retainReceiptPrefix;
-        long initialized=System.nanoTime();NativeDeposit.initializeParticipantSchema();DepositStackOwners.initialize();
+        long initialized=System.nanoTime();NativeDeposit.initializeCaptureSchema();DepositStackOwners.initialize();
         participantInitializationNanos=System.nanoTime()-initialized;
         store=new DepositEvidenceStore(initial,(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Deposit I/O executor ran on the game thread");

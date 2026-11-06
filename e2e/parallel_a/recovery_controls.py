@@ -182,13 +182,25 @@ def cost(h,seed,templates):
     wheat_captures=wheat_metrics.get('preparationNanos',[])
     captures['HARVEST']+=wheat_captures
     capture_cpu['HARVEST'] += [n for n in wheat_metrics.get('captureCpuNanos',[]) if n>=0]
+    phase_max={}
+    for metrics in [w['metrics'] for w in windows]+[{'HARVEST':wheat_metrics}]:
+        for stage,value in metrics.items():
+            names=value.get('capturePhaseNames',[])
+            for row in value.get('capturePhaseNanos',[]):
+                previous=0
+                for name,end in zip(names,row):
+                    if not end:break
+                    by_stage=phase_max.setdefault(stage,{})
+                    by_stage[name]=max(by_stage.get(name,0),(end-previous)/1e6)
+                    previous=end
     ticks=percentiles([s['nanos'] for w in windows for s in w['activeSamples']]);capture={s:percentiles(v) for s,v in captures.items()};ack_value=percentiles(ack)
     passed=bool(wheat_captures) and ticks['p95']<=20 and ticks['p99']<=40 and all(v['p99']<=2 for v in capture.values()) and ack_value['max']<=30000
     value={'id':'representative-active-cost','status':'PASS_REPRESENTATIVE_ACTIVE_COST' if passed else 'FAIL_COST_TARGET',
            'windows':len(windows),'nativeEffects':3*len(windows),'tick':ticks,'capture':capture,'acknowledgement':ack_value,
            'limits':{'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackMaxMs':30000},'warmupExcluded':False,
            'requiredWheatSamples':len(wheat_captures),
-           'diagnosticCaptureCpu':{stage:percentiles(values) for stage,values in capture_cpu.items() if values}}
+           'diagnosticCaptureCpu':{stage:percentiles(values) for stage,values in capture_cpu.items() if values},
+           'diagnosticCapturePhaseMaxMs':phase_max}
     if not wheat_captures:value['reason']='Missing required native wheat preparation samples'
     atomic(directory/'result.json',value)
     print('A06_COST_METRICS '+json.dumps(value),flush=True)

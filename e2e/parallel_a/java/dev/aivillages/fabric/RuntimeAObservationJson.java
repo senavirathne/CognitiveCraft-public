@@ -36,6 +36,45 @@ public final class RuntimeAObservationJson {
         @Override public void flush() { }
         @Override public void close() { }
     }
+    /** One arena's block capture. Published objects are never modified. */
+    static final class BlockRows {
+        // 512 columns, six assessment levels, the base cell, and the legacy lower cells.
+        private static final int MAX_ROWS=4096;
+        private record Row(int x,int y,int z,Object state) { }
+        private final ArrayList<Row> rows=new ArrayList<>();
+        private JsonObject captured=new JsonObject();
+        private int next;
+        private boolean dirty;
+
+        void begin(){next=0;}
+        void add(int x,int y,int z,Object state) {
+            if(next==rows.size()) {
+                if(next==MAX_ROWS)throw new IllegalStateException("Bounded block observation rows");
+                rows.add(new Row(x,y,z,state));
+                dirty=true;
+            }else {
+                Row row=rows.get(next);
+                if(row.x()!=x || row.y()!=y || row.z()!=z || row.state()!=state) {
+                    rows.set(next,new Row(x,y,z,state));
+                    dirty=true;
+                }
+            }
+            next++;
+        }
+        JsonObject finish() {
+            if(next<rows.size()) {
+                rows.subList(next,rows.size()).clear();
+                dirty=true;
+            }
+            if(dirty) {
+                var replacement=new JsonObject();
+                for(Row row:rows)replacement.addProperty(row.x()+","+row.y()+","+row.z(),row.state().toString());
+                captured=replacement;
+                dirty=false;
+            }
+            return captured;
+        }
+    }
     public record Encoded(String data,long time,long pid,List<RuntimeAObservationLog.Span> spans) {
         public Encoded {spans=List.copyOf(spans);}
     }
@@ -137,6 +176,21 @@ public final class RuntimeAObservationJson {
         if(!frame(full).equals(JSON.toJson(full))||!large.equals(JSON.toJson(growing)))throw new IllegalStateException("Reusable writer changed a completed String");
         FrameBuffer buffer=new FrameBuffer();buffer.data.ensureCapacity(RETAINED_BUFFER_CHARS+1);buffer.recycle();
         if(buffer.data.capacity()>RETAINED_BUFFER_CHARS||buffer.length()!=0)throw new IllegalStateException("Writer scratch retained over its finite quota");
+        var blockRows=new BlockRows();var stone="Block{minecraft:stone}";var air="Block{minecraft:air}";
+        blockRows.begin();blockRows.add(2,208,1,stone);blockRows.add(2,207,1,stone);blockRows.add(2,208,1,air);
+        var firstBlocks=blockRows.finish();
+        var expectedBlocks=new JsonObject();expectedBlocks.addProperty("2,208,1",air);expectedBlocks.addProperty("2,207,1",stone);
+        if(!JSON.toJson(firstBlocks).equals(JSON.toJson(expectedBlocks)))throw new IllegalStateException("Block order or duplicate position changed");
+        blockRows.begin();blockRows.add(2,208,1,stone);blockRows.add(2,207,1,stone);blockRows.add(2,208,1,air);
+        if(blockRows.finish()!=firstBlocks)throw new IllegalStateException("Unchanged native block rows rebuilt the frame");
+        blockRows.begin();blockRows.add(2,208,1,stone);blockRows.add(2,207,1,stone);blockRows.add(2,208,1,stone);
+        // The aborted capture must leave the next complete capture marked dirty.
+        blockRows.begin();blockRows.add(2,208,1,stone);blockRows.add(2,207,1,stone);blockRows.add(2,208,1,stone);
+        var replacedBlocks=blockRows.finish();
+        if(replacedBlocks==firstBlocks || !replacedBlocks.get("2,208,1").getAsString().equals(stone)
+                || !JSON.toJson(firstBlocks).equals(JSON.toJson(expectedBlocks)))throw new IllegalStateException("Block capture reused stale or mutated published rows");
+        blockRows.begin();
+        if(blockRows.finish().size()!=0 || replacedBlocks.size()!=2)throw new IllegalStateException("Unloaded blocks stayed visible");
         System.out.println("A04_OBSERVATION_JSON_SELF_TEST_PASS exact-full-frame-bytes immutable-captures replacement-origin principal-filtered-views bounded-cache");
     }
 }

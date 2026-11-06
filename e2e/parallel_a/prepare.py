@@ -79,6 +79,24 @@ assert adapted.count(lease_encoding)==1
 adapted=adapted.replace(lease_encoding,'RuntimeAObservationJson.leases(player.getUUID(),kernel.leaseOwner().snapshot().leases().stream()')
 assert adapted.count('JSON.toJsonTree(view).getAsJsonObject()')==1
 adapted=adapted.replace('JSON.toJsonTree(view).getAsJsonObject()','RuntimeAObservationJson.run(player.getUUID(),id,view)')
+# Reuse only the completed JSON object for equal observations of immutable native block states.
+block_rows = {
+    'private final int[] observationArea = observationArea();':
+        'private final int[] observationArea = observationArea();\n'
+        '    private final RuntimeAObservationJson.BlockRows blockRows = new RuntimeAObservationJson.BlockRows();',
+    'var blocks = new JsonObject(); var containers = new JsonObject();':
+        'blockRows.begin(); var containers = new JsonObject();',
+    'blocks.addProperty(key, observedChunk.getBlockState(pos).toString());':
+        'blockRows.add(x, observationArea[1], z, observedChunk.getBlockState(pos));',
+    'blocks.addProperty(x+","+(observationArea[1]+dy)+","+z,observedChunk.getBlockState(pos.offset(0,dy,0)).toString());':
+        'blockRows.add(x, observationArea[1]+dy, z, observedChunk.getBlockState(pos.offset(0,dy,0)));',
+    'blocks.addProperty(x + ",200," + z, observedChunk.getBlockState(pos.below()).toString());':
+        'blockRows.add(x, 200, z, observedChunk.getBlockState(pos.below()));',
+    'out.add("blocks", blocks);': 'out.add("blocks", blockRows.finish());',
+}
+for original, replacement in block_rows.items():
+    assert adapted.count(original) == 1, original
+    adapted = adapted.replace(original, replacement)
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)

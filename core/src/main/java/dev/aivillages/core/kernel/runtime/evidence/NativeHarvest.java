@@ -9,6 +9,9 @@ import static dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 /** Bounded harvest data. Constructors and classifiers supply no execution or Jobs authority. */
 public final class NativeHarvest {
     private NativeHarvest() { }
+    public static void initializeCaptureSchema() {
+        initializeSchemas(Source.class,Drop.class,Intent.class);
+    }
     public static final int MAX_ENTRIES=64,MAX_RECORD_BYTES=32_768;
     public enum Live { NO_EFFECT,COMPLETE,PARTIAL,UNRECEIPTED_EFFECT }
     public enum Reconciliation { WAIT_WORLD,UNPROVEN,TORN_SAVED_COHORT,SAVED_COMPLETE,SAVED_NO_EFFECT,PARTIAL_UNRESOLVED }

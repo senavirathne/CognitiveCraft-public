@@ -31,6 +31,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private Consumer<Point> observer=p->{};
     private final Map<String,FabricHarvestProtocol.PickupLineage> live=new HashMap<>();
     private String descendant="";
+    private static final List<String> CAPTURE_PHASES=List.of("owner","original-harvest","native-lineage","allowance","intent","storage-and-ticket");
     private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
     private final ArrayDeque<Long> captureNanos=new ArrayDeque<>();
     private final class NativeTicket implements Ticket {
@@ -46,6 +47,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
                                 PickupJournal journal,PickupJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.harvest=Objects.requireNonNull(harvest);this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
+        NativePickup.initializeCaptureSchema();
         store=new PickupEvidenceStore(initial,harvest.evidence(),(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Pickup I/O on game thread");
             try{return journal.replace(expected,next);}catch(java.io.IOException error){throw new CompletionException(error);}
@@ -60,6 +62,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public void observe(Consumer<Point> observer){check();this.observer=Objects.requireNonNull(observer);}
     public List<Long> captureNanos(){check();return List.copyOf(captureNanos);}
     public List<Long> captureCpuNanos(){check();return captureThreadTime.nanos();}
+    public List<String> capturePhaseNames(){return CAPTURE_PHASES;}
+    public List<List<Long>> capturePhaseNanos(){check();return captureThreadTime.phaseNanos();}
     public void tick(){check();store.tick();}
     public void close(){check();closed=true;tickets.clear();frames.clear();live.clear();}
     @Override public Ticket begin(Request request,Action action) {
@@ -67,11 +71,13 @@ public final class FabricPickupProtocol implements PickupProtocol {
     }
     @Override public Ticket begin(Request request,Action action,BooleanSupplier preflight) {
         check();long cpuStarted=captureThreadTime.start();long began=System.nanoTime();
+        long[] phases=new long[CAPTURE_PHASES.size()];
         try {
             if(closed || !enabled || store.fenced() || store.pending() || tickets.size()==8)throw new IllegalStateException("Pickup unavailable");
             var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new IllegalStateException("Original owner stopping");
+            phases[0]=System.nanoTime();
             NativeHarvest.Entry h=null;
             for(var entry:harvest.evidence().snapshot().entries()) {
                 var key=entry.intent().key();
@@ -86,8 +92,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var output=h.result().drops().getFirst();
             if(!output.entity().equals(request.drop()) || output.quantity()!=request.expected())
                 throw new IllegalStateException("Original pickup output");
+            phases[1]=System.nanoTime();
             var lineage=harvest.preparePickupLineage(harvest.evidence().acknowledged(h.intent().key()),preflight);
             if(lineage==null)throw new IllegalStateException("Original pickup lineage");
+            phases[2]=System.nanoTime();
             var claims=new ArrayList<Claim>();
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin()) && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime())
                 claims.add(new Claim(claim.id(),claim.epoch(),claim.group(),claim.generation()));
@@ -95,17 +103,21 @@ public final class FabricPickupProtocol implements PickupProtocol {
             if(request.deadline()>deadline || request.effectsRemaining()>attempt.allowance().maximum(Budgets.Kind.COMMITTED_EFFECTS)-request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L))throw new IllegalStateException("Pickup allowance");
             var conditions=new Conditions(request.actor().citizenId(),job.revision(),deadline,request.deadline(),request.effectsRemaining(),level.getGameTime(),2500,
                     lineage.reachMilli(),claims,request.usage());
+            phases[3]=System.nanoTime();
             var k=h.intent().key();
             var intent=new NativePickup.Intent(new Key(k.world(),k.root(),k.step(),k.attempt(),k.generation(),2),h,request.operation(),request.expected(),conditions,lineage.actorTrail(),lineage.dropTrail());
+            phases[4]=System.nanoTime();
             var port=NativeEntityStorage.get(level);if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
             var touched=new LinkedHashSet<>(lineage.actorTrail().chunks());touched.addAll(lineage.dropTrail().chunks());
             var chunks=List.copyOf(touched);
-            var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);return ticket;
+            var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);
+            phases[5]=System.nanoTime();
+            return ticket;
         }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null,List.of());}
         finally{
             if(captureNanos.size()==128)captureNanos.removeFirst();
             captureNanos.addLast(System.nanoTime()-began);
-            captureThreadTime.record(cpuStarted);
+            captureThreadTime.record(cpuStarted,began,phases);
         }
     }
     public Progress poll(Ticket value) {

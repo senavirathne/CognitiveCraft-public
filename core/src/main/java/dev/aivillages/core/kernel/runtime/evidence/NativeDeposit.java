@@ -18,8 +18,17 @@ public final class NativeDeposit {
     private NativeDeposit() { }
     /** Link the immutable snapshot schema during service setup, before an effect is admitted. */
     public static void initializeParticipantSchema() {
-        try{Class.forName(Participant.class.getName(),true,Participant.class.getClassLoader());}
-        catch(ClassNotFoundException impossible){throw new IllegalStateException("Compiled deposit participant schema unavailable",impossible);}
+        initializeSchemas(Participant.class);
+    }
+    public static void initializeCaptureSchema() {
+        initializeParticipantSchema();
+        initializeSchemas(Slot.class,Claim.class,Conditions.class,Key.class,Intent.class);
+    }
+    static void initializeSchemas(Class<?>... types) {
+        for(Class<?> type:types) {
+            try{Class.forName(type.getName(),true,type.getClassLoader());}
+            catch(ClassNotFoundException impossible){throw new IllegalStateException("Compiled native evidence schema unavailable",impossible);}
+        }
     }
     public enum Kind { ACTOR, CHEST }
     public enum MarkerPhase { PREPARED, MUTATING, RESULT }
