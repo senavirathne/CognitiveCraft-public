@@ -34,7 +34,13 @@ public final class RuntimeA07Probe implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(server->{
             try {
                 var kernel=AiVillages.kernel();if(kernel==null)return;
-                if(attached!=kernel){attached=kernel;kernel.lifecycleGateway().observeActions(observed->{
+                SurvivalGateway gateway;
+                try{gateway=kernel.lifecycleGateway();}
+                catch(IllegalStateException opening){
+                    if(attached==null&&"Kernel world data is loading or unavailable".equals(opening.getMessage()))return;
+                    throw opening;
+                }
+                if(attached!=kernel){attached=kernel;gateway.observeActions(observed->{
                     if(mode==null||actor==null||!observed.actor().entityId().equals(actor))return;
                     boolean match=mode.equals("PREFLIGHT")&&observed.point()==SurvivalGateway.ActionPoint.BEFORE_POLL
                             ||mode.equals("EFFECT")&&observed.point()==SurvivalGateway.ActionPoint.AFTER_POLL&&observed.receipt().committedEffects()>0;
