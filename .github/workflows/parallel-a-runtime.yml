@@ -376,6 +376,22 @@ jobs:
           python3 tools/needle/install.py build/needle
           gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a06-three-admission-seed.zip
           python3 e2e/parallel_a/lifecycle_connected.py --root build/parallel-a/native-a07-connected --seed-archive build/parallel-a/a06-three-admission-seed.zip
+      - name: Preserve every unexecuted A07 case when a required prerequisite failed
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') && steps.a07_connected.outcome == 'skipped' }}
+        run: |
+          python3 - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'e2e/parallel_a')
+          from lifecycle_cases import contexts,LIVE_CASES,DEATH_CASES,HANDOFF_CASES
+          names=[r['case']['id'] for r in contexts('e2e/parallel_a/a07_w04_contexts.json')]+list(LIVE_CASES)+list(DEATH_CASES)+list(HANDOFF_CASES)
+          root=Path('build/parallel-a/native-a07-connected');root.mkdir(parents=True,exist_ok=True)
+          value={'schema':1,'stage':'A07','status':'FAIL_REQUIRED_PREREQUISITE','a07Qualified':False,'plannedCases':names,'requiredCases':len(names),
+                 'cases':[{'id':name,'status':'NOT_EXECUTED_REQUIRED'} for name in names],
+                 'prerequisites':{'modules':'${{ steps.a06_modules.outcome }}','nativePreparation':'${{ steps.a06_prepare.outcome }}'}}
+          (root/'a07-results.json').write_text(json.dumps(value,indent=2)+'\n')
+          PY
       - name: Independently review A07 saved worlds, identities and exact required denominator
         if: >-
           ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') && steps.a07_connected.outcome != 'skipped' }}

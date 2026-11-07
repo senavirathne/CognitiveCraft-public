@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 40,
-  "parentSource": "661ab7eed2a30c180d79f92d254c9f11661e5876",
+  "sequence": 41,
+  "parentSource": "30290967eb0d720180297ad8f2991592c8f435cb",
   "stage": "A07",
-  "scope": "All 27 required connected native candidates: 12 actor/source/facility/destination phase combinations, 9 frozen historical W04 unload contexts, 3 distinct death custody controls, 3 explicit handoff controls. Same-world restart and independent progress are included. Native cold/warm diagnostics and all module, Python, nine host workflow and standard CI regressions remain required.",
+  "scope": "Batch40 retained a correctly refused synthetic oversubscription (one of eight new policy tests). Correct the test to subtract actual consumed original usage; no budget guard or native assertion is weakened. Execute all27 native cases, complete modules/Python,14 native diagnostics, all9 host workflows and unchanged standard CI.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4210,6 +4210,22 @@
       "nativeCold": 7,
       "nativeWarm": 7,
       "fullA07Qualified": false
+    },
+    {
+      "sequence": 40,
+      "source": "30290967eb0d720180297ad8f2991592c8f435cb",
+      "tree": "b7c4e6f1bf58ddbbdc7e4674f4b44372fc8a96e7",
+      "run": 42343231906,
+      "mainRun": 42343231904,
+      "status": "FAIL_SYNTHETIC_RETRY_OVERSUBSCRIBED_ORIGINAL_ALLOWANCE",
+      "nativeConnectedCases": 0,
+      "coreTests": 2365,
+      "coreFailures": 1,
+      "failedCase": "ReassignmentPolicyTest.explicitPolicySelectsOnlyItsSuccessorAndJobsPublishesTheNextGeneration",
+      "reason": "Test requested full new allowance after prior calls/instructions had been charged. Existing guard correctly returned BUDGET_EXHAUSTED.",
+      "artifact": 13562816275,
+      "artifactSha256": "47a103645f46eb14dbd5ad263ae2a0b3feeb5857919e69bdaa37c19d342a457d",
+      "correction": "Test derives remaining allowance from actual Job maxima minus usage; original deadline and production guard unchanged."
     }
   ],
   "a07ConnectedRequiredCases": 27

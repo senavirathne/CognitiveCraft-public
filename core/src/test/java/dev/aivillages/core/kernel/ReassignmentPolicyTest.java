@@ -30,7 +30,9 @@ final class ReassignmentPolicyTest {
         assertTrue(s.store.authorizeReassignment(j.id(),j.guard(),other,s.owner));assertSame(before,s.store.snapshot());
         assertThrows(SecurityException.class,()->s.store.bindWorker(j.id(),j.guard(),s.actor,s.owner));
         assertEquals(other,((ActorValue)s.store.bindWorker(j.id(),j.guard(),other,s.owner).request().arguments().get("actor")).value());
-        var next=s.assign(j,other,JobLifecycleStoreTest.limits(11_000));
+        var remaining=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+        for(var kind:Budgets.Kind.values())remaining.put(kind,j.allowance().maximum(kind)-j.usage().getOrDefault(kind,0L));
+        var next=s.assign(j,other,new Budgets.Limits(remaining,j.allowance().deadlineEpochMillis()));
         assertEquals(j.id(),next.id());assertEquals(j.generation()+1,next.generation());assertEquals(other,next.current().worker());
         assertEquals(j.responsible(),next.responsible());assertEquals(j.allowance(),next.allowance());
     }
