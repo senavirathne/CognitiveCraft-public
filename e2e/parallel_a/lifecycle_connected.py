@@ -12,6 +12,7 @@ from generalization_support import LOG,BIRCH,AXE,PLANK,STICK,coord,Inconclusive
 from generalization import receipts
 from baseline import native_process
 from deposits import manifest
+from lifecycle_fixture import w04_start
 
 
 class LifecycleHarness(RecoveryHarness):
@@ -234,6 +235,10 @@ def w04_case(h,seed,frozen):
     h.console(['kill '+h.entities['PlayerB']]);h.vanilla('PlayerA','/gamemode spectator');h.vanilla('PlayerA','/tp 329.5 208 69.5')
     h.wait(lambda:(v if (v:=h.life(h.companion[0])) and v['identity']['availability']=='LOADED' else None),'Disposable non-subject companion loaded',55)
     h.console(['kill '+h.companion[1]]);h.vanilla('PlayerA','/tp 66.5 208 69.5');h.vanilla('PlayerA','/gamemode survival')
+    # Normal player loading must finish before any cross-chunk setup command. A sent mailbox is not an applied fixture.
+    corners=[[x,208,z] for x in (63,85) for z in (63,79)]
+    h.watch(corners,[h.entities['PlayerA']])
+    h.wait(lambda:all((h.target(p) or {}).get('loaded') for p in corners),'All original W04 geometry chunks naturally loaded before setup',55)
     # Exact frozen source positions, orientation, destination contents, name and actor position.
     lines=['fill 63 208 63 85 213 79 minecraft:air','fill 63 207 63 85 207 79 minecraft:stone',
            'fill 63 208 63 85 213 63 minecraft:glass','fill 63 208 79 85 213 79 minecraft:glass',
@@ -266,7 +271,7 @@ def w04_case(h,seed,frozen):
     else:h.command('PlayerA','/aivillage kernel name '+primary[0]+' '+c['citizenName'],'name='+c['citizenName'])
     subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]]],[entity])
     before=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['displayName']==c['citizenName'] and v['identity']['availability']=='LOADED' else None),'Frozen W04 named subject',40)
-    starting=starting_checkpoint(h,directory);initial_native=h.a07()
+    starting=starting_checkpoint(h,directory);initial_native=h.a07();setup_review=w04_start(directory/'starting-world',c,entity)
     calls=h.model_calls();h.console(['forceload add 10000 10000'])
     h.wait(lambda:'Test passed' in h.command('PlayerA','/execute if loaded 10000 208 10000','Test passed|Test failed'),'Remote original W04 landing chunk loaded',45)
     h.console(['fill 10000 207 10000 10008 207 10008 minecraft:stone','setworldspawn 10004 208 10004'])
@@ -284,7 +289,7 @@ def w04_case(h,seed,frozen):
             'W04 native identity or generation changed incorrectly')
     require(h.model_calls()==calls,'W04 identity reproduction invoked a model');h.screenshot('PlayerA','w04-'+name,chat=True)
     reconnect_players(h,['PlayerB'])
-    value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'startingWorldHashes':starting,
+    value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'startingWorldHashes':starting,'startingFixtureReview':setup_review,
            'initialNative':initial_native,'boundary':boundary,'nativeAtUnload':native,
            'after':after,'unloadSeconds':duration,'originalTimeoutSeconds':110,'clock':'ordinary 20 TPS; no freeze or accelerated ticks',
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'historicalFailure':frozen['reason'],

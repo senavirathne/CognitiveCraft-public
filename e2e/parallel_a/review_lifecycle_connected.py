@@ -1,13 +1,45 @@
 """Independent offline A07 review. Raw native worlds remain necessary; a green collector cannot qualify A07."""
-import argparse,json,traceback
+import argparse,hashlib,json,traceback
 from pathlib import Path
 from lifecycle_cases import contexts,LIVE_CASES,DEATH_CASES,HANDOFF_CASES,disposition,handoff
 from deposits import manifest
 from recovery_fixture import native_saved
 from review_receipt_prefix import journal,regions,entity_uuid,item,block_name,dimension_root
 from native_nbt import chunk
+from lifecycle_fixture import w04_start
 
 def read(path):return json.loads(Path(path).read_text())
+def sha(path):
+    with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
+def runtime_proof(root,metadata):
+    assert metadata['topology']=='compose'
+    copies={}
+    for role in ('server','clients/PlayerA','clients/PlayerB'):
+        actual=sha(root/role/'game/mods/ai-villages-0.1.0.jar')
+        assert actual==metadata['releaseSha256'],('Actual native production copy differs',role)
+        copies[role]=actual
+    assert sha(root/'server/game/mods/observer.jar')==metadata['binaries']['observer']['sha256']
+    clients={}
+    for player in ('PlayerA','PlayerB'):
+        folder=root/'clients'/player;process=read(folder/'process.json')
+        assert process['kind']=='client' and process['releaseSha256']==metadata['releaseSha256']
+        assert sha(folder/'game/mods/client.jar')==metadata['binaries']['clientDriver']['sha256']
+        events=[json.loads(line) for line in (folder/'events.jsonl').read_text().splitlines()]
+        boots=[e for e in events if e['kind']=='driver'];plays=[e['time'] for e in events if e['kind']=='play']
+        assert len(boots)==1 and boots[0]['data']['pid']==process['pid'] and plays
+        assert process['start']*1000<=boots[0]['time']<=min(plays)
+        clients[player]={'pid':process['pid'],'start':process['start'],'driverEvents':1,'driverTime':boots[0]['time'],'playTimes':plays}
+    return {'productionCopies':copies,'clients':clients}
+def restart_proof(value,runtime,release):
+    assert value['sameClients']
+    before,after=value['before'],value['after']
+    assert (before['hostJvmPid'],before['startTicks'])!=(after['hostJvmPid'],after['startTicks'])
+    first,last=before['namespaceProcess'],after['namespaceProcess']
+    assert first['start']<last['start'] and first['releaseSha256']==last['releaseSha256']==release
+    for client in runtime['clients'].values():
+        assert client['driverTime']<first['start']*1000
+        assert any(last['start']*1000<=t<=last['start']*1000+120000 for t in client['playTimes'])
+    return {'beforeJvm':[before['hostJvmPid'],before['startTicks']],'afterJvm':[after['hostJvmPid'],after['startTicks']],'samePersistentClients':True}
 def allowance(raw,view):return raw['maxima']==view['maxima'] and raw['deadline']==view['deadlineEpochMillis']
 def actor(raw,view):return raw=={'citizen':view['citizenId'],'entity':view['entityId'],'dimension':view['dimension']}
 def original(world,id):
@@ -54,6 +86,7 @@ def review(root,source):
     assert metadata['sourceCommit']==source and not metadata['dirty']
     assert metadata['minecraft']=='26.3' and metadata['loader']=='0.19.5'
     assert metadata['releaseSha256']==metadata['binaries']['production']['sha256']
+    runtime=runtime_proof(root,metadata)
     expected=[r['case']['id'] for r in contexts(repo/'e2e/parallel_a/a07_w04_contexts.json')]+list(LIVE_CASES)+list(DEATH_CASES)+list(HANDOFF_CASES)
     assert result['plannedCases']==expected and result['requiredCases']==27
     assert len(result['cases'])==27 and {r['id'] for r in result['cases']}==set(expected)
@@ -89,7 +122,7 @@ def review(root,source):
             other=row['unrelated']['view']['responsibility'];raw_other=original(world,other['id']);assert raw_other['state']=='SUCCEEDED'
             assert sum(a['credited'] for a in raw_other['attempts'])==1
             assert chest(world,row['unrelated']['destination']).get('minecraft:oak_log',0)==1
-            if name=='ACTOR-PUBLICATION':assert row['unloadedRestart']['sameClients']
+            if name=='ACTOR-PUBLICATION':restart_proof(row['unloadedRestart'],runtime,metadata['releaseSha256'])
         elif name in DEATH_CASES:
             case=row['originalCase'];proof=native_saved(folder/'killed-world','HARVEST',case);assert proof==row['nativeSavedProof']
             drop=proof['harvest']['result']['drops'][0]['entity'];actor=proof['harvest']['intent']['actor']['entity']
@@ -111,7 +144,7 @@ def review(root,source):
                 assert actor(saved['attempts'][-1]['worker'],row['successor']) and all(a['effects']==3 and a['credited']==1 and not a['uncertain'] for a in saved['attempts'])
                 assert row['originalAtCut']['attempts'][0]['worker']['entityId'] not in native
                 assert chest(world,proof['deposit']['intent']['destination'] if 'destination' in proof['deposit']['intent'] else [row['originalCase']['destination'][k] for k in ('x','y','z')]).get('minecraft:oak_log',0)==2
-                assert row['restart']['sameClients'] and 'obsoleteGeneration' in row['denied']
+                restart_proof(row['restart'],runtime,metadata['releaseSha256']);assert 'obsoleteGeneration' in row['denied']
             else:
                 assert sum(a['credited'] for a in saved['attempts'])==1 and all(a['effects']==0 for a in saved['attempts'][1:])
                 if name=='handoff-revoked':
@@ -121,6 +154,7 @@ def review(root,source):
             frozen=next(r for r in contexts(repo/'e2e/parallel_a/a07_w04_contexts.json') if r['case']['id']==name)
             assert row['originalCase']==frozen['case'] and row['historicalFailure']==frozen['reason']
             start=folder/'starting-world';assert manifest(start)==row['startingWorldHashes'];c=frozen['case']
+            w04_start(start,c,row['before']['identity']['actor']['entityId'])
             for pos in c['positions']:
                 assert block_name(start,pos)==c['item']
                 if c['item'].endswith('_log'):
@@ -137,7 +171,8 @@ def review(root,source):
         reviews.append({'id':name,'status':'PASS_INDEPENDENT_NATIVE_REVIEW','savedWorldFiles':len(row['terminalWorldHashes'])})
     return {'schema':1,'source':source,'status':'PASS_A07_CONNECTED_NATIVE_REVIEW','cases':reviews,'requiredCases':27,
             'a07Qualified':False,'qualificationScope':'Connected controls only; all module/native host/standard CI gates must also pass.',
-            'w04':'OPEN_CAUSE_NOT_ESTABLISHED','w04Distribution':{'candidateUnloadReload':9,'historicalTimeoutsRetained':9},'releaseSha256':metadata['releaseSha256']}
+            'w04':'OPEN_CAUSE_NOT_ESTABLISHED','w04Distribution':{'candidateUnloadReload':9,'historicalTimeoutsRetained':9},'releaseSha256':metadata['releaseSha256'],
+            'runtimeBindings':runtime}
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);p.add_argument('--source',required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args();a.out.mkdir(parents=True,exist_ok=True)
