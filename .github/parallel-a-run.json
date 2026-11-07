@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 41,
-  "parentSource": "30290967eb0d720180297ad8f2991592c8f435cb",
+  "sequence": 42,
+  "parentSource": "4fc9e37e6b89fb69f50127212fa408d1eeedfbc7",
   "stage": "A07",
-  "scope": "Batch40 retained a correctly refused synthetic oversubscription (one of eight new policy tests). Correct the test to subtract actual consumed original usage; no budget guard or native assertion is weakened. Execute all27 native cases, complete modules/Python,14 native diagnostics, all9 host workflows and unchanged standard CI.",
+  "scope": "All27 required native lifecycle/custody/handoff/W04 candidates after test observer readiness correction; batch41 passed all9 host suites and14 diagnostic native cases but no connected scenario started. Preserve its failure separately; no budget, deadline, native assertion, existing host step or required context is removed.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4226,6 +4226,36 @@
       "artifact": 13562816275,
       "artifactSha256": "47a103645f46eb14dbd5ad263ae2a0b3feeb5857919e69bdaa37c19d342a457d",
       "correction": "Test derives remaining allowance from actual Job maxima minus usage; original deadline and production guard unchanged."
+    },
+    {
+      "sequence": 41,
+      "source": "7f9cc1e42035254291a52f03c49d558915591fdf",
+      "tree": "b53fe2c0d1924bc9ad1ba585b81bdf96df7cb066",
+      "run": 42343547101,
+      "mainRun": 42343546962,
+      "status": "FAIL_CONNECTED_OBSERVER_STARTUP_READINESS",
+      "nativeConnectedCases": 0,
+      "requiredCases": 27,
+      "nativeDiagnostics": 14,
+      "requiredHostsPassed": 9,
+      "cause": "Test-only RuntimeA07Probe tried lifecycleGateway before asynchronous KernelSession opening completed, persisted the expected loading exception as a fatal observer error.",
+      "correction": "Allow only the exact loading exception before first successful attachment; all later observer errors still fail closed.",
+      "connectedDiagnosticsArtifact": 13562174371,
+      "connectedDiagnosticsSha256": "9f4e93e783119abdfd1539e5c663145c49084d08351183ecb1a26af929caf65c",
+      "nativeArchiveArtifact": 13562239306,
+      "nativeArchiveSha256": "77ae89ceca46a943e2599afdd1d4c51d62027b44b830c5cffbfbad7833f9f9b7",
+      "extraStandaloneWorkflowRuns": [
+        42343546969,
+        42343547019,
+        42343547048,
+        42343547027,
+        42343546985,
+        42343547043,
+        42343547031,
+        42343546980,
+        42343546959
+      ],
+      "extraRunsCause": "Test fix combined with control commit triggered original path hooks. Further fixes use skip-CI checkpoints followed by control-only launches."
     }
   ],
   "a07ConnectedRequiredCases": 27
