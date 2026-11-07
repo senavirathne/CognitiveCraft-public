@@ -355,7 +355,8 @@ jobs:
           ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
         run: python3 e2e/parallel_a/lifecycle_diagnostics.py
       - name: Retain A07 event diagnostic worlds, XML and actual failure logs
-        if: ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') }}
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') }}
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a07-lifecycle-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
