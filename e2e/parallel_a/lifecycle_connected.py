@@ -80,7 +80,8 @@ class LifecycleHarness(RecoveryHarness):
         result=super().restore(seed,name);self.observation('clear');return result
     def unrelated(self):
         primary=self.citizens['PlayerA'],self.entities['PlayerA'];self.actions_active=False
-        self.vanilla('PlayerA','/gamemode spectator');self.vanilla('PlayerA','/tp 329.5 208 69.5');self.vanilla('PlayerA','/gamemode survival')
+        # The live-unload caller has already made both clients spectators; an idempotent gamemode command has no feedback.
+        self.vanilla('PlayerA','/tp 329.5 208 69.5');self.vanilla('PlayerA','/gamemode survival')
         self.wait(lambda:(v if (v:=self.life(self.companion[0])) and v['identity']['availability']=='LOADED' else None),'Independent pre-existing worker loads normally',60)
         try:
             self.citizens['PlayerA'],self.entities['PlayerA']=self.companion
@@ -168,6 +169,7 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
     original=next(j for j in cut['jobs']['jobs'] if j.get('submissionId')==run or j.get('submission')==run)
     require(original['state']=='ACTIVE','A07 cut owner was not live')
     current=h.a07();actor_row=current['entities'][h.entities['PlayerA']]
+    atomic(directory/'actual-cut.json',{'cut':cut,'native':current,'originalJob':original,'identity':before})
     if role=='ACTOR':fixture['target']=[math.floor(v) for v in actor_row['pos']]
     target=fixture['target'];target_chunk=(target[0]//16,target[2]//16)
     h.watch(fixture['watched']+[target] if target not in fixture['watched'] else fixture['watched'],[h.entities['PlayerA']])
@@ -183,6 +185,7 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
     # This explicit controlled matrix is separate from the nine ordinary, unmodified W04 timeout contexts.
     h.observation('release-fixture-tickets',token=token)
     ticket_release=read(h.root/'server/a07-fixture-ticket-release.json');require(ticket_release['token']==token,'Fixture residency release cut differs')
+    atomic(directory/'ticket-release.json',ticket_release)
     start=time.monotonic()
     absent=h.wait(lambda:(v if (v:=h.a07()) and not v['targets'][','.join(map(str,target))]['loaded']
                          and not v['entities'][h.entities['PlayerA']]['loaded'] else None),
@@ -193,9 +196,12 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
     require(at_loss['id']==original['id'] and at_loss['allowance']==original['allowance'],'Unload replaced responsibility or extended its original allowance')
     require(any(e['event']=='ENTITY_UNLOAD' and e['entity']==h.entities['PlayerA'] for e in absent['nativeEvents']),
             'Native entity-unload callback was not independently observed')
+    atomic(directory/'native-loss.json',{'native':absent,'identity':loss_life,'originalJob':at_loss,'unloadSeconds':unload_seconds})
     h.vanilla('PlayerB','/tick unfreeze');before_other=job(h,run);other=h.unrelated();after_other=job(h,run)
     require(sum(a['credited'] for a in after_other['attempts'])==sum(a['credited'] for a in before_other['attempts']),
             'Unavailable original work gained delivery credit while unrelated work ran')
+    # Unrelated physical work restored survival mode. Switch once before spectator reload, including the unloaded restart.
+    h.vanilla('PlayerA','/gamemode spectator')
     unloaded_restart=None
     if restart_unloaded:
         h.save_checkpoint();unloaded_restart=h.restart(hard=True);h.watch(fixture['watched']+[target] if target not in fixture['watched'] else fixture['watched'],[h.entities['PlayerA']])
@@ -251,9 +257,12 @@ def w04_case(h,seed,frozen):
     if c['index']%3==0:
         existing={a['uuid'] for a in h.snapshot()['actors']}
         h.console(['tp '+primary[1]+' 83.5 208 66.5','summon minecraft:villager '+coord([c['actor'][0]+.5,208,c['actor'][2]+.5])+' {PersistenceRequired:1b}'])
-        h.wait(lambda:any(a['uuid'] not in existing and a['alive'] and not a['controlled'] for a in h.snapshot()['actors']),
-               'Actual new normal-AI villager observed before fresh W04 enrollment',30)
+        fresh=h.wait(lambda:next((a for a in h.snapshot()['actors'] if a['uuid'] not in existing and a['alive'] and not a['controlled']),None),
+                     'Actual new normal-AI villager observed before fresh W04 enrollment',30)
+        # Fixture proximity moves the actual player, never the normal-AI subject; the public native enrollment still checks range/identity.
+        h.vanilla('PlayerA','/tp '+coord(fresh['pos']))
         h.enroll(name=c['citizenName'])
+        h.vanilla('PlayerA','/tp 66.5 208 69.5')
     else:h.command('PlayerA','/aivillage kernel name '+primary[0]+' '+c['citizenName'],'name='+c['citizenName'])
     subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]]],[entity])
     before=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['displayName']==c['citizenName'] and v['identity']['availability']=='LOADED' else None),'Frozen W04 named subject',40)
@@ -340,6 +349,11 @@ def handoff_case(h,seed,template,kind):
         if kind=='handoff-revoked':
             ready=h.wait(lambda:(j if (j:=job(h,value['run'])) and not j['attempts'][-1]['uncertain'] else None),'Historical delivery accounted under revoked effect authority',60)
             h.quiet(80);blocked=job(h,value['run']);require(sum(a['credited'] for a in blocked['attempts'])==1 and all(a['effects']==0 for a in blocked['attempts'][1:]),'Revocation allowed new physical work')
+            require(blocked['attempts'][-1].get('terminal') is not None and not blocked['attempts'][-1]['uncertain'],
+                    'Closed-original denial requires an actually settled original attempt')
+            value['closedOriginalBeforeDenied']=blocked
+            closed_command='/aivillage kernel job-handoff '+blocked['id']+' '+str(blocked['revision'])+' '+str(blocked['generation'])+' '+h.companion[0]
+            denied['closedOriginal']=h.command('PlayerA',closed_command,'handoff=false')
             h.command('PlayerA','/aivillage kernel job-cancel '+current['id'],'cancellation=true')
             final=h.wait(lambda:(j if (j:=job(h,value['run'])) and j['state']=='CANCELLED' else None),'Revoked handoff cancellation settles',45)
             h.vanilla('PlayerB','/gamerule minecraft:mob_griefing true');status='PASS_REVOKED_NEW_EFFECTS_HISTORICAL_ACCOUNTING'

@@ -103,7 +103,7 @@ def review(root,source):
             proof=native_saved(folder/'killed-world','DEPOSIT',row['originalCase']);assert proof==row['nativeSavedProof']
             saved=original(world,row['key']['step']);assert saved['state']==row['originalJob']['state'] and allowance(saved['allowance'],row['originalAtCut']['allowance'])
             assert all('denied' in row['denied'][k].lower() or 'handoff=false' in row['denied'][k]
-                       or row['denied'][k]=='Citizen unavailable in your control scope' for k in row['denied'])
+                       or row['denied'][k] in ('Citizen unavailable in your control scope','Job unavailable in your scope') for k in row['denied'])
             assert {'foreign','staleRevision','staleGeneration'}<=set(row['denied'])
             if name=='handoff-positive':
                 assert handoff(row['beforeHandoff'],row['originalJob'],row['successor'])==row['handoffReview']
@@ -112,7 +112,11 @@ def review(root,source):
                 assert row['originalAtCut']['attempts'][0]['worker']['entityId'] not in native
                 assert chest(world,proof['deposit']['intent']['destination'] if 'destination' in proof['deposit']['intent'] else [row['originalCase']['destination'][k] for k in ('x','y','z')]).get('minecraft:oak_log',0)==2
                 assert row['restart']['sameClients'] and 'obsoleteGeneration' in row['denied']
-            else:assert sum(a['credited'] for a in saved['attempts'])==1 and all(a['effects']==0 for a in saved['attempts'][1:])
+            else:
+                assert sum(a['credited'] for a in saved['attempts'])==1 and all(a['effects']==0 for a in saved['attempts'][1:])
+                if name=='handoff-revoked':
+                    closed=row['closedOriginalBeforeDenied']['attempts'][-1]
+                    assert closed.get('terminal') is not None and not closed['uncertain'] and 'handoff=false' in row['denied']['closedOriginal']
         else:
             frozen=next(r for r in contexts(repo/'e2e/parallel_a/a07_w04_contexts.json') if r['case']['id']==name)
             assert row['originalCase']==frozen['case'] and row['historicalFailure']==frozen['reason']

@@ -12,6 +12,8 @@ ROOT=Path(__file__).resolve().parents[2]
 CLASSES=[
     'net.minecraft.server.MinecraftServer', 'net.minecraft.server.level.ServerLevel',
     'net.minecraft.server.level.ServerChunkCache', 'net.minecraft.server.level.ChunkMap',
+    'net.minecraft.world.level.TicketStorage', 'net.minecraft.server.level.ChunkLevel',
+    'net.minecraft.server.level.TicketType', 'net.minecraft.server.level.Ticket',
     'net.minecraft.world.level.chunk.storage.ChunkStorage',
     'net.minecraft.world.level.chunk.storage.EntityStorage',
     'net.minecraft.world.level.entity.PersistentEntitySectionManager',
