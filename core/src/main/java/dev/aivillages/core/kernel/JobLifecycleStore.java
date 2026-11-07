@@ -56,6 +56,34 @@ public final class JobLifecycleStore {
     private boolean fenced, readOnly;
     private Reason failure;
     private RecoveryEvidenceAuthority recoveryAuthority;
+    private record Reassignment(UUID attempt,long generation,ActorRef from,ActorRef to,TrustedContext origin) { }
+    private final Map<UUID,Reassignment> reassignments = new HashMap<>();
+    private boolean explicitReassignment;
+    /** Runtime composition enables guarded retries; old standalone callers remain compatible. */
+    public void requireExplicitReassignment() { thread(); explicitReassignment = true; }
+    /** One process-local owner policy per bounded Job. This grants no effect or settlement evidence. */
+    public boolean authorizeReassignment(UUID id, Guard expected, ActorRef successor, TrustedContext caller) {
+        thread(); Job job=controlled(id,caller);
+        if(job==null || successor==null || !ready() || !job.guard().equals(expected) || job.cancellationOutcome()!=null
+                || job.state()!=State.INTERRUPTED && job.state()!=State.READY
+                || job.current()==null || clock.millis()>job.allowance().deadlineEpochMillis()
+                || !policy.controls(successor,job.origin())
+                || !job.current().worker().dimension().equals(successor.dimension())
+                || job.current().worker().equals(successor)
+                || job.current().worker().entityId().equals(successor.entityId()))return false;
+        if(!reassignments.containsKey(id) && reassignments.size()>=settings.total())return false;
+        var old=job.current();
+        reassignments.put(id,new Reassignment(old.id(),old.generation(),old.worker(),successor,job.origin()));
+        return true;
+    }
+    private boolean assignmentPolicy(Job job,ActorRef worker) {
+        if(!explicitReassignment || job.current()==null)return true;
+        var old=job.current();var grant=reassignments.get(job.id());
+        if(grant!=null && grant.attempt().equals(old.id()) && grant.generation()==job.generation()
+                && grant.from().equals(old.worker()) && grant.origin().equals(job.origin()))
+            return grant.to().equals(worker) && policy.controls(worker,job.origin());
+        return old.worker().equals(worker);
+    }
     private JobHistory history;
     private JobArchive archiving;
     private Snapshot indexed;
@@ -160,7 +188,8 @@ public final class JobLifecycleStore {
     /** Preview only: the assign operation revalidates this binding and never trusts a preview. */
     public ValidatedRequest bindWorker(UUID id, Guard expected, ActorRef worker, TrustedContext caller) {
         thread(); Job job = controlled(id, caller);
-        if (job == null || !job.guard().equals(expected) || !policy.controls(worker, job.origin()))
+        if (job == null || !job.guard().equals(expected) || !policy.controls(worker, job.origin())
+                || !assignmentPolicy(job,worker))
             throw new SecurityException("Current assignment authority required");
         return remainingRequest(job, worker);
     }
@@ -776,7 +805,7 @@ public final class JobLifecycleStore {
                     || job.current() != null && job.current().open()
                     || !dependenciesSucceeded(job, rows(), work))
                 return reject(Reason.REQUEST_INVALID, work);
-            if (!policy.controls(worker, job.origin())) return reject(Reason.AUTHORITY_DENIED, work);
+            if (!policy.controls(worker, job.origin()) || !assignmentPolicy(job,worker)) return reject(Reason.AUTHORITY_DENIED, work);
             if (job.attempts().size() == settings.attempts()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
             for (Job other : state.jobs()) for (Attempt a : other.attempts())
                 if (a.id().equals(attemptId) || a.open() && a.worker().entityId().equals(worker.entityId()))

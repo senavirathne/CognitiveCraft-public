@@ -3,6 +3,8 @@ import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
 allowed={
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/LifecycleItemDamageMixin.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ReassignmentPolicyTest.java',
     'core/src/main/java/dev/aivillages/core/kernel/CitizenLifecycle.java',
     'core/src/test/java/dev/aivillages/core/kernel/CitizenLifecycleTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/LifecycleTraceTest.java',

@@ -18,6 +18,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 
 import java.util.Comparator;
 import java.util.UUID;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -222,6 +223,14 @@ final class KernelCommands {
                     var change=session.cancelQueuedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
                     tell(ctx,"job="+uuid(ctx,"job-id")+" cancellation="+change.accepted()+" reason="+change.reason());return change.accepted()?1:0;
                 }))));
+        kernel.then(literal("job-handoff").then(argument("job-id",StringArgumentType.word())
+                .then(argument("revision",LongArgumentType.longArg(0)).then(argument("generation",LongArgumentType.longArg(1))
+                .then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
+                .executes(c->safe(c,(ctx,session)->{
+                    boolean accepted=session.handoffJoinedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"),
+                            LongArgumentType.getLong(ctx,"revision"),LongArgumentType.getLong(ctx,"generation"),uuid(ctx,"actor-id"));
+                    tell(ctx,"job="+uuid(ctx,"job-id")+" handoff="+accepted);return accepted?1:0;
+                })))))));
         kernel.then(literal("job-resume").then(argument("job-id",StringArgumentType.word())
                 .executes(c->safe(c,(ctx,session)->{
                     boolean accepted=session.resumeJoinedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));

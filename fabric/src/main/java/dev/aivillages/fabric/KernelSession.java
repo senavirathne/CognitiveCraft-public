@@ -613,6 +613,7 @@ public final class KernelSession implements AutoCloseable {
                 }, worker), JobLifecycleStore.privateJobs(control::controls),
                 cancellation -> controller.observeJobCancellation(cancellation), capabilities, environment,
                 clock, Jobs.Settings.defaults(), loaded.jobsReadOnly());
+        jobs.requireExplicitReassignment();
         if(loaded.deposits()!=null) {
             depositProtocol=new FabricDepositProtocol(server.overworld(),jobs,leases,loaded.deposits(),loaded.initialDeposits(),
                     loaded.depositsReadOnly(),worker,clock,depositEvidenceEnabled,resourceReceiptPrefixEnabled);
@@ -1589,6 +1590,30 @@ public final class KernelSession implements AutoCloseable {
                 && e.result()!=null && e.result().live()==dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Live.COMPLETE).toList();
         if(entries.size()!=1)return false;joinedResumeRequests.add(entries.getFirst().token());return true;
     }
+    /** Exact owner intent only. Native stopped evidence, remaining budget and successor eligibility still gate execution. */
+    public boolean handoffJoinedJob(ServerPlayer player,UUID id,long revision,long generation,UUID successorId) {
+        ready();var owner=caller(player);var job=jobs.query(id,owner);var attempt=job.current();
+        if(!job.guard().equals(new Jobs.Guard(revision,generation)) || !jobs.ready() || attempt==null
+                || controller.liveSubmission(job.submissionId()) || dispatcher.ownsAttempt(job)
+                || job.cancellationOutcome()!=null)return false;
+        var successor=citizens.query(successorId,owner);
+        if(successor.availability()!=CitizenRegistry.Availability.LOADED || successor.lifecycle().event()!=CitizenLifecycle.Event.LOAD
+                || successor.lifecycle().pending() || successor.actor().equals(attempt.worker()))return false;
+        // An open original attempt is eligible only for A06's exact saved, delivered-unit envelope.
+        if(attempt.open()) {
+            if(depositProtocol==null || pickupProtocol==null || job.state()!=Jobs.State.INTERRUPTED || job.attempts().size()!=1
+                    || !LogAcquisition.is(job.request().request().capability())
+                    || ((IntValue)job.request().request().arguments().get("amount")).value()!=2
+                    || joinedResumeRequests.size()>=dev.aivillages.core.kernel.runtime.evidence.NativeHarvest.MAX_ENTRIES)return false;
+            var candidates=depositProtocol.evidence().snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null
+                    &&e.intent().key().step().equals(id)&&e.intent().key().attempt().equals(attempt.id())&&e.intent().key().generation()==attempt.generation()
+                    &&e.result()!=null&&e.result().live()==dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Live.COMPLETE).toList();
+            if(candidates.size()!=1)return false;
+        }
+        if(!jobs.authorizeReassignment(id,job.guard(),successor.actor(),owner))return false;
+        if(attempt.open())return resumeJoinedJob(player,id);
+        return true;
+    }
     private boolean dispatchableSubmission(Jobs.Job job) {
         if(!controller.ownsSubmission(job.submissionId()))return true;
         if(controller.liveSubmission(job.submissionId()))return false;
@@ -1722,6 +1747,7 @@ public final class KernelSession implements AutoCloseable {
         if (lifecycleAdapter != null && !closed) lifecycleAdapter.replacement(entity);
     }
     CitizenLifecycle lifecycleOwner() { return lifecycle; }
+    SurvivalGateway lifecycleGateway() { ready();return gateway; }
     dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace.View lifecycleDiagnostics(ServerPlayer player, UUID id) {
         ready(); return lifecycle.diagnostics(id, caller(player));
     }

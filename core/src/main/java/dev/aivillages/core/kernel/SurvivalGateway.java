@@ -350,6 +350,11 @@ public final class SurvivalGateway implements GatewayPort {
     }
 
     private final WorldAccess world;
+    public enum ActionPoint { BEFORE_POLL, AFTER_POLL }
+    public record ActionObservation(ActionPoint point,Operation operation,UUID run,ActorRef actor,long tick,ActionReceipt receipt) { }
+    private java.util.function.Consumer<ActionObservation> actionObserver;
+    /** Read-only composition observation; default execution records no diagnostic rows. */
+    public void observeActions(java.util.function.Consumer<ActionObservation> observer) { thread();actionObserver=observer; }
     private final AuthorityPolicy authority;
     private final Limits limits;
     private final Clock clock;
@@ -454,6 +459,8 @@ public final class SurvivalGateway implements GatewayPort {
         Active action = get(handle);
         if (action.current.terminal() || action.lastPolled == world.tick()) return action.current;
         action.lastPolled = world.tick();
+        if(actionObserver!=null)actionObserver.accept(new ActionObservation(ActionPoint.BEFORE_POLL,
+                action.operation,action.run.id,action.run.actor,world.tick(),action.current));
         Run run = action.run;
         ActorState actorState = world.actor(run.actor);
         if (actorState == null || !actorState.loaded() || !actorState.alive()
@@ -485,6 +492,8 @@ public final class SurvivalGateway implements GatewayPort {
             action.terminalBound = "ledger-work-or-effect";
             finish(action, Reason.BUDGET_EXHAUSTED, null, null);
         }
+        if(actionObserver!=null)actionObserver.accept(new ActionObservation(ActionPoint.AFTER_POLL,
+                action.operation,action.run.id,action.run.actor,world.tick(),action.current));
         return action.current;
     }
 

@@ -352,11 +352,11 @@ jobs:
         run: python3 e2e/parallel_a/profile_native.py --root build/parallel-a/native
       - name: A07 actual native lifecycle order, private traces and separate-JVM diagnostic epochs
         if: >-
-          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+          ${{ !cancelled() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected')) && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
         run: python3 e2e/parallel_a/lifecycle_diagnostics.py
       - name: Retain A07 event diagnostic worlds, XML and actual failure logs
         if: >-
-          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') }}
+          ${{ always() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected')) }}
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a07-lifecycle-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -366,6 +366,93 @@ jobs:
             build/lifecycle-evidence/
             build/lifecycle-run/
             build/parallel-a/source-audit/a07-lifecycle-diagnostics.json
+      - name: A07 all connected lifecycle, custody, handoff and nine frozen W04 cases in Docker
+        id: a07_connected
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/needle/install.py build/needle
+          gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a06-three-admission-seed.zip
+          python3 e2e/parallel_a/lifecycle_connected.py --root build/parallel-a/native-a07-connected --seed-archive build/parallel-a/a06-three-admission-seed.zip
+      - name: Independently review A07 saved worlds, identities and exact required denominator
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') && steps.a07_connected.outcome != 'skipped' }}
+        run: |
+          docker pull python:3.12-slim
+          output="$PWD/build/parallel-a/source-audit/a07-connected-review"
+          mkdir -p "$output"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$output:$output:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_lifecycle_connected.py --root build/parallel-a/native-a07-connected --source "${{ github.sha }}" --out "$output"
+          docker image inspect --format '{{.Id}}' python:3.12-slim > "$output/python-image-id.txt"
+      - name: Preserve all A07 connected evidence as bounded lossless archive parts
+        id: a07_transport
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') && steps.a07_connected.outcome != 'skipped' }}
+        run: python3 e2e/parallel_a/recovery_archive.py --root build/parallel-a/native-a07-connected --out build/parallel-a/a07-connected-transport
+      - name: Retain A07 complete result ledger and independent review
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a07-connected-diagnostics-${{ github.sha }}-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/native-a07-connected/a07-results.json
+            build/parallel-a/native-a07-connected/metadata.json
+            build/parallel-a/native-a07-connected/a07-baseline-admissions.json
+            build/parallel-a/native-a07-connected/a07-facility-prerequisite-failure.json
+            build/parallel-a/source-audit/a07-connected-review/
+            build/parallel-a/a07-connected-transport/parts-manifest.json
+      - name: Retain complete A07 native evidence part 0
+        if: >-
+          ${{ always() && steps.a07_transport.outcome == 'success' && hashFiles('build/parallel-a/a07-connected-transport/part-000.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a07-connected-part-0-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a07-connected-transport/part-000.bin
+            build/parallel-a/a07-connected-transport/parts-manifest.json
+      - name: Retain complete A07 native evidence part 1
+        if: >-
+          ${{ always() && steps.a07_transport.outcome == 'success' && hashFiles('build/parallel-a/a07-connected-transport/part-001.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a07-connected-part-1-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a07-connected-transport/part-001.bin
+            build/parallel-a/a07-connected-transport/parts-manifest.json
+      - name: Retain complete A07 native evidence part 2
+        if: >-
+          ${{ always() && steps.a07_transport.outcome == 'success' && hashFiles('build/parallel-a/a07-connected-transport/part-002.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a07-connected-part-2-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a07-connected-transport/part-002.bin
+            build/parallel-a/a07-connected-transport/parts-manifest.json
+      - name: Retain complete A07 native evidence part 3
+        if: >-
+          ${{ always() && steps.a07_transport.outcome == 'success' && hashFiles('build/parallel-a/a07-connected-transport/part-003.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a07-connected-part-3-${{ github.run_id }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a07-connected-transport/part-003.bin
+            build/parallel-a/a07-connected-transport/parts-manifest.json
       - name: All twelve original native H P D recovery scenarios on one connected track
         id: a06_native_recovery
         if: >-
