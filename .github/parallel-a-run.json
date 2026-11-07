@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 43,
-  "parentSource": "8a89c6b584411e6d3b04d854b0b136070f1ff90b",
+  "sequence": 44,
+  "parentSource": "b82f1afa0b406b0d8625b5666570da7595795214",
   "stage": "A07",
-  "scope": "Execute every one of the27 required native cases after grouping all observed fixture/capture fixes: bounded native transient-ticket release, actual before-storage Job publication observation, fresh-enrollment frame synchronization, zero-work name-publication retry and exact same-name refusal feedback. Preserve original failures and budgets. All module/Python/14 native diagnostic/9 host/standard gates remain required.",
+  "scope": "All27 required native cases after grouped final fixture controls: actual player proximity for fresh enrollment, no redundant spectator transition in unrelated progress, explicit spectator reload, immediate cut/loss evidence retention, exact private denial feedback, and public handoff restricted to the still-open saved-deposit original with a native closed-original refusal. Original ticket release already works and is unchanged; no required case/regression/budget is omitted.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4442,6 +4442,179 @@
       ],
       "w04Cause": "OPEN_NO_UNIQUE_HISTORICAL_CAUSE_ESTABLISHED",
       "correctionCheckpoint": "8a89c6b584411e6d3b04d854b0b136070f1ff90b"
+    },
+    {
+      "sequence": 43,
+      "source": "008da4aceddb7a3129efa6e25e262b7ca3f7e460",
+      "tree": "e0a3370f385ab685187a0d50caf5c35f94ac6ca7",
+      "run": 42367422330,
+      "mainRun": 42367422348,
+      "status": "FAIL_REQUIRED_A07_CASES",
+      "attemptedCases": 27,
+      "candidatePasses": 14,
+      "inconclusiveCases": 13,
+      "w04ObservedUnloadReload": 8,
+      "w04SetupWalkingTimeout": 1,
+      "nativeControlsPassed": 6,
+      "moduleCases": 2628,
+      "nativeDiagnosticExecutions": 14,
+      "requiredHostsPassed": 9,
+      "standardCI": "PASS",
+      "omittedTests": 0,
+      "omittedTasks": 0,
+      "caseResults": [
+        {
+          "id": "replay-W5-002",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-W5-006",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-W5-010",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-heldout-W5-002",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-heldout-W5-006",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Ordinary player walking PlayerA; last=None"
+        },
+        {
+          "id": "replay-heldout-W5-010",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "heldout-W5-002",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "heldout-W5-006",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "heldout-W5-010",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "ACTOR-PREFLIGHT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "ACTOR-EFFECT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "ACTOR-PUBLICATION",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "SOURCE-PREFLIGHT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "SOURCE-EFFECT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "SOURCE-PUBLICATION",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "FACILITY-PREFLIGHT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "FACILITY-EFFECT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "FACILITY-PUBLICATION",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "DESTINATION-PREFLIGHT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "DESTINATION-EFFECT",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "DESTINATION-PUBLICATION",
+          "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+          "reason": "Feedback PlayerA: /gamemode spectator expected=.+; last=None"
+        },
+        {
+          "id": "death-surviving",
+          "status": "PASS_NATIVE_DEATH_CUSTODY",
+          "reason": null
+        },
+        {
+          "id": "death-burned",
+          "status": "PASS_NATIVE_DEATH_CUSTODY",
+          "reason": null
+        },
+        {
+          "id": "death-unavailable",
+          "status": "PASS_NATIVE_DEATH_CUSTODY",
+          "reason": null
+        },
+        {
+          "id": "handoff-positive",
+          "status": "PASS_EXPLICIT_PHYSICAL_HANDOFF_SAME_JOB",
+          "reason": null
+        },
+        {
+          "id": "handoff-revoked",
+          "status": "PASS_REVOKED_NEW_EFFECTS_HISTORICAL_ACCOUNTING",
+          "reason": null
+        },
+        {
+          "id": "handoff-stale-successor",
+          "status": "PASS_DENIED_STALE_AND_SAME_NAME_SUCCESSOR",
+          "reason": null
+        }
+      ],
+      "diagnosticsArtifact": 13572854941,
+      "diagnosticsSha256": "a54bedb390a5f5ccf4b4ee245f636dadf8958d789101bf5e4bae54ccb80c7e2b",
+      "archiveBytes": 740228209,
+      "archiveSha256": "7dd2c1ca462a865c5acc88d6aede573bfd77212acdfd9ce8ea198110b8267559",
+      "archiveArtifacts": [
+        13573601482,
+        13572942877
+      ],
+      "supportedFixtureCauses": [
+        "All12 phase cases reached native unload but then issued an already-spectator gamemode command in unrelated(), which sends no feedback.",
+        "One fresh native enrollment approach timed out walking around frozen-layout geometry.",
+        "The offline denial reader must accept the actual private Job unavailable in your scope response."
+      ],
+      "ticketAuditCorrection": "An intermediate hypothesis that radius zero removed an entity-ticking ticket was incorrect. Official26.3 bytecode confirms FullChunkStatus.FULL, level33. The ticket operation already produced actual native UNLOAD and remains unchanged.",
+      "publicEnvelopeAudit": "Code review closed an unqualified closed-job path; final native revoked control also exercises refusal with a genuinely settled original.",
+      "w04Cause": "OPEN_NO_UNIQUE_HISTORICAL_CAUSE_ESTABLISHED"
     }
   ],
   "a07ConnectedRequiredCases": 27,
