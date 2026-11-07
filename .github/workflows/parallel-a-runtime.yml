@@ -350,6 +350,21 @@ jobs:
         if: >-
           ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A04 connected-world') }}
         run: python3 e2e/parallel_a/profile_native.py --root build/parallel-a/native
+      - name: A07 actual native lifecycle order, private traces and separate-JVM diagnostic epochs
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+        run: python3 e2e/parallel_a/lifecycle_diagnostics.py
+      - name: Retain A07 event diagnostic worlds, XML and actual failure logs
+        if: ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a07-lifecycle-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/lifecycle-evidence/
+            build/lifecycle-run/
+            build/parallel-a/source-audit/a07-lifecycle-diagnostics.json
       - name: All twelve original native H P D recovery scenarios on one connected track
         id: a06_native_recovery
         if: >-

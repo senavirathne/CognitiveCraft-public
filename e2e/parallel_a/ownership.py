@@ -1,8 +1,14 @@
-"""Fail closed on edits outside the A00–A06 owned source boundary."""
+"""Fail closed on edits outside the A00–A07 owned source boundary."""
 import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
 allowed={
+    'core/src/main/java/dev/aivillages/core/kernel/CitizenLifecycle.java',
+    'core/src/test/java/dev/aivillages/core/kernel/CitizenLifecycleTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/LifecycleTraceTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/FabricCitizenLifecycle.java',
+    'fabric/src/gameTest/java/dev/aivillages/fabric/CitizenLifecycleGameTests.java',
+    'fabric/src/gameTest/java/dev/aivillages/fabric/CitizenLifecycleRestartGameTests.java',
     '.github/workflows/parallel-a-runtime.yml',
     '.github/parallel-a-run.json',
     'core/src/main/java/dev/aivillages/core/kernel/Jobs.java',

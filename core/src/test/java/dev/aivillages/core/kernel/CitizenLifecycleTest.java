@@ -27,10 +27,13 @@ final class CitizenLifecycleTest {
         final CitizenLifecycle lifecycle;
         Scene() { this(Settings.production()); }
         Scene(Settings settings) {
+            this(settings, new dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace(0));
+        }
+        Scene(Settings settings, dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace trace) {
             memory.state = new Snapshot(owner.scope().worldId(), 1,
                     List.of(new Citizen(actor, owner, "Ada", Availability.LOADED)), null);
             registry = new CitizenRegistry(memory.state, memory, privateAddresses(), clock, false);
-            lifecycle = new CitizenLifecycle(registry, owners, settings, 10);
+            lifecycle = new CitizenLifecycle(registry, owners, settings, 10, trace);
         }
         Marker marker() { return lifecycle.marker(actor.citizenId()); }
         Decision fact(Event event, Source source) {

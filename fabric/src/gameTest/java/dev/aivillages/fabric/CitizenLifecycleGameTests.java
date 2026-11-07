@@ -2,6 +2,7 @@ package dev.aivillages.fabric;
 
 import dev.aivillages.core.kernel.*;
 import dev.aivillages.core.kernel.Contracts.*;
+import dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -66,11 +67,12 @@ public final class CitizenLifecycleGameTests {
         var registry=new CitizenRegistry(new CitizenRegistry.Snapshot(world,1,List.of(new CitizenRegistry.Citizen(
                 actor,owner,"Ada",CitizenRegistry.Availability.UNKNOWN)),null),
                 (a,b)->CompletableFuture.completedFuture(b),CitizenRegistry.privateAddresses(),Clock.systemUTC(),false);
+        var trace=new LifecycleTrace(128);
         var coordinator=new CitizenLifecycle(registry,new CitizenLifecycle.Owners() {
             public boolean stop(CitizenRegistry.Citizen c,Marker m){return true;}
             public boolean jobs(CitizenRegistry.Citizen c,Marker m){return true;}
             public boolean leases(CitizenRegistry.Citizen c,Marker m){return true;}
-        },Settings.production(),h.getLevel().getGameTime());
+        },Settings.production(),h.getLevel().getGameTime(),trace);
         var adapter=new FabricCitizenLifecycle(h.getLevel().getServer(),registry,coordinator);
         relay(original.getUUID(),adapter);
         int[] phase={0}; CompoundTag[] saved={null}; Villager[] current={original}; long[] generation={0};
@@ -104,9 +106,21 @@ public final class CitizenLifecycleGameTests {
                 if(reason==null) {
                     // The still-loaded same instance may be reverified; absence never becomes death.
                     h.assertTrue(!marker.terminal(),"Unknown removal inferred terminal evidence");
+                    h.assertTrue(coordinator.diagnostics(actor.citizenId(),owner).rows().stream().anyMatch(r->
+                            r.fact()!=null&&r.fact().event()==Event.MISSING&&r.fact().source()==Source.UNKNOWN_REMOVAL),
+                            "Native unknown reason was not retained as its own fact");
                     ADAPTERS.remove(original.getUUID()); h.succeed(); return;
                 }
                 h.assertTrue(marker.event()==expected&&!marker.pending(),"Waiting for actual removal and owner checkpoints: "+marker);
+                var events=coordinator.diagnostics(actor.citizenId(),owner).rows();
+                h.assertTrue(events.stream().anyMatch(r->r.phase()==LifecycleTrace.Phase.FACT&&r.fact()!=null
+                                &&r.fact().event()==expected&&r.decision()==Decision.ACCEPTED),
+                        "Missing actual native lifecycle fact in bounded trace");
+                h.assertTrue(events.stream().filter(r->r.phase()==LifecycleTrace.Phase.PUBLISHED&&r.marker().event()==expected)
+                                .map(r->r.marker().acknowledged()).toList().equals(List.of(0,1,3,7)),
+                        "Trace confused publication requests with durable owner acknowledgements");
+                if(delayedReason)h.assertTrue(events.stream().anyMatch(r->r.fact()!=null&&r.fact().event()==Event.MISSING),
+                        "Delayed native removal erased its earlier ambiguous callback");
                 if(expected==Event.UNLOAD) { current[0]=reload(h,saved[0]); phase[0]=2; }
                 else {
                     adapter.loaded(original); registry.observeAvailability(actor.citizenId(),CitizenRegistry.Availability.LOADED);

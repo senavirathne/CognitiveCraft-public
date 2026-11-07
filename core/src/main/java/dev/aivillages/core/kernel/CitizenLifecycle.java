@@ -1,6 +1,8 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace;
+import static dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace.Phase.*;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.CitizenRegistry.*;
 
@@ -63,16 +65,22 @@ public final class CitizenLifecycle {
     private final CitizenRegistry identities;
     private final Owners owners;
     private final Settings settings;
+    private final LifecycleTrace trace;
     private final Thread thread = Thread.currentThread();
     // At most one desired marker and retry counter for each of the owner's <=64 citizens.
     private final Map<UUID, Marker> desired = new LinkedHashMap<>();
     private final Map<UUID, Integer> retries = new HashMap<>();
     private int cursor, inspected, notifications;
     private long accepted, stale;
+    private long observedTick;
 
     public CitizenLifecycle(CitizenRegistry identities, Owners owners, Settings settings, long tick) {
+        this(identities, owners, settings, tick, new LifecycleTrace(0));
+    }
+    public CitizenLifecycle(CitizenRegistry identities, Owners owners, Settings settings, long tick, LifecycleTrace trace) {
         this.identities = Objects.requireNonNull(identities); this.owners = Objects.requireNonNull(owners);
         this.settings = Objects.requireNonNull(settings);
+        this.trace = Objects.requireNonNull(trace); this.observedTick = tick;
         for (Citizen c : identities.snapshot().citizens()) {
             Marker saved = c.lifecycle();
             identities.fenceAvailability(c.actor().citizenId(), saved.event() == Event.LOAD
@@ -87,45 +95,61 @@ public final class CitizenLifecycle {
         checkThread(); Citizen c = citizen(id);
         return c == null ? null : desired.getOrDefault(id, c.lifecycle());
     }
+    /** Private diagnostics reapply the identity owner's exact caller check on every read. */
+    public LifecycleTrace.View diagnostics(UUID id, TrustedContext caller) {
+        checkThread(); return trace.view(identities.query(id, caller).actor());
+    }
+    private Decision observed(Citizen c, Fact fact, Decision decision) {
+        trace.record(c.actor(), observedTick, FACT, marker(c.actor().citizenId()), fact, decision, null);
+        return decision;
+    }
     /** Trusted server facts only. There is deliberately no command/network deserializer for Fact. */
     public Decision offer(Fact fact) {
         checkThread(); Objects.requireNonNull(fact);
         Citizen c = citizen(fact.actor().citizenId());
         if (!fact.world().equals(identities.snapshot().worldId()) || c == null || !c.actor().equals(fact.actor()))
             return Decision.FOREIGN;
+        observedTick = Math.max(observedTick, fact.tick());
         Marker old = marker(c.actor().citizenId());
-        if (fact.generation() != old.generation()) { stale++; return Decision.STALE; }
+        if (fact.generation() != old.generation()) { stale++; return observed(c, fact, Decision.STALE); }
         if (fact.tick() < old.tick() && fact.event() != Event.DEATH && fact.event() != Event.REMOVE) {
-            stale++; return Decision.STALE;
+            stale++; return observed(c, fact, Decision.STALE);
         }
         if (old.terminal() && !(old.event() == Event.REMOVE && fact.event() == Event.DEATH))
-            return fact.event() == old.event() ? Decision.DUPLICATE : Decision.TERMINAL;
+            return observed(c, fact, fact.event() == old.event() ? Decision.DUPLICATE : Decision.TERMINAL);
         if (fact.event() == Event.LOAD) {
-            if (old.blocked()) return Decision.TERMINAL;
-            if (old.pending() || desired.containsKey(c.actor().citizenId())) return Decision.DEFERRED;
-            if (old.event() == Event.LOAD) return Decision.DUPLICATE;
-            if (old.generation() == Long.MAX_VALUE) return Decision.TERMINAL;
-        } else if (old.blocked() && fact.event() != Event.DEATH) return Decision.DUPLICATE;
-        else if (old.event() == fact.event()) return Decision.DUPLICATE;
+            if (old.blocked()) return observed(c, fact, Decision.TERMINAL);
+            if (old.pending() || desired.containsKey(c.actor().citizenId())) return observed(c, fact, Decision.DEFERRED);
+            if (old.event() == Event.LOAD) return observed(c, fact, Decision.DUPLICATE);
+            if (old.generation() == Long.MAX_VALUE) return observed(c, fact, Decision.TERMINAL);
+        } else if (old.blocked() && fact.event() != Event.DEATH) return observed(c, fact, Decision.DUPLICATE);
+        else if (old.event() == fact.event()) return observed(c, fact, Decision.DUPLICATE);
         // An uncertain missing lookup must not erase an authoritative unload observation.
-        else if (fact.event() == Event.MISSING && old.event() != Event.LOAD) return Decision.DUPLICATE;
+        else if (fact.event() == Event.MISSING && old.event() != Event.LOAD) return observed(c, fact, Decision.DUPLICATE);
         int ack = fact.event() == Event.LOAD ? 7 : old.event() == Event.LOAD ? 0 : old.acknowledged();
         Marker next = new Marker(old.generation() + (fact.event() == Event.LOAD ? 1 : 0),
                 fact.event(), fact.source(), fact.tick(), ack);
         desired.put(c.actor().citizenId(), next); retries.remove(c.actor().citizenId()); accepted++;
+        observed(c, fact, Decision.ACCEPTED);
         // Loss is visible synchronously, even while an earlier store write is in flight.
         if (fact.event() != Event.LOAD) {
             identities.fenceAvailability(c.actor().citizenId(), next.availability());
             // Cessation must not wait behind an unrelated or stalled identity publication.
             // This notification grants no acknowledgement until its checkpoint is durable.
-            try { owners.stop(c, next); } catch (RuntimeException unavailable) { /* Retry the durable obligation. */ }
+            boolean stopped;
+            try { stopped = owners.stop(c, next); } catch (RuntimeException unavailable) { stopped = false; }
+            trace.record(c.actor(), observedTick, STOP_REQUESTED, next, null, null, stopped);
         }
         return Decision.ACCEPTED;
     }
 
     /** At most batch citizens, batch notifications and one asynchronous publication per slice. */
     public void step() {
+        step(observedTick);
+    }
+    public void step(long tick) {
         checkThread(); inspected = 0; notifications = 0;
+        observedTick = Math.max(observedTick, tick);
         List<Citizen> rows = identities.snapshot().citizens();
         for (int n = 0; n < Math.min(settings.batch(), rows.size()); n++) {
             Citizen c = rows.get(cursor % rows.size()); cursor = (cursor + 1) % rows.size(); inspected++;
@@ -134,8 +158,11 @@ public final class CitizenLifecycle {
                 if (next.equals(c.lifecycle())) {
                     desired.remove(id);
                     identities.fenceAvailability(id, next.availability());
+                    trace.record(c.actor(), observedTick, PUBLISHED, next, null, null, true);
                 } else if (identities.ready()) {
-                    identities.reconcileLifecycle(id, next); return;
+                    var change = identities.reconcileLifecycle(id, next);
+                    trace.record(c.actor(), observedTick, PUBLICATION_REQUESTED, next, null, null, change.accepted());
+                    return;
                 }
                 continue;
             }
@@ -150,9 +177,12 @@ public final class CitizenLifecycle {
                 case 3 -> owners.leases(c, loss);
                 default -> throw new IllegalStateException("Lifecycle checkpoint");
             }; } catch (RuntimeException unavailable) { acknowledged = false; }
+            trace.record(c.actor(), observedTick, OWNER_NOTIFIED, loss, null, null, acknowledged);
             if (acknowledged) {
                 retries.remove(id); desired.put(id, loss.acknowledge());
-                identities.reconcileLifecycle(id, loss.acknowledge()); return;
+                var change = identities.reconcileLifecycle(id, loss.acknowledge());
+                trace.record(c.actor(), observedTick, PUBLICATION_REQUESTED, loss.acknowledge(), null, null, change.accepted());
+                return;
             }
         }
         if (cursor > MAX_CITIZENS * 1024) cursor %= Math.max(1, rows.size());

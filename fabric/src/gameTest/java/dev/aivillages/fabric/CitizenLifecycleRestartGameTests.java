@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 /** GP-16 physical partial effects and real-store recovery in two separate Minecraft JVMs. */
 public final class CitizenLifecycleRestartGameTests {
     private record Proof(UUID citizen, UUID entity, UUID principal, UUID other, UUID run,
-                         int x,int y,int z,int deposited,int receipts,long effects,long process) { }
+                         int x,int y,int z,int deposited,int receipts,long effects,long process,UUID traceProcess) { }
     @GameTest(maxTicks=2200,padding=32)
     public void ordinaryLossRetainsPartialEffectsAndRecoversWithoutModels(GameTestHelper h) {
         boolean warm="warm".equals(System.getenv("COGNITIVECRAFT_LIFECYCLE_PHASE"));
@@ -36,6 +36,7 @@ public final class CitizenLifecycleRestartGameTests {
         ServerPlayer owner,other; ActorRef actor,foreign; BlockPos origin; CompoundTag saved;
         CompletableFuture<Void> closing,writing; CompletableFuture<Proof> reading;
         UUID run; Proof proof; int phase,last=-1,partial; long generation,quiet,modelBaseline;
+        dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace.View traceProof;
         Driver(GameTestHelper h,boolean warm) {
             this.h=h;this.warm=warm;
             world=Path.of(System.getenv("COGNITIVECRAFT_LIFECYCLE_WORLD")).toAbsolutePath();
@@ -105,12 +106,25 @@ public final class CitizenLifecycleRestartGameTests {
                     h.assertTrue(session.leaseOwner().snapshot().leases().stream().noneMatch(l->l.origin().equals(c.owner())&&l.state()==ResourceLeases.State.ACTIVE),"Affected lease remains live");
                     h.assertTrue(session.citizens(other).citizens().size()==1&&session.citizen(other,foreign.citizenId()).availability()==CitizenRegistry.Availability.LOADED,"Other owner interrupted");
                     try{session.citizen(other,actor.citizenId());h.fail("Foreign identity exposed");}catch(SecurityException expected){}
-                    proof=new Proof(actor.citizenId(),actor.entityId(),owner.getUUID(),other.getUUID(),run,origin.getX(),origin.getY(),origin.getZ(),partial,view.receipts().size(),view.marker().effects(),ProcessHandle.current().pid());
+                    var trace=session.lifecycleDiagnostics(owner,actor.citizenId());
+                    if("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_LIFECYCLE_TRACE"))) {
+                        h.assertTrue(trace.enabled()&&trace.rows().stream().anyMatch(r->r.fact()!=null
+                                &&r.fact().event()==CitizenLifecycle.Event.DEATH),"Actual death trace missing");
+                        try{session.lifecycleDiagnostics(other,actor.citizenId());h.fail("Foreign lifecycle trace exposed");}
+                        catch(SecurityException expected){}
+                    }
+                    proof=new Proof(actor.citizenId(),actor.entityId(),owner.getUUID(),other.getUUID(),run,origin.getX(),origin.getY(),origin.getZ(),partial,view.receipts().size(),view.marker().effects(),ProcessHandle.current().pid(),trace.process());
                     quiet=h.getLevel().getGameTime()+30;phase=9;}
                 case 9 -> {h.assertTrue(h.getLevel().getGameTime()>=quiet,"Checking late effects");
                     h.assertTrue(stock()==partial&&session.generationCalls()==modelBaseline&&session.languageCalls()==0,"Late replay or inference");
+                    traceProof=session.lifecycleDiagnostics(owner,actor.citizenId());
+                    if(traceProof.enabled())h.assertTrue(traceProof.rows().stream().anyMatch(r->r.phase()==
+                            dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace.Phase.PUBLISHED
+                            &&r.marker().event()==CitizenLifecycle.Event.DEATH&&r.marker().acknowledged()==7),
+                            "Death checkpoints were not durably observed in the trace");
                     closing=session.storeClosure();session.close();phase=10;}
                 case 10 -> {await(closing);h.getLevel().getServer().saveEverything(true,true,true);writing=CompletableFuture.runAsync(()->{try{Files.writeString(world.resolve("lifecycle-proof.json"),new Gson().toJson(proof));
+                        Files.writeString(world.resolve("lifecycle-trace-cold.json"),new Gson().toJson(traceProof));
                         System.out.println("IMP-029 cold durable="+Files.readString(world.resolve(CitizenIdentityStore.WORLD_RELATIVE_PATH).resolve("state.json")));}catch(Exception e){throw new IllegalStateException(e);}});phase=11;}
                 case 11 -> {await(writing);phase=20;}
                 case 12 -> {await(reading);proof=reading.join();h.assertTrue(proof.process()!=ProcessHandle.current().pid(),"Warm phase reused JVM");
@@ -123,8 +137,15 @@ public final class CitizenLifecycleRestartGameTests {
                     h.assertTrue(view.marker().effects()==proof.effects()&&job.fulfilled()==proof.deposited()&&job.current().receipts().size()==proof.receipts()
                             &&job.state()==Jobs.State.INTERRUPTED&&stock()==proof.deposited(),"Saved effects/receipts lost or replayed: effects="+view.marker().effects()+" expected="+proof.effects()+" fulfilled="+job.fulfilled()+" receipts="+job.current().receipts().size()+" stock="+stock()+" expectedStock="+proof.deposited()+" state="+job.state());
                     h.assertTrue(session.generationCalls()==1&&session.languageCalls()==0&&session.lifecycleLookups()<=1,"Unbounded recovery or model dependence");
+                    var trace=session.lifecycleDiagnostics(owner,proof.citizen());
+                    h.assertTrue(!trace.process().equals(proof.traceProcess()),"Diagnostic process epoch survived a new JVM");
+                    h.assertTrue(trace.rows().stream().noneMatch(r->r.fact()!=null&&r.fact().event()==CitizenLifecycle.Event.DEATH),
+                            "Restart fabricated a live death event from the saved marker");
+                    traceProof=trace;
+                    writing=CompletableFuture.runAsync(()->{try{Files.writeString(world.resolve("lifecycle-trace-warm.json"),new Gson().toJson(traceProof));}
+                        catch(Exception failure){throw new IllegalStateException(failure);}});
                     closing=session.storeClosure();session.close();phase=18;}
-                case 18 -> {await(closing);phase=20;}
+                case 18 -> {await(closing);await(writing);phase=20;}
                 case 20 -> { }
                 default -> throw new IllegalStateException("Lifecycle phase "+phase);
             }

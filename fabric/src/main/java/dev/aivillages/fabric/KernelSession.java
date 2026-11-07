@@ -836,7 +836,9 @@ public final class KernelSession implements AutoCloseable {
             boolean bootstrapStopped = controller.interruptActor(actor);
             boolean dispatchStopped = dispatcher.interruptActor(actor);
             return bootstrapStopped && dispatchStopped;
-        }, jobs, leases), CitizenLifecycle.Settings.production(), server.overworld().getGameTime());
+        }, jobs, leases), CitizenLifecycle.Settings.production(), server.overworld().getGameTime(),
+                new dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace(
+                        "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_LIFECYCLE_TRACE")) ? 128 : 0));
         lifecycleAdapter = new FabricCitizenLifecycle(server, citizens, lifecycle);
 
         language = new LanguageRequests(languagePort, new LanguageRequests.Binding() {
@@ -1720,6 +1722,9 @@ public final class KernelSession implements AutoCloseable {
         if (lifecycleAdapter != null && !closed) lifecycleAdapter.replacement(entity);
     }
     CitizenLifecycle lifecycleOwner() { return lifecycle; }
+    dev.aivillages.core.kernel.runtime.lifecycle.LifecycleTrace.View lifecycleDiagnostics(ServerPlayer player, UUID id) {
+        ready(); return lifecycle.diagnostics(id, caller(player));
+    }
     FabricCitizenLifecycle lifecycleAdapter() { return lifecycleAdapter; }
     int lifecycleLookups() { return lifecycleAdapter == null ? 0 : lifecycleAdapter.lastLookups(); }
 
