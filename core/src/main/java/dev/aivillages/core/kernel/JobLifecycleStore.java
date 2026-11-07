@@ -59,6 +59,10 @@ public final class JobLifecycleStore {
     private record Reassignment(UUID attempt,long generation,ActorRef from,ActorRef to,TrustedContext origin) { }
     private final Map<UUID,Reassignment> reassignments = new HashMap<>();
     private boolean explicitReassignment;
+    public record PublicationObservation(Snapshot before,Snapshot requested) { }
+    private java.util.function.Consumer<PublicationObservation> publicationObserver;
+    /** Optional trusted diagnostics before storage submission; the requested snapshot is not a durable acknowledgement. */
+    public void observePublications(java.util.function.Consumer<PublicationObservation> observer) { thread();publicationObserver=observer; }
     /** Runtime composition enables guarded retries; old standalone callers remain compatible. */
     public void requireExplicitReassignment() { thread(); explicitReassignment = true; }
     /** One process-local owner policy per bounded Job. This grants no effect or settlement evidence. */
@@ -1246,6 +1250,7 @@ public final class JobLifecycleStore {
             if (!retentionGuard.test(next)) return new Change(Code.REJECTED, null, Reason.STORAGE_UNAVAILABLE, inspectedEdges);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
             pending = next; afterWrite = after;
+            if(publicationObserver!=null)publicationObserver.accept(new PublicationObservation(state,next));
             storage.replace(state, next).whenComplete((value, error) ->
                     writes.add(new Written(value, error, clock.millis())));
             return new Change(Code.PENDING, changed == null ? null : rows.get(changed.id()), null, inspectedEdges);

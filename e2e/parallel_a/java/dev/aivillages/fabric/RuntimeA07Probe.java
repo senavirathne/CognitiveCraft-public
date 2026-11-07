@@ -45,7 +45,16 @@ public final class RuntimeA07Probe implements ModInitializer {
                     boolean match=mode.equals("PREFLIGHT")&&observed.point()==SurvivalGateway.ActionPoint.BEFORE_POLL
                             ||mode.equals("EFFECT")&&observed.point()==SurvivalGateway.ActionPoint.AFTER_POLL&&observed.receipt().committedEffects()>0;
                     if(match)cut(server,kernel,observed);
-                });}
+                });
+                    kernel.jobLifecycleOwner().observePublications(observed->{
+                        if(!"PUBLICATION".equals(mode))return;
+                        for(var job:observed.requested().jobs())if(!existingJobs.contains(job.id())&&job.current()!=null
+                                &&job.current().worker().entityId().equals(actor)&&job.current().receiptCount()>0){
+                            var before=observed.before().jobs().stream().filter(j->j.id().equals(job.id())).findFirst().orElse(null);
+                            if(before!=null&&before.state()==Jobs.State.ACTIVE){cut(server,kernel,observed);break;}
+                        }
+                    });
+                }
                 var command=request.getAndSet(null);
                 if(command!=null) {
                     String id=command.get("id").getAsString(),op=command.get("op").getAsString();
@@ -72,16 +81,13 @@ public final class RuntimeA07Probe implements ModInitializer {
                                 throw new IllegalArgumentException("Players must already have left the bounded fixture");
                             for(int dx=-2;dx<=2;dx++)for(int dz=-2;dz<=2;dz++)chunks.add(new net.minecraft.world.level.ChunkPos((p.get(0)>>4)+dx,(p.get(2)>>4)+dz).pack());
                         }
+                        for(long forced:level.getChunkSource().getForceLoadedChunks().toLongArray())if(chunks.contains(forced))throw new IllegalArgumentException("Explicit fixture force tickets must already be removed");
                         for(var packed:chunks)level.getChunkSource().removeTicketWithRadius(net.minecraft.server.level.TicketType.UNKNOWN,net.minecraft.world.level.ChunkPos.unpack(packed),0);
                         write("a07-fixture-ticket-release.json",Map.of("token",lastCutToken,"time",System.currentTimeMillis(),"tick",level.getGameTime(),
                                 "requestedUnknownFullChunkTicketReleases",List.copyOf(chunks),"claim","Test fixture residency control only; native ChunkMap and entity callbacks must independently establish actual unload. W04 never uses this operation."));
                     }else if(op.equals("clear")){mode=null;token=null;actor=null;lastCutToken=null;}
                     else throw new IllegalArgumentException("A07 observation operation");
                     write("a07-response.json",Map.of("id",id,"status","PASS","process",process));
-                }
-                if("PUBLICATION".equals(mode))for(var job:kernel.jobLifecycleOwner().snapshot().jobs()) {
-                    if(!existingJobs.contains(job.id())&&job.current()!=null&&job.current().worker().entityId().equals(actor)
-                            &&job.state()==Jobs.State.ACTIVE&&job.current().receiptCount()>0){cut(server,kernel,job);break;}
                 }
                 var level=server.overworld();var targetRows=new LinkedHashMap<String,Object>();
                 for(var xyz:positions) {
@@ -130,7 +136,10 @@ public final class RuntimeA07Probe implements ModInitializer {
     }
     private void poll(){try{var p=root.resolve("a07-request.json");if(Files.exists(p)){
         var value=JsonParser.parseString(Files.readString(p)).getAsJsonObject();String id=value.get("id").getAsString();
-        if(!id.equals(seen)){seen=id;request.set(value);}
+        if(!id.equals(seen)){
+            seen=id;
+            if(value.has("process")&&process.toString().equals(value.get("process").getAsString()))request.set(value);
+        }
     }flush();}catch(Exception failure){System.err.println("A07 observer poll: "+failure);}}
     private void flush(){var value=pending;if(value!=null)write("a07-snapshot.json",value);}
     private void write(String file,Object value){try{Files.createDirectories(root);var p=root.resolve(file);var staged=p.resolveSibling(file+".next");

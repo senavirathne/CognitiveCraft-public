@@ -72,6 +72,10 @@ def review(root,source):
             before,after=row['before']['identity'],row['after']['identity'];assert before['actor']==after['actor'] and before['owner']==after['owner']
             assert after['lifecycle']['generation']==before['lifecycle']['generation']+1
             cut=row['cut'];assert cut['mode']==name.split('-')[1] and cut['freezeResult']==1
+            if name.endswith('-PUBLICATION'):
+                before_pub=next(j for j in cut['witnessed']['before']['jobs'] if j['submissionId']==row['run'])
+                requested=next(j for j in cut['witnessed']['requested']['jobs'] if j['submissionId']==row['run'])
+                assert before_pub['state']=='ACTIVE' and requested['attempts'][-1]['resourceReceipts']
             absent=row['absent'];p=row['fixture']['target'];assert not absent['targets'][','.join(map(str,p))]['loaded'] and cut['time']<=absent['time']
             assert not absent['entities'][before['actor']['entityId']]['loaded']
             release=row['nativeTransientTicketRelease'];assert release['token']==cut['token'] and cut['time']<=release['time']<=absent['time']
@@ -98,7 +102,8 @@ def review(root,source):
         elif name in HANDOFF_CASES:
             proof=native_saved(folder/'killed-world','DEPOSIT',row['originalCase']);assert proof==row['nativeSavedProof']
             saved=original(world,row['key']['step']);assert saved['state']==row['originalJob']['state'] and allowance(saved['allowance'],row['originalAtCut']['allowance'])
-            assert all('denied' in row['denied'][k].lower() or 'handoff=false' in row['denied'][k] for k in row['denied'])
+            assert all('denied' in row['denied'][k].lower() or 'handoff=false' in row['denied'][k]
+                       or row['denied'][k]=='Citizen unavailable in your control scope' for k in row['denied'])
             assert {'foreign','staleRevision','staleGeneration'}<=set(row['denied'])
             if name=='handoff-positive':
                 assert handoff(row['beforeHandoff'],row['originalJob'],row['successor'])==row['handoffReview']

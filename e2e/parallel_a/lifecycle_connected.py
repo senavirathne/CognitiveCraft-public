@@ -16,6 +16,14 @@ from deposits import manifest
 
 class LifecycleHarness(RecoveryHarness):
     move_companion=False
+    def command(self,player,text,expected,timeout=30):
+        if not text.startswith('/aivillage kernel name '):return super().command(player,text,expected,timeout)
+        # A busy identity publication rejects before changing a name. Retry only that exact zero-work refusal.
+        pattern='(?:'+expected+')|Name: BUDGET_EXHAUSTED'
+        def named():
+            answer=super(LifecycleHarness,self).command(player,text,pattern,timeout)
+            return None if answer=='Name: BUDGET_EXHAUSTED' else answer
+        return self.wait(named,'Original W04 name publication accepted once after bounded zero-work refusals',timeout)
     def compose(self,*args):
         command=['docker','compose','-p',self.project,'-f',str(ROOT/'e2e/compose.yml'),
                  '-f',str(ROOT/'e2e/parallel_a/compose-deposits.yml'),'-f',str(ROOT/'e2e/parallel_a/compose-lifecycle.yml'),*args]
@@ -29,8 +37,8 @@ class LifecycleHarness(RecoveryHarness):
         value=read(self.root/'server/a07-snapshot.json')
         return value if value and value['time']>=self.activated else None
     def observation(self,op,**values):
-        self.wait(self.a07,'Actual A07 native observer',45)
-        request={'id':str(uuid.uuid4()),'op':op,**values};atomic(self.root/'server/a07-request.json',request)
+        ready=self.wait(self.a07,'Actual A07 native observer',45)
+        request={'id':str(uuid.uuid4()),'process':ready['process'],'op':op,**values};atomic(self.root/'server/a07-request.json',request)
         reply=self.wait(lambda:(v if (v:=read(self.root/'server/a07-response.json')) and v['id']==request['id'] else None),'A07 '+op,25)
         require(reply['status']=='PASS','A07 observer request failed');return reply
     def watch(self,points,entities):
@@ -180,7 +188,8 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
                          and not v['entities'][h.entities['PlayerA']]['loaded'] else None),
                   'Actual native '+role+' chunk unload at '+phase,110)
     at_loss=job(h,run);loss_life=h.life();require(at_loss is not None,'Original Job disappeared at native unload')
-    if at_loss['state']=='SUCCEEDED':raise Inconclusive('Original work completed before the actual required native unload window')
+    if at_loss['state']=='SUCCEEDED' and phase!='PUBLICATION':raise Inconclusive('Original work completed before the actual required native unload window')
+    unload_seconds=time.monotonic()-start
     require(at_loss['id']==original['id'] and at_loss['allowance']==original['allowance'],'Unload replaced responsibility or extended its original allowance')
     require(any(e['event']=='ENTITY_UNLOAD' and e['entity']==h.entities['PlayerA'] for e in absent['nativeEvents']),
             'Native entity-unload callback was not independently observed')
@@ -206,7 +215,7 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
     h.actions_active=False;h.screenshot('PlayerA',name+'-same-identity',chat=True)
     value={'id':name,'status':'PASS_CONNECTED_NATIVE_LIFECYCLE','fixture':fixture,'before':before,'startingWorldHashes':starting,
            'initialNative':initial_native,'nativeAtCut':current,'run':run,'cut':cut,
-           'removedFixtureTickets':removed,'nativeTransientTicketRelease':ticket_release,'unloadSeconds':time.monotonic()-start,'absent':absent,'lifeAtLoss':loss_life,'originalAtLoss':at_loss,
+           'removedFixtureTickets':removed,'nativeTransientTicketRelease':ticket_release,'unloadSeconds':unload_seconds,'absent':absent,'lifeAtLoss':loss_life,'originalAtLoss':at_loss,
            'unrelated':other,'originalAfterUnrelated':after_other,'unloadedRestart':unloaded_restart,'loaded':loaded,'after':after,
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'claim':'Selected required target unloads after the actual execution/publication cut. Adjacent actor/source/facility/destination may unload together, recorded without a single-cause claim; original wall/tick budgets are unchanged. No resumed-goal completion is claimed.'}
     value['terminalWorldHashes']=checkpoint(h,directory);atomic(directory/'result.json',value);return value
@@ -240,7 +249,10 @@ def w04_case(h,seed,frozen):
     h.console(lines)
     primary=h.citizens['PlayerA'],h.entities['PlayerA']
     if c['index']%3==0:
+        existing={a['uuid'] for a in h.snapshot()['actors']}
         h.console(['tp '+primary[1]+' 83.5 208 66.5','summon minecraft:villager '+coord([c['actor'][0]+.5,208,c['actor'][2]+.5])+' {PersistenceRequired:1b}'])
+        h.wait(lambda:any(a['uuid'] not in existing and a['alive'] and not a['controlled'] for a in h.snapshot()['actors']),
+               'Actual new normal-AI villager observed before fresh W04 enrollment',30)
         h.enroll(name=c['citizenName'])
     else:h.command('PlayerA','/aivillage kernel name '+primary[0]+' '+c['citizenName'],'name='+c['citizenName'])
     subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]]],[entity])
@@ -317,7 +329,7 @@ def handoff_case(h,seed,template,kind):
         denied['deadSuccessor']=h.command('PlayerA',command,'handoff=false')
         h.vanilla('PlayerB','/summon minecraft:villager 68.5 208 68.5 {PersistenceRequired:1b,CustomName:"Hana"}')
         extra=h.wait(lambda:next((a for a in h.snapshot()['actors'] if a['uuid'] not in h.entities.values() and a['uuid']!=h.companion[1] and not a['controlled']),None),'Actual same-name unbound replacement',30)
-        denied['sameName']=h.command('PlayerA',command.rsplit(' ',1)[0]+' '+extra['uuid'],DENIED_PATTERN)
+        denied['sameName']=h.command('PlayerA',command.rsplit(' ',1)[0]+' '+extra['uuid'],'Citizen unavailable in your control scope')
         h.command('PlayerA','/aivillage kernel job-cancel '+current['id'],'cancellation=true')
         final=h.wait(lambda:(j if (j:=job(h,value['run'])) and j['state']=='CANCELLED' and not j['attempts'][-1]['uncertain'] else None),'Original settled without replacement',60)
         require(len(final['attempts'])==1 and sum(a['credited'] for a in final['attempts'])==1,'Denied successor gained an assignment or duplicate delivery')
