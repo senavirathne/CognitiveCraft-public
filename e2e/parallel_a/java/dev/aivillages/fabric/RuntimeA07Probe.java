@@ -15,7 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.villager.Villager;
 
-/** A07 test-only native reads and vanilla clock cuts. It cannot grant authority or mutate inventory. */
+/** A07 test-only native reads, clock cuts and bounded fixture ticket release. No inventory or lifecycle-fact injection. */
 public final class RuntimeA07Probe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"),"server");
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
@@ -25,7 +25,7 @@ public final class RuntimeA07Probe implements ModInitializer {
     private final List<List<Integer>> positions=new ArrayList<>();
     private final Map<UUID,Entity> tracked=new LinkedHashMap<>();
     private final List<Map<String,Object>> events=new ArrayList<>();
-    private Set<UUID> existingJobs=Set.of();private String mode,token;private UUID actor;
+    private Set<UUID> existingJobs=Set.of();private String mode,token,lastCutToken;private UUID actor;
     public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A07_PROBE"))){io.shutdown();return;}
         ServerEntityEvents.ENTITY_LOAD.register((e,w)->event(e,"ENTITY_LOAD"));
@@ -63,7 +63,19 @@ public final class RuntimeA07Probe implements ModInitializer {
                         mode=command.get("mode").getAsString();if(!Set.of("PREFLIGHT","EFFECT","PUBLICATION").contains(mode))throw new IllegalArgumentException("A07 native phase");
                         token=command.get("token").getAsString();actor=UUID.fromString(command.get("actor").getAsString());
                         existingJobs=kernel.jobLifecycleOwner().snapshot().jobs().stream().map(Jobs.Job::id).collect(java.util.stream.Collectors.toSet());
-                    }else if(op.equals("clear")){mode=null;token=null;actor=null;}
+                    }else if(op.equals("release-fixture-tickets")) {
+                        if(lastCutToken==null||!lastCutToken.equals(command.get("token").getAsString()))throw new IllegalArgumentException("Actual A07 cut token required");
+                        var level=server.overworld();var chunks=new TreeSet<Long>();
+                        for(var p:positions) {
+                            for(var player:server.getPlayerList().getPlayers())if(player.level()==level
+                                    &&Math.hypot(player.getX()-p.get(0),player.getZ()-p.get(2))<128)
+                                throw new IllegalArgumentException("Players must already have left the bounded fixture");
+                            for(int dx=-2;dx<=2;dx++)for(int dz=-2;dz<=2;dz++)chunks.add(new net.minecraft.world.level.ChunkPos((p.get(0)>>4)+dx,(p.get(2)>>4)+dz).pack());
+                        }
+                        for(var packed:chunks)level.getChunkSource().removeTicketWithRadius(net.minecraft.server.level.TicketType.UNKNOWN,net.minecraft.world.level.ChunkPos.unpack(packed),0);
+                        write("a07-fixture-ticket-release.json",Map.of("token",lastCutToken,"time",System.currentTimeMillis(),"tick",level.getGameTime(),
+                                "requestedUnknownFullChunkTicketReleases",List.copyOf(chunks),"claim","Test fixture residency control only; native ChunkMap and entity callbacks must independently establish actual unload. W04 never uses this operation."));
+                    }else if(op.equals("clear")){mode=null;token=null;actor=null;lastCutToken=null;}
                     else throw new IllegalArgumentException("A07 observation operation");
                     write("a07-response.json",Map.of("id",id,"status","PASS","process",process));
                 }
@@ -109,7 +121,7 @@ public final class RuntimeA07Probe implements ModInitializer {
         tracked.put(entity.getUUID(),entity);
     }
     private void cut(net.minecraft.server.MinecraftServer server,KernelSession kernel,Object witnessed) {
-        var selected=mode;var value=token;mode=null;
+        var selected=mode;var value=token;mode=null;lastCutToken=value;
         try{
             int result=server.getCommands().getDispatcher().execute("tick freeze",server.createCommandSourceStack());
             write("a07-cut.json",Map.of("process",process,"token",value,"mode",selected,"time",System.currentTimeMillis(),

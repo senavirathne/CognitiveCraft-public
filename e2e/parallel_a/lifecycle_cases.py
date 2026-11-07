@@ -36,7 +36,7 @@ def disposition(entity,damage):
     """Observed engine loss differs from an unavailable native lookup; counts alone never prove destruction."""
     if entity.get('loaded') and entity.get('alive') and not entity.get('removed'):
         return 'OBSERVED_SURVIVING_DROP'
-    burned=[d for d in damage if d.get('accepted') and d.get('removed')
+    burned=[d for d in damage if entity.get('uuid') is not None and d.get('entity')==entity['uuid'] and d.get('accepted') and d.get('removed')
             and any(t in d.get('source','').lower() for t in ('fire','lava','burn'))]
     if burned:return 'OBSERVED_NATIVE_DESTRUCTION'
     if not entity.get('loaded') and entity.get('removal') in ('UNLOADED_TO_CHUNK','UNLOADED_WITH_PLAYER','None','null',None):

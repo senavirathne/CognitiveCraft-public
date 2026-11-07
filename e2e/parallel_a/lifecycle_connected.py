@@ -8,7 +8,7 @@ from recovery_cases import originals
 from recovery_fixture import native_saved
 from lifecycle_cases import contexts,LIVE_CASES,DEATH_CASES,HANDOFF_CASES,disposition,handoff
 from suite import ROOT,atomic,read,require,reconnect_players,DENIED_PATTERN
-from generalization_support import LOG,BIRCH,AXE,PLANK,STICK,coord
+from generalization_support import LOG,BIRCH,AXE,PLANK,STICK,coord,Inconclusive
 from generalization import receipts
 from baseline import native_process
 from deposits import manifest
@@ -88,6 +88,12 @@ def checkpoint(h,folder,name='terminal-world'):
     target=folder/name;shutil.copytree(h.root/'server/game/world',target,ignore=shutil.ignore_patterns('session.lock'))
     return manifest(target)
 
+def starting_checkpoint(h,folder):
+    require(not h.actions_active,'Starting world must precede active gameplay')
+    h.save_checkpoint();target=folder/'starting-world'
+    shutil.copytree(h.root/'server/game/world',target,ignore=shutil.ignore_patterns('session.lock'))
+    return manifest(target)
+
 
 def freeze_seed(h,archive):
     h.activated=0;seed=retained_seed(h,archive)
@@ -98,10 +104,15 @@ def freeze_seed(h,archive):
     h.reset({PLANK:3,STICK:2});h.env['COGNITIVECRAFT_OLLAMA_MODEL']='qwen3:4b-instruct-2507-q4_K_M'
     # The configured model is selected at process startup, so restart the unchanged, clean seed first.
     h.save_checkpoint();h.stop('server');h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players))
-    h.compose('up','-d','ollama');h.compose('exec','-T','ollama','ollama','pull',h.env['COGNITIVECRAFT_OLLAMA_MODEL'])
-    h.command('PlayerA','/aivillage kernel inference true','admission=true');calls=h.model_calls()
-    admission={'before':calls}
+    calls=h.model_calls();admission={'before':calls}
     try:
+        h.compose('up','-d','ollama')
+        for attempt in range(3):
+            try:h.compose('exec','-T','ollama','ollama','pull',h.env['COGNITIVECRAFT_OLLAMA_MODEL']);break
+            except RuntimeError:
+                if attempt==2:raise
+                time.sleep(2)
+        h.command('PlayerA','/aivillage kernel inference true','admission=true')
         run=h.submit(AXE,1,acquire=True);view=h.finish_run(run,admitted=True)
         require(h.model_calls()['generationCalls']>calls['generationCalls'],'Required-facility method was not genuinely admitted')
         h.hashes['cognitivecraft:produce_wooden_axes']=view['marker']['artifactSha256']
@@ -140,6 +151,7 @@ def role_fixture(h,role):
 def live_case(h,seed,role,phase,restart_unloaded=False):
     name=role+'-'+phase;directory=h.root/'connected'/name;directory.mkdir(parents=True,exist_ok=True)
     h.activate(seed,name);fixture=role_fixture(h,role);before=h.wait(h.life,'Verified original identity',35);calls=h.model_calls()
+    starting=starting_checkpoint(h,directory);initial_native=h.a07()
     token=str(uuid.uuid4());h.observation('arm',mode=phase,actor=h.entities['PlayerA'],token=token)
     if role=='FACILITY':run=h.submit(AXE,1,source=fixture['inputs'],destination=fixture['destination'],table=fixture['facility'])
     else:run=h.submit(LOG,1,minimum=fixture['source'],maximum=fixture['source'],destination=fixture['destination'])
@@ -158,13 +170,20 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
             removed.append(h.vanilla('PlayerB','/forceload remove '+str(p[0])+' '+str(p[2])))
     for player in h.players:
         h.vanilla(player,'/gamemode spectator');h.vanilla(player,'/tp 10000.5 220 10000.5')
-    # Chunk management and client networking continue under vanilla freeze; original wall deadlines still apply.
+    # Native stale-ticket aging pauses under vanilla freeze. Release only bounded UNKNOWN/full-chunk
+    # tickets retained by fixture reads after both real clients left; native ChunkMap alone performs unload.
+    # This explicit controlled matrix is separate from the nine ordinary, unmodified W04 timeout contexts.
+    h.observation('release-fixture-tickets',token=token)
+    ticket_release=read(h.root/'server/a07-fixture-ticket-release.json');require(ticket_release['token']==token,'Fixture residency release cut differs')
     start=time.monotonic()
-    absent=h.wait(lambda:(v if (v:=h.a07()) and not v['targets'][','.join(map(str,target))]['loaded'] else None),
+    absent=h.wait(lambda:(v if (v:=h.a07()) and not v['targets'][','.join(map(str,target))]['loaded']
+                         and not v['entities'][h.entities['PlayerA']]['loaded'] else None),
                   'Actual native '+role+' chunk unload at '+phase,110)
     at_loss=job(h,run);loss_life=h.life();require(at_loss is not None,'Original Job disappeared at native unload')
+    if at_loss['state']=='SUCCEEDED':raise Inconclusive('Original work completed before the actual required native unload window')
     require(at_loss['id']==original['id'] and at_loss['allowance']==original['allowance'],'Unload replaced responsibility or extended its original allowance')
-    if role=='ACTOR':require(not absent['entities'][h.entities['PlayerA']]['loaded'],'Native actor remained tracked in the unloaded chunk')
+    require(any(e['event']=='ENTITY_UNLOAD' and e['entity']==h.entities['PlayerA'] for e in absent['nativeEvents']),
+            'Native entity-unload callback was not independently observed')
     h.vanilla('PlayerB','/tick unfreeze');before_other=job(h,run);other=h.unrelated();after_other=job(h,run)
     require(sum(a['credited'] for a in after_other['attempts'])==sum(a['credited'] for a in before_other['attempts']),
             'Unavailable original work gained delivery credit while unrelated work ran')
@@ -185,8 +204,9 @@ def live_case(h,seed,role,phase,restart_unloaded=False):
     h.command('PlayerB','/aivillage kernel job-status '+original['id'],DENIED_PATTERN)
     require(h.model_calls()==calls,'Lifecycle matrix or unrelated reuse called a model')
     h.actions_active=False;h.screenshot('PlayerA',name+'-same-identity',chat=True)
-    value={'id':name,'status':'PASS_CONNECTED_NATIVE_LIFECYCLE','fixture':fixture,'before':before,'run':run,'cut':cut,
-           'removedFixtureTickets':removed,'unloadSeconds':time.monotonic()-start,'absent':absent,'lifeAtLoss':loss_life,'originalAtLoss':at_loss,
+    value={'id':name,'status':'PASS_CONNECTED_NATIVE_LIFECYCLE','fixture':fixture,'before':before,'startingWorldHashes':starting,
+           'initialNative':initial_native,'nativeAtCut':current,'run':run,'cut':cut,
+           'removedFixtureTickets':removed,'nativeTransientTicketRelease':ticket_release,'unloadSeconds':time.monotonic()-start,'absent':absent,'lifeAtLoss':loss_life,'originalAtLoss':at_loss,
            'unrelated':other,'originalAfterUnrelated':after_other,'unloadedRestart':unloaded_restart,'loaded':loaded,'after':after,
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'claim':'Selected required target unloads after the actual execution/publication cut. Adjacent actor/source/facility/destination may unload together, recorded without a single-cause claim; original wall/tick budgets are unchanged. No resumed-goal completion is claimed.'}
     value['terminalWorldHashes']=checkpoint(h,directory);atomic(directory/'result.json',value);return value
@@ -223,8 +243,9 @@ def w04_case(h,seed,frozen):
         h.console(['tp '+primary[1]+' 83.5 208 66.5','summon minecraft:villager '+coord([c['actor'][0]+.5,208,c['actor'][2]+.5])+' {PersistenceRequired:1b}'])
         h.enroll(name=c['citizenName'])
     else:h.command('PlayerA','/aivillage kernel name '+primary[0]+' '+c['citizenName'],'name='+c['citizenName'])
-    subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch([c['positions'][0],c['destination'],[c['actor'][0],208,c['actor'][2]]],[entity])
+    subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]]],[entity])
     before=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['displayName']==c['citizenName'] and v['identity']['availability']=='LOADED' else None),'Frozen W04 named subject',40)
+    starting=starting_checkpoint(h,directory);initial_native=h.a07()
     calls=h.model_calls();h.console(['forceload add 10000 10000'])
     h.wait(lambda:'Test passed' in h.command('PlayerA','/execute if loaded 10000 208 10000','Test passed|Test failed'),'Remote original W04 landing chunk loaded',45)
     h.console(['fill 10000 207 10000 10008 207 10008 minecraft:stone','setworldspawn 10004 208 10004'])
@@ -242,7 +263,8 @@ def w04_case(h,seed,frozen):
             'W04 native identity or generation changed incorrectly')
     require(h.model_calls()==calls,'W04 identity reproduction invoked a model');h.screenshot('PlayerA','w04-'+name,chat=True)
     reconnect_players(h,['PlayerB'])
-    value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'boundary':boundary,'nativeAtUnload':native,
+    value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'startingWorldHashes':starting,
+           'initialNative':initial_native,'boundary':boundary,'nativeAtUnload':native,
            'after':after,'unloadSeconds':duration,'originalTimeoutSeconds':110,'clock':'ordinary 20 TPS; no freeze or accelerated ticks',
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'historicalFailure':frozen['reason'],
            'causeClaim':'Historical timeout is retained. Candidate success does not establish a unique historical cause.'}
@@ -334,7 +356,8 @@ def main():
     def execute(name,action):
         try:value=action()
         except Exception as failure:
-            value={'id':name,'status':'FAIL','reason':str(failure),'trace':traceback.format_exc()}
+            value={'id':name,'status':'INCONCLUSIVE_REQUIRED_NATIVE_WINDOW' if isinstance(failure,(Inconclusive,TimeoutError)) else 'FAIL',
+                   'reason':str(failure),'trace':traceback.format_exc()}
             for key,observe in (('native',h.a07),('snapshot',h.snapshot),('life',h.life)):
                 try:value[key]=observe()
                 except Exception as unavailable:value[key]={'unavailable':str(unavailable)}

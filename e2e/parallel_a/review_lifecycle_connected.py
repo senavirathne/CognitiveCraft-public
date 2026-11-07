@@ -4,7 +4,8 @@ from pathlib import Path
 from lifecycle_cases import contexts,LIVE_CASES,DEATH_CASES,HANDOFF_CASES,disposition,handoff
 from deposits import manifest
 from recovery_fixture import native_saved
-from review_receipt_prefix import journal,regions,entity_uuid,item
+from review_receipt_prefix import journal,regions,entity_uuid,item,block_name,dimension_root
+from native_nbt import chunk
 
 def read(path):return json.loads(Path(path).read_text())
 def allowance(raw,view):return raw['maxima']==view['maxima'] and raw['deadline']==view['deadlineEpochMillis']
@@ -13,12 +14,39 @@ def original(world,id):
     _,rows=journal(world/'data/cognitivecraft/jobs/v1/state.jsonl');matches=[r for r in rows if r.get('id')==id]
     assert len(matches)==1;return matches[0]
 def entities(world):return {entity_uuid(e):e for f in regions(world,'entities') for e in f.get('Entities',[])}
-def chest(world,pos):
+def chest_row(world,pos):
     rows=[e for f in regions(world,'region') for e in f.get('block_entities',[]) if [e.get(k) for k in ('x','y','z')]==pos]
-    assert len(rows)==1
+    assert len(rows)==1;return rows[0]
+def chest(world,pos):
     stock={}
-    for stack in rows[0].get('Items',[]):
+    for stack in chest_row(world,pos).get('Items',[]):
         _,name,count,_=item(stack);stock[name]=stock.get(name,0)+count
+    return stock
+def properties(world,pos):
+    x,y,z=pos;data=chunk(dimension_root(world)/'region'/f'r.{x//512}.{z//512}.mca',x//16,z//16)
+    states=next(s for s in data['sections'] if s['Y']==y//16)['block_states'];palette=states['palette']
+    if len(palette)==1:entry=palette[0]
+    else:
+        bits=max(4,(len(palette)-1).bit_length());per=64//bits;index=((y&15)<<8)|((z&15)<<4)|(x&15)
+        entry=palette[(states['data'][index//per]&((1<<64)-1))>>((index%per)*bits)&((1<<bits)-1)]
+    if isinstance(entry,dict):return entry.get('properties',entry.get('Properties',{}))
+    return dict(v.split('=') for v in entry.split('[',1)[1].rstrip(']').split(',')) if '[' in entry else {}
+def balance(world,fixture,actor_id,facility):
+    native=entities(world);actor=native[actor_id];stock={}
+    def add(name,count):stock[name]=stock.get(name,0)+count
+    for entry in actor.get('Inventory',[]):
+        _,name,count,_=item(entry);add(name,count)
+    for entity in native.values():
+        if entity.get('id')=='minecraft:item' and 62<=entity['Pos'][0]<=85 and 62<=entity['Pos'][2]<=80:
+            _,name,count,_=item(entity['Item']);add(name,count)
+    for pos in ([fixture['inputs'],fixture['destination']] if facility else [fixture['destination']]):
+        for name,count in chest(world,pos).items():add(name,count)
+    if facility:
+        axes=stock.get('minecraft:wooden_axe',0)
+        assert stock.get('minecraft:oak_planks',0)+3*axes==3 and stock.get('minecraft:stick',0)+2*axes==2,stock
+    else:
+        standing=int(block_name(world,fixture['source'])=='minecraft:oak_log')
+        assert standing+stock.get('minecraft:oak_log',0)==1,(standing,stock)
     return stock
 
 def review(root,source):
@@ -40,14 +68,20 @@ def review(root,source):
         assert row['modelCallsBefore']==row['modelCallsAfter'],(name,'Unexpected model call')
         native=entities(world)
         if name in LIVE_CASES:
+            start=folder/'starting-world';assert manifest(start)==row['startingWorldHashes']
             before,after=row['before']['identity'],row['after']['identity'];assert before['actor']==after['actor'] and before['owner']==after['owner']
             assert after['lifecycle']['generation']==before['lifecycle']['generation']+1
             cut=row['cut'];assert cut['mode']==name.split('-')[1] and cut['freezeResult']==1
             absent=row['absent'];p=row['fixture']['target'];assert not absent['targets'][','.join(map(str,p))]['loaded'] and cut['time']<=absent['time']
             assert not absent['entities'][before['actor']['entityId']]['loaded']
+            release=row['nativeTransientTicketRelease'];assert release['token']==cut['token'] and cut['time']<=release['time']<=absent['time']
+            assert len(release['requestedUnknownFullChunkTicketReleases'])<=200
+            assert any(e['event']=='ENTITY_UNLOAD' and e['entity']==before['actor']['entityId'] for e in absent['nativeEvents'])
             old=row['originalAtLoss'];saved=original(world,old['id']);assert allowance(saved['allowance'],old['allowance']) and saved['submission']==row['run']
-            assert saved['generation']==old['generation'],'Unload minted another execution generation'
+            assert saved['generation']==old['generation'] and len(saved['attempts'])==1,'Unload minted another execution generation'
             assert before['actor']['entityId'] in native
+            balance(start,row['fixture'],before['actor']['entityId'],name.startswith('FACILITY-'))
+            balance(world,row['fixture'],before['actor']['entityId'],name.startswith('FACILITY-'))
             other=row['unrelated']['view']['responsibility'];raw_other=original(world,other['id']);assert raw_other['state']=='SUCCEEDED'
             assert sum(a['credited'] for a in raw_other['attempts'])==1
             assert chest(world,row['unrelated']['destination']).get('minecraft:oak_log',0)==1
@@ -77,6 +111,14 @@ def review(root,source):
         else:
             frozen=next(r for r in contexts(repo/'e2e/parallel_a/a07_w04_contexts.json') if r['case']['id']==name)
             assert row['originalCase']==frozen['case'] and row['historicalFailure']==frozen['reason']
+            start=folder/'starting-world';assert manifest(start)==row['startingWorldHashes'];c=frozen['case']
+            for pos in c['positions']:
+                assert block_name(start,pos)==c['item']
+                if c['item'].endswith('_log'):
+                    assert properties(start,pos).get('axis','y')==c['logAxis']
+                    assert 'axis='+c['logAxis'] in row['initialNative']['targets'][','.join(map(str,pos))]['block']
+            box=chest_row(start,c['destination']);assert box['id']=='minecraft:'+c['container']
+            assert sorted(item(e) for e in box.get('Items',[]))==sorted((slot,name,count,{}) for slot,name,count in c['destinationSlots'])
             b,a=row['before']['identity'],row['after']['identity'];u=row['boundary']['identity']
             assert b['actor']==a['actor']==u['actor'] and b['owner']==a['owner']==u['owner']
             assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD' and a['lifecycle']['generation']==b['lifecycle']['generation']+1

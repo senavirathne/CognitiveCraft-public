@@ -21,6 +21,8 @@ class LifecycleCasesTest(unittest.TestCase):
     def test_accepted_damage_without_actual_removal_does_not_prove_destruction(self):
         self.assertEqual(disposition({'loaded':False},[{'source':'lava','accepted':True,'removed':False}]),'UNAVAILABLE_CUSTODY_UNKNOWN')
     def test_actual_native_fire_removal_is_distinct_from_arbitrary_absence(self):
-        self.assertEqual(disposition({'loaded':False,'removal':'KILLED'},[{'source':'lava','accepted':True,'removed':True}]),'OBSERVED_NATIVE_DESTRUCTION')
+        self.assertEqual(disposition({'uuid':'original','loaded':False,'removal':'KILLED'},[{'entity':'original','source':'lava','accepted':True,'removed':True}]),'OBSERVED_NATIVE_DESTRUCTION')
+    def test_another_items_actual_burning_cannot_prove_loss_of_the_original_drop(self):
+        self.assertEqual(disposition({'uuid':'original','loaded':False},[{'entity':'other','source':'lava','accepted':True,'removed':True}]),'UNAVAILABLE_CUSTODY_UNKNOWN')
 
 if __name__=='__main__':unittest.main()
