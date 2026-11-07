@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 39,
-  "parentSource": "18b92dac2a72c8e38980e37afbefdde4c52582ba",
+  "sequence": 40,
+  "parentSource": "661ab7eed2a30c180d79f92d254c9f11661e5876",
   "stage": "A07",
-  "scope": "First A07 bounded private lifecycle diagnostics. A06 is qualified on batch 37. Native 7+7 lifecycle cases add event-order, private access and fresh process-epoch assertions; W-04 nine-context reproduction and full A07 gameplay/handoff remain required.",
+  "scope": "All 27 required connected native candidates: 12 actor/source/facility/destination phase combinations, 9 frozen historical W04 unload contexts, 3 distinct death custody controls, 3 explicit handoff controls. Same-world restart and independent progress are included. Native cold/warm diagnostics and all module, Python, nine host workflow and standard CI regressions remain required.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "One grouped source qualification: complete module and Python checks, native lifecycle cold/warm, observer compilation, all nine unchanged host regression workflows, plus unchanged standard verification.",
+  "execution": "One grouped Docker qualification plus unchanged standard verification; no omitted tasks/tests.",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -4183,7 +4183,7 @@
   },
   "a06QualifiedSource": "190a3fde0f96efaa972677b026a335b9ef85a425",
   "a06AcceptanceDocumentation": "1a3c9e9ed6659d7578e1f51c8e48712e544b7569",
-  "a07Qualification": "DIAGNOSTIC_TRANCHE_ONLY_FULL_STAGE_PENDING",
+  "a07Qualification": "CONNECTED_CANDIDATE_PENDING_ACTUAL_NATIVE_EXECUTION_AND_INDEPENDENT_REVIEW",
   "a07TraceContractCases": 12,
   "a07RequiredNativePhases": {
     "cold": 7,
@@ -4199,6 +4199,18 @@
       "cause": "Unquoted colon in new A07 YAML if scalar. The API run-request transfer also truncated its large historical payload.",
       "groupedNativeAndModuleExecution": "NOT_EXECUTED",
       "correction": "Fold the YAML expression; publish the complete request in bounded chunks and compare every Git blob hash before relaunch."
+    },
+    {
+      "sequence": 39,
+      "source": "5b53e4fae85d2fb823e43f4b3993c7477388f42f",
+      "run": 42337900995,
+      "status": "PASS_DIAGNOSTIC_TRANCHE_ONLY",
+      "moduleTests": 2618,
+      "traceContracts": 12,
+      "nativeCold": 7,
+      "nativeWarm": 7,
+      "fullA07Qualified": false
     }
-  ]
+  ],
+  "a07ConnectedRequiredCases": 27
 }
