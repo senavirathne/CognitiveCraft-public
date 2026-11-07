@@ -41,7 +41,7 @@ def restart_proof(value,runtime,release):
         assert any(last['start']*1000<=t<=last['start']*1000+120000 for t in client['playTimes'])
     return {'beforeJvm':[before['hostJvmPid'],before['startTicks']],'afterJvm':[after['hostJvmPid'],after['startTicks']],'samePersistentClients':True}
 def allowance(raw,view):return raw['maxima']==view['maxima'] and raw['deadline']==view['deadlineEpochMillis']
-def actor(raw,view):return raw=={'citizen':view['citizenId'],'entity':view['entityId'],'dimension':view['dimension']}
+def worker_matches(raw,view):return raw=={'citizen':view['citizenId'],'entity':view['entityId'],'dimension':view['dimension']}
 def original(world,id):
     _,rows=journal(world/'data/cognitivecraft/jobs/v1/state.jsonl');matches=[r for r in rows if r.get('id')==id]
     assert len(matches)==1;return matches[0]
@@ -125,8 +125,8 @@ def review(root,source):
             if name=='ACTOR-PUBLICATION':restart_proof(row['unloadedRestart'],runtime,metadata['releaseSha256'])
         elif name in DEATH_CASES:
             case=row['originalCase'];proof=native_saved(folder/'killed-world','HARVEST',case);assert proof==row['nativeSavedProof']
-            drop=proof['harvest']['result']['drops'][0]['entity'];actor=proof['harvest']['intent']['actor']['entity']
-            assert actor not in native and row['death']['identity']['lifecycle']['event']=='DEATH'
+            drop=proof['harvest']['result']['drops'][0]['entity'];old_actor=proof['harvest']['intent']['actor']['entity']
+            assert old_actor not in native and row['death']['identity']['lifecycle']['event']=='DEATH'
             assert row['death']['identity']['lifecycle']['acknowledged']==7
             assert disposition(row['finalNative']['entities'][drop],row['finalNative']['damage'])==row['custody']
             if name=='death-burned':assert drop not in native
@@ -141,7 +141,7 @@ def review(root,source):
             if name=='handoff-positive':
                 assert handoff(row['beforeHandoff'],row['originalJob'],row['successor'])==row['handoffReview']
                 assert saved['generation']==row['key']['generation']+1 and len(saved['attempts'])==2
-                assert actor(saved['attempts'][-1]['worker'],row['successor']) and all(a['effects']==3 and a['credited']==1 and not a['uncertain'] for a in saved['attempts'])
+                assert worker_matches(saved['attempts'][-1]['worker'],row['successor']) and all(a['effects']==3 and a['credited']==1 and not a['uncertain'] for a in saved['attempts'])
                 assert row['originalAtCut']['attempts'][0]['worker']['entityId'] not in native
                 assert chest(world,proof['deposit']['intent']['destination'] if 'destination' in proof['deposit']['intent'] else [row['originalCase']['destination'][k] for k in ('x','y','z')]).get('minecraft:oak_log',0)==2
                 restart_proof(row['restart'],runtime,metadata['releaseSha256']);assert 'obsoleteGeneration' in row['denied']
