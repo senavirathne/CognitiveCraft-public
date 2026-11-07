@@ -1593,13 +1593,13 @@ public final class KernelSession implements AutoCloseable {
     /** Exact owner intent only. Native stopped evidence, remaining budget and successor eligibility still gate execution. */
     public boolean handoffJoinedJob(ServerPlayer player,UUID id,long revision,long generation,UUID successorId) {
         ready();var owner=caller(player);var job=jobs.query(id,owner);var attempt=job.current();
-        if(!job.guard().equals(new Jobs.Guard(revision,generation)) || !jobs.ready() || attempt==null
+        if(!job.guard().equals(new Jobs.Guard(revision,generation)) || !jobs.ready() || attempt==null || !attempt.open()
                 || controller.liveSubmission(job.submissionId()) || dispatcher.ownsAttempt(job)
                 || job.cancellationOutcome()!=null)return false;
         var successor=citizens.query(successorId,owner);
         if(successor.availability()!=CitizenRegistry.Availability.LOADED || successor.lifecycle().event()!=CitizenLifecycle.Event.LOAD
                 || successor.lifecycle().pending() || successor.actor().equals(attempt.worker()))return false;
-        // An open original attempt is eligible only for A06's exact saved, delivered-unit envelope.
+        // Public handoff supports only the still-open, stopped original and A06's saved delivered-unit envelope.
         if(attempt.open()) {
             if(depositProtocol==null || pickupProtocol==null || job.state()!=Jobs.State.INTERRUPTED || job.attempts().size()!=1
                     || !LogAcquisition.is(job.request().request().capability())
