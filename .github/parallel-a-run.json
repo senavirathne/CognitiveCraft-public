@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 42,
-  "parentSource": "4fc9e37e6b89fb69f50127212fa408d1eeedfbc7",
+  "sequence": 43,
+  "parentSource": "8a89c6b584411e6d3b04d854b0b136070f1ff90b",
   "stage": "A07",
-  "scope": "All27 required native lifecycle/custody/handoff/W04 candidates after test observer readiness correction; batch41 passed all9 host suites and14 diagnostic native cases but no connected scenario started. Preserve its failure separately; no budget, deadline, native assertion, existing host step or required context is removed.",
+  "scope": "Execute every one of the27 required native cases after grouping all observed fixture/capture fixes: bounded native transient-ticket release, actual before-storage Job publication observation, fresh-enrollment frame synchronization, zero-work name-publication retry and exact same-name refusal feedback. Preserve original failures and budgets. All module/Python/14 native diagnostic/9 host/standard gates remain required.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4183,7 +4183,7 @@
   },
   "a06QualifiedSource": "190a3fde0f96efaa972677b026a335b9ef85a425",
   "a06AcceptanceDocumentation": "1a3c9e9ed6659d7578e1f51c8e48712e544b7569",
-  "a07Qualification": "CONNECTED_CANDIDATE_PENDING_ACTUAL_NATIVE_EXECUTION_AND_INDEPENDENT_REVIEW",
+  "a07Qualification": "ALL27_REQUIRED_CANDIDATES_PENDING_ACTUAL_NATIVE_RETRY",
   "a07TraceContractCases": 12,
   "a07RequiredNativePhases": {
     "cold": 7,
@@ -4256,7 +4256,194 @@
         42343546959
       ],
       "extraRunsCause": "Test fix combined with control commit triggered original path hooks. Further fixes use skip-CI checkpoints followed by control-only launches."
+    },
+    {
+      "sequence": 42,
+      "source": "2fe4914ebda12723d0ce351ae6ddd516a800b14c",
+      "tree": "386aaabb981a6f558520c6aa0a37d4f488adb2af",
+      "run": 42344055862,
+      "mainRun": 42344055760,
+      "status": "FAIL_REQUIRED_A07_CASES",
+      "requiredCases": 27,
+      "attemptedCases": 27,
+      "candidatePasses": 10,
+      "failures": 17,
+      "w04Distribution": {
+        "candidatePasses": 5,
+        "freshEnrollmentObservationFailures": 3,
+        "nameBusyPublicationRefusal": 1
+      },
+      "independentControlsPassed": 5,
+      "independentControls": [
+        "death-surviving",
+        "death-burned",
+        "death-unavailable",
+        "handoff-positive",
+        "handoff-revoked"
+      ],
+      "requiredHostSuitesPassed": 9,
+      "moduleTests": 2626,
+      "nativeDiagnosticExecutions": 14,
+      "standardCI": "PASS",
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "caseResults": [
+        {
+          "id": "replay-W5-002",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-W5-006",
+          "status": "FAIL",
+          "reason": "Actual unclaimed adult villager required for enrollment fixture"
+        },
+        {
+          "id": "replay-W5-010",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-heldout-W5-002",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "replay-heldout-W5-006",
+          "status": "FAIL",
+          "reason": "Actual unclaimed adult villager required for enrollment fixture"
+        },
+        {
+          "id": "replay-heldout-W5-010",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "heldout-W5-002",
+          "status": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD",
+          "reason": null
+        },
+        {
+          "id": "heldout-W5-006",
+          "status": "FAIL",
+          "reason": "Actual unclaimed adult villager required for enrollment fixture"
+        },
+        {
+          "id": "heldout-W5-010",
+          "status": "FAIL",
+          "reason": "Feedback PlayerA: /aivillage kernel name e6003bd6-05e4-4c9d-ad97-950d2eae46d3 Citizen_15485863_10 expected=name=Citizen_15485863_10; last=None"
+        },
+        {
+          "id": "ACTOR-PREFLIGHT",
+          "status": "FAIL",
+          "reason": "Actual native ACTOR chunk unload at PREFLIGHT; last=None"
+        },
+        {
+          "id": "ACTOR-EFFECT",
+          "status": "FAIL",
+          "reason": "Actual native ACTOR chunk unload at EFFECT; last=None"
+        },
+        {
+          "id": "ACTOR-PUBLICATION",
+          "status": "FAIL",
+          "reason": "Actual A07 ACTOR-PUBLICATION boundary; last=None"
+        },
+        {
+          "id": "SOURCE-PREFLIGHT",
+          "status": "FAIL",
+          "reason": "Actual native SOURCE chunk unload at PREFLIGHT; last=None"
+        },
+        {
+          "id": "SOURCE-EFFECT",
+          "status": "FAIL",
+          "reason": "Actual native SOURCE chunk unload at EFFECT; last=None"
+        },
+        {
+          "id": "SOURCE-PUBLICATION",
+          "status": "FAIL",
+          "reason": "Actual A07 SOURCE-PUBLICATION boundary; last=None"
+        },
+        {
+          "id": "FACILITY-PREFLIGHT",
+          "status": "FAIL",
+          "reason": "Actual native FACILITY chunk unload at PREFLIGHT; last=None"
+        },
+        {
+          "id": "FACILITY-EFFECT",
+          "status": "FAIL",
+          "reason": "Actual native FACILITY chunk unload at EFFECT; last=None"
+        },
+        {
+          "id": "FACILITY-PUBLICATION",
+          "status": "FAIL",
+          "reason": "Actual A07 FACILITY-PUBLICATION boundary; last=None"
+        },
+        {
+          "id": "DESTINATION-PREFLIGHT",
+          "status": "FAIL",
+          "reason": "Actual native DESTINATION chunk unload at PREFLIGHT; last=None"
+        },
+        {
+          "id": "DESTINATION-EFFECT",
+          "status": "FAIL",
+          "reason": "Actual native DESTINATION chunk unload at EFFECT; last=None"
+        },
+        {
+          "id": "DESTINATION-PUBLICATION",
+          "status": "FAIL",
+          "reason": "Actual A07 DESTINATION-PUBLICATION boundary; last=None"
+        },
+        {
+          "id": "death-surviving",
+          "status": "PASS_NATIVE_DEATH_CUSTODY",
+          "reason": null
+        },
+        {
+          "id": "death-burned",
+          "status": "PASS_NATIVE_DEATH_CUSTODY",
+          "reason": null
+        },
+        {
+          "id": "death-unavailable",
+          "status": "PASS_NATIVE_DEATH_CUSTODY",
+          "reason": null
+        },
+        {
+          "id": "handoff-positive",
+          "status": "PASS_EXPLICIT_PHYSICAL_HANDOFF_SAME_JOB",
+          "reason": null
+        },
+        {
+          "id": "handoff-revoked",
+          "status": "PASS_REVOKED_NEW_EFFECTS_HISTORICAL_ACCOUNTING",
+          "reason": null
+        },
+        {
+          "id": "handoff-stale-successor",
+          "status": "FAIL",
+          "reason": "Feedback PlayerA: /aivillage kernel job-handoff 61b15d04-16df-40b2-8be9-6570b38990fa 3 1 adc192c3-0c0a-4365-a2dd-e94aa93daf4f expected=(?i)unauthor|author|private|unknown|not found|owner required|another principal|unavailable in your scope; last=None"
+        }
+      ],
+      "diagnosticArtifact": 13563748939,
+      "diagnosticZipSha256": "225810e7ab759346117b2391dab4790a75c586121ae31e82569947dfaeb220ea",
+      "fullArchiveBytes": 1033931381,
+      "fullArchiveSha256": "81f32ecc189a9089f1a0e761a7cad9a43cf01b305223e016e296ddb16f8439da",
+      "fullArchiveTransportArtifacts": [
+        13564032701,
+        13564315824,
+        13564835160
+      ],
+      "supportedFixtureCauses": [
+        "Fresh native villager frame was not awaited before enrollment.",
+        "Name: BUDGET_EXHAUSTED was an actual zero-work identity-publication refusal, not a name success.",
+        "Same-name replacement was actually denied with Citizen unavailable in your control scope; the old regex omitted control.",
+        "Vanilla freeze pauses stale-ticket expiry. The phase fixture held its own UNKNOWN chunk tickets.",
+        "Terminal receipts publish with terminal state; the former ACTIVE-plus-receipts predicate could never capture publication."
+      ],
+      "w04Cause": "OPEN_NO_UNIQUE_HISTORICAL_CAUSE_ESTABLISHED",
+      "correctionCheckpoint": "8a89c6b584411e6d3b04d854b0b136070f1ff90b"
     }
   ],
-  "a07ConnectedRequiredCases": 27
+  "a07ConnectedRequiredCases": 27,
+  "a07PublicationObservationContracts": 2
 }
