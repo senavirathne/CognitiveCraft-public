@@ -77,7 +77,8 @@ def review(root,source):
             assert row['bObservedTwo']['phase']=='WAITING' and row['bObservedTwo']['moves']==[]
             assert row['twoLogNative']['targets']['74,208,69']['stock']=={LOG:2}
             assert row['external'][0]['delta']==2 and row['external'][0]['native']['targets']['74,208,69']['stock']=={LOG:4}
-            assert saved['boxes']['73,208,68']=={LOG:3} and saved['boxes']['75,208,68']=={LOG:4}
+            assert saved['boxes']['74,208,69']=={LOG:7} and saved['boxes']['73,208,68']==saved['boxes']['75,208,68']=={}
+            assert [m['kind'] for m in row['aReturn']['moves']]==['WITHDRAW','RETURN'] and [m['kind'] for m in row['bReturn']['moves']]==['WITHDRAW','RETURN']
             assert saved['private']=={'PlayerA':{},'PlayerB':{}} and saved['total'][LOG]==7
         elif name=='older-feasible-small-arrivals':
             assert len(row['arrivals'])==6 and len({r['ticket'] for r in row['arrivals']})==6
@@ -126,7 +127,8 @@ def review(root,source):
             assert before['attempts'][-1]['id']==after['attempts'][-1]['id'] and before['generation']==after['generation']==1
             assert before['attempts'][-1]['effects']==after['attempts'][-1]['effects']==1 and after['attempts'][-1]['uncertain']
             assert after['state']=='INTERRUPTED' and row['fence']['fenced'];assert saved['private']['PlayerA']=={LOG:3}
-            assert saved['boxes']['328,208,66']=={LOG:1} and saved['private']['PlayerB']=={}
+            assert saved['boxes']['326,208,66']=={LOG:1} and saved['boxes']['328,208,66']=={} and saved['private']['PlayerB']=={}
+            assert [m['kind'] for m in row['cReturn']['moves']]==['WITHDRAW','RETURN']
             restart_proof(row['restart'],runtime,metadata['releaseSha256'])
         else:raise AssertionError('Unreviewed required native case '+name)
         rows.append({'id':name,'status':'PASS_RAW_NATIVE_AND_ORIGINAL_JOB_REVIEW','custody':saved})

@@ -51,6 +51,9 @@ public final class StagedTransfers {
         public static Move blocked(Snapshot snapshot,Reason why){return new Move(false,Map.of(),snapshot,why);}
     }
     public interface World {
+        /** Existing native actor control only; this never claims a chest, table or source stock. */
+        default boolean hold(ValidatedRequest request,UUID attempt){return true;}
+        default void release(ValidatedRequest request,UUID attempt){ }
         Snapshot observe(ValidatedRequest request,Plan plan,Operation operation);
         /** Recheck all identities/components, permissions, stock, reach and joint capacity before mutation. */
         Move move(ValidatedRequest request,Plan plan,Operation operation,Snapshot captured);
@@ -61,7 +64,7 @@ public final class StagedTransfers {
     public record LiveMove(UUID operation,Operation kind,long tick,Map<String,Integer> units,Snapshot before,Snapshot after) { }
     public static final class Frame {
         private final StagedTransfers issuer;private final UUID token=UUID.randomUUID();private final Owner owner;
-        private final ValidatedRequest request;private final UUID execution;private final ActorRef actor;private final Plan plan;
+        private final ValidatedRequest request;private final UUID execution,attempt;private final ActorRef actor;private final Plan plan;
         private final Budgets.Limits allowance;private final Budgets.Ledger usage;private final long first;
         private final long initialEffects;
         private final List<LiveMove> moves=new ArrayList<>();private final Map<String,Integer> acquired=new TreeMap<>();
@@ -69,10 +72,11 @@ public final class StagedTransfers {
         private String sourceIdentity,destinationIdentity,expectedCustody,waitingFingerprint;
         private ResourceLeaseService.ImmediateTicket ticket;private Operation operation;private Snapshot captured;
         private Phase afterRelease;
-        private boolean uncertain,dirty,cleanCancellation;
+        private boolean uncertain,dirty,cleanCancellation,controlHeld;
         private Frame(StagedTransfers issuer,Jobs.Job job,Plan plan,Budgets.Ledger usage,long tick){
             this.issuer=issuer;owner=new Owner(job.id(),job.generation());request=job.current().bound();
             execution=execution(job.current());actor=job.current().worker();this.plan=plan;
+            attempt=job.current().id();
             allowance=job.current().allowance();this.usage=usage;first=accounted=tick;initialEffects=job.current().effects();
         }
         public UUID token(){return token;}
@@ -97,6 +101,8 @@ public final class StagedTransfers {
         var usage=new Budgets.Ledger(a.allowance(),clock);usage.debit(a.usage());
         Frame f=new Frame(this,job,plan,usage,leases.currentTick());frames.put(owner,f);
         if(plan.source().equals(plan.destination())){block(f,Reason.REQUEST_INVALID);return f;}
+        if(!world.hold(f.request,f.attempt)){block(f,Reason.ACTOR_UNAVAILABLE);return f;}
+        f.controlHeld=true;
         Snapshot initial;
         try {initial=observe(f,Operation.WITHDRAW);}
         catch(Budgets.Exhausted exhausted){block(f,Reason.BUDGET_EXHAUSTED);return f;}
@@ -106,6 +112,22 @@ public final class StagedTransfers {
         if(held+plan.units().stream().mapToInt(Units::quantity).sum()>settings.units())block(f,Reason.BUDGET_EXHAUSTED);
         else if(!initial.actorFits()||!initial.destinationFits())block(f,Reason.TARGET_UNAVAILABLE);
         return f;
+    }
+    /** Read held custody and future output capacity without acquiring any scheduling claim. */
+    public View inspect(Frame f,TrustedContext caller){
+        check(f,caller);if(f.phase!=Phase.HELD)return view(f,caller);long tick=leases.currentTick();
+        try{
+            f.usage.debit(Budgets.Kind.ELAPSED_TICKS,Math.max(0,tick-f.accounted));f.accounted=tick;f.usage.debit(Budgets.Kind.INSTRUCTIONS,1);
+            if(tick-f.first>settings.residenceTicks()){block(f,Reason.ACTION_TIMEOUT);return view(f,caller);}
+            if(!jobs.ready())return view(f,caller);
+            if(!current(f,caller)){block(f,Reason.AUTHORITY_DENIED);return view(f,caller);}
+            Snapshot s=observe(f,Operation.WITHDRAW);
+            if(s.blocker()!=null)f.blocker=s.blocker();
+            else if(!s.sourceIdentity().equals(f.sourceIdentity)||!s.destinationIdentity().equals(f.destinationIdentity)
+                    ||!s.actorFingerprint().equals(f.expectedCustody))block(f,Reason.STALE_OBSERVATION);
+            else f.blocker=s.destinationFits()?null:Reason.TARGET_UNAVAILABLE;
+        }catch(Budgets.Exhausted exhausted){block(f,Reason.BUDGET_EXHAUSTED);}
+        return view(f,caller);
     }
     public View step(Frame f,Operation operation,TrustedContext caller){
         check(f,caller);long tick=leases.currentTick();
@@ -203,14 +225,15 @@ public final class StagedTransfers {
                 &&a.usage().entrySet().stream().allMatch(e->e.getValue()<=f.usage.snapshot().getOrDefault(e.getKey(),0L));
     }
     private static void bound(Jobs.Job job,Plan p){
-        var request=job.current().bound().request();Cuboid area=ResourceDelivery.sourceArea(request);
+        var request=job.current().bound().request();
+        if(!RecipeProduction.is(request.capability()))throw new SecurityException("Registered recipe input staging required");
+        Cuboid area=ResourceDelivery.sourceArea(request);
         var source=p.source();
         if(!source.dimension().equals(area.dimension())||source.x()<area.minX()||source.x()>area.maxX()||source.y()<area.minY()||source.y()>area.maxY()
                 ||source.z()<area.minZ()||source.z()>area.maxZ()||!p.destination().equals(ResourceDelivery.destinationAddress(request)))
             throw new SecurityException("Original authorized staging addresses required");
         long amount=((IntValue)request.arguments().get("amount")).value();var allowed=new HashMap<String,Long>();
-        if(LogAcquisition.is(request.capability()))allowed.put(LogAcquisition.item(request.capability()).id(),amount);
-        else if(RecipeProduction.is(request.capability())){
+        if(RecipeProduction.is(request.capability())){
             var recipe=RecipeProduction.of(request.capability());allowed.put(recipe.input().id(),(long)recipe.inputs(amount));
             if(recipe.axe())allowed.put(ResourceDelivery.STICK.id(),(long)recipe.secondaryInputs(amount));
         }else throw new SecurityException("Supported staging input envelope required");
@@ -222,13 +245,16 @@ public final class StagedTransfers {
         if(released.code()==Code.RELEASED||released.code()==Code.STALE){
             f.ticket=null;f.operation=null;f.captured=null;f.phase=f.afterRelease==null?Phase.BLOCKED:f.afterRelease;
             if(f.phase==Phase.BLOCKED)f.dirty=true;
+            if(f.phase==Phase.BLOCKED||f.phase==Phase.DEPOSITED||f.phase==Phase.RETURNED)releaseControl(f);
         }
     }
     private void block(Frame f,Reason reason){
         f.blocker=reason==null?Reason.ACTION_FAILED:reason;f.afterRelease=Phase.BLOCKED;f.dirty=true;
         if(f.ticket==null)f.phase=Phase.BLOCKED;else{f.phase=Phase.RELEASING;release(f);}
+        if(f.phase==Phase.BLOCKED)releaseControl(f);
         publish(f);
     }
+    private void releaseControl(Frame f){if(f.controlHeld){world.release(f.request,f.attempt);f.controlHeld=false;}}
     /** At most four derived frames per server tick; idle callers cannot renew residence. */
     public void tick(){
         check();if(frames.isEmpty())return;var rows=List.copyOf(frames.values());long now=leases.currentTick();
@@ -280,6 +306,7 @@ public final class StagedTransfers {
     }
     public boolean owns(Jobs.Job job){
         check();Frame f=frames.get(new Owner(job.id(),job.generation()));return f!=null&&f.phase!=Phase.BLOCKED
+                &&!f.uncertain&&f.afterRelease!=Phase.BLOCKED
                 &&job.state()==Jobs.State.ACTIVE&&job.current()!=null&&job.current().open()
                 &&job.current().bound().equals(f.request)&&job.current().worker().equals(f.actor);
     }

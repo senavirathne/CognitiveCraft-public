@@ -1,8 +1,12 @@
 import copy,unittest
 from claims_cases import CASES,service
 from review_claims_connected import denominator
+from claims_connected import active_claims
 
 class ClaimsEvidenceBounds(unittest.TestCase):
+    def test_retired_foreign_history_is_not_a_current_claim(self):
+        value={'leases':{'leases':[{'state':'RELEASED','owner':{'job':'old'}},{'state':'ACTIVE','owner':{'job':'new'}}]}}
+        self.assertEqual(len(active_claims(value)),1);self.assertEqual(active_claims(value,'old'),[])
     def candidate(self):return {'plannedCases':list(CASES),'requiredCases':21,'cases':[{'id':n,'status':'PASS_NATIVE_CANDIDATE'} for n in CASES],
         'failures':[],'omittedTasks':0,'omittedTests':0,'status':'PASS_NATIVE_CANDIDATE_PENDING_REVIEW','a08Qualified':False}
     def test_all_twenty_one_cases_remain_required(self):

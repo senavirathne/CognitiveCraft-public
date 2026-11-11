@@ -44,7 +44,7 @@ public final class RuntimeA08Driver implements ModInitializer {
                 ServerPlayer player=server.getPlayerList().getPlayer(UUID.fromString(command.get("principal").getAsString()));
                 if(player==null)throw new SecurityException("Actual connected player required");
                 TrustedContext caller=kernel.stagingContext(player);var out=new LinkedHashMap<String,Object>();out.put("status","PASS");out.put("sequence",sequence);
-                if(op.equals("status")){out.put("fair",leases.immediateView(caller));out.put("activity",kernel.activities(player,0,16));}
+                if(op.equals("status")){out.put("fair",leases.immediateView(caller));out.put("activity",kernel.activities(player,0,4));}
                 else if(op.equals("create")){
                     if(plans.size()>=32)throw new IllegalStateException("Bounded test cohort");
                     var citizen=kernel.citizen(player,UUID.fromString(command.get("citizen").getAsString()));
@@ -55,10 +55,9 @@ public final class RuntimeA08Driver implements ModInitializer {
                     }
                     Plan plan=new Plan(source,destination,source,units);boolean axe=command.has("axe")&&command.get("axe").getAsBoolean();
                     var arguments=new HashMap<String,Value>();arguments.put("actor",new ActorValue(actor));arguments.put("source",new ContainerValue(source));arguments.put("destination",new ContainerValue(destination));
-                    arguments.put("amount",new IntValue(axe?1:units.getFirst().quantity()));
-                    if(!axe)arguments.put("source",new AreaValue(ResourceLeases.point(source)));
+                    arguments.put("amount",new IntValue(axe?1:units.getFirst().quantity()*4));
                     if(axe){var t=container(command,"table",actor.dimension());arguments.put("table",new FacilityValue(new FacilityRef(t.dimension(),t.x(),t.y(),t.z())));}
-                    var capability=axe?WoodenAxeProduction.ID:OakLogDelivery.ID;
+                    var capability=axe?WoodenAxeProduction.ID:OakPlankProduction.ID;
                     UUID jobId=UUID.fromString(command.get("job").getAsString());kernel.reserveStaging(jobId);
                     var allowance=new Budgets.Limits(Map.of(Budgets.Kind.INSTRUCTIONS,8192L,Budgets.Kind.OBSERVATIONS,131072L,
                             Budgets.Kind.ATTEMPTED_EFFECTS,16L,Budgets.Kind.COMMITTED_EFFECTS,16L,Budgets.Kind.ELAPSED_TICKS,1200L),System.currentTimeMillis()+120_000);
@@ -75,6 +74,8 @@ public final class RuntimeA08Driver implements ModInitializer {
                 }else if(op.equals("open")){
                     UUID jobId=uuid(command,"job");Frame frame=kernel.stagingOwner().open(jobId,plans.get(jobId),caller);
                     frames.put(jobId,frame);kernel.stagingOpened(jobId);out.put("view",kernel.stagingOwner().view(frame,caller));
+                }else if(op.equals("inspect")){
+                    out.put("view",kernel.stagingOwner().inspect(frames.get(uuid(command,"job")),caller));
                 }else if(op.equals("step")){
                     UUID jobId=uuid(command,"job");out.put("view",kernel.stagingOwner().step(frames.get(jobId),Operation.valueOf(command.get("operation").getAsString()),caller));
                 }else if(op.equals("report")){

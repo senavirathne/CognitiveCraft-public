@@ -21,8 +21,9 @@ class StagedTransfersTest {
         final Plan plan=new Plan(source,dest,source,List.of(new Units(ResourceDelivery.OAK_LOG,3)));
         final UUID id=UUID.randomUUID();long tick;int stock=5,held,output,moves,partial;boolean controls=true,fits=true,reached=true,swap,throwAfterMove;
         String sourceId="source",destId="destination";
+        boolean holdAllowed=true;int releases;
         Scene(){this(Settings.defaults(),64);}
-        Scene(Settings settings,long effects){this(settings,effects,true,false);}
+        Scene(Settings settings,long effects){this(settings,effects,true,true);}
         Scene(Settings settings,long effects,boolean preparation,boolean recipe){
             jobs=new JobLifecycleStore(memory.state,memory,JobLifecycleStore.privateJobs((a,c)->controls&&a.equals(actor)&&c.equals(caller)),
                     c->{},c->Optional.of(recipe?OakPlankProduction.SPEC:OakLogDelivery.SPEC),JobLifecycleStoreTest.environment(),clock,Jobs.Settings.defaults(),false);
@@ -42,6 +43,8 @@ class StagedTransfersTest {
             return new Snapshot(tick,sourceId,destId,"actor:"+held,"source:"+stock,"dest:"+output+(swap?":swap":""),
                     Map.of(LOG,stock),Map.of(LOG,held),held+3<=64,fits,reached,10,null);
         }
+        public boolean hold(ValidatedRequest request,UUID attempt){return holdAllowed;}
+        public void release(ValidatedRequest request,UUID attempt){releases++;}
         public Move move(ValidatedRequest r,Plan p,Operation op,Snapshot captured){
             Snapshot fresh=observe(r,p,op);
             if(!fresh.sourceFingerprint().equals(captured.sourceFingerprint())||!fresh.destinationFingerprint().equals(captured.destinationFingerprint())
@@ -56,7 +59,25 @@ class StagedTransfersTest {
         View until(Frame f,Operation op,Phase phase){for(int i=0;i<12;i++){View v=step(f,op);if(v.phase()==phase)return v;}fail("Expected "+phase+" got "+staging.view(f,caller));return null;}
     }
     @Test void interpreterOwnedJobCannotOpenASecondPhysicalOwner(){
-        var s=new Scene(Settings.defaults(),64,false,false);assertThrows(SecurityException.class,s::open);assertEquals(0,s.moves);
+        var s=new Scene(Settings.defaults(),64,false,true);assertThrows(SecurityException.class,s::open);assertEquals(0,s.moves);
+    }
+    @Test void refusedNativeActorControlPublishesNoEffectAndCannotMove(){
+        var s=new Scene();s.holdAllowed=false;var f=s.open();assertEquals(Phase.BLOCKED,s.staging.view(f,s.caller).phase());
+        assertEquals(Reason.ACTOR_UNAVAILABLE,s.staging.view(f,s.caller).blocker());assertEquals(0,s.moves);assertEquals(0,s.releases);
+    }
+    @Test void aHarvestOnlyCapabilityDoesNotAuthorizeContainerWithdrawal(){
+        var s=new Scene(Settings.defaults(),64,true,false);assertThrows(SecurityException.class,s::open);assertEquals(0,s.moves);
+    }
+    @Test void unknownMoveIsFencedImmediatelyWhileExactClaimReleaseStillPublishes(){
+        var s=new Scene();s.throwAfterMove=true;var f=s.open();s.step(f,Operation.WITHDRAW);var v=s.step(f,Operation.WITHDRAW);
+        assertEquals(Phase.RELEASING,v.phase());assertTrue(v.uncertain());assertFalse(s.staging.owns(s.jobs.query(s.id,s.caller)));
+        var recovery=new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(s.jobs,new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners(){
+            public boolean bootstrap(Jobs.Job j){return false;}public boolean dispatcher(Jobs.Job j){return false;}
+            public boolean staging(Jobs.Job j){return s.staging.owns(j);}
+            public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence presence(Jobs.Job j){return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;}
+        },original->Jobs.StoppedObservation.ambiguous("fixture: unknown native effect, no durable proof"),4);
+        assertTrue(recovery.fenced(s.jobs.query(s.id,s.caller).current().bound(),Effect.WITHDRAW,
+                new SurvivalGateway.Cell(s.source.dimension(),s.source.x(),s.source.y(),s.source.z())));
     }
     @Test void idleResidenceMaintenanceStopsSchedulingAndPreservesCustody(){
         var s=new Scene(new Settings(32,64,5,8),64);var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);
@@ -66,7 +87,8 @@ class StagedTransfersTest {
     }
     @Test void fullDestinationWaitCanBeExplicitlyReplacedByLawfulReturnWithoutReset(){
         var s=new Scene();var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);s.fits=false;
-        s.step(f,Operation.DEPOSIT);long first=s.staging.view(f,s.caller).firstTick();s.step(f,Operation.RETURN);s.fits=true;
+        var blocked=s.staging.inspect(f,s.caller);assertEquals(Reason.TARGET_UNAVAILABLE,blocked.blocker());
+        long first=blocked.firstTick();s.fits=true;
         var v=s.until(f,Operation.RETURN,Phase.RETURNED);assertEquals(first,v.firstTick());assertEquals(2,s.moves);assertEquals(5,s.stock);assertEquals(0,s.output);
         assertEquals(2,s.jobs.query(s.id,s.caller).current().effects());assertEquals(0,s.jobs.query(s.id,s.caller).current().credited());
     }
@@ -76,17 +98,17 @@ class StagedTransfersTest {
         assertEquals(Jobs.State.CANCELLED,s.jobs.query(s.id,s.caller).state());assertEquals(2,s.jobs.query(s.id,s.caller).current().effects());
         assertEquals(0,s.jobs.query(s.id,s.caller).current().credited());assertEquals(5,s.stock);
     }
-    @Test void exactThreePhysicalUnitsThenDepositAreTwoEffectsWithNoGoalCredit(){
+    @Test void exactThreePhysicalUnitsCannotBeWithdrawnTwiceAndReturnHasNoGoalCredit(){
         var s=new Scene();var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);
         assertEquals(2,s.stock);assertEquals(3,s.held);assertEquals(Map.of(LOG,3),s.staging.view(f,s.caller).acquired());
         int n=s.moves;s.step(f,Operation.WITHDRAW);assertEquals(n,s.moves);
-        View end=s.until(f,Operation.DEPOSIT,Phase.DEPOSITED);assertEquals(0,s.held);assertEquals(3,s.output);
+        View end=s.until(f,Operation.RETURN,Phase.RETURNED);assertEquals(0,s.held);assertEquals(0,s.output);assertEquals(5,s.stock);
         assertEquals(5,s.stock+s.held+s.output);assertEquals(2,end.moves().size());assertTrue(end.acquired().isEmpty());
         assertEquals(0,s.jobs.query(s.id,s.caller).current().credited());
     }
     @Test void trustedReservedPreparationNeedsNoFabricatedMethodAndNewPinStopsOldFrame(){
-        var s=new Scene(Settings.defaults(),64,true,false);var f=s.open();assertTrue(s.jobs.query(s.id,s.caller).current().executions().isEmpty());
-        var j=s.jobs.query(s.id,s.caller);var ref=new ArtifactRef(OakLogDelivery.ID,"b".repeat(64));
+        var s=new Scene(Settings.defaults(),64,true,true);var f=s.open();assertTrue(s.jobs.query(s.id,s.caller).current().executions().isEmpty());
+        var j=s.jobs.query(s.id,s.caller);var ref=new ArtifactRef(OakPlankProduction.ID,"b".repeat(64));
         assertTrue(s.jobs.pin(s.id,j.guard(),new Jobs.ExecutionReference(UUID.randomUUID(),ref,List.of(ref)),s.caller).accepted());s.jobs.tick();
         assertEquals(Phase.BLOCKED,s.step(f,Operation.WITHDRAW).phase());assertEquals(0,s.moves);
     }

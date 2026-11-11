@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 
 def main():
     modules={}
-    for name,expected in (('core',2397),('providers',131),('fabric',130)):
+    for name,expected in (('core',2400),('providers',131),('fabric',130)):
         files=sorted((Path(name)/'build/test-results/test').glob('TEST-*.xml'))
         assert files,('No XML',name)
         cases=[c for file in files for c in ET.parse(file).getroot().iter('testcase')]

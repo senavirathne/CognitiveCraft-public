@@ -11,6 +11,10 @@ from claims_cases import CASES,service
 
 SRC=[74,208,69];DA=[73,208,68];DB=[75,208,68];TABLE=[77,208,73]
 
+def active_claims(state,job=None):
+    """Retained released history is never a live scheduling claim."""
+    return [r for r in state['leases']['leases'] if r['state']=='ACTIVE' and (job is None or r['owner']['job']==job)]
+
 class ClaimsHarness(LifecycleHarness):
     def compose(self,*args):
         files=['e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml']
@@ -41,7 +45,13 @@ class ClaimsHarness(LifecycleHarness):
         self.ready();id=str(uuid.uuid4());destination=destination or (DA if player=='PlayerA' else DB)
         self.claim_rpc('create',player,job=id,citizen=self.citizens[player],source=source,destination=destination,
                        units=units or [{'item':LOG,'quantity':quantity}],axe=axe,table=TABLE)
-        self.ready();self.claim_rpc('assign',player,job=id);self.ready();self.claim_rpc('open',player,job=id);return id
+        self.ready();self.claim_rpc('assign',player,job=id);self.ready();view=self.claim_rpc('open',player,job=id)['view']
+        if view['phase']=='WAITING':
+            # Deterministic initial fixture pose after the real runtime has acquired actor control.
+            # NoAI remains false; ordinary engine physics and fresh reach checks stay active.
+            pose=[73.5 if player=='PlayerA' else 75.5,208,69.5] if source==SRC else [source[0]+1.5,source[1],source[2]+.5]
+            self.console(['tp '+self.entities[player]+' '+coord(pose)]);self.quiet(3)
+        return id
     def stage(self,id,operation='WITHDRAW',player='PlayerA',until=None):
         def action():
             self.ready();value=self.claim_rpc('step',player,job=id,operation=operation)['view']
@@ -97,7 +107,7 @@ def one(h,seed,name):
         a=h.create_stage(units=[{'item':PLANK,'quantity':3},{'item':STICK,'quantity':2}],axe=True)
     elif name in ('older-feasible-small-arrivals','impossible-large-useful-small'):
         b=h.create_stage(4,'PlayerB');result['b']=b;waiting=h.stage(b,player='PlayerB');result['olderWaiting']=waiting
-        require(waiting['phase']=='WAITING' and not waiting['moves'] and not h.ready()['leases']['leases'],'Infeasible older demand held a claim')
+        require(waiting['phase']=='WAITING' and not waiting['moves'] and not active_claims(h.ready()),'Infeasible older demand held a claim')
         a=h.create_stage(1)
     else:a=h.create_stage()
     result['a']=a;result['before']=h.physical();result['startingWorldHashes']=starting_checkpoint(h,folder)
@@ -108,8 +118,8 @@ def one(h,seed,name):
         result['twoLogNative']=h.physical();h.console(['item replace block '+coord(SRC)+' container.0 with '+LOG+' 4']);h.observed_stock(SRC,{LOG:4})
         result['external'].append({'kind':'actual-addition','item':LOG,'delta':2,'native':h.physical()});result['expectedLogs']=7
         result['bHeld']=h.stage(b,player='PlayerB',until='HELD');h.observed_stock(SRC,{})
-        result['aDeposit']=h.stage(a,'DEPOSIT',until='DEPOSITED');result['bDeposit']=h.stage(b,'DEPOSIT','PlayerB',until='DEPOSITED')
-        h.observed_stock(DA,{LOG:3});h.observed_stock(DB,{LOG:4})
+        result['aReturn']=h.stage(a,'RETURN',until='RETURNED');result['bReturn']=h.stage(b,'RETURN','PlayerB',until='RETURNED')
+        h.observed_stock(SRC,{LOG:7});h.observed_stock(DA,{});h.observed_stock(DB,{})
     elif name=='older-feasible-small-arrivals':
         h.console(['item replace block '+coord(SRC)+' container.0 with '+LOG+' 4']);h.observed_stock(SRC,{LOG:4});result['expectedLogs']=4
         result['external'].append({'kind':'actual-addition','item':LOG,'delta':2,'native':h.physical()})
@@ -120,29 +130,29 @@ def one(h,seed,name):
     elif name=='impossible-large-useful-small':
         result['aHeld']=h.stage(a,until='HELD');h.observed_stock(SRC,{LOG:1});require(not h.state()['frames'][b]['moves'],'Impossible four moved physical stock')
     elif name=='complementary-inputs-atomic':
-        result['missingSecondary']=h.stage(a);require(not result['missingSecondary']['moves'] and not h.ready()['leases']['leases'],'Partial complementary ingredient claim')
+        result['missingSecondary']=h.stage(a);require(not result['missingSecondary']['moves'] and not active_claims(h.ready()),'Partial complementary ingredient claim')
         h.console(['item replace block '+coord(SRC)+' container.1 with '+STICK+' 2']);h.observed_stock(SRC,{PLANK:3,STICK:2})
         result['aHeld']=h.stage(a,until='HELD');h.observed_stock(SRC,{})
         result['return']=h.stage(a,'RETURN',until='RETURNED');h.observed_stock(SRC,{PLANK:3,STICK:2})
     elif name=='complementary-private-custody-residence-bound':
-        result['waitingA']=h.stage(a);result['waitingB']=h.stage(b,player='PlayerB');require(not h.ready()['leases']['leases'],'Complementary private custody held storage claims')
+        result['waitingA']=h.stage(a);result['waitingB']=h.stage(b,player='PlayerB');require(not active_claims(h.ready()),'Complementary private custody held storage claims')
         h.quiet(610);result['blockedA']=h.stage(a,until='BLOCKED');result['blockedB']=h.stage(b,player='PlayerB',until='BLOCKED')
         require(all(v['blocker']=='ACTION_TIMEOUT' and not v['moves'] and not v['acquired'] for v in (result['blockedA'],result['blockedB'])),'Residence bound was reset or foreign custody was spent')
     elif name in ('initial-full-zero-effect','source-destination-alias'):
         result['blocked']=h.state()['frames'].get(a) or h.claim_rpc('private-view',job=a)['view'];require(result['blocked']['phase']=='BLOCKED' and not result['blocked']['moves'],'Stable preflight was not zero-effect')
     elif name=='dynamic-fill-before-withdraw':
         first=h.stage(a);result['grantWindow']=h.ready()
-        if not any(l['state']=='ACTIVE' for l in result['grantWindow']['leases']['leases']):raise Inconclusive('Required actual pre-effect claim window missed')
+        if not active_claims(result['grantWindow'],a):raise Inconclusive('Required actual pre-effect claim window missed')
         require(not first['moves'],'Already moved before fill');h.full(DA);result['blocked']=h.stage(a,until='BLOCKED');require(not result['blocked']['moves'],'Dynamic full destination withdrew stock')
     elif name=='slot-stack-swap-after-claim':
         first=h.stage(a);result['grantWindow']=h.ready()
-        if not any(l['state']=='ACTIVE' for l in result['grantWindow']['leases']['leases']) or first['moves']:raise Inconclusive('Required actual slot-swap pre-effect window missed')
+        if not active_claims(result['grantWindow'],a) or first['moves']:raise Inconclusive('Required actual slot-swap pre-effect window missed')
         h.console(['item replace block '+coord(SRC)+' container.0 with '+LOG+' 2','item replace block '+coord(SRC)+' container.1 with '+LOG+' 3']);h.observed_stock(SRC,{LOG:5})
         result['blocked']=h.stage(a,until='BLOCKED');require(not result['blocked']['moves'],'Captured slot swap moved stock')
         if result['blocked']['usage'].get('ATTEMPTED_EFFECTS',0)!=1:raise Inconclusive('Slot swap missed the live native mutation recheck window')
     elif name=='navigation-no-storage-claim':
         h.console(['tp '+h.entities['PlayerA']+' 80.5 208 72.5']);result['unreachable']=h.stage(a)
-        require(result['unreachable']['phase']=='WAITING' and not h.ready()['leases']['leases'],'Storage held during navigation')
+        require(result['unreachable']['phase']=='WAITING' and not active_claims(h.ready()),'Storage held during navigation')
         h.console(['tp '+h.entities['PlayerA']+' 73.5 208 69.5']);h.quiet(3);result['aHeld']=h.stage(a,until='HELD')
     elif name=='chest-replacement':
         h.console(['setblock '+coord(SRC)+' minecraft:air','setblock '+coord(SRC)+' minecraft:chest','item replace block '+coord(SRC)+' container.0 with '+LOG+' 5'])
@@ -170,7 +180,7 @@ def one(h,seed,name):
         require(result['changes'][-1]['phase']=='BLOCKED' and not result['changes'][-1]['moves'],'Replan limit was not enforced')
         result['expectedLogs']=h.container(SRC,LOG)
     elif name=='stale-epoch-release':
-        h.stage(a);claim=h.ready()['leases']['leases']
+        h.stage(a);claim=active_claims(h.ready(),a)
         if not claim:raise Inconclusive('Native grant window missed')
         old=claim[0]
         h.save_checkpoint();before=native_process(h);result['restart']=h.restart(hard=True)
@@ -182,7 +192,7 @@ def one(h,seed,name):
             result['return']=h.stage(a,'RETURN',until='RETURNED');h.observed_stock(SRC,{LOG:5});h.ready();h.claim_rpc('cancel',job=a)
             result['cancelled']=h.wait(lambda:(j if (j:=h.job(a))['state']=='CANCELLED' else None),'Original returned staging Job cancelled without credit',30)
         elif name=='dynamic-fill-after-withdraw-custody':
-            h.full(DA);result['waiting']=h.stage(a,'DEPOSIT');require(result['waiting']['acquired']=={LOG:3} and len(result['waiting']['moves'])==1,'Dynamic fill lost custody')
+            h.full(DA);h.ready();result['waiting']=h.claim_rpc('inspect',job=a)['view'];require(result['waiting']['acquired']=={LOG:3} and len(result['waiting']['moves'])==1 and result['waiting']['blocker']=='TARGET_UNAVAILABLE','Dynamic fill lost custody')
             result['return']=h.stage(a,'RETURN',until='RETURNED');h.observed_stock(SRC,{LOG:5})
         elif name=='full-return-retains-custody':
             h.full(SRC,64);result['expectedLogs']=67;result['external'].append({'kind':'actual-addition','item':LOG,'delta':62,'native':h.physical()})
@@ -206,8 +216,8 @@ def one(h,seed,name):
             h.quiet(20);h.console(['fill 324 207 64 332 207 70 minecraft:stone','tp '+h.entities['PlayerB']+' 327.5 208 66.5',
                 'setblock '+coord(cs)+' minecraft:chest','setblock '+coord(cd)+' minecraft:chest','item replace block '+coord(cs)+' container.0 with '+LOG+' 1'])
             h.watch([SRC,DA,DB,cs,cd],[h.entities['PlayerA'],h.entities['PlayerB']]);h.observed_stock(cs,{LOG:1})
-            c=h.create_stage(1,'PlayerB',cs,cd);result['c']=c;result['cHeld']=h.stage(c,player='PlayerB',until='HELD');result['cDeposit']=h.stage(c,'DEPOSIT','PlayerB',until='DEPOSITED')
-            h.observed_stock(cd,{LOG:1});require(h.job(a)==original,'Unrelated work changed the original Job');result['expectedLogs']=6
+            c=h.create_stage(1,'PlayerB',cs,cd);result['c']=c;result['cHeld']=h.stage(c,player='PlayerB',until='HELD');result['cReturn']=h.stage(c,'RETURN','PlayerB',until='RETURNED')
+            h.observed_stock(cs,{LOG:1});h.observed_stock(cd,{});require(h.job(a)==original,'Unrelated work changed the original Job');result['expectedLogs']=6
     return finish_case(h,folder,result)
 
 def main():

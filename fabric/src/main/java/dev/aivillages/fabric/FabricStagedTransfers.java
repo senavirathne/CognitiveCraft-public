@@ -6,6 +6,7 @@ import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.runtime.claims.StagedTransfers;
 import dev.aivillages.core.kernel.runtime.claims.StagedTransfers.*;
 import dev.aivillages.core.kernel.runtime.claims.StagedTransfers.Plan;
+import dev.aivillages.fabric.mixin.PathNavigationAccessor;
 import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -22,8 +23,23 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 public final class FabricStagedTransfers implements StagedTransfers.World {
     private final ServerLevel level;private final FabricGatewayWorld nativeWorld;private final AuthorityPolicy authority;
     private final LeaseTargetWitnesses witnesses=new LeaseTargetWitnesses(128);
+    private final Map<ActorRef,UUID> controls=new LinkedHashMap<>();
     public FabricStagedTransfers(ServerLevel level,FabricGatewayWorld nativeWorld,AuthorityPolicy authority){
         this.level=Objects.requireNonNull(level);this.nativeWorld=Objects.requireNonNull(nativeWorld);this.authority=Objects.requireNonNull(authority);
+    }
+    @Override public boolean hold(ValidatedRequest request,UUID attempt){
+        if(!level.getServer().isSameThread())throw new IllegalStateException("Native staging server thread");
+        ActorRef actor=((ActorValue)request.request().arguments().get("actor")).value();var v=nativeWorld.recipeActor(actor);
+        if(v==null||!authority.currentlyAllows(actor,Effect.MOVE,request.context())
+                ||!controls.containsKey(actor)&&controls.size()>=32||!GatewayControl.acquire(v,attempt))return false;
+        controls.put(actor,attempt);v.getNavigation().stop();
+        ((PathNavigationAccessor)v.getNavigation()).cognitivecraft$setHasDelayedRecomputation(false);
+        v.getMoveControl().setWantedPosition(v.getX(),v.getY(),v.getZ(),0.0);return true;
+    }
+    @Override public void release(ValidatedRequest request,UUID attempt){
+        if(!level.getServer().isSameThread())throw new IllegalStateException("Native staging server thread");
+        ActorRef actor=((ActorValue)request.request().arguments().get("actor")).value();
+        if(attempt.equals(controls.get(actor))){GatewayControl.releaseByEntity(actor.entityId(),attempt);controls.remove(actor);}
     }
     private record Native(Villager actor,Container source,Container destination,Reason blocker) { }
     private Native inspect(ValidatedRequest request,Plan plan,Operation operation){
@@ -91,6 +107,8 @@ public final class FabricStagedTransfers implements StagedTransfers.World {
     }
     @Override public Move move(ValidatedRequest request,Plan plan,Operation operation,Snapshot captured){
         Native n=inspect(request,plan,operation);if(n.blocker()!=null)return Move.blocked(Snapshot.blocked(level.getGameTime(),n.blocker()),n.blocker());
+        ActorRef actor=((ActorValue)request.request().arguments().get("actor")).value();UUID owner=controls.get(actor);
+        if(owner==null||!GatewayControl.holds(n.actor(),owner))return Move.blocked(Snapshot.blocked(level.getGameTime(),Reason.ACTOR_UNAVAILABLE),Reason.ACTOR_UNAVAILABLE);
         Snapshot fresh=capture(request,plan,operation,n);
         if(!fresh.sourceIdentity().equals(captured.sourceIdentity())||!fresh.destinationIdentity().equals(captured.destinationIdentity())
                 ||!fresh.actorFingerprint().equals(captured.actorFingerprint())||!fresh.sourceFingerprint().equals(captured.sourceFingerprint())
