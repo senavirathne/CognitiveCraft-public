@@ -41,6 +41,46 @@ public final class ResourceLeaseService {
     private Reason failure;
     private long previousTick=-1;
     private int cursor, lastReconciled;
+    /** Imminent callers supply a fresh native feasibility check; a ticket is never a claim. */
+    @FunctionalInterface public interface Imminent { Reason blocker(); }
+    public record FairLimits(int queued,long waitingTicks,long idleTicks,long backoffTicks,long claimTicks) {
+        public FairLimits {
+            if(queued<1||queued>64||waitingTicks<1||waitingTicks>1200||idleTicks<1||idleTicks>waitingTicks
+                    ||backoffTicks<1||backoffTicks>20||claimTicks<1||claimTicks>20)
+                throw new IllegalArgumentException("Finite imminent-claim limits");
+        }
+        public static FairLimits defaults(){return new FairLimits(16,1200,40,2,8);}
+    }
+    public record FairView(UUID ticket,Owner owner,long firstTick,long lastTick,long eligibleTick,
+                           long grantedTick,long attempts,Reason blocker,UUID group) { }
+    /** Process-bound opaque ticket; retired objects remain stale after diagnostic history truncation. */
+    public static final class ImmediateTicket {
+        private final ResourceLeaseService issuer;private final UUID id=UUID.randomUUID();
+        private final Owner owner;private final TrustedContext caller;private final List<Demand> demands;
+        private final Imminent imminent;private final UUID run;private final ActorRef worker;private boolean retired;
+        private ImmediateTicket(ResourceLeaseService issuer,Owner owner,TrustedContext caller,List<Demand> demands,
+                                Imminent imminent,OwnerFacts facts){
+            this.issuer=issuer;this.owner=owner;this.caller=caller;this.demands=List.copyOf(demands);
+            this.imminent=imminent;run=facts.run();worker=facts.worker();
+        }
+        public UUID id(){return id;}
+    }
+    private static final class FairEntry {
+        final ImmediateTicket ticket;
+        final UUID token;final Owner owner;final TrustedContext caller;final List<Demand> demands;
+        final Imminent imminent;final long first,sequence;long touched,next,eligible=-1,granted=-1,attempts;
+        Reason blocker;Result acquisition;
+        FairEntry(ImmediateTicket ticket,UUID token,Owner owner,TrustedContext caller,List<Demand> demands,Imminent imminent,long tick,long sequence){
+            this.ticket=ticket;
+            this.token=token;this.owner=owner;this.caller=caller;this.demands=demands;this.imminent=imminent;
+            first=touched=tick;this.sequence=sequence;
+        }
+        FairView view(){return new FairView(token,owner,first,touched,eligible,granted,attempts,blocker,acquisition==null?null:acquisition.group());}
+    }
+    private FairLimits fairLimits=FairLimits.defaults();
+    private final Map<UUID,FairEntry> fair=new LinkedHashMap<>();
+    private final Deque<Map.Entry<TrustedContext,FairView>> fairHistory=new ArrayDeque<>();
+    private long fairSequence;
 
     public ResourceLeaseService(Snapshot initial,Storage storage,Owners owners,Observer observer,
                                 Settings settings,LongSupplier ticks,Clock clock,boolean readOnly) {
@@ -153,6 +193,130 @@ public final class ResourceLeaseService {
         }
         if(!publish(rows,generation))return unavailable();
         return new Result(Code.PENDING,null,id,references,0,inspected);
+    }
+    /** Configure once before the first ticket. Existing live/history quotas are never widened. */
+    public void fairLimits(FairLimits limits){
+        checkThread();if(!fair.isEmpty()||fairSequence!=0)throw new IllegalStateException("Fair claims already started");
+        fairLimits=Objects.requireNonNull(limits);
+    }
+    /**
+     * Stable, process-local priority for a currently feasible imminent group. No lease is held while
+     * native reach/capacity/stock is infeasible. Older feasible overlapping demand wins even when a
+     * younger caller polls first. The existing sole lease owner performs every grant/publication.
+     */
+    public ImmediateTicket immediateTicket(Owner owner,List<Demand> requested,TrustedContext caller,Imminent imminent){
+        checkThread();Objects.requireNonNull(imminent);OwnerFacts fact=facts(owner,caller);
+        if(fact==null||!fact.live())throw new SecurityException("Current durable Job owner required");
+        var demands=new ArrayList<>(normalize(requested));demands.sort(Comparator.comparing(d->resourceOrder(d.resource())));
+        return new ImmediateTicket(this,owner,caller,demands,imminent,fact);
+    }
+    public Result acquireImmediate(ImmediateTicket ticket,TrustedContext caller){
+        checkThread();if(ticket==null||ticket.issuer!=this||ticket.retired)return result(Code.STALE,Reason.INTERRUPTED);
+        if(!ticket.caller.equals(caller))return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        OwnerFacts fact=facts(ticket.owner,caller);
+        if(fact==null||!fact.live()||!Objects.equals(fact.run(),ticket.run)||!fact.worker().equals(ticket.worker))
+            return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        return acquireImmediate(ticket);
+    }
+    private Result acquireImmediate(ImmediateTicket ticket){
+        UUID token=ticket.id;Owner owner=ticket.owner;TrustedContext caller=ticket.caller;
+        List<Demand> requested=ticket.demands;Imminent imminent=ticket.imminent;
+        checkThread();Objects.requireNonNull(token);Objects.requireNonNull(imminent);long tick=now();
+        if(!ready())return unavailable();
+        OwnerFacts fact=facts(owner,caller);
+        if(fact==null||!fact.live())return result(Code.REJECTED,fact==null?Reason.AUTHORITY_DENIED:ownerReason(fact));
+        List<Demand> normalized;
+        try {normalized=new ArrayList<>(normalize(requested));normalized.sort(Comparator.comparing(d->resourceOrder(d.resource())));}
+        catch(RuntimeException invalid){return result(Code.REJECTED,Reason.REQUEST_INVALID);}
+        reapFair(tick);
+        if(ticket.retired)return result(Code.STALE,Reason.INTERRUPTED);
+        FairEntry entry=fair.get(token);
+        if(entry==null){
+            if(fair.size()>=fairLimits.queued())return result(Code.REJECTED,Reason.BUDGET_EXHAUSTED);
+            for(var prior:fairHistory)if(prior.getValue().ticket().equals(token))return result(Code.STALE,Reason.INTERRUPTED);
+            if(fairSequence==Long.MAX_VALUE)return result(Code.REJECTED,Reason.BUDGET_EXHAUSTED);
+            entry=new FairEntry(ticket,token,owner,caller,List.copyOf(normalized),imminent,tick,fairSequence++);fair.put(token,entry);
+        }
+        if(!entry.owner.equals(owner)||!entry.caller.equals(caller)||!entry.demands.equals(normalized))
+            return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        entry.touched=tick;
+        if(entry.acquisition!=null)return group(entry.acquisition.group(),owner,caller);
+        if(tick-entry.first>fairLimits.waitingTicks()){
+            rememberFair(entry,Reason.ACTION_TIMEOUT);fair.remove(token);return result(Code.REJECTED,Reason.ACTION_TIMEOUT);
+        }
+        if(tick<entry.next)return result(Code.PENDING,entry.blocker);
+        entry.next=tick+fairLimits.backoffTicks();entry.attempts++;
+        Reason own=feasible(entry,tick);
+        if(own!=null)return infeasible(entry,own);
+        for(FairEntry older:fair.values()){
+            if(older.sequence>=entry.sequence)break;
+            if(older.acquisition!=null||!groupsOverlap(older.demands,entry.demands))continue;
+            if(feasible(older,tick)==null){entry.blocker=Reason.TARGET_UNAVAILABLE;return result(Code.PENDING,entry.blocker);}
+        }
+        // Native feasibility is observed again immediately before the authoritative lease grant.
+        own=feasible(entry,tick);if(own!=null)return infeasible(entry,own);
+        Result acquired=acquire(owner,entry.demands,Math.min(fairLimits.claimTicks(),settings.duration()),caller);
+        entry.blocker=acquired.reason();
+        if(acquired.group()!=null){entry.acquisition=acquired;entry.granted=tick;}
+        return acquired.code()==Code.CONFLICT?new Result(Code.PENDING,acquired.reason(),null,List.of(),acquired.available(),acquired.inspected()):acquired;
+    }
+    /** Complete/release only this exact caller's whole group; stale releases cannot affect another grant. */
+    public Result completeImmediate(ImmediateTicket ticket,TrustedContext caller){
+        checkThread();if(ticket==null||ticket.issuer!=this||ticket.retired)return result(Code.STALE,Reason.INTERRUPTED);
+        UUID token=ticket.id;Owner owner=ticket.owner;FairEntry entry=fair.get(token);
+        if(!ticket.caller.equals(caller))return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        if(entry==null)return result(Code.STALE,Reason.INTERRUPTED);
+        if(!entry.owner.equals(owner)||!entry.caller.equals(caller))return result(Code.REJECTED,Reason.AUTHORITY_DENIED);
+        if(entry.acquisition==null){rememberFair(entry,Reason.CANCELLED);fair.remove(token);return result(Code.RELEASED,null);}
+        Result released=release(entry.acquisition.leases(),caller);
+        if(released.code()==Code.RELEASED||released.code()==Code.STALE){rememberFair(entry,released.reason());fair.remove(token);}
+        return released;
+    }
+    /** Private diagnostics only; no queue position or identity from another principal is exposed. */
+    public List<FairView> immediateView(TrustedContext caller){
+        checkThread();var out=new ArrayList<FairView>();
+        for(var entry:fairHistory)if(entry.getKey().equals(caller))out.add(entry.getValue());
+        for(var entry:fair.values())if(entry.caller.equals(caller))out.add(entry.view());
+        return List.copyOf(out);
+    }
+    private Reason feasible(FairEntry entry,long tick){
+        OwnerFacts fact=facts(entry.owner,entry.caller);
+        if(fact==null||!fact.live()||!Objects.equals(fact.run(),entry.ticket.run)||!fact.worker().equals(entry.ticket.worker))
+            return entry.blocker=Reason.AUTHORITY_DENIED;
+        Reason nativeBlocker;
+        try {nativeBlocker=entry.imminent.blocker();}
+        catch(Budgets.Exhausted exhausted){nativeBlocker=Reason.BUDGET_EXHAUSTED;}
+        catch(RuntimeException unavailable){nativeBlocker=Reason.TARGET_UNAVAILABLE;}
+        if(nativeBlocker!=null)return entry.blocker=nativeBlocker;
+        for(Demand demand:entry.demands){
+            if(!demand.resource().world().equals(state.world()))return entry.blocker=Reason.REQUEST_INVALID;
+            Observation observation=observe(demand.resource(),fact,tick);Reason missing=observationReason(observation,tick);
+            if(missing!=null)return entry.blocker=missing;
+            if(free(demand.resource(),observation.quantity(),state.leases(),tick)<demand.quantity())return entry.blocker=Reason.RESOURCE_MISSING;
+        }
+        if(entry.eligible<0)entry.eligible=tick;entry.blocker=null;return null;
+    }
+    private Result infeasible(FairEntry entry,Reason reason){
+        entry.blocker=reason;
+        return result(reason==Reason.RESOURCE_MISSING||reason==Reason.TARGET_UNAVAILABLE?Code.PENDING:Code.REJECTED,reason);
+    }
+    private static String resourceOrder(Resource r){
+        var a=r.area();return r.world()+"/"+r.kind().ordinal()+"/"+a.dimension()+"/"+a.minX()+"/"+a.minY()+"/"+a.minZ()+"/"+a.maxX()+"/"+a.maxY()+"/"+a.maxZ()+"/"+r.item()+"/"+r.slot();
+    }
+    private static boolean groupsOverlap(List<Demand> a,List<Demand> b){
+        for(Demand one:a)for(Demand other:b)if(conflicts(one.resource(),other.resource()))return true;return false;
+    }
+    private void rememberFair(FairEntry entry,Reason reason){
+        entry.ticket.retired=true;entry.blocker=reason;fairHistory.addLast(Map.entry(entry.caller,entry.view()));while(fairHistory.size()>128)fairHistory.removeFirst();
+    }
+    private void reapFair(long tick){
+        var iterator=fair.values().iterator();
+        while(iterator.hasNext()){
+            FairEntry entry=iterator.next();
+            if(entry.acquisition==null&&(tick-entry.touched>fairLimits.idleTicks()||tick-entry.first>fairLimits.waitingTicks())){
+                rememberFair(entry,Reason.ACTION_TIMEOUT);iterator.remove();
+            }
+        }
     }
     public Result group(UUID id,Owner owner,TrustedContext caller) {
         checkThread();long tick=now();
@@ -342,6 +506,7 @@ public final class ResourceLeaseService {
     }
     public void tick() {
         checkThread();long tick=now();lastReconciled=0;
+        reapFair(tick);
         if(fenced)return;
         if(pending!=null) {
             if(clock.millis()<pending.started() || clock.millis()-pending.started()>settings.acknowledgementMillis()) {

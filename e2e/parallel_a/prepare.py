@@ -151,6 +151,7 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAObserver')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeALifecycleProbe')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeA07Probe')
+            manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeA08Driver')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeASecondaryObserver')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeAStorageProbe')
             manifest['entrypoints']['main'].append('dev.aivillages.fabric.RuntimeALeaseProbe')
@@ -163,7 +164,7 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
     for path in out.rglob('*.class'):
         target.write(path, path.relative_to(out).as_posix())
 with ZipFile(release) as packaged:
-    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeALifecycleProbe', 'RuntimeA07Probe', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeADepositProbe', 'RuntimeADepositTiming', 'RuntimeAHarvestProbe', 'RuntimeAEntityStorageChecks', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'JournalCostProbe'))
+    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeALifecycleProbe', 'RuntimeA07Probe', 'RuntimeA08Driver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeADepositProbe', 'RuntimeADepositTiming', 'RuntimeAHarvestProbe', 'RuntimeAEntityStorageChecks', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'JournalCostProbe'))
                    for n in packaged.namelist())
 assert digest(release) == before
 (ROOT / 'build/parallel-a/observer-adaptation.json').write_text(json.dumps({

@@ -111,6 +111,8 @@ public final class KernelSession implements AutoCloseable {
     private FabricPrerequisiteRuntime prerequisites;
     private GoalPlanner planner;
     private ResourceLeaseService leases;
+    private dev.aivillages.core.kernel.runtime.claims.StagedTransfers stagingTransfers;
+    private final Map<UUID,Boolean> stagingSubmissions=new LinkedHashMap<>();
     private LeasedGateway leasedGateway;
     private LeasedGateway dispatchGateway;
     private WorkerDispatcher dispatcher;
@@ -778,10 +780,16 @@ public final class KernelSession implements AutoCloseable {
                 WorkerDispatcher.Settings.production());
         dispatcher.jobResolver((job,request,observation)->resolver.withEligibility(access.policyForJob(job.id())).resolve(request,observation));
 
+        // Trusted runtime staging uses the same Jobs, lease writer, native permission/fence and
+        // cumulative allowance. It supplies no model method, goal credit or durable side ledger.
+        stagingTransfers=new dev.aivillages.core.kernel.runtime.claims.StagedTransfers(jobs,leases,
+                new FabricStagedTransfers(server.overworld(),worldAccess,authority),clock,
+                dev.aivillages.core.kernel.runtime.claims.StagedTransfers.Settings.defaults());
+
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {
                     public boolean bootstrap(Jobs.Job job) { return controller.liveSubmission(job.submissionId()); }
-                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job); }
+                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job) || stagingOwns(job); }
                     public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence presence(Jobs.Job job) {
                         var actor = job.current() == null ? job.responsible() : job.current().worker();
                         var enrollment = citizens.find(actor.citizenId());
@@ -1615,6 +1623,7 @@ public final class KernelSession implements AutoCloseable {
         return true;
     }
     private boolean dispatchableSubmission(Jobs.Job job) {
+        if(stagingSubmissions.containsKey(job.submissionId()))return false;
         if(!controller.ownsSubmission(job.submissionId()))return true;
         if(controller.liveSubmission(job.submissionId()))return false;
         if(dispatcher!=null && dispatcher.ownsAttempt(job))return true;
@@ -1719,6 +1728,18 @@ public final class KernelSession implements AutoCloseable {
     boolean jobsReady() { return jobs != null && jobs.ready(); }
     boolean leasesReady() { return leases != null && leases.ready(); }
     ResourceLeaseService leaseOwner() { return leases; }
+    /** Trusted host boundary only. No language/player command admits a staging driver. */
+    void reserveStaging(UUID submission) {
+        ready();if(stagingSubmissions.size()>=32)throw new IllegalStateException("Bounded staging submissions");
+        stagingSubmissions.putIfAbsent(submission,false);
+    }
+    dev.aivillages.core.kernel.runtime.claims.StagedTransfers stagingOwner(){ready();return stagingTransfers;}
+    TrustedContext stagingContext(ServerPlayer player){ready();return caller(player);}
+    void stagingOpened(UUID submission){ready();if(!stagingSubmissions.containsKey(submission))throw new SecurityException("Reserved staging submission required");stagingSubmissions.put(submission,true);}
+    private boolean stagingOwns(Jobs.Job job){
+        var opened=stagingSubmissions.get(job.submissionId());return opened!=null
+                && (!opened || stagingTransfers.owns(job));
+    }
     LeaseArchive leaseHistoryOwner() { return leaseArchive; }
     JobArchive jobHistoryOwner() { return jobArchive; }
     JobLifecycleStore jobLifecycleOwner() { return jobs; }

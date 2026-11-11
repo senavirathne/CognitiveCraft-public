@@ -1,8 +1,11 @@
-"""Fail closed on edits outside the A00–A07 owned source boundary."""
+"""Fail closed on edits outside the A00–A08 owned source boundary."""
 import subprocess
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
 allowed={
+    'core/src/test/java/dev/aivillages/core/kernel/ImmediateClaimsTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/StagedTransfersTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/FabricStagedTransfers.java',
     'core/src/test/java/dev/aivillages/core/kernel/JobPublicationObservationTest.java',
     'fabric/src/main/java/dev/aivillages/fabric/mixin/LifecycleItemDamageMixin.java',
     'core/src/test/java/dev/aivillages/core/kernel/ReassignmentPolicyTest.java',
