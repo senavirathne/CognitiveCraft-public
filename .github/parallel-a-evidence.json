@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "repository": "senavirathne/CognitiveCraft-public",
+  "reason": "Workspace unavailable; inspect frozen startup failure before deciding whether any native replay is justified",
+  "a08Qualified": false,
+  "artifacts": [
+    {
+      "id": 13863125697,
+      "bytes": 7990,
+      "sha256": "ecf481cd049428c73945d3b48d3d2c5a43d23ef35a488eb3467afc0cd8a62f1a"
+    },
+    {
+      "id": 13861755440,
+      "bytes": 680284,
+      "sha256": "e65b4ad1e79583f2dabcea4669d6e72c22d8affd29774719704be83ebd902a77"
+    },
+    {
+      "id": 13863140578,
+      "bytes": 3504290,
+      "sha256": "3da3bb76fcb0ee9dd647109cb624e7d057a193b54ee5715f448efadcb352a953"
+    }
+  ]
+}
