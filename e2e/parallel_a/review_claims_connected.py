@@ -148,5 +148,5 @@ def main():
     except Exception as failure:
         value={'schema':1,'stage':'A08','status':'FAIL_INDEPENDENT_NATIVE_REVIEW','a08Qualified':False,'reason':str(failure),'trace':traceback.format_exc()}
         (a.out/'a08-independent-review.json').write_text(json.dumps(value,indent=2)+'\n');print(json.dumps(value),flush=True);raise
-    (a.out/'a08-independent-review.json').write_text(json.dumps(value,indent=2)+'\n');print('A08_INDEPENDENT_REVIEW '+value['status'],flush=True)
+    (a.out/'a08-independent-review.json').write_text(json.dumps(value,indent=2)+'\n');print('A08_INDEPENDENT_REVIEW '+json.dumps(value),flush=True)
 if __name__=='__main__':main()

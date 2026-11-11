@@ -1,4 +1,8 @@
 services:
   minecraft:
+    build:
+      network: host
+      entitlements:
+        - network.host
     environment:
       COGNITIVECRAFT_A08_DRIVER: 'true'

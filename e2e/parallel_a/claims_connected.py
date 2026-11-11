@@ -1,5 +1,5 @@
 """A08 real connected clients, native custody and reserved original Kernel Jobs. No model method fixture."""
-import argparse,json,shutil,subprocess,time,traceback,uuid
+import argparse,json,shutil,socket,subprocess,time,traceback,uuid
 from pathlib import Path
 from lifecycle_connected import LifecycleHarness,checkpoint,starting_checkpoint
 from recovery_seed import start as retained_seed
@@ -20,6 +20,10 @@ class ClaimsHarness(LifecycleHarness):
         files=['e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml']
         cmd=['docker','compose','-p',self.project]
         for file in files:cmd+=['-f',str(ROOT/file)]
+        if args and args[0]=='build':
+            resolved={host:sorted({r[4][0] for r in socket.getaddrinfo(host,80,type=socket.SOCK_STREAM)})
+                      for host in ('archive.ubuntu.com','security.ubuntu.com')}
+            print('A08_BUILD_HOST_DNS '+json.dumps(resolved),flush=True)
         value=subprocess.run(cmd+list(args),cwd=ROOT,env=self.env,text=True,capture_output=True)
         with (self.root/'docker.log').open('a') as out:out.write(value.stdout+value.stderr)
         if value.returncode:raise RuntimeError('A08 Compose '+value.stderr[-1800:])
@@ -236,16 +240,24 @@ def main():
     result={'schema':1,'stage':'A08','status':'NOT_EXECUTED','a08Qualified':False,'plannedCases':list(CASES),'requiredCases':len(CASES),'cases':[],'failures':[],'omittedTasks':0,'omittedTests':0}
     try:
         h=ClaimsHarness(root);h.activated=0;seed=retained_seed(h,a.seed_archive.resolve());h.primary=h.citizens['PlayerA'],h.entities['PlayerA']
+        metadata=read(root/'metadata.json')
+        print('A08_NATIVE_METADATA '+json.dumps({k:metadata[k] for k in ('sourceCommit','sourceTree','minecraft','loader','topology','dirty','releaseSha256','binaries')}),flush=True)
         for name in CASES:
             try:value=one(h,seed,name)
             except Exception as failure:
                 value={'id':name,'status':'INCONCLUSIVE_REQUIRED_NATIVE_WINDOW' if isinstance(failure,(Inconclusive,TimeoutError)) else 'FAIL','reason':str(failure),'trace':traceback.format_exc()}
-                try:value['runtime']=h.state();value['native']=h.physical();h.save_checkpoint();h.stop('server',hard=True)
+                target=root/'failures'/name;target.mkdir(parents=True,exist_ok=True)
+                try:
+                    value['runtime']=h.state();value['native']=h.physical();h.save_checkpoint();h.stop('server',hard=True)
+                    world=target/'terminal-world';shutil.copytree(h.root/'server/game/world',world,ignore=shutil.ignore_patterns('session.lock'))
+                    value['failureWorldHashes']=manifest(world)
                 except Exception as evidence:value['evidenceError']=str(evidence)
-                target=root/'failures'/name;target.mkdir(parents=True,exist_ok=True);atomic(target/'result.json',value);result['failures'].append(name)
+                atomic(target/'result.json',value);result['failures'].append(name)
             result['cases'].append(value);atomic(root/'a08-results.json',result);print('A08_CASE '+json.dumps({'id':name,'status':value['status'],'reason':value.get('reason')}),flush=True)
         result['status']='PASS_NATIVE_CANDIDATE_PENDING_REVIEW' if not result['failures'] else 'FAIL_REQUIRED_A08_CASES'
-    except Exception as failure:result.update(status='FAIL_A08_PREREQUISITE',reason=str(failure),trace=traceback.format_exc())
+    except Exception as failure:
+        result.update(status='FAIL_A08_PREREQUISITE',reason=str(failure),trace=traceback.format_exc())
+        print('A08_PREREQUISITE_FAILURE '+json.dumps({'reason':result['reason'],'trace':result['trace']}),flush=True)
     finally:
         attempted={r['id'] for r in result['cases']};result['cases'] += [{'id':n,'status':'NOT_EXECUTED_REQUIRED'} for n in CASES if n not in attempted]
         atomic(root/'a08-results.json',result)
