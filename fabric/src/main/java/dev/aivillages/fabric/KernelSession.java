@@ -785,6 +785,7 @@ public final class KernelSession implements AutoCloseable {
         stagingTransfers=new dev.aivillages.core.kernel.runtime.claims.StagedTransfers(jobs,leases,
                 new FabricStagedTransfers(server.overworld(),worldAccess,authority),clock,
                 dev.aivillages.core.kernel.runtime.claims.StagedTransfers.Settings.defaults());
+        leases.fairLimits(new ResourceLeaseService.FairLimits(16,1200,40,2,20));
 
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {

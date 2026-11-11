@@ -21,7 +21,7 @@ public final class RuntimeA08Driver implements ModInitializer {
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
     private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor();
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private volatile Object pending;
-    private String seen="";private final Map<UUID,Frame> frames=new LinkedHashMap<>();private final Map<UUID,Plan> plans=new LinkedHashMap<>();
+    private String seen="";private long sequence;private final Map<UUID,Frame> frames=new LinkedHashMap<>();private final Map<UUID,Plan> plans=new LinkedHashMap<>();
     private final Map<UUID,ResourceLeaseService.ImmediateTicket> tickets=new LinkedHashMap<>();
     public void onInitialize(){
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A08_DRIVER"))){io.shutdown();return;}
@@ -32,7 +32,8 @@ public final class RuntimeA08Driver implements ModInitializer {
                 var kernel=AiVillages.kernel();if(kernel==null)return;
                 var jobs=kernel.jobLifecycleOwner();var leases=kernel.leaseOwner();if(jobs==null||leases==null)return;
                 var body=new LinkedHashMap<String,Object>();body.put("schema",1);body.put("process",process);body.put("time",System.currentTimeMillis());
-                body.put("tick",server.overworld().getGameTime());body.put("ready",jobs.ready()&&leases.ready());body.put("jobs",jobs.snapshot());body.put("leases",leases.snapshot());
+                body.put("tick",server.overworld().getGameTime());body.put("sequence",++sequence);body.put("ready",jobs.ready()&&leases.ready());body.put("jobs",jobs.snapshot());body.put("leases",leases.snapshot());
+                body.put("fairLimits",leases.fairLimits());body.put("stagingLimits",StagedTransfers.Settings.defaults());
                 var frameRows=new LinkedHashMap<String,Object>();for(var entry:frames.entrySet()){
                     var job=jobs.snapshot().jobs().stream().filter(j->j.id().equals(entry.getKey())).findFirst().orElseThrow();
                     frameRows.put(entry.getKey().toString(),kernel.stagingOwner().view(entry.getValue(),job.origin()));
@@ -42,7 +43,7 @@ public final class RuntimeA08Driver implements ModInitializer {
                 if(!command.get("process").getAsString().equals(process.toString()))throw new SecurityException("Current native process required");
                 ServerPlayer player=server.getPlayerList().getPlayer(UUID.fromString(command.get("principal").getAsString()));
                 if(player==null)throw new SecurityException("Actual connected player required");
-                TrustedContext caller=kernel.stagingContext(player);var out=new LinkedHashMap<String,Object>();out.put("status","PASS");
+                TrustedContext caller=kernel.stagingContext(player);var out=new LinkedHashMap<String,Object>();out.put("status","PASS");out.put("sequence",sequence);
                 if(op.equals("status")){out.put("fair",leases.immediateView(caller));out.put("activity",kernel.activities(player,0,16));}
                 else if(op.equals("create")){
                     if(plans.size()>=32)throw new IllegalStateException("Bounded test cohort");
@@ -54,9 +55,10 @@ public final class RuntimeA08Driver implements ModInitializer {
                     }
                     Plan plan=new Plan(source,destination,source,units);boolean axe=command.has("axe")&&command.get("axe").getAsBoolean();
                     var arguments=new HashMap<String,Value>();arguments.put("actor",new ActorValue(actor));arguments.put("source",new ContainerValue(source));arguments.put("destination",new ContainerValue(destination));
-                    arguments.put("amount",new IntValue(axe?1:units.getFirst().quantity()*4));
+                    arguments.put("amount",new IntValue(axe?1:units.getFirst().quantity()));
+                    if(!axe)arguments.put("source",new AreaValue(ResourceLeases.point(source)));
                     if(axe){var t=container(command,"table",actor.dimension());arguments.put("table",new FacilityValue(new FacilityRef(t.dimension(),t.x(),t.y(),t.z())));}
-                    var capability=axe?WoodenAxeProduction.ID:OakPlankProduction.ID;
+                    var capability=axe?WoodenAxeProduction.ID:OakLogDelivery.ID;
                     UUID jobId=UUID.fromString(command.get("job").getAsString());kernel.reserveStaging(jobId);
                     var allowance=new Budgets.Limits(Map.of(Budgets.Kind.INSTRUCTIONS,8192L,Budgets.Kind.OBSERVATIONS,131072L,
                             Budgets.Kind.ATTEMPTED_EFFECTS,16L,Budgets.Kind.COMMITTED_EFFECTS,16L,Budgets.Kind.ELAPSED_TICKS,1200L),System.currentTimeMillis()+120_000);
@@ -93,10 +95,15 @@ public final class RuntimeA08Driver implements ModInitializer {
                 else if(op.equals("old-reference")){
                     var ref=json.fromJson(command.get("ref"),ResourceLeases.Ref.class);out.put("validate",leases.validate(ref,caller));out.put("release",leases.release(List.of(ref),caller));
                 }else if(op.equals("private-view")){out.put("view",kernel.stagingOwner().view(frames.get(uuid(command,"job")),caller));}
+                else if(op.equals("fence")){
+                    var job=jobs.query(uuid(command,"job"),caller);var c=plans.containsKey(job.id())?plans.get(job.id()).source():ResourceDelivery.destinationAddress(job.request().request());
+                    if(command.has("source"))c=container(command,"source",job.responsible().dimension());
+                    out.put("fenced",kernel.recoveryOwner().fenced(job.current().bound(),Effect.WITHDRAW,new SurvivalGateway.Cell(c.dimension(),c.x(),c.y(),c.z())));
+                }
                 else throw new IllegalArgumentException("Known A08 test operation required");
                 reply(id,out);
-            }catch(SecurityException denied){if(active!=null)reply(active.get("id").getAsString(),Map.of("status","DENIED","reason",denied.toString()));}
-            catch(Exception error){if(active!=null)reply(active.get("id").getAsString(),Map.of("status","ERROR","reason",error.toString()));}
+            }catch(SecurityException denied){if(active!=null)reply(active.get("id").getAsString(),Map.of("status","DENIED","sequence",sequence,"reason",denied.toString()));}
+            catch(Exception error){if(active!=null)reply(active.get("id").getAsString(),Map.of("status","ERROR","sequence",sequence,"reason",error.toString()));}
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server->{io.shutdown();flush();});
     }

@@ -106,13 +106,17 @@ public final class StagedTransfers {
     }
     public View step(Frame f,Operation operation,TrustedContext caller){
         check(f,caller);long tick=leases.currentTick();
-        if(f.phase==Phase.RELEASING){release(f);return view(f,caller);}
         if(f.phase==Phase.BLOCKED||f.phase==Phase.DEPOSITED||f.phase==Phase.RETURNED)return view(f,caller);
         try {
             f.usage.debit(Budgets.Kind.ELAPSED_TICKS,Math.max(0,tick-f.accounted));f.accounted=tick;
             f.usage.debit(Budgets.Kind.INSTRUCTIONS,1);
             if(tick-f.first>settings.residenceTicks()){block(f,Reason.ACTION_TIMEOUT);return view(f,caller);}
+            if(f.phase==Phase.RELEASING){release(f);return view(f,caller);}
             if(!current(f,caller)){block(f,Reason.AUTHORITY_DENIED);return view(f,caller);}
+            // Raw recipe ingredients are not the authorized transformation output.
+            if(operation==Operation.DEPOSIT&&RecipeProduction.is(f.request.request().capability())){
+                block(f,Reason.REQUEST_INVALID);return view(f,caller);
+            }
             if(operation!=Operation.WITHDRAW&&f.acquired.isEmpty()){block(f,Reason.REQUEST_INVALID);return view(f,caller);}
             if(operation==Operation.WITHDRAW&&f.phase==Phase.HELD)return view(f,caller); // Exact repeat: no second withdrawal.
             if(f.ticket==null){
@@ -130,7 +134,8 @@ public final class StagedTransfers {
             }
             if(f.captured==null){block(f,Reason.STALE_OBSERVATION);return view(f,caller);}
             if(!f.usage.canDebit(Budgets.Kind.COMMITTED_EFFECTS,1))throw new Budgets.Exhausted();
-            f.usage.debit(Budgets.Kind.ATTEMPTED_EFFECTS,1);
+            // Conservatively meter the native fresh-read and resulting-custody scans as well.
+            f.usage.debit(Map.of(Budgets.Kind.ATTEMPTED_EFFECTS,1L,Budgets.Kind.OBSERVATIONS,528L));
             Move move;
             try {move=world.move(f.request,f.plan,operation,f.captured);}
             catch(RuntimeException unknown){f.uncertain=true;block(f,Reason.INTERRUPTED);return view(f,caller);}
@@ -185,7 +190,7 @@ public final class StagedTransfers {
                 &&a!=null&&a.open()&&a.worker().equals(f.actor)&&a.bound().equals(f.request)&&a.allowance().equals(f.allowance)
                 &&Objects.equals(execution(a),f.execution)
                 &&jobs.mayControl(job.id(),job.generation(),caller)&&clock.millis()<=f.allowance.deadlineEpochMillis()
-                &&job.usage().entrySet().stream().allMatch(e->e.getValue()<=f.usage.snapshot().getOrDefault(e.getKey(),0L));
+                &&a.usage().entrySet().stream().allMatch(e->e.getValue()<=f.usage.snapshot().getOrDefault(e.getKey(),0L));
     }
     private static void bound(Jobs.Job job,Plan p){
         var request=job.current().bound().request();Cuboid area=ResourceDelivery.sourceArea(request);

@@ -22,16 +22,17 @@ class StagedTransfersTest {
         final UUID id=UUID.randomUUID();long tick;int stock=5,held,output,moves,partial;boolean controls=true,fits=true,reached=true,swap,throwAfterMove;
         String sourceId="source",destId="destination";
         Scene(){this(Settings.defaults(),64);}
-        Scene(Settings settings,long effects){
+        Scene(Settings settings,long effects){this(settings,effects,false,false);}
+        Scene(Settings settings,long effects,boolean preparation,boolean recipe){
             jobs=new JobLifecycleStore(memory.state,memory,JobLifecycleStore.privateJobs((a,c)->controls&&a.equals(actor)&&c.equals(caller)),
-                    c->{},c->Optional.of(OakPlankProduction.SPEC),JobLifecycleStoreTest.environment(),clock,Jobs.Settings.defaults(),false);
+                    c->{},c->Optional.of(recipe?OakPlankProduction.SPEC:OakLogDelivery.SPEC),JobLifecycleStoreTest.environment(),clock,Jobs.Settings.defaults(),false);
             var limits=new Budgets.Limits(Map.of(Budgets.Kind.INSTRUCTIONS,1000L,Budgets.Kind.OBSERVATIONS,100_000L,
                     Budgets.Kind.ATTEMPTED_EFFECTS,64L,Budgets.Kind.COMMITTED_EFFECTS,effects,Budgets.Kind.ELAPSED_TICKS,1200L),100_000);
-            var request=new CapabilityRequest(OakPlankProduction.ID,Map.of("actor",new ActorValue(actor),"amount",new IntValue(12),
-                    "source",new ContainerValue(source),"destination",new ContainerValue(dest)));
+            var request=new CapabilityRequest(recipe?OakPlankProduction.ID:OakLogDelivery.ID,Map.of("actor",new ActorValue(actor),"amount",new IntValue(recipe?12:3),
+                    "source",recipe?new ContainerValue(source):new AreaValue(ResourceLeases.point(source)),"destination",new ContainerValue(dest)));
             assertTrue(jobs.create(id,id,request,caller,JobLifecycleStoreTest.observation(),limits,List.of()).accepted());jobs.tick();
-            Jobs.Job j=jobs.query(id,caller);var ref=new ArtifactRef(OakPlankProduction.ID,"a".repeat(64));
-            assertTrue(jobs.assign(id,j.guard(),UUID.randomUUID(),actor,ref,List.of(ref),limits,caller).accepted());jobs.tick();
+            Jobs.Job j=jobs.query(id,caller);var ref=new ArtifactRef(request.capability(),"a".repeat(64));
+            assertTrue(jobs.assign(id,j.guard(),UUID.randomUUID(),actor,preparation?null:ref,preparation?List.of():List.of(ref),limits,caller).accepted());jobs.tick();
             leases=new ResourceLeaseService(ResourceLeases.Snapshot.empty(world),(a,b)->CompletableFuture.completedFuture(b),new JobLeaseOwners(jobs,clock),
                     (r,o)->new ResourceLeases.Observation(r,ObservationStatus.PRESENT,r.kind()==ResourceLeases.Kind.STOCK?stock:1,
                             r.area().minX()==source.x()?sourceId:destId,tick,1,null),ResourceLeases.Settings.fixture(),()->tick,clock,false);leases.tick();
@@ -61,6 +62,16 @@ class StagedTransfersTest {
         View end=s.until(f,Operation.DEPOSIT,Phase.DEPOSITED);assertEquals(0,s.held);assertEquals(3,s.output);
         assertEquals(5,s.stock+s.held+s.output);assertEquals(2,end.moves().size());assertTrue(end.acquired().isEmpty());
         assertEquals(0,s.jobs.query(s.id,s.caller).current().credited());
+    }
+    @Test void trustedReservedPreparationNeedsNoFabricatedMethodAndNewPinStopsOldFrame(){
+        var s=new Scene(Settings.defaults(),64,true,false);var f=s.open();assertTrue(s.jobs.query(s.id,s.caller).current().executions().isEmpty());
+        var j=s.jobs.query(s.id,s.caller);var ref=new ArtifactRef(OakLogDelivery.ID,"b".repeat(64));
+        assertTrue(s.jobs.pin(s.id,j.guard(),new Jobs.ExecutionReference(UUID.randomUUID(),ref,List.of(ref)),s.caller).accepted());s.jobs.tick();
+        assertEquals(Phase.BLOCKED,s.step(f,Operation.WITHDRAW).phase());assertEquals(0,s.moves);
+    }
+    @Test void rawRecipeInputsCannotBeDepositedAsTransformationOutput(){
+        var s=new Scene(Settings.defaults(),64,true,true);var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);
+        var v=s.step(f,Operation.DEPOSIT);assertEquals(Reason.REQUEST_INVALID,v.blocker());assertEquals(3,s.held);assertEquals(0,s.output);
     }
     @Test void impossibleStockWaitsWithoutAnyClaimOrPhysicalEffect(){
         var s=new Scene();s.stock=2;var f=s.open();for(int i=0;i<6;i++)s.step(f,Operation.WITHDRAW);

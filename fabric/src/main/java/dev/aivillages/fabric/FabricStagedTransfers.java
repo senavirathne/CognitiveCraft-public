@@ -31,7 +31,6 @@ public final class FabricStagedTransfers implements StagedTransfers.World {
         ActorRef actor=((ActorValue)request.request().arguments().get("actor")).value();Villager v=nativeWorld.recipeActor(actor);
         if(v==null||!v.isAlive()||v.isRemoved())return new Native(null,null,null,Reason.ACTOR_UNAVAILABLE);
         if(plan.source().equals(plan.destination()))return new Native(v,null,null,Reason.REQUEST_INVALID);
-        var target=operation==Operation.RETURN?plan.source():plan.destination();
         for(var effect:List.of(Effect.OBSERVE,operation==Operation.WITHDRAW?Effect.WITHDRAW:Effect.TRANSFER))
             if(!authority.currentlyAllows(actor,effect,request.context()))return new Native(v,null,null,Reason.AUTHORITY_DENIED);
         for(var entry:List.of(Map.entry(plan.source(),operation==Operation.RETURN?Effect.TRANSFER:operation==Operation.WITHDRAW?Effect.WITHDRAW:Effect.OBSERVE),
@@ -61,16 +60,22 @@ public final class FabricStagedTransfers implements StagedTransfers.World {
     }
     @Override public Snapshot observe(ValidatedRequest request,Plan plan,Operation operation){
         Native n=inspect(request,plan,operation);if(n.blocker()!=null)return Snapshot.blocked(level.getGameTime(),n.blocker());
-        return capture(plan,operation,n);
+        return capture(request,plan,operation,n);
     }
-    private Snapshot capture(Plan plan,Operation operation,Native n){
+    private Snapshot capture(ValidatedRequest request,Plan plan,Operation operation,Native n){
         var inventory=n.actor().getInventory();Container receiving=operation==Operation.RETURN?n.source():n.destination();
         String source=witnesses.identity(plan.source().toString(),n.source()),destination=witnesses.identity(plan.destination().toString(),n.destination());
         boolean reachable=n.actor().onGround()&&nativeWorld.recipeReach(n.actor(),pos(operation==Operation.WITHDRAW||operation==Operation.RETURN?plan.source():plan.destination()));
         return new Snapshot(level.getGameTime(),source,destination,FabricRecipeTransactions.fingerprint(inventory),
                 FabricRecipeTransactions.fingerprint(n.source()),FabricRecipeTransactions.fingerprint(n.destination()),stock(n.source(),plan),stock(inventory,plan),
-                insert(inventory,plan)!=null,insert(receiving,plan)!=null,reachable,
+                insert(inventory,plan)!=null,capacity(request,plan,operation,receiving),reachable,
                 n.source().getContainerSize()+n.destination().getContainerSize()+inventory.getContainerSize(),null);
+    }
+    private static boolean capacity(ValidatedRequest request,Plan plan,Operation operation,Container receiving){
+        if(operation!=Operation.WITHDRAW||!RecipeProduction.is(request.request().capability()))return insert(receiving,plan)!=null;
+        var recipe=RecipeProduction.of(request.request().capability());int quantity=Math.toIntExact(((IntValue)request.request().arguments().get("amount")).value());
+        return FabricRecipeTransactions.insert(FabricRecipeTransactions.copy(receiving),receiving,
+                new ItemStack(FabricResourceItems.item(recipe.output()),quantity))!=null;
     }
     private static Map<String,Integer> stock(Container c,Plan plan){
         var out=new TreeMap<String,Integer>();for(Units u:plan.units()){
@@ -86,7 +91,7 @@ public final class FabricStagedTransfers implements StagedTransfers.World {
     }
     @Override public Move move(ValidatedRequest request,Plan plan,Operation operation,Snapshot captured){
         Native n=inspect(request,plan,operation);if(n.blocker()!=null)return Move.blocked(Snapshot.blocked(level.getGameTime(),n.blocker()),n.blocker());
-        Snapshot fresh=capture(plan,operation,n);
+        Snapshot fresh=capture(request,plan,operation,n);
         if(!fresh.sourceIdentity().equals(captured.sourceIdentity())||!fresh.destinationIdentity().equals(captured.destinationIdentity())
                 ||!fresh.actorFingerprint().equals(captured.actorFingerprint())||!fresh.sourceFingerprint().equals(captured.sourceFingerprint())
                 ||!fresh.destinationFingerprint().equals(captured.destinationFingerprint()))return Move.blocked(fresh,Reason.STALE_OBSERVATION);
@@ -99,7 +104,7 @@ public final class FabricStagedTransfers implements StagedTransfers.World {
         // No callbacks, navigation, inference or asynchronous work between final read and mutation.
         // A thrown engine callback is an uncertain move at the runtime boundary, never zero-effect.
         FabricRecipeTransactions.apply(from,before);FabricRecipeTransactions.apply(to,after);
-        return new Move(true,plan.quantities(),capture(plan,operation,n),null);
+        return new Move(true,plan.quantities(),capture(request,plan,operation,n),null);
     }
     private static BlockPos pos(ContainerRef c){return new BlockPos(c.x(),c.y(),c.z());}
 }

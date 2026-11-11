@@ -199,6 +199,7 @@ public final class ResourceLeaseService {
         checkThread();if(!fair.isEmpty()||fairSequence!=0)throw new IllegalStateException("Fair claims already started");
         fairLimits=Objects.requireNonNull(limits);
     }
+    public FairLimits fairLimits(){checkThread();return fairLimits;}
     /**
      * Stable, process-local priority for a currently feasible imminent group. No lease is held while
      * native reach/capacity/stock is infeasible. Older feasible overlapping demand wins even when a
