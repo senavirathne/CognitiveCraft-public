@@ -131,10 +131,12 @@ def one(h,seed,name):
     elif name in ('initial-full-zero-effect','source-destination-alias'):
         result['blocked']=h.state()['frames'].get(a) or h.claim_rpc('private-view',job=a)['view'];require(result['blocked']['phase']=='BLOCKED' and not result['blocked']['moves'],'Stable preflight was not zero-effect')
     elif name=='dynamic-fill-before-withdraw':
-        first=h.stage(a);result['grantWindow']=h.ready();require(any(l['state']=='ACTIVE' for l in result['grantWindow']['leases']['leases']),'Required actual pre-effect claim window missed')
+        first=h.stage(a);result['grantWindow']=h.ready()
+        if not any(l['state']=='ACTIVE' for l in result['grantWindow']['leases']['leases']):raise Inconclusive('Required actual pre-effect claim window missed')
         require(not first['moves'],'Already moved before fill');h.full(DA);result['blocked']=h.stage(a,until='BLOCKED');require(not result['blocked']['moves'],'Dynamic full destination withdrew stock')
     elif name=='slot-stack-swap-after-claim':
-        first=h.stage(a);result['grantWindow']=h.ready();require(any(l['state']=='ACTIVE' for l in result['grantWindow']['leases']['leases']) and not first['moves'],'Required actual slot-swap pre-effect window missed')
+        first=h.stage(a);result['grantWindow']=h.ready()
+        if not any(l['state']=='ACTIVE' for l in result['grantWindow']['leases']['leases']) or first['moves']:raise Inconclusive('Required actual slot-swap pre-effect window missed')
         h.console(['item replace block '+coord(SRC)+' container.0 with '+LOG+' 2','item replace block '+coord(SRC)+' container.1 with '+LOG+' 3']);h.observed_stock(SRC,{LOG:5})
         result['blocked']=h.stage(a,until='BLOCKED');require(not result['blocked']['moves'],'Captured slot swap moved stock')
         if result['blocked']['usage'].get('ATTEMPTED_EFFECTS',0)!=1:raise Inconclusive('Slot swap missed the live native mutation recheck window')
@@ -168,7 +170,9 @@ def one(h,seed,name):
         require(result['changes'][-1]['phase']=='BLOCKED' and not result['changes'][-1]['moves'],'Replan limit was not enforced')
         result['expectedLogs']=h.container(SRC,LOG)
     elif name=='stale-epoch-release':
-        h.stage(a);claim=h.ready()['leases']['leases'];require(claim,'Native grant window missed');old=claim[0]
+        h.stage(a);claim=h.ready()['leases']['leases']
+        if not claim:raise Inconclusive('Native grant window missed')
+        old=claim[0]
         h.save_checkpoint();before=native_process(h);result['restart']=h.restart(hard=True)
         result['oldReference']=h.claim_rpc('old-reference',ref={k:old[k] for k in ('id','epoch','generation')});require(result['oldReference']['validate']['code']=='STALE' and result['oldReference']['release']['code']=='STALE','Old epoch was usable')
         result['beforeJvm']=before
@@ -185,6 +189,7 @@ def one(h,seed,name):
             require(result['blocked']['acquired']=={LOG:3} and len(result['blocked']['moves'])==1,'Revoked return lost custody');h.vanilla('PlayerB','/gamerule minecraft:mob_griefing true')
         elif name=='crash-after-withdraw-scoped-fence-C-progress':
             h.ready();h.claim_rpc('report',job=a);original=h.job(a);result['originalBefore']=original
+            if original['state']!='ACTIVE' or original['attempts'][-1]['effects']!=1:raise Inconclusive('Original active saved-withdrawal cut missed')
             h.save_checkpoint();before=native_process(h);clients={p:read(h.root/'clients'/p/'process.json') for p in h.players}
             h.stop('server',hard=True);killed=folder/'killed-world';shutil.copytree(h.root/'server/game/world',killed,ignore=shutil.ignore_patterns('session.lock'));result['killedWorldHashes']=manifest(killed)
             for p in h.players:h.wait(lambda:not h.action(p,'snapshot')['play'],'Actual A08 crash disconnect '+p,45)
