@@ -822,7 +822,8 @@ jobs:
   # BEGIN A-OWNED READ-ONLY ARTIFACT INSPECTION
   a08_artifact_inspection:
     name: A08 frozen artifact inspection
-    if: ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'test(runtime-a): A08 artifact-review') }}
+    if: >-
+      ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'test(runtime-a): A08 artifact-review') }}
     permissions:
       contents: read
       actions: read
