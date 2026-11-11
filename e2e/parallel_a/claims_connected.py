@@ -178,9 +178,12 @@ def one(h,seed,name):
         result['beforeJvm']=before
     else:
         result['aHeld']=h.stage(a,until='HELD');h.observed_stock(SRC,{LOG:2})
-        if name=='lawful-return-new-action':result['return']=h.stage(a,'RETURN',until='RETURNED');h.observed_stock(SRC,{LOG:5})
+        if name=='lawful-return-new-action':
+            result['return']=h.stage(a,'RETURN',until='RETURNED');h.observed_stock(SRC,{LOG:5});h.ready();h.claim_rpc('cancel',job=a)
+            result['cancelled']=h.wait(lambda:(j if (j:=h.job(a))['state']=='CANCELLED' else None),'Original returned staging Job cancelled without credit',30)
         elif name=='dynamic-fill-after-withdraw-custody':
             h.full(DA);result['waiting']=h.stage(a,'DEPOSIT');require(result['waiting']['acquired']=={LOG:3} and len(result['waiting']['moves'])==1,'Dynamic fill lost custody')
+            result['return']=h.stage(a,'RETURN',until='RETURNED');h.observed_stock(SRC,{LOG:5})
         elif name=='full-return-retains-custody':
             h.full(SRC,64);result['expectedLogs']=67;result['external'].append({'kind':'actual-addition','item':LOG,'delta':62,'native':h.physical()})
             result['waiting']=h.stage(a,'RETURN');require(result['waiting']['acquired']=={LOG:3} and len(result['waiting']['moves'])==1,'Full return lost private custody')

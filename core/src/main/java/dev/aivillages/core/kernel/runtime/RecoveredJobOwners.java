@@ -8,12 +8,13 @@ import static dev.aivillages.core.kernel.Jobs.*;
 
 /** Bounded, disposable Jobs client. No activity store, claims ledger, executor or scheduler. */
 public final class RecoveredJobOwners implements AutoCloseable {
-    public enum Route { NONE, LIVE_BOOTSTRAP, LIVE_DISPATCHER, RECOVERY, UNRESOLVED }
+    public enum Route { NONE, LIVE_BOOTSTRAP, LIVE_DISPATCHER, LIVE_STAGING, RECOVERY, UNRESOLVED }
     public enum Presence { AVAILABLE, WAIT_WORLD, UNAVAILABLE }
     public enum Blocker { NONE, WAIT_WORLD, NEEDS_ATTENTION, PARTIAL_CUSTODY, OWNERSHIP_CONFLICT, STORAGE_UNAVAILABLE }
     public interface LiveOwners {
         boolean bootstrap(Job job);
         boolean dispatcher(Job job);
+        default boolean staging(Job job){return false;}
         Presence presence(Job job);
     }
     public record View(UUID root, String goal, UUID authorizingPrincipal, ActorRef responsible,
@@ -44,10 +45,11 @@ public final class RecoveredJobOwners implements AutoCloseable {
     private void check() { if (Thread.currentThread() != thread) throw new IllegalStateException("Server thread required"); }
     public UUID process() { check(); return authority.process(); }
     private Route route(Job job) {
-        boolean bootstrap = live.bootstrap(job), dispatch = live.dispatcher(job);
-        if (bootstrap && dispatch) return Route.UNRESOLVED;
+        boolean bootstrap = live.bootstrap(job), dispatch = live.dispatcher(job), staging=live.staging(job);
+        if ((bootstrap?1:0)+(dispatch?1:0)+(staging?1:0)>1) return Route.UNRESOLVED;
         if (bootstrap) return Route.LIVE_BOOTSTRAP;
         if (dispatch) return Route.LIVE_DISPATCHER;
+        if (staging) return Route.LIVE_STAGING;
         return job.current() != null && job.current().open() ? Route.RECOVERY : Route.NONE;
     }
     private UUID owner(Job job) {

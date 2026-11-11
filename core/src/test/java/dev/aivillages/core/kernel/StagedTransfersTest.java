@@ -22,7 +22,7 @@ class StagedTransfersTest {
         final UUID id=UUID.randomUUID();long tick;int stock=5,held,output,moves,partial;boolean controls=true,fits=true,reached=true,swap,throwAfterMove;
         String sourceId="source",destId="destination";
         Scene(){this(Settings.defaults(),64);}
-        Scene(Settings settings,long effects){this(settings,effects,false,false);}
+        Scene(Settings settings,long effects){this(settings,effects,true,false);}
         Scene(Settings settings,long effects,boolean preparation,boolean recipe){
             jobs=new JobLifecycleStore(memory.state,memory,JobLifecycleStore.privateJobs((a,c)->controls&&a.equals(actor)&&c.equals(caller)),
                     c->{},c->Optional.of(recipe?OakPlankProduction.SPEC:OakLogDelivery.SPEC),JobLifecycleStoreTest.environment(),clock,Jobs.Settings.defaults(),false);
@@ -54,6 +54,27 @@ class StagedTransfersTest {
         Frame open(){return staging.open(id,plan,caller);}
         View step(Frame f,Operation op){View v=staging.step(f,op,caller);jobs.tick();leases.tick();tick++;return v;}
         View until(Frame f,Operation op,Phase phase){for(int i=0;i<12;i++){View v=step(f,op);if(v.phase()==phase)return v;}fail("Expected "+phase+" got "+staging.view(f,caller));return null;}
+    }
+    @Test void interpreterOwnedJobCannotOpenASecondPhysicalOwner(){
+        var s=new Scene(Settings.defaults(),64,false,false);assertThrows(SecurityException.class,s::open);assertEquals(0,s.moves);
+    }
+    @Test void idleResidenceMaintenanceStopsSchedulingAndPreservesCustody(){
+        var s=new Scene(new Settings(32,64,5,8),64);var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);
+        assertEquals(1,s.jobs.query(s.id,s.caller).current().effects());s.tick=6;s.staging.tick();s.jobs.tick();
+        assertEquals(Phase.BLOCKED,s.staging.view(f,s.caller).phase());assertEquals(3,s.held);
+        assertEquals(Jobs.State.INTERRUPTED,s.jobs.query(s.id,s.caller).state());assertTrue(s.jobs.query(s.id,s.caller).current().uncertain());
+    }
+    @Test void fullDestinationWaitCanBeExplicitlyReplacedByLawfulReturnWithoutReset(){
+        var s=new Scene();var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);s.fits=false;
+        s.step(f,Operation.DEPOSIT);long first=s.staging.view(f,s.caller).firstTick();s.step(f,Operation.RETURN);s.fits=true;
+        var v=s.until(f,Operation.RETURN,Phase.RETURNED);assertEquals(first,v.firstTick());assertEquals(2,s.moves);assertEquals(5,s.stock);assertEquals(0,s.output);
+        assertEquals(2,s.jobs.query(s.id,s.caller).current().effects());assertEquals(0,s.jobs.query(s.id,s.caller).current().credited());
+    }
+    @Test void explicitCancellationAfterReturnClosesOnlyTheOriginalJobWithNoCredit(){
+        var s=new Scene();var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);s.until(f,Operation.RETURN,Phase.RETURNED);
+        var j=s.jobs.query(s.id,s.caller);assertTrue(s.jobs.cancel(j.id(),j.guard(),s.caller).accepted());s.jobs.tick();s.staging.tick();s.jobs.tick();
+        assertEquals(Jobs.State.CANCELLED,s.jobs.query(s.id,s.caller).state());assertEquals(2,s.jobs.query(s.id,s.caller).current().effects());
+        assertEquals(0,s.jobs.query(s.id,s.caller).current().credited());assertEquals(5,s.stock);
     }
     @Test void exactThreePhysicalUnitsThenDepositAreTwoEffectsWithNoGoalCredit(){
         var s=new Scene();var f=s.open();s.until(f,Operation.WITHDRAW,Phase.HELD);
@@ -110,7 +131,7 @@ class StagedTransfersTest {
     }
     @Test void effectAllowanceIsCheckedBeforeNativeMutationAndCannotResetOnReopen(){
         var s=new Scene(Settings.defaults(),0);var f=s.open();s.until(f,Operation.WITHDRAW,Phase.BLOCKED);
-        assertEquals(0,s.moves);assertSame(f,s.open());assertEquals(Reason.BUDGET_EXHAUSTED,s.staging.view(f,s.caller).blocker());
+        assertEquals(0,s.moves);assertThrows(SecurityException.class,s::open);assertEquals(Reason.BUDGET_EXHAUSTED,s.staging.view(f,s.caller).blocker());
     }
     @Test void unexpectedPartialMoveRetainsAttributableCustodyAndStops(){
         var s=new Scene();s.partial=1;var f=s.open();View v=s.until(f,Operation.WITHDRAW,Phase.BLOCKED);

@@ -180,6 +180,10 @@ jobs:
           set -e
           test "$module_status" -eq 0
           test "$baseline_status" -eq 0
+      - name: Independently inspect every A08 target module XML case
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') }}
+        run: python3 e2e/parallel_a/review_modules.py
       - name: Compile exact native client and isolated A04 observers before activation
         id: a06_prepare
         run: |
@@ -573,6 +577,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python3 tools/needle/install.py build/needle
           gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a08-admission-seed.zip
           python3 e2e/parallel_a/claims_connected.py --root build/parallel-a/native-a08-connected --seed-archive build/parallel-a/a08-admission-seed.zip
       - name: Retain the complete A08 denominator if a prerequisite failed

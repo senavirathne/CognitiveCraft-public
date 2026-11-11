@@ -451,6 +451,7 @@ public final class KernelSession implements AutoCloseable {
         planner.tick();
         prerequisites.tick();
         dispatchGateway.tick();
+        stagingTransfers.tick();
         recoveredOwners.step();
         if(dispatchRevision!=jobs.snapshot().revision()) {
             dispatchScopes=jobs.snapshot().jobs().stream().filter(this::dispatchableSubmission)
@@ -783,14 +784,15 @@ public final class KernelSession implements AutoCloseable {
         // Trusted runtime staging uses the same Jobs, lease writer, native permission/fence and
         // cumulative allowance. It supplies no model method, goal credit or durable side ledger.
         stagingTransfers=new dev.aivillages.core.kernel.runtime.claims.StagedTransfers(jobs,leases,
-                new FabricStagedTransfers(server.overworld(),worldAccess,authority),clock,
+                new FabricStagedTransfers(server.overworld(),worldAccess,direct),clock,
                 dev.aivillages.core.kernel.runtime.claims.StagedTransfers.Settings.defaults());
         leases.fairLimits(new ResourceLeaseService.FairLimits(16,1200,40,2,20));
 
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {
                     public boolean bootstrap(Jobs.Job job) { return controller.liveSubmission(job.submissionId()); }
-                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job) || stagingOwns(job); }
+                    public boolean dispatcher(Jobs.Job job) { return dispatcher.ownsAttempt(job); }
+                    public boolean staging(Jobs.Job job) { return stagingOwns(job); }
                     public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence presence(Jobs.Job job) {
                         var actor = job.current() == null ? job.responsible() : job.current().worker();
                         var enrollment = citizens.find(actor.citizenId());
@@ -1731,7 +1733,9 @@ public final class KernelSession implements AutoCloseable {
     ResourceLeaseService leaseOwner() { return leases; }
     /** Trusted host boundary only. No language/player command admits a staging driver. */
     void reserveStaging(UUID submission) {
-        ready();if(stagingSubmissions.size()>=32)throw new IllegalStateException("Bounded staging submissions");
+        ready();stagingSubmissions.keySet().removeIf(id->jobs.snapshot().jobs().stream().anyMatch(j->j.submissionId().equals(id)
+                &&j.state().terminal()&&j.attempts().stream().noneMatch(Jobs.Attempt::open)&&!stagingTransfers.retainsCustody(j.id())));
+        if(stagingSubmissions.size()>=32)throw new IllegalStateException("Bounded staging submissions");
         stagingSubmissions.putIfAbsent(submission,false);
     }
     dev.aivillages.core.kernel.runtime.claims.StagedTransfers stagingOwner(){ready();return stagingTransfers;}

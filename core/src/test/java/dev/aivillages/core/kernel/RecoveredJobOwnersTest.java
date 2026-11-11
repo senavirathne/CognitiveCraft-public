@@ -10,10 +10,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class RecoveredJobOwnersTest {
     static final class Live implements RecoveredJobOwners.LiveOwners {
-        boolean bootstrap, dispatch;
+        boolean bootstrap, dispatch, staging;
         RecoveredJobOwners.Presence presence = RecoveredJobOwners.Presence.AVAILABLE;
         public boolean bootstrap(Job job) { return bootstrap; }
         public boolean dispatcher(Job job) { return dispatch; }
+        public boolean staging(Job job) { return staging; }
         public RecoveredJobOwners.Presence presence(Job job) { return presence; }
     }
     static JobLifecycleStore reopen(JobLifecycleStoreTest.Scene scene) {
@@ -37,6 +38,12 @@ final class RecoveredJobOwnersTest {
     }
     static RecoveredJobOwners owners(JobLifecycleStore store, Live live) {
         return new RecoveredJobOwners(store,live,c -> StoppedObservation.ambiguous("fixture: no durable native proof"),4);
+    }
+    @Test void stagingOwnershipIsDistinctAndConflictingInterpreterOwnershipIsFenced(){
+        var s=new JobLifecycleStoreTest.Scene();var old=s.assign(s.create(1));var live=new Live();var recovery=owners(reopen(s),live);
+        live.staging=true;assertEquals(RecoveredJobOwners.Route.LIVE_STAGING,recovery.view(old.id(),s.owner).route());
+        live.dispatch=true;assertEquals(RecoveredJobOwners.Route.UNRESOLVED,recovery.view(old.id(),s.owner).route());
+        live.staging=false;assertEquals(RecoveredJobOwners.Route.LIVE_DISPATCHER,recovery.view(old.id(),s.owner).route());
     }
     @Test void savedAttemptGetsOneStableRecoveryOwnerAndNoInventedProgress() {
         var s = new JobLifecycleStoreTest.Scene(); Job old = s.assign(s.create(2));

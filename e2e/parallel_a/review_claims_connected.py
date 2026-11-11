@@ -101,12 +101,17 @@ def review(root,source):
         elif name in ('initial-full-zero-effect','dynamic-fill-before-withdraw','source-destination-alias','component-stack-swap','chest-replacement','double-chest-split','slot-stack-swap-after-claim'):
             assert row['blocked']['moves']==[] and saved['private']=={'PlayerA':{},'PlayerB':{}}
             if name=='slot-stack-swap-after-claim':assert row['blocked']['usage']['ATTEMPTED_EFFECTS']==1 and row['blocked']['blocker']=='STALE_OBSERVATION'
-        elif name in ('dynamic-fill-after-withdraw-custody','full-return-retains-custody','revoked-return-retains-custody'):
+        elif name=='dynamic-fill-after-withdraw-custody':
+            assert row['waiting']['acquired']=={LOG:3} and len(row['waiting']['moves'])==1
+            assert [m['kind'] for m in row['return']['moves']]==['WITHDRAW','RETURN']
+            assert saved['private']=={'PlayerA':{},'PlayerB':{}} and saved['boxes']['74,208,69']=={LOG:5}
+        elif name in ('full-return-retains-custody','revoked-return-retains-custody'):
             assert saved['private']['PlayerA']=={LOG:3} and saved['private']['PlayerB']=={}
             assert len((row.get('waiting') or row['blocked'])['moves'])==1
         elif name=='lawful-return-new-action':
             assert row['return']['phase']=='RETURNED' and [m['kind'] for m in row['return']['moves']]==['WITHDRAW','RETURN']
             assert saved['boxes']['74,208,69']=={LOG:5} and saved['private']=={'PlayerA':{},'PlayerB':{}}
+            assert row['cancelled']['state']=='CANCELLED' and row['cancelled']['attempts'][-1]['effects']==2 and row['cancelled']['attempts'][-1]['credited']==0
         elif name=='cross-principal-denial':assert row['denied']['status']=='DENIED' and saved['private']['PlayerA']=={LOG:3}
         elif name=='external-mutation-replan-bound':
             last=row['changes'][-1];assert last['phase']=='BLOCKED' and last['blocker']=='BUDGET_EXHAUSTED' and not last['moves'] and last['changes']==9

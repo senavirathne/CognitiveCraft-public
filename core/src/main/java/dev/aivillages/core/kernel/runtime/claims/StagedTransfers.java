@@ -63,33 +63,36 @@ public final class StagedTransfers {
         private final StagedTransfers issuer;private final UUID token=UUID.randomUUID();private final Owner owner;
         private final ValidatedRequest request;private final UUID execution;private final ActorRef actor;private final Plan plan;
         private final Budgets.Limits allowance;private final Budgets.Ledger usage;private final long first;
+        private final long initialEffects;
         private final List<LiveMove> moves=new ArrayList<>();private final Map<String,Integer> acquired=new TreeMap<>();
         private Phase phase=Phase.WAITING;private Reason blocker;private int changes;private long accounted;
         private String sourceIdentity,destinationIdentity,expectedCustody,waitingFingerprint;
         private ResourceLeaseService.ImmediateTicket ticket;private Operation operation;private Snapshot captured;
         private Phase afterRelease;
-        private boolean uncertain;
+        private boolean uncertain,dirty,cleanCancellation;
         private Frame(StagedTransfers issuer,Jobs.Job job,Plan plan,Budgets.Ledger usage,long tick){
             this.issuer=issuer;owner=new Owner(job.id(),job.generation());request=job.current().bound();
             execution=execution(job.current());actor=job.current().worker();this.plan=plan;
-            allowance=job.current().allowance();this.usage=usage;first=accounted=tick;
+            allowance=job.current().allowance();this.usage=usage;first=accounted=tick;initialEffects=job.current().effects();
         }
         public UUID token(){return token;}
     }
     private final Thread thread=Thread.currentThread();private final JobLifecycleStore jobs;
     private final ResourceLeaseService leases;private final World world;private final Clock clock;private final Settings settings;
-    private final Map<Owner,Frame> frames=new LinkedHashMap<>();
+    private final Map<Owner,Frame> frames=new LinkedHashMap<>();private int cursor;
     public StagedTransfers(JobLifecycleStore jobs,ResourceLeaseService leases,World world,Clock clock,Settings settings){
         this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);this.world=Objects.requireNonNull(world);
         this.clock=Objects.requireNonNull(clock);this.settings=Objects.requireNonNull(settings);
     }
     public Frame open(UUID jobId,Plan plan,TrustedContext caller){
         check();Jobs.Job job=jobs.query(jobId,caller);var a=job.current();
-        if(!jobs.ready()||a==null||!a.open()||job.state()!=Jobs.State.ACTIVE
+        if(!jobs.ready()||a==null||!a.open()||!a.executions().isEmpty()||job.state()!=Jobs.State.ACTIVE
                 ||job.cancellationOutcome()!=null||!jobs.mayControl(jobId,job.generation(),caller)||job.parent()!=null)
-            throw new SecurityException("Current reserved root Job required");
+            throw new SecurityException("Current reserved root Job without an interpreter required");
         bound(job,plan);Owner owner=new Owner(job.id(),job.generation());Frame old=frames.get(owner);
         if(old!=null){if(!old.plan.equals(plan))throw new SecurityException("Staging plan is immutable");return old;}
+        if(a.effects()!=0||a.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=0)
+            throw new SecurityException("Fresh physical preparation required");
         if(frames.size()>=settings.frames())throw new IllegalStateException("Staging frame capacity");
         var usage=new Budgets.Ledger(a.allowance(),clock);usage.debit(a.usage());
         Frame f=new Frame(this,job,plan,usage,leases.currentTick());frames.put(owner,f);
@@ -111,7 +114,8 @@ public final class StagedTransfers {
             f.usage.debit(Budgets.Kind.ELAPSED_TICKS,Math.max(0,tick-f.accounted));f.accounted=tick;
             f.usage.debit(Budgets.Kind.INSTRUCTIONS,1);
             if(tick-f.first>settings.residenceTicks()){block(f,Reason.ACTION_TIMEOUT);return view(f,caller);}
-            if(f.phase==Phase.RELEASING){release(f);return view(f,caller);}
+            if(f.phase==Phase.RELEASING){release(f);publish(f);return view(f,caller);}
+            if(!jobs.ready())return view(f,caller);
             if(!current(f,caller)){block(f,Reason.AUTHORITY_DENIED);return view(f,caller);}
             // Raw recipe ingredients are not the authorized transformation output.
             if(operation==Operation.DEPOSIT&&RecipeProduction.is(f.request.request().capability())){
@@ -122,7 +126,13 @@ public final class StagedTransfers {
             if(f.ticket==null){
                 f.operation=operation;
                 f.ticket=leases.immediateTicket(f.owner,demands(f,operation),caller,()->probe(f));
-            }else if(operation!=f.operation){block(f,Reason.REQUEST_INVALID);return view(f,caller);}
+            }else if(operation!=f.operation){
+                // Explicit return is another physical action. No refund, discard or residence reset.
+                if(operation==Operation.RETURN&&!f.acquired.isEmpty()&&++f.changes<=settings.replans()){
+                    f.afterRelease=Phase.HELD;f.phase=Phase.RELEASING;release(f);return view(f,caller);
+                }
+                block(f,Reason.REQUEST_INVALID);return view(f,caller);
+            }
             Result granted=leases.acquireImmediate(f.ticket,caller);
             if(granted.code()==Code.PENDING||granted.code()==Code.CONFLICT){f.blocker=granted.reason();return view(f,caller);}
             if(!granted.usable()){block(f,granted.reason()==null?Reason.INTERRUPTED:granted.reason());return view(f,caller);}
@@ -141,7 +151,7 @@ public final class StagedTransfers {
             catch(RuntimeException unknown){f.uncertain=true;block(f,Reason.INTERRUPTED);return view(f,caller);}
             if(move.committed()){
                 f.usage.debit(Budgets.Kind.COMMITTED_EFFECTS,1);
-                f.moves.add(new LiveMove(UUID.randomUUID(),operation,tick,move.moved(),f.captured,move.after()));
+                f.moves.add(new LiveMove(UUID.randomUUID(),operation,tick,move.moved(),f.captured,move.after()));f.dirty=true;
                 f.expectedCustody=move.after().actorFingerprint();
                 if(operation==Operation.WITHDRAW)f.acquired.putAll(move.moved());
                 else for(var moved:move.moved().entrySet())f.acquired.computeIfPresent(moved.getKey(),(id,n)->Math.max(0,n-moved.getValue()));
@@ -149,7 +159,7 @@ public final class StagedTransfers {
                 if(!move.moved().equals(f.plan.quantities())){block(f,Reason.STALE_OBSERVATION);return view(f,caller);}
                 f.afterRelease=operation==Operation.WITHDRAW?Phase.HELD:operation==Operation.DEPOSIT?Phase.DEPOSITED:Phase.RETURNED;
             }else{f.afterRelease=Phase.BLOCKED;f.blocker=move.blocker()==null?Reason.ACTION_FAILED:move.blocker();}
-            f.phase=Phase.RELEASING;release(f);
+            f.phase=Phase.RELEASING;release(f);publish(f);
         }catch(Budgets.Exhausted exhausted){block(f,Reason.BUDGET_EXHAUSTED);}
         return view(f,caller);
     }
@@ -211,11 +221,58 @@ public final class StagedTransfers {
         if(f.ticket==null)return;Result released=leases.completeImmediate(f.ticket,f.request.context());
         if(released.code()==Code.RELEASED||released.code()==Code.STALE){
             f.ticket=null;f.operation=null;f.captured=null;f.phase=f.afterRelease==null?Phase.BLOCKED:f.afterRelease;
+            if(f.phase==Phase.BLOCKED)f.dirty=true;
         }
     }
     private void block(Frame f,Reason reason){
-        f.blocker=reason==null?Reason.ACTION_FAILED:reason;f.afterRelease=Phase.BLOCKED;
+        f.blocker=reason==null?Reason.ACTION_FAILED:reason;f.afterRelease=Phase.BLOCKED;f.dirty=true;
         if(f.ticket==null)f.phase=Phase.BLOCKED;else{f.phase=Phase.RELEASING;release(f);}
+        publish(f);
+    }
+    /** At most four derived frames per server tick; idle callers cannot renew residence. */
+    public void tick(){
+        check();if(frames.isEmpty())return;var rows=List.copyOf(frames.values());long now=leases.currentTick();
+        for(int n=0;n<Math.min(4,rows.size());n++){
+            cursor%=rows.size();Frame f=rows.get(cursor++);
+            if(f.phase==Phase.RELEASING)release(f);
+            if(jobs.ready()){
+                Jobs.Job job=jobs.query(f.owner.job(),f.request.context());
+                if(job.state()==Jobs.State.CANCELLING&&job.generation()==f.owner.generation()){
+                    f.cleanCancellation=f.acquired.isEmpty()&&!f.uncertain;
+                    block(f,Reason.CANCELLED);
+                }else if(job.state().terminal()&&job.attempts().stream().noneMatch(Jobs.Attempt::open)
+                        &&f.acquired.isEmpty()&&!f.uncertain){
+                    frames.remove(f.owner);continue;
+                }
+            }
+            if(f.phase!=Phase.BLOCKED&&(now-f.first>settings.residenceTicks()||clock.millis()>f.allowance.deadlineEpochMillis())){
+                try{f.usage.debit(Budgets.Kind.ELAPSED_TICKS,Math.max(0,now-f.accounted));f.accounted=now;}
+                catch(Budgets.Exhausted exhausted){ /* Scheduling stops; custody is preserved. */ }
+                block(f,now-f.first>settings.residenceTicks()?Reason.ACTION_TIMEOUT:Reason.BUDGET_EXHAUSTED);
+            }
+            publish(f);
+        }
+    }
+    private void publish(Frame f){
+        if(!f.dirty||!jobs.ready())return;
+        Jobs.Job job=jobs.query(f.owner.job(),f.request.context());var a=job.current();
+        if(job.generation()!=f.owner.generation()||a==null||!a.open()||!a.bound().equals(f.request)
+                ||!a.worker().equals(f.actor)||!Objects.equals(execution(a),f.execution))return;
+        // Only live scalar accounting, through the original sole Job writer. No receipt or goal credit.
+        Outcomes.Execution terminal=null;
+        if(f.phase==Phase.BLOCKED){
+            boolean noEffect=f.initialEffects==0&&f.moves.isEmpty()&&f.acquired.isEmpty()&&!f.uncertain;
+            var status=f.cleanCancellation?Outcomes.ExecutionStatus.CANCELLED:
+                    noEffect?Outcomes.ExecutionStatus.BLOCKED:Outcomes.ExecutionStatus.INTERRUPTED;
+            terminal=new Outcomes.Execution(status,f.cleanCancellation?Reason.CANCELLED:noEffect?f.blocker:Reason.INTERRUPTED,
+                    f.initialEffects+f.moves.size(),null);
+        }
+        var result=jobs.recordExecutionResult(job.id(),job.guard(),new Jobs.Report(a.id(),a.generation(),f.initialEffects+f.moves.size(),
+                f.usage.snapshot(),a.receipts(),terminal,a.resourceReceipts()),f.request.context());
+        if(result.accepted())f.dirty=false;
+    }
+    public boolean retainsCustody(UUID job){
+        check();return frames.values().stream().anyMatch(f->f.owner.job().equals(job)&&(!f.acquired.isEmpty()||f.uncertain));
     }
     public View view(Frame f,TrustedContext caller){
         check(f,caller);return new View(f.token,f.owner,f.phase,Map.copyOf(f.acquired),f.changes,f.first,

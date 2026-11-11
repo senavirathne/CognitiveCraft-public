@@ -65,6 +65,9 @@ public final class RuntimeA08Driver implements ModInitializer {
                     var result=jobs.create(jobId,jobId,new CapabilityRequest(capability,arguments),caller,
                             new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()),allowance,List.of());
                     out.put("change",result);if(!result.accepted())throw new IllegalStateException("Staging create: "+result);plans.put(jobId,plan);
+                }else if(op.equals("cancel")){
+                    var job=jobs.query(uuid(command,"job"),caller);var result=jobs.cancel(job.id(),job.guard(),caller);
+                    out.put("change",result);if(!result.accepted())throw new IllegalStateException("Staging cancel: "+result);
                 }else if(op.equals("assign")){
                     var job=jobs.query(uuid(command,"job"),caller);
                     var result=jobs.assign(job.id(),job.guard(),UUID.randomUUID(),job.responsible(),null,List.of(),job.allowance(),caller);
