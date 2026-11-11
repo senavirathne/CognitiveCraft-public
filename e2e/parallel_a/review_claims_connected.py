@@ -1,7 +1,7 @@
 """Independent A08 raw-world/Jobs review. Live move observations never become durability receipts."""
 import argparse,json,traceback
 from pathlib import Path
-from claims_cases import CASES,service
+from claims_cases import CASES,service,owner_polling
 from deposits import manifest
 from review_lifecycle_connected import runtime_proof,entities,chest,original,restart_proof,worker_matches,allowance
 from review_receipt_prefix import item
@@ -86,7 +86,12 @@ def review(root,source):
             assert row['olderWaiting']['moves']==[] and row['bHeld']['acquired']=={LOG:4} and saved['private']['PlayerB']=={LOG:4}
             eligible=next(r for r in row['fairB'] if r['owner']['job']==row['b'] and r['grantedTick']>=0)
             physical=row['bHeld']['moves'][0]['tick']-eligible['eligibleTick'];assert 0<=physical<=60,physical
+            calls=sorted([r for r in rpcs if r['request'].get('job')==row['b'] and r['request']['op']=='step'
+                          and r['request'].get('operation')=='WITHDRAW'],key=lambda r:r['response']['value']['sequence'])
+            ticks=[r['response']['value']['view']['firstTick']+r['response']['value']['view']['ticks'] for r in calls]
+            assert ticks==row['ownerPollTicks']
             row_service={'eligibilityToPhysicalTicks':physical,'eligibilityToGrant':service([eligible]),'boundTicks':60,
+                         'actualOwnerPolling':owner_polling(ticks,limits['idleTicks']),
                          'assumptions':'This finite six-arrival scenario: feasible oldest owner polls within40 ticks; successful claim acknowledgement/effect within20 ticks. Storage timeout grants no effect.'}
         elif name=='impossible-large-useful-small':
             assert row['olderWaiting']['moves']==[] and row['aHeld']['acquired']=={LOG:1}

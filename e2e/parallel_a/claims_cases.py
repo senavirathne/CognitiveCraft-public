@@ -13,3 +13,9 @@ def service(rows):
     assert values and min(values)>=0
     return {'samples':len(values),'sortedTicks':sorted(values),'maximumTicks':max(values),
             'assumptions':'Finite <=16 tickets, stable native identity/permission/reach/capacity, sufficient stock, bounded storage acknowledgement and owner polling. No guarantee under endless interference.'}
+
+def owner_polling(ticks,limit=40):
+    assert len(ticks)>=2
+    gaps=[later-earlier for earlier,later in zip(ticks,ticks[1:])]
+    assert all(0<=gap<=limit for gap in gaps),('Owner polling assumption missed',gaps,limit)
+    return {'ticks':ticks,'gaps':gaps,'maximumGapTicks':max(gaps),'boundTicks':limit}

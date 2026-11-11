@@ -52,9 +52,14 @@ class ClaimsHarness(LifecycleHarness):
             pose=[73.5 if player=='PlayerA' else 75.5,208,69.5] if source==SRC else [source[0]+1.5,source[1],source[2]+.5]
             self.console(['tp '+self.entities[player]+' '+coord(pose)]);self.quiet(3)
         return id
-    def stage(self,id,operation='WITHDRAW',player='PlayerA',until=None):
+    def stage(self,id,operation='WITHDRAW',player='PlayerA',until=None,polls=None):
         def action():
-            self.ready();value=self.claim_rpc('step',player,job=id,operation=operation)['view']
+            state=self.ready();value=self.claim_rpc('step',player,job=id,operation=operation)['view']
+            if polls is not None:
+                tick=value['firstTick']+value['ticks']
+                if polls and tick-polls[-1]>state['fairLimits']['idleTicks']:
+                    raise Inconclusive('Required owner polling window missed: '+str(tick-polls[-1])+' ticks')
+                polls.append(tick)
             if value['phase']=='BLOCKED' and until not in (None,'BLOCKED'):raise AssertionError('Unexpected native staging blocker '+json.dumps(value))
             return value if until is None or value['phase']==until else None
         return self.wait(action,'Native staging '+operation+' '+str(until),25)
@@ -106,11 +111,16 @@ def one(h,seed,name):
         h.observed_stock(SRC,{PLANK:3,STICK:1});result['expectedLogs']=0
         a=h.create_stage(units=[{'item':PLANK,'quantity':3},{'item':STICK,'quantity':2}],axe=True)
     elif name in ('older-feasible-small-arrivals','impossible-large-useful-small'):
-        b=h.create_stage(4,'PlayerB');result['b']=b;waiting=h.stage(b,player='PlayerB');result['olderWaiting']=waiting
-        require(waiting['phase']=='WAITING' and not waiting['moves'] and not active_claims(h.ready()),'Infeasible older demand held a claim')
-        a=h.create_stage(1)
+        b=h.create_stage(4,'PlayerB');result['b']=b;a=h.create_stage(1)
     else:a=h.create_stage()
     result['a']=a;result['before']=h.physical();result['startingWorldHashes']=starting_checkpoint(h,folder)
+    if name in ('older-feasible-small-arrivals','impossible-large-useful-small'):
+        # Saving the initial world is outside the declared <=40-tick owner-poll window.
+        # Request the first stable ticket afterwards, while the actual stock is still two.
+        polls=[] if name=='older-feasible-small-arrivals' else None
+        waiting=h.stage(b,player='PlayerB',polls=polls);result['olderWaiting']=waiting
+        if polls is not None:result['ownerPollTicks']=polls
+        require(waiting['phase']=='WAITING' and not waiting['moves'] and not active_claims(h.ready()),'Infeasible older demand held a claim')
     if name=='five-logs-three-and-four-external-two':
         b=h.create_stage(4,'PlayerB');result['b']=b
         result['aHeld']=h.stage(a,until='HELD');h.observed_stock(SRC,{LOG:2})
@@ -125,7 +135,7 @@ def one(h,seed,name):
         result['external'].append({'kind':'actual-addition','item':LOG,'delta':2,'native':h.physical()})
         result['arrivals']=[h.claim_rpc('arrival',job=a) for _ in range(6)]
         require(all(r['claim'].get('group') is None for r in result['arrivals']),'New small demand bypassed older feasible demand')
-        result['bHeld']=h.stage(b,player='PlayerB',until='HELD');h.observed_stock(SRC,{})
+        result['bHeld']=h.stage(b,player='PlayerB',until='HELD',polls=result['ownerPollTicks']);h.observed_stock(SRC,{})
         result['service']=service(h.claim_rpc('status','PlayerB')['fair'])
     elif name=='impossible-large-useful-small':
         result['aHeld']=h.stage(a,until='HELD');h.observed_stock(SRC,{LOG:1});require(not h.state()['frames'][b]['moves'],'Impossible four moved physical stock')

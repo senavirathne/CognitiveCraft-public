@@ -1,5 +1,5 @@
 import copy,unittest
-from claims_cases import CASES,service
+from claims_cases import CASES,service,owner_polling
 from review_claims_connected import denominator
 from claims_connected import active_claims
 
@@ -26,5 +26,9 @@ class ClaimsEvidenceBounds(unittest.TestCase):
         rows=[{'eligibleTick':12,'grantedTick':17},{'eligibleTick':-1,'grantedTick':-1}]
         value=service(rows);self.assertEqual(value['sortedTicks'],[5]);self.assertEqual(value['samples'],1)
         with self.assertRaises(AssertionError):service([{'eligibleTick':17,'grantedTick':12}])
+    def test_measured_owner_polling_must_satisfy_the_frozen_assumption(self):
+        self.assertEqual(owner_polling([1,41,45])['maximumGapTicks'],40)
+        for ticks in ([1,42],[2,1],[1]):
+            with self.assertRaises(AssertionError):owner_polling(ticks)
 
 if __name__=='__main__':unittest.main()
