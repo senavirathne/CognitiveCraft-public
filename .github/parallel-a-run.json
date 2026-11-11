@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 46,
-  "parentSource": "b5e659041bd0beddf59e4c4eb1efee2eb715ef63",
+  "sequence": 47,
+  "parentSource": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
   "stage": "A08",
-  "scope": "All21 frozen connected native A08 cases after installing the exact existing Needle fixture. Runtime review closes idle residence, original Job scalar accounting and distinct staging ownership. Explicit return/cancellation preserve all stock and zero invented credit. All original nine regression workflow sources and lifecycle diagnostics remain required.",
+  "scope": "All21 frozen connected A08 cases after real gateway actor control, live-claim and page-bound corrections, immediate unresolved fences and registered recipe-input authority. Native withdrawals/returns are actual new effects under original Jobs; no method, goal credit or saved staging receipt is fabricated. Preserve every prior failure and all nine regression sources.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4620,9 +4620,9 @@
   "a07ConnectedRequiredCases": 27,
   "a07PublicationObservationContracts": 2,
   "a08": {
-    "codeCheckpoint": "b5e659041bd0beddf59e4c4eb1efee2eb715ef63",
-    "driverCheckpoint": "b5e659041bd0beddf59e4c4eb1efee2eb715ef63",
-    "contractDocumentation": "4dc3208d820b1934b7c487380127ee7e39ab55b4",
+    "codeCheckpoint": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
+    "driverCheckpoint": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
+    "contractDocumentation": "24343b515ad0a93342daf1a1a138a2220eb390be",
     "requiredCases": 21,
     "cases": [
       "five-logs-three-and-four-external-two",
@@ -4689,9 +4689,52 @@
       "moduleArtifact": 13845139929,
       "lifecycleArtifact": 13846200930
     },
-    "expectedModuleCases": 2658,
+    "expectedModuleCases": 2661,
     "localWorkspace": "UNAVAILABLE; final new five safety cases require target CI execution",
     "workflowCountThisAttempt": 2,
-    "totalA08WorkflowCountAfterLaunch": 4
+    "totalA08WorkflowCountAfterLaunch": 6,
+    "attempts": [
+      {
+        "sequence": 46,
+        "source": "1defe6c656a79a2ee19000c1b58ae549d6d40f4f",
+        "tree": "da9c48417d6108d7b7514311876bc18925e346c0",
+        "run": 43004685750,
+        "job": 130469109072,
+        "status": "FAIL_REQUIRED_A08_CASES",
+        "nativeAttempted": 21,
+        "nativeQualified": 0,
+        "moduleCases": 2658,
+        "modules": "PASS_TARGET_XML",
+        "standardRun": 43004685781,
+        "standard": "PASS",
+        "requiredHostsPassed": 9,
+        "requiredHosts": 9,
+        "diagnosticsArtifact": 13848871042,
+        "diagnosticsSha256": "36f3029f98649ae8f23079ed43f7585afcdc39c63a885989e172520c2c9bbd62",
+        "archiveArtifact": 13847584740,
+        "archiveBytes": 320635982,
+        "archiveSha256": "6f4fd9a2bfdcc66d254affd2675b76025b8caaf54eace5e1c51ec279fd7e744e",
+        "supportedFindings": [
+          "The test driver's page size16 exceeded the existing maximum4.",
+          "No live claims existed in failed stock/navigation assertions; retained RELEASED rows were incorrectly counted.",
+          "Native normal-AI villagers moved or jumped during short claims; real A withdrew3 logs and unrelated C withdrew1, but later native moves correctly refused unreachable poses."
+        ],
+        "runtimeCorrections": [
+          "Existing transient gateway actor control under original attempt; normal NoAI flag unchanged.",
+          "Immediate recovery fence when a move is uncertain or stopping while exact release publishes.",
+          "Only registered recipe inputs may be staged; a harvest-only capability does not authorize container withdrawal."
+        ],
+        "oldCasesPreserved": true
+      }
+    ],
+    "localPreflight": {
+      "java": "21 only; target25 still required",
+      "core": 2400,
+      "python": 102,
+      "status": "PASS"
+    },
+    "physicalScope": "Explicit deterministic typed runtime under actual Kernel Jobs. Input withdrawals and separate returns use registered recipe input envelopes and forecast registered output capacity. No fabricated learned artifact, delivery credit, or saved staging receipt.",
+    "fiveLogFinalDisposition": "A withdraws3, B independently observes2 and waits; actual external +2 enables B4. Both lawful returns are new physical moves, leaving all7 actual logs in the source and empty private custody.",
+    "unrelatedC": "Independent registered-input withdrawal/return progresses while original saved-withdrawal Job remains uncertain and scoped-fenced."
   }
 }
