@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 48,
-  "parentSource": "1b13dbcbf856afc0cf08543d78519eb0a3e67acb",
+  "sequence": 49,
+  "parentSource": "6dc69fd3aff5717f57b0ba3a74fac134ac59d4b6",
   "stage": "A08",
-  "scope": "A08 all21 connected staging and fair claims with measured owner polling",
+  "scope": "A08 all21 native controls after witnessed image-build DNS correction",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4621,8 +4621,8 @@
   "a07PublicationObservationContracts": 2,
   "a08": {
     "codeCheckpoint": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
-    "driverCheckpoint": "1b13dbcbf856afc0cf08543d78519eb0a3e67acb",
-    "contractDocumentation": "f45b81176a15eadffce48e5fa4ed8a9f1c259ce9",
+    "driverCheckpoint": "6dc69fd3aff5717f57b0ba3a74fac134ac59d4b6",
+    "contractDocumentation": "271562f27503f581b8f653adf56f84630a07876e",
     "requiredCases": 21,
     "cases": [
       "five-logs-three-and-four-external-two",
@@ -4690,9 +4690,9 @@
       "lifecycleArtifact": 13846200930
     },
     "expectedModuleCases": 2661,
-    "localWorkspace": "RESTORED; four Python fixture/review files only;103 checks pass",
+    "localWorkspace": "UNAVAILABLE; current target Python compilation/contracts remain mandatory",
     "workflowCountThisAttempt": 2,
-    "totalA08WorkflowCountAfterLaunch": 8,
+    "totalA08WorkflowCountAfterLaunch": 13,
     "attempts": [
       {
         "sequence": 46,
@@ -4763,13 +4763,78 @@
         "releaseSha256": "7da98934d1cbfb762f1c12c5703ed46dee1277bfd5b03ef3a59ccac58b03bb59",
         "oldCasesPreserved": true,
         "correction": "The starting-world save and A setup consumed the declared polling window. First request B's stable ticket after that save while stock remains two; retain all six arrivals and all original40/20/60 tick limits; independently validate actual polling RPC gaps."
+      },
+      {
+        "sequence": 48,
+        "attempt": 1,
+        "source": "e0dc6d83623a693889d4e1e6bde9d74087d271d9",
+        "tree": "52ccd887853559ace6f71dc0df7b44a434856584",
+        "run": 43033340097,
+        "job": 130565711385,
+        "status": "FAIL_A08_PREREQUISITE",
+        "nativeAttempted": 0,
+        "nativeQualified": 0,
+        "requiredCases": 21,
+        "cause": "Dockerfile RUN apt-get update/install exited100 before any server/client native case; lower-level package/network cause is not yet proved",
+        "moduleCases": 2661,
+        "modules": "PASS_TARGET_CI_AND_INDEPENDENT_EXPORTED_XML",
+        "standardRun": 43033340055,
+        "standard": "PASS",
+        "requiredRegressionSuites": 9,
+        "requiredRegressionSuitesPassed": 9,
+        "lifecycleDiagnostics": 14,
+        "diagnosticsArtifact": 13863125697,
+        "diagnosticsSha256": "ecf481cd049428c73945d3b48d3d2c5a43d23ef35a488eb3467afc0cd8a62f1a",
+        "archiveArtifact": 13863340322,
+        "archiveBytes": 52361380,
+        "archiveSha256": "b9b7c5236a7d5db87976f1dd1849def6b463f38b6406340b138c4138ca64af62",
+        "outerArchiveSha256": "8a31967a1b0ac9cd448a5dcb5dfc7a5ea91cf6daf5dea540e9cdb4fb7f29b520",
+        "moduleArtifact": 13863140578,
+        "moduleArtifactSha256": "3da3bb76fcb0ee9dd647109cb624e7d057a193b54ee5715f448efadcb352a953",
+        "releaseSha256": "862692c5150bedaea9db681dc84a19cba0c84832602448369333091c740007c8",
+        "artifactInspectionRun": 43036357549,
+        "artifactInspectionJob": 130576097062,
+        "scope": "Startup failure; not a native gameplay refusal or a fairness result",
+        "allCasesPreserved": true
+      },
+      {
+        "sequence": 48,
+        "attempt": 2,
+        "source": "e0dc6d83623a693889d4e1e6bde9d74087d271d9",
+        "tree": "52ccd887853559ace6f71dc0df7b44a434856584",
+        "run": 43033340097,
+        "job": 130578163379,
+        "status": "FAIL_A08_PREREQUISITE",
+        "nativeAttempted": 0,
+        "nativeQualified": 0,
+        "requiredCases": 21,
+        "cause": "Both full docker.log files report Could not resolve for every Ubuntu InRelease index; apt subsequently cannot locate packages and exits100.",
+        "moduleCases": 2661,
+        "modules": "PASS_TARGET_CI_AND_INDEPENDENT_EXPORTED_XML",
+        "standardRun": 43033340055,
+        "standard": "PASS",
+        "requiredRegressionSuites": 9,
+        "requiredRegressionSuitesPassed": 9,
+        "lifecycleDiagnostics": 14,
+        "diagnosticsArtifact": 13863461964,
+        "diagnosticsSha256": "62a14487eff9d1b51ca4af06c15b6ea3bc7889bb3500d4a7c16d78d7e4eb84bb",
+        "archiveArtifact": 13863946042,
+        "archiveBytes": 52361409,
+        "archiveSha256": "da03e3fbd65e4f797b120bbc00815cc187751de41ce285f5e775cda541d38827",
+        "outerArchiveSha256": "b7f46b8f543dcca66ea9b660c0c531b0e412321868d06e041f892164a34bcbb1",
+        "moduleArtifact": 13864305700,
+        "moduleArtifactSha256": "376eed4e2be7ec349b3372d159d79dcba6aae4fe866731934c8e27e6afbdeb99",
+        "releaseSha256": "89c1dcb1cb72a1a6e0da29b1a6c36cb04e822ba5a370c277ef594f929abe548c",
+        "artifactInspectionRun": 43038304244,
+        "artifactInspectionJob": 130582968624,
+        "scope": "Startup failure; not a native gameplay refusal or a fairness result",
+        "allCasesPreserved": true
       }
     ],
     "localPreflight": {
-      "java": "Production Java unchanged from batch47 all2661 target XML pass",
-      "core": 2400,
-      "python": 103,
-      "status": "PASS"
+      "status": "PRIOR_PREFLIGHT_PASS_CURRENT_OBSERVER_EDITS_PENDING_TARGET_CI",
+      "java": "All2661 target cases pass on batch48; production Java unchanged",
+      "python": "103 required, current edits await target CI"
     },
     "physicalScope": "Explicit deterministic typed runtime under actual Kernel Jobs. Input withdrawals and separate returns use registered recipe input envelopes and forecast registered output capacity. No fabricated learned artifact, delivery credit, or saved staging receipt.",
     "fiveLogFinalDisposition": "A withdraws3, B independently observes2 and waits; actual external +2 enables B4. Both lawful returns are new physical moves, leaving all7 actual logs in the source and empty private custody.",
@@ -4782,6 +4847,29 @@
       "claimTicks": 20,
       "eligibilityToPhysicalBound": 60,
       "all21Required": true
+    },
+    "expectedPythonCases": 103,
+    "workflowAccounting": {
+      "nativeValidationWorkflowsAfterLaunch": 10,
+      "inspectionWorkflowRecords": 3,
+      "rejectedInspectionRecordsWithoutRunner": 1,
+      "failedJobReplayWithinExistingRun": 1
+    },
+    "buildDNSCorrection": {
+      "path": "e2e/parallel_a/compose-claims.yml",
+      "network": "host",
+      "entitlement": "network.host",
+      "hostDNSObserved": true,
+      "priorDiagnosis": "Both full frozen Docker logs show Ubuntu DNS lookup failures",
+      "inspectionRun": 43038304244,
+      "inspectionJob": 130582968624
+    },
+    "productionJavaChangesSinceBatch47": false,
+    "directEvidenceLogs": {
+      "nativeMetadata": true,
+      "startupErrors": true,
+      "independentCustodyAndService": true,
+      "failedCaseWorldRetention": true
     }
   }
 }
