@@ -1,23 +1,34 @@
 {
   "schema": 1,
   "repository": "senavirathne/CognitiveCraft-public",
-  "reason": "Workspace unavailable; inspect frozen startup failure before deciding whether any native replay is justified",
+  "reason": "Inspect exact Docker provisioning failures before any further gameplay replay",
   "a08Qualified": false,
   "artifacts": [
     {
-      "id": 13863125697,
-      "bytes": 7990,
-      "sha256": "ecf481cd049428c73945d3b48d3d2c5a43d23ef35a488eb3467afc0cd8a62f1a"
+      "id": 13863340322,
+      "bytes": 52361949,
+      "sha256": "8a31967a1b0ac9cd448a5dcb5dfc7a5ea91cf6daf5dea540e9cdb4fb7f29b520",
+      "nativeArchive": true,
+      "archiveBytes": 52361380,
+      "archiveSha256": "b9b7c5236a7d5db87976f1dd1849def6b463f38b6406340b138c4138ca64af62"
     },
     {
-      "id": 13861755440,
-      "bytes": 680284,
-      "sha256": "e65b4ad1e79583f2dabcea4669d6e72c22d8affd29774719704be83ebd902a77"
+      "id": 13863946042,
+      "bytes": 52361978,
+      "sha256": "b7f46b8f543dcca66ea9b660c0c531b0e412321868d06e041f892164a34bcbb1",
+      "nativeArchive": true,
+      "archiveBytes": 52361409,
+      "archiveSha256": "da03e3fbd65e4f797b120bbc00815cc187751de41ce285f5e775cda541d38827"
     },
     {
-      "id": 13863140578,
-      "bytes": 3504290,
-      "sha256": "3da3bb76fcb0ee9dd647109cb624e7d057a193b54ee5715f448efadcb352a953"
+      "id": 13863461964,
+      "bytes": 7991,
+      "sha256": "62a14487eff9d1b51ca4af06c15b6ea3bc7889bb3500d4a7c16d78d7e4eb84bb"
+    },
+    {
+      "id": 13864305700,
+      "bytes": 3504694,
+      "sha256": "376eed4e2be7ec349b3372d159d79dcba6aae4fe866731934c8e27e6afbdeb99"
     }
   ]
 }
