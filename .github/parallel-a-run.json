@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 44,
-  "parentSource": "b82f1afa0b406b0d8625b5666570da7595795214",
-  "stage": "A07",
-  "scope": "All27 required native cases after grouped final fixture controls: actual player proximity for fresh enrollment, no redundant spectator transition in unrelated progress, explicit spectator reload, immediate cut/loss evidence retention, exact private denial feedback, and public handoff restricted to the still-open saved-deposit original with a native closed-original refusal. Original ticket release already works and is unchanged; no required case/regression/budget is omitted.",
+  "sequence": 45,
+  "parentSource": "3aa3c03a726927db9f0b6fb4f22602870cf0be33",
+  "stage": "A08",
+  "scope": "All21 frozen connected native A08 staging and fair-claim cases, A07 event diagnostics and all nine original required regression sources. Same original Kernel Jobs and leases; explicit deterministic physical staging driver, no fabricated learned method or goal credit. Preserve every failure and missed native window.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -3143,12 +3143,12 @@
           ],
           "approachPosition": [
             73.63784427728504,
-            208.0,
+            208,
             72.63779065260199
           ],
           "lastBreakPosition": [
             72.71738213210249,
-            208.0,
+            208,
             72.69999998807907
           ],
           "lastBreakTick": 18265,
@@ -4618,5 +4618,57 @@
     }
   ],
   "a07ConnectedRequiredCases": 27,
-  "a07PublicationObservationContracts": 2
+  "a07PublicationObservationContracts": 2,
+  "a08": {
+    "codeCheckpoint": "f063c534c9dda3eae041304c400cac3d9906e96e",
+    "driverCheckpoint": "3aa3c03a726927db9f0b6fb4f22602870cf0be33",
+    "contractDocumentation": "4dc3208d820b1934b7c487380127ee7e39ab55b4",
+    "requiredCases": 21,
+    "cases": [
+      "five-logs-three-and-four-external-two",
+      "older-feasible-small-arrivals",
+      "impossible-large-useful-small",
+      "complementary-inputs-atomic",
+      "initial-full-zero-effect",
+      "dynamic-fill-before-withdraw",
+      "dynamic-fill-after-withdraw-custody",
+      "full-return-retains-custody",
+      "revoked-return-retains-custody",
+      "lawful-return-new-action",
+      "source-destination-alias",
+      "component-stack-swap",
+      "chest-replacement",
+      "double-chest-split",
+      "stale-epoch-release",
+      "cross-principal-denial",
+      "external-mutation-replan-bound",
+      "crash-after-withdraw-scoped-fence-C-progress",
+      "navigation-no-storage-claim",
+      "slot-stack-swap-after-claim",
+      "complementary-private-custody-residence-bound"
+    ],
+    "effectiveFairLimits": {
+      "queued": 16,
+      "waitingTicks": 1200,
+      "idleTicks": 40,
+      "backoffTicks": 2,
+      "claimTicks": 20
+    },
+    "effectiveStagingLimits": {
+      "frames": 32,
+      "units": 64,
+      "residenceTicks": 600,
+      "replans": 8
+    },
+    "serviceBound": {
+      "ticks": 60,
+      "scope": "Oldest feasible four-unit owner with six finite newer arrivals; owner polling <=40 ticks and successful grant acknowledgement/effect <=20 ticks",
+      "measured": "NOT_EXECUTED"
+    },
+    "actualDockerClients": 2,
+    "noModelMethods": true,
+    "noSaveConfirmedStagingReceipts": true,
+    "fullPriorCampaignRepeated": false,
+    "minimumExecution": "One grouped workflow plus unchanged standard verification; checkpoints skip CI."
+  }
 }
