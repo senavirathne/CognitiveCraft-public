@@ -1,8 +1,11 @@
 """Fail closed on edits outside the A00–A08 owned source boundary."""
 import subprocess
+from pathlib import Path
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
 allowed={
+    '.github/workflows/ci.yml',
+    '.github/parallel-a-evidence.json',
     'core/src/test/java/dev/aivillages/core/kernel/ImmediateClaimsTest.java',
     'core/src/test/java/dev/aivillages/core/kernel/StagedTransfersTest.java',
     'fabric/src/main/java/dev/aivillages/fabric/FabricStagedTransfers.java',
@@ -76,6 +79,10 @@ prefixes+=('fabric/src/main/java/dev/aivillages/fabric/runtime/evidence/',
 prefixes+=('core/src/test/resources/dev/aivillages/core/kernel/runtime/evidence/',)
 changed=sorted(set(subprocess.check_output(['git','diff','--name-only',base],text=True).splitlines())
                |set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines()))
+original_ci=subprocess.check_output(['git','show',base+':.github/workflows/ci.yml'],text=True)
+current_ci=Path('.github/workflows/ci.yml').read_text()
+if current_ci!=original_ci and not current_ci.startswith(original_ci+'\n  # BEGIN A-OWNED READ-ONLY ARTIFACT INSPECTION\n'):
+    raise SystemExit('Original standard verification workflow must remain byte-preserved; A may only append its read-only artifact job')
 bad=[p for p in changed if p not in allowed and not p.startswith(prefixes)]
 if bad:raise SystemExit('Not owned by current A stage: '+repr(bad))
 print('PARALLEL_A_OWNERSHIP_PASS '+str(len(changed))+' owned files; no B-owned edits')
