@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 47,
-  "parentSource": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
+  "sequence": 48,
+  "parentSource": "1b13dbcbf856afc0cf08543d78519eb0a3e67acb",
   "stage": "A08",
-  "scope": "All21 frozen connected A08 cases after real gateway actor control, live-claim and page-bound corrections, immediate unresolved fences and registered recipe-input authority. Native withdrawals/returns are actual new effects under original Jobs; no method, goal credit or saved staging receipt is fabricated. Preserve every prior failure and all nine regression sources.",
+  "scope": "A08 all21 connected staging and fair claims with measured owner polling",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4621,8 +4621,8 @@
   "a07PublicationObservationContracts": 2,
   "a08": {
     "codeCheckpoint": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
-    "driverCheckpoint": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
-    "contractDocumentation": "24343b515ad0a93342daf1a1a138a2220eb390be",
+    "driverCheckpoint": "1b13dbcbf856afc0cf08543d78519eb0a3e67acb",
+    "contractDocumentation": "f45b81176a15eadffce48e5fa4ed8a9f1c259ce9",
     "requiredCases": 21,
     "cases": [
       "five-logs-three-and-four-external-two",
@@ -4690,9 +4690,9 @@
       "lifecycleArtifact": 13846200930
     },
     "expectedModuleCases": 2661,
-    "localWorkspace": "UNAVAILABLE; final new five safety cases require target CI execution",
+    "localWorkspace": "RESTORED; four Python fixture/review files only;103 checks pass",
     "workflowCountThisAttempt": 2,
-    "totalA08WorkflowCountAfterLaunch": 6,
+    "totalA08WorkflowCountAfterLaunch": 8,
     "attempts": [
       {
         "sequence": 46,
@@ -4725,16 +4725,63 @@
           "Only registered recipe inputs may be staged; a harvest-only capability does not authorize container withdrawal."
         ],
         "oldCasesPreserved": true
+      },
+      {
+        "sequence": 47,
+        "source": "c0b0b6bc8b15568611a5aa3d3595f4b785bb1ff0",
+        "tree": "be275ac315a19ce80386c00360f302f5e8c08fec",
+        "run": 43028708222,
+        "job": 130549881006,
+        "status": "FAIL_REQUIRED_A08_CASE",
+        "nativeAttempted": 21,
+        "nativeCandidateCases": 20,
+        "nativeFailedCases": 1,
+        "nativeQualified": 0,
+        "failedCase": "older-feasible-small-arrivals",
+        "actualOwnerPollTicks": [
+          18274,
+          18319
+        ],
+        "actualOwnerPollGap": 45,
+        "frozenIdleTicks": 40,
+        "frameElapsedTicks": 53,
+        "moduleCases": 2661,
+        "modules": "PASS_DOWNLOADED_TARGET_XML",
+        "standardRun": 43028708103,
+        "standard": "PASS",
+        "requiredHostsPassed": 9,
+        "requiredHosts": 9,
+        "lifecycleDiagnostics": 14,
+        "diagnosticsArtifact": 13861755440,
+        "diagnosticsSha256": "e65b4ad1e79583f2dabcea4669d6e72c22d8affd29774719704be83ebd902a77",
+        "archiveArtifact": 13861940004,
+        "archiveBytes": 360689383,
+        "archiveSha256": "d09604774648201a2aa93606e2bce01521dc752c1106663db03dc95a7b1763d6",
+        "outerArchiveSha256": "dd354ccc9e28ea8a98991a34a457d9eeb91888e633f0f42f080c4d2880a8f5a3",
+        "moduleArtifact": 13861885344,
+        "moduleArtifactSha256": "9404d033aebc96f1cd584db758f6c6539a08aa6d47d54b9362c58e58deafd959",
+        "releaseSha256": "7da98934d1cbfb762f1c12c5703ed46dee1277bfd5b03ef3a59ccac58b03bb59",
+        "oldCasesPreserved": true,
+        "correction": "The starting-world save and A setup consumed the declared polling window. First request B's stable ticket after that save while stock remains two; retain all six arrivals and all original40/20/60 tick limits; independently validate actual polling RPC gaps."
       }
     ],
     "localPreflight": {
-      "java": "21 only; target25 still required",
+      "java": "Production Java unchanged from batch47 all2661 target XML pass",
       "core": 2400,
-      "python": 102,
+      "python": 103,
       "status": "PASS"
     },
     "physicalScope": "Explicit deterministic typed runtime under actual Kernel Jobs. Input withdrawals and separate returns use registered recipe input envelopes and forecast registered output capacity. No fabricated learned artifact, delivery credit, or saved staging receipt.",
     "fiveLogFinalDisposition": "A withdraws3, B independently observes2 and waits; actual external +2 enables B4. Both lawful returns are new physical moves, leaving all7 actual logs in the source and empty private custody.",
-    "unrelatedC": "Independent registered-input withdrawal/return progresses while original saved-withdrawal Job remains uncertain and scoped-fenced."
+    "unrelatedC": "Independent registered-input withdrawal/return progresses while original saved-withdrawal Job remains uncertain and scoped-fenced.",
+    "pollingCorrection": {
+      "productionJavaChanges": false,
+      "firstTicketAfterInitialSave": true,
+      "actualPollGapsRequired": true,
+      "idleTicks": 40,
+      "claimTicks": 20,
+      "eligibilityToPhysicalBound": 60,
+      "all21Required": true
+    }
   }
 }
