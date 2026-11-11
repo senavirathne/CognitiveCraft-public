@@ -36,7 +36,7 @@ class ClaimsHarness(LifecycleHarness):
             identities=[{k:image[k] for k in ('Id','RepoTags','RepoDigests','Architecture','Os')} for image in images]
             atomic(self.root/'a08-build-images.json',identities);print('A08_BUILD_IMAGES '+json.dumps(identities),flush=True)
             paths=['e2e/Dockerfile','e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml','e2e/parallel_a/Dockerfile.claims','e2e/parallel_a/dependency_probe.py']
-            inputs={'composeCommand':cmd+list(args),'actualDockerfile':'e2e/parallel_a/Dockerfile.claims','files':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths},'networkDuringBuildRun':'none','runtimeNetwork':'host'}
+            inputs={'composeCommand':cmd+list(args),'actualDockerfile':'e2e/parallel_a/Dockerfile.claims','actualBuildContext':'e2e/parallel_a','files':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths},'networkDuringBuildRun':'none','runtimeNetwork':'host'}
             atomic(self.root/'a08-build-inputs.json',inputs);print('A08_BUILD_INPUTS '+json.dumps(inputs),flush=True)
             user=self.env.get('E2E_UID','1000')+':'+self.env.get('E2E_GID','1000')
             proof=self.docker_build_input('run','--rm','--network','none','--user',user,'--entrypoint','python3','cognitivecraft-e2e:java25','/opt/cognitivecraft/dependency_probe.py')

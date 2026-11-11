@@ -5,7 +5,7 @@ USER root
 COPY --from=a08_jdk /opt/java/openjdk /opt/java/openjdk
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-COPY e2e/parallel_a/dependency_probe.py /opt/cognitivecraft/dependency_probe.py
+COPY dependency_probe.py /opt/cognitivecraft/dependency_probe.py
 RUN ["python3", "/opt/cognitivecraft/dependency_probe.py"]
 ARG E2E_UID=1000
 ARG E2E_GID=1000
