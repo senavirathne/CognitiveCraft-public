@@ -620,6 +620,9 @@ jobs:
             build/parallel-a/native-a08-connected/a08-results.json
             build/parallel-a/native-a08-connected/metadata.json
             build/parallel-a/native-a08-connected/configuration-manifest.json
+            build/parallel-a/native-a08-connected/a08-build-images.json
+            build/parallel-a/native-a08-connected/a08-build-inputs.json
+            build/parallel-a/native-a08-connected/a08-image-dependencies.json
             build/parallel-a/native-a08-connected/a08-rpc/
             build/parallel-a/native-a08-connected/cases/*/result.json
             build/parallel-a/native-a08-connected/failures/*/result.json

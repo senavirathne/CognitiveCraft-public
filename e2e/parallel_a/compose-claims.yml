@@ -1,8 +1,15 @@
 services:
   minecraft:
     build:
-      network: host
-      entitlements:
-        - network.host
+      dockerfile: e2e/parallel_a/Dockerfile.claims
+      network: none
     environment:
       COGNITIVECRAFT_A08_DRIVER: 'true'
+  client-a:
+    build:
+      dockerfile: e2e/parallel_a/Dockerfile.claims
+      network: none
+  client-b:
+    build:
+      dockerfile: e2e/parallel_a/Dockerfile.claims
+      network: none

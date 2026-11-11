@@ -1,0 +1,18 @@
+FROM eclipse-temurin:25-jdk-noble AS a08_jdk
+FROM mcr.microsoft.com/playwright/python:v1.56.0-noble
+# Official prebuilt Ubuntu24.04 display libraries; no package-server access during build.
+USER root
+COPY --from=a08_jdk /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+COPY e2e/parallel_a/dependency_probe.py /opt/cognitivecraft/dependency_probe.py
+RUN ["python3", "/opt/cognitivecraft/dependency_probe.py"]
+ARG E2E_UID=1000
+ARG E2E_GID=1000
+# Java's private stores resolve user.name to the current numeric file owner.
+RUN if ! getent group "$E2E_GID" >/dev/null; then groupadd --gid "$E2E_GID" cognitivecraft-e2e; fi \
+    && if ! getent passwd "$E2E_UID" >/dev/null; then \
+       useradd --uid "$E2E_UID" --gid "$E2E_GID" --no-create-home --shell /usr/sbin/nologin cognitivecraft-e2e; fi
+WORKDIR /repo
+ENV LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEO_DRIVER=offscreen
+ENTRYPOINT ["python3", "e2e/launch.py"]

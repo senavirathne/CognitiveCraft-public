@@ -1,5 +1,5 @@
 """A08 real connected clients, native custody and reserved original Kernel Jobs. No model method fixture."""
-import argparse,json,shutil,socket,subprocess,time,traceback,uuid
+import argparse,hashlib,json,shutil,socket,subprocess,time,traceback,uuid
 from pathlib import Path
 from lifecycle_connected import LifecycleHarness,checkpoint,starting_checkpoint
 from recovery_seed import start as retained_seed
@@ -21,12 +21,32 @@ class ClaimsHarness(LifecycleHarness):
         cmd=['docker','compose','-p',self.project]
         for file in files:cmd+=['-f',str(ROOT/file)]
         if args and args[0]=='build':
-            resolved={host:sorted({r[4][0] for r in socket.getaddrinfo(host,80,type=socket.SOCK_STREAM)})
-                      for host in ('archive.ubuntu.com','security.ubuntu.com')}
+            resolved={}
+            for host in ('archive.ubuntu.com','security.ubuntu.com'):
+                try:resolved[host]={'addresses':sorted({r[4][0] for r in socket.getaddrinfo(host,80,type=socket.SOCK_STREAM)})}
+                except socket.gaierror as unavailable:resolved[host]={'error':str(unavailable)}
             print('A08_BUILD_HOST_DNS '+json.dumps(resolved),flush=True)
+            for image in ('eclipse-temurin:25-jdk-noble','mcr.microsoft.com/playwright/python:v1.56.0-noble'):
+                self.docker_build_input('pull',image)
         value=subprocess.run(cmd+list(args),cwd=ROOT,env=self.env,text=True,capture_output=True)
         with (self.root/'docker.log').open('a') as out:out.write(value.stdout+value.stderr)
         if value.returncode:raise RuntimeError('A08 Compose '+value.stderr[-1800:])
+        if args and args[0]=='build':
+            images=json.loads(self.docker_build_input('image','inspect','cognitivecraft-e2e:java25','eclipse-temurin:25-jdk-noble','mcr.microsoft.com/playwright/python:v1.56.0-noble').stdout)
+            identities=[{k:image[k] for k in ('Id','RepoTags','RepoDigests','Architecture','Os')} for image in images]
+            atomic(self.root/'a08-build-images.json',identities);print('A08_BUILD_IMAGES '+json.dumps(identities),flush=True)
+            paths=['e2e/Dockerfile','e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml','e2e/parallel_a/Dockerfile.claims','e2e/parallel_a/dependency_probe.py']
+            inputs={'composeCommand':cmd+list(args),'actualDockerfile':'e2e/parallel_a/Dockerfile.claims','files':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths},'networkDuringBuildRun':'none','runtimeNetwork':'host'}
+            atomic(self.root/'a08-build-inputs.json',inputs);print('A08_BUILD_INPUTS '+json.dumps(inputs),flush=True)
+            user=self.env.get('E2E_UID','1000')+':'+self.env.get('E2E_GID','1000')
+            proof=self.docker_build_input('run','--rm','--network','none','--user',user,'--entrypoint','python3','cognitivecraft-e2e:java25','/opt/cognitivecraft/dependency_probe.py')
+            dependency=json.loads(proof.stdout);atomic(self.root/'a08-image-dependencies.json',dependency)
+            print('A08_IMAGE_DEPENDENCIES '+json.dumps(dependency),flush=True)
+        return value
+    def docker_build_input(self,*args):
+        value=subprocess.run(['docker',*args],cwd=ROOT,env=self.env,text=True,capture_output=True,timeout=300)
+        with (self.root/'docker.log').open('a') as out:out.write(value.stdout+value.stderr)
+        if value.returncode:raise RuntimeError('A08 dependency image '+str(args[:2])+': '+value.stderr[-2400:])
         return value
     def state(self):
         value=read(self.root/'server/a08-snapshot.json')
