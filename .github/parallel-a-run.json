@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 49,
-  "parentSource": "6dc69fd3aff5717f57b0ba3a74fac134ac59d4b6",
+  "sequence": 50,
+  "parentSource": "8b5ea94eaa47551fd1356948a70e2f3d9e90f52b",
   "stage": "A08",
-  "scope": "A08 all21 native controls after witnessed image-build DNS correction",
+  "scope": "All21 A08 connected controls with preinstalled Noble display dependencies and Temurin25",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4621,8 +4621,8 @@
   "a07PublicationObservationContracts": 2,
   "a08": {
     "codeCheckpoint": "bf29c865dce55a4f4b3da2f29fc59835f9d5d6d0",
-    "driverCheckpoint": "6dc69fd3aff5717f57b0ba3a74fac134ac59d4b6",
-    "contractDocumentation": "271562f27503f581b8f653adf56f84630a07876e",
+    "driverCheckpoint": "8b5ea94eaa47551fd1356948a70e2f3d9e90f52b",
+    "contractDocumentation": "08a2d5bc2bd95eae7559bdb80a567bfec08913cf",
     "requiredCases": 21,
     "cases": [
       "five-logs-three-and-four-external-two",
@@ -4692,7 +4692,7 @@
     "expectedModuleCases": 2661,
     "localWorkspace": "UNAVAILABLE; current target Python compilation/contracts remain mandatory",
     "workflowCountThisAttempt": 2,
-    "totalA08WorkflowCountAfterLaunch": 13,
+    "totalA08WorkflowCountAfterLaunch": 15,
     "attempts": [
       {
         "sequence": 46,
@@ -4829,6 +4829,36 @@
         "artifactInspectionJob": 130582968624,
         "scope": "Startup failure; not a native gameplay refusal or a fairness result",
         "allCasesPreserved": true
+      },
+      {
+        "sequence": 49,
+        "source": "81aeb4fe729dc15b81e3fe793b1c2ef117810d47",
+        "tree": "b062a262cc07b6c3a842bf40fad67562fcfc09c8",
+        "run": 43040075600,
+        "job": 130589187547,
+        "status": "FAIL_A08_PREREQUISITE_HOST_DNS",
+        "nativeAttempted": 0,
+        "nativeQualified": 0,
+        "requiredCases": 21,
+        "cause": "Runner-side socket.getaddrinfo raised EAI_AGAIN for the Ubuntu package-server probe before Docker build or native gameplay.",
+        "moduleCases": 2661,
+        "modules": "PASS_TARGET_XML",
+        "pythonContracts": 103,
+        "baselinePython": 72,
+        "requiredRegressionsPassed": 9,
+        "lifecycleDiagnostics": 14,
+        "standardRun": 43040076458,
+        "standard": "PASS",
+        "diagnosticsArtifact": 13864049777,
+        "diagnosticsSha256": "da495109ac4ec0bb1e91e23abc0323e1ef9b177e4dc6e73c3813608a27a0e573",
+        "archiveArtifact": 13865101891,
+        "archiveBytes": 52359279,
+        "archiveSha256": "a8c4b6240904232406840349faa33e26e0ca9892ca02012c787c7a15b9a2c7ac",
+        "outerArchiveSha256": "f20f06793e6092518bb6d091e770c81a6e6479203c2e03d3834619781ac517b5",
+        "moduleArtifact": 13864149505,
+        "moduleArtifactSha256": "952bc59cc5a6846e924c2df31b317035516f702880becd1c4b5b9249bb71261f",
+        "scope": "This observes host DNS failure; the host-network image build was not reached and its success is not inferred.",
+        "all21Preserved": true
       }
     ],
     "localPreflight": {
@@ -4850,19 +4880,15 @@
     },
     "expectedPythonCases": 103,
     "workflowAccounting": {
-      "nativeValidationWorkflowsAfterLaunch": 10,
+      "nativeValidationWorkflowsAfterLaunch": 12,
       "inspectionWorkflowRecords": 3,
-      "rejectedInspectionRecordsWithoutRunner": 1,
+      "rejectedBeforeRunner": 1,
       "failedJobReplayWithinExistingRun": 1
     },
     "buildDNSCorrection": {
-      "path": "e2e/parallel_a/compose-claims.yml",
-      "network": "host",
-      "entitlement": "network.host",
-      "hostDNSObserved": true,
-      "priorDiagnosis": "Both full frozen Docker logs show Ubuntu DNS lookup failures",
-      "inspectionRun": 43038304244,
-      "inspectionJob": 130582968624
+      "status": "SUPERSEDED_BY_PREBUILT_DEPENDENCIES",
+      "runnerLookupFailureProved": true,
+      "source": "81aeb4fe729dc15b81e3fe793b1c2ef117810d47"
     },
     "productionJavaChangesSinceBatch47": false,
     "directEvidenceLogs": {
@@ -4870,6 +4896,23 @@
       "startupErrors": true,
       "independentCustodyAndService": true,
       "failedCaseWorldRetention": true
-    }
+    },
+    "prebuiltImage": {
+      "dockerfile": "e2e/parallel_a/Dockerfile.claims",
+      "buildContext": "e2e/parallel_a",
+      "networkDuringRun": "none",
+      "pins": [
+        "mcr.microsoft.com/playwright/python:v1.56.0-noble",
+        "eclipse-temurin:25-jdk-noble"
+      ],
+      "requiredPackages": 15,
+      "requiredNativeLibraries": 11,
+      "softwareDriverRequired": true,
+      "jdk25Required": true,
+      "runtimeUidProbeRequired": true,
+      "actualDigestsAndInputHashesRequired": true,
+      "gameplayQualified": false
+    },
+    "allTimingAndQuotaLimitsUnchanged": true
   }
 }
