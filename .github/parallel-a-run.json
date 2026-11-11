@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 45,
-  "parentSource": "3aa3c03a726927db9f0b6fb4f22602870cf0be33",
+  "sequence": 46,
+  "parentSource": "b5e659041bd0beddf59e4c4eb1efee2eb715ef63",
   "stage": "A08",
-  "scope": "All21 frozen connected native A08 staging and fair-claim cases, A07 event diagnostics and all nine original required regression sources. Same original Kernel Jobs and leases; explicit deterministic physical staging driver, no fabricated learned method or goal credit. Preserve every failure and missed native window.",
+  "scope": "All21 frozen connected native A08 cases after installing the exact existing Needle fixture. Runtime review closes idle residence, original Job scalar accounting and distinct staging ownership. Explicit return/cancellation preserve all stock and zero invented credit. All original nine regression workflow sources and lifecycle diagnostics remain required.",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -4620,8 +4620,8 @@
   "a07ConnectedRequiredCases": 27,
   "a07PublicationObservationContracts": 2,
   "a08": {
-    "codeCheckpoint": "f063c534c9dda3eae041304c400cac3d9906e96e",
-    "driverCheckpoint": "3aa3c03a726927db9f0b6fb4f22602870cf0be33",
+    "codeCheckpoint": "b5e659041bd0beddf59e4c4eb1efee2eb715ef63",
+    "driverCheckpoint": "b5e659041bd0beddf59e4c4eb1efee2eb715ef63",
     "contractDocumentation": "4dc3208d820b1934b7c487380127ee7e39ab55b4",
     "requiredCases": 21,
     "cases": [
@@ -4669,6 +4669,29 @@
     "noModelMethods": true,
     "noSaveConfirmedStagingReceipts": true,
     "fullPriorCampaignRepeated": false,
-    "minimumExecution": "One grouped workflow plus unchanged standard verification; checkpoints skip CI."
+    "minimumExecution": "One grouped workflow plus unchanged standard verification; checkpoints skip CI.",
+    "priorAttempt": {
+      "source": "41e708450e4d31d264deda388c9ec7eaad40ed99",
+      "run": 43000079451,
+      "job": 130453745676,
+      "status": "FAIL_A08_PREREQUISITE",
+      "nativeCasesExecuted": 0,
+      "requiredCases": 21,
+      "cause": "Missing tools/needle/install.py build/needle before retained_seed",
+      "standardRun": 43000079723,
+      "standard": "PASS",
+      "requiredHosts": 9,
+      "requiredHostsPassed": 9,
+      "diagnosticsArtifact": 13846111347,
+      "diagnosticsSha256": "4f3635cc65780c182ccbb069725459197795679956e4ab5e5764f9c0426f3057",
+      "nativeArchiveArtifact": 13845976882,
+      "nativeArchiveSha256": "593ebbad44e01c618ae5c3fe9e088990e6a372efb19258798a5212cc70825e4d",
+      "moduleArtifact": 13845139929,
+      "lifecycleArtifact": 13846200930
+    },
+    "expectedModuleCases": 2658,
+    "localWorkspace": "UNAVAILABLE; final new five safety cases require target CI execution",
+    "workflowCountThisAttempt": 2,
+    "totalA08WorkflowCountAfterLaunch": 4
   }
 }
