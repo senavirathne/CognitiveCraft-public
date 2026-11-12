@@ -249,13 +249,33 @@ def canonical_world(world,allow_orphan=False):
         assert key not in union or union[key]==row;union[key]=row
     return header,hot,archived,union
 
-def frames(server,stream):
+def frames(server,stream,*,tails=None):
     """Reconstruct exact original bytes; retain crash-truncated tails without parsing them."""
     plain=server/(stream+'.jsonl')
+    epochs=sorted(server.glob(stream+'.epoch-*.jsonl'))
+    if epochs:
+        assert not plain.exists() and not list(server.glob(stream+'.refs-*.jsonl')),'Ambiguous observation format'
+        assert len(epochs)<=128
+        for path in epochs:
+            match=re.fullmatch(re.escape(stream)+r'\.epoch-(\d{19})-(\d+)-([0-9a-f-]{36})\.jsonl',path.name)
+            assert match and not path.is_symlink(),'Invalid native observer epoch'
+            with path.open('rb') as source:
+                for number,line in enumerate(source,1):
+                    assert len(line)<=64*1024*1024
+                    if not line.endswith(b'\n'):
+                        assert tails is not None,'Incomplete retained log tail must be reported'
+                        tails.append(dict(path=path.name,line=number,bytes=len(line),sha256=sha(line),classification='UNKNOWN_INCOMPLETE_FRAME_NOT_NATIVE_PROOF'))
+                        break
+                    frame=json.loads(line);assert 'time' in frame and frame['pid']==int(match[2])
+                    yield frame
+        return
     if plain.is_file():
         assert not list(server.glob(stream+'.refs-*.jsonl')),'Ambiguous observation format'
-        for line in plain.open('rb'):
-            if not line.endswith(b'\n'):break
+        for number,line in enumerate(plain.open('rb'),1):
+            if not line.endswith(b'\n'):
+                assert tails is not None,'Incomplete retained log tail must be reported'
+                tails.append(dict(path=plain.name,line=number,bytes=len(line),sha256=sha(line),classification='UNKNOWN_INCOMPLETE_FRAME_NOT_NATIVE_PROOF'))
+                break
             frame=json.loads(line);assert 'time' in frame and 'pid' in frame
             yield frame
         return
@@ -271,8 +291,11 @@ def frames(server,stream):
         return cache[key]
     paths=sorted(server.glob(stream+'.refs-*.jsonl'));assert paths,stream
     for path in paths:
-        for line in path.open('rb'):
-            if not line.endswith(b'\n'):break
+        for number,line in enumerate(path.open('rb'),1):
+            if not line.endswith(b'\n'):
+                assert tails is not None,'Incomplete retained log tail must be reported'
+                tails.append(dict(path=path.name,line=number,bytes=len(line),sha256=sha(line),classification='UNKNOWN_INCOMPLETE_FRAME_NOT_NATIVE_PROOF'))
+                break
             wrapper=json.loads(line);assert wrapper['schema']==1
             raw=token.sub(body,wrapper['template'].encode());assert sha(raw)==wrapper['originalSha256']
             frame=json.loads(raw);assert frame['time']==wrapper['time'] and frame['pid']==wrapper['pid']
@@ -283,14 +306,14 @@ def observed_runs(root,views):
     wanted={v['id']:v for v in views};assert len(wanted)==len(views)
     streams={}
     for stream in ('observations','secondary-observations'):
-        seen=set();count=0
-        for frame in frames(root/'server',stream):
+        seen=set();count=0;tails=[]
+        for frame in frames(root/'server',stream,tails=tails):
             count+=1
             for player in frame['knownPlayers'].values():
                 for key,view in player.get('runs',{}).items():
                     if key in wanted and view==wanted[key]:seen.add(key)
         assert count and seen==set(wanted),(stream,sorted(set(wanted)-seen))
-        streams[stream]={'frames':count,'exactCompletedViews':len(seen)}
+        streams[stream]={'frames':count,'exactCompletedViews':len(seen),'retainedIncompleteTails':tails}
     return streams
 
 def pinned_jobs(raw,views):

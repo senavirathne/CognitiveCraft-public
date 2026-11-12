@@ -48,8 +48,7 @@ log_original='''Files.writeString(root.resolve("server/observations.jsonl"), dat
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
 log_replacement='''if ("true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE")))
                 RuntimeAObservationLog.append(root.resolve("server/observations.jsonl"), encoded);
-            else Files.writeString(root.resolve("server/observations.jsonl"), data + "\\n",
-                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);'''
+            else RuntimeAObservationEpoch.append(root.resolve("server/observations.jsonl"), data);'''
 assert adapted.count(log_original)==1
 adapted=adapted.replace(log_original,log_replacement)
 deferred={

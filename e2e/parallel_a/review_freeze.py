@@ -19,10 +19,8 @@ def identity(root,profile,source,jar):
     assert frozen['productionSha256']==metadata['releaseSha256']==jar and frozen['plan']==plan()
     assert metadata['minecraft']=='26.3' and metadata['loader']=='0.19.5'
     cpu=read(root/'a10-cpu-topology.json');assert cpu['profile']==profile
-    if profile in ('A04','A05','A06','A07','A08','A09'):
-        assert cpu['isolationApplied'] and cpu['orchestratorAfter']==[2,3] and cpu['serverCores']==[0,1]
-        assert cpu['clientCores']=={'PlayerA':[2],'PlayerB':[3]} and cpu['addedCores']==0 and not cpu['jvmHeapGcAndGateLimitsChanged']
-    else:assert not cpu['isolationApplied'] and cpu['hostBefore']==cpu['orchestratorAfter']
+    assert cpu['isolationApplied'] and cpu['orchestratorAfter']==[2,3] and cpu['serverCores']==[0,1]
+    assert cpu['clientCores']=={'PlayerA':[2],'PlayerB':[3]} and cpu['addedCores']==0 and not cpu['jvmHeapGcAndGateLimitsChanged']
     files={r['path']:r for r in frozen['files']}
     assert files['build/e2e-driver/observer.jar']['sha256']==metadata['binaries']['observer']['sha256']
     assert files['build/e2e-driver/client.jar']['sha256']==metadata['binaries']['clientDriver']['sha256']

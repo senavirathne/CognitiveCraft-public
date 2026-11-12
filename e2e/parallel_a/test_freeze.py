@@ -13,11 +13,12 @@ class OrchestratorIsolation(unittest.TestCase):
         with patch('freeze_runtime.os.sched_getaffinity',return_value={0,1}),patch('freeze_runtime.os.sched_setaffinity') as apply:
             with self.assertRaises(RuntimeError):isolate_orchestrator('A06')
         apply.assert_not_called()
-    def test_profiles_without_the_declared_docker_core_split_keep_their_topology(self):
+    def test_every_original_profile_now_uses_the_same_finite_topology(self):
         from freeze_runtime import isolate_orchestrator
-        with patch('freeze_runtime.os.sched_getaffinity',return_value={0,1,2,3}),patch('freeze_runtime.os.sched_setaffinity') as apply:
-            value=isolate_orchestrator('A03')
-        self.assertFalse(value['isolationApplied']);apply.assert_not_called()
+        for profile in CASES:
+            with patch('freeze_runtime.os.sched_getaffinity',side_effect=[{0,1,2,3},{2,3}]),patch('freeze_runtime.os.sched_setaffinity') as apply:
+                value=isolate_orchestrator(profile)
+            self.assertTrue(value['isolationApplied']);apply.assert_called_once_with(0,{2,3})
 from unittest.mock import patch
 from zipfile import ZipFile
 from freeze_plan import CASES,MODULES,REQUIRED_JOBS,compose_files,ledger,plan

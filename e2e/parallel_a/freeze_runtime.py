@@ -6,14 +6,14 @@ from freeze_plan import CASES,compose_files,JAVA_IMAGE,CLIENT_IMAGE
 def isolate_orchestrator(profile):
     """Keep the host observer/CLI off the two cores already reserved for the JVM."""
     before=sorted(os.sched_getaffinity(0))
-    if profile not in ('A04','A05','A06','A07','A08','A09'):
-        return {'profile':profile,'hostBefore':before,'orchestratorAfter':before,'isolationApplied':False}
+    if profile not in CASES:raise ValueError('Unknown A10 profile')
     if not {0,1,2,3}<=set(before):raise RuntimeError('Original four-core Docker topology unavailable')
     os.sched_setaffinity(0,{2,3});after=sorted(os.sched_getaffinity(0))
     if after!=[2,3]:raise RuntimeError('Host orchestrator affinity did not take effect')
     return {'profile':profile,'hostBefore':before,'orchestratorAfter':after,'isolationApplied':True,
             'serverCores':[0,1],'clientCores':{'PlayerA':[2],'PlayerB':[3]},'addedCores':0,
-            'jvmHeapGcAndGateLimitsChanged':False,'causeOfBatch55CostFailure':'UNPROVEN'}
+            'jvmHeapGcAndGateLimitsChanged':False,'causeOfBatch55CostFailure':'UNPROVEN',
+            'lowerProfileChange':'A00-A03 now use the existing four-core split; no additional CPU, memory or sample exclusions'}
 
 def attach(h):
     profile=os.environ.get('COGNITIVECRAFT_A10_PROFILE')
