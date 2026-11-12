@@ -22,7 +22,8 @@ public final class RuntimeALeaseProbe implements ModInitializer {
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
     private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor();
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private final AtomicBoolean busy=new AtomicBoolean();
-    private String seen="";private boolean readySent;
+    private String seen="";private boolean readySent,observeRetired;
+    private final Map<UUID,Map<String,Object>> retiredObservations=new LinkedHashMap<>();
     public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A03_PROBE"))){mailbox.shutdown();return;}
         mailbox.scheduleWithFixedDelay(this::poll,0,100,TimeUnit.MILLISECONDS);
@@ -30,9 +31,20 @@ public final class RuntimeALeaseProbe implements ModInitializer {
             JsonObject active=null;
             try {
                 var kernel=AiVillages.kernel();if(kernel==null)return;var view=kernel.runtimeStorageView();
+                if(observeRetired)for(var lease:view.leases().leases()) {
+                    if(lease.state()==State.ACTIVE || lease.state()==State.INTERRUPTED || retiredObservations.containsKey(lease.id()))continue;
+                    if(retiredObservations.size()>=256)throw new IOException("Bounded retired observation quota");
+                    var observed=map("lease",lease,"process",process,"time",System.currentTimeMillis(),
+                            "tick",server.overworld().getGameTime(),"hotRevision",view.leases().revision(),"hotAtObservation",true);
+                    retiredObservations.put(lease.id(),observed);
+                    mailbox.execute(()->{try {Files.writeString(root.resolve("server/lease-retired-observations.jsonl"),json.toJson(observed)+"\n",
+                            StandardOpenOption.CREATE,StandardOpenOption.APPEND);}catch(IOException error){throw new IllegalStateException(error);}});
+                }
                 if(!readySent){readySent=true;mailbox.execute(()->write("lease-ready.json",map("process",process,"pid",ProcessHandle.current().pid(),"world",view.jobs().worldId())));}
                 var command=request.getAndSet(null);if(command==null)return;active=command;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
+                if(op.equals("observe-retired")){observeRetired=true;reply(id,map("status","PASS","limit",256,"nativeEffects",0),null);return;}
+                if(op.equals("retired-observations")){observeRetired=false;reply(id,map("status","PASS","observations",List.copyOf(retiredObservations.values())),null);return;}
                 if(op.equals("status")){reply(id,map("status","PASS","storage",kernel.runtimeHistoryStatus(),"metrics",kernel.runtimeLeaseHistoryStatus(),
                         "ready",view.ready(),"hot",view.leases(),"jobs",view.jobs().jobs().size()),null);return;}
                 if(op.equals("lookup")) {
@@ -81,12 +93,16 @@ public final class RuntimeALeaseProbe implements ModInitializer {
                         return map("status","PASS","hot",view.leases(),"archived",rows,"manifest",writer.snapshot(),"jobs",view.jobs().jobs().size());
                     }
                     if(op.equals("pressure")) {
-                        var guard=new ArchiveFormat.Guard(view.jobs().revision(),view.retentionGeneration());int added=0;
+                        var guard=new ArchiveFormat.Guard(view.leases().revision(),view.retentionGeneration());int added=0;
+                        var fixtures=new ArrayList<Map<String,Object>>();
                         for(int n=0;n<128;n++) {
-                            var result=writer.append(writer.snapshot(),ArchiveFormat.Owner.JOBS,guard,List.of(new ArchiveFormat.Row(ArchiveFormat.Kind.HISTORY,
-                                    UUID.nameUUIDFromBytes(("fixture:a03-quota:"+n).getBytes(StandardCharsets.UTF_8)),new byte[64])),owner->guard);
-                            if(result.status()==ArchiveWriter.Status.BACKPRESSURE)return map("status","PASS","fixture",true,"nativeEffects",0,"added",added,"manifest",writer.snapshot());
+                            var lease=RuntimeARetiredLeaseFixture.expired(view.jobs().worldId(),n);byte[] payload=RuntimeARetiredLeaseFixture.encode(lease);
+                            var result=writer.append(writer.snapshot(),ArchiveFormat.Owner.LEASES,guard,List.of(new ArchiveFormat.Row(ArchiveFormat.Kind.HISTORY,
+                                    lease.id(),payload)),owner->guard);
+                            if(result.status()==ArchiveWriter.Status.BACKPRESSURE)return map("status","PASS","fixture",true,"nativeEffects",0,"activeClaims",0,
+                                    "classification","SYNTHETIC_EXPIRED_LEASE_METADATA_ONLY","rows",fixtures,"added",added,"manifest",writer.snapshot());
                             if(!result.acknowledged())throw new IOException("Quota fixture "+result.status());added++;
+                            fixtures.add(map("lease",lease,"sha256",sha256(payload)));
                         }
                         throw new IOException("Ordinary pressure not witnessed");
                     }

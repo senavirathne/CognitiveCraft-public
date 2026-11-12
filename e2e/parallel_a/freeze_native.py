@@ -17,6 +17,8 @@ def main():
     failure=None
     try:
         frozen=verify(a.source,a.jar_sha256);write(root/'a10-frozen-runtime.json',frozen);value['tree']=frozen['tree']
+        from freeze_runtime import isolate_orchestrator
+        write(root/'a10-cpu-topology.json',isolate_orchestrator(a.profile))
         os.environ['COGNITIVECRAFT_A10_PROFILE']=a.profile;os.environ['COGNITIVECRAFT_A10_SEED']=str(a.seed_archive.resolve())
         sys.argv=[MODULE_NAMES[a.profile]+'.py','--root',str(root)]
         if a.profile in ('A06','A07','A08','A09'):sys.argv+=['--seed-archive',str(a.seed_archive.resolve())]

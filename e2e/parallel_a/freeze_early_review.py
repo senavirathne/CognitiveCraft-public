@@ -1,11 +1,12 @@
 """A10 read-only review of original A00–A05 native, host and metadata gates."""
-import hashlib,json
+import hashlib,json,re
 from pathlib import Path
 from freeze_storage_review import (read,digest,journal,percentiles,history,codec,inventory,totals,process_replaced,
     observed_runs,canonical_world,pinned_jobs,no_effect,complete_performance,replay_lookup,exact_cycle_frames)
 from review_lifecycle_connected import entities,chest,original
 from review_receipt_prefix import item,block_name,regions
 from deposits import manifest
+from suite import DENIED_PATTERN
 
 LOG='minecraft:oak_log';DEST=[77,208,72]
 
@@ -25,7 +26,10 @@ def interruption(root,folder,row,saved):
     assert after['state']=='INTERRUPTED' and any(a['uncertain'] or a.get('terminal') is None for a in after['attempts'])
     assert not row['automaticRecoveryEnabled'] and row['ownerSettlement']=='FAIL'
     process_replaced(row['beforeNativeProcess'],row['afterNativeProcess'])
-    killed=folder/'killed-world';assert manifest(killed)==row['killedWorldHashes']
+    killed=folder/'killed-world';recorded=row['killedWorldHashes']
+    assert isinstance(recorded,list) and all(set(r)=={'path','sha256'} for r in recorded)
+    expected={r['path']:r['sha256'] for r in recorded};assert len(expected)==len(recorded)
+    assert manifest(killed)==expected
     if saved:
         raw=original(killed,job['id']);assert raw['state']=='ACTIVE' and raw['generation']==job['generation']
         assert chest(killed,DEST).get(LOG,0)==1
@@ -35,7 +39,7 @@ def interruption(root,folder,row,saved):
 def baseline(root,cases):
     positive=cases['supported-gather-deposit']['evidence'];successful(positive['view'],2)
     assert positive['clientMenuCount']==2
-    negative=cases['foreign-principal-negative'];assert 'denied' in negative['feedback'].lower()
+    negative=cases['foreign-principal-negative'];assert re.search(DENIED_PATTERN,negative['feedback'])
     for frame in (negative['before'],negative['after']):
         assert frame['containers']['77,208,72'].get(LOG,0)==0 and LOG in frame['blocks']['70,208,66']
     review={name:interruption(root,root/name,cases[name],name.startswith('saved')) for name in ('unflushed-probe','saved-restart-signature')}
@@ -67,6 +71,14 @@ def persistence(root,cases):
     compat=cases['real-world-compatibility-and-acknowledged-history'];before=compat['compat']
     assert compat['repeated']['manifest']['revision']==compat['coldRepeated']['manifest']['revision']==before['manifest']['revision']
     assert compat['coldVerified']['payloadSha256']==before['payloadSha256']
+    source=root/'compat-source-job-snapshot.jsonl';target=root/'compat-target-job-component.json'
+    head,old=journal(source);component=read(target)
+    assert digest(source)==before['sourceSha256'] and digest(target)==before['payloadSha256']
+    assert component['schema']==1 and component['world']==head['world']
+    assert {r['id']:r for r in component['jobs']}=={r['id']:r for r in old if r['kind']=='job'}
+    assert component['allocations']==sorted([r for r in old if r['kind']=='allocation'],key=lambda r:r['id'])
+    assert all(r['state'] in ('SUCCEEDED','FAILED','CANCELLED') for r in component['jobs'])
+    assert before['executionClass']=='NATIVE_HOST_CLOSED_REAL_JOB_METADATA' and not before['physicalProof'] and not before['domainEviction']
     for key in ('restart','secondRestart'):process_replaced(compat[key]['before'],compat[key]['after']);assert compat[key]['sameClients']
     costs={}
     for mode in ('baseline','candidate'):
@@ -108,6 +120,10 @@ def leases(root,cases):
     pinned={r['id']:r for r in c['pinned']};assert len(pinned)==3 and all(r['state']=='INTERRUPTED' for r in pinned.values())
     assert all({r['id']:r for r in status['hot']['leases']}[k]==v for k,v in pinned.items())
     old=c['archiveLookup']['lease'];assert not c['archiveLookup']['hot'] and rows[old['id']]==codec(old)
+    selected=c['referenceObservation'];assert selected==read(root/'selected-cold-native-reference.json')
+    assert selected['lease']==old and selected['hotAtObservation'] and old['owner']['job'] in job_ids
+    observations=[json.loads(line) for line in (root/'server/lease-retired-observations.jsonl').read_text().splitlines()]
+    assert selected in observations and old['id'] not in {r['id'] for r in c['inventory']['hot']['leases']}
     assert c['foreignDenied']['status']=='DENIED' and c['coldLookup']['lease']==old and c['coldLookup']['hotUnchanged']
     assert all(c['coldLookup'][k]['code'] not in ('GRANTED','VALID') for k in ('validate','renew','release'))
     process_replaced(c['restart']['before'],c['restart']['after']);archive=history(world)
@@ -136,6 +152,10 @@ def leases(root,cases):
             history(world)
         cuts.append(point)
     quota=cases['native-archive-pressure-no-effect-refusal'];assert quota['fixture']['fixture'] and quota['fixture']['nativeEffects']==0
+    fixture=quota['fixture'];assert fixture['classification']=='SYNTHETIC_EXPIRED_LEASE_METADATA_ONLY' and fixture['activeClaims']==0
+    assert len(fixture['rows'])==fixture['added'] and all(r['lease']['state']=='EXPIRED' and not r['lease']['consumed']
+        and r['lease']['identity']=='SYNTHETIC_METADATA_ONLY' and r['lease']['owner']['job'] not in job_ids
+        and hashlib.sha256(json.dumps(codec(r['lease']),sort_keys=True,separators=(',',':')).encode()).hexdigest()==r['sha256'] for r in fixture['rows'])
     refusal=quota['refusal'];assert 'STORAGE_LIMIT_REACHED' in json.dumps(refusal['view']) and not any(totals(refusal['view']['resourceReceipts']).values())
     assert refusal['beforeDestination']==refusal['afterDestination'] and quota['status']['jobs']<64 and quota['status']['metrics']['hot']<=128
     return {'retiredLeases':129,'nativeDeliveries':43,'pinnedUnresolvedLeases':3,'liveLimit':64,'hotLimit':128,'cuts':cuts,

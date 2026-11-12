@@ -244,7 +244,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     }
     @Override public void stopMovement(ActorRef actor) {
         Villager v = villager(actor);
-        if (v != null) terminal(v, routes.get(actor.entityId()), "gateway-stop", 0, 0);
+        if (v != null && GatewayControl.controls(v)) {
+            terminal(v, routes.get(actor.entityId()), "gateway-stop", 0, 0);
+            // Arrival removes the route, but a later stop still owns these
+            // control inputs. Keep gravity, collisions and native AI enabled.
+            v.getNavigation().stop();
+            ((PathNavigationAccessor)v.getNavigation()).cognitivecraft$setHasDelayedRecomputation(false);
+            v.getMoveControl().setWantedPosition(v.getX(), v.getY(), v.getZ(), 0.0);
+            v.setXxa(0.0F);v.setYya(0.0F);v.setSpeed(0.0F);
+        }
         routes.remove(actor.entityId());
     }
     private void stopOwnedNavigation(Villager v, Route route) {
@@ -254,6 +262,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         // recompute. Clear this flag only while the gateway holds this villager.
         ((PathNavigationAccessor)v.getNavigation()).cognitivecraft$setHasDelayedRecomputation(false);
         v.getMoveControl().setWantedPosition(v.getX(), v.getY(), v.getZ(), 0.0);
+        v.setXxa(0.0F);v.setYya(0.0F);v.setSpeed(0.0F);
     }
     @Override public Reason permit(ValidatedRequest request, Effect effect, Cell target) {
         ActorRef actor = ((ActorValue)request.request().arguments().get("actor")).value();

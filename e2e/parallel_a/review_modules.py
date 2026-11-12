@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 def main():
     p=argparse.ArgumentParser();p.add_argument('--stage',choices=('A08','A09','A10'),default='A08');a=p.parse_args()
     modules={}
-    for name,expected in (('core',2400 if a.stage=='A08' else 2438),('providers',131),('fabric',{'A08':130,'A09':131,'A10':133}[a.stage])):
+    for name,expected in (('core',{'A08':2400,'A09':2438,'A10':2439}[a.stage]),('providers',131),('fabric',{'A08':130,'A09':131,'A10':133}[a.stage])):
         files=sorted((Path(name)/'build/test-results/test').glob('TEST-*.xml'))
         assert files,('No XML',name)
         cases=[c for file in files for c in ET.parse(file).getroot().iter('testcase')]

@@ -58,9 +58,13 @@ class LeaseHarness(ActivityHarness):
         return {'before':old,'after':new,'sameClients':True}
     def companion_region(self):
         self.command('PlayerA','/gamemode spectator','Spectator|spectator');self.command('PlayerA','/tp 329.5 208 69.5','Teleported')
-        self.command('PlayerA','/gamemode survival','Survival|survival')
         self.citizens['PlayerA'],self.entities['PlayerA']=self.companion
         self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.snapshot()['actors']),'Same normal-AI companion loaded',50)
+        self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.client_snapshot('PlayerA').get('entities',[])),
+                  'Connected player receives companion chunk before leaving spectator',50)
+        self.quiet(10)
+        self.command('PlayerA','/gamemode survival','Survival|survival')
+        self.wait(lambda:abs(self.client_snapshot('PlayerA')['pos'][1]-208)<0.1,'Player stands above the native secondary floor',30)
     def one(self):
         self.actions_active=False;self.console(['setblock '+coord(self.other_source)+' minecraft:oak_log'])
         self.wait(lambda:LOG in self.block(self.other_source),'Explicit fixture resupply before the next legitimate native run')
@@ -170,25 +174,30 @@ def main():
         h.family='A03-pinned-native-original';case=args.root/'pinned-original';case.mkdir();original=interruption(h,True,case)
         pin=h.stable();pinned=[l for l in pin['hot']['leases'] if l['owner']['job']==original['job']]
         require(len(pinned)==3 and all(l['state']=='INTERRUPTED' for l in pinned),'Real interrupted owner must pin its original three leases')
-        h.companion_region();calls=h.model_calls();cycles=[];old_reference=None
+        h.companion_region();calls=h.model_calls();cycles=[]
+        h.wait(lambda:h.probe('observe-retired'),'Observe actual terminal hot references before compaction',45)
         for n in range(43):
             h.family='A03-continuous-lease-cycle-'+str(n+1);record=h.one();cycles.append(record)
-            if old_reference is None:
-                status=h.stable();job=record['view']['responsibility']['id'];old_reference=next(l for l in status['hot']['leases'] if l['owner']['job']==job)
             print('A03_NATIVE_LEASE_CYCLE '+json.dumps({'number':n+1,'run':record['run'],'job':record['view']['responsibility']['id']}),flush=True)
         status=h.stable();inventory=h.lease_inventory();all_rows=union_inventory(inventory);cycle_jobs={c['view']['responsibility']['id'] for c in cycles}
         actual=[l for l in all_rows.values() if (l.get('owner',{}).get('job') or l.get('job')) in cycle_jobs]
         require(len(actual)==129 and len(cycle_jobs)==43 and all(l['state']!='ACTIVE' for l in actual),'Continuous native history did not exceed 128 legitimate retired leases in 43 Jobs')
         require(status['jobs']<64 and status['metrics']['active']<=64 and status['metrics']['hot']<=128 and status['metrics']['evicted']>0,'Native wall was crossed by raising quotas or exceeding Job wall')
         require(set(l['id'] for l in pinned)<=set(l['id'] for l in status['hot']['leases']),'Unresolved native references did not remain hot')
+        observed=h.probe('retired-observations')['observations'];hot_ids={l['id'] for l in inventory['hot']['leases']}
+        eligible=[r for r in observed if r['lease']['owner']['job'] in cycle_jobs and r['lease']['id'] not in hot_ids]
+        require(eligible,'No previously observed native terminal reference actually left hot storage')
+        selection=eligible[0];old_reference=selection['lease']
+        atomic(args.root/'selected-cold-native-reference.json',selection)
         lookup=h.probe('lookup',lease=old_reference);require(lookup['lease']==old_reference and not lookup['hot'],'Exact old native lease did not resolve from archive')
         denied=h.probe('lookup',lease=old_reference,principal=h.snapshot()['knownPlayers']['PlayerB']['uuid'])
         require(denied['status']=='DENIED','Private old lease disclosed to another principal')
+        h.actions_active=False;h.companion_region()
         require(h.model_calls()==calls and h.menu_count('PlayerA',h.other_destination,LOG)==43 and h.inventory().get(LOG,0)==0,'Continuous known operations used model or lost native custody')
         h.save_checkpoint();restart=h.restart();h.stable();cold=h.probe('lookup',lease=old_reference,staleControls=True)
         require(cold['lease']==old_reference and cold['hotUnchanged'] and all(cold[k]['code'] not in ('GRANTED','VALID') for k in ('validate','renew','release')),'Cold historical lease became live authority')
         result['cases'].append({'id':'continuous-129-retired-native-leases','status':'PASS','cycles':cycles,'actualRetiredLeases':129,'boundedJobs':43,
-                                'pinned':pinned,'status':status,'inventory':inventory,'archiveLookup':lookup,'foreignDenied':denied,'restart':restart,'coldLookup':cold})
+                                'pinned':pinned,'status':status,'inventory':inventory,'referenceObservation':selection,'archiveLookup':lookup,'foreignDenied':denied,'restart':restart,'coldLookup':cold})
         h.save_checkpoint();h.stop('server');world=args.root/'server/game/world';backup=args.root/'qualified-continuous-history-world';shutil.copytree(world,backup,ignore=shutil.ignore_patterns('session.lock'))
         h.start('server');reconnect_players(h,list(h.players));h.stable()
         # Each failure/cut cohort starts from this exact complete world, after

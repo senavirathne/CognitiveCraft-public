@@ -88,7 +88,7 @@ class LifecycleHarness(RecoveryHarness):
             self.citizens['PlayerA'],self.entities['PlayerA']=self.companion
             run=self.submit(LOG,1,minimum=self.other_source,maximum=self.other_source,destination=self.other_destination)
             view=self.finish_run(run);require(all(receipts(view,s,LOG)==1 for s in ('HARVEST','PICKUP','DEPOSIT')),'Unrelated known work lacks actual receipts')
-            require(self.container(self.other_destination,LOG)==1,'Unrelated native destination differs')
+            self.wait(lambda:self.container(self.other_destination,LOG)==1,'Fresh secondary physical stock after unrelated terminal receipt',30)
             return {'run':run,'view':view,'destination':self.other_destination,'stock':1}
         finally:self.citizens['PlayerA'],self.entities['PlayerA']=primary
 

@@ -74,9 +74,12 @@ public final class RuntimeAStorageProbe implements ModInitializer {
     }
     private Map<String,Object> compatibility(ArchiveWriter writer,KernelSession.RuntimeStorageView view)throws java.io.IOException {
         byte[] snapshot=JobJournal.encode(view.jobs());String source=sha256(snapshot);
-        byte[] prefix="fixture:opaque-native-job-snapshot\n".getBytes(StandardCharsets.UTF_8);byte[] payload=new byte[prefix.length+snapshot.length];
-        System.arraycopy(prefix,0,payload,0,prefix.length);System.arraycopy(snapshot,0,payload,prefix.length,snapshot.length);
-        UUID id=UUID.nameUUIDFromBytes(("fixture:world-snapshot:"+source).getBytes(StandardCharsets.UTF_8));
+        // Final Job-history readers correctly reject opaque HISTORY rows. Exercise
+        // the actual current codec with the same closed native Jobs, without eviction.
+        byte[] payload=RuntimeAClosedSnapshotFixture.encode(view.jobs());
+        UUID id=UUID.nameUUIDFromBytes(payload);
+        preserveFixture("compat-source-job-snapshot.jsonl",snapshot);
+        preserveFixture("compat-target-job-component.json",payload);
         Guard guard=new Guard(view.jobs().revision(),view.retentionGeneration());ArchiveWriter.Fences fences=owner->{var current=live.get();return current!=null && current.ready()?new Guard(owner==Owner.JOBS?current.jobs().revision():current.leases().revision(),current.retentionGeneration()):null;};
         var result=writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(new Row(Kind.HISTORY,id,payload)),fences);
         if(!result.acknowledged())throw new java.io.IOException("Native metadata append: "+result.status());
@@ -86,8 +89,13 @@ public final class RuntimeAStorageProbe implements ModInitializer {
                     result.acknowledgement().revision(),result.acknowledgement().digest());
             var migrated=writer.migration(writer.snapshot(),receipt,snapshot,guard,fences);if(!migrated.acknowledged())throw new java.io.IOException("Native migration receipt: "+migrated.status());
         }
-        return map("status","PASS","executionClass","NATIVE_HOST_OPAQUE_REAL_METADATA","physicalProof",false,"domainEviction",false,
+        return map("status","PASS","executionClass","NATIVE_HOST_CLOSED_REAL_JOB_METADATA","physicalProof",false,"domainEviction",false,
                 "key",id,"sourceSha256",source,"payloadSha256",sha256(payload),"manifest",writer.snapshot(),"migration",receipt,"view",summary(view));
+    }
+    private void preserveFixture(String name,byte[] bytes)throws java.io.IOException {
+        Path file=root.resolve(name);
+        if(Files.exists(file)) {if(!Arrays.equals(bytes,Files.readAllBytes(file)))throw new java.io.IOException("Original compatibility fixture changed");}
+        else Files.write(file,bytes,StandardOpenOption.CREATE_NEW);
     }
     private Map<String,Object> baseline(KernelSession.RuntimeStorageView view)throws java.io.IOException {
         Path fixture=root.resolve("bench-baseline-world");Path directory=fixture.resolve(JobJournal.WORLD_RELATIVE_PATH);Files.createDirectories(directory);

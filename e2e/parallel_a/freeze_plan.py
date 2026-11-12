@@ -7,7 +7,7 @@ from recovery_cases import originals
 
 HERE=Path(__file__).resolve().parent
 BASE='ea7de8000b2b484b885576c34ed5358274936ce9'
-MODULES={'core':2438,'providers':131,'fabric':133}
+MODULES={'core':2439,'providers':131,'fabric':133}
 REQUIRED_JOBS=('required_accomplishment_evidence_acceptance','required_knowledge_apprenticeship_acceptance',
  'required_primitive_diagnostics_diagnostics','required_goal_planning_acceptance','required_observed_knowledge_observations',
  'required_world_retention_retention','required_save_compatibility_compatibility','required_blueprint_boundary_acceptance','required_prerequisites_prerequisites')

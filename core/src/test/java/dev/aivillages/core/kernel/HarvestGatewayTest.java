@@ -47,6 +47,15 @@ final class HarvestGatewayTest {
         assertEquals(Outcomes.Reason.CANCELLED,s.gateway.cancel(pending.handle()).reason());assertTrue(p.forgotten);
         p.prepared=true;p.acknowledged=true;s.world.tick++;s.gateway.poll(pending.handle());assertEquals(0,p.calls);assertEquals(0,s.world.harvests);
     }
+    @Test void breakWindupStopsOwnedMovementWithoutMovingAgainOrTouchingAPendingIntent() {
+        var p=new Protocol();var s=new GatewayScene(2,0,0);s.gateway.harvestProtocol(p);
+        assertNull(s.action(APPROACH_OAK_LOG).reason());int moved=s.world.moves,stopped=s.world.stops;
+        var h=s.start(HARVEST_NEXT_OAK_LOG);s.world.tick++;assertFalse(s.gateway.poll(h).terminal());
+        assertEquals(stopped+1,s.world.stops);assertEquals(moved,s.world.moves);assertEquals(0,s.world.harvests);
+        for(int n=0;n<100 && p.action==null;n++){s.world.tick++;assertFalse(s.gateway.poll(h).terminal());}
+        assertNotNull(p.action);stopped=s.world.stops;s.world.tick++;assertFalse(s.gateway.poll(h).terminal());
+        assertEquals(stopped,s.world.stops);assertEquals(moved,s.world.moves);assertEquals(0,p.calls);
+    }
     @Test void cancellationAfterMutationKeepsItsDebitWithoutPublishingAnUnacknowledgedReceipt() {
         var p=new Protocol();var pending=pending(p);var s=pending.scene();p.prepared=true;s.world.tick++;s.gateway.poll(pending.handle());
         var cancelled=s.gateway.cancel(pending.handle());assertEquals(Outcomes.Reason.INTERRUPTED,cancelled.reason());assertEquals(1,cancelled.committedEffects());

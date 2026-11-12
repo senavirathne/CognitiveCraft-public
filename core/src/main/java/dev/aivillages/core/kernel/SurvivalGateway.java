@@ -944,6 +944,10 @@ public final class SurvivalGateway implements GatewayPort {
             finish(action, Reason.TARGET_INVALID, null, null); return;
         }
         if (LogAcquisition.log(run.item)) {
+            // The approach action is already complete. Cancel only owned
+            // movement inputs while the original, bounded break winds up.
+            // Pending native intents take the durableHarvest path above.
+            world.stopMovement(run.actor);
             long requested=((IntValue)run.request.request().arguments().get("amount")).value();
             if (run.harvested>=requested) { finish(action,Reason.RESOURCE_MISSING,null,null); return; }
             Reason denied=world.permit(run.request,Effect.HARVEST,cell);

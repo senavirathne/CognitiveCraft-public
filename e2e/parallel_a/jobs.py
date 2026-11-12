@@ -276,6 +276,7 @@ def main():
                 old=archived.setdefault(job['id'],job);require(old==job,'Conflicting actual archived Job body')
         terminal+=sum(identifier not in {j['id'] for j in final['hot']['jobs']} for identifier in archived)
         require(terminal>64 and len(cycles)+len(more)>64 and final['jobs']['hot']<=64 and final['jobs']['active']<=32,'Continuous native terminal denominator did not exceed the actual old limit')
+        h.actions_active=False;h.companion_region()
         require(h.menu_count('PlayerA',h.other_destination,LOG)==len(cycles)+8 and h.inventory().get(LOG,0)==0,'Native cumulative delivery balance differs from original requests')
         h.screenshot('PlayerA','a04-native-over-64-menu')
         h.save_checkpoint();cold=[]

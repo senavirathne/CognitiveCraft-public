@@ -1,6 +1,23 @@
 """A10 acceptance guards. These synthetic contracts never count as native evidence."""
 import copy,json,tempfile,unittest
 from pathlib import Path
+
+class OrchestratorIsolation(unittest.TestCase):
+    def test_server_cores_are_reserved_within_the_existing_four_cores(self):
+        from freeze_runtime import isolate_orchestrator
+        with patch('freeze_runtime.os.sched_getaffinity',side_effect=[{0,1,2,3},{2,3}]),patch('freeze_runtime.os.sched_setaffinity') as apply:
+            value=isolate_orchestrator('A06')
+        apply.assert_called_once_with(0,{2,3});self.assertEqual([0,1],value['serverCores']);self.assertEqual(0,value['addedCores'])
+    def test_missing_original_topology_fails_before_applying_affinity(self):
+        from freeze_runtime import isolate_orchestrator
+        with patch('freeze_runtime.os.sched_getaffinity',return_value={0,1}),patch('freeze_runtime.os.sched_setaffinity') as apply:
+            with self.assertRaises(RuntimeError):isolate_orchestrator('A06')
+        apply.assert_not_called()
+    def test_profiles_without_the_declared_docker_core_split_keep_their_topology(self):
+        from freeze_runtime import isolate_orchestrator
+        with patch('freeze_runtime.os.sched_getaffinity',return_value={0,1,2,3}),patch('freeze_runtime.os.sched_setaffinity') as apply:
+            value=isolate_orchestrator('A03')
+        self.assertFalse(value['isolationApplied']);apply.assert_not_called()
 from unittest.mock import patch
 from zipfile import ZipFile
 from freeze_plan import CASES,MODULES,REQUIRED_JOBS,compose_files,ledger,plan
@@ -12,7 +29,7 @@ from recovery_fixture import MEMBERSHIP,marker
 class FrozenDenominator(unittest.TestCase):
     def test_every_original_profile_keeps_its_full_denominator_and_missing_case(self):
         self.assertEqual({'A00':4,'A01':2,'A02':5,'A03':7,'A04':10,'A05':15,'A06':21,'A07':27,'A08':21,'A09':9},{k:len(v) for k,v in CASES.items()})
-        self.assertEqual(121,plan()['requiredGateCases']);self.assertEqual(2702,sum(MODULES.values()))
+        self.assertEqual(121,plan()['requiredGateCases']);self.assertEqual(2703,sum(MODULES.values()))
         for profile,ids in CASES.items():
             partial=ledger(profile,[{'id':ids[0],'status':'PASS'}]);self.assertEqual(len(ids),len(partial))
             self.assertTrue(all(r['collectionStatus']=='NOT_EXECUTED_REQUIRED' for r in partial[1:]))
