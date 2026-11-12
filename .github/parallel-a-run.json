@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 54,
-  "parentSource": "86b0303410595ced065fc70837735cd5c3324c97",
+  "sequence": 55,
+  "parentSource": "6dc0e53ba64782d909231fb18f4c2766bdeb96c0",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4993,11 +4993,11 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 54,
-    "codeCheckpoint": "86b0303410595ced065fc70837735cd5c3324c97",
-    "codeTree": "f00fdaf8fd179b462ad1e175b3ea2bd65c2870b1",
-    "documentationPreRun": "779b906a7ce680fcd15c1b76d9982bcdd4cff06f",
-    "documentationTree": "6ab6aafbe5d9e714bfc49469dd0fa6cd3ffef8c7",
+    "sequence": 55,
+    "codeCheckpoint": "6dc0e53ba64782d909231fb18f4c2766bdeb96c0",
+    "codeTree": "4af41e29531a2b767071a453256a58f51d9e7a39",
+    "documentationPreRun": "eea16deed223fc51e2b0ea064cab59dc667853b4",
+    "documentationTree": "7b7de5f9786f49bd48f6e884720cc99b8ceed74c",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2702,
@@ -5016,6 +5016,96 @@
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
     "ownedCorrection": "Confirmed exact native KILLED/DISCARDED membership departure; saved handoff metadata integrity mandatory.",
-    "w04": "OPEN_CAUSE_UNPROVEN"
+    "w04": "OPEN_CAUSE_UNPROVEN",
+    "actionsPreviouslyStarted": 2,
+    "firstLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 54,
+      "status": "FAIL_PRE_NATIVE_INSTRUMENT_PREPARATION",
+      "source": "ebe7fa181064f680d12dcc1c0ff192f781a99eee",
+      "tree": "5327192018b1f67b32ec08797e513b75bda18f99",
+      "documentationPreRun": "779b906a7ce680fcd15c1b76d9982bcdd4cff06f",
+      "groupedRun": 43213742887,
+      "producerJob": 131167618265,
+      "standardRun": 43213742904,
+      "failedStep": "Test every module against the actual lifecycle-built native JAR and freeze instruments once",
+      "cause": "The second prepare.py invocation reopens the first JournalCostProbe world with a new random world UUID; JobJournal correctly rejects it as stale/recovered/invalid. Native profile jobs did not execute.",
+      "error": "java.io.IOException: Stale, recovered or invalid job commit; JobJournal.replace:84; JournalCostProbe.main:17; prepare.py:188",
+      "passed": {
+        "gradleModules": {
+          "core": 2438,
+          "providers": 131,
+          "fabric": 133,
+          "total": 2702
+        },
+        "ownedPython": 117,
+        "baselinePython": 72,
+        "lifecycleDiagnostics": 14,
+        "traceContractsIncludedInCore": 12,
+        "requiredRegressions": 9
+      },
+      "exactNativeJarModuleGate": "NOT_EXECUTED_REQUIRED",
+      "connectedProfileCases": 0,
+      "requiredConnectedHostAndMetadataCases": 121,
+      "unexecutedProfiles": [
+        "A00",
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09"
+      ],
+      "branchReady": false,
+      "artifacts": [
+        {
+          "id": 13942691482,
+          "name": "cc-runtime-a-a04-contracts-ebe7fa181064f680d12dcc1c0ff192f781a99eee-43213742887-1",
+          "bytes": 3567899,
+          "sha256": "sha256:6d16fd99276779d6151dd9a499df585698577362e87d59bef94c1d372b421a2a"
+        },
+        {
+          "id": 13942611548,
+          "name": "cc-runtime-a-a07-lifecycle-ebe7fa181064f680d12dcc1c0ff192f781a99eee-43213742887-1",
+          "bytes": 6825904,
+          "sha256": "sha256:27bd948ab0f9f9ddd974bfd22e02509f651493f03c4a8fc9acb27662c7ee9f8f"
+        }
+      ],
+      "correction": {
+        "source": "6dc0e53ba64782d909231fb18f4c2766bdeb96c0",
+        "tree": "4af41e29531a2b767071a453256a58f51d9e7a39",
+        "productionDiff": false,
+        "change": "Fresh atomically allocated probe directories for both one-shot probes, retaining all earlier bytes and both diagnostic outputs. No assertion/threshold changes.",
+        "localRepeatedProbe": {
+          "status": "PASS_TWO_COMPLETE_NATIVE_JRE_PREPARATION_PROBES",
+          "jarSha256": "a7cd6a320502ef7d287d066cdc2e66a7ab327058298491dd928747b5844206e6",
+          "invocations": [
+            {
+              "invocation": 1,
+              "journalProbe": "journal-probe",
+              "referenceProbe": "reference-log-self-test",
+              "actualMetadataPublications": 100,
+              "referenceFrames": 4
+            },
+            {
+              "invocation": 2,
+              "journalProbe": "journal-probe-001",
+              "referenceProbe": "reference-log-self-test-001",
+              "actualMetadataPublications": 100,
+              "referenceFrames": 4
+            }
+          ],
+          "firstInvocationBytesUnchanged": true,
+          "nativeGameplayEffects": 0,
+          "frozenThresholdsUnchanged": true
+        }
+      },
+      "workflowRecords": 2,
+      "mainReruns": 0
+    }
   }
 }
