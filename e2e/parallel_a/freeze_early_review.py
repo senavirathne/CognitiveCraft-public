@@ -15,7 +15,7 @@ def successful(view,amount):
     assert view['responsibility']['state']=='SUCCEEDED'
 
 def interruption(root,folder,row,saved):
-    assert read(folder/'result.json')==row
+    assert read(folder/'result.json')=={k:v for k,v in row.items() if k!='id'}
     before=read(folder/'before-kill.json');job=before['view']['responsibility'];after=row['after']['responsibility']
     assert row['saved']==saved and row['actuallyWitnessedCut']==before['view']
     assert before['postEffectSaveRequested']==saved and bool(before['effectSave'])==saved
@@ -168,6 +168,7 @@ def jobs(root,cases):
         row=cases['native-job-cut-'+point]['evidence'];folder=root/('cut-'+point);before=read(folder/'before-kill.json')
         assert read(folder/'result.json')==row and row['actuallyWitnessed']==before['reached'] and before['reached']['point']==point.upper()
         assert before['armed']['process']==before['reached']['process'] and before['armed']['token']==before['reached']['token']
+        assert before['armed']['pid']==before['reached']['pid']==row['beforeProcess']['namespaceProcess']['pid']
         assert row['sameClients'] and not row['automaticContinuation'] and row['pinned']==pinned
         process_replaced(row['beforeProcess'],row['afterProcess']);_,cut_hot,cut_archive,cut_union=canonical_world(folder/'killed-world',allow_orphan=point=='after_segment_ack')
         assert all(cut_union.get(k)==v for k,v in union.items());pinned_jobs(cut_hot,pinned)
