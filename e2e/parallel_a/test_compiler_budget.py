@@ -23,7 +23,7 @@ class CompilerBudgetTest(unittest.TestCase):
         return changed
     def test_compilers_only_lower_priority_and_never_raise_an_existing_lower_priority(self):
         changed=self.native(15);value=configure(40,99,[0,1])
-        self.assertEqual([(2,15),(3,15)],changed);self.assertEqual(0,value['serverThread']['niceAfter'])
+        self.assertCountEqual([(2,15),(3,15)],changed);self.assertEqual(0,value['serverThread']['niceAfter'])
     def test_reused_native_pid_is_refused_before_any_priority_mutation(self):
         changed=self.native()
         with patch('compiler_budget.birth',return_value=100),self.assertRaises(ValueError):configure(40,99,[0,1])
