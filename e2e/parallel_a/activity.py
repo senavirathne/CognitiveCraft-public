@@ -51,6 +51,7 @@ class ActivityHarness(RuntimeAHarness):
         # A separate region, ordinary actor and its empty source/destination are
         # prepared before the interrupted task. Only actual players move later.
         self.other_source=[326,208,66];self.other_destination=[333,208,72]
+        retained=self.companion if getattr(self,'a10_profile',None) in ('A01','A02','A03','A04') else None
         self.console(['gamemode spectator PlayerA','tp PlayerA 329.5 208 69.5'])
         self.wait(lambda: all(','.join(map(str,p)) in self.snapshot()['blocks']
                   for p in ([319,208,63],[340,208,78])),
@@ -63,18 +64,33 @@ class ActivityHarness(RuntimeAHarness):
                       'fill 318 208 62 318 213 80 minecraft:glass',
                       'fill 341 208 62 341 213 80 minecraft:glass',
                       'fill 318 214 62 341 214 80 minecraft:glass',
-                      'summon minecraft:villager 329.5 208 67.5 {PersistenceRequired:1b}',
+                      *([] if retained else ['summon minecraft:villager 329.5 208 67.5 {PersistenceRequired:1b}']),
                       'setblock '+coord(self.other_source)+' minecraft:oak_log',
                       'setblock '+coord(self.other_destination)+' minecraft:chest',
                       'gamemode survival PlayerA'])
-        self.wait(lambda: any(a['uuid'] not in self.entities.values() for a in self.snapshot()['actors']),
-                  'Separate normal-AI adult exists before its native enrollment')
-        primary=(self.citizens['PlayerA'],self.entities['PlayerA'])
-        try:
-            self.enroll('PlayerA','Hana')
-            self.companion=(self.citizens['PlayerA'],self.entities['PlayerA'])
-        finally:
-            self.citizens['PlayerA'],self.entities['PlayerA']=primary
+        if retained:
+            def actual_retained():
+                state=self.snapshot()
+                actor=next((a for a in state['actors'] if a['uuid']==retained[1] and a['alive'] and not a['baby'] and not a['noAI']),None)
+                citizen=next((c for c in state['knownPlayers']['PlayerA']['citizens']['citizens']
+                              if c['actor']['citizenId']==retained[0] and c['actor']['entityId']==retained[1] and c['availability']=='LOADED'),None)
+                if actor and citizen:return state,actor,citizen
+            state,actor,citizen=self.wait(actual_retained,'Exact already-owned admission companion remains a normal loaded adult',50)
+            secondary=[a for a in state['actors'] if 318<=a['pos'][0]<342 and 62<=a['pos'][2]<81]
+            require(len(secondary)==1 and secondary[0]['uuid']==retained[1],
+                    'Retained secondary arena must contain its original companion without a duplicate fixture actor')
+            atomic(self.root/'a10-secondary-actor-fixture.json',{'schema':1,'profile':self.a10_profile,'kind':'REUSE_EXACT_ADMISSION_COMPANION',
+                'companion':list(retained),'nativeActor':actor,'privateCitizen':citizen,'time':state['time'],
+                'duplicateActorsSummoned':0,'normalAI':True,'nativeEffects':0})
+        else:
+            self.wait(lambda: any(a['uuid'] not in self.entities.values() for a in self.snapshot()['actors']),
+                      'Separate normal-AI adult exists before its native enrollment')
+            primary=(self.citizens['PlayerA'],self.entities['PlayerA'])
+            try:
+                self.enroll('PlayerA','Hana')
+                self.companion=(self.citizens['PlayerA'],self.entities['PlayerA'])
+            finally:
+                self.citizens['PlayerA'],self.entities['PlayerA']=primary
         require(LOG in self.block(self.other_source) and self.container(self.other_destination,LOG)==0,
                 'Unrelated native resources were not prepared before interruption')
         self.command('PlayerA','/tp 66.5 208 69.5','Teleported')

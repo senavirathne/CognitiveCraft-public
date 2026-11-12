@@ -50,6 +50,13 @@ def identity(root,profile,source,jar):
     from deposits import manifest
     assert manifest(root/'genuinely-admitted-seed-game/world')==continuation['worldHashes']==admission['worldHashes']
     assert {r['item'] for r in admission['admissions'] if r['status']=='PASS'}=={'minecraft:oak_log','minecraft:birch_log','minecraft:wheat'}
+    if profile in ('A01','A03','A04'):
+        setup=read(root/'a10-secondary-actor-fixture.json');assert setup['schema']==1 and setup['profile']==profile
+        assert setup['kind']=='REUSE_EXACT_ADMISSION_COMPANION' and setup['companion']==admission['unrelatedCompanion']
+        assert setup['duplicateActorsSummoned']==setup['nativeEffects']==0 and setup['normalAI'] is True
+        actor=setup['nativeActor'];citizen=setup['privateCitizen'];assert actor['uuid']==setup['companion'][1]
+        assert actor['alive'] and not actor['baby'] and not actor['noAI']
+        assert citizen['actor']['citizenId']==setup['companion'][0] and citizen['actor']['entityId']==actor['uuid'] and citizen['availability']=='LOADED'
     for row in admission['admissions']:
         assert row['callsAfter']['generationCalls']>row['callsBefore']['generationCalls'] and row['view']['marker']['outcome']=='ADMITTED'
     from recovery_seed import ARCHIVE_SHA,SOURCE,ARTIFACT
