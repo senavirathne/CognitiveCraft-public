@@ -14,7 +14,8 @@ import java.util.*;
 public final class RuntimeAObservationJson {
     private static final Gson JSON=new Gson();
     private static final boolean ENABLED="true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE"))
-            || "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"));
+            || "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"))
+            || System.getenv("COGNITIVECRAFT_A10_PROFILE") != null;
     private static final int MAX_ROWS=128,MAX_BYTES=16*1024*1024;
     private record Key(String kind,UUID id) {}
     private record Entry(Object original,JsonElement tree,int bytes,Map<JsonElement,String> literals) {}

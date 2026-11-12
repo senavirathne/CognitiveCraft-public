@@ -66,11 +66,17 @@ class LifecycleHarness(RecoveryHarness):
         self.vanilla('PlayerA','/gamemode spectator');self.vanilla('PlayerA','/tp 329.5 208 69.5')
         self.wait(lambda:(v if (v:=self.life(self.companion[0])) and v['identity']['availability']=='LOADED' else None),'Actual companion loaded before fixture relocation',60)
         self.vanilla('PlayerA','/tp '+self.companion[1]+' 68.5 208 68.5')
-        self.vanilla('PlayerA','/tp 66.5 208 69.5');self.vanilla('PlayerA','/gamemode survival')
+        self.vanilla('PlayerA','/tp 66.5 208 69.5')
+        self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.client_snapshot('PlayerA').get('entities',[])),
+                  'Actual main arena and companion loaded before returning to survival',40)
+        self.vanilla('PlayerA','/gamemode survival')
         self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.snapshot()['actors']),'Actual same companion reaches the main arena',40)
     def reset(self,*args,**kwargs):
         value=super().reset(*args,**kwargs)
-        if self.move_companion:self.relocate_companion()
+        if self.move_companion:
+            from handoff_fixture import setup
+            self.current_handoff_fixture=setup(self,self.handoff_template)
+            self.relocate_companion()
         return value
     def activate(self,seed,name):
         self.citizens['PlayerA'],self.entities['PlayerA']=self.primary
@@ -325,9 +331,13 @@ def death_case(h,seed,template,kind):
 
 
 def handoff_case(h,seed,template,kind):
+    from handoff_fixture import expected_case
+    h.handoff_template=expected_case(kind)
     h.move_companion=True
     try:directory,case,value=original_control(h,seed,template,kind,'RESULT_ACKNOWLEDGED')
     finally:h.move_companion=False
+    value['physicalFixture']=h.current_handoff_fixture
+    atomic(directory/'handoff-fixture.json',h.current_handoff_fixture)
     value['nativeSavedProof']=native_saved(directory/'killed-world','DEPOSIT',case)
     classification(h,{'SAVED_COMPLETE'},'Original delivered-unit evidence before explicit reassignment')
     current=job(h,value['run']);successor=h.wait(lambda:(v if (v:=h.life(h.companion[0])) and v['identity']['availability']=='LOADED' else None),'Eligible explicit successor',40)['identity']['actor']

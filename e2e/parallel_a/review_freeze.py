@@ -32,6 +32,8 @@ def identity(root,profile,source,jar):
     stops=[json.loads(line) for line in (root/'supervisor.jsonl').read_text().splitlines()]
     stops=[r['data']['process'] for r in stops if r['kind'] in ('stop','sigkill') and r['data'].get('component')=='server']
     assert stops and all(p['kind']=='server' and p['releaseSha256']==jar for p in stops)
+    from compiler_budget import review as compiler_review
+    compiler=compiler_review(root,profile,jar,stops)
     for process in stops:
         actual={r['name']:r['sha256'] for r in process['mods']}
         assert actual['ai-villages-0.1.0.jar']==jar and actual['observer.jar']==metadata['binaries']['observer']['sha256']
@@ -53,7 +55,7 @@ def identity(root,profile,source,jar):
     from recovery_seed import ARCHIVE_SHA,SOURCE,ARTIFACT
     assert continuation['archiveSha256']==ARCHIVE_SHA and continuation['source']==SOURCE and continuation['artifact']==ARTIFACT
     return {'source':source,'tree':frozen['tree'],'productionSha256':jar,'observerSha256':metadata['binaries']['observer']['sha256'],
-            'clientSha256':metadata['binaries']['clientDriver']['sha256'],'runtimeBindings':native,'immutableBuildImages':images,
+            'clientSha256':metadata['binaries']['clientDriver']['sha256'],'runtimeBindings':native,'immutableBuildImages':images,'compilerBudget':compiler,
             'seed':{'sha256':ARCHIVE_SHA,'source':SOURCE,'artifact':ARTIFACT,'importedCurrentPasses':0}}
 
 def modules(root=ROOT):
@@ -117,6 +119,14 @@ def review(root,profile,source,jar):
         from review_lifecycle_connected import review as original
         details=original(root,source);assert details['status']=='PASS_A07_CONNECTED_NATIVE_REVIEW'
         details['savedHandoffMembership']=handoff_membership(root)
+        from handoff_fixture import review as fixture_review
+        from lifecycle_cases import HANDOFF_CASES
+        details['physicalHandoffFixtures']={}
+        for name in HANDOFF_CASES:
+            folder=root/'controls'/name;row=read(folder/'result.json');record=read(folder/'handoff-fixture.json')
+            assert record==row['physicalFixture']
+            details['physicalHandoffFixtures'][name]=fixture_review(folder/'killed-world',row['originalCase'],
+                row['originalAtCut']['attempts'][0]['worker']['entityId'],row['successor']['entityId'],record)
     elif profile=='A08':
         from review_claims_connected import review as original
         details=original(root,source);assert details['status']=='PASS_BOUNDED_STAGING_NATIVE_REVIEW'

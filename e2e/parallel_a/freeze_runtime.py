@@ -20,8 +20,18 @@ def attach(h):
     if not profile:return
     if profile not in CASES:raise ValueError('Unknown A10 native gate')
     h.a10_profile=profile
+    # Capture the most-derived implementation, including RecoveryHarness checks.
+    h.a10_original_start=h.start
+    h.start=types.MethodType(start,h)
     h.compose=types.MethodType(compose,h)
     if profile in ('A00','A01','A02','A03','A04','A05'):h.bootstrap=types.MethodType(bootstrap,h)
+
+def start(h,component):
+    result=h.a10_original_start(component)
+    if component=='server':
+        from compiler_budget import prepare
+        prepare(h)
+    return result
 
 def docker(h,*args):
     from suite import ROOT

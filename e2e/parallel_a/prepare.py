@@ -58,7 +58,8 @@ deferred={
         'if (++ticks % snapshotTicks == 0) {\n'
         '                var captured = snapshot(server);\n'
         '                boolean defer = "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A04_PROBE"))\n'
-        '                        || "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"));\n'
+        '                        || "true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"))\n'
+        '                        || System.getenv("COGNITIVECRAFT_A10_PROFILE") != null;\n'
         '                pending.set(defer ? captured : JSON.toJson(captured));\n'
         '            }',
     'var data = pending.getAndSet(null);\n        if (data == null) return;':
