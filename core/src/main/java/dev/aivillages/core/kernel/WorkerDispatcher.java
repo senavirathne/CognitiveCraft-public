@@ -247,6 +247,7 @@ public final class WorkerDispatcher {
                     var decision=jobResolver.resolve(job,bound,snapshot);work.resolutions++;
                     last=decision(job,actor,Code.BLOCKED,decision,decision.routing().reason());
                     if(decision.routing().status()==ResolutionStatus.RESOLVED) {
+                        if(job.activity()!=null && !job.activity().current().artifact().equals(decision.routing().artifact())){last=decision(job,actor,Code.BLOCKED,decision,Reason.STALE_OBSERVATION);continue;}
                         if(job.preparation()!=null && !job.preparation().method().equals(decision.routing().artifact())) {last=decision(job,actor,Code.BLOCKED,decision,Reason.STALE_OBSERVATION);continue;}
                         var available=claims.preflight(job,bound);
                         if(available.usable()){chosen=decision;selected=actor;break;}
@@ -324,6 +325,11 @@ public final class WorkerDispatcher {
             }
             try {
                 var allowance=jobs.remainingAllowance(job.id(),l.origin);
+                if(job.activity()!=null) {
+                    var cap=job.activity().current().allowance();var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+                    for(var kind:Budgets.Kind.values())maxima.put(kind,Math.min(cap.maximum(kind),allowance.maximum(kind)));
+                    allowance=new Budgets.Limits(maxima,Math.min(cap.deadlineEpochMillis(),allowance.deadlineEpochMillis()));
+                }
                 if(job.preparation()!=null) {
                     var cap=OakLogDelivery.executionLimits(clock.millis()).total();var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
                     for(var kind:Budgets.Kind.values())maxima.put(kind,Math.min(cap.maximum(kind),allowance.maximum(kind)));

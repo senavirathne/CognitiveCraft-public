@@ -1,9 +1,10 @@
-"""Fail closed on edits outside the A00–A08 owned source boundary."""
+"""Fail closed on edits outside the A00–A09 owned source boundary."""
 import subprocess
 from pathlib import Path
 
 base='ea7de8000b2b484b885576c34ed5358274936ce9'
 allowed={
+    'core/src/test/java/dev/aivillages/core/kernel/ActivityRuntimeTest.java',
     '.github/workflows/ci.yml',
     '.github/parallel-a-evidence.json',
     'core/src/test/java/dev/aivillages/core/kernel/ImmediateClaimsTest.java',
@@ -76,7 +77,7 @@ prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runti
           'core/src/test/java/dev/aivillages/core/kernel/runtime/evidence/')
 prefixes+=('fabric/src/main/java/dev/aivillages/fabric/runtime/evidence/',
            'fabric/src/test/java/dev/aivillages/fabric/runtime/evidence/')
-prefixes+=('core/src/test/resources/dev/aivillages/core/kernel/runtime/evidence/',)
+prefixes+=('core/src/test/resources/dev/aivillages/core/kernel/runtime/evidence/','core/src/test/resources/dev/aivillages/core/kernel/runtime/activity/',)
 changed=sorted(set(subprocess.check_output(['git','diff','--name-only',base],text=True).splitlines())
                |set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines()))
 original_ci=subprocess.check_output(['git','show',base+':.github/workflows/ci.yml'],text=True)

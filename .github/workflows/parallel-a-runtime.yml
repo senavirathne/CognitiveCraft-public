@@ -184,6 +184,10 @@ jobs:
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') }}
         run: python3 e2e/parallel_a/review_modules.py
+      - name: Independently inspect every A09 target module XML case
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') }}
+        run: python3 e2e/parallel_a/review_modules.py --stage A09
       - name: Compile exact native client and isolated A04 observers before activation
         id: a06_prepare
         run: |
@@ -356,11 +360,11 @@ jobs:
         run: python3 e2e/parallel_a/profile_native.py --root build/parallel-a/native
       - name: A07 actual native lifecycle order, private traces and separate-JVM diagnostic epochs
         if: >-
-          ${{ !cancelled() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected')) && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+          ${{ !cancelled() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected')) && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
         run: python3 e2e/parallel_a/lifecycle_diagnostics.py
       - name: Retain A07 event diagnostic worlds, XML and actual failure logs
         if: >-
-          ${{ always() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected')) }}
+          ${{ always() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected')) }}
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a07-lifecycle-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -570,6 +574,120 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: build/parallel-a/native-a06-recovery/
+      - name: A09 public runtime multi-segment slice and selected native regressions in Docker
+        id: a09_connected
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/needle/install.py build/needle
+          gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a09-admission-seed.zip
+          python3 e2e/parallel_a/activity_connected.py --root build/parallel-a/native-a09-connected --seed-archive build/parallel-a/a09-admission-seed.zip
+      - name: Preserve the entire A09 denominator when prerequisites fail
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') && steps.a09_connected.outcome == 'skipped' }}
+        run: |
+          python3 - <<'PYCODE'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'e2e/parallel_a')
+          from activity_cases import CASES
+          root=Path('build/parallel-a/native-a09-connected');root.mkdir(parents=True,exist_ok=True)
+          result={'schema':1,'stage':'A09','status':'FAIL_REQUIRED_PREREQUISITE','a09Qualified':False,'plannedCases':list(CASES),'requiredCases':len(CASES),
+                  'cases':[{'id':n,'status':'NOT_EXECUTED_REQUIRED'} for n in CASES],'omittedTasks':0,'omittedTests':0,
+                  'prerequisites':{'modules':'${{ steps.a06_modules.outcome }}','nativePreparation':'${{ steps.a06_prepare.outcome }}'}}
+          (root/'a09-results.json').write_text(json.dumps(result,indent=2)+'\n')
+          PYCODE
+      - name: Independently inspect A09 raw native worlds and original Jobs in read-only Docker
+        id: a09_review
+        if: >-
+          ${{ !cancelled() && startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') && steps.a09_connected.outcome != 'skipped' }}
+        run: |
+          output="$PWD/build/parallel-a/a09-independent-review"
+          mkdir -p "$output"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$output:$output:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_activity_connected.py --root build/parallel-a/native-a09-connected --source "${{ github.sha }}" --out "$output"
+      - name: Preserve all A09 native evidence as bounded lossless archive parts
+        id: a09_transport
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') && hashFiles('build/parallel-a/native-a09-connected/a09-results.json') != '' }}
+        run: python3 e2e/parallel_a/recovery_archive.py --root build/parallel-a/native-a09-connected --out build/parallel-a/a09-transport
+      - name: Retain A09 diagnostics and independent review
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a09-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/native-a09-connected/a09-results.json
+            build/parallel-a/native-a09-connected/metadata.json
+            build/parallel-a/native-a09-connected/configuration-manifest.json
+            build/parallel-a/native-a09-connected/a08-build-images.json
+            build/parallel-a/native-a09-connected/a08-build-inputs.json
+            build/parallel-a/native-a09-connected/a08-image-dependencies.json
+            build/parallel-a/native-a09-connected/a09-rpc/
+            build/parallel-a/native-a09-connected/cases/*/result.json
+            build/parallel-a/native-a09-connected/failures/*/result.json
+            build/parallel-a/native-a09-connected/original-cases/*/result.json
+            build/parallel-a/native-a09-connected/controls/*/result.json
+            build/parallel-a/a09-independent-review/
+            build/parallel-a/a09-transport/parts-manifest.json
+      - name: Retain A09 original native archive part 0
+        if: ${{ always() && steps.a09_transport.outcome == 'success' && hashFiles('build/parallel-a/a09-transport/part-000.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a09-native-part-0-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a09-transport/part-000.bin
+            build/parallel-a/a09-transport/parts-manifest.json
+      - name: Retain A09 original native archive part 1
+        if: ${{ always() && steps.a09_transport.outcome == 'success' && hashFiles('build/parallel-a/a09-transport/part-001.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a09-native-part-1-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a09-transport/part-001.bin
+            build/parallel-a/a09-transport/parts-manifest.json
+      - name: Retain A09 original native archive part 2
+        if: ${{ always() && steps.a09_transport.outcome == 'success' && hashFiles('build/parallel-a/a09-transport/part-002.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a09-native-part-2-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a09-transport/part-002.bin
+            build/parallel-a/a09-transport/parts-manifest.json
+      - name: Retain A09 original native archive part 3
+        if: ${{ always() && steps.a09_transport.outcome == 'success' && hashFiles('build/parallel-a/a09-transport/part-003.bin') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a09-native-part-3-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a09-transport/part-003.bin
+            build/parallel-a/a09-transport/parts-manifest.json
+      - name: Retain complete A09 evidence if lossless packing failed
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') && steps.a09_transport.outcome != 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a09-complete-native-fallback-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/native-a09-connected/
       - name: A08 all frozen connected staging and fair claim cases in Docker
         id: a08_connected
         if: >-

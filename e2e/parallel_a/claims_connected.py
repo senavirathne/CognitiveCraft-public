@@ -17,7 +17,7 @@ def active_claims(state,job=None):
 
 class ClaimsHarness(LifecycleHarness):
     def compose(self,*args):
-        files=['e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml']
+        files=getattr(self,'compose_files',['e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml'])
         cmd=['docker','compose','-p',self.project]
         for file in files:cmd+=['-f',str(ROOT/file)]
         if args and args[0]=='build':
@@ -35,7 +35,7 @@ class ClaimsHarness(LifecycleHarness):
             images=json.loads(self.docker_build_input('image','inspect','cognitivecraft-e2e:java25','eclipse-temurin:25-jdk-noble','mcr.microsoft.com/playwright/python:v1.56.0-noble').stdout)
             identities=[{k:image[k] for k in ('Id','RepoTags','RepoDigests','Architecture','Os')} for image in images]
             atomic(self.root/'a08-build-images.json',identities);print('A08_BUILD_IMAGES '+json.dumps(identities),flush=True)
-            paths=['e2e/Dockerfile','e2e/compose.yml','e2e/parallel_a/compose-deposits.yml','e2e/parallel_a/compose-lifecycle.yml','e2e/parallel_a/compose-claims.yml','e2e/parallel_a/Dockerfile.claims','e2e/parallel_a/dependency_probe.py']
+            paths=['e2e/Dockerfile',*files,'e2e/parallel_a/Dockerfile.claims','e2e/parallel_a/dependency_probe.py']
             inputs={'composeCommand':cmd+list(args),'actualDockerfile':'e2e/parallel_a/Dockerfile.claims','actualBuildContext':'e2e/parallel_a','files':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths},'networkDuringBuildRun':'none','runtimeNetwork':'host'}
             atomic(self.root/'a08-build-inputs.json',inputs);print('A08_BUILD_INPUTS '+json.dumps(inputs),flush=True)
             user=self.env.get('E2E_UID','1000')+':'+self.env.get('E2E_GID','1000')

@@ -55,8 +55,9 @@ def main():
                     consumers.append({'path':path.relative_to(ROOT).as_posix(),'line':n,'source':line.strip()})
     history = ROOT/'core/src/main/java/dev/aivillages/core/kernel/runtime/persistence'
     source={'commit':run('git','rev-parse','HEAD'),'tree':run('git','rev-parse','HEAD^{tree}'),
-        'base':'ea7de8000b2b484b885576c34ed5358274936ce9','schemaPolicy':'legacy 0/1/2/3 meanings preserved; history format is separate',
+        'base':'ea7de8000b2b484b885576c34ed5358274936ce9','schemaPolicy':'legacy 0/1/2/3 meanings preserved; optional Jobs-owned activity uses4; history format is separate',
         'baselineSchemas':{'Jobs':1,'JobJournal':[0,1,2,3],'ResourceLeaseJournal':1},
+        'currentOptionalSchemas':{'JobJournal':4,'activityPayload':1},
         'runtimeHistory':{'readerSchema':1 if (history/'ArchiveFormat.java').exists() else None,
                           'writerImplemented':(history/'ArchiveWriter.java').exists(),
                           'participantAtomicityClaimed':False},

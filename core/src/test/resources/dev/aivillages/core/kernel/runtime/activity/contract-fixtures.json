@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "fixtureOnly": true,
+  "runtimeExpectation": {
+    "currentRevision": 7,
+    "maxRemainingTravel": 32,
+    "nativeFixtureNamespaceAllowed": false
+  },
+  "cases": [
+    {
+      "id": "quantity_partition",
+      "payload": {
+        "schemaVersion": 1,
+        "kind": "SegmentProposalFixture",
+        "fixtureOnly": true,
+        "proposalId": "fixture:proposal-3-of-4",
+        "rootJobId": "00000000-0000-0000-0000-000000000001",
+        "basedOnRevision": 7,
+        "stepToken": "fixture:step-planks",
+        "operation": {
+          "capability": "fixture:four-planks",
+          "contractVersion": 1
+        },
+        "goalMode": "MAKE_NEW",
+        "quantity": {
+          "deficit": 3,
+          "yield": 4,
+          "batches": 1,
+          "produced": 4,
+          "goalAllocation": 3,
+          "surplus": 1
+        },
+        "allowance": {
+          "travel": 4
+        },
+        "trustedReceipt": false
+      },
+      "canonical_utf8": "{\"allowance\":{\"travel\":4},\"basedOnRevision\":7,\"fixtureOnly\":true,\"goalMode\":\"MAKE_NEW\",\"kind\":\"SegmentProposalFixture\",\"operation\":{\"capability\":\"fixture:four-planks\",\"contractVersion\":1},\"proposalId\":\"fixture:proposal-3-of-4\",\"quantity\":{\"batches\":1,\"deficit\":3,\"goalAllocation\":3,\"produced\":4,\"surplus\":1,\"yield\":4},\"rootJobId\":\"00000000-0000-0000-0000-000000000001\",\"schemaVersion\":1,\"stepToken\":\"fixture:step-planks\",\"trustedReceipt\":false}",
+      "sha256": "8a42bfa77abb87056500984d73da224e70af27567866ed8465eb3227c14ffae9",
+      "expected": "VALID_QUANTITY_PARTITION_ONLY_NO_EXECUTION"
+    },
+    {
+      "id": "stale_revision",
+      "payload": {
+        "schemaVersion": 1,
+        "kind": "SegmentProposalFixture",
+        "fixtureOnly": true,
+        "proposalId": "fixture:proposal-3-of-4",
+        "rootJobId": "00000000-0000-0000-0000-000000000001",
+        "basedOnRevision": 6,
+        "stepToken": "fixture:step-planks",
+        "operation": {
+          "capability": "fixture:four-planks",
+          "contractVersion": 1
+        },
+        "goalMode": "MAKE_NEW",
+        "quantity": {
+          "deficit": 3,
+          "yield": 4,
+          "batches": 1,
+          "produced": 4,
+          "goalAllocation": 3,
+          "surplus": 1
+        },
+        "allowance": {
+          "travel": 4
+        },
+        "trustedReceipt": false
+      },
+      "canonical_utf8": "{\"allowance\":{\"travel\":4},\"basedOnRevision\":6,\"fixtureOnly\":true,\"goalMode\":\"MAKE_NEW\",\"kind\":\"SegmentProposalFixture\",\"operation\":{\"capability\":\"fixture:four-planks\",\"contractVersion\":1},\"proposalId\":\"fixture:proposal-3-of-4\",\"quantity\":{\"batches\":1,\"deficit\":3,\"goalAllocation\":3,\"produced\":4,\"surplus\":1,\"yield\":4},\"rootJobId\":\"00000000-0000-0000-0000-000000000001\",\"schemaVersion\":1,\"stepToken\":\"fixture:step-planks\",\"trustedReceipt\":false}",
+      "sha256": "d7eed336f9ba08d8e7280f2795989bf0857b9ed969888b92f9d6da5267af2237",
+      "expected": "REJECT_STALE_REVISION"
+    },
+    {
+      "id": "over_budget",
+      "payload": {
+        "schemaVersion": 1,
+        "kind": "SegmentProposalFixture",
+        "fixtureOnly": true,
+        "proposalId": "fixture:proposal-3-of-4",
+        "rootJobId": "00000000-0000-0000-0000-000000000001",
+        "basedOnRevision": 7,
+        "stepToken": "fixture:step-planks",
+        "operation": {
+          "capability": "fixture:four-planks",
+          "contractVersion": 1
+        },
+        "goalMode": "MAKE_NEW",
+        "quantity": {
+          "deficit": 3,
+          "yield": 4,
+          "batches": 1,
+          "produced": 4,
+          "goalAllocation": 3,
+          "surplus": 1
+        },
+        "allowance": {
+          "travel": 33
+        },
+        "trustedReceipt": false
+      },
+      "canonical_utf8": "{\"allowance\":{\"travel\":33},\"basedOnRevision\":7,\"fixtureOnly\":true,\"goalMode\":\"MAKE_NEW\",\"kind\":\"SegmentProposalFixture\",\"operation\":{\"capability\":\"fixture:four-planks\",\"contractVersion\":1},\"proposalId\":\"fixture:proposal-3-of-4\",\"quantity\":{\"batches\":1,\"deficit\":3,\"goalAllocation\":3,\"produced\":4,\"surplus\":1,\"yield\":4},\"rootJobId\":\"00000000-0000-0000-0000-000000000001\",\"schemaVersion\":1,\"stepToken\":\"fixture:step-planks\",\"trustedReceipt\":false}",
+      "sha256": "33cb1d2dc9621a86201ce8082f60c855b09bd7bd8ea07da697dacae2a47e4fd5",
+      "expected": "REJECT_LIMIT_EXCEEDED"
+    },
+    {
+      "id": "observation_not_proof",
+      "payload": {
+        "schemaVersion": 1,
+        "kind": "NativeObservationFixture",
+        "fixtureOnly": true,
+        "produced": 4,
+        "durability": "OBSERVED_LIVE",
+        "trustedStoppedProof": false
+      },
+      "canonical_utf8": "{\"durability\":\"OBSERVED_LIVE\",\"fixtureOnly\":true,\"kind\":\"NativeObservationFixture\",\"produced\":4,\"schemaVersion\":1,\"trustedStoppedProof\":false}",
+      "sha256": "328c9a6ae737159f7e15b5428536651e0a01f630dd4242bb402d1ee230e1d280",
+      "expected": "NO_SAVE_OR_SETTLEMENT_CREDIT"
+    }
+  ]
+}

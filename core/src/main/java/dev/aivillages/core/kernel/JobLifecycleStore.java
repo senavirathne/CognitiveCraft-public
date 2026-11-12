@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.time.Clock;
+import dev.aivillages.core.kernel.runtime.activity.*;
 import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -32,7 +33,12 @@ public final class JobLifecycleStore {
             public boolean controls(ActorRef actor, TrustedContext origin) { return control.test(actor, origin); }
         };
     }
-    private record Written(Snapshot snapshot, Throwable error, long completedAt) { }
+    private record Written(Snapshot snapshot, Throwable error, long completedAt, long completedNanos) { }
+    public record PublicationTiming(long revision,long durationNanos){}
+    private final ArrayDeque<PublicationTiming> publicationTimings=new ArrayDeque<>();
+    private long publicationStartedNanos;
+    /** Bounded diagnostic durations only; these records grant no acknowledgement or effect authority. */
+    public List<PublicationTiming> publicationTimings(){thread();return List.copyOf(publicationTimings);}
     private static final class Limited extends RuntimeException {
         final Reason reason;
         Limited(Reason reason) { this.reason = reason; }
@@ -136,6 +142,7 @@ public final class JobLifecycleStore {
     /** Trusted composition/retention seam, not an unscoped player query. */
     public Snapshot snapshot() { thread(); return state; }
     public Settings settings() { return settings; }
+    public boolean deadlineExpired(UUID root,TrustedContext caller){thread();return clock.millis()>=query(root,caller).allowance().deadlineEpochMillis();}
     public void attachHistory(JobHistory history) {
         thread();if(this.history!=null)throw new IllegalStateException("Job history already attached");
         this.history=Objects.requireNonNull(history);
@@ -193,7 +200,7 @@ public final class JobLifecycleStore {
     public ValidatedRequest bindWorker(UUID id, Guard expected, ActorRef worker, TrustedContext caller) {
         thread(); Job job = controlled(id, caller);
         if (job == null || !job.guard().equals(expected) || !policy.controls(worker, job.origin())
-                || !assignmentPolicy(job,worker))
+                || !assignmentPolicy(job,worker) || job.activity()!=null && !job.responsible().equals(worker))
             throw new SecurityException("Current assignment authority required");
         return remainingRequest(job, worker);
     }
@@ -414,6 +421,10 @@ public final class JobLifecycleStore {
     }
     private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
                           Budgets.Limits allowance,List<UUID> dependencies,boolean staged,int initialInstructions,int initialObservations) {
+        return create(id,submission,request,caller,observation,allowance,dependencies,staged,initialInstructions,initialObservations,null);
+    }
+    private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
+                          Budgets.Limits allowance,List<UUID> dependencies,boolean staged,int initialInstructions,int initialObservations,ActivityPayload activity) {
         thread(); var work = new Work();
         if (!sameWorld(caller)) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
@@ -429,6 +440,7 @@ public final class JobLifecycleStore {
                 return reject(Reason.BUDGET_EXHAUSTED, work);
             Job job = fresh(id, submission, ((RequestValidator.Accepted) validation).value(),
                     null, allowance, dependencies);
+            if(activity!=null){var edit=new Edit(job);edit.activity=activity;edit.state=State.WAITING;job=edit.finish(EventKind.ACTIVITY_PREPARED,settings.events());}
             if(initialInstructions>0 || initialObservations>0) {
                 if(initialInstructions>allowance.maximum(Budgets.Kind.INSTRUCTIONS) || initialObservations>allowance.maximum(Budgets.Kind.OBSERVATIONS))return reject(Reason.BUDGET_EXHAUSTED,work);
                 var billed=new Edit(job);billed.usage=Jobs.usage(Map.of(Budgets.Kind.INSTRUCTIONS,(long)initialInstructions,Budgets.Kind.OBSERVATIONS,(long)initialObservations));
@@ -450,6 +462,51 @@ public final class JobLifecycleStore {
         catch (IllegalArgumentException | NullPointerException | ArithmeticException invalid) {
             return reject(Reason.REQUEST_INVALID, work);
         }
+    }
+    /** Opt-in authoritative root. Ordinary create/schema-1/2/3 behavior is unchanged. */
+    public Change createActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance,int plannedSteps) {
+        if(goal==null || !ResourceDelivery.isDelivery(goal.capability()))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        try{return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,ActivityPayload.initial(goal.capability(),plannedSteps));}
+        catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
+    }
+    /** No receipt, effect or terminal status occurs in a proposal. The acknowledged Job is preparation authority. */
+    public Change prepareActivity(ActivityRuntime.Proposal proposal,TrustedContext caller) {
+        thread();var work=new Work();Job job=controlled(proposal.root(),caller);
+        if(job==null || !policy.controls(job.responsible(),job.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!ready())return reject(unavailableReason(),work);
+        if(job.activity()==null)return reject(Reason.REQUEST_INVALID,work);
+        var payload=job.activity();
+        var same=payload.steps().stream().filter(s->s.token().equals(proposal.token()) || s.proposal().equals(proposal.id())).findFirst();
+        if(same.isPresent())return same.get().token().equals(proposal.token()) && same.get().bodyDigest().equals(proposal.bodyDigest())?duplicate(job,work):reject(Reason.STALE_OBSERVATION,work);
+        Change denied=guard(job,proposal.expected(),work);if(denied!=null)return denied;
+        if(job.state().terminal() || job.cancellationOutcome()!=null || job.state()==State.CANCELLING)return reject(Reason.CANCELLED,work);
+        if(payload.current()!=null || job.current()!=null&&job.current().open() || job.state()==State.INTERRUPTED)
+            return reject(Reason.STALE_OBSERVATION,work);
+        if(payload.steps().size()>=settings.attempts() || proposal.plannedSteps()<=payload.checkpoints().size())return reject(Reason.STORAGE_LIMIT_REACHED,work);
+        try {
+            if(clock.millis()>=job.allowance().deadlineEpochMillis() || clock.millis()>=proposal.allowance().deadlineEpochMillis())return reject(Reason.BUDGET_EXHAUSTED,work);
+            var exact=new HashMap<>(job.request().request().arguments());exact.put("amount",new IntValue(proposal.quantities().demand()));
+            // Never relax the immutable exact root request or the B resolver. This segment is a subset of that root.
+            if(!new CapabilityRequest(job.request().request().capability(),exact).equals(proposal.request())
+                    || !proposal.artifact().capability().equals(job.request().request().capability())
+                    || proposal.quantities().demand()>((IntValue)job.request().request().arguments().get("amount")).value()-job.fulfilled())
+                return reject(Reason.REQUEST_INVALID,work);
+            var validation=RequestValidator.validate(proposal.request(),job.origin(),job.request().observation(),capabilities,environment);
+            if(validation instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
+            envelope(proposal.allowance(),remainingAllowance(job.id(),caller));
+            for(var step:payload.steps())if(step.signature().equals(proposal.signature()) && step.creditBefore()==job.fulfilled())return reject(Reason.STALE_OBSERVATION,work);
+            boolean executable=proposal.choice()==null && proposal.quantities().exact()
+                    && (LogAcquisition.is(job.request().request().capability()) || CropDelivery.ID.equals(job.request().request().capability()));
+            var step=new ActivityPayload.Step(UUID.randomUUID(),proposal.id(),proposal.token(),proposal.bodyDigest(),proposal.signature(),job.fulfilled(),
+                    proposal.quantities().demand(),proposal.artifact(),proposal.choice(),proposal.quantities(),proposal.allowance(),Math.addExact(job.revision(),1),null);
+            var edit=new Edit(job);edit.activity=payload.prepared(step,proposal.plannedSteps(),executable);
+            edit.state=executable?State.READY:State.WAITING;edit.reason=null;
+            Job changed=edit.finish(EventKind.ACTIVITY_PREPARED,settings.events());var rows=rows();rows.put(job.id(),changed);
+            // Serialization bounds are checked before storage submission; no partially admitted oversized payload.
+            StrictJson.object(JobCodec.job(changed));
+            return publish(rows,state.allocations(),changed,null,0);
+        }catch(Limited limited){return reject(limited.reason,work);}
+        catch(StrictJson.Invalid | IllegalArgumentException | NullPointerException | ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
     }
     public Change transition(UUID id, Guard guard, State target, Reason reason, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
@@ -728,6 +785,7 @@ public final class JobLifecycleStore {
         catch(IllegalArgumentException|NullPointerException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
     }
     public boolean materialReady(Job job) {
+        if(job.activity()!=null && (job.activity().current()==null || job.activity().blocker()!=ActivityPayload.Blocker.NONE))return false;
         thread();var p=job.preparation();if(p==null)return true;if(p.method()==null)return false;
         for(var intent:p.materials()) {
             long allocated=state.allocations().stream().filter(a->a.material() && a.demand().equals(job.id()) && a.producer().equals(intent.producer()) && a.item().equals(intent.item()))
@@ -820,6 +878,14 @@ public final class JobLifecycleStore {
                 for (Budgets.Kind kind : Budgets.Kind.values())
                     if (allowance.maximum(kind) > available(ancestor.id(), kind, rows()))
                         return reject(Reason.BUDGET_EXHAUSTED, work);
+            if(job.activity()!=null) {
+                var step=job.activity().current();
+                if(step==null || step.attempt()!=null || step.choice()!=null || !step.quantities().exact()
+                        || !LogAcquisition.is(job.request().request().capability()) && !CropDelivery.ID.equals(job.request().request().capability())
+                        || !job.responsible().equals(worker) || !Objects.equals(artifact,step.artifact())
+                        || job.activity().blocker()!=ActivityPayload.Blocker.NONE)return reject(Reason.REQUEST_INVALID,work);
+                envelope(allowance,step.allowance());
+            }
             ValidatedRequest bound = remainingRequest(job, worker);
             var validated = RequestValidator.validate(bound.request(), job.origin(), bound.observation(), capabilities, environment);
             if (validated instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
@@ -833,6 +899,7 @@ public final class JobLifecycleStore {
                     Map.of(), List.of(), 0, 0, null, false, 0);
             var edit = new Edit(job); edit.generation = generation; edit.state = State.ACTIVE; edit.reason = null;
             var attempts = new ArrayList<>(job.attempts()); attempts.add(attempt); edit.attempts = attempts;
+            if(job.activity()!=null)edit.activity=job.activity().assigned(attemptId);
             Job changed = edit.finish(EventKind.ASSIGNED, settings.events()); var rows = rows(); rows.put(id, changed);
             return publish(rows, state.allocations(), changed, null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
@@ -1015,6 +1082,8 @@ public final class JobLifecycleStore {
                 return reject(Reason.ACTION_FAILED, work);
             boolean uncertain = reconciliation ? false : old.uncertain()
                     || !obsolete && terminal != null && terminal.status() == ExecutionStatus.INTERRUPTED;
+            if(job.activity()!=null && terminal!=null && terminal.status()!=ExecutionStatus.SUCCEEDED && effects>0
+                    && old.executions().stream().noneMatch(r->ResourceDelivery.completed(old.bound(),r.runId(),merged,mergedResources)))uncertain=true;
             Attempt updated = attempt(old, old.executions(), usage, merged, effects, credit,
                     terminal, uncertain, old.cancellationDeliveries(), mergedResources);
             if (updated.equals(old)) return duplicate(job, work);
@@ -1044,6 +1113,16 @@ public final class JobLifecycleStore {
                         edit.state = reconciliation ? State.READY : State.INTERRUPTED;
                         edit.reason = reconciliation ? null : Reason.INTERRUPTED;
                     }
+                }
+            }
+            if(job.activity()!=null && !obsolete) {
+                if(terminal!=null && terminal.status()==ExecutionStatus.SUCCEEDED && !updated.open()) {
+                    edit.activity=job.activity().completed(updated);
+                    long total=edit.attempts.stream().mapToLong(Attempt::credited).reduce(0,Math::addExact);
+                    edit.state=total==((IntValue)job.request().request().arguments().get("amount")).value()?State.SUCCEEDED:State.WAITING;
+                    edit.reason=null;
+                } else if(updated.open() && terminal!=null) {
+                    edit.state=State.INTERRUPTED;edit.reason=Reason.INTERRUPTED;
                 }
             }
             Job changed = edit.finish(obsolete ? EventKind.LATE_EFFECTS
@@ -1170,6 +1249,7 @@ public final class JobLifecycleStore {
         for (Snapshot snapshot : pending == null ? List.of(state) : List.of(state, pending))
             for (Job job : snapshot.jobs()) {
                 jobs.add(job.id()); jobs.addAll(job.dependencies()); jobs.addAll(job.children());
+                if(job.activity()!=null)job.activity().steps().forEach(s->artifacts.add(s.artifact()));
                 if(job.preparation()!=null && job.preparation().method()!=null)artifacts.add(job.preparation().method());
                 for (Attempt a : job.attempts()) {
                     runs.add(a.id());
@@ -1191,6 +1271,8 @@ public final class JobLifecycleStore {
                     || written.completedAt() > deadline) {
                 fenced = true; failure = Reason.STORAGE_UNAVAILABLE; afterWrite = null; return;
             }
+            if(publicationTimings.size()==64)publicationTimings.removeFirst();
+            publicationTimings.addLast(new PublicationTiming(pending.revision(),Math.max(0,written.completedNanos()-publicationStartedNanos)));
             state = pending; pending = null;
             Runnable after = afterWrite; afterWrite = null;
             if (after != null) try { after.run(); }
@@ -1240,19 +1322,20 @@ public final class JobLifecycleStore {
                             ? new Event(revision,event.kind(),event.attempt(),event.generation()) : event).toList();
                     rows.put(updated.id(),new Job(updated.id(),updated.submissionId(),revision,updated.request(),updated.parent(),
                             updated.dependencies(),updated.children(),updated.state(),updated.reason(),updated.cancellationOutcome(),
-                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events,updated.preparation()));
+                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events,updated.preparation(),updated.activity()));
                 }
             }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
                     List.copyOf(rows.values()), allocations);
+            if(next.jobs().stream().anyMatch(j->j.activity()!=null))validateSnapshot(next,settings);
             if(history!=null)try{history.validateHot(next);}
             catch(IllegalArgumentException replay){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,inspectedEdges);}
             if (!retentionGuard.test(next)) return new Change(Code.REJECTED, null, Reason.STORAGE_UNAVAILABLE, inspectedEdges);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
-            pending = next; afterWrite = after;
+            pending = next; afterWrite = after;publicationStartedNanos=System.nanoTime();
             if(publicationObserver!=null)publicationObserver.accept(new PublicationObservation(state,next));
             storage.replace(state, next).whenComplete((value, error) ->
-                    writes.add(new Written(value, error, clock.millis())));
+                    writes.add(new Written(value, error, clock.millis(),System.nanoTime())));
             return new Change(Code.PENDING, changed == null ? null : rows.get(changed.id()), null, inspectedEdges);
         } catch (RuntimeException error) {
             fenced = true; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE;
@@ -1334,13 +1417,14 @@ public final class JobLifecycleStore {
         return true;
     }
     private Job dependencyState(Job job, Map<UUID, Job> rows, boolean increment) {
+        if(job.activity()!=null)return job;
         boolean ready = job.dependencies().stream().allMatch(id -> rows.get(id).state() == State.SUCCEEDED);
         if (job.state() == State.READY && !ready || job.state() == State.WAITING && ready && job.reason() == null) {
             var edit = new Edit(job); edit.state = ready ? State.READY : State.WAITING;
             return increment ? edit.finish(EventKind.TRANSITIONED, settings.events())
                     : new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(), job.dependencies(),
                     job.children(), edit.state, job.reason(), job.cancellationOutcome(), job.allowance(),
-                    job.usage(), job.generation(), job.attempts(), job.events(),job.preparation());
+                    job.usage(), job.generation(), job.attempts(), job.events(),job.preparation(),job.activity());
         }
         return job;
     }
@@ -1428,6 +1512,10 @@ public final class JobLifecycleStore {
                 .mapToLong(Allocation::quantity).reduce(0, Math::addExact);
         long remaining = ((IntValue)args.get("amount")).value() - job.fulfilled() - allocated;
         if (remaining <= 0) throw new Limited(Reason.REQUEST_INVALID);
+        if(job.activity()!=null) {
+            var step=job.activity().current();if(step==null || step.quantity()>remaining)throw new Limited(Reason.REQUEST_INVALID);
+            remaining=step.quantity();
+        }
         args.put("amount", new IntValue(remaining));
         return new ValidatedRequest(new CapabilityRequest(job.request().request().capability(), args),
                 job.origin(), job.request().observation());
@@ -1446,7 +1534,7 @@ public final class JobLifecycleStore {
     private static Job copyUsage(Job job, Map<Budgets.Kind, Long> usage) {
         return new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(),
                 job.dependencies(), job.children(), job.state(), job.reason(), job.cancellationOutcome(),
-                job.allowance(), usage, job.generation(), job.attempts(), job.events(),job.preparation());
+                job.allowance(), usage, job.generation(), job.attempts(), job.events(),job.preparation(),job.activity());
     }
     private static void validateReceipt(Attempt attempt, CropDelivery.CropReceipt receipt) {
         if (!attempt.bound().request().capability().equals(CropDelivery.ID)
@@ -1547,6 +1635,7 @@ public final class JobLifecycleStore {
                     || job.attempts().stream().mapToInt(Attempt::receiptCount).sum() > settings.receipts()
                     || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
                 throw new IllegalArgumentException("Configured job bounds");
+            if(job.activity()!=null)job.activity().validate(job);
             boolean goal=job.request().request().capability().equals(PlanningGoals.ID);
             boolean staging=job.request().request().capability().equals(BlueprintMaterials.ID);
             if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal && !staging)

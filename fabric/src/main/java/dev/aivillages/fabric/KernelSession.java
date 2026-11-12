@@ -140,6 +140,8 @@ public final class KernelSession implements AutoCloseable {
     private boolean historyGenerationUnavailable;
     private final boolean runtimeHistoryEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_RUNTIME_HISTORY", "false"));
+    private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activityRuntime;
+    private final boolean activityRuntimeEnabled = "true".equalsIgnoreCase(System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_RUNTIME","false"));
     private final boolean activityViewEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_VIEW", "false"));
     private final Map<String, java.util.Set<WorldRetentionManager.Key>> desiredRoots = new LinkedHashMap<>();
@@ -1572,15 +1574,45 @@ public final class KernelSession implements AutoCloseable {
     }
     public Jobs.Job queuedJob(ServerPlayer player,UUID id){ready();return jobs.query(id,caller(player));}
     /** Read-only and private. Enabled explicitly for initial qualification, off by default. */
+    /** Public opt-in A integration boundary. No model entry point is connected. */
+    public dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Snapshot planningSnapshot(ServerPlayer player,UUID root) {
+        ready();return activitiesRuntime().snapshot(root,caller(player));
+    }
+    public Jobs.Change createActivity(ServerPlayer player,UUID root,CapabilityRequest goal,Budgets.Limits limits,int plannedSteps) {
+        ready();if(!activityRuntimeEnabled)throw new IllegalStateException("Activity runtime disabled");
+        var actor=((ActorValue)goal.arguments().get("actor")).value();var observed=observe(goal,actor);
+        return activitiesRuntime().create(root,goal,caller(player),observed.reference(),limits,plannedSteps);
+    }
+    public Jobs.Change prepareActivity(ServerPlayer player,dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Proposal proposal) {
+        ready();if(!activityRuntimeEnabled)throw new IllegalStateException("Activity runtime disabled");
+        return activitiesRuntime().prepare(proposal,caller(player));
+    }
+    private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activitiesRuntime() {
+        if(activityRuntime==null) {
+            activityRuntime=new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(jobs,job->{
+                var request=job.request();var actor=job.responsible();var target=ResourceDelivery.destinationAddress(request.request());
+                if(!controls(actor,job.origin()) || !citizens.available(actor) || villager(actor)==null
+                        || worldAccess.permit(request,Effect.OBSERVE,new SurvivalGateway.Cell(target.dimension(),target.x(),target.y(),target.z()))!=null)
+                    return dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable();
+                var id=request.request().capability();var item=LogAcquisition.is(id)?LogAcquisition.item(id):RecipeProduction.is(id)?RecipeProduction.of(id).output():ResourceDelivery.WHEAT;
+                var stock=worldAccess.resourceContainer(target,item);var held=worldAccess.resourceInventory(actor,item);
+                if(stock.status()!=ObservationStatus.PRESENT || held.status()!=ObservationStatus.PRESENT || stock.reason()!=null || held.reason()!=null)
+                    return dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable();
+                return new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability(true,server.overworld().getGameTime(),stock.quantity(),held.quantity(),"source/free stock unknown; observed counts are not proof");
+            });
+            recoveredOwners.activityRuntime(activityRuntime);
+        }
+        return activityRuntime;
+    }
     public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.View activity(ServerPlayer player, UUID root) {
         ready();
         if (!activityViewEnabled) throw new IllegalStateException("Activity view disabled");
-        return recoveredOwners.view(root, caller(player));
+        activitiesRuntime();return recoveredOwners.view(root, caller(player));
     }
     public dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Page activities(ServerPlayer player, int offset, int maximum) {
         ready();
         if (!activityViewEnabled) throw new IllegalStateException("Activity view disabled");
-        return recoveredOwners.page(caller(player), offset, maximum);
+        activitiesRuntime();return recoveredOwners.page(caller(player), offset, maximum);
     }
     dev.aivillages.core.kernel.runtime.RecoveredJobOwners recoveryOwner() { ready(); return recoveredOwners; }
     public List<UUID> queuedJobIds(ServerPlayer player,boolean cancellable){

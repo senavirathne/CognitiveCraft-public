@@ -109,6 +109,7 @@ public final class JobHistory {
             var artifacts=new HashSet<Contracts.ArtifactRef>();var runs=new HashSet<UUID>();
             for(Job job:jobs.values()) {
                 exact(submissions,job.submissionId(),job);receipts(job,receipts);
+                if(job.activity()!=null)job.activity().steps().forEach(s->artifacts.add(s.artifact()));
                 if(job.preparation()!=null && job.preparation().method()!=null)artifacts.add(job.preparation().method());
                 for(Attempt attempt:job.attempts()) {
                     exact(attempts,attempt.id(),job.id());runs.add(attempt.id());

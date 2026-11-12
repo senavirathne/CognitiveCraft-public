@@ -15,6 +15,7 @@ public final class JobJournal implements AutoCloseable {
     public static final int SCHEMA = 1;
     public static final int RESOURCE_SCHEMA = 2;
     public static final int PREPARATION_SCHEMA = 3;
+    public static final int ACTIVITY_SCHEMA = 4;
     public static final int MAX_BYTES = 2_097_152;
     public static final int MAX_RECORDS = 192;
     public static final String WORLD_RELATIVE_PATH = "data/cognitivecraft/jobs/v1";
@@ -123,7 +124,7 @@ public final class JobJournal implements AutoCloseable {
             if (payloadBytes > MAX_BYTES) throw new IOException("Job snapshot byte/record quota");
             checksum.update(record); checksum.update((byte)'\n');
         }
-        String header = StrictJson.canonical(Map.of("schema",snapshot.jobs().stream().anyMatch(j->j.preparation()!=null) || snapshot.allocations().stream().anyMatch(Allocation::material) ? 3L : snapshot.jobs().stream().anyMatch(JobCodec::resourceForm) ? 2L : 1L,"world",snapshot.worldId().toString(),
+        String header = StrictJson.canonical(Map.of("schema",snapshot.jobs().stream().anyMatch(j->j.activity()!=null) ? 4L : snapshot.jobs().stream().anyMatch(j->j.preparation()!=null) || snapshot.allocations().stream().anyMatch(Allocation::material) ? 3L : snapshot.jobs().stream().anyMatch(JobCodec::resourceForm) ? 2L : 1L,"world",snapshot.worldId().toString(),
                 "revision",snapshot.revision(),"records",(long)lines.size(),"sha256",HexFormat.of().formatHex(checksum.digest())));
         byte[] first = header.getBytes(StandardCharsets.UTF_8);
         if ((long)first.length + 1 + payloadBytes > MAX_BYTES) throw new IOException("Job snapshot byte/record quota");
@@ -134,7 +135,7 @@ public final class JobJournal implements AutoCloseable {
     }
     /** Documented schema-0 import fixture, with the exact same schema-1 semantic records. */
     public static byte[] encodeImport(Snapshot snapshot) throws IOException {
-        if(snapshot.jobs().stream().anyMatch(j->j.preparation()!=null || JobCodec.resourceForm(j)))
+        if(snapshot.jobs().stream().anyMatch(j->j.activity()!=null || j.preparation()!=null || JobCodec.resourceForm(j)))
             throw new IOException("Schema-0 import is restricted to legacy schema-1 records");
         var rows = new ArrayList<Object>();
         try {
@@ -151,7 +152,7 @@ public final class JobJournal implements AutoCloseable {
         Map<String,Object> header = firstObject(bytes);
         Object version = header.get("schema");
         if (!Long.valueOf(1).equals(version) && !Long.valueOf(2).equals(version)
-                && !Long.valueOf(3).equals(version) && !Long.valueOf(0).equals(version)) throw new UnknownSchema();
+                && !Long.valueOf(3).equals(version) && !Long.valueOf(4).equals(version) && !Long.valueOf(0).equals(version)) throw new UnknownSchema();
         try {
             UUID world = UUID.fromString(Outcomes.string(header,"world","$"));
             if (!world.equals(expectedWorld)) throw new IOException("Job world identity mismatch");
@@ -182,9 +183,10 @@ public final class JobJournal implements AutoCloseable {
                 for (int next : ends) { decode(StrictJson.object(utf8(bytes,offset,next-offset)),jobs,allocations); offset = next+1; }
             }
             var result = new Snapshot(world,revision,jobs,allocations);
-            if(!Long.valueOf(2).equals(version) && !Long.valueOf(3).equals(version) && jobs.stream().anyMatch(JobCodec::resourceForm))
+            if(!Long.valueOf(2).equals(version) && !Long.valueOf(3).equals(version) && !Long.valueOf(4).equals(version) && jobs.stream().anyMatch(JobCodec::resourceForm))
                 throw new IOException("Resource records require schema-2 envelope");
-            if(!Long.valueOf(3).equals(version) && (jobs.stream().anyMatch(j->j.preparation()!=null)||allocations.stream().anyMatch(Allocation::material)))throw new IOException("Prepared records require schema-3 envelope");
+            if(!Long.valueOf(3).equals(version) && !Long.valueOf(4).equals(version) && (jobs.stream().anyMatch(j->j.preparation()!=null)||allocations.stream().anyMatch(Allocation::material)))throw new IOException("Prepared records require schema-3 envelope");
+            if(!Long.valueOf(4).equals(version) && jobs.stream().anyMatch(j->j.activity()!=null))throw new IOException("Activities require schema-4 envelope");
             JobLifecycleStore.validateSnapshot(result,Settings.defaults());
             return result;
         } catch (StrictJson.Invalid | RuntimeException invalid) { throw new IOException("Invalid job snapshot",invalid); }

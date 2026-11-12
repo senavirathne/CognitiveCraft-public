@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.runtime.activity.*;
 import java.util.regex.Pattern;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Jobs.*;
@@ -17,7 +18,7 @@ final class JobCodec {
     static Map<String,Object> jobValue(Job job) {
         var request=bound(job.request());
         var row = new LinkedHashMap<String,Object>();
-        row.put("kind", "job"); row.put("schema", job.preparation()!=null ? 3L : resourceForm(job) ? 2L : (long)SCHEMA);
+        row.put("kind", "job"); row.put("schema", job.activity()!=null ? 4L : job.preparation()!=null ? 3L : resourceForm(job) ? 2L : (long)SCHEMA);
         row.put("id", job.id().toString()); row.put("submission", job.submissionId().toString());
         row.put("revision", job.revision()); row.put("request", request);
         if (job.parent() != null) row.put("parent", job.parent().toString());
@@ -32,6 +33,7 @@ final class JobCodec {
             prepared.put("materials",job.preparation().materials().stream().map(m->Map.of("producer",m.producer().toString(),"item",m.item(),"quantity",m.quantity())).toList());
             row.put("preparation",prepared);
         }
+        if(job.activity()!=null)row.put("activity",ActivityCodec.encode(job.activity()));
         row.put("attempts", job.attempts().stream().map(a->attempt(a,a.bound().equals(job.request())?request:null)).toList());
         row.put("events", job.events().stream().map(e -> {
             var event = new LinkedHashMap<String,Object>();
@@ -54,10 +56,12 @@ final class JobCodec {
 
     static Job job(Map<String,Object> row) throws StrictJson.Invalid {
         fields(row, Set.of("kind","schema","id","submission","revision","request","dependencies","children",
-                "state","allowance","usage","generation","attempts","events"), Set.of("parent","reason","cancellationOutcome","preparation"));
+                "state","allowance","usage","generation","attempts","events"), Set.of("parent","reason","cancellationOutcome","preparation","activity"));
         long schema = number(row,"schema","$");
-        if (!"job".equals(string(row,"kind","$")) || schema != SCHEMA && schema != 2 && schema != 3)
+        if (!"job".equals(string(row,"kind","$")) || schema != SCHEMA && schema != 2 && schema != 3 && schema != 4)
             throw new StrictJson.Invalid("$", "JOB_SCHEMA");
+        if(row.containsKey("activity")!=(schema==4))throw new StrictJson.Invalid("$","ACTIVITY_SCHEMA");
+        ActivityPayload activity=row.containsKey("activity")?ActivityCodec.decode(object(row,"activity","$")):null;
         Preparation preparation=null;
         if(row.containsKey("preparation")) {
             if(schema!=3)throw new StrictJson.Invalid("$","PREPARATION_SCHEMA");
@@ -81,7 +85,7 @@ final class JobCodec {
                 row.containsKey("reason") ? Reason.valueOf(string(row,"reason","$")) : null,
                 row.containsKey("cancellationOutcome") ? State.valueOf(string(row,"cancellationOutcome","$")) : null,
                 limits(object(row,"allowance","$")),usage(object(row,"usage","$")),
-                number(row,"generation","$"),attempts,events,preparation);
+                number(row,"generation","$"),attempts,events,preparation,activity);
     }
     static Allocation allocation(Map<String,Object> row) throws StrictJson.Invalid {
         fields(row,Set.of("kind","schema","id","producer","attempt","receipt","demand","quantity"),Set.of("item"));
@@ -108,7 +112,7 @@ final class JobCodec {
     private static Attempt attempt(Map<String,Object> row,long schema,Map<String,Object> requestRow,ValidatedRequest request) throws StrictJson.Invalid {
         fields(row,Set.of("id","generation","worker","request","allowance","usage","effects","credited",
                 "uncertain","cancellationDeliveries","executions","receipts"),
-                schema == 2 || schema == 3 ? Set.of("terminal","resourceReceipts") : Set.of("terminal"));
+                schema >= 2 ? Set.of("terminal","resourceReceipts") : Set.of("terminal"));
         var references = new ArrayList<ExecutionReference>();
         for (Object value : list(row,"executions",8)) {
             var ref = map(value); exact(ref,"run","artifact","pinned");

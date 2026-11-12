@@ -20,13 +20,17 @@ public final class RecoveredJobOwners implements AutoCloseable {
     public record View(UUID root, String goal, UUID authorizingPrincipal, ActorRef responsible,
                        long executionGeneration, UUID attempt, State state, Route route, UUID recoveryOwner,
                        UUID process, Blocker blocker, Outcomes.Reason jobReason, boolean cancellationIntent, Long verifiedLegacyQuantity,
-                       String progressEvidence, long revision, String physicalEvidence) { }
+                       String progressEvidence, long revision, String physicalEvidence,
+                       dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Snapshot progress) { }
     public record Page(List<View> activities, int offset, int nextOffset, boolean more) {
         public Page { activities = List.copyOf(activities); }
     }
     public record Counters(int inspected, int cached, long visits, UUID process) { }
     private final JobLifecycleStore jobs;
     private final LiveOwners live;
+    private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activities;
+    /** Optional fresh scoped observation provider. It owns no lifecycle state. */
+    public void activityRuntime(dev.aivillages.core.kernel.runtime.activity.ActivityRuntime runtime){check();activities=Objects.requireNonNull(runtime);}
     private final RecoveryEvidenceAuthority authority;
     private final int perTick;
     private final Thread thread = Thread.currentThread();
@@ -79,7 +83,8 @@ public final class RecoveredJobOwners implements AutoCloseable {
                 job.state(), route, route == Route.RECOVERY ? owner(job) : null,
                 authority.process(), blocker, job.reason(), job.cancellationOutcome() != null || job.state() == State.CANCELLING,
                 recorded ? job.fulfilled() : null, recorded ? "legacy receipt credit; current availability unknown" : "unknown/not recorded",
-                job.revision(), physical);
+                job.revision(), physical, job.activity()==null?null:(activities==null?
+                        new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(jobs,j->dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable()):activities).snapshot(job.id(),job.origin()));
     }
     public void step() {
         check(); inspected = 0;
@@ -92,6 +97,12 @@ public final class RecoveredJobOwners implements AutoCloseable {
             StoppedObservation observation = null;
             if (route(job) == Route.RECOVERY && presence(job) == Presence.AVAILABLE) {
                 try {
+                    // A09 qualifies idle settled-checkpoint restart only. An interrupted new segment has
+                    // no automatic stopped-proof adapter yet, even if a live result looks complete.
+                    if(job.activity()!=null) {
+                        observation=StoppedObservation.ambiguous("Interrupted activity segment requires a separately qualified stop/save adapter");
+                        projections.put(job.id(),projection(job,observation));continue;
+                    }
                     var evidence = authority.capture(StoppedContext.of(job)); observation = evidence.observation();
                     if (jobs.ready() && (observation.kind() == StoppedKind.NO_EFFECT || observation.kind() == StoppedKind.EFFECT_COMPLETE
                             || observation.kind() == StoppedKind.PARTIAL || observation.kind()==StoppedKind.DELIVERED_UNIT)) {

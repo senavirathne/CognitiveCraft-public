@@ -1,0 +1,5 @@
+services:
+  minecraft:
+    environment:
+      COGNITIVECRAFT_ACTIVITY_RUNTIME: 'true'
+      COGNITIVECRAFT_A09_DRIVER: 'true'

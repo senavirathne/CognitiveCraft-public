@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.runtime.activity.ActivityPayload;
 
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
@@ -21,7 +22,7 @@ public final class Jobs {
     }
     public enum EventKind {
         CREATED, DEPENDENCY, ASSIGNED, PINNED, OBSERVED, TRANSITIONED, CANCEL_REQUESTED,
-        CANCEL_DELIVERY, RECONCILED, LATE_EFFECTS, ALLOCATED, RESTORED
+        CANCEL_DELIVERY, RECONCILED, LATE_EFFECTS, ALLOCATED, RESTORED, ACTIVITY_PREPARED
     }
     public enum Code { PENDING, APPLIED, DUPLICATE, CONFLICT, REJECTED }
 
@@ -119,7 +120,12 @@ public final class Jobs {
                       UUID parent, List<UUID> dependencies, List<UUID> children,
                       State state, Reason reason, State cancellationOutcome,
                       Budgets.Limits allowance, Map<Budgets.Kind, Long> usage,
-                      long generation, List<Attempt> attempts, List<Event> events, Preparation preparation) {
+                      long generation, List<Attempt> attempts, List<Event> events, Preparation preparation, ActivityPayload activity) {
+        public Job(UUID id,UUID submissionId,long revision,ValidatedRequest request,UUID parent,List<UUID> dependencies,List<UUID> children,
+                   State state,Reason reason,State cancellationOutcome,Budgets.Limits allowance,Map<Budgets.Kind,Long> usage,
+                   long generation,List<Attempt> attempts,List<Event> events,Preparation preparation) {
+            this(id,submissionId,revision,request,parent,dependencies,children,state,reason,cancellationOutcome,allowance,usage,generation,attempts,events,preparation,null);
+        }
         public Job(UUID id,UUID submissionId,long revision,ValidatedRequest request,UUID parent,List<UUID> dependencies,List<UUID> children,
                    State state,Reason reason,State cancellationOutcome,Budgets.Limits allowance,Map<Budgets.Kind,Long> usage,
                    long generation,List<Attempt> attempts,List<Event> events) {
@@ -349,10 +355,11 @@ public final class Jobs {
         Map<Budgets.Kind, Long> usage;
         long generation;
         Preparation preparation;
+        ActivityPayload activity;
         Edit(Job job) {
             old = job; state = job.state(); reason = job.reason(); cancellationOutcome = job.cancellationOutcome();
             dependencies = job.dependencies(); children = job.children(); attempts = job.attempts();
-            usage = job.usage(); generation = job.generation(); preparation=job.preparation();
+            usage = job.usage(); generation = job.generation(); preparation=job.preparation();activity=job.activity();
         }
         Job finish(EventKind kind, int eventCap) {
             long revision = Math.addExact(old.revision(), 1);
@@ -361,7 +368,7 @@ public final class Jobs {
             events.add(new Event(revision, kind, attempts.isEmpty() ? null : attempts.getLast().id(), generation));
             return new Job(old.id(), old.submissionId(), revision, old.request(), old.parent(),
                     dependencies, children, state, reason, cancellationOutcome, old.allowance(),
-                    usage, generation, attempts, events,preparation);
+                    usage, generation, attempts, events,preparation,activity);
         }
     }
 }
