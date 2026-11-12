@@ -215,9 +215,14 @@ public final class FabricPickupProtocol implements PickupProtocol {
     /** A later bounded attempt may replace only its own acknowledged delivered-unit membership. */
     private Marker actorPredecessor(NativeTicket ticket) {
         Marker predecessor=null;var intent=ticket.intent;var before=intent.harvest().intent().actorBefore();
+        var port=Objects.requireNonNull(NativeEntityStorage.get(level));
         for(var c:intent.actorTrail().chunks()) {
             var f=Objects.requireNonNull(frame(c));
-            if(!f.supported())throw new IllegalStateException("Unsupported prior membership");var row=f.membership(intent.actorTrail().entity());if(row==null)continue;
+            if(!f.supported())throw new IllegalStateException("Unsupported prior membership");
+            // A completed native deposit can still be staged ahead of the saved frame.
+            // Select that actual live declaration, then retain every original-delivery guard below.
+            var staged=port.stagedMembership(new ChunkPos(c.x(),c.z()),intent.actorTrail().entity());
+            var row=staged==null?f.membership(intent.actorTrail().entity()):staged;if(row==null)continue;
             if(row.marker().effect().equals(intent.key().token()))continue;
             if(deposits==null || deposits.fenced() || deposits.pending())throw new IllegalStateException("Unproved prior actor custody");
             var match=deposits.snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null && deposits.settled(e)

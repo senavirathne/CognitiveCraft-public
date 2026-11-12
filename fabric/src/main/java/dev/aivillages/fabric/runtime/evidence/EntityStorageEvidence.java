@@ -57,6 +57,15 @@ public final class EntityStorageEvidence {
         }
     }
     private List<EntityChunkMembershipState.Pending> membership(ChunkPos pos){synchronized(desired){return membership.getOrDefault(pos,List.of());}}
+    /** Current-process declarations only; this is never a restored/saved witness. */
+    public EntityChunkMembershipState.Row stagedMembership(ChunkPos pos,UUID entity) {
+        thread();Objects.requireNonNull(pos);Objects.requireNonNull(entity);
+        synchronized(desired) {
+            if(!available())return null;
+            return membership.getOrDefault(pos,List.of()).stream().map(EntityChunkMembershipState.Pending::latest)
+                    .filter(row->row.trail().entity().equals(entity)).findFirst().orElse(null);
+        }
+    }
     private void acknowledgeMembership(ChunkPos pos,List<EntityChunkMembershipState.Pending> written) {
         var markers=new HashMap<String,Marker>();
         for(var update:written)markers.put(update.latest().key(),update.latest().marker());
