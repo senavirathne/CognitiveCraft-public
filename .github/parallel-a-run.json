@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sequence": 57,
+  "sequence": 58,
   "parentSource": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
@@ -4993,11 +4993,11 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 57,
-    "codeCheckpoint": "0287964aa4eaef27c232922db6f5dd5f31c7cf98",
-    "codeTree": "8e300da78cec5340f1a972835ce5d0df3e766439",
-    "documentationPreRun": "516bd9583f83ef37b51632aec48b4c3e4ecc54d3",
-    "documentationTree": "675a5656ddaed4cfb50891df2a94b30afcf1bb74",
+    "sequence": 58,
+    "codeCheckpoint": "65269025f1d444ba6ec82232c38c35f03d1d6eb7",
+    "codeTree": "be02f21fc8ad5626dced036d099180e776f57071",
+    "documentationPreRun": "71fee6a5f55fef5f811e1c32d0ffa141087c6924",
+    "documentationTree": "9cc7f51d13f18def15fd3c8687e8c42664c3deee",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
@@ -5017,7 +5017,7 @@
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
     "ownedCorrection": "Separate per-JVM epoch logs; original 2/1/1 four-core split; defer immutable complete observer encoding; lower only owned C1/C2 compiler priority to niceness >=10 with each actual JVM birth audited; normal static same-root geometry for three physical handoffs, original task and thresholds unchanged. All121 required gates rerun together on one exact frozen JAR and instruments.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 6,
+    "actionsPreviouslyStarted": 8,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -6392,6 +6392,146 @@
         "A06 representative cost",
         "A07 stale-successor denial after native saved recovery"
       ]
+    },
+    "fourthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 57,
+      "status": "FAIL_PRE_NATIVE_ORDER_DEPENDENT_TEST",
+      "source": "8a042e632a80c74b9dfd123bfa8c756eec2516b3",
+      "tree": "72c5c535e5414125faf747038afc0911a396b8f5",
+      "codeCheckpoint": "0287964aa4eaef27c232922db6f5dd5f31c7cf98",
+      "documentationPreRun": "516bd9583f83ef37b51632aec48b4c3e4ecc54d3",
+      "documentationTree": "675a5656ddaed4cfb50891df2a94b30afcf1bb74",
+      "groupedRun": 43300446467,
+      "producerJob": 131469881225,
+      "aggregateJob": 131472180848,
+      "standardRun": 43300446444,
+      "standardJob": 131469880649,
+      "standardStatus": "IN_PROGRESS",
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "nativeCasesExecuted": 0,
+      "requiredCasesUnexecuted": 121,
+      "exactNativeJarContracts": "NOT_EXECUTED_REQUIRED",
+      "nativeLifecycleDiagnostics": "NOT_EXECUTED_REQUIRED",
+      "ownedPython": {
+        "total": 131,
+        "passed": 130,
+        "failed": 1
+      },
+      "baselinePython": "NOT_EXECUTED_AFTER_OWNED_TEST_FAILURE",
+      "failure": {
+        "test": "test_compilers_only_lower_priority_and_never_raise_an_existing_lower_priority",
+        "reason": "A test compared filesystem thread iteration order rather than thread/value membership.",
+        "expected": [
+          [
+            2,
+            15
+          ],
+          [
+            3,
+            15
+          ]
+        ],
+        "actual": [
+          [
+            3,
+            15
+          ],
+          [
+            2,
+            15
+          ]
+        ],
+        "productionBehaviorChanged": false
+      },
+      "requiredRegressions": [
+        {
+          "job": 131469881551,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "status": "PASS"
+        },
+        {
+          "job": 131469881766,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "status": "PASS"
+        },
+        {
+          "job": 131469881834,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "status": "PASS"
+        },
+        {
+          "job": 131469881936,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "status": "PASS"
+        },
+        {
+          "job": 131469881950,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "status": "PASS"
+        },
+        {
+          "job": 131469882048,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "status": "PASS"
+        },
+        {
+          "job": 131469882049,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "status": "PASS"
+        },
+        {
+          "job": 131469882117,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "status": "PASS"
+        },
+        {
+          "job": 131469882124,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "status": "PASS"
+        }
+      ],
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 8,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "correction": {
+        "source": "65269025f1d444ba6ec82232c38c35f03d1d6eb7",
+        "tree": "be02f21fc8ad5626dced036d099180e776f57071",
+        "changedPaths": [
+          "e2e/parallel_a/test_compiler_budget.py"
+        ],
+        "change": "Use assertCountEqual for exact thread/value pairs; retain exact count and main priority assertion.",
+        "productionDiff": false,
+        "ownedPython": 131,
+        "baselinePython": 72,
+        "ownershipPaths": 296,
+        "compiledInstrumentation": "The21 actual observer sources and production code are byte-unchanged from the successful correction preflight.",
+        "actualChildJvm": "A10-third-launch-correction-local.json",
+        "nativeSdkGeometry": {
+          "width": 0.6,
+          "height": 1.95,
+          "eyeHeight": 1.62,
+          "originalBodyClear": true,
+          "originalRayClear": true,
+          "crossingBlocked": true,
+          "nativeGameplayEffects": 0,
+          "status": "PASS_NATIVE_SDK_SHAPE_ONLY_NO_WORLD",
+          "serverSdkSha256": "a362163eec5d1612d520772bc16e5b39c09e3b234fdc045f56bf544284ee8ae6",
+          "helperSha256": "1d67ff3f8222044e5ee774e46af6cfc49a6959a44808cd4baa4efa9b3b68c685"
+        },
+        "generatedRegressions": {
+          "workflows": 9,
+          "jobs": 12,
+          "steps": 140,
+          "status": "BYTE_PRESERVED"
+        },
+        "freshNativeQualification": "NOT_EXECUTED_REQUIRED",
+        "additionalActions": 0
+      }
     }
   },
   "date": "2026-11-13"
