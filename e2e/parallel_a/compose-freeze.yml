@@ -1,0 +1,16 @@
+services:
+  minecraft:
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.freeze
+      network: none
+  client-a:
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.freeze
+      network: none
+  client-b:
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.freeze
+      network: none

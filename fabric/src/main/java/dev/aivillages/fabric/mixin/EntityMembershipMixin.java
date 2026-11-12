@@ -19,4 +19,8 @@ public abstract class EntityMembershipMixin implements EntityMembershipParticipa
     private void cognitivecraft$observeEveryChunkChange(double x,double y,double z,CallbackInfo ci){if(cognitivecraft$membership()!=null)cognitivecraft$membership().moved(cognitivecraft$chunk());}
     @Inject(method="setUUID",at=@At("TAIL"))
     private void cognitivecraft$refuseChangedEntityIdentity(UUID id,CallbackInfo ci){if(cognitivecraft$membership()!=null&&cognitivecraft$membership().complete()&&!cognitivecraft$membership().capture().entity().equals(id))cognitivecraft$membership().gap();}
+    @Inject(method="setRemoved",at=@At("TAIL"))
+    private void cognitivecraft$observeConfirmedDeparture(Entity.RemovalReason reason,CallbackInfo ci) {
+        if(cognitivecraft$membershipData!=null)cognitivecraft$membershipData.removed(reason);
+    }
 }

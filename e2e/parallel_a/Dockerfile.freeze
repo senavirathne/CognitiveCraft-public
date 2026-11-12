@@ -1,0 +1,16 @@
+FROM eclipse-temurin@sha256:80f67fb3d6f76e2d817d98a4cc2a9cf05f054d4e6adc5e2144bde671d722e63f AS a10_jdk
+FROM mcr.microsoft.com/playwright/python@sha256:a7f6cf3ae520c9d670ad956572c13747ed5abdbba5123a01526f873ed1662528
+USER root
+COPY --from=a10_jdk /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+COPY dependency_probe.py /opt/cognitivecraft/dependency_probe.py
+RUN ["python3", "/opt/cognitivecraft/dependency_probe.py"]
+ARG E2E_UID=1000
+ARG E2E_GID=1000
+RUN if ! getent group "$E2E_GID" >/dev/null; then groupadd --gid "$E2E_GID" cognitivecraft-e2e; fi \
+    && if ! getent passwd "$E2E_UID" >/dev/null; then \
+       useradd --uid "$E2E_UID" --gid "$E2E_GID" --no-create-home --shell /usr/sbin/nologin cognitivecraft-e2e; fi
+WORKDIR /repo
+ENV LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEO_DRIVER=offscreen
+ENTRYPOINT ["python3", "e2e/launch.py"]

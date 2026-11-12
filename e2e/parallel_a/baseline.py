@@ -23,6 +23,8 @@ class RuntimeAHarness(AssessmentHarness):
     def __init__(self, root):
         super().__init__(root, 'parallel-a-a00')
         self.project = 'cc-runtime-a-' + str(uuid.uuid4())[:8]
+        from freeze_runtime import attach
+        attach(self)
 
     def observe_live(self, run):
         return None
@@ -209,6 +211,8 @@ def main():
         measurements = h.wait(lambda: (v if (v:=read(h.root/'server/runtime-a-ticks.json')) and
                                   len([s for s in v['samples'] if s['time']>=start_ms])>=390 else None), 'Bounded tick measurements flushed')
         selected=[s['nanos'] for s in measurements['samples'] if s['time']>=start_ms]
+        atomic(args.root/'baseline-selected-window.json',{'startMillis':start_ms,'startTick':start_tick,
+               'samples':[s for s in measurements['samples'] if s['time']>=start_ms]})
         results['performance']={'tick':percentiles(selected),'metric':measurements['metric'],
             'workload':'two real clients, two normal-AI villagers, one admitted method, idle at 20 TPS',
             'host':read(h.root/'metadata.json')['host'],'pid':measurements['pid'],

@@ -23,6 +23,18 @@ public final class EntityMembershipData {
         trail.observe(this::moved);return trail;
     }
     public EntityMembershipTrail trail(){return trail;}
+    static boolean definitiveDeparture(Entity.RemovalReason reason) {
+        return reason==Entity.RemovalReason.KILLED || reason==Entity.RemovalReason.DISCARDED;
+    }
+    /** A native destruction after a classified result changes membership, never goal credit. */
+    public void removed(Entity.RemovalReason reason) {
+        if(!(entity.level() instanceof ServerLevel) || !entity.isRemoved() || entity.getRemovalReason()!=reason
+                || !definitiveDeparture(reason) || trail==null || !trail.complete() || !membership || marker==null)return;
+        var state=((DepositParticipant)entity).cognitivecraft$depositParticipant();
+        if(!state.valid() || state.revision()!=revision || state.marker()==null
+                || state.marker().phase()!=MarkerPhase.RESULT || !state.marker().equals(marker)){trail.gap();return;}
+        moved(trail.capture());
+    }
     public void result(Marker marker,long revision,boolean membership) {
         if(marker.phase()!=MarkerPhase.RESULT)throw new IllegalArgumentException("Native trail result marker");
         this.marker=marker;this.revision=revision;this.membership=membership;

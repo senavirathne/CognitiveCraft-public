@@ -117,4 +117,25 @@ final class EntityChunkMembershipStateTest {
         var replacement=new EntityChunkMembershipState.Row(NativePickup.Role.ACTOR,new NativePickup.Trail(entity,UUID.randomUUID(),List.of(c(a)),c(a)),4,marker,true,null);
         assertThrows(IllegalArgumentException.class,()->EntityChunkRecord.merge(initial,nativeFrame(a,true),dim,a,List.of(),List.of(replacement)));
     }
+    @Test void onlyNativeDestructionCanDeclareDepartureWithoutAChunkMove(){
+        for(var reason:net.minecraft.world.entity.Entity.RemovalReason.values())
+            assertEquals(reason==net.minecraft.world.entity.Entity.RemovalReason.KILLED
+                    || reason==net.minecraft.world.entity.Entity.RemovalReason.DISCARDED,
+                    EntityMembershipData.definitiveDeparture(reason));
+    }
+    @Test void confirmedDepartureRetainsTheOriginalMarkerWhileAnUnobservedOmissionStaysQuarantined(){
+        var saved=new AtomicReference<>(nativeFrame(a,true));
+        var port=new EntityStorageEvidence(new EntityStorageEvidence.Access(){
+            public CompletableFuture<Optional<CompoundTag>> read(ChunkPos pos){return CompletableFuture.completedFuture(Optional.of(saved.get().copy()));}
+            public CompletableFuture<Void> write(ChunkPos pos,CompoundTag root){saved.set(root.copy());return CompletableFuture.completedFuture(null);}
+        },dim,Runnable::run);
+        assertTrue(port.stageMembership(a,row(a,true,marker,null)));port.write(a,nativeFrame(a,true)).join();
+        var before=saved.get().copy();
+        assertTrue(port.stageMembership(a,row(a,false,marker,null)));port.write(a,nativeFrame(a,false)).join();
+        var absent=port.readFrame(a).join();assertTrue(absent.supported());assertFalse(absent.members().contains(entity));
+        assertEquals(row(a,false,marker,null),absent.membership(entity));
+        var unknown=EntityChunkRecord.merge(before,nativeFrame(a,false),dim,a,List.of(),List.of());
+        assertFalse(EntityChunkRecord.read(unknown,dim,a).supported());
+        assertTrue(unknown.contains(EntityChunkMembershipState.TAG+"_original"));
+    }
 }

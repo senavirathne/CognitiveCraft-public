@@ -16,6 +16,9 @@ env:
   JAVA_TOOL_OPTIONS: -Dcognitivecraft.gametest.trace=true -Dcognitivecraft.navigation.trace=true
 jobs:
   a04-contracts:
+    outputs:
+      native_jar_sha256: ${{ steps.a10_bundle.outputs.native_jar_sha256 }}
+      bundle_sha256: ${{ steps.a10_bundle.outputs.bundle_sha256 }}
     env:
       JAVA_TOOL_OPTIONS: ""
     runs-on: ubuntu-latest
@@ -188,6 +191,10 @@ jobs:
         if: >-
           ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') }}
         run: python3 e2e/parallel_a/review_modules.py --stage A09
+      - name: Independently inspect every final A10 target module XML case
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+        run: python3 e2e/parallel_a/review_modules.py --stage A10
       - name: Compile exact native client and isolated A04 observers before activation
         id: a06_prepare
         run: |
@@ -360,11 +367,11 @@ jobs:
         run: python3 e2e/parallel_a/profile_native.py --root build/parallel-a/native
       - name: A07 actual native lifecycle order, private traces and separate-JVM diagnostic epochs
         if: >-
-          ${{ !cancelled() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected')) && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
+          ${{ !cancelled() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime')) && steps.a06_modules.outcome == 'success' && steps.a06_prepare.outcome == 'success' }}
         run: python3 e2e/parallel_a/lifecycle_diagnostics.py
       - name: Retain A07 event diagnostic worlds, XML and actual failure logs
         if: >-
-          ${{ always() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected')) }}
+          ${{ always() && (startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-diagnostics') || startsWith(github.event.head_commit.message, 'test(runtime-a): A07 lifecycle-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A08 claims-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A09 activity-connected') || startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime')) }}
         uses: actions/upload-artifact@v4
         with:
           name: cc-runtime-a-a07-lifecycle-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -374,6 +381,59 @@ jobs:
             build/lifecycle-evidence/
             build/lifecycle-run/
             build/parallel-a/source-audit/a07-lifecycle-diagnostics.json
+      - name: Cache exact original three-admission seed for the frozen A10 profiles
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+        uses: actions/cache@v4
+        with:
+          path: build/parallel-a/a10-admission-seed.zip
+          key: runtime-a10-admission-8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8
+      - name: Test every module against the actual lifecycle-built native JAR and freeze instruments once
+        id: a10_bundle
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 e2e/runtime.py compile
+          python3 e2e/parallel_a/prepare.py
+          python3 tools/needle/install.py build/needle
+          if [ ! -f build/parallel-a/a10-admission-seed.zip ]; then
+            gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a10-admission-seed.zip
+          fi
+          python3 - <<'PYCODE'
+          import hashlib,sys
+          from pathlib import Path
+          sys.path.insert(0,'e2e/parallel_a')
+          from recovery_seed import ARCHIVE_SHA
+          assert hashlib.file_digest(Path('build/parallel-a/a10-admission-seed.zip').open('rb'),'sha256').hexdigest()==ARCHIVE_SHA
+          PYCODE
+          python3 e2e/parallel_a/freeze_bundle.py units
+          python3 e2e/parallel_a/freeze_bundle.py export
+      - name: Retain exact A10 native binary and common compiled instruments
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') && steps.a10_bundle.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-frozen-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/a10-bundle/
+      - name: Retain every exact-native-JAR module case and failing unit log
+        if: >-
+          ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-exact-jar-units-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a10-native-unit/*.json
+            build/parallel-a/a10-native-unit/*.log
+            build/parallel-a/a10-native-unit/tests.args
+            build/parallel-a/a10-native-unit/core/
+            build/parallel-a/a10-native-unit/providers/
+            build/parallel-a/a10-native-unit/fabric/
       - name: A07 all connected lifecycle, custody, handoff and nine frozen W04 cases in Docker
         id: a07_connected
         if: >-
@@ -875,6 +935,177 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: build/parallel-a/native-a05/
+
+  a10-native:
+    if: >-
+      ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+    needs: a04-contracts
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        profile: [A00, A01, A02, A03, A04, A05, A06, A07, A08, A09]
+    env:
+      JAVA_TOOL_OPTIONS: ""
+      NATIVE_JAR_SHA256: ${{ needs.a04-contracts.outputs.native_jar_sha256 }}
+      BUNDLE_SHA256: ${{ needs.a04-contracts.outputs.bundle_sha256 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Prepare pinned SDK only; do not rebuild the production JAR
+        run: python3 e2e/runtime.py prepare
+      - uses: actions/download-artifact@v4
+        with:
+          name: cc-runtime-a-a10-frozen-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/parallel-a/a10-bundle
+      - name: Verify and install the exact common native JAR and compiled instruments
+        run: python3 e2e/parallel_a/freeze_bundle.py install --archive build/parallel-a/a10-bundle/a10-frozen-runtime.zip --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --bundle-sha256 "$BUNDLE_SHA256"
+      - uses: actions/cache@v4
+        with:
+          path: build/parallel-a/a10-admission-seed.zip
+          key: runtime-a10-admission-8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8
+      - name: Obtain the exact unmodified admission input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f build/parallel-a/a10-admission-seed.zip ]; then
+            gh api repos/${{ github.repository }}/actions/artifacts/13311090608/zip > build/parallel-a/a10-admission-seed.zip
+          fi
+      - name: Run every original required profile gate with actual server and two connected clients
+        id: native
+        run: python3 e2e/parallel_a/freeze_native.py --profile "${{ matrix.profile }}" --root "build/parallel-a/native-${{ matrix.profile }}" --seed-archive build/parallel-a/a10-admission-seed.zip --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256"
+      - name: Independently review original saved bytes, complete denominator and exact binary copies
+        if: ${{ !cancelled() && steps.native.outcome != 'skipped' }}
+        run: |
+          docker pull python:3.12-slim
+          output="$PWD/build/parallel-a/a10-review/${{ matrix.profile }}"
+          mkdir -p "$output"
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -v "$output:$output:rw" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/review_freeze.py --profile "${{ matrix.profile }}" --root "build/parallel-a/native-${{ matrix.profile }}" --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --out "$output"
+          docker image inspect --format '{{.Id}}' python:3.12-slim > "$output/python-image-id.txt"
+      - name: Pack every original native byte including all failed cases
+        id: transport
+        if: ${{ always() && steps.native.outcome != 'skipped' }}
+        run: python3 e2e/parallel_a/recovery_archive.py --root "build/parallel-a/native-${{ matrix.profile }}" --out "build/parallel-a/a10-transport/${{ matrix.profile }}"
+      - name: Collect complete compact denominator and review without hiding failed prerequisites
+        if: always()
+        run: |
+          python3 - <<'PYCODE'
+          import json,shutil,sys
+          from pathlib import Path
+          sys.path.insert(0,'e2e/parallel_a')
+          from freeze_plan import CASES,ledger
+          profile='${{ matrix.profile }}';root=Path('build/parallel-a/native-'+profile);out=Path('build/parallel-a/a10-diagnostics')/profile;out.mkdir(parents=True,exist_ok=True)
+          for source in [*root.glob('*.json'),*Path('build/parallel-a/a10-review',profile).glob('*'),*Path('build/parallel-a/a10-transport',profile).glob('*.json')]:
+              if source.is_file():shutil.copy2(source,out/source.name)
+          if not (out/'a10-collection.json').exists():
+              (out/'a10-collection.json').write_text(json.dumps({'status':'NOT_EXECUTED_REQUIRED','profile':profile,'requiredCases':len(CASES[profile]),'cases':ledger(profile,[])},indent=2)+'\n')
+          PYCODE
+      - name: Retain complete A10 profile ledger and independent reader result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-${{ matrix.profile }}-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/a10-diagnostics/
+      - name: Retain lossless A10 original native archive part 0
+        if: ${{ always() && steps.transport.outcome == 'success' && hashFiles(format('build/parallel-a/a10-transport/{0}/part-000.bin', matrix.profile)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-${{ matrix.profile }}-native-part-0-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a10-transport/${{ matrix.profile }}/part-000.bin
+            build/parallel-a/a10-transport/${{ matrix.profile }}/parts-manifest.json
+      - name: Retain lossless A10 original native archive part 1
+        if: ${{ always() && steps.transport.outcome == 'success' && hashFiles(format('build/parallel-a/a10-transport/{0}/part-001.bin', matrix.profile)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-${{ matrix.profile }}-native-part-1-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a10-transport/${{ matrix.profile }}/part-001.bin
+            build/parallel-a/a10-transport/${{ matrix.profile }}/parts-manifest.json
+      - name: Retain lossless A10 original native archive part 2
+        if: ${{ always() && steps.transport.outcome == 'success' && hashFiles(format('build/parallel-a/a10-transport/{0}/part-002.bin', matrix.profile)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-${{ matrix.profile }}-native-part-2-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a10-transport/${{ matrix.profile }}/part-002.bin
+            build/parallel-a/a10-transport/${{ matrix.profile }}/parts-manifest.json
+      - name: Retain lossless A10 original native archive part 3
+        if: ${{ always() && steps.transport.outcome == 'success' && hashFiles(format('build/parallel-a/a10-transport/{0}/part-003.bin', matrix.profile)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-${{ matrix.profile }}-native-part-3-${{ github.run_id }}-${{ github.run_attempt }}
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a10-transport/${{ matrix.profile }}/part-003.bin
+            build/parallel-a/a10-transport/${{ matrix.profile }}/parts-manifest.json
+      - name: Preserve complete raw evidence if bounded packing fails
+        if: ${{ always() && steps.native.outcome != 'skipped' && steps.transport.outcome != 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc-runtime-a-a10-${{ matrix.profile }}-native-fallback-${{ github.run_id }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+          path: build/parallel-a/native-${{ matrix.profile }}/
+  a10-aggregate:
+    if: >-
+      ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+    needs: [a04-contracts, a10-native, required_accomplishment_evidence_acceptance, required_knowledge_apprenticeship_acceptance, required_primitive_diagnostics_diagnostics, required_goal_planning_acceptance, required_observed_knowledge_observations, required_world_retention_retention, required_save_compatibility_compatibility, required_blueprint_boundary_acceptance, required_prerequisites_prerequisites]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NATIVE_JAR_SHA256: ${{ needs.a04-contracts.outputs.native_jar_sha256 }}
+      REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cc-runtime-a-a10-*-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          merge-multiple: true
+          path: build/parallel-a/a10-all-diagnostics
+      - name: Require all ten profiles, every original case and all nine required regression jobs
+        run: python3 e2e/parallel_a/freeze_aggregate.py --root build/parallel-a/a10-all-diagnostics --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --needs "$REQUIRED_JOB_RESULTS" --out build/parallel-a/a10-campaign.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cc-runtime-a-a10-campaign-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build/parallel-a/a10-campaign.json
+            build/parallel-a/a10-all-diagnostics/
 
 # BEGIN GENERATED REQUIRED REGRESSION JOBS
   # Required jobs from accomplishment-evidence.yml; source remains unchanged.
