@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "sequence": 50,
-  "parentSource": "8b5ea94eaa47551fd1356948a70e2f3d9e90f52b",
-  "stage": "A08",
-  "scope": "All21 A08 connected controls with preinstalled Noble display dependencies and Temurin25",
+  "sequence": 51,
+  "parentSource": "67bf89371cc44104fc258da25dc0c6a6bf02c1b2",
+  "stage": "A09",
+  "scope": "Jobs-owned public activity runtime, two native segments and selected established H/P/D regressions",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
   "nativePickupProducer": "DEFAULT_OFF_NATIVE_LOG_P_CANDIDATE",
   "originalCase": "heldout-W6-002",
@@ -13,7 +13,7 @@
   "requiredRegressionSteps": 140,
   "omittedTasks": 0,
   "omittedTests": 0,
-  "execution": "One grouped Docker qualification plus unchanged standard verification; no omitted tasks/tests.",
+  "execution": "Docker native connected qualification on exact GitHub event SHA; grouped required suites plus existing standard CI",
   "priorFailures": [
     {
       "run": 40751177875,
@@ -4914,5 +4914,28 @@
       "gameplayQualified": false
     },
     "allTimingAndQuotaLimitsUnchanged": true
+  },
+  "a09": {
+    "status": "REQUESTED_NOT_YET_OBSERVED",
+    "codeCheckpoint": "67bf89371cc44104fc258da25dc0c6a6bf02c1b2",
+    "codeTree": "c3752b0314f1f5291589ab5ed120537fa1ee5b91",
+    "documentationCheckpoint": "bb9aedca739d3845a6098575629748bf423f53a6",
+    "runtimeDriven": true,
+    "plannerEnabled": false,
+    "requiredNativeCases": 9,
+    "requiredTargetModules": 2689,
+    "requiredOwnedPython": 106,
+    "requiredBaselinePython": 72,
+    "requiredLifecycleDiagnostics": 14,
+    "requiredRegressionWorkflows": 9,
+    "requiredRegressionJobs": 12,
+    "requiredRegressionSteps": 140,
+    "command": "python3 e2e/parallel_a/activity_connected.py --root build/parallel-a/native-a09-connected --seed-archive build/parallel-a/a09-admission-seed.zip",
+    "localPreflight": "PASS_CORE2428_ACTIVITY28_PYTHON106_72_NATIVE_SIGNATURES_ONLY",
+    "activation": "Default off; in-flight activity segments remain fenced; generalized recipe/placement adapter unavailable",
+    "intendedWorkflowCount": 2,
+    "omittedTasks": 0,
+    "omittedTests": 0,
+    "nativeQualified": false
   }
 }
