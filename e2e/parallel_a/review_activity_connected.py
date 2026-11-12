@@ -18,6 +18,13 @@ def physical(world,fixture):
     boxes=chest(world,fixture['destination']);held=inventory(actor)
     assert not any(e.get('id')=='minecraft:item' and e.get('Item',{}).get('id')==LOG for e in native.values())
     return {'destination':boxes.get(LOG,0),'inventory':held,'blocks':[block_name(world,p) for p in fixture['points']]}
+def owner_receipt(value,stage):
+    # The dedicated deposit codec omits its implicit DEPOSIT tag; H/P prefix codecs carry it.
+    receipt=dict(value)
+    if stage=='DEPOSIT' and 'stage' not in receipt:receipt['stage']='DEPOSIT'
+    assert receipt.get('stage')==stage,'Native receipt codec/owner stage mismatch'
+    return receipt
+
 def actual_chain(world,root,attempt):
     chain=[];receipts=[]
     for ordinal,(stage,folder) in enumerate((('HARVEST','harvest-evidence'),('PICKUP','pickup-evidence'),('DEPOSIT','deposit-evidence')),1):
@@ -25,9 +32,10 @@ def actual_chain(world,root,attempt):
         selected=[r for r in rows if r['intent']['key']['step']==root and r['intent']['key']['attempt']==attempt['id']]
         assert len(selected)==1,(root,attempt['id'],stage);entry=selected[0];key=entry['intent']['key'];result=entry['result']
         assert key['root']==root and key['generation']==attempt['generation'] and key['ordinal']==ordinal and key['world']==header['world']
-        assert result['live']=='COMPLETE' and result['receipt']['stage']==stage and result['receipt']['quantity']==1
+        assert result['live']=='COMPLETE' and result['receipt']['quantity']==1
+        receipt=owner_receipt(result['receipt'],stage)
         assert result['usage']['COMMITTED_EFFECTS']==ordinal
-        chain.append(key);receipts.append(result['receipt'])
+        chain.append(key);receipts.append(receipt)
     stored=attempt['resourceReceipts'];assert len(stored)==3 and [r['stage'] for r in stored]==['HARVEST','PICKUP','DEPOSIT']
     for raw,observed in zip(stored,receipts):
         assert all(raw[k]==observed[k] for k in ('id','run','operation','batch','quantity','stage','world','principal','domain','item'))

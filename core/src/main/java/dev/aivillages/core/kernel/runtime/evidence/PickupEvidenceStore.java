@@ -53,7 +53,7 @@ public final class PickupEvidenceStore {
     public boolean settled(Entry entry) {
         thread();if(fenced || pending!=null || !ancestry(entry))return false;
         if(entry.verification()!=null)return true;
-        return successor!=null && !successor.fenced() && !successor.pending() && successor.snapshot().entries().stream().anyMatch(d->d.verification()!=null
+        return successor!=null && !successor.fenced() && !successor.pending() && successor.snapshot().entries().stream().anyMatch(d->successor.settled(d)
                 && d.intent().pickupPrefix()!=null && d.intent().pickupPrefix().pickup().equals(entry));
     }
     public boolean settledHarvest(NativeHarvest.Entry original) {

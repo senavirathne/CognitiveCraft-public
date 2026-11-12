@@ -141,6 +141,7 @@ public final class KernelSession implements AutoCloseable {
     private final boolean runtimeHistoryEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_RUNTIME_HISTORY", "false"));
     private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activityRuntime;
+    private dev.aivillages.core.kernel.runtime.activity.ActivityCheckpoints activityCheckpoints;
     private final boolean activityRuntimeEnabled = "true".equalsIgnoreCase(System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_RUNTIME","false"));
     private final boolean activityViewEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_VIEW", "false"));
@@ -455,6 +456,7 @@ public final class KernelSession implements AutoCloseable {
         dispatchGateway.tick();
         stagingTransfers.tick();
         recoveredOwners.step();
+        if(activityCheckpoints!=null)activityCheckpoints.step();
         if(dispatchRevision!=jobs.snapshot().revision()) {
             dispatchScopes=jobs.snapshot().jobs().stream().filter(this::dispatchableSubmission)
                     .map(Jobs.Job::origin).distinct().sorted(java.util.Comparator.comparing(c->c.principal().id().toString()
@@ -789,6 +791,9 @@ public final class KernelSession implements AutoCloseable {
                 new FabricStagedTransfers(server.overworld(),worldAccess,direct),clock,
                 dev.aivillages.core.kernel.runtime.claims.StagedTransfers.Settings.defaults());
         leases.fairLimits(new ResourceLeaseService.FairLimits(16,1200,40,2,20));
+        jobs.activityOperations((cap,quantity)->LogAcquisition.is(cap)&&quantity==1);
+        if(activityRuntimeEnabled && depositProtocol!=null && pickupProtocol!=null && harvestProtocol!=null)
+            activityCheckpoints=new dev.aivillages.core.kernel.runtime.activity.ActivityCheckpoints(jobs,depositProtocol.evidence(),depositProtocol::liveAcknowledged);
 
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {
@@ -1585,12 +1590,19 @@ public final class KernelSession implements AutoCloseable {
     }
     public Jobs.Change prepareActivity(ServerPlayer player,dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Proposal proposal) {
         ready();if(!activityRuntimeEnabled)throw new IllegalStateException("Activity runtime disabled");
-        return activitiesRuntime().prepare(proposal,caller(player));
+        var owner=caller(player);Jobs.Job job;
+        try{job=jobs.query(proposal.root(),owner);}catch(SecurityException denied){return new Jobs.Change(Jobs.Code.REJECTED,null,Reason.AUTHORITY_DENIED,0);}
+        boolean replay=job.activity()!=null && job.activity().steps().stream().anyMatch(s->s.token().equals(proposal.token())||s.proposal().equals(proposal.id()));
+        if(!replay && LogAcquisition.is(proposal.request().capability()) && proposal.quantities().demand()==1 && proposal.choice()==null
+                && (activityCheckpoints==null || !activityCheckpoints.ready(job)))
+            return new Jobs.Change(Jobs.Code.REJECTED,null,Reason.INTERRUPTED,0);
+        return activitiesRuntime().prepare(proposal,owner);
     }
     private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activitiesRuntime() {
         if(activityRuntime==null) {
             activityRuntime=new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(jobs,job->{
                 var request=job.request();var actor=job.responsible();var target=ResourceDelivery.destinationAddress(request.request());
+                boolean settled=activityCheckpoints!=null && activityCheckpoints.ready(job);
                 if(!controls(actor,job.origin()) || !citizens.available(actor) || villager(actor)==null
                         || worldAccess.permit(request,Effect.OBSERVE,new SurvivalGateway.Cell(target.dimension(),target.x(),target.y(),target.z()))!=null)
                     return dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable();
@@ -1598,8 +1610,8 @@ public final class KernelSession implements AutoCloseable {
                 var stock=worldAccess.resourceContainer(target,item);var held=worldAccess.resourceInventory(actor,item);
                 if(stock.status()!=ObservationStatus.PRESENT || held.status()!=ObservationStatus.PRESENT || stock.reason()!=null || held.reason()!=null)
                     return dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable();
-                return new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability(true,server.overworld().getGameTime(),stock.quantity(),held.quantity(),"source/free stock unknown; observed counts are not proof");
-            });
+                return new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability(true,server.overworld().getGameTime(),stock.quantity(),held.quantity(),"source/free stock unknown; observed counts are not proof",settled);
+            },List.of(OakLogDelivery.ID,BirchLogDelivery.ID));
             recoveredOwners.activityRuntime(activityRuntime);
         }
         return activityRuntime;
@@ -1658,6 +1670,7 @@ public final class KernelSession implements AutoCloseable {
         return true;
     }
     private boolean dispatchableSubmission(Jobs.Job job) {
+        if(job.activity()!=null && !activityRuntimeEnabled)return false;
         if(stagingSubmissions.containsKey(job.submissionId()))return false;
         if(!controller.ownsSubmission(job.submissionId()))return true;
         if(controller.liveSubmission(job.submissionId()))return false;

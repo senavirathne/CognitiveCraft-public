@@ -37,6 +37,12 @@ public final class FabricDepositProtocol implements DepositProtocol {
     private final long participantInitializationNanos;
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
     private Consumer<Point> observer=point->{ };
+    private final Map<String,Entry> liveAcknowledgements=new HashMap<>();
+    /** Actual result acknowledgement captured while the original private native ticket exists. */
+    public boolean liveAcknowledged(Entry entry) {
+        check();Entry original=liveAcknowledgements.get(entry.token());
+        return !closed && enabled && !store.fenced() && original!=null && original.intent().equals(entry.intent()) && Objects.equals(original.result(),entry.result());
+    }
     private boolean closed;
     private FabricPickupProtocol pickups;
     public void pickupProtocol(FabricPickupProtocol protocol){check();if(pickups!=null)throw new IllegalStateException("Joined pickup already attached");pickups=Objects.requireNonNull(protocol);}
@@ -195,7 +201,13 @@ public final class FabricDepositProtocol implements DepositProtocol {
         return switch(status.code()) {
             case PENDING,PREPARED -> new Progress(Code.PENDING,null);
             case RESULT_ACKNOWLEDGED -> {
-                if(!ticket.acknowledged){ticket.acknowledged=true;observer.accept(Point.RESULT_ACKNOWLEDGED);}
+                if(!ticket.acknowledged){
+                    ticket.acknowledged=true;
+                    var entry=store.snapshot().entries().stream().filter(e->e.intent().equals(ticket.intent)).findFirst().orElseThrow();
+                    if(entry.result()!=null && entry.result().live()==Live.COMPLETE && liveAcknowledgements.size()<NativeDeposit.MAX_ENTRIES)
+                        liveAcknowledgements.put(entry.token(),entry);
+                    observer.accept(Point.RESULT_ACKNOWLEDGED);
+                }
                 yield new Progress(Code.ACKNOWLEDGED,null);
             }
             case FULL -> failed(Reason.STORAGE_LIMIT_REACHED);

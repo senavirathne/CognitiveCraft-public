@@ -220,8 +220,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
             if(!f.supported())throw new IllegalStateException("Unsupported prior membership");var row=f.membership(intent.actorTrail().entity());if(row==null)continue;
             if(row.marker().effect().equals(intent.key().token()))continue;
             if(deposits==null || deposits.fenced() || deposits.pending())throw new IllegalStateException("Unproved prior actor custody");
-            var match=deposits.snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null && e.verification()!=null
-                    && e.verification().outcome()==Reconciliation.SAVED_COMPLETE && e.result()!=null && e.result().live()==NativeDeposit.Live.COMPLETE
+            var match=deposits.snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null && deposits.settled(e)
+                    && (e.verification()==null || e.verification().outcome()==Reconciliation.SAVED_COMPLETE) && e.result()!=null && e.result().live()==NativeDeposit.Live.COMPLETE
                     && e.intent().key().step().equals(intent.key().step()) && e.intent().key().generation()+1==intent.key().generation()
                     && e.result().actor().equals(before) && row.role()==NativePickup.Role.ACTOR && row.revision()==before.revision()
                     && row.trail().incarnation().equals(before.incarnation()) && intent.actorTrail().chunks().containsAll(row.trail().chunks())

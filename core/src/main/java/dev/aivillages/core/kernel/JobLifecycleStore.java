@@ -94,6 +94,13 @@ public final class JobLifecycleStore {
             return grant.to().equals(worker) && policy.controls(worker,job.origin());
         return old.worker().equals(worker);
     }
+    private java.util.function.BiPredicate<CapabilityId,Long> activityOperations=(cap,q)->LogAcquisition.is(cap)||CropDelivery.ID.equals(cap);
+    private boolean activityOperationsAttached;
+    /** Trusted host advertises only independently implemented operations; unavailable shapes remain data. */
+    public void activityOperations(java.util.function.BiPredicate<CapabilityId,Long> available) {
+        thread();if(activityOperationsAttached)throw new IllegalStateException("Activity host policy already attached");
+        activityOperations=Objects.requireNonNull(available);activityOperationsAttached=true;
+    }
     private JobHistory history;
     private JobArchive archiving;
     private Snapshot indexed;
@@ -496,7 +503,7 @@ public final class JobLifecycleStore {
             envelope(proposal.allowance(),remainingAllowance(job.id(),caller));
             for(var step:payload.steps())if(step.signature().equals(proposal.signature()) && step.creditBefore()==job.fulfilled())return reject(Reason.STALE_OBSERVATION,work);
             boolean executable=proposal.choice()==null && proposal.quantities().exact()
-                    && (LogAcquisition.is(job.request().request().capability()) || CropDelivery.ID.equals(job.request().request().capability()));
+                    && activityOperations.test(job.request().request().capability(),proposal.quantities().demand());
             var step=new ActivityPayload.Step(UUID.randomUUID(),proposal.id(),proposal.token(),proposal.bodyDigest(),proposal.signature(),job.fulfilled(),
                     proposal.quantities().demand(),proposal.artifact(),proposal.choice(),proposal.quantities(),proposal.allowance(),Math.addExact(job.revision(),1),null);
             var edit=new Edit(job);edit.activity=payload.prepared(step,proposal.plannedSteps(),executable);
@@ -881,7 +888,7 @@ public final class JobLifecycleStore {
             if(job.activity()!=null) {
                 var step=job.activity().current();
                 if(step==null || step.attempt()!=null || step.choice()!=null || !step.quantities().exact()
-                        || !LogAcquisition.is(job.request().request().capability()) && !CropDelivery.ID.equals(job.request().request().capability())
+                        || !activityOperations.test(job.request().request().capability(),step.quantity())
                         || !job.responsible().equals(worker) || !Objects.equals(artifact,step.artifact())
                         || job.activity().blocker()!=ActivityPayload.Blocker.NONE)return reject(Reason.REQUEST_INVALID,work);
                 envelope(allowance,step.allowance());

@@ -31,16 +31,17 @@ public final class ActivityRuntime {
             public StoppedObservation observeStopped(StoppedContext c,ActivityPayload.Choice choice){return StoppedObservation.ambiguous("Exact-choice host adapter unavailable");}
         };}
     }
-    public record Availability(boolean known,long observedTick,long destinationQuantity,long actorQuantity,String blocker) {
+    public record Availability(boolean known,long observedTick,long destinationQuantity,long actorQuantity,String blocker,boolean previousEffectsSettled) {
+        public Availability(boolean known,long observedTick,long destinationQuantity,long actorQuantity,String blocker){this(known,observedTick,destinationQuantity,actorQuantity,blocker,true);}
         public Availability {
             if(observedTick<0 || destinationQuantity<0 || destinationQuantity>8192 || actorQuantity<0 || actorQuantity>512
                     || blocker==null || blocker.length()>128 || !known && (destinationQuantity!=0 || actorQuantity!=0))
                 throw new IllegalArgumentException("Bounded scoped availability");
         }
-        public static Availability unavailable(){return new Availability(false,0,0,0,"current availability unavailable");}
+        public static Availability unavailable(){return new Availability(false,0,0,0,"current availability unavailable",false);}
     }
     @FunctionalInterface public interface ObservationSource { Availability observe(Job authorized); }
-    public enum Next { PREPARE, PREPARED_FOR_DISPATCH, EXECUTING, RECOVER_OR_SETTLE, INTEGRATION_PENDING, CANCEL_OR_SETTLE, TERMINAL, EXPIRED, LEGACY }
+    public enum Next { PREPARE, PREPARED_FOR_DISPATCH, EXECUTING, RECOVER_OR_SETTLE, INTEGRATION_PENDING, CANCEL_OR_SETTLE, TERMINAL, EXPIRED, WAIT_NATIVE_SETTLEMENT, LEGACY }
     public record AppliedEffect(UUID step,UUID attempt,long generation,UUID run,UUID operation,UUID batch,UUID receipt,String stage,long quantity){}
     public record Snapshot(int schema,UUID world,UUID root,long revision,ActivityPayload.GoalMode goalMode,
                            CapabilityRequest goal,long confirmedCredit,long remainingGoal,ActorRef actor,long generation,UUID attempt,
@@ -52,8 +53,11 @@ public final class ActivityRuntime {
     }
     private final JobLifecycleStore jobs;
     private final ObservationSource observation;
-    public ActivityRuntime(JobLifecycleStore jobs,ObservationSource observation) {
-        this.jobs=Objects.requireNonNull(jobs);this.observation=Objects.requireNonNull(observation);
+    private final List<CapabilityId> supported;
+    public ActivityRuntime(JobLifecycleStore jobs,ObservationSource observation) {this(jobs,observation,List.of(OakLogDelivery.ID,BirchLogDelivery.ID,CropDelivery.ID));}
+    public ActivityRuntime(JobLifecycleStore jobs,ObservationSource observation,List<CapabilityId> supported) {
+        this.jobs=Objects.requireNonNull(jobs);this.observation=Objects.requireNonNull(observation);this.supported=List.copyOf(supported);
+        if(this.supported.size()>8 || new HashSet<>(this.supported).size()!=this.supported.size())throw new IllegalArgumentException("Finite supported runtime catalogue");
     }
     public Change create(UUID root,CapabilityRequest goal,TrustedContext caller,ObservationRef observed,Budgets.Limits limits,int plannedSteps) {
         return jobs.createActivity(root,goal,caller,observed,limits,plannedSteps);
@@ -66,13 +70,14 @@ public final class ActivityRuntime {
         boolean cancelling=job.cancellationOutcome()!=null||job.state()==State.CANCELLING;
         long goal=((IntValue)job.request().request().arguments().get("amount")).value();
         long credit=job.fulfilled();var checkpoints=p==null?List.<ActivityPayload.Checkpoint>of():p.checkpoints();
-        Next next=p==null?Next.LEGACY:job.state().terminal()?Next.TERMINAL:cancelling?Next.CANCEL_OR_SETTLE:uncertain?Next.RECOVER_OR_SETTLE:
-                job.state()==State.ACTIVE?Next.EXECUTING:jobs.deadlineExpired(root,caller)?Next.EXPIRED:p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?Next.INTEGRATION_PENDING:
-                p.current()!=null?Next.PREPARED_FOR_DISPATCH:Next.PREPARE;
-        String blocker=next==Next.EXPIRED?"original absolute deadline expired":uncertain?"uncertain original effect; no replay":p!=null&&p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?
-                "exact-choice semantic/host adapter unavailable":job.reason()==null?"":job.reason().name();
         Availability available;
         try{available=Objects.requireNonNull(observation.observe(job));}catch(RuntimeException unavailable){available=Availability.unavailable();}
+        Next next=p==null?Next.LEGACY:!job.state().terminal()&&cancelling?Next.CANCEL_OR_SETTLE:uncertain?Next.RECOVER_OR_SETTLE:
+                job.state()==State.ACTIVE?Next.EXECUTING:!checkpoints.isEmpty()&&!available.previousEffectsSettled()?Next.WAIT_NATIVE_SETTLEMENT:
+                job.state().terminal()?Next.TERMINAL:jobs.deadlineExpired(root,caller)?Next.EXPIRED:p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?Next.INTEGRATION_PENDING:
+                !supported.contains(job.request().request().capability())?Next.INTEGRATION_PENDING:p.current()!=null?Next.PREPARED_FOR_DISPATCH:Next.PREPARE;
+        String blocker=next==Next.WAIT_NATIVE_SETTLEMENT?"original checkpoint native settlement pending":next==Next.EXPIRED?"original absolute deadline expired":uncertain?"uncertain original effect; no replay":p!=null&&p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?
+                "exact-choice semantic/host adapter unavailable":job.reason()==null?"":job.reason().name();
         Budgets.Limits limits;
         try{limits=jobs.remainingAllowance(root,caller);}
         catch(SecurityException readOnlyHistory) {
@@ -91,6 +96,6 @@ public final class ActivityRuntime {
                 Math.max(0,goal-credit),a==null?job.responsible():a.worker(),job.generation(),a==null?null:a.id(),job.state(),cancelling,
                 checkpoints,checkpoints.size(),p==null?null:p.plannedSteps(),checkpoints.isEmpty()?null:checkpoints.getLast().evidence(),
                 p==null?null:p.currentStep(),next,blocker,limits,job.usage(),job.allowance().deadlineEpochMillis(),available,effects,
-                List.of(OakLogDelivery.ID,BirchLogDelivery.ID,CropDelivery.ID),repeated,false);
+                supported,repeated,false);
     }
 }

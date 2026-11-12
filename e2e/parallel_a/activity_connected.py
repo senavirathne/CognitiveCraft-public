@@ -36,6 +36,8 @@ class ActivityHarness(ClaimsHarness):
         require(created['change']['code']=='PENDING','Root was not admitted through the public boundary');self.ready();return root,self.view(root)
     def prepare_segment(self,root,token):
         self.ready();before=self.view(root)
+        if before['verifiedCheckpoints'] and before['next']=='WAIT_NATIVE_SETTLEMENT':
+            before=self.wait(lambda:(v if (v:=self.view(root))['next']=='PREPARE' else None),'Actual original checkpoint native settlement acknowledged',45)
         value=self.runtime_rpc('prepare',root,proposal=str(uuid.uuid4()),token=token,revision=before['revision'],generation=before['generation'],artifact=self.hashes['cognitivecraft:deliver_oak_logs'])
         return before,value
     def progress(self,root,count):
@@ -49,7 +51,10 @@ class ActivityHarness(ClaimsHarness):
         return text
     def setup_runtime(self,seed,name):
         self.case_stage='HARVEST';self.env.update(A06_HARVEST_ENABLED='true',A06_PICKUP_ENABLED='true',A05_DEPOSIT_ENABLED='true',A06_RECEIPT_PREFIX_ENABLED='true')
-        self.restore(seed,'a09-'+name);self.ready();self.reset({},destination=DST,table=False);self.logs(POINTS)
+        self.restore(seed,'a09-'+name);self.ready();self.reset({},destination=DST,table=False)
+        self.console(['fill 64 208 64 64 210 79 minecraft:stone','fill 79 208 64 79 210 79 minecraft:stone',
+                      'fill 64 208 64 79 210 64 minecraft:stone','fill 64 208 79 79 210 79 minecraft:stone'])
+        self.logs(POINTS)
         self.watch(POINTS+[DST],[self.entities['PlayerA']]);self.quiet(5)
         require(self.container(DST,LOG)==0 and not self.inventory() and all('minecraft:oak_log' in self.block(p) for p in POINTS),'Starting physical fixture differs')
     def physical_runtime(self):

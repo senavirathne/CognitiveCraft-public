@@ -76,13 +76,15 @@ public final class RecoveredJobOwners implements AutoCloseable {
             if (observed != null && observed.kind() == StoppedKind.WAIT_WORLD) blocker = Blocker.WAIT_WORLD;
             if (jobs.unavailableReason() == Outcomes.Reason.STORAGE_UNAVAILABLE) blocker = Blocker.STORAGE_UNAVAILABLE;
         }
+        if(job.activity()!=null && !job.activity().checkpoints().isEmpty() && route==Route.NONE)
+            physical="live receipt checkpoint; native saved proof and current stock are separate";
         boolean recorded = job.attempts().stream().anyMatch(a -> a.receiptCount() > 0);
         var a = job.current();
         return new View(job.id(), job.request().request().capability().name(), job.origin().principal().id(),
                 a == null ? job.responsible() : a.worker(), job.generation(), a == null ? null : a.id(),
                 job.state(), route, route == Route.RECOVERY ? owner(job) : null,
                 authority.process(), blocker, job.reason(), job.cancellationOutcome() != null || job.state() == State.CANCELLING,
-                recorded ? job.fulfilled() : null, recorded ? "legacy receipt credit; current availability unknown" : "unknown/not recorded",
+                recorded ? job.fulfilled() : null, recorded ? job.activity()==null?"legacy receipt credit; current availability unknown":"actual activity receipt history; current stock separately observed" : "unknown/not recorded",
                 job.revision(), physical, job.activity()==null?null:(activities==null?
                         new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(jobs,j->dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable()):activities).snapshot(job.id(),job.origin()));
     }

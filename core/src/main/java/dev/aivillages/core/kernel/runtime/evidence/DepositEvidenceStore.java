@@ -37,6 +37,17 @@ public final class DepositEvidenceStore {
     private final Map<String,Prepared> created=new HashMap<>();private final Set<String> started=new HashSet<>();
     private final java.util.ArrayDeque<Long> acknowledgementNanos=new java.util.ArrayDeque<>();
     private Snapshot state,pending;private long deadline;private boolean fenced;
+    private java.util.function.Predicate<Entry> liveSettlements=e->false;
+    private boolean liveSettlementsAttached;
+    /** Trusted process-local checkpoint client only; it cannot write a saved verification. */
+    public void attachLiveSettlements(java.util.function.Predicate<Entry> authority) {
+        thread();if(liveSettlementsAttached)throw new IllegalStateException("Live settlement owner already attached");
+        liveSettlements=Objects.requireNonNull(authority);liveSettlementsAttached=true;
+    }
+    public boolean settled(Entry entry) {
+        thread();if(entry.verification()!=null)return true;
+        try{return liveSettlements.test(entry);}catch(RuntimeException unavailable){return false;}
+    }
     public DepositEvidenceStore(Snapshot initial,Storage storage,NativePort nativePort,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.storage=Objects.requireNonNull(storage);this.nativePort=Objects.requireNonNull(nativePort);this.clock=Objects.requireNonNull(clock);
         if(timeoutMillis<1 || timeoutMillis>30_000)throw new IllegalArgumentException("Deposit acknowledgement deadline");
@@ -69,7 +80,7 @@ public final class DepositEvidenceStore {
         }
         if(pending!=null)return status(Code.PENDING,null);
         if(clock.millis()>intent.conditions().actionDeadlineEpochMillis())return status(Code.STALE,null);
-        for(Entry prior:state.entries())if(prior.verification()==null && (sameAddress(prior.intent().actor(),intent.actor()) || sameAddress(prior.intent().chest(),intent.chest())))
+        for(Entry prior:state.entries())if(!settled(prior) && (sameAddress(prior.intent().actor(),intent.actor()) || sameAddress(prior.intent().chest(),intent.chest())))
             return status(Code.RECOVERY_REQUIRED,null);
         if(state.entries().size()==MAX_ENTRIES)return status(Code.FULL,null);
         // Validate the complete bounded record before reserving its worst-case result.
@@ -134,12 +145,12 @@ public final class DepositEvidenceStore {
     }
     public boolean excludes(Participant participant,UUID run) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries())
-            if(entry.verification()==null && !entry.intent().run().equals(run) && (sameAddress(entry.intent().actor(),participant) || sameAddress(entry.intent().chest(),participant)))return true;
+            if(!settled(entry) && !entry.intent().run().equals(run) && (sameAddress(entry.intent().actor(),participant) || sameAddress(entry.intent().chest(),participant)))return true;
         return false;
     }
     public boolean conflicts(Kind kind,String dimension,String address,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
-            if(entry.verification()!=null || entry.token().equals(allowedEffect))continue;
+            if(settled(entry) || entry.token().equals(allowedEffect))continue;
             for(Participant participant:List.of(entry.intent().actor(),entry.intent().chest()))
                 if(participant.kind()==kind && participant.dimension().equals(dimension) && participant.address().equals(address))return true;
         }

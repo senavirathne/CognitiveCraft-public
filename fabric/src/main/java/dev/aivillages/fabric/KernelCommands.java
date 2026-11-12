@@ -70,6 +70,7 @@ final class KernelCommands {
                             +(v.progress()==null?"":" checkpoints="+v.progress().verifiedCheckpoints()+"/"+v.progress().plannedSteps()
                             +" checklist="+v.progress().checkpoints().stream().map(p->p.step()+":"+p.quantity()+":"+p.evidence()).toList()
                             +" remaining="+v.progress().remainingGoal()+" next="+v.progress().next()+" deadline="+v.progress().originalDeadline()
+                            +" nativeSettlement="+v.progress().availability().previousEffectsSettled()
                             +" currentStock="+(v.progress().availability().known()?v.progress().availability().destinationQuantity():"unknown"))); return 1;
                 }))));
         kernel.then(literal("enroll")

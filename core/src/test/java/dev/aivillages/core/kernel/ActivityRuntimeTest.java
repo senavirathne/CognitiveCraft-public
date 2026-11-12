@@ -212,4 +212,16 @@ final class ActivityRuntimeTest {
         runtime.step();assertEquals(0,captures[0]);assertEquals(State.INTERRUPTED,restored.query(f.root,f.s.owner).state());assertTrue(restored.query(f.root,f.s.owner).current().uncertain());
     }
 
+    @Test void unavailableHostShapeIsStoredButCannotExecute(){
+        var f=new Fixture();f.s.store.activityOperations((cap,q)->false);f.prepare("unsupported-host");
+        assertEquals(ActivityRuntime.Next.INTEGRATION_PENDING,f.runtime.snapshot(f.root,f.s.owner).next());assertFalse(f.s.store.materialReady(f.job()));
+        assertThrows(IllegalStateException.class,()->f.s.store.activityOperations((cap,q)->true));
+    }
+    @Test void nativeSettlementBackpressurePreservesHistoricalProgress(){
+        var f=new Fixture();f.prepare("one");f.finish();var blocked=new ActivityRuntime(f.s.store,j->new ActivityRuntime.Availability(true,1,1,0,"",false));
+        var view=blocked.snapshot(f.root,f.s.owner);assertEquals(ActivityRuntime.Next.WAIT_NATIVE_SETTLEMENT,view.next());assertEquals(1,view.confirmedCredit());assertEquals(1,view.checkpoints().size());
+        f.prepare("two");f.finish();var historical=blocked.snapshot(f.root,f.s.owner);
+        assertEquals(State.SUCCEEDED,historical.state());assertEquals(ActivityRuntime.Next.WAIT_NATIVE_SETTLEMENT,historical.next());assertEquals(2,historical.confirmedCredit());
+    }
+
 }

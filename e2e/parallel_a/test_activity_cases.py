@@ -18,3 +18,12 @@ class A09EvidenceDenominator(unittest.TestCase):
         for status in ('FAIL','INCONCLUSIVE_REQUIRED_NATIVE_WINDOW','NOT_EXECUTED_REQUIRED'):
             rows[0]['status']=status
             with self.assertRaises(AssertionError):complete(rows)
+
+class NativeReceiptOwnerCodec(unittest.TestCase):
+    def test_dedicated_deposit_tag_is_contextual_while_missing_or_conflicting_harvest_pickup_tags_fail(self):
+        from review_activity_connected import owner_receipt
+        raw={'id':'fixture:actual-native-id','quantity':1}
+        decoded=owner_receipt(raw,'DEPOSIT');self.assertEqual(decoded['id'],raw['id']);self.assertEqual(decoded['stage'],'DEPOSIT');self.assertNotIn('stage',raw)
+        for stage in ('HARVEST','PICKUP'):
+            with self.assertRaises(AssertionError):owner_receipt(raw,stage)
+        with self.assertRaises(AssertionError):owner_receipt({'stage':'HARVEST'},'DEPOSIT')
