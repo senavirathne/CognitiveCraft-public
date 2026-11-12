@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sequence": 56,
+  "sequence": 57,
   "parentSource": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
@@ -4993,15 +4993,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 56,
-    "codeCheckpoint": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
-    "codeTree": "040e2a0d3d64bdf71503829b4f1ac6109f457709",
-    "documentationPreRun": "3240a61d0995f9c3332d704f246993b3910b9a96",
-    "documentationTree": "0e8cd62ed3d2a9c73f14c7ef258a6728643bb4d2",
+    "sequence": 57,
+    "codeCheckpoint": "0287964aa4eaef27c232922db6f5dd5f31c7cf98",
+    "codeTree": "8e300da78cec5340f1a972835ce5d0df3e766439",
+    "documentationPreRun": "516bd9583f83ef37b51632aec48b4c3e4ecc54d3",
+    "documentationTree": "675a5656ddaed4cfb50891df2a94b30afcf1bb74",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 120,
+    "ownedPython": 131,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5015,9 +5015,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Retain confirmed-departure saved handoff guard; canonical archive fixtures, pre-observed cold reference, connected-player chunk readiness, fresh physical stock, owned break inputs and unchanged-budget host CPU isolation. Every mandatory exact-source native gate remains required.",
+    "ownedCorrection": "Separate per-JVM epoch logs; original 2/1/1 four-core split; defer immutable complete observer encoding; lower only owned C1/C2 compiler priority to niceness >=10 with each actual JVM birth audited; normal static same-root geometry for three physical handoffs, original task and thresholds unchanged. All121 required gates rerun together on one exact frozen JAR and instruments.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 4,
+    "actionsPreviouslyStarted": 6,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -5751,6 +5751,648 @@
       "omittedTests": 0,
       "w04HistoricalCause": "OPEN_CAUSE_UNPROVEN",
       "next": "One control-only batch: all121 original profiles,2703 exact-JAR contracts,14 diagnostics,all9 regressions and standard verification required on one final source/tree/JAR and instruments."
+    },
+    "thirdLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 56,
+      "status": "FAIL_REQUIRED_A10_GATES",
+      "source": "7c750b1cfa06f937f77cb1351bc8be1e83dc6fa6",
+      "tree": "f0b7ef1017c293049b92d54af8d2255f218b645f",
+      "codeCheckpoint": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
+      "documentationPreRun": "3240a61d0995f9c3332d704f246993b3910b9a96",
+      "documentationTree": "0e8cd62ed3d2a9c73f14c7ef258a6728643bb4d2",
+      "groupedRun": 43255959853,
+      "standardRun": 43255959817,
+      "created": "2026-11-12T16:11:37Z",
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "requiredExactJarContracts": 2703,
+      "ownedPython": 120,
+      "baselinePython": 72,
+      "nativeLifecycleDiagnostics": 14,
+      "requiredRegressionSuites": 9,
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 6,
+      "additionalStandaloneRegressions": 0,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "binary": {
+        "source": "7c750b1cfa06f937f77cb1351bc8be1e83dc6fa6",
+        "tree": "f0b7ef1017c293049b92d54af8d2255f218b645f",
+        "productionSha256": "b39ab097d571da4a09513255eacd1312ab2f07cd0062d8bc30618f2313109a03",
+        "bundleSha256": "cc00c8fa52966d8f9f3306a15bb601eb4570ee42309bb5b94e1b25fa65c27980",
+        "bundleBytes": 37941488,
+        "artifact": 13960664144,
+        "outerArtifactBytes": 37948345,
+        "outerArtifactSha256": "d425eeba520b82b9037e2e4d2b8fe262c0ec1be3b197207b7db1926e49162aab",
+        "observerSha256": "785ca9a845304eeb353fb8b73c2b940c8183b6f4f1756725d8461a368194aa41",
+        "clientSha256": "28ae1384c6590f5a9e9622f064b6fdf5fafb4af81f8b1040200098dafb83a26c",
+        "standardLoomJarSha256": "dfdcb34b63265fdd4d3393849a84b10d3a506aadcfb28f85ef0ff04ec1ee8cbf"
+      },
+      "producer": {
+        "job": 131314108207,
+        "status": "PASS",
+        "exactJarContracts": {
+          "core": 2439,
+          "providers": 131,
+          "fabric": 133,
+          "total": 2703
+        },
+        "gradleContractsSameUniqueSet": 2703,
+        "ownedPython": 120,
+        "baselinePython": 72,
+        "nativeLifecycleDiagnostics": 14,
+        "cold": 7,
+        "warm": 7,
+        "bundleDownloadedVerifiedAndInstalled": true,
+        "sourceClean": true
+      },
+      "requiredRegressions": [
+        {
+          "id": 131314107708,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108144,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108215,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108217,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108243,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108332,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108344,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108663,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "status": "PASS"
+        },
+        {
+          "id": 131314108978,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "status": "PASS"
+        }
+      ],
+      "standard": {
+        "job": 131314105454,
+        "run": 43255959817,
+        "status": "PASS",
+        "artifacts": [
+          {
+            "id": 13962126454,
+            "name": "cognitivecraft-imp008-7c750b1cfa06f937f77cb1351bc8be1e83dc6fa6-43255959817",
+            "bytes": 2868291,
+            "digest": "sha256:a873aab674d1589f0a0d4c16fc97dd9a115c74799ac5abbf8e55203aaefae3c3"
+          },
+          {
+            "id": 13961922103,
+            "name": "verification-reports-43255959817-1",
+            "bytes": 1293412,
+            "digest": "sha256:a613886f1589a44aae561e380cc98d7debb91d5f91b9b73fe0c7259ac744b2c6"
+          }
+        ]
+      },
+      "pendingProfiles": [],
+      "preparedCorrection": {
+        "source": "0287964aa4eaef27c232922db6f5dd5f31c7cf98",
+        "tree": "8e300da78cec5340f1a972835ce5d0df3e766439",
+        "productionDiff": false,
+        "additionalActions": 0,
+        "status": "PASS_LOCAL_PREFLIGHT_FRESH_NATIVE_REQUIRED",
+        "ownedPython": 131,
+        "baselinePython": 72,
+        "compiledTransformedObserverSources": 21,
+        "evidence": "A10-third-launch-correction-local.json",
+        "changes": [
+          "Preserve per-JVM A00-A03 epoch transport from 553e1ed.",
+          "Lower only C1/C2 thread OS priority to niceness >=10 after the most-derived server startup checks; same two CPU cores, main thread unchanged, every native process birth recorded and independently audited.",
+          "Enable existing immutable observation encoding and deferred serialization on A10 lower profiles without removing fields, authorization calls, samples or cadence.",
+          "Only three A07 handoff fixtures receive a normal stone perimeter with a 1.5-block top-slab interaction window. Preserve the original source coordinates, destination, two-unit demand, normal adult AI and live public handoff assertions. Read-only native review requires all192 actual cells and both original actors in entity chunk4,4.",
+          "Wait for the actual returning connected client to receive the companion before survival."
+        ],
+        "costImprovement": "UNPROVEN_PENDING_NATIVE_RERUN"
+      },
+      "completed": true,
+      "aggregateJob": 131351414080,
+      "profiles": {
+        "A00": {
+          "status": "PASS_CI_AND_IDENTICAL_LOCAL_FULL_RAW_REVIEW",
+          "requiredCases": 4
+        },
+        "A01": {
+          "nativeStatus": "PASS_2_OF_2",
+          "independentReader": "FAIL_NATIVE_LOG_RECORD_CONCATENATION",
+          "line": 1022,
+          "stream": "secondary-observations.jsonl",
+          "lineBytes": 84159,
+          "lineSha256": "a2f4c2199d690346aeab36d7b350f18643bd64cb3eaae407682c875ecef89bf9",
+          "incompletePrefixBytes": 81920,
+          "completeColdSuffixBytes": 2239,
+          "completeColdSuffixSha256": "4481fbdd1934a3b59f419dce7520d93072bc3f41ecf19e3a28c0ff167a5d2e1b",
+          "nativeEffectOrSavedEvidenceRepaired": false
+        },
+        "A02": {
+          "status": "FAIL_COST_TARGET",
+          "executed": 1,
+          "required": 5,
+          "tick": {
+            "p50Ms": 6.403401,
+            "p95Ms": 17.524789,
+            "p99Ms": 43.132487,
+            "maxMs": 109.289769,
+            "samples": 400
+          },
+          "baselineP99Ms": 20.356205,
+          "captureP99Ms": 0.024686,
+          "ackMaxMs": 84.259376,
+          "tickP99LimitMs": 40,
+          "thresholdsUnchanged": true,
+          "samplesExcluded": 0,
+          "compatibilityNativeGate": "NOT_EXECUTED_REQUIRED_AFTER_COST_FAILURE"
+        },
+        "A08": {
+          "status": "PASS_CI_AND_IDENTICAL_LOCAL_FULL_RAW_REVIEW",
+          "requiredCases": 21,
+          "localRawReplay": "PASS_IDENTICAL_TO_CI"
+        },
+        "A09": {
+          "status": "PASS_CI_AND_IDENTICAL_LOCAL_FULL_RAW_REVIEW",
+          "requiredCases": 9,
+          "localRawReplay": "PASS_IDENTICAL_TO_CI"
+        },
+        "A03": {
+          "status": "PASS_CI_INDEPENDENT_REVIEW",
+          "requiredCases": 7,
+          "nativeRetiredLeases": 129,
+          "nativeCycles": 43
+        },
+        "A04": {
+          "status": "PASS_CI_INDEPENDENT_REVIEW",
+          "requiredCases": 10,
+          "nativeTerminalJobs": 67
+        },
+        "A05": {
+          "status": "PASS_CI_INDEPENDENT_REVIEW",
+          "requiredCases": 15
+        },
+        "A06": {
+          "status": "FAIL_REPRESENTATIVE_ACTIVE_COST",
+          "requiredCases": 21,
+          "recordedPasses": 20,
+          "originalSavedCases": {
+            "required": 12,
+            "passed": 12
+          },
+          "controls": {
+            "required": 9,
+            "passed": 8
+          },
+          "nativeEffects": 33,
+          "tick": {
+            "p50Ms": 9.688681,
+            "p95Ms": 27.476226,
+            "p99Ms": 46.223886,
+            "maxMs": 108.700436,
+            "samples": 2339
+          },
+          "captureP99Ms": {
+            "HARVEST": 1.129151,
+            "PICKUP": 1.286576,
+            "DEPOSIT": 2.307557
+          },
+          "limits": {
+            "tickP95Ms": 20,
+            "tickP99Ms": 40,
+            "captureP99Ms": 2,
+            "ackMaxMs": 30000
+          },
+          "ackMaxMs": 111.557642,
+          "warmupExcluded": false,
+          "requiredWheatSamples": 1
+        },
+        "A07": {
+          "status": "FAIL_REQUIRED_STALE_SUCCESSOR_SETUP",
+          "requiredCases": 27,
+          "recordedPasses": 26,
+          "originalW04": {
+            "required": 9,
+            "passed": 9,
+            "historicalCause": "OPEN_CAUSE_UNPROVEN"
+          },
+          "nativeLifecycle": 12,
+          "nativeDeath": 3,
+          "positivePhysicalHandoff": "PASS_EXPLICIT_PHYSICAL_HANDOFF_SAME_JOB",
+          "revokedHandoff": "PASS_REVOKED_NEW_EFFECTS_HISTORICAL_ACCOUNTING",
+          "staleSuccessor": {
+            "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+            "reason": "Original delivered-unit evidence before explicit reassignment; last=None",
+            "savedDepositCohort": "PASS_NATIVE_SAVED_AT_CUT",
+            "coldReconciliation": "UNPROVEN",
+            "observedActorTrail": [
+              [
+                4,
+                3
+              ],
+              [
+                4,
+                4
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "supportedCorrection": "Ordinary static fixture bounds only the three handoff cases within the already-supported entity root. Cross-root recovery remains gated.",
+            "productionClassifierRelaxed": false
+          },
+          "positiveSavedMembership": {
+            "status": "PASS_INDEPENDENT_SAVED_NATIVE_HANDOFF_MEMBERSHIP",
+            "oldActor": "49523c8e-0b1c-43d1-8a13-5ca65e4102dd",
+            "oldAbsent": true,
+            "successorPresent": true,
+            "entityChunk": [
+              4,
+              4
+            ],
+            "roles": "ACTOR",
+            "exactIncarnationRevisionAndResultMarkers": true,
+            "quarantine": false,
+            "departureCredit": 0
+          }
+        }
+      },
+      "caseLedger": {
+        "A00": {
+          "required": 4,
+          "passed": 4,
+          "unexecuted": 0,
+          "failures": []
+        },
+        "A01": {
+          "required": 2,
+          "passed": 2,
+          "unexecuted": 0,
+          "failures": []
+        },
+        "A02": {
+          "required": 5,
+          "passed": 1,
+          "unexecuted": 4,
+          "failures": [
+            {
+              "id": "real-world-compatibility-and-acknowledged-history",
+              "status": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "reserved-metadata-under-ordinary-pressure",
+              "status": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "history-enabled-native-positive",
+              "status": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "unknown-history-fence-and-whole-world-rollback",
+              "status": "NOT_EXECUTED_REQUIRED"
+            }
+          ]
+        },
+        "A03": {
+          "required": 7,
+          "passed": 7,
+          "unexecuted": 0,
+          "failures": []
+        },
+        "A04": {
+          "required": 10,
+          "passed": 10,
+          "unexecuted": 0,
+          "failures": []
+        },
+        "A05": {
+          "required": 15,
+          "passed": 15,
+          "unexecuted": 0,
+          "failures": []
+        },
+        "A06": {
+          "required": 21,
+          "passed": 20,
+          "unexecuted": 0,
+          "failures": [
+            {
+              "id": "representative-active-cost",
+              "status": "FAIL_COST_TARGET"
+            }
+          ]
+        },
+        "A07": {
+          "required": 27,
+          "passed": 26,
+          "unexecuted": 0,
+          "failures": [
+            {
+              "id": "handoff-stale-successor",
+              "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW"
+            }
+          ]
+        },
+        "A08": {
+          "required": 21,
+          "passed": 21,
+          "unexecuted": 0,
+          "failures": []
+        },
+        "A09": {
+          "required": 9,
+          "passed": 9,
+          "unexecuted": 0,
+          "failures": []
+        }
+      },
+      "totals": {
+        "required": 121,
+        "executed": 117,
+        "recordedCasePasses": 115,
+        "recordedCaseFailures": 2,
+        "unexecutedRequired": 4,
+        "passingIndependentProfiles": 6,
+        "claim": "Recorded case passes are not profile qualification. A01 independent reading and A02 cost prerequisites also fail."
+      },
+      "artifacts": [
+        {
+          "id": 13966452316,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43255959853-1",
+          "bytes": 666027,
+          "digest": "sha256:0529511f3290fb71adb6fa3ae6034e5e7e37ee0c57e8957be95da5e9c990c952"
+        },
+        {
+          "id": 13966282471,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43255959853-1",
+          "bytes": 419431274,
+          "digest": "sha256:d70c6fadced413df6f3b1abae291e6199476c99fb90afb86b3e4ad7bbbaeaa62"
+        },
+        {
+          "id": 13966262432,
+          "name": "cc-runtime-a-a10-A06-native-part-2-43255959853-1",
+          "bytes": 17901542,
+          "digest": "sha256:399b358691c8ba8dc3bd155e007f765e6f0d3530a1c67ab0142128a1dac32999"
+        },
+        {
+          "id": 13966217528,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43255959853-1",
+          "bytes": 419431274,
+          "digest": "sha256:fbed214f671186f3bec3532f275f9d53e6d8cbe877ee6a551b66e48ee3ea5234"
+        },
+        {
+          "id": 13966112748,
+          "name": "cc-runtime-a-a10-campaign-43255959853-1",
+          "bytes": 3658067,
+          "digest": "sha256:5071268555a30d92798edfc01366b36fbeb9ab34dbc9e246d4b584293b8abb84"
+        },
+        {
+          "id": 13964556348,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43255959853-1",
+          "bytes": 419431123,
+          "digest": "sha256:20c66e12e1969737637827d23b105c5a12dda9bcfc3d0af617a6fc30fcce8282"
+        },
+        {
+          "id": 13964461412,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43255959853-1",
+          "bytes": 419431122,
+          "digest": "sha256:be4ae202c0f01e809838c28edff632a4df448d1f9695b2033e4851c8c894c91b"
+        },
+        {
+          "id": 13964416473,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43255959853-1",
+          "bytes": 276333654,
+          "digest": "sha256:486b80b2d954fadf4ddca307f85b6727d88253040f34e01f9f01f4a52f832626"
+        },
+        {
+          "id": 13964058217,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43255959853-1",
+          "bytes": 159199,
+          "digest": "sha256:21b4891ae9d07f11e63a53c2cca4cc866f1206192815a83fe4197fb1bca174f6"
+        },
+        {
+          "id": 13963923787,
+          "name": "cc-runtime-a-a10-A04-native-part-1-43255959853-1",
+          "bytes": 23016694,
+          "digest": "sha256:a26749a728c48470363922ae1dab95d20944b35735ed76bbd236481116b3b3de"
+        },
+        {
+          "id": 13963761910,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43255959853-1",
+          "bytes": 248627,
+          "digest": "sha256:cea6258229ccfcb9aae0aad851b42f4e70026e005a00f290a1a39ba771e86cb3"
+        },
+        {
+          "id": 13963388825,
+          "name": "cc-runtime-a-a10-A03-native-part-1-43255959853-1",
+          "bytes": 419431276,
+          "digest": "sha256:49b39c1f5c1a0ed5b920c9bf7bc8b08c1f7943292ee1239ea3f7f10fae66cfe8"
+        },
+        {
+          "id": 13963274397,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43255959853-1",
+          "bytes": 1164514,
+          "digest": "sha256:1d9b0841d5b446d6944a4088b4550d293b4ebee4c1218782e5f1797a2f483807"
+        },
+        {
+          "id": 13963138954,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43255959853-1",
+          "bytes": 377861,
+          "digest": "sha256:6e577d5a48d1ee6f684937e2dc9a6fa98e325f10cd70a5734e28cf3990c31515"
+        },
+        {
+          "id": 13963129031,
+          "name": "cc-runtime-a-a10-A03-native-part-2-43255959853-1",
+          "bytes": 385818073,
+          "digest": "sha256:3b262c663e0d44537df8b67803d27557e628af51e235123011dc6dbd3c8e1d27"
+        },
+        {
+          "id": 13963018964,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43255959853-1",
+          "bytes": 419431276,
+          "digest": "sha256:32702198c3653db61f0bd02a44cbf102bf1bf7a517371543321ed2848f3664cd"
+        },
+        {
+          "id": 13962975580,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43255959853-1",
+          "bytes": 106519767,
+          "digest": "sha256:5a7ebb2445d9723feee3b92bb996bfe37ec98cf7ddaa3449f0a82adca475caef"
+        },
+        {
+          "id": 13962824410,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43255959853-1",
+          "bytes": 401114082,
+          "digest": "sha256:eb11e33e780d6e63b6ce04b91abee6ec62382df1361df2664d044658568d8c2d"
+        },
+        {
+          "id": 13962749924,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43255959853-1",
+          "bytes": 428745,
+          "digest": "sha256:7d78400d4658d6fd44b26aff88c0a611f0fcb06352b6d84860eebf343fc2cb40"
+        },
+        {
+          "id": 13962727723,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43255959853-1",
+          "bytes": 360945676,
+          "digest": "sha256:363af80972d0e60f900ee498c5c3a0081288b9676a7eb8b6b29688c859af8d0b"
+        },
+        {
+          "id": 13962596340,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43255959853-1",
+          "bytes": 139446,
+          "digest": "sha256:a43f1360d6c2553f5935327c39a78fcb26fdf5b123a52571825b432e932acd2c"
+        },
+        {
+          "id": 13962526392,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43255959853-1",
+          "bytes": 140740890,
+          "digest": "sha256:36bb71c67a2e75d405f9cdeb72172f94b524019e9e36c6b19f96af6c39133fab"
+        },
+        {
+          "id": 13962340158,
+          "name": "imp-018-prerequisites",
+          "bytes": 432569,
+          "digest": "sha256:26229f23c3b57a235e864aae6d6ffcdeb993e7fa73c771acecb9c24800c8317c"
+        },
+        {
+          "id": 13962251670,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43255959853-1",
+          "bytes": 94649,
+          "digest": "sha256:bbfb407055f9d22367d7cbd773de8066592419a03e790699c29a6cdab0909cbf"
+        },
+        {
+          "id": 13962233461,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43255959853-1",
+          "bytes": 283334440,
+          "digest": "sha256:2e170ee4c907bd9353c304e608995ca6aae3dab34d788015de8e0a774bd7182f"
+        },
+        {
+          "id": 13962220409,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 364752,
+          "digest": "sha256:0ed38af8e416a70076d79a79b08dafa35f0259eb2793c2fea200db536ce52512"
+        },
+        {
+          "id": 13962011952,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43255959853-1",
+          "bytes": 104281335,
+          "digest": "sha256:f7a0420f49db6654f20ddd4f5a44f35f4718d70a8536901bd1e5c1de0dcadc63"
+        },
+        {
+          "id": 13961994119,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43255959853-1",
+          "bytes": 255144,
+          "digest": "sha256:f080f5effc96052795f1b692f7a449fde5a9e94ffdf560113f678d226943bcdc"
+        },
+        {
+          "id": 13961876322,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 431874,
+          "digest": "sha256:6f405ddb97890fda3e1f1671a4fc6245b019fa29f82e33e97d5222bf392f514c"
+        },
+        {
+          "id": 13961796290,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 429111,
+          "digest": "sha256:0898118e7f20091d7294de86574355c9275d4fafa9c95584bbb6c7000b0621ef"
+        },
+        {
+          "id": 13961777584,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43255959853-1",
+          "bytes": 116293,
+          "digest": "sha256:02dffd5af5a46eb0739da3e2446274db7e78aafb543a3cf7b027ba5ecd5c0071"
+        },
+        {
+          "id": 13961726743,
+          "name": "primitive-diagnostics-43255959853-1",
+          "bytes": 372521,
+          "digest": "sha256:a65820f7fa759fa574e3359fee94865b16d844ff3edd6a18ab31a5728021c5bc"
+        },
+        {
+          "id": 13961707611,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4266294,
+          "digest": "sha256:f5bdba456900c738b62267a32d115355f3b84f890ea2ea086eab7f56adbc86a5"
+        },
+        {
+          "id": 13961599165,
+          "name": "cc-runtime-a-a07-lifecycle-7c750b1cfa06f937f77cb1351bc8be1e83dc6fa6-43255959853-1",
+          "bytes": 6624992,
+          "digest": "sha256:8e1d8d326594d335efabf2f02a47c032f77e5e27fb9125e7550239ad7fba4585"
+        },
+        {
+          "id": 13961353873,
+          "name": "cc-runtime-a-a10-exact-jar-units-43255959853-1",
+          "bytes": 150771,
+          "digest": "sha256:0e7cd1aa5bc49ae9dd751d243dbe72afdd8f3da3d15194a5259b903a869ace18"
+        },
+        {
+          "id": 13960878761,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 362866,
+          "digest": "sha256:7d97a65a0b5df907e1034cc5353ef433c702c2a747813bea769c0a85344aeb96"
+        },
+        {
+          "id": 13960709067,
+          "name": "imp-016-world-retention",
+          "bytes": 429305,
+          "digest": "sha256:6644118087dd876f219ea023f75a89bbefca967ea4488baa2cbc2618b9c6a37b"
+        },
+        {
+          "id": 13960664144,
+          "name": "cc-runtime-a-a10-frozen-runtime-43255959853-1",
+          "bytes": 37948345,
+          "digest": "sha256:d425eeba520b82b9037e2e4d2b8fe262c0ec1be3b197207b7db1926e49162aab"
+        },
+        {
+          "id": 13960334356,
+          "name": "cc-runtime-a-a04-contracts-7c750b1cfa06f937f77cb1351bc8be1e83dc6fa6-43255959853-1",
+          "bytes": 3572736,
+          "digest": "sha256:5b81bf023215c992e095b85e7b991916e541842e97ab496db7b7bb03cf2e0fd2"
+        },
+        {
+          "id": 13960269315,
+          "name": "imp-015-save-compatibility",
+          "bytes": 430919,
+          "digest": "sha256:7da4ddfa27738075d54d9ff7e792c7fa6c437739687a8f507c5f6a5b4f8e1656"
+        }
+      ],
+      "notWaived": [
+        "A01 independent observation transport",
+        "A02 cost and four unexecuted required gates",
+        "A06 representative cost",
+        "A07 stale-successor denial after native saved recovery"
+      ]
     }
-  }
+  },
+  "date": "2026-11-13"
 }
