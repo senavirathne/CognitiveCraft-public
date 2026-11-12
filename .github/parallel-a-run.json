@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 52,
-  "parentSource": "3716fedd73fdfb4ff47ed0cc73ad0a746604123d",
+  "sequence": 53,
+  "parentSource": "1214b061592082aa9265913c65ed440e097d719a",
   "stage": "A09",
   "scope": "Jobs-owned public activity runtime, two native segments and selected established H/P/D regressions",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4917,13 +4917,13 @@
   },
   "a09": {
     "status": "REQUESTED_NOT_YET_OBSERVED",
-    "codeCheckpoint": "3716fedd73fdfb4ff47ed0cc73ad0a746604123d",
-    "codeTree": "ad087d62f162b6e56c84f2c095dd4d2038de3ce3",
-    "documentationCheckpoint": "bcb4c4456abb97150f0a93cabc93ccfd7571631e",
+    "codeCheckpoint": "1214b061592082aa9265913c65ed440e097d719a",
+    "codeTree": "64b1c979ec5f8c575bf9cd802ec202e2da6fea93",
+    "documentationCheckpoint": "bb0914a926ca98e21f487d99f759d067d164c0cd",
     "runtimeDriven": true,
     "plannerEnabled": false,
     "requiredNativeCases": 9,
-    "requiredTargetModules": 2699,
+    "requiredTargetModules": 2700,
     "requiredOwnedPython": 107,
     "requiredBaselinePython": 72,
     "requiredLifecycleDiagnostics": 14,
@@ -4931,7 +4931,7 @@
     "requiredRegressionJobs": 12,
     "requiredRegressionSteps": 140,
     "command": "python3 e2e/parallel_a/activity_connected.py --root build/parallel-a/native-a09-connected --seed-archive build/parallel-a/a09-admission-seed.zip",
-    "localPreflight": "PASS_CORE2438_ACTIVITY30_CHECKPOINT8_PYTHON107_72_NATIVE_SIGNATURES_ONLY",
+    "localPreflight": "PASS_LOCAL_JAVA25_NATIVE131_SAVE_ORDERS3_PYTHON107_72_FULL279_NATIVE_COMPILE",
     "activation": "Default off; in-flight activity segments remain fenced; generalized recipe/placement adapter unavailable",
     "intendedWorkflowCount": 2,
     "omittedTasks": 0,
@@ -4962,9 +4962,33 @@
         "evidence": "A09-first-native-evidence.json",
         "workflowRecords": 2,
         "mainReruns": 0
+      },
+      {
+        "sequence": 52,
+        "source": "0336d4c6528b4f603c7564a09412212e8a13bd3a",
+        "tree": "74aef345b51d28dd9c97bee8596251f4660e2a33",
+        "groupedRun": 43172743563,
+        "mainJob": 131029650936,
+        "grouped": "FAILURE_ONE_REQUIRED_NATIVE_POSITIVE",
+        "standardRun": 43172743552,
+        "standardJob": 131029650202,
+        "standard": "PASS",
+        "targetModules": 2699,
+        "ownedPython": 107,
+        "baselinePython": 72,
+        "lifecycleDiagnostics": 14,
+        "requiredRegressionsPassed": 9,
+        "nativeRequired": 9,
+        "independentControlsAndRestartPassed": 8,
+        "requiredPositiveInconclusive": 1,
+        "nativeQualified": 0,
+        "evidence": "A09-second-native-evidence.json",
+        "workflowRecords": 2,
+        "mainReruns": 0
       }
     ],
-    "actionsPreviouslyStarted": 2,
-    "settlement": "Original process-local native result acknowledgement matched to actual accepted checkpoint; after restart original SAVED_COMPLETE cohort and own-journal acknowledgement required; no LIVE-to-SAVED conversion."
+    "actionsPreviouslyStarted": 4,
+    "settlement": "Original process-local native result acknowledgement matched to actual accepted checkpoint; after restart original SAVED_COMPLETE cohort and own-journal acknowledgement required; no LIVE-to-SAVED conversion.",
+    "secondCorrection": "Select the actual immutable native writer staged actor membership before a saved row; retain supported-frame and original settled root/generation/actor/incarnation/revision/trail/marker guards. Live data is not saved evidence; quotas and original9 cases unchanged."
   }
 }
