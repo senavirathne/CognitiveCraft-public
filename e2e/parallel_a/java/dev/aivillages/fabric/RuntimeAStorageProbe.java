@@ -30,7 +30,11 @@ public final class RuntimeAStorageProbe implements ModInitializer {
                 var kernel=AiVillages.kernel();if(kernel==null)return;long start=System.nanoTime();var view=kernel.runtimeStorageView();long nanos=System.nanoTime()-start;live.set(view);
                 if(measuring && capture.size()<5000)capture.add(nanos);
                 if(!readySent){readySent=true;mailbox.execute(()->write("persistence-ready.json",map("process",process,"pid",ProcessHandle.current().pid(),"world",view.jobs().worldId())));}
-                if(!view.ready())return;var command=request.getAndSet(null);if(command==null)return;
+                // Unknown history deliberately makes the domain owners unready.
+                // Its read-only status must remain observable; work still waits.
+                var waiting=request.get();
+                if(!view.ready()&&(waiting==null||!"status".equals(waiting.get("op").getAsString())))return;
+                var command=request.getAndSet(null);if(command==null)return;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
                 if(op.equals("status")){reply(id,map("status","PASS","storage",kernel.runtimeHistoryStatus(),"view",summary(view)),null);return;}
                 if(op.equals("begin-window")){capture.clear();measuring=true;reply(id,map("status","PASS"),null);return;}

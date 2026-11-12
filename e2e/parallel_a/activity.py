@@ -89,19 +89,23 @@ class ActivityHarness(RuntimeAHarness):
 
     def activity(self, root):
         value=read(self.root/'server/runtime-a-activities.json')
-        return next((a for a in (value or {}).get('players',{}).get('PlayerA',{}).get('activities',[]) if a['root']==root),None)
+        player=(value or {}).get('players',{}).get('PlayerA',{})
+        return next((a for a in [*player.get('watchedActivities',[]),*player.get('activities',[])] if a['root']==root),None)
 
     def observe_live(self, run):
         view=self.wait(lambda:self.run_view('PlayerA',run) and self.run_view('PlayerA',run).get('responsibility'),
                        'Original live Job identity')
         root=view['id']
+        # A history page contains at most four UUID-sorted roots. The current
+        # original can be on a later page; request its actual private view.
+        watch={'schema':1,'roots':[root]};atomic(self.root/'server/runtime-a-watch.json',watch)
         live=self.wait(lambda:(v if (v:=self.activity(root)) and v['route']=='LIVE_BOOTSTRAP' and v['state']=='ACTIVE' else None),
                        'Actual Jobs-owned live activity projection',35)
         feedback=self.command('PlayerA','/aivillage kernel activity '+root,'activity='+root)
         require('owner=LIVE_BOOTSTRAP' in feedback,'Connected live activity view disagrees with native owner')
         denied=self.command('PlayerB','/aivillage kernel activity '+root,DENIED_PATTERN)
         require(root not in self.command('PlayerB','/aivillage kernel activities','activities='),'Private activity listing leaked root')
-        return {'snapshot':live,'authorizedFeedback':feedback,'foreignDenied':denied}
+        return {'snapshot':live,'authorizedFeedback':feedback,'foreignDenied':denied,'watchRequest':watch}
 
     def observe_recovery(self, run, case):
         job=self.run_view('PlayerA',run)['responsibility'];root=job['id']

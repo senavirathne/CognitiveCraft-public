@@ -194,6 +194,8 @@ subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.RuntimeAObservationLog',str(reference_probe)],check=True)
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.RuntimeAObservationJson'],check=True)
+subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
+                'dev.aivillages.fabric.RuntimeAObserver'],check=True)
 with (ROOT/'build/parallel-a/source-audit/instrument-preparations.jsonl').open('a') as record:
     record.write(json.dumps({'releaseSha256':before,'observerSha256':digest(observer),
         'journalProbe':probe.relative_to(ROOT).as_posix(),'referenceLogProbe':reference_probe.relative_to(ROOT).as_posix(),

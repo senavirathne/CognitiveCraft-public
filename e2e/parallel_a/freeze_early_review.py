@@ -53,6 +53,11 @@ def activity(root,cases):
     positive=cases['legacy-positive']['evidence'];successful(positive['view'],2)
     row=read(root/'saved-original-owner/result.json');cut=interruption(root,root/'saved-original-owner',row,True)
     assert cases['repeated-adoption-cancel-private-view']['evidence']==row
+    live=row['liveActivityView'];view=live['snapshot']
+    assert live['watchRequest']==read(root/'server/runtime-a-watch.json')=={'schema':1,'roots':[row['job']]}
+    assert view['root']==row['job'] and view['route']=='LIVE_BOOTSTRAP' and view['state']=='ACTIVE'
+    assert 'activity='+row['job'] in live['authorizedFeedback'] and 'owner=LIVE_BOOTSTRAP' in live['authorizedFeedback']
+    assert re.search(DENIED_PATTERN,live['foreignDenied'])
     v=row['recoveryActivityView']
     first=v['first'];assert first['route']=='RECOVERY' and first['blocker']=='NEEDS_ATTENTION'
     assert v['repeated']['recoveryOwner']==v['secondRestart']['recoveryOwner']==first['recoveryOwner']

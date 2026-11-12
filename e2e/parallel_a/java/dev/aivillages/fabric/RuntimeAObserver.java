@@ -1,6 +1,7 @@
 package dev.aivillages.fabric;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParser;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -17,6 +18,7 @@ public final class RuntimeAObserver implements ModInitializer {
     });
     private long start, tick;
     private volatile Map<String,Object> activitySnapshot;
+    private volatile List<UUID> watchedRoots=List.of();
     public void onInitialize() {
         ServerTickEvents.START_SERVER_TICK.register(s -> start = System.nanoTime());
         ServerTickEvents.END_SERVER_TICK.register(s -> {
@@ -28,8 +30,15 @@ public final class RuntimeAObserver implements ModInitializer {
                     var kernel = AiVillages.kernel();
                     if (kernel != null) {
                         var players = new LinkedHashMap<String,Object>();
-                        for (var player : s.getPlayerList().getPlayers().stream().limit(2).toList())
-                            players.put(player.getGameProfile().name(), kernel.activities(player,0,4));
+                        for (var player : s.getPlayerList().getPlayers().stream().limit(2).toList()) {
+                            var page=kernel.activities(player,0,4);
+                            var watched=new ArrayList<Object>();
+                            for(var root:watchedRoots)try {watched.add(kernel.activity(player,root));}
+                            catch(IllegalArgumentException|SecurityException denied) { /* original public scoped read refuses a foreign root */ }
+                            players.put(player.getGameProfile().name(),Map.of("activities",page.activities(),
+                                    "offset",page.offset(),"nextOffset",page.nextOffset(),"more",page.more(),
+                                    "watchedActivities",List.copyOf(watched)));
+                        }
                         activitySnapshot = Map.of("schema",1,"time",System.currentTimeMillis(),
                                 "players",Map.copyOf(players),"counters",kernel.recoveryOwner().counters());
                     }
@@ -41,6 +50,13 @@ public final class RuntimeAObserver implements ModInitializer {
     }
     private void flush() {
         try {
+            var watch=target.resolveSibling("runtime-a-watch.json");
+            List<UUID> requested=List.of();
+            if(Files.exists(watch)) {
+                if(Files.size(watch)>1024)throw new IllegalArgumentException("Activity watch byte bound");
+                requested=watch(Files.readString(watch));
+            }
+            watchedRoots=requested;
             List<Map<String,Long>> copy;
             synchronized(samples) { copy = List.copyOf(samples); }
             var body = Map.of("schema",1,"pid",ProcessHandle.current().pid(),"samples",copy,
@@ -56,6 +72,36 @@ public final class RuntimeAObserver implements ModInitializer {
                 Files.writeString(staged,new Gson().toJson(activities));
                 Files.move(staged,activityTarget,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             }
-        } catch(Exception e) { System.err.println("Runtime A observation write failed: "+e); }
+        } catch(Exception e) { watchedRoots=List.of();System.err.println("Runtime A observation write failed: "+e); }
+    }
+    /** Bounded test observation only. Each requested view still uses the public principal-scoped query. */
+    static List<UUID> watch(String raw) {
+        if(raw.length()>1024)throw new IllegalArgumentException("Activity watch bound");
+        var value=JsonParser.parseString(raw).getAsJsonObject();
+        if(!value.keySet().equals(Set.of("schema","roots")) || !value.get("schema").toString().equals("1"))
+            throw new IllegalArgumentException("Activity watch schema");
+        var roots=value.getAsJsonArray("roots");
+        if(roots.size()<1||roots.size()>4)throw new IllegalArgumentException("Activity watch root bound");
+        var result=new LinkedHashSet<UUID>();
+        for(var root:roots) {
+            if(!root.isJsonPrimitive()||!root.getAsJsonPrimitive().isString())throw new IllegalArgumentException("Activity watch UUID");
+            String text=root.getAsString();UUID id=UUID.fromString(text);
+            if(!id.toString().equals(text)||!result.add(id))throw new IllegalArgumentException("Activity watch duplicate/noncanonical UUID");
+        }
+        return List.copyOf(result);
+    }
+    public static void main(String[] args) {
+        String root="e993b733-4d93-4303-83c6-1fedc4dab50b";
+        if(!watch("{\"schema\":1,\"roots\":[\""+root+"\"]}").equals(List.of(UUID.fromString(root))))
+            throw new AssertionError("Explicit original root observation changed");
+        String four="{\"schema\":1,\"roots\":[\"00000000-0000-0000-0000-000000000001\",\"00000000-0000-0000-0000-000000000002\",\"00000000-0000-0000-0000-000000000003\",\""+root+"\"]}";
+        if(watch(four).size()!=4)throw new AssertionError("Original four-root observation bound changed");
+        for(String raw:List.of("{\"schema\":1,\"roots\":[]}","{\"schema\":2,\"roots\":[\""+root+"\"]}",
+                "{\"schema\":1,\"roots\":[\""+root+"\",\""+root+"\"]}",
+                "{\"schema\":1,\"roots\":[\""+root+"\"],\"authority\":true}",
+                four.replace("]}",",\"00000000-0000-0000-0000-000000000005\"]}"))) {
+            try {watch(raw);throw new AssertionError("Invalid watch accepted");}catch(IllegalArgumentException expected){}
+        }
+        System.out.println("A01_EXPLICIT_PRIVATE_ACTIVITY_WATCH_SELF_TEST_PASS bounded-four original-root no-mutation");
     }
 }
