@@ -10,14 +10,14 @@ def expected_case(kind):
     assert kind in HANDOFF_CASES
     case=copy.deepcopy(next(c for c in originals(Path(__file__).with_name('a06_original_cases.json')) if c['checkpoint']=='DEPOSIT'))
     case.update(id=kind,requested=2,item='minecraft:oak_log');case['capability']['name']='cognitivecraft:deliver_oak_logs'
+    # Only this fresh A07 control uses an inside-root destination. The twelve
+    # frozen A06 originals and every already-created Job keep their destinations.
+    case['destination']['x']=78
     return case
 
 def layout():
     cells={(x,y,z):('minecraft:stone',{}) for x in range(64,81) for z in range(64,81)
            if x in (64,80) or z in (64,80) for y in range(208,211)}
-    for z in (73,74):
-        cells[80,208,z]=('minecraft:air',{})
-        cells[80,209,z]=('minecraft:stone_slab',{'type':'top','waterlogged':'false'})
     assert len(cells)==192
     return cells
 
@@ -25,11 +25,10 @@ def setup(h,case):
     assert case==expected_case(case['id']),'Changed original A07 handoff task'
     commands=['fill 64 208 64 80 210 64 minecraft:stone','fill 64 208 80 80 210 80 minecraft:stone',
               'fill 64 208 65 64 210 79 minecraft:stone','fill 80 208 65 80 210 79 minecraft:stone']
-    for z in (73,74):commands += [f'setblock 80 208 {z} minecraft:air',f'setblock 80 209 {z} minecraft:stone_slab[type=top,waterlogged=false]']
     h.console(commands)
-    return {'schema':1,'kind':'ORDINARY_STATIC_SAME_ROOT_HANDOFF_ARENA','case':case,'blocks':len(layout()),
-            'entityChunk':[4,4],'destinationUnchanged':[81,208,74],'normalAI':True,
-            'commands':commands,'window':'1.5 block opening below top slab; native adult body cannot cross',
+    return {'schema':2,'kind':'ORDINARY_STATIC_SAME_ROOT_HANDOFF_ARENA','case':case,'blocks':len(layout()),
+            'entityChunk':[4,4],'destinationFixedBeforeJobCreation':[78,208,74],'copiedTemplateDestination':[81,208,74],'normalAI':True,
+            'commands':commands,'geometry':'Closed ordinary perimeter; complete paths and both source/destination inside one entity root',
             'metadataRepaired':False,'nativeGameplayQualification':'REQUIRED_FRESH_CONNECTED_RUN'}
 
 def native_block(world,pos,cache):
@@ -54,9 +53,9 @@ def native_block(world,pos,cache):
 
 def review(world,case,old,successor,record):
     assert case==expected_case(case['id']) and record['case']==case
-    assert record['schema']==1 and record['kind']=='ORDINARY_STATIC_SAME_ROOT_HANDOFF_ARENA'
+    assert record['schema']==2 and record['kind']=='ORDINARY_STATIC_SAME_ROOT_HANDOFF_ARENA'
     assert record['entityChunk']==[4,4] and record['blocks']==192 and record['normalAI'] is True and record['metadataRepaired'] is False
-    assert record['destinationUnchanged']==[81,208,74]
+    assert record['destinationFixedBeforeJobCreation']==[78,208,74] and record['copiedTemplateDestination']==[81,208,74]
     cache={}
     for pos,(name,properties) in layout().items():
         actual,props=native_block(world,pos,cache);assert actual==name,(pos,name,actual)

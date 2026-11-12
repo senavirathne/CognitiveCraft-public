@@ -134,6 +134,7 @@ def review(root,source):
             saved=original(world,row['key']['step']);assert saved['generation']==row['key']['generation'] and sum(a['credited'] for a in saved['attempts'])==0
         elif name in HANDOFF_CASES:
             proof=native_saved(folder/'killed-world','DEPOSIT',row['originalCase']);assert proof==row['nativeSavedProof']
+            assert row['originalJob']['request']==row['beforeHandoff']['request']==row['originalAtCut']['request']
             saved=original(world,row['key']['step']);assert saved['state']==row['originalJob']['state'] and allowance(saved['allowance'],row['originalAtCut']['allowance'])
             assert all('denied' in row['denied'][k].lower() or 'handoff=false' in row['denied'][k]
                        or row['denied'][k] in ('Citizen unavailable in your control scope','Job unavailable in your scope') for k in row['denied'])
@@ -164,7 +165,9 @@ def review(root,source):
             assert sorted(item(e) for e in box.get('Items',[]))==sorted((slot,name,count,{}) for slot,name,count in c['destinationSlots'])
             b,a=row['before']['identity'],row['after']['identity'];u=row['boundary']['identity']
             assert b['actor']==a['actor']==u['actor'] and b['owner']==a['owner']==u['owner']
-            assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD' and a['lifecycle']['generation']==b['lifecycle']['generation']+1
+            assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD'
+            from lifecycle_cycles import review as cycle_review
+            assert row['nativeCycleReview']==cycle_review(row['initialNative'],row['reloadNative'],b['actor']['entityId'],b['lifecycle']['generation'],a['lifecycle']['generation'])
             assert row['unloadSeconds']<=row['originalTimeoutSeconds']==110
             assert any(e['event']=='ENTITY_UNLOAD' and e['entity']==b['actor']['entityId'] for e in row['nativeAtUnload']['nativeEvents'])
             assert b['actor']['entityId'] in native

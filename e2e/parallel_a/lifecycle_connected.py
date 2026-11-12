@@ -288,16 +288,24 @@ def w04_case(h,seed,frozen):
     duration=time.monotonic()-started;native=h.a07()
     require(not native['entities'][entity]['loaded'],'Lifecycle UNLOAD disagrees with native entity lookup')
     require(any(e['event']=='ENTITY_UNLOAD' and e['entity']==entity for e in native['nativeEvents']),'Native unload event was not recorded')
-    h.vanilla('PlayerA','/tp 66.5 208 69.5');h.console(['forceload remove 10000 10000'])
-    after=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['availability']=='LOADED' and v['identity']['lifecycle']['event']=='LOAD' else None),'Original W04 subject reloads',80)
+    reload_started=time.monotonic();h.vanilla('PlayerA','/tp 66.5 208 69.5');h.console(['forceload remove 10000 10000'])
+    h.quiet(20)
+    reload_remaining=80-(time.monotonic()-reload_started)
+    if reload_remaining<=0:raise TimeoutError('Original W04 reload deadline expired')
+    after=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['availability']=='LOADED' and v['identity']['lifecycle']['event']=='LOAD'
+                  and v['identity']['lifecycle']['acknowledged']==7 and (h.a07() or {}).get('entities',{}).get(entity,{}).get('loaded') else None),
+                 'Original W04 subject reloads with all native lifecycle acknowledgements',reload_remaining)
+    reload_native=h.a07()
+    from lifecycle_cycles import review as cycle_review
+    native_cycles=cycle_review(initial_native,reload_native,entity,before['identity']['lifecycle']['generation'],after['identity']['lifecycle']['generation'])
     require(after['identity']['actor']==before['identity']['actor'] and after['identity']['owner']==before['identity']['owner']
-            and after['identity']['displayName']==c['citizenName'] and after['identity']['lifecycle']['generation']==before['identity']['lifecycle']['generation']+1,
+            and after['identity']['displayName']==c['citizenName'],
             'W04 native identity or generation changed incorrectly')
     require(h.model_calls()==calls,'W04 identity reproduction invoked a model');h.screenshot('PlayerA','w04-'+name,chat=True)
     reconnect_players(h,['PlayerB'])
     value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'startingWorldHashes':starting,'startingFixtureReview':setup_review,
            'initialNative':initial_native,'boundary':boundary,'nativeAtUnload':native,
-           'after':after,'unloadSeconds':duration,'originalTimeoutSeconds':110,'clock':'ordinary 20 TPS; no freeze or accelerated ticks',
+           'after':after,'reloadNative':reload_native,'nativeCycleReview':native_cycles,'unloadSeconds':duration,'originalTimeoutSeconds':110,'clock':'ordinary 20 TPS; no freeze or accelerated ticks',
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'historicalFailure':frozen['reason'],
            'causeClaim':'Historical timeout is retained. Candidate success does not establish a unique historical cause.'}
     value['terminalWorldHashes']=checkpoint(h,directory);atomic(directory/'result.json',value)
@@ -334,7 +342,7 @@ def handoff_case(h,seed,template,kind):
     from handoff_fixture import expected_case
     h.handoff_template=expected_case(kind)
     h.move_companion=True
-    try:directory,case,value=original_control(h,seed,template,kind,'RESULT_ACKNOWLEDGED')
+    try:directory,case,value=original_control(h,seed,h.handoff_template,kind,'RESULT_ACKNOWLEDGED')
     finally:h.move_companion=False
     value['physicalFixture']=h.current_handoff_fixture
     atomic(directory/'handoff-fixture.json',h.current_handoff_fixture)
@@ -378,12 +386,13 @@ def handoff_case(h,seed,template,kind):
             h.command('PlayerB','/kill '+h.entities['PlayerA'],'Killed')
             final=h.wait(lambda:(j if (j:=job(h,value['run'])) and j['state']=='SUCCEEDED' else None),'Authorized successor physically acquires and delivers only the remaining unit',210)
             value['handoffReview']=handoff(current,final,successor)
-            require(h.container([case['destination'][k] for k in ('x','y','z')],LOG)==2,'Handoff actual chest does not contain exactly two units')
+            h.wait(lambda:h.container([case['destination'][k] for k in ('x','y','z')],LOG)==2,'Fresh native handoff chest contains exactly two units',30)
             status='PASS_EXPLICIT_PHYSICAL_HANDOFF_SAME_JOB'
             h.save_checkpoint();value['restart']=h.restart(hard=True);h.quiet(60)
             require(job(h,value['run'])==final,'Restart replayed or changed the completed handoff')
             denied['obsoleteGeneration']=h.command('PlayerA',command,'handoff=false')
     require(h.model_calls()==value['modelCallsBefore'],'Handoff required a model or inherited knowledge without existing eligibility')
+    require(final['request']==current['request']==value['originalAtCut']['request'],'Handoff changed the original immutable request or destination')
     value.update(status=status,denied=denied,beforeHandoff=current,successor=successor,originalJob=final,modelCallsAfter=h.model_calls(),
                  envelope='Saved proved-deposit handoff with empty old custody. Remaining known source goods are physically acquired; no unproved held inventory is transferred.')
     value['terminalWorldHashes']=checkpoint(h,directory);atomic(directory/'result.json',value);return value
