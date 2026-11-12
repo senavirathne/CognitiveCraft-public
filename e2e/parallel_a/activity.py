@@ -67,7 +67,7 @@ class ActivityHarness(RuntimeAHarness):
                       *([] if retained else ['summon minecraft:villager 329.5 208 67.5 {PersistenceRequired:1b}']),
                       'setblock '+coord(self.other_source)+' minecraft:oak_log',
                       'setblock '+coord(self.other_destination)+' minecraft:chest',
-                      'gamemode survival PlayerA'])
+                      *([] if retained else ['gamemode survival PlayerA'])])
         if retained:
             def actual_retained():
                 state=self.snapshot()
@@ -79,6 +79,10 @@ class ActivityHarness(RuntimeAHarness):
             secondary=[a for a in state['actors'] if 318<=a['pos'][0]<342 and 62<=a['pos'][2]<81]
             require(len(secondary)==1 and secondary[0]['uuid']==retained[1],
                     'Retained secondary arena must contain its original companion without a duplicate fixture actor')
+            self.wait(lambda:any(a['uuid']==retained[1] for a in self.client_snapshot('PlayerA').get('entities',[])),
+                      'Connected client receives the retained companion arena before survival',50)
+            self.command('PlayerA','/gamemode survival','Survival|survival')
+            self.wait(lambda:abs(self.client_snapshot('PlayerA')['pos'][1]-208)<.1,'Connected player stands on the retained native floor',30)
             atomic(self.root/'a10-secondary-actor-fixture.json',{'schema':1,'profile':self.a10_profile,'kind':'REUSE_EXACT_ADMISSION_COMPANION',
                 'companion':list(retained),'nativeActor':actor,'privateCitizen':citizen,'time':state['time'],
                 'duplicateActorsSummoned':0,'normalAI':True,'nativeEffects':0})
@@ -166,6 +170,8 @@ class ActivityHarness(RuntimeAHarness):
         # The original destination is absent. Never turn an unknown stock read
         # into a zero or use it as physical proof while its chunk is unavailable.
         self.command('PlayerA','/tp 329.5 208 69.5','Teleported')
+        self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.client_snapshot('PlayerA').get('entities',[])),
+                  'Connected client receives the independent companion arena before survival',50)
         self.command('PlayerA','/gamemode survival','Survival|survival')
         self.wait(lambda:any(c['availability']=='LOADED' and c['actor']['citizenId']==self.companion[0]
                              for c in self.snapshot()['knownPlayers']['PlayerA']['citizens']['citizens']),
@@ -187,9 +193,13 @@ class ActivityHarness(RuntimeAHarness):
         after_unrelated=self.wait(unloaded,'Unrelated delivery completed while original actor still WAIT_WORLD',30)
         require(self.run_view('PlayerA',run)['responsibility']['attempts'][-1]['credited']==original_credit,
                 'Unrelated progress changed the interrupted original effect or credit')
+        self.command('PlayerA','/gamemode spectator','Spectator|spectator')
         self.command('PlayerA','/tp 66.5 208 69.5','Teleported')
         self.command('PlayerB','/tp 80.5 208 69.5','Teleported')
-        self.command('PlayerB','/gamemode survival','Survival|survival')
+        for player in self.players:
+            self.wait(lambda player=player:any(a['uuid']==self.entities['PlayerA'] for a in self.client_snapshot(player).get('entities',[])),
+                      'Connected main-arena chunk received before survival '+player,50)
+            self.command(player,'/gamemode survival','Survival|survival')
         reloaded=self.wait(lambda:(v if (v:=self.activity(root)) and v['blocker']=='NEEDS_ATTENTION' else None),
                            'Same original actor reloads; ambiguity remains explicit',70)
         self.wait(lambda:any(c['availability']=='LOADED' and c['actor']['citizenId']==self.citizens['PlayerA']
