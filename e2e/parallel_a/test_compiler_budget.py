@@ -13,10 +13,11 @@ class CompilerBudgetTest(unittest.TestCase):
             if value=='/proc/40':return root
             if value=='/proc/40/task':return root
             return real(value)
-        values={1:0,2:nice,3:nice};changed=[]
+        values={1:0,2:nice,3:nice};changed=[];affinities={n:{0,1} for n in (1,2,3,40)}
         def priority(_,tid,value):values[tid]=value;changed.append((tid,value))
         patches=[patch('compiler_budget.Path',side_effect=path),patch('compiler_budget.birth',return_value=99),
-                 patch('compiler_budget.os.sched_getaffinity',return_value={0,1}),
+                 patch('compiler_budget.os.sched_getaffinity',side_effect=lambda tid:affinities[tid]),
+                 patch('compiler_budget.os.sched_setaffinity',side_effect=lambda tid,cpus:affinities.__setitem__(tid,set(cpus))),
                  patch('compiler_budget.os.getpriority',side_effect=lambda _,tid:values[tid]),
                  patch('compiler_budget.os.setpriority',side_effect=priority)]
         for p in patches:p.start();self.addCleanup(p.stop)
@@ -24,6 +25,11 @@ class CompilerBudgetTest(unittest.TestCase):
     def test_compilers_only_lower_priority_and_never_raise_an_existing_lower_priority(self):
         changed=self.native(15);value=configure(40,99,[0,1])
         self.assertCountEqual([(2,15),(3,15)],changed);self.assertEqual(0,value['serverThread']['niceAfter'])
+        self.assertEqual([0,1],value['serverThread']['cpusAfter']);self.assertTrue(all(t['cpusAfter']==[1] for t in value['compilerThreads']))
+    def test_missing_owned_observers_is_refused_before_budget_mutation(self):
+        changed=self.native()
+        with self.assertRaises(ValueError):configure(40,99,[0,1],require_observers=True)
+        self.assertEqual([],changed)
     def test_reused_native_pid_is_refused_before_any_priority_mutation(self):
         changed=self.native()
         with patch('compiler_budget.birth',return_value=100),self.assertRaises(ValueError):configure(40,99,[0,1])

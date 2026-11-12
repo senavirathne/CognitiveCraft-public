@@ -10,6 +10,7 @@ import java.util.concurrent.*;
 
 /** Test-only private snapshots; no entity/world mutation or lifecycle fact injection. */
 public final class RuntimeALifecycleProbe implements ModInitializer {
+    private static final Gson JSON=new Gson();
     private volatile Map<String,Object> pending;
     private final ScheduledExecutorService writer=Executors.newSingleThreadScheduledExecutor(r->{
         var t=new Thread(r,"runtime-a-lifecycle-observer");t.setDaemon(true);return t;
@@ -45,7 +46,7 @@ public final class RuntimeALifecycleProbe implements ModInitializer {
         try {
             var target=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"),"server","lifecycle-snapshot.json");
             var staged=target.resolveSibling("lifecycle-snapshot.next");
-            Files.createDirectories(target.getParent());Files.writeString(staged,new Gson().toJson(value));
+            Files.createDirectories(target.getParent());Files.writeString(staged,JSON.toJson(value));
             Files.move(staged,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
         }catch(Exception failure){System.err.println("Runtime A lifecycle observation write failed: "+failure);}
     }

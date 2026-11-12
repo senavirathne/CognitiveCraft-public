@@ -20,7 +20,7 @@ import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.sha25
 public final class RuntimeALeaseProbe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"));
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
-    private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a03"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private final AtomicBoolean busy=new AtomicBoolean();
     private String seen="";private boolean readySent,observeRetired;
     private final Map<UUID,Map<String,Object>> retiredObservations=new LinkedHashMap<>();

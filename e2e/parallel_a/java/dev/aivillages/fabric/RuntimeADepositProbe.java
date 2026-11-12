@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.*;
 public final class RuntimeADepositProbe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"));
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
-    private final ScheduledExecutorService writer=Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService writer=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a05"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();
     private final AtomicReference<Object> pending=new AtomicReference<>();
     private String seen="";private boolean ready;

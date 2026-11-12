@@ -16,7 +16,7 @@ import static dev.aivillages.core.kernel.Contracts.*;
 public final class RuntimeA09Driver implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"),"server");
     private final UUID process=UUID.randomUUID();private final Gson json=new Gson();
-    private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a09"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private volatile Object pending;
     private final Map<UUID,UUID> watched=new LinkedHashMap<>();private String seen="";private long sequence;
     private UUID cutRoot,cutToken;

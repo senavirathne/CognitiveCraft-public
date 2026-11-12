@@ -17,8 +17,8 @@ import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.*;
 public final class RuntimeAStorageProbe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"));
     private final UUID process=UUID.randomUUID();private final Gson json=new Gson();
-    private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor();
-    private final ExecutorService baselineIo=Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a02"));
+    private final ExecutorService baselineIo=Executors.newSingleThreadExecutor(r->new Thread(r,"runtime-bench02"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private final AtomicBoolean busy=new AtomicBoolean();
     private final AtomicReference<KernelSession.RuntimeStorageView> live=new AtomicReference<>();
     private final List<Long> capture=new ArrayList<>();private boolean measuring,readySent;private String seen="";
@@ -36,7 +36,8 @@ public final class RuntimeAStorageProbe implements ModInitializer {
                 if(!view.ready()&&(waiting==null||!"status".equals(waiting.get("op").getAsString())))return;
                 var command=request.getAndSet(null);if(command==null)return;
                 String id=command.get("id").getAsString(),op=command.get("op").getAsString();
-                if(op.equals("status")){reply(id,map("status","PASS","storage",kernel.runtimeHistoryStatus(),"view",summary(view)),null);return;}
+                if(op.equals("status")){reply(id,map("status","PASS","storage",kernel.runtimeHistoryStatus(),"view",summary(view),
+                        "availableProcessors",Runtime.getRuntime().availableProcessors()),null);return;}
                 if(op.equals("begin-window")){capture.clear();measuring=true;reply(id,map("status","PASS"),null);return;}
                 if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captureNanos",List.copyOf(capture)),null);return;}
                 Path world=server.getWorldPath(LevelResource.ROOT);

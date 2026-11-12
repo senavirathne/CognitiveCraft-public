@@ -22,8 +22,8 @@ import jdk.jfr.Recording;
 public final class RuntimeAJobProbe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"));
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
-    private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor();
-    private final ExecutorService baselineIo=Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService mailbox=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a04"));
+    private final ExecutorService baselineIo=Executors.newSingleThreadExecutor(r->new Thread(r,"runtime-bench04"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private final AtomicBoolean busy=new AtomicBoolean();
     private final List<Map<String,Long>> captures=new ArrayList<>();
     private boolean readySent,measuring;private String seen="";

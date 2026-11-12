@@ -19,7 +19,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 public final class RuntimeA07Probe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"),"server");
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
-    private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a07"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();
     private volatile Object pending;private String seen="";private KernelSession attached;
     private final List<List<Integer>> positions=new ArrayList<>();

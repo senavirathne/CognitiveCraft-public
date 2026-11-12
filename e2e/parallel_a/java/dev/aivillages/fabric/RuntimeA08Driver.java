@@ -19,7 +19,7 @@ import net.minecraft.server.level.ServerPlayer;
 public final class RuntimeA08Driver implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"),"server");
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
-    private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a08"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private volatile Object pending;
     private String seen="";private long sequence;private final Map<UUID,Frame> frames=new LinkedHashMap<>();private final Map<UUID,Plan> plans=new LinkedHashMap<>();
     private final Map<UUID,ResourceLeaseService.ImmediateTicket> tickets=new LinkedHashMap<>();

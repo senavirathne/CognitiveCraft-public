@@ -11,6 +11,7 @@ import java.util.concurrent.*;
 
 /** Test-only event-bracketed tick observation, bounded to 20000 samples/process. */
 public final class RuntimeAObserver implements ModInitializer {
+    private static final Gson JSON=new Gson();
     private final List<Map<String,Long>> samples = new ArrayList<>();
     private final Path target = Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"), "server", "runtime-a-ticks.json");
     private final ScheduledExecutorService writer = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -63,13 +64,13 @@ public final class RuntimeAObserver implements ModInitializer {
                     "metric","START_SERVER_TICK to END_SERVER_TICK; excludes tick sleep; test observer overhead included");
             Files.createDirectories(target.getParent());
             var temp = target.resolveSibling(target.getFileName()+".next");
-            Files.writeString(temp,new Gson().toJson(body));
+            Files.writeString(temp,JSON.toJson(body));
             Files.move(temp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             var activities = activitySnapshot;
             if (activities != null) {
                 var activityTarget = target.resolveSibling("runtime-a-activities.json");
                 var staged = activityTarget.resolveSibling("runtime-a-activities.next");
-                Files.writeString(staged,new Gson().toJson(activities));
+                Files.writeString(staged,JSON.toJson(activities));
                 Files.move(staged,activityTarget,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
             }
         } catch(Exception e) { watchedRoots=List.of();System.err.println("Runtime A observation write failed: "+e); }
