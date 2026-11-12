@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 55,
-  "parentSource": "6dc0e53ba64782d909231fb18f4c2766bdeb96c0",
+  "sequence": 56,
+  "parentSource": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4993,15 +4993,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 55,
-    "codeCheckpoint": "6dc0e53ba64782d909231fb18f4c2766bdeb96c0",
-    "codeTree": "4af41e29531a2b767071a453256a58f51d9e7a39",
-    "documentationPreRun": "eea16deed223fc51e2b0ea064cab59dc667853b4",
-    "documentationTree": "7b7de5f9786f49bd48f6e884720cc99b8ceed74c",
+    "sequence": 56,
+    "codeCheckpoint": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
+    "codeTree": "040e2a0d3d64bdf71503829b4f1ac6109f457709",
+    "documentationPreRun": "3240a61d0995f9c3332d704f246993b3910b9a96",
+    "documentationTree": "0e8cd62ed3d2a9c73f14c7ef258a6728643bb4d2",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
-    "targetModules": 2702,
-    "ownedPython": 117,
+    "targetModules": 2703,
+    "ownedPython": 120,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5015,9 +5015,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Confirmed exact native KILLED/DISCARDED membership departure; saved handoff metadata integrity mandatory.",
+    "ownedCorrection": "Retain confirmed-departure saved handoff guard; canonical archive fixtures, pre-observed cold reference, connected-player chunk readiness, fresh physical stock, owned break inputs and unchanged-budget host CPU isolation. Every mandatory exact-source native gate remains required.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 2,
+    "actionsPreviouslyStarted": 4,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -5106,6 +5106,651 @@
       },
       "workflowRecords": 2,
       "mainReruns": 0
+    },
+    "secondLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 55,
+      "status": "FAIL_OWNED_NATIVE_GATES_PRESERVED",
+      "source": "8288f34c86a1f8a9cce5b6a2ed03585e7653f418",
+      "tree": "43e700a90214c3ac7602241b1643664509117cb5",
+      "documentationPreRun": "eea16deed223fc51e2b0ea064cab59dc667853b4",
+      "groupedRun": 43215148896,
+      "producerJob": 131172385140,
+      "standardRun": 43215148985,
+      "standardJob": 131172384630,
+      "productionSha256": "591bd625bb8baf9cdfe12a110e42d4afe8ea47af976baf17bb5b7d7939397cfb",
+      "standardLoomJarSha256": "1e725d24ea98bfc0eab034cdf9f2adcf9e3e3e1885e8f517a33c92eb25c4b0c5",
+      "observerSha256": "178e3f5abe886765d178301ec4592d367fcb9b44308eb28a0d51b87d55a7d44c",
+      "clientSha256": "55a69324f61fd07634bc26155cd5d31b15e4de31e715a7dab2c75a6cc3a672ee",
+      "passed": {
+        "gradleModules": {
+          "core": 2438,
+          "providers": 131,
+          "fabric": 133,
+          "total": 2702
+        },
+        "exactNativeJarModules": {
+          "core": 2438,
+          "providers": 131,
+          "fabric": 133,
+          "total": 2702
+        },
+        "uniqueModuleContracts": 2702,
+        "ownedPython": 117,
+        "baselinePython": 72,
+        "lifecycleDiagnostics": 14,
+        "lifecycleCold": 7,
+        "lifecycleWarm": 7,
+        "requiredRegressions": 9,
+        "standardVerification": true
+      },
+      "profiles": {
+        "A00": {
+          "required": 4,
+          "executed": 4,
+          "nativePassed": 4,
+          "ciIndependentReview": "FAIL_DENIAL_REGEX_AND_HASH_LIST_SHAPE",
+          "correctedLocalRawReview": "PASS_FULL_EXACT_IDENTITY_REVIEW_BEFORE_NEW_CANDIDATE_GATE_EXPANSION"
+        },
+        "A01": {
+          "required": 2,
+          "executed": 2,
+          "nativePassed": 2,
+          "ciIndependentReview": "FAIL_HASH_LIST_SHAPE",
+          "correctedLocalRawReview": "PASS_FULL_EXACT_IDENTITY_REVIEW_BEFORE_NEW_CANDIDATE_GATE_EXPANSION"
+        },
+        "A02": {
+          "required": 5,
+          "executed": 1,
+          "nativePassed": 1,
+          "unexecutedRequired": 4,
+          "reason": "Repeated compatibility probe times out after opaque Job HISTORY row correctly fences the final domain reader."
+        },
+        "A03": {
+          "required": 7,
+          "executed": 1,
+          "nativePassed": 1,
+          "unexecutedRequired": 6,
+          "reason": "43 native cycles and 129 retired leases reached; selected old reference remains hot, although all exact fields resolve unchanged. No guaranteed eviction order.",
+          "quotaPreemptiveCorrection": "Opaque Job HISTORY pressure would correctly fence final Job reader; canonical expired lease metadata replaces it without physical credit."
+        },
+        "A04": {
+          "required": 10,
+          "executed": 2,
+          "nativePassed": 2,
+          "unexecutedRequired": 8,
+          "actualCompanionDeliveries": 67,
+          "reason": "Client walk to chest times out after ordinary player reconnect leaves player at Y207 inside the stone floor; native chest contains all 67 deliveries."
+        },
+        "A05": {
+          "required": 15,
+          "executed": 15,
+          "nativePassed": 15,
+          "ciIndependentReview": "PASS"
+        },
+        "A06": {
+          "required": 21,
+          "executed": 21,
+          "nativePassed": 19,
+          "originalsPassed": 11,
+          "originalsRequired": 12,
+          "controlsPassed": 8,
+          "controlsRequired": 9,
+          "failedOriginal": "heldout-W6-009",
+          "reason": "Oak worker drifts after valid approach and leaves unchanged footing range before first H intent; zero effects. Representative wall-time cost gate also fails."
+        },
+        "A07": {
+          "required": 27,
+          "executed": 27,
+          "nativePassed": 24,
+          "w04ReproductionsPassed": 9,
+          "w04Required": 9,
+          "failed": [
+            "SOURCE-PUBLICATION",
+            "handoff-positive",
+            "handoff-stale-successor"
+          ],
+          "reason": "Secondary physical stock snapshot lags unrelated terminal receipt; both handoff setup windows fail before first H as worker drifts out of footing. Saved handoff membership correction remains unproven natively."
+        },
+        "A08": {
+          "required": 21,
+          "executed": 21,
+          "nativePassed": 21,
+          "ciIndependentReview": "PASS"
+        },
+        "A09": {
+          "required": 9,
+          "executed": 9,
+          "nativePassed": 9,
+          "ciIndependentReview": "PASS"
+        }
+      },
+      "requiredGateCases": 121,
+      "executedGateCases": 103,
+      "unexecutedRequiredGateCases": 18,
+      "passingRecordedCases": 98,
+      "failedRecordedCases": 5,
+      "cost": {
+        "status": "FAIL_COST_TARGET",
+        "windows": 11,
+        "nativeEffects": 33,
+        "tick": {
+          "p95Ms": 26.982222,
+          "p99Ms": 48.393562,
+          "samples": 2329
+        },
+        "harvestCapture": {
+          "p99Ms": 3.92897,
+          "cpuForSlowCaptureMs": 0.945624
+        },
+        "acknowledgementMaxMs": 127.800774,
+        "limits": {
+          "tickP95Ms": 20,
+          "tickP99Ms": 40,
+          "captureP99Ms": 2,
+          "ackMaxMs": 30000
+        },
+        "cpuDiagnosticIsNotSubstituteForWall": true,
+        "causalAssignment": "UNPROVEN",
+        "gcAndSafepointLogsPreserved": true,
+        "noSampleExclusions": true
+      },
+      "movementEvidence": [
+        {
+          "run": "6ece59bb-e1ff-45b2-801a-e565c00b6516",
+          "case": "heldout-W6-009",
+          "moveArrived": [
+            73.5139469596,
+            208,
+            72.699999988
+          ],
+          "breakUnavailable": [
+            72.6717851522,
+            208,
+            72.699999988
+          ],
+          "nativeEffects": 0
+        },
+        {
+          "run": "34ef3548-b742-4ee9-a5a2-e3c3d37c0fb5",
+          "case": "handoff-positive",
+          "moveArrived": [
+            72.5807,
+            208,
+            73.5805
+          ],
+          "breakUnavailable": [
+            72.73,
+            208,
+            74.385
+          ],
+          "nativeEffects": 0
+        },
+        {
+          "run": "c952733f-bf93-4d8c-a0df-cf6d94a0d141",
+          "case": "handoff-stale-successor",
+          "moveArrived": [
+            73.5186,
+            208,
+            72.69999
+          ],
+          "breakUnavailable": [
+            74.4106,
+            208,
+            72.78
+          ],
+          "nativeEffects": 0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 13947895282,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43215148896-1",
+          "bytes": 652787,
+          "digest": "sha256:622e3671cacbeda2af0dac6b15ee735f0b8ab74d33bb8fee686ead91b25c4875",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13947246180,
+          "name": "cc-runtime-a-a10-campaign-43215148896-1",
+          "bytes": 2822739,
+          "digest": "sha256:7c46e62b651012d76861788be933a4266276ec1a01e9a46b4e5f776c47c3fedc",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13947176323,
+          "name": "cc-runtime-a-a10-A06-native-part-2-43215148896-1",
+          "bytes": 43169774,
+          "digest": "sha256:9b1dc726617b8871456550139f32474319206301edc924ce22e934cfabaea9eb",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13946320275,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43215148896-1",
+          "bytes": 413139,
+          "digest": "sha256:00e4072adfbae22f7a9c20c585531cb8daea1cbdd5cf0f51a2847dde6a9941c0",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13946295505,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43215148896-1",
+          "bytes": 336472005,
+          "digest": "sha256:07b7ce663018229108d84fe71f96e4ce47c32c1bbf443fbe0b6d8be78e33685d",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13946294694,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43215148896-1",
+          "bytes": 419431274,
+          "digest": "sha256:363b4dac64bf1c40ebc5f2856d83b4dc8805db5279ede097fffa741718a57bc0",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13946264304,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43215148896-1",
+          "bytes": 419431274,
+          "digest": "sha256:31cb19fd5b029351d7c9c0f65a46c6a0c8d37fc43d3a6e4f61cc213bfaf0fd65",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944680216,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43215148896-1",
+          "bytes": 288368790,
+          "digest": "sha256:6e14203dfe5a03eeefb848f920212114c35b7ff8195701b83066d8744c165933",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944586283,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43215148896-1",
+          "bytes": 419431123,
+          "digest": "sha256:ce728d36016c71cec0891ee7101f25f222a81eae99e2d595b71ac0086adfa384",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944519920,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43215148896-1",
+          "bytes": 419431123,
+          "digest": "sha256:49287d7e0263ce4e140d6d9f6fb6211032a1847f521452c474c64c764d6ac123",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944393786,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43215148896-1",
+          "bytes": 158968,
+          "digest": "sha256:aa67812208db7b6d2bd0b1b59585ccc5e6772706b7b801bdb6fbae0aac024f0d",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944350861,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43215148896-1",
+          "bytes": 115899,
+          "digest": "sha256:239e2a2298951d6fc7fb02f6c8fc148de15962a00b0cea19fc53956189cac168",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944111205,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43215148896-1",
+          "bytes": 108301000,
+          "digest": "sha256:0c87102d4af77ccfb7c7950ca38a485d08960cb8281f7f6c8b00baeb4ea6b157",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13944010171,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 429593,
+          "digest": "sha256:f46aafb9745fc1815f83b39ef052604560e420afa4db6aebdb23af489fcc4889",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943974534,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43215148896-1",
+          "bytes": 385571700,
+          "digest": "sha256:8db2bc569bb7c0442d9139cf7ac8fda660032ad521209611a9b74335a481360a",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943835679,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 360213,
+          "digest": "sha256:1e0931f6dd3b41c296bd3f1a64b5b9dca8d0fd317fde7e2aebc34762b6c016e1",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943829638,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43215148896-1",
+          "bytes": 610147,
+          "digest": "sha256:493cec707b46b58fbd397b80a0181d16622865a040533fa1824ae4ca8fb920af",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943823546,
+          "name": "cc-runtime-a-a10-A03-native-part-1-43215148896-1",
+          "bytes": 180641147,
+          "digest": "sha256:b81e29735a81e555ad07d6c39d94eed6c82fa7ade8443fcbcdd8549c9d35d222",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943784563,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43215148896-1",
+          "bytes": 256281,
+          "digest": "sha256:66fdf89baf4010a5997a52023c7aff099d58ef3e1aef32aba7d6862d17f2333f",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943714983,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43215148896-1",
+          "bytes": 328692818,
+          "digest": "sha256:ed19577b782b26aaf969f1f1b19812e581b5e583fca98361e815eecf3cb66e25",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943556753,
+          "name": "cc-runtime-a-a10-exact-jar-units-43215148896-1",
+          "bytes": 150377,
+          "digest": "sha256:d9e437809720a01baacc7c755e9ae9a1e31f2b8f24ac5132226790596aee22f1",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943541982,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4266625,
+          "digest": "sha256:abbd5c888de11829db61c6bd28b18e81af25c91ce5a6a7a222b598a808cd8b28",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943496947,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 429147,
+          "digest": "sha256:819d18de344e20ecd4e2e2569a25b540dd836265864d94e40f48ac930744f5b9",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943457139,
+          "name": "cc-runtime-a-a10-frozen-runtime-43215148896-1",
+          "bytes": 37946695,
+          "digest": "sha256:cb1da86520254717c763e3407267c223888e34fc4592a8353c5bee8cbd0124f3",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943409479,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43215148896-1",
+          "bytes": 128818,
+          "digest": "sha256:a5284c3e6ed3472406dfaa1126e0d497632a0d5509a5701a70de6253c3875e80",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943348698,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43215148896-1",
+          "bytes": 93879,
+          "digest": "sha256:8a348aa051e7d9bb2b8836c4744e330a5ad6504634660af4c1e121d72f10527e",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943268832,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43215148896-1",
+          "bytes": 160033033,
+          "digest": "sha256:9fde6c81b4ba10d96192c53ee0dc4ab66f32785a5763d11682e772a046735c30",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943242205,
+          "name": "cc-runtime-a-a07-lifecycle-8288f34c86a1f8a9cce5b6a2ed03585e7653f418-43215148896-1",
+          "bytes": 6698379,
+          "digest": "sha256:bdb404ecd5022fb5da0629e9b0f1ab9f32b10c033c83065c9ef5fa6c4de8f835",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943207482,
+          "name": "cc-runtime-a-a04-contracts-8288f34c86a1f8a9cce5b6a2ed03585e7653f418-43215148896-1",
+          "bytes": 3570675,
+          "digest": "sha256:d1ba161ae5f88bd76f2c9157e0b04d7a5de41c082b93b34618517f84b4212c74",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943142295,
+          "name": "imp-015-save-compatibility",
+          "bytes": 431167,
+          "digest": "sha256:51bfedfed3634ee96d40859db0303b351c09db3113715caa21c65c23cf05d39c",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13943032459,
+          "name": "primitive-diagnostics-43215148896-1",
+          "bytes": 373408,
+          "digest": "sha256:85e552cd364c672c3d14efd5d26300f4c2a822ab3d023580211af98f22deb5c8",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942972469,
+          "name": "imp-016-world-retention",
+          "bytes": 430461,
+          "digest": "sha256:9453f1732a4501da50a9e77edc898cb4d1dc0dcc058c3dc3b93d0db2b6f84602",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942968558,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43215148896-1",
+          "bytes": 137391,
+          "digest": "sha256:30120679a0eff9dba6025ad1840559153a6001193661712948d2a1c6110657d0",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942879788,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43215148896-1",
+          "bytes": 248428,
+          "digest": "sha256:8c293cfa02d748e15c4fa1f46600e7fa4daedf98ce867af996f9e04786b62cc8",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942694712,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43215148896-1",
+          "bytes": 353514009,
+          "digest": "sha256:67318786fbaab8256036bceac3496b4def96857ab20ee2a48bd17ac90a70efb1",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942658907,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43215148896-1",
+          "bytes": 141661240,
+          "digest": "sha256:55229428c2f4ba4d3f1b48c7a90da102d3d8e2fe5f4b1e8f6948f3d6462645df",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942534725,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 366108,
+          "digest": "sha256:bd1c86d5bd6d9b94fdd6ca0156b1fab916d1f3a91737a431a82a7c5feb6093e6",
+          "expiredAtRetrieval": false
+        },
+        {
+          "id": 13942244724,
+          "name": "imp-018-prerequisites",
+          "bytes": 430310,
+          "digest": "sha256:08e0716bf0f0df30baaa2aff984d325a8dc07cb3a1914191450393f24df4e2d8",
+          "expiredAtRetrieval": false
+        }
+      ],
+      "campaignArtifact": {
+        "id": 13947246180,
+        "bytes": 2822739,
+        "sha256": "7c46e62b651012d76861788be933a4266276ec1a01e9a46b4e5f776c47c3fedc",
+        "extractedFiles": 180
+      },
+      "rawArchiveReviews": {
+        "A00": {
+          "profile": "A00",
+          "schema": 1,
+          "archiveBytes": 141660669,
+          "archiveSha256": "fa4c7809cbfc0e0ef8eb3fa73293b5eaaea75edee22ac61b90a396403d690046",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 141660669,
+              "sha256": "fa4c7809cbfc0e0ef8eb3fa73293b5eaaea75edee22ac61b90a396403d690046"
+            }
+          ],
+          "entries": 1194,
+          "extractedFiles": 1194,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "FULL"
+        },
+        "A01": {
+          "profile": "A01",
+          "schema": 1,
+          "archiveBytes": 108300429,
+          "archiveSha256": "018348ed231618702e1b88f210cf5cee2df26c3bf333021629b6046de21d3a7a",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 108300429,
+              "sha256": "018348ed231618702e1b88f210cf5cee2df26c3bf333021629b6046de21d3a7a"
+            }
+          ],
+          "entries": 720,
+          "extractedFiles": 720,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "FULL"
+        },
+        "A02": {
+          "profile": "A02",
+          "schema": 1,
+          "archiveBytes": 160032462,
+          "archiveSha256": "459fe4e6a56a9e6c1faef21a6c17505031bf5ae2dd24b11f7b5604be57bb4eef",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 160032462,
+              "sha256": "459fe4e6a56a9e6c1faef21a6c17505031bf5ae2dd24b11f7b5604be57bb4eef"
+            }
+          ],
+          "entries": 717,
+          "extractedFiles": 67,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "EXPLICIT_DEBUG_SUBSET_NOT_FULL_REVIEW"
+        },
+        "A03": {
+          "profile": "A03",
+          "schema": 1,
+          "archiveBytes": 600070824,
+          "archiveSha256": "e1c8ee5fcb29d0c3d51c4ad95919fd0014a543bd44288bd9f6ab2686f047aff8",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 419430400,
+              "sha256": "2735bb8d85ae75a4b581fff14dd2cc61ef46eb7d4c45af40e37f1cd4c2df29d5"
+            },
+            {
+              "name": "part-001.bin",
+              "bytes": 180640424,
+              "sha256": "45e262a7e6ab678aea44f1facc447af61d290be794abceaf102212c5993c53f3"
+            }
+          ],
+          "entries": 721,
+          "extractedFiles": 70,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "EXPLICIT_DEBUG_SUBSET_NOT_FULL_REVIEW"
+        },
+        "A04": {
+          "profile": "A04",
+          "schema": 1,
+          "archiveBytes": 328692247,
+          "archiveSha256": "cc2184067c2d4153c051721879d9ce1e2da2d7d513dd4562519eece2668236f8",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 328692247,
+              "sha256": "cc2184067c2d4153c051721879d9ce1e2da2d7d513dd4562519eece2668236f8"
+            }
+          ],
+          "entries": 3871,
+          "extractedFiles": 1231,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "EXPLICIT_DEBUG_SUBSET_NOT_FULL_REVIEW"
+        },
+        "A06": {
+          "profile": "A06",
+          "schema": 1,
+          "archiveBytes": 882029700,
+          "archiveSha256": "762bf1a1d242e06075f1d9f381138b71b006e9722ef07582ef1538b93479d9b2",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 419430400,
+              "sha256": "e0fe87d73c63a80225c6c83c4bed4017becf92c890460022c7299d476513a85b"
+            },
+            {
+              "name": "part-001.bin",
+              "bytes": 419430400,
+              "sha256": "b0b41a7b157e5cdd7502d7606d00f88dbbc8cdcc97149215173f3156cd62bfc8"
+            },
+            {
+              "name": "part-002.bin",
+              "bytes": 43168900,
+              "sha256": "3c126c4ceaa1092894662df15e1e903795f83437896f5d22999f65726095af37"
+            }
+          ],
+          "entries": 11216,
+          "extractedFiles": 3919,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "EXPLICIT_DEBUG_SUBSET_NOT_FULL_REVIEW"
+        },
+        "A07": {
+          "profile": "A07",
+          "schema": 1,
+          "archiveBytes": 755901682,
+          "archiveSha256": "ca366a39544aed7f73490f0a004a3d628fd3f5a92d0a024116896bfb1ca6c712",
+          "parts": [
+            {
+              "name": "part-000.bin",
+              "bytes": 419430400,
+              "sha256": "9e447b6596bd550784681b54ccc9fb42a3b43fcce9729730c3e94d5a64cf3460"
+            },
+            {
+              "name": "part-001.bin",
+              "bytes": 336471282,
+              "sha256": "920a67db14821b54f8da0a7541c4ce73b730644e2b78a19231475706141dbc2b"
+            }
+          ],
+          "entries": 9789,
+          "extractedFiles": 139,
+          "crc": "PASS",
+          "paths": "PASS",
+          "selection": "EXPLICIT_DEBUG_SUBSET_NOT_FULL_REVIEW"
+        }
+      },
+      "correction": {
+        "source": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
+        "tree": "040e2a0d3d64bdf71503829b4f1ac6109f457709",
+        "localEvidence": "A10-batch55-correction-local.json",
+        "status": "LOCAL_PREFLIGHT_PASS_FRESH_NATIVE_REQUIRED",
+        "ownedFiles": 290,
+        "changes": [
+          "Canonical closed real Job metadata bridge and immutable source/target capture",
+          "Actually pre-observed terminal lease selected only after proven cold migration",
+          "Canonical explicitly synthetic expired lease quota rows, no active claims or physical credit",
+          "Connected player receives secondary chunk before survival; repositions only after completed native work",
+          "Fresh secondary physical stock wait after unrelated terminal receipt",
+          "Owned movement inputs stopped throughout original bounded log-break windup; no reach/deadline/budget change",
+          "Host orchestrator/CLI confined to existing client cores2/3; native JVM retains cores0/1 and original heap/GC/limits"
+        ]
+      },
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 4,
+      "additionalCorrectionActions": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "bPeerAbsorbed": false,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "w04HistoricalCause": "OPEN_CAUSE_UNPROVEN",
+      "next": "One control-only batch: all121 original profiles,2703 exact-JAR contracts,14 diagnostics,all9 regressions and standard verification required on one final source/tree/JAR and instruments."
     }
   }
 }
