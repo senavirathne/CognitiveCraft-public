@@ -872,8 +872,8 @@ jobs:
             build/parallel-a/source-audit/
             build/parallel-a/checkpoint-input-review.json
             build/parallel-a/observer-adaptation.json
-            build/parallel-a/journal-probe/
-            build/parallel-a/reference-log-self-test/
+            build/parallel-a/journal-probe*/
+            build/parallel-a/reference-log-self-test*/
             build/parallel-a/cpu-profile/input-provenance.json
             build/parallel-a/cpu-profile/profile-result.json
             build/parallel-a/cpu-profile/profile-process.log

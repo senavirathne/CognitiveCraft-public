@@ -184,11 +184,17 @@ assert digest(release) == before
         'jobEncoding': 'original authorization/query/filter precedes encoding; exact immutable Job identity and complete immutable run/lease value equality; fresh outer fields; immutable child literals in writer; shared 128 rows/16 MiB; exact Gson frame bytes, same values and cadence',
         'sourceSha256': digest(ROOT/'e2e/parallel_a/java/dev/aivillages/fabric/RuntimeAObservationLog.java')}
 }, indent=2))
-probe = ROOT / 'build/parallel-a/journal-probe'
+from prepare_support import fresh_probe
+probe = fresh_probe(ROOT / 'build/parallel-a/journal-probe')
+reference_probe = fresh_probe(ROOT/'build/parallel-a/reference-log-self-test')
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.JournalCostProbe', str(probe)], check=True)
 print(json.dumps({'releaseSha256': before, 'observerSha256': digest(observer), 'instrumentation': 'test-only'}))
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
-                'dev.aivillages.fabric.RuntimeAObservationLog',str(ROOT/'build/parallel-a/reference-log-self-test')],check=True)
+                'dev.aivillages.fabric.RuntimeAObservationLog',str(reference_probe)],check=True)
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.RuntimeAObservationJson'],check=True)
+with (ROOT/'build/parallel-a/source-audit/instrument-preparations.jsonl').open('a') as record:
+    record.write(json.dumps({'releaseSha256':before,'observerSha256':digest(observer),
+        'journalProbe':probe.relative_to(ROOT).as_posix(),'referenceLogProbe':reference_probe.relative_to(ROOT).as_posix(),
+        'priorProbeDirectoriesPreserved':True})+'\n')
