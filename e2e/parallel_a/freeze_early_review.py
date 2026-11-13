@@ -227,6 +227,14 @@ def deposits(root,cases):
     from recovery_fixture import participant,marker
     from review_receipt_prefix import canonical,sha
     from deposit_fixture import preparation_window,tick_window
+    from nonparticipant_fixture import review_world
+    fixture=read(sorted(root.glob('a10-nonparticipant-*.json'))[0])
+    task={'source':{'minX':70,'maxX':77,'minY':208,'maxY':208,'minZ':66,'maxZ':66},
+          'destination':dict(zip(('x','y','z'),DEST))}
+    fixture_worlds=[root/'positive-saved-game/world',*[root/name/'killed-world' for name in (
+        'unsaved-before-mutation','unsaved-after-mutation','unsaved-after-journal','saved-prepared-no-effect',
+        'journal-ahead-saved-prepared','actor-saved-chest-prepared','chest-saved-actor-prepared')]]
+    saved_fixture={world.relative_to(root).as_posix():review_world(world,fixture,task) for world in fixture_worlds}
     positive=cases['saved-positive-repeated-adoption'];live=positive['live'];entry=live['journal']['entries'][0];token=next(iter(live['reconciliation']))
     assert live['reconciliation'][token]=='UNPROVEN' and positive['restored']['reconciliation'][token]=='SAVED_COMPLETE'
     assert not positive['verified']['protectedJobs'] and positive['verify']['classification']=='SAVED_COMPLETE'
@@ -280,6 +288,7 @@ def deposits(root,cases):
         measured=percentiles([s['nanos'] for s in samples]);assert measured==row['tick'] and measured['p95']<=20 and measured['p99']<=40
         windows[mode]=measured
     return {'rawSavedParticipants':'EXACT_ORIGINAL_RESULT','cuts':classifications,'actualIndependentPreparations':9,'actualAcknowledgements':13,
+            'savedNormalAINonparticipantFixture':saved_fixture,
             'preparationMillis':capture['preparation'],'tickWindows':windows,'automaticOwnerSettlement':False,'syntheticPressureNativeEffects':0}
 
 REVIEW={'A00':baseline,'A01':activity,'A02':persistence,'A03':leases,'A04':jobs,'A05':deposits}

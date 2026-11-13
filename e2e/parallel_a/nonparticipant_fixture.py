@@ -14,7 +14,7 @@ def protects(case):
     return True
 
 def setup(h):
-    assert not h.actions_active and h.a10_profile in ('A06','A09')
+    assert not h.actions_active and h.a10_profile in ('A05','A06','A09')
     entity=h.entities['PlayerB'];assert entity!=h.entities['PlayerA']
     before=h.wait(lambda:next((a for a in h.snapshot()['actors'] if a['uuid']==entity),None),'Idle foreign villager present before setup',25)
     assert before['alive'] and not before['baby'] and not before['noAI'] and not before['controlled']

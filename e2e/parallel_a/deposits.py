@@ -14,6 +14,14 @@ LIMITS={'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackMaxMs':30000,'ticks':
 
 
 class DepositHarness(ActivityHarness):
+    def reset(self,*args,**kwargs):
+        value=super().reset(*args,**kwargs)
+        if getattr(self,'a10_profile',None)=='A05':
+            from nonparticipant_fixture import setup
+            setup(self)
+            value=self.snapshot()
+        return value
+
     def compose(self,*args):
         result=subprocess.run(['docker','compose','-p',self.project,'-f',str(ROOT/'e2e/compose.yml'),
             '-f',str(ROOT/'e2e/parallel_a/compose-deposits.yml'),*args],cwd=ROOT,env=self.env,text=True,capture_output=True)
