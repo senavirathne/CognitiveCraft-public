@@ -43,6 +43,21 @@ public final class RuntimeAJobProbe implements ModInitializer {
                     reply(id,map("status","PASS","storage",kernel.runtimeHistoryStatus(),"jobs",kernel.runtimeJobHistoryStatus(),"leases",kernel.runtimeLeaseHistoryStatus(),
                             "ready",view.ready(),"hot",view.jobs(),"hotLeases",view.leases()),null);return;
                 }
+                if(op.equals("prepare-writers")) {
+                    if(!"A04".equals(System.getenv("COGNITIVECRAFT_A10_PROFILE")))throw new IllegalArgumentException("A10 A04 writer isolation only");
+                    var nativeWorker=kernel.runtimeHistory().offer(writer->{
+                        var before=writer.snapshot();var thread=Thread.currentThread();
+                        return map("name",thread.getName(),"javaThreadId",thread.threadId(),"nativeEffects",0,
+                                "archiveUnchanged",before==writer.snapshot());
+                    });
+                    if(nativeWorker.isEmpty()){reply(id,map("status","BUSY"),null);return;}
+                    CompletableFuture<Map<String,Object>> baselineWorker=CompletableFuture.supplyAsync(()->{
+                        var thread=Thread.currentThread();return map("name",thread.getName(),"javaThreadId",thread.threadId(),"nativeEffects",0);
+                    },baselineIo);
+                    nativeWorker.get().thenCombine(baselineWorker,(application,baseline)->map("status","PASS","nativeEffects",0,
+                            "worldStorage",application,"baselineStorage",baseline,"time",System.currentTimeMillis()))
+                            .whenComplete((value,error)->reply(id,value,error));return;
+                }
                 if(op.equals("begin-window")){captures.clear();var jvm=jvm();measuring=true;reply(id,map("status","PASS","startMillis",System.currentTimeMillis(),"startTick",server.overworld().getGameTime(),"jvm",jvm),null);return;}
                 if(op.equals("end-window")){measuring=false;reply(id,map("status","PASS","captures",List.copyOf(captures),"encodingStats",RuntimeAObservationJson.stats(),"jvm",jvm()),null);return;}
                 if(op.equals("start-profile")) {

@@ -105,6 +105,11 @@ class JobHarness(LeaseHarness):
                 except Exception as error:evidence.update(collection='INCONCLUSIVE',stopReason=str(error))
             atomic(self.root/(mode+'-cpu-profile.json'),evidence)
     def window(self,mode):
+        writers=budget=None
+        if getattr(self,'a10_profile',None)=='A04':
+            writers=self.wait(lambda:self.probe('prepare-writers'),'Both actual read-only native/baseline storage workers started',55)
+            from compiler_budget import prepare
+            budget=prepare(self,writer_fixtures=True)
         self.quiet(100);begin=self.probe('begin-window');io=self.probe(mode+'-benchmark')
         self.wait(lambda:window_reached(self.snapshot(),begin,LIMITS['ticks']),'400 actual A04 cost-window game ticks after the marker',65)
         captures=self.probe('end-window')
@@ -113,11 +118,12 @@ class JobHarness(LeaseHarness):
         ticks=[s for s in raw['samples'] if s['time']>=begin['startMillis']][:400]
         cap=[s for s in captures['captures'] if s['time']>=begin['startMillis']][:400]
         process=native_process(self);raw_file=self.root/(mode+'-raw-window.json')
-        atomic(raw_file,{'tickSamples':ticks,'captures':cap,'ackNanos':io['samplesNanos'],'begin':begin,'process':process,'endJVM':captures.get('jvm')})
+        atomic(raw_file,{'tickSamples':ticks,'captures':cap,'ackNanos':io['samplesNanos'],'begin':begin,'process':process,'endJVM':captures.get('jvm'),'writerPreparation':writers,'writerBudget':budget})
         if len(ticks)!=400 or len(cap)!=400 or len(io['samplesNanos'])!=64:raise Inconclusive('Fixed A04 performance window missing: '+json.dumps({'ticks':len(ticks),'captures':len(cap),'acks':len(io['samplesNanos'])}))
         result={'configuration':mode,'tick':percentiles([s['nanos'] for s in ticks]),'capture':percentiles([s['nanos'] for s in cap]),
                 'ack':percentiles(io['samplesNanos']),'io':io,'begin':begin,'nativeProcess':process,'limits':LIMITS,
                 'metric':raw['metric'],'workload':'same frozen actual 64-Job metadata; candidate additionally verifies archive and acknowledges 16-row hot removal; fixture setup excluded; zero fixture native effects'}
+        result['writerPreparation']=writers;result['writerBudget']=budget
         result['rawSha256']=hashlib.sha256(raw_file.read_bytes()).hexdigest();result['encodingStats']=captures.get('encodingStats');result['jvm']={'begin':begin.get('jvm'),'end':captures.get('jvm')}
         atomic(self.root/(mode+'-performance.json'),result)
         print('A04_PERFORMANCE '+json.dumps({'configuration':mode,**{k:result[k] for k in ('tick','capture','ack','rawSha256','encodingStats','jvm')}}),flush=True)

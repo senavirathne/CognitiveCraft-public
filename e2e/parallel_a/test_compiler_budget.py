@@ -4,16 +4,17 @@ from unittest.mock import patch
 from compiler_budget import configure
 
 class CompilerBudgetTest(unittest.TestCase):
-    def native(self,nice=0,extra='C1 CompilerThre'):
+    def native(self,nice=0,extra='C1 CompilerThre',extra_threads=()):
         root=Path(tempfile.mkdtemp());self.addCleanup(lambda:__import__('shutil').rmtree(root))
-        for tid,name in ((1,'Server thread'),(2,extra),(3,'C2 CompilerThre')):
+        threads=[(1,'Server thread'),(2,extra),(3,'C2 CompilerThre'),*extra_threads]
+        for tid,name in threads:
             path=root/str(tid);path.mkdir();(path/'comm').write_text(name)
         real=Path
         def path(value):
             if value=='/proc/40':return root
             if value=='/proc/40/task':return root
             return real(value)
-        values={1:0,2:nice,3:nice};changed=[];affinities={n:{0,1} for n in (1,2,3,40)}
+        values={tid:(nice if tid!=1 else 0) for tid,_ in threads};changed=[];affinities={n:{0,1} for n in [40,*values]}
         def priority(_,tid,value):values[tid]=value;changed.append((tid,value))
         patches=[patch('compiler_budget.Path',side_effect=path),patch('compiler_budget.birth',return_value=99),
                  patch('compiler_budget.os.sched_getaffinity',side_effect=lambda tid:affinities[tid]),
@@ -36,6 +37,20 @@ class CompilerBudgetTest(unittest.TestCase):
         self.assertEqual([0],second['serverThread']['cpusBefore'])
         self.assertEqual([0],second['serverThread']['cpusAfter'])
         self.assertTrue(all(tid!=1 for tid,_ in changed))
+    def test_a04_real_storage_and_prestarted_baseline_workers_share_the_original_background_core(self):
+        changed=self.native(extra_threads=((4,'cognitivecraft-'),(5,'runtime-bench04')))
+        value=configure(40,99,[0,1],server_cpu=0,application_writers=True,require_writer_fixtures=True)
+        self.assertEqual([0],value['serverThread']['cpusAfter']);self.assertEqual(0,value['serverThread']['niceAfter'])
+        self.assertEqual([0,1],value['cpus']);self.assertEqual(0,value['addedCores'])
+        self.assertEqual({'cognitivecraft-','runtime-bench04'},{r['name'] for r in value['applicationWriterThreads']})
+        self.assertTrue(all(r['cpusAfter']==[1] and r['niceAfter']==10 for r in value['applicationWriterThreads']))
+        self.assertTrue(all(tid!=1 for tid,_ in changed))
+    def test_a04_missing_either_actual_writer_is_refused_before_any_budget_mutation(self):
+        for name in ('cognitivecraft-','runtime-bench04'):
+            with self.subTest(only=name):
+                changed=self.native(extra_threads=((4,name),))
+                with self.assertRaises(ValueError):configure(40,99,[0,1],server_cpu=0,application_writers=True,require_writer_fixtures=True)
+                self.assertEqual([],changed)
     def test_server_reservation_outside_the_original_two_core_budget_is_refused(self):
         changed=self.native()
         with self.assertRaises(ValueError):configure(40,99,[0,1],server_cpu=2)

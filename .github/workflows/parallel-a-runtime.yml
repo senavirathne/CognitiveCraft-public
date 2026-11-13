@@ -1103,6 +1103,23 @@ jobs:
           pattern: cc-runtime-a-a10-*-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
           merge-multiple: true
           path: build/parallel-a/a10-all-diagnostics
+      - name: Prepare native JFR reader only for retained required-profile failures
+        if: ${{ always() && needs.a04-contracts.result == 'success' && needs.a10-native.result != 'success' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Inspect every complete failed native archive without another workflow
+        if: ${{ always() && needs.a04-contracts.result == 'success' && needs.a10-native.result != 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIAGNOSTIC_TARGET_SOURCE: ${{ github.sha }}
+          DIAGNOSTIC_TARGET_JAR: ${{ needs.a04-contracts.outputs.native_jar_sha256 }}
+          DIAGNOSTIC_TARGET_RUN: ${{ github.run_id }}
+        run: |
+          export DIAGNOSTIC_TARGET_TREE="$(git rev-parse HEAD^{tree})"
+          docker pull mcr.microsoft.com/playwright/python@sha256:a7f6cf3ae520c9d670ad956572c13747ed5abdbba5123a01526f873ed1662528
+          python3 e2e/parallel_a/retained_profile_diagnosis.py run --out build/parallel-a/a10-retained-failure-diagnostic
       - name: Require all ten profiles, every original case and all nine required regression jobs
         run: python3 e2e/parallel_a/freeze_aggregate.py --root build/parallel-a/a10-all-diagnostics --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --needs "$REQUIRED_JOB_RESULTS" --out build/parallel-a/a10-campaign.json
       - name: Download the one frozen runtime for independent artifact transport review
@@ -1126,6 +1143,7 @@ jobs:
             build/parallel-a/a10-campaign.json
             build/parallel-a/a10-all-diagnostics/
             build/parallel-a/a10-downloaded-review/
+            build/parallel-a/a10-retained-failure-diagnostic/
 
 # BEGIN GENERATED REQUIRED REGRESSION JOBS
   # Required jobs from accomplishment-evidence.yml; source remains unchanged.

@@ -199,6 +199,24 @@ def jobs(root,cases):
     for restart in [c['initialRestart'],*c['coldRestarts']]:process_replaced(restart['before'],restart['after']);assert restart['sameClients']
     costs={k:complete_performance(root,k) for k in ('baseline','candidate')};assert costs['baseline']['io']['sourceSha256']==costs['candidate']['io']['sourceSha256']
     for value in costs.values():
+        raw=read(root/(value['configuration']+'-raw-window.json'))
+        workers=value['writerPreparation'];budget=value['writerBudget']
+        assert raw['writerPreparation']==workers and raw['writerBudget']==budget
+        assert workers['status']=='PASS' and workers['nativeEffects']==0
+        assert workers['worldStorage']['name']=='cognitivecraft-world-storage' and workers['worldStorage']['archiveUnchanged']
+        assert workers['baselineStorage']['name']=='runtime-bench04'
+        assert workers['worldStorage']['nativeEffects']==workers['baselineStorage']['nativeEffects']==0
+        assert workers['worldStorage']['javaThreadId']!=workers['baselineStorage']['javaThreadId']
+        rpc=read(root/'job-rpc'/(workers['id']+'.json'))
+        assert rpc['response']==workers and rpc['request']=={'id':workers['id'],'process':workers['process'],'op':'prepare-writers'}
+        assert workers['process']==value['begin']['process'] and workers['pid']==value['begin']['jvm']['pid']
+        process=value['nativeProcess'];assert process['namespaceProcess']['start']*1000<=workers['time']<=value['begin']['startMillis']
+        assert budget['writerFixturesRequired'] and budget['applicationWritersIncluded'] and budget['serverThreadCpus']==[0]
+        assert budget['nativeProcess']['hostJvmPid']==process['hostJvmPid'] and budget['nativeProcess']['startTicks']==process['startTicks']
+        assert any(t['name'].startswith('cognitivecraft-') for t in budget['applicationWriterThreads'])
+        assert any(t['name']=='runtime-bench04' for t in budget['applicationWriterThreads'])
+        assert any(read(p)==budget for p in root.glob('a10-compiler-budget-*.json'))
+        assert all('-XX:ActiveProcessorCount=2' in v['inputArguments'] for v in value['jvm'].values())
         assert value['nativeProcess']['containerResources']=={'cpusetCpus':'0-1','memoryBytes':2*1024**3}
         assert all(v['availableProcessors']==2 and {'-Xms256M','-Xmx1536M','-XX:G1HeapRegionSize=2M','-XX:MaxGCPauseMillis=10'}<=set(v['inputArguments']) for v in value['jvm'].values())
     cuts=[]

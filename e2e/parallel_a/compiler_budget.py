@@ -7,7 +7,7 @@ def birth(pid):
     if fields[0]=='Z':raise ValueError('Native JVM is no longer live')
     return int(fields[19])
 
-def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None):
+def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None,application_writers=False,require_writer_fixtures=False):
     if birth(pid)!=start_ticks:raise ValueError('Native JVM birth changed')
     if Path(f'/proc/{pid}').stat().st_uid!=os.getuid():raise ValueError('Foreign JVM UID refused')
     cpus=sorted(cpus)
@@ -25,7 +25,11 @@ def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None):
     if require_observers and (sum(r['name']=='e2e-observation' for r in observers)!=2
                               or not any(r['name']=='runtime-a-measu' for r in observers)):
         raise ValueError('Both actual arena writers and measurement writer required before budget changes')
-    background=[*compilers,*observers];target=[cpus[1]]
+    application=[r for r in rows if r['name'].startswith('cognitivecraft-') or r['name']=='runtime-bench04'] if application_writers else []
+    if require_writer_fixtures and (not application_writers or not any(r['name'].startswith('cognitivecraft-') for r in application)
+                                    or not any(r['name']=='runtime-bench04' for r in application)):
+        raise ValueError('Both actual prestarted native and baseline storage workers required before budget changes')
+    background=[*compilers,*observers,*application];target=[cpus[1]]
     for row in [*servers,*background]:
         row['niceBefore']=os.getpriority(os.PRIO_PROCESS,row['tid'])
         row['cpusBefore']=sorted(os.sched_getaffinity(row['tid']))
@@ -45,11 +49,12 @@ def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None):
     if birth(pid)!=start_ticks:raise ValueError('Native JVM birth changed after priority changes')
     return {'status':'PASS_OWNED_COMPILER_BUDGET','hostJvmPid':pid,'startTicks':start_ticks,'cpus':cpus,
             'serverThread':servers[0],'compilerThreads':compilers,'observerThreads':observers,'observersRequired':require_observers,
+            'applicationWriterThreads':application,'applicationWritersIncluded':application_writers,'writerFixturesRequired':require_writer_fixtures,
             'backgroundCpus':target,'serverThreadCpus':server_target,'heapGcLimitsAndSamplesChanged':False,
-            'addedCores':0,'priorityPolicy':'Owned C1/C2 and test writers use the second original core, niceness >=10; server priority is unchanged',
+            'addedCores':0,'priorityPolicy':'Owned C1/C2, observers and selected A04 application/benchmark writers use original core1, niceness >=10; server priority is unchanged',
             'serverAffinityPolicy':'ORIGINAL_TWO_CORES' if server_cpu is None else 'RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET'}
 
-def prepare(h):
+def prepare(h,writer_fixtures=False):
     from baseline import native_process
     from suite import atomic
     owned=native_process(h);namespace=owned['namespaceProcess']
@@ -57,7 +62,8 @@ def prepare(h):
     if namespace['kind']!='server' or namespace['releaseSha256']!=expected:raise ValueError('Frozen owned server JAR required')
     if owned['containerResources']['cpusetCpus']!='0-1':raise ValueError('Original Docker server CPU set required')
     value=configure(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True,
-                    server_cpu=0 if h.a10_profile in ('A05','A06') else None)
+                    server_cpu=0 if h.a10_profile in ('A04','A05','A06') else None,
+                    application_writers=h.a10_profile=='A04',require_writer_fixtures=writer_fixtures)
     value.update(profile=h.a10_profile,nativeProcess=owned)
     path=h.root/f"a10-compiler-budget-{owned['hostJvmPid']}-{owned['startTicks']}-{uuid.uuid4()}.json"
     atomic(path,value);h.event('a10-compiler-budget',value)
@@ -66,7 +72,7 @@ def prepare(h):
 def review(root,profile,jar,stops):
     records=[json.loads(p.read_text()) for p in sorted(root.glob('a10-compiler-budget-*.json'))]
     assert records,'Missing owned native compiler budget records'
-    server_target=[0] if profile in ('A05','A06') else [0,1]
+    server_target=[0] if profile in ('A04','A05','A06') else [0,1]
     for row in records:
         assert row['status']=='PASS_OWNED_COMPILER_BUDGET' and row['profile']==profile
         assert row['cpus']==[0,1] and row['addedCores']==0 and row['heapGcLimitsAndSamplesChanged'] is False
@@ -77,17 +83,23 @@ def review(root,profile,jar,stops):
         assert row['serverThread']['niceBefore']==row['serverThread']['niceAfter']
         assert row['serverThread']['cpusBefore'] in ([0,1],server_target) and row['serverThread']['cpusAfter']==server_target
         assert row['serverThreadCpus']==server_target
-        assert row['serverAffinityPolicy']==('RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET' if profile in ('A05','A06') else 'ORIGINAL_TWO_CORES')
+        assert row['serverAffinityPolicy']==('RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET' if profile in ('A04','A05','A06') else 'ORIGINAL_TWO_CORES')
         assert row['backgroundCpus']==[1] and row['observersRequired'] is True
         compilers=row['compilerThreads'];assert compilers
         assert all(any(r['name'].startswith(tier) for r in compilers) for tier in ('C1 ','C2 '))
         observers=row['observerThreads'];assert sum(t['name']=='e2e-observation' for t in observers)==2
         assert any(t['name']=='runtime-a-measu' for t in observers)
         assert all(t['name']=='e2e-observation' or t['name'].startswith('runtime-a-') for t in observers)
-        background=[*compilers,*observers]
+        application=row['applicationWriterThreads'];assert row['applicationWritersIncluded']==(profile=='A04')
+        assert all(t['name'].startswith('cognitivecraft-') or t['name']=='runtime-bench04' for t in application)
+        if profile!='A04':assert not application and row['writerFixturesRequired'] is False
+        if row['writerFixturesRequired']:
+            assert profile=='A04' and any(t['name'].startswith('cognitivecraft-') for t in application)
+            assert any(t['name']=='runtime-bench04' for t in application)
+        background=[*compilers,*observers,*application]
         assert len({r['tid'] for r in [row['serverThread'],*background]})==len(background)+1
         for thread in background:
-            assert thread['cpusBefore'] in ([0,1],[1]) and thread['cpusAfter']==[1]
+            assert thread['cpusBefore'] in (([0,1],[0],[1]) if profile=='A04' else ([0,1],[1])) and thread['cpusAfter']==[1]
             assert thread['niceAfter']==max(10,thread['niceBefore'])
         assert all(t['name'].startswith(('C1 CompilerThre','C2 CompilerThre')) for t in compilers)
     covered={(r['nativeProcess']['namespaceProcess']['pid'],r['nativeProcess']['namespaceProcess']['start']) for r in records}
