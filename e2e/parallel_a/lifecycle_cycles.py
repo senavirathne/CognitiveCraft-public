@@ -16,3 +16,15 @@ def review(initial,final,entity,before_generation,after_generation):
     return {'status':'PASS_EXACT_NATIVE_LIFECYCLE_CYCLES','entity':entity,'process':initial['process'],
             'beforeGeneration':before_generation,'afterGeneration':after_generation,'reloadCycles':cycles,
             'nativeTransitions':events,'duplicateCallbacksWithoutAdditionalGeneration':duplicates}
+
+def loaded_observation(native,citizen,entity,name):
+    """Select identity and actual entity state captured in the same server tick."""
+    if not native:return None
+    value=native.get('lifecycle',{}).get('PlayerA',{}).get(citizen)
+    if not value:return None
+    identity=value.get('identity',{});actor=identity.get('actor',{});marker=identity.get('lifecycle',{})
+    if actor.get('citizenId')!=citizen or actor.get('entityId')!=entity:return None
+    if identity.get('displayName')!=name or identity.get('availability')!='LOADED':return None
+    if marker.get('event')!='LOAD' or marker.get('acknowledged')!=7:return None
+    if not native.get('entities',{}).get(entity,{}).get('loaded'):return None
+    return value

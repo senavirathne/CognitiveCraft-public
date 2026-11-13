@@ -26,6 +26,20 @@ class CompilerBudgetTest(unittest.TestCase):
         changed=self.native(15);value=configure(40,99,[0,1])
         self.assertCountEqual([(2,15),(3,15)],changed);self.assertEqual(0,value['serverThread']['niceAfter'])
         self.assertEqual([0,1],value['serverThread']['cpusAfter']);self.assertTrue(all(t['cpusAfter']==[1] for t in value['compilerThreads']))
+    def test_a06_server_core_reservation_is_bounded_and_idempotent_without_priority_raise(self):
+        changed=self.native();first=configure(40,99,[0,1],server_cpu=0)
+        self.assertEqual([0,1],first['cpus']);self.assertEqual(0,first['addedCores'])
+        self.assertEqual([0],first['serverThread']['cpusAfter'])
+        self.assertEqual(0,first['serverThread']['niceAfter'])
+        self.assertTrue(all(row['cpusAfter']==[1] for row in first['compilerThreads']))
+        second=configure(40,99,[0,1],server_cpu=0)
+        self.assertEqual([0],second['serverThread']['cpusBefore'])
+        self.assertEqual([0],second['serverThread']['cpusAfter'])
+        self.assertTrue(all(tid!=1 for tid,_ in changed))
+    def test_server_reservation_outside_the_original_two_core_budget_is_refused(self):
+        changed=self.native()
+        with self.assertRaises(ValueError):configure(40,99,[0,1],server_cpu=2)
+        self.assertEqual([],changed)
     def test_missing_owned_observers_is_refused_before_budget_mutation(self):
         changed=self.native()
         with self.assertRaises(ValueError):configure(40,99,[0,1],require_observers=True)

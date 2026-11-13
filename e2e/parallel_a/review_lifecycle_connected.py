@@ -168,6 +168,12 @@ def review(root,source):
                     assert 'axis='+c['logAxis'] in row['initialNative']['targets'][','.join(map(str,pos))]['block']
             box=chest_row(start,c['destination']);assert box['id']=='minecraft:'+c['container']
             assert sorted(item(e) for e in box.get('Items',[]))==sorted((slot,name,count,{}) for slot,name,count in c['destinationSlots'])
+            from lifecycle_cycles import loaded_observation
+            entity=row['before']['identity']['actor']['entityId'];citizen=row['before']['identity']['actor']['citizenId']
+            assert row['before']==loaded_observation(row['initialNative'],citizen,entity,c['citizenName'])
+            assert row['after']==loaded_observation(row['reloadNative'],citizen,entity,c['citizenName'])
+            assert row['coherentObservations']=={'mode':'SAME_END_SERVER_TICK_NATIVE_AND_LIFECYCLE',
+                'beforeTick':row['initialNative']['tick'],'afterTick':row['reloadNative']['tick'],'setupLimitSeconds':40,'reloadLimitSeconds':80}
             b,a=row['before']['identity'],row['after']['identity'];u=row['boundary']['identity']
             assert b['actor']==a['actor']==u['actor'] and b['owner']==a['owner']==u['owner']
             assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD'

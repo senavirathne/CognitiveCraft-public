@@ -51,6 +51,12 @@ jobs:
           python3 -m compileall -q e2e/parallel_a
           python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py' -v
           python3 e2e/parallel_a/source_audit.py --out build/parallel-a/source-audit
+      - name: Inspect complete retained batch63 A06 and A07 failures without importing passes
+        if: >-
+          ${{ startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 e2e/parallel_a/retained_failure_diagnosis.py --artifact A06:14022246761 --artifact A07:14020693612 --out build/parallel-a/source-audit/a10-batch63-retained-failures.json
       - name: Recover exact retained A06 batch25 archive and emit every failure diagnosis
         id: a06_prior_transport
         if: >-

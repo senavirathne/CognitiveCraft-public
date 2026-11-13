@@ -25,7 +25,7 @@ public final class RuntimeA07Probe implements ModInitializer {
     private final List<List<Integer>> positions=new ArrayList<>();
     private final Map<UUID,Entity> tracked=new LinkedHashMap<>();
     private final List<Map<String,Object>> events=new ArrayList<>();
-    private Set<UUID> existingJobs=Set.of();private String mode,token,lastCutToken;private UUID actor;
+    private Set<UUID> existingJobs=Set.of();private String mode,token,lastCutToken;private UUID actor;private boolean coherentLifecycle;
     public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A07_PROBE"))){io.shutdown();return;}
         ServerEntityEvents.ENTITY_LOAD.register((e,w)->event(e,"ENTITY_LOAD"));
@@ -59,6 +59,7 @@ public final class RuntimeA07Probe implements ModInitializer {
                 if(command!=null) {
                     String id=command.get("id").getAsString(),op=command.get("op").getAsString();
                     if(op.equals("watch")) {
+                        coherentLifecycle=command.has("coherentLifecycle")&&command.get("coherentLifecycle").getAsBoolean();
                         positions.clear();tracked.clear();events.clear();
                         for(var point:command.getAsJsonArray("positions")){
                             var a=point.getAsJsonArray();positions.add(List.of(a.get(0).getAsInt(),a.get(1).getAsInt(),a.get(2).getAsInt()));
@@ -114,9 +115,20 @@ public final class RuntimeA07Probe implements ModInitializer {
                         }row.put("inventory",stock);}
                     }entityRows.put(id.toString(),Map.copyOf(row));
                 }
+                var lifecycleRows=new LinkedHashMap<String,Object>();
+                if(coherentLifecycle)for(var player:server.getPlayerList().getPlayers().stream().limit(2).toList()) {
+                    var citizens=new LinkedHashMap<String,Object>();
+                    for(var address:kernel.citizens(player).citizens()) {
+                        if(!tracked.containsKey(address.actor().entityId()))continue;
+                        var id=address.actor().citizenId();
+                        citizens.put(id.toString(),Map.of("identity",kernel.citizen(player,id),
+                                "trace",kernel.lifecycleDiagnostics(player,id)));
+                    }
+                    lifecycleRows.put(player.getGameProfile().name(),Map.copyOf(citizens));
+                }
                 pending=Map.of("schema",1,"process",process,"pid",ProcessHandle.current().pid(),"time",System.currentTimeMillis(),
                         "tick",level.getGameTime(),"targets",Map.copyOf(targetRows),"entities",Map.copyOf(entityRows),
-                        "nativeEvents",List.copyOf(events),"damage",LifecycleItemDamage.facts());
+                        "nativeEvents",List.copyOf(events),"damage",LifecycleItemDamage.facts(),"lifecycle",Map.copyOf(lifecycleRows));
             }catch(Exception failure){write("a07-error.json",Map.of("error",failure.toString()));}
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(s->{io.shutdown();flush();});

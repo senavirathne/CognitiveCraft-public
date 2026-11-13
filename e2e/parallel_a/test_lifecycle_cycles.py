@@ -26,4 +26,29 @@ class NativeCycles(unittest.TestCase):
         with self.assertRaises(AssertionError):review(a,b,'actor',1,2)
         a,b=self.frames(['ENTITY_UNLOAD','ENTITY_LOAD']);b['nativeEvents'][1]['tick']=9
         with self.assertRaises(AssertionError):review(a,b,'actor',1,2)
+    def test_loaded_identity_and_native_presence_come_from_the_same_frame(self):
+        from lifecycle_cycles import loaded_observation
+        life={'identity':{'actor':{'citizenId':'citizen','entityId':'actor'},'displayName':'Hana',
+                         'availability':'LOADED','lifecycle':{'event':'LOAD','acknowledged':7,'generation':2}}}
+        frame={'tick':50,'process':'one','entities':{'actor':{'loaded':True}},
+               'lifecycle':{'PlayerA':{'citizen':life}}}
+        before=copy.deepcopy(frame)
+        self.assertIs(loaded_observation(frame,'citizen','actor','Hana'),life)
+        self.assertEqual(frame,before)
+        for citizen,entity,name in [('other','actor','Hana'),('citizen','other','Hana'),('citizen','actor','Other')]:
+            self.assertIsNone(loaded_observation(frame,citizen,entity,name))
+
+    def test_old_independent_or_unacknowledged_identity_cannot_supply_the_frame(self):
+        from lifecycle_cycles import loaded_observation
+        life={'identity':{'actor':{'citizenId':'citizen','entityId':'actor'},'displayName':'Hana',
+                         'availability':'LOADED','lifecycle':{'event':'LOAD','acknowledged':7}}}
+        frame={'entities':{'actor':{'loaded':True}},'lifecycle':{'PlayerA':{'citizen':life}}}
+        self.assertIsNone(loaded_observation({'entities':frame['entities']},'citizen','actor','Hana'))
+        for target,key,value in [('identity','availability','UNLOADED'),('marker','event','UNLOAD'),('marker','acknowledged',3)]:
+            changed=copy.deepcopy(frame);identity=changed['lifecycle']['PlayerA']['citizen']['identity']
+            (identity if target=='identity' else identity['lifecycle'])[key]=value
+            self.assertIsNone(loaded_observation(changed,'citizen','actor','Hana'))
+        changed=copy.deepcopy(frame);changed['entities']['actor']['loaded']=False
+        self.assertIsNone(loaded_observation(changed,'citizen','actor','Hana'))
+
 if __name__=='__main__':unittest.main()

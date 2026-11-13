@@ -7,11 +7,13 @@ def birth(pid):
     if fields[0]=='Z':raise ValueError('Native JVM is no longer live')
     return int(fields[19])
 
-def configure(pid,start_ticks,cpus,require_observers=False):
+def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None):
     if birth(pid)!=start_ticks:raise ValueError('Native JVM birth changed')
     if Path(f'/proc/{pid}').stat().st_uid!=os.getuid():raise ValueError('Foreign JVM UID refused')
     cpus=sorted(cpus)
     if len(cpus)!=2 or sorted(os.sched_getaffinity(pid))!=cpus:raise ValueError('Original two-core JVM budget required')
+    if server_cpu is not None and server_cpu not in cpus:raise ValueError('Server core must be inside the original budget')
+    server_target=cpus if server_cpu is None else [server_cpu]
     tasks=list(Path(f'/proc/{pid}/task').iterdir())
     if len(tasks)>256:raise ValueError('Native thread inspection bound')
     rows=[{'tid':int(p.name),'name':(p/'comm').read_text().strip()} for p in tasks]
@@ -28,22 +30,24 @@ def configure(pid,start_ticks,cpus,require_observers=False):
         row['niceBefore']=os.getpriority(os.PRIO_PROCESS,row['tid'])
         row['cpusBefore']=sorted(os.sched_getaffinity(row['tid']))
         if not row['cpusBefore'] or not set(row['cpusBefore'])<=set(cpus):raise ValueError('Native thread escaped the declared CPU set')
-    if servers[0]['cpusBefore']!=cpus:raise ValueError('Server must retain both original cores')
+    if servers[0]['cpusBefore'] not in (cpus,server_target):raise ValueError('Unexpected server affinity before declared isolation')
     if birth(pid)!=start_ticks:raise ValueError('Native JVM birth changed before priority changes')
+    if server_cpu is not None:os.sched_setaffinity(servers[0]['tid'],set(server_target))
     for row in background:
         os.setpriority(os.PRIO_PROCESS,row['tid'],max(10,row['niceBefore']))
         os.sched_setaffinity(row['tid'],set(target))
     for row in [*servers,*background]:
         row['niceAfter']=os.getpriority(os.PRIO_PROCESS,row['tid'])
         row['cpusAfter']=sorted(os.sched_getaffinity(row['tid']))
-        if row['cpusAfter']!=(cpus if row is servers[0] else target):raise ValueError('Declared thread affinity did not take effect')
+        if row['cpusAfter']!=(server_target if row is servers[0] else target):raise ValueError('Declared thread affinity did not take effect')
     if servers[0]['niceAfter']!=servers[0]['niceBefore']:raise ValueError('Server thread priority changed')
     if any(r['niceAfter']!=max(10,r['niceBefore']) for r in background):raise ValueError('Background niceness did not take effect')
     if birth(pid)!=start_ticks:raise ValueError('Native JVM birth changed after priority changes')
     return {'status':'PASS_OWNED_COMPILER_BUDGET','hostJvmPid':pid,'startTicks':start_ticks,'cpus':cpus,
             'serverThread':servers[0],'compilerThreads':compilers,'observerThreads':observers,'observersRequired':require_observers,
-            'backgroundCpus':target,'heapGcLimitsAndSamplesChanged':False,
-            'addedCores':0,'priorityPolicy':'Owned C1/C2 and test writers use the second original core, niceness >=10; server retains both original cores and priority'}
+            'backgroundCpus':target,'serverThreadCpus':server_target,'heapGcLimitsAndSamplesChanged':False,
+            'addedCores':0,'priorityPolicy':'Owned C1/C2 and test writers use the second original core, niceness >=10; server priority is unchanged',
+            'serverAffinityPolicy':'ORIGINAL_TWO_CORES' if server_cpu is None else 'RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET'}
 
 def prepare(h):
     from baseline import native_process
@@ -52,7 +56,8 @@ def prepare(h):
     expected=hashlib.sha256((Path(__file__).resolve().parents[2]/'fabric/build/libs/ai-villages-0.1.0.jar').read_bytes()).hexdigest()
     if namespace['kind']!='server' or namespace['releaseSha256']!=expected:raise ValueError('Frozen owned server JAR required')
     if owned['containerResources']['cpusetCpus']!='0-1':raise ValueError('Original Docker server CPU set required')
-    value=configure(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True)
+    value=configure(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True,
+                    server_cpu=0 if h.a10_profile=='A06' else None)
     value.update(profile=h.a10_profile,nativeProcess=owned)
     path=h.root/f"a10-compiler-budget-{owned['hostJvmPid']}-{owned['startTicks']}-{uuid.uuid4()}.json"
     atomic(path,value);h.event('a10-compiler-budget',value)
@@ -61,6 +66,7 @@ def prepare(h):
 def review(root,profile,jar,stops):
     records=[json.loads(p.read_text()) for p in sorted(root.glob('a10-compiler-budget-*.json'))]
     assert records,'Missing owned native compiler budget records'
+    server_target=[0] if profile=='A06' else [0,1]
     for row in records:
         assert row['status']=='PASS_OWNED_COMPILER_BUDGET' and row['profile']==profile
         assert row['cpus']==[0,1] and row['addedCores']==0 and row['heapGcLimitsAndSamplesChanged'] is False
@@ -69,7 +75,9 @@ def review(root,profile,jar,stops):
         assert owned['containerResources']['cpusetCpus']=='0-1' and process['kind']=='server' and process['releaseSha256']==jar
         assert row['serverThread']['name']=='Server thread'
         assert row['serverThread']['niceBefore']==row['serverThread']['niceAfter']
-        assert row['serverThread']['cpusBefore']==row['serverThread']['cpusAfter']==[0,1]
+        assert row['serverThread']['cpusBefore'] in ([0,1],server_target) and row['serverThread']['cpusAfter']==server_target
+        assert row['serverThreadCpus']==server_target
+        assert row['serverAffinityPolicy']==('RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET' if profile=='A06' else 'ORIGINAL_TWO_CORES')
         assert row['backgroundCpus']==[1] and row['observersRequired'] is True
         compilers=row['compilerThreads'];assert compilers
         assert all(any(r['name'].startswith(tier) for r in compilers) for tier in ('C1 ','C2 '))
@@ -85,4 +93,5 @@ def review(root,profile,jar,stops):
     covered={(r['nativeProcess']['namespaceProcess']['pid'],r['nativeProcess']['namespaceProcess']['start']) for r in records}
     assert all((p['pid'],p['start']) in covered for p in stops),'Unrecorded stopped native JVM'
     return {'status':'PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET','records':len(records),'nativeBirths':len(covered),
-            'serverCores':[0,1],'backgroundCores':[1],'addedCores':0,'serverThreadPriorityChanged':False,'serverThreadAffinityChanged':False}
+            'serverCores':[0,1],'serverThreadCores':server_target,'backgroundCores':[1],'addedCores':0,'serverThreadPriorityChanged':False,
+            'serverThreadAffinityChanged':any(r['serverThread']['cpusBefore']!=r['serverThread']['cpusAfter'] for r in records)}
