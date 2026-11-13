@@ -25,7 +25,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final FabricHarvestProtocol harvest;private final Clock clock;private final boolean enabled;
     private final PickupEvidenceStore store;private DepositEvidenceStore deposits;private boolean closed;
     public void attachDeposit(DepositEvidenceStore deposits){check();if(this.deposits!=null)throw new IllegalStateException("Deposit successor already attached");this.deposits=Objects.requireNonNull(deposits);}
-    private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
+    // NativeTicket has identity equality. The fixed eight-ticket limit permits a
+    // preallocated identity list without invoking VM identity hashing in capture.
+    private final List<NativeTicket> tickets=new ArrayList<>(8);
+    private EntityStorageEvidence nativeStorage;
     private final Map<ChunkPos,CompletableFuture<EntityChunkRecord.Frame>> frames=new HashMap<>();
     private final Map<ChunkPos,Long> frameRevisions=new HashMap<>();
     private Consumer<Point> observer=p->{};
@@ -47,6 +50,9 @@ public final class FabricPickupProtocol implements PickupProtocol {
                                 PickupJournal journal,PickupJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
         this.harvest=Objects.requireNonNull(harvest);this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
+        // Registration is stable for this exact ServerLevel. Bind during owner
+        // startup; do not acquire the global registry monitor in normal captures.
+        nativeStorage=NativeEntityStorage.get(level);
         NativePickup.initializeCaptureSchema();
         NativeCaptureSchema.link(NativeTicket.class,DepositLineage.class);
         store=new PickupEvidenceStore(initial,harvest.evidence(),(expected,next)->CompletableFuture.supplyAsync(()->{
@@ -59,6 +65,11 @@ public final class FabricPickupProtocol implements PickupProtocol {
         },clock,30_000,readOnly);
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Pickup game-thread owner");}
+    private EntityStorageEvidence nativeStorage(){
+        // Preserve late registration/unavailability behavior without caching availability.
+        if(nativeStorage==null)nativeStorage=NativeEntityStorage.get(level);
+        return nativeStorage;
+    }
     public PickupEvidenceStore evidence(){check();return store;}
     public void observe(Consumer<Point> observer){check();this.observer=Objects.requireNonNull(observer);}
     public List<Long> captureNanos(){check();return List.copyOf(captureNanos);}
@@ -108,7 +119,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var k=h.intent().key();
             var intent=new NativePickup.Intent(new Key(k.world(),k.root(),k.step(),k.attempt(),k.generation(),2),h,request.operation(),request.expected(),conditions,lineage.actorTrail(),lineage.dropTrail());
             phases[4]=System.nanoTime();
-            var port=NativeEntityStorage.get(level);if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
+            var port=nativeStorage();if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
             var touched=new LinkedHashSet<>(lineage.actorTrail().chunks());touched.addAll(lineage.dropTrail().chunks());
             var chunks=List.copyOf(touched);
             var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);
