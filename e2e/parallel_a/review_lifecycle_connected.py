@@ -128,6 +128,11 @@ def review(root,source):
             drop=proof['harvest']['result']['drops'][0]['entity'];old_actor=proof['harvest']['intent']['actor']['entity']
             assert old_actor not in native and row['death']['identity']['lifecycle']['event']=='DEATH'
             assert row['death']['identity']['lifecycle']['acknowledged']==7
+            from lifecycle_connected import death_departure
+            removal=row['actorRemoval'];assert removal['verificationLimitSeconds']==65
+            assert removal['life']==row['death'] and removal['native']['process']==row['beforeDeath']['process']
+            assert death_departure(removal['life'],removal['native'],old_actor,row['beforeDeath']['tick'])==removal['event']
+            assert removal['event']['removal']=='KILLED'
             assert disposition(row['finalNative']['entities'][drop],row['finalNative']['damage'])==row['custody']
             if name=='death-burned':assert drop not in native
             else:assert drop in native and item(native[drop]['Item'])[1:3]==(case['item'],1)

@@ -1081,14 +1081,16 @@ jobs:
       ${{ always() && startsWith(github.event.head_commit.message, 'test(runtime-a): A10 frozen-runtime') }}
     needs: [a04-contracts, a10-native, required_accomplishment_evidence_acceptance, required_knowledge_apprenticeship_acceptance, required_primitive_diagnostics_diagnostics, required_goal_planning_acceptance, required_observed_knowledge_observations, required_world_retention_retention, required_save_compatibility_compatibility, required_blueprint_boundary_acceptance, required_prerequisites_prerequisites]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     env:
       NATIVE_JAR_SHA256: ${{ needs.a04-contracts.outputs.native_jar_sha256 }}
+      BUNDLE_SHA256: ${{ needs.a04-contracts.outputs.bundle_sha256 }}
       REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
@@ -1097,6 +1099,17 @@ jobs:
           path: build/parallel-a/a10-all-diagnostics
       - name: Require all ten profiles, every original case and all nine required regression jobs
         run: python3 e2e/parallel_a/freeze_aggregate.py --root build/parallel-a/a10-all-diagnostics --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --needs "$REQUIRED_JOB_RESULTS" --out build/parallel-a/a10-campaign.json
+      - name: Download the one frozen runtime for independent artifact transport review
+        uses: actions/download-artifact@v4
+        with:
+          name: cc-runtime-a-a10-frozen-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/parallel-a/a10-aggregate-bundle
+      - name: Verify every compiled byte before the second independent reader
+        run: python3 e2e/parallel_a/freeze_bundle.py install --archive build/parallel-a/a10-aggregate-bundle/a10-frozen-runtime.zip --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --bundle-sha256 "$BUNDLE_SHA256"
+      - name: Fully download and verify all native archives then replay them in network-denied Docker
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 e2e/parallel_a/downloaded_replay.py run --source "${{ github.sha }}" --jar-sha256 "$NATIVE_JAR_SHA256" --diagnostics build/parallel-a/a10-all-diagnostics --out build/parallel-a/a10-downloaded-review
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -1106,6 +1119,7 @@ jobs:
           path: |
             build/parallel-a/a10-campaign.json
             build/parallel-a/a10-all-diagnostics/
+            build/parallel-a/a10-downloaded-review/
 
 # BEGIN GENERATED REQUIRED REGRESSION JOBS
   # Required jobs from accomplishment-evidence.yml; source remains unchanged.

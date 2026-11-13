@@ -326,13 +326,24 @@ def w04_case(h,seed,frozen):
     return value
 
 
+def death_departure(life,native,entity,since):
+    if not life or not native:return None
+    identity=life.get('identity',{});marker=identity.get('lifecycle',{})
+    if identity.get('actor',{}).get('entityId')!=entity or marker.get('event')!='DEATH' or marker.get('acknowledged')!=7:return None
+    if native.get('entities',{}).get(entity,{}).get('loaded',True):return None
+    return next((e for e in native.get('nativeEvents',[]) if e.get('event')=='ENTITY_UNLOAD'
+                 and e.get('entity')==entity and e.get('removal')=='KILLED' and e.get('tick',-1)>=since),None)
+
 def death_case(h,seed,template,kind):
     directory,case,value=original_control(h,seed,template,kind,'RESULT_ACKNOWLEDGED')
     proof=native_saved(directory/'killed-world','HARVEST',case);h.watch([[73,208,73]],[h.entities['PlayerA'],proof['harvest']['result']['drops'][0]['entity']])
     drop=proof['harvest']['result']['drops'][0]['entity'];before=h.wait(lambda:(v if (v:=h.a07()) and v['entities'][drop]['loaded'] else None),'Actual original surviving native drop',40)
     h.command('PlayerA','/kill '+h.entities['PlayerA'],'Killed')
-    death=h.wait(lambda:(v if (v:=h.life()) and v['identity']['lifecycle']['event']=='DEATH'
-              and v['identity']['lifecycle']['acknowledged']==7 else None),'Confirmed native death and owner acknowledgements',65)
+    def departed():
+        life=h.life();native=h.a07();event=death_departure(life,native,h.entities['PlayerA'],before['tick'])
+        return {'life':life,'native':native,'event':event,'verificationLimitSeconds':65} if event else None
+    actor_removal=h.wait(departed,'Confirmed native death, owner acknowledgements and actual KILLED removal',65)
+    death=actor_removal['life']
     if kind=='death-burned':
         pos=[math.floor(n) for n in before['entities'][drop]['pos']]
         h.vanilla('PlayerB','/setblock '+coord(pos)+' minecraft:lava');h.vanilla('PlayerB','/tick unfreeze')
@@ -348,6 +359,7 @@ def death_case(h,seed,template,kind):
     require(h.model_calls()==value['modelCallsBefore'],'Death custody observation called a model')
     value.update(status='PASS_NATIVE_DEATH_CUSTODY',nativeSavedProof=proof,beforeDeath=before,death=death,finalNative=final,
                  custody=expected,originalJob=original,modelCallsAfter=h.model_calls(),claim='Observed surviving/destroyed/unknown custody; no authority to inherit, replay or invent delivery.')
+    value['actorRemoval']=actor_removal
     value['terminalWorldHashes']=checkpoint(h,directory);atomic(directory/'result.json',value);return value
 
 
