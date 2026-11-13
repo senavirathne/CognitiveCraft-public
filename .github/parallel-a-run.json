@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 61,
-  "parentSource": "9ac62140cbdace83c236347bc03d21af497483f1",
+  "sequence": 62,
+  "parentSource": "34279b345f7194cbdf05898a8c831d04c56251a1",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4993,15 +4993,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 61,
-    "codeCheckpoint": "9ac62140cbdace83c236347bc03d21af497483f1",
-    "codeTree": "b638654f6e17211ced2829402df284444f62123b",
-    "documentationPreRun": "e126cbc6e19f6cf54bc83b3ff424b1e7dd4789ed",
-    "documentationTree": "a2e083a1dbc5795493d8b7d1a048a608fb9b63c8",
+    "sequence": 62,
+    "codeCheckpoint": "34279b345f7194cbdf05898a8c831d04c56251a1",
+    "codeTree": "186a83e1926036e10d5e30c5dae4974c9ddac9cf",
+    "documentationPreRun": "2c79a171728c521e85757ea4ba0dcff1a8edca86",
+    "documentationTree": "cb72760f15ad3db963aac18868ad43e03e192c3c",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 139,
+    "ownedPython": 146,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5015,9 +5015,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "For A10 A06/A09 only, contain the idle foreign NPC before work in36 ordinary glass perimeter blocks outside every frozen source, destination and work position, within the same default entity chunk. Both clients stay in place; normal native AI/gravity remain. Require applied native snapshot and saved NBT proof. All production guards, budgets,121 gates,64 cost publications,400 samples and thresholds are unchanged.",
+    "ownedCorrection": "Extend the ordinary normal-AI idle foreign actor enclosure to A05 and only the twelve A07 live lifecycle roles. For only the two fresh two-unit A06 positive controls, fix destination78,208,74 before Job creation and use180 ordinary perimeter blocks to keep the actor in original native entity root4,4. Require applied raw snapshots and all specified saved native NBT worlds. No production changes, no changes to the twelve original tasks or nine W04 contexts, no changes to quantities, original budgets/deadlines, samples, thresholds, CPU/heap/GC or physical guards.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 14,
+    "actionsPreviouslyStarted": 16,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -9155,6 +9155,1347 @@
           "digest": "sha256:574433cd9880e05a6a16cfbea1d839f6fab50869c77258d16513f2e6df2b3576"
         }
       ]
+    },
+    "eighthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 61,
+      "status": "FAIL_REQUIRED_A05_A06_A07_GATES_PRESERVED",
+      "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+      "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+      "codeCheckpoint": "9ac62140cbdace83c236347bc03d21af497483f1",
+      "codeTree": "b638654f6e17211ced2829402df284444f62123b",
+      "documentationPreRun": "e126cbc6e19f6cf54bc83b3ff424b1e7dd4789ed",
+      "documentationTree": "a2e083a1dbc5795493d8b7d1a048a608fb9b63c8",
+      "groupedRun": 43371343951,
+      "standardRun": 43371344014,
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "requiredExactJarContracts": 2703,
+      "ownedPython": 139,
+      "baselinePython": 72,
+      "nativeLifecycleDiagnostics": 14,
+      "requiredRegressionSuites": 9,
+      "requiredRegressionJobs": 12,
+      "requiredRegressionSteps": 140,
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 16,
+      "jobReruns": 0,
+      "documentationActions": 0,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "w04": "OPEN_CAUSE_UNPROVEN",
+      "producer": {
+        "status": "PASS_LOCALLY_VERIFIED_EXACT_BUNDLE",
+        "job": 131707584530,
+        "uniqueContracts": 2703,
+        "ownedPython": 139,
+        "baselinePython": 72,
+        "nativeLifecycleDiagnostics": 14,
+        "moduleReview": "A10-batch61-module-review.json",
+        "lifecycleReview": "A10-batch61-lifecycle-review.json",
+        "nativeQualified": false
+      },
+      "binary": {
+        "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+        "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+        "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+        "bundleSha256": "47f8c5c6634a066b9db6923d5f1137c439a9dcca41eaac61d7a3c5afd05ae5bf",
+        "bundleBytes": 37946397,
+        "files": {
+          "build/e2e-driver/client.jar": {
+            "bytes": 17301,
+            "sha256": "f2b1607fdfbf99fbda1c2d5d19eb097d38185473e85ef4338457d20e8f777921"
+          },
+          "build/e2e-driver/observer.jar": {
+            "bytes": 412824,
+            "sha256": "354a7c8e365aeb76f3ea703f165b94658cf71a2f6105d6275a60d0fb3e0c6ee3"
+          },
+          "fabric/build/libs/ai-villages-0.1.0.jar": {
+            "bytes": 2808175,
+            "sha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed"
+          }
+        }
+      },
+      "standard": {
+        "status": "PASS_STANDARD_CI_AND_RELEASE_BYTES_VERIFIED",
+        "job": 131707583617,
+        "run": 43371344014,
+        "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+        "jarSha256": "dfdcb34b63265fdd4d3393849a84b10d3a506aadcfb28f85ef0ff04ec1ee8cbf",
+        "jarBytes": 3087438,
+        "releaseAudit": {
+          "schema": 1,
+          "jar": "ai-villages-0.1.0.jar",
+          "bytes": 3087438,
+          "sha256": "dfdcb34b63265fdd4d3393849a84b10d3a506aadcfb28f85ef0ff04ec1ee8cbf",
+          "archives": [
+            {
+              "archive": "ai-villages-0.1.0.jar",
+              "entries": 1410,
+              "bytes": 3087438,
+              "sha256": "dfdcb34b63265fdd4d3393849a84b10d3a506aadcfb28f85ef0ff04ec1ee8cbf"
+            }
+          ],
+          "excludedGameTestSources": 72,
+          "testModExcluded": true,
+          "testClassesExcluded": true,
+          "modelWeightsExcluded": true
+        },
+        "nativeAndStandardJarsAreDistinct": true,
+        "artifacts": {
+          "standard-jar": {
+            "id": 14011599912,
+            "kind": "standard-jar",
+            "bytes": 2868291,
+            "sha256": "315d1dc45e52b7fdd1a51a801342cde775155f7046dcf1936995bd5bbab7a7fe",
+            "status": "PASS_OUTER_BYTES_SHA_CRC_AND_SAFE_PATHS",
+            "files": 2
+          },
+          "standard-reports": {
+            "id": 14011934209,
+            "kind": "standard-reports",
+            "bytes": 1288215,
+            "sha256": "a8886f2f409517909cb473fc6b171b4b90030f8e88443f8a2139904cae6edaac",
+            "status": "PASS_OUTER_BYTES_SHA_CRC_AND_SAFE_PATHS",
+            "files": 644
+          }
+        }
+      },
+      "localRawReplay": {
+        "A00": {
+          "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+          "profile": "A00",
+          "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+          "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+          "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+          "cases": 4,
+          "bytesIdentical": true,
+          "reviewSha256": "e6aa889a44bd3fa16c5cdf88515b2d9772c6db92f3e3890abc5c429b8547417c",
+          "reviewBytes": 4531,
+          "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+          "extraction": "FULL"
+        },
+        "A01": {
+          "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+          "profile": "A01",
+          "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+          "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+          "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+          "cases": 2,
+          "bytesIdentical": true,
+          "reviewSha256": "02f6cecb8409366048934c5e5b8b01e6fa30413c134efe99ed9c1ef50ac3537a",
+          "reviewBytes": 3866,
+          "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+          "extraction": "FULL"
+        },
+        "A02": {
+          "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+          "profile": "A02",
+          "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+          "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+          "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+          "cases": 5,
+          "bytesIdentical": true,
+          "reviewSha256": "f1ce9a7fa604e98b32349c00b01eee2fbe3758064136f6aa545e59da5277ed66",
+          "reviewBytes": 5219,
+          "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+          "extraction": "FULL"
+        }
+      },
+      "correction": {
+        "source": "34279b345f7194cbdf05898a8c831d04c56251a1",
+        "tree": "186a83e1926036e10d5e30c5dae4974c9ddac9cf",
+        "evidence": "A10-eighth-launch-correction-local.json",
+        "ownedPython": 146,
+        "baselinePython": 72,
+        "ownershipPaths": 302,
+        "nativeQualification": "NOT_EXECUTED_REQUIRED"
+      },
+      "preservedFailure": "A10-seventh-launch-evidence.json",
+      "requiredRegressions": [
+        {
+          "job": 131707584173,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584412,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584421,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584427,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584436,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584457,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584468,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584508,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "conclusion": "success"
+        },
+        {
+          "job": 131707584540,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "conclusion": "success"
+        }
+      ],
+      "profiles": {
+        "A09": {
+          "job": 131708744020,
+          "ciConclusion": "success",
+          "required": 9,
+          "executed": 9,
+          "recordedPasses": 9,
+          "cases": [
+            {
+              "id": "two-segments-saved-checkpoint-restart",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "historical-credit-current-stock",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "expired-original-deadline",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "private-runtime-boundary",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "legacy-native-delivery",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "legacy-HARVEST-original",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "legacy-PICKUP-original",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "legacy-DEPOSIT-original",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            },
+            {
+              "id": "legacy-unsaved-pickup-fence",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE_PENDING_REVIEW"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": {
+            "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+            "profile": "A09",
+            "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+            "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+            "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+            "cases": 9,
+            "bytesIdentical": true,
+            "reviewSha256": "28f04f7447456469bd17b75b53693a5b1cf5a9e7f283c90e1279791d2b8c7f67",
+            "reviewBytes": 450578,
+            "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+            "extraction": "FULL"
+          },
+          "originalCollectionSha256": "a582eb0e8de522a9147d2c8deded85f337d5f51e7f231b34cf5e585e4bd873e0",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A01": {
+          "job": 131708744027,
+          "ciConclusion": "success",
+          "required": 2,
+          "executed": 2,
+          "recordedPasses": 2,
+          "cases": [
+            {
+              "id": "legacy-positive",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "repeated-adoption-cancel-private-view",
+              "collectionStatus": "PASS"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": {
+            "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+            "profile": "A01",
+            "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+            "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+            "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+            "cases": 2,
+            "bytesIdentical": true,
+            "reviewSha256": "02f6cecb8409366048934c5e5b8b01e6fa30413c134efe99ed9c1ef50ac3537a",
+            "reviewBytes": 3866,
+            "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+            "extraction": "FULL"
+          },
+          "originalCollectionSha256": "52c4fccba93adf92a0990f7227b0b6ef474bad04d468d028238042cf9dd61f5d",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A05": {
+          "job": 131708744028,
+          "ciConclusion": "failure",
+          "required": 15,
+          "executed": 0,
+          "recordedPasses": 0,
+          "cases": [
+            {
+              "id": "saved-positive-repeated-adoption",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "negative-equal-count-swap",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "negative-components",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "negative-replacement",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "unloaded-participants",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "unsaved-before-mutation",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "unsaved-after-mutation",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "unsaved-after-journal",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "saved-prepared-no-effect",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "journal-ahead-saved-prepared",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "actor-saved-chest-prepared",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "chest-saved-actor-prepared",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "native-storage-full-quota",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "native-storage-corrupt-current",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            },
+            {
+              "id": "required-reader-baseline-and-envelope-candidate-400-tick-cost",
+              "collectionStatus": "NOT_EXECUTED_REQUIRED"
+            }
+          ],
+          "ciIndependentReview": "FAIL_REQUIRED_GATE",
+          "fullRawLocalReplay": "NOT_PERFORMED_FAILED_CANDIDATE",
+          "originalCollectionSha256": "6818120184ae5abc6bf066f4892560222b4879544d475822169e536444457728",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A03": {
+          "job": 131708744043,
+          "ciConclusion": "success",
+          "required": 7,
+          "executed": 7,
+          "recordedPasses": 7,
+          "cases": [
+            {
+              "id": "legacy-native-positive",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "continuous-129-retired-native-leases",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-cut-after_segment_ack",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-cut-after_directory_ack",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-cut-before_hot_publication",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-cut-after_hot_acknowledgement",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-archive-pressure-no-effect-refusal",
+              "collectionStatus": "PASS"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": "NOT_PERFORMED_FAILED_CANDIDATE",
+          "originalCollectionSha256": "b08bf006acfe1dc22970e1510c671cf5ba091abd8e3a830e80dc1835a9822dd0",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A02": {
+          "job": 131708744095,
+          "ciConclusion": "success",
+          "required": 5,
+          "executed": 5,
+          "recordedPasses": 5,
+          "cases": [
+            {
+              "id": "legacy-positive-and-baseline",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "real-world-compatibility-and-acknowledged-history",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "reserved-metadata-under-ordinary-pressure",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "history-enabled-native-positive",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "unknown-history-fence-and-whole-world-rollback",
+              "collectionStatus": "PASS"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": {
+            "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+            "profile": "A02",
+            "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+            "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+            "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+            "cases": 5,
+            "bytesIdentical": true,
+            "reviewSha256": "f1ce9a7fa604e98b32349c00b01eee2fbe3758064136f6aa545e59da5277ed66",
+            "reviewBytes": 5219,
+            "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+            "extraction": "FULL"
+          },
+          "originalCollectionSha256": "ebcc48231837bda2334ee88042fca42922823e616d371acac925d3b914ea6e03",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A06": {
+          "job": 131708744099,
+          "ciConclusion": "failure",
+          "required": 21,
+          "executed": 21,
+          "recordedPasses": 20,
+          "cases": [
+            {
+              "id": "W6-002",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "W6-003",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "W6-004",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "W6-008",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "W6-009",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "W6-010",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "heldout-W6-002",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "heldout-W6-003",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "heldout-W6-004",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "heldout-W6-008",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "heldout-W6-009",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "heldout-W6-010",
+              "collectionStatus": "PASS_ORIGINAL_PENDING_INDEPENDENT_REVIEW"
+            },
+            {
+              "id": "source-replacement-HARVEST",
+              "collectionStatus": "PASS_REFUSED_TORN_ORIGINAL"
+            },
+            {
+              "id": "source-replacement-PICKUP",
+              "collectionStatus": "PASS_REFUSED_TORN_ORIGINAL"
+            },
+            {
+              "id": "source-replacement-DEPOSIT",
+              "collectionStatus": "PASS_REFUSED_TORN_ORIGINAL"
+            },
+            {
+              "id": "unrelated-native-progress",
+              "collectionStatus": "PASS_NATIVE_WHILE_ORIGINAL_AMBIGUOUS"
+            },
+            {
+              "id": "unsaved-pickup-containment",
+              "collectionStatus": "PASS_UNSAVED_CONTAINMENT_ONLY"
+            },
+            {
+              "id": "two-unit-prepared-no-effect",
+              "collectionStatus": "FAIL"
+            },
+            {
+              "id": "two-unit-delivered-remaining-one",
+              "collectionStatus": "PASS_ORIGINAL_JOB_RESUMED_ONLY_REMAINING_ONE"
+            },
+            {
+              "id": "expired-original-accounting",
+              "collectionStatus": "PASS_NATIVE_ACCOUNTING_AFTER_ACTUAL_DEADLINE"
+            },
+            {
+              "id": "representative-active-cost",
+              "collectionStatus": "PASS_REPRESENTATIVE_ACTIVE_COST"
+            }
+          ],
+          "ciIndependentReview": "FAIL_REQUIRED_GATE",
+          "fullRawLocalReplay": "NOT_PERFORMED_FAILED_CANDIDATE",
+          "originalCollectionSha256": "99a847281e85c855ea02f78701b1773ea368c6d49f7ab78a27aa1aaadb314ac6",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A08": {
+          "job": 131708744106,
+          "ciConclusion": "success",
+          "required": 21,
+          "executed": 21,
+          "recordedPasses": 21,
+          "cases": [
+            {
+              "id": "five-logs-three-and-four-external-two",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "older-feasible-small-arrivals",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "impossible-large-useful-small",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "complementary-inputs-atomic",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "initial-full-zero-effect",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "dynamic-fill-before-withdraw",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "dynamic-fill-after-withdraw-custody",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "full-return-retains-custody",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "revoked-return-retains-custody",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "lawful-return-new-action",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "source-destination-alias",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "component-stack-swap",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "chest-replacement",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "double-chest-split",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "stale-epoch-release",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "cross-principal-denial",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "external-mutation-replan-bound",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "crash-after-withdraw-scoped-fence-C-progress",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "navigation-no-storage-claim",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "slot-stack-swap-after-claim",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            },
+            {
+              "id": "complementary-private-custody-residence-bound",
+              "collectionStatus": "PASS_NATIVE_CANDIDATE"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": "NOT_PERFORMED_FAILED_CANDIDATE",
+          "originalCollectionSha256": "878d167b68aa60412c8dc7dabd9152837e3ca250f2ef69ea87bce182975d55e4",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A07": {
+          "job": 131708744110,
+          "ciConclusion": "failure",
+          "required": 27,
+          "executed": 27,
+          "recordedPasses": 26,
+          "cases": [
+            {
+              "id": "ACTOR-PREFLIGHT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "ACTOR-EFFECT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "ACTOR-PUBLICATION",
+              "collectionStatus": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW"
+            },
+            {
+              "id": "SOURCE-PREFLIGHT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "SOURCE-EFFECT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "SOURCE-PUBLICATION",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "FACILITY-PREFLIGHT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "FACILITY-EFFECT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "FACILITY-PUBLICATION",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "DESTINATION-PREFLIGHT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "DESTINATION-EFFECT",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "DESTINATION-PUBLICATION",
+              "collectionStatus": "PASS_CONNECTED_NATIVE_LIFECYCLE"
+            },
+            {
+              "id": "death-surviving",
+              "collectionStatus": "PASS_NATIVE_DEATH_CUSTODY"
+            },
+            {
+              "id": "death-burned",
+              "collectionStatus": "PASS_NATIVE_DEATH_CUSTODY"
+            },
+            {
+              "id": "death-unavailable",
+              "collectionStatus": "PASS_NATIVE_DEATH_CUSTODY"
+            },
+            {
+              "id": "handoff-positive",
+              "collectionStatus": "PASS_EXPLICIT_PHYSICAL_HANDOFF_SAME_JOB"
+            },
+            {
+              "id": "handoff-revoked",
+              "collectionStatus": "PASS_REVOKED_NEW_EFFECTS_HISTORICAL_ACCOUNTING"
+            },
+            {
+              "id": "handoff-stale-successor",
+              "collectionStatus": "PASS_DENIED_STALE_AND_SAME_NAME_SUCCESSOR"
+            },
+            {
+              "id": "replay-W5-002",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "replay-W5-006",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "replay-W5-010",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "replay-heldout-W5-002",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "replay-heldout-W5-006",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "replay-heldout-W5-010",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "heldout-W5-002",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "heldout-W5-006",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            },
+            {
+              "id": "heldout-W5-010",
+              "collectionStatus": "PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD"
+            }
+          ],
+          "ciIndependentReview": "FAIL_REQUIRED_GATE",
+          "fullRawLocalReplay": "NOT_PERFORMED_FAILED_CANDIDATE",
+          "originalCollectionSha256": "aacacfb2040a18af091e8bc8d908832e22130a25a0a85859dce9a3233d8aa7d2",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A00": {
+          "job": 131708744139,
+          "ciConclusion": "success",
+          "required": 4,
+          "executed": 4,
+          "recordedPasses": 4,
+          "cases": [
+            {
+              "id": "supported-gather-deposit",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "foreign-principal-negative",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "unflushed-probe",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "saved-restart-signature",
+              "collectionStatus": "PASS"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": {
+            "status": "PASS_NETWORK_DENIED_FULL_RAW_REPLAY_IDENTICAL_TO_CI",
+            "profile": "A00",
+            "source": "6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5",
+            "tree": "03433dec11ffee0a98ad9bfb3e6093e9a5aab381",
+            "productionSha256": "ebca8a31345d81b738feac9fa2448319f6d9c65754e947bff1665425526a28ed",
+            "cases": 4,
+            "bytesIdentical": true,
+            "reviewSha256": "e6aa889a44bd3fa16c5cdf88515b2d9772c6db92f3e3890abc5c429b8547417c",
+            "reviewBytes": 4531,
+            "networkPolicy": "Socket connect/bind/name resolution and subprocess launch rejected",
+            "extraction": "FULL"
+          },
+          "originalCollectionSha256": "21e7daaa02daa2eb5fcdbba2f8a4923a713a6cb3b64e8e46d8ec095d4038427b",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        },
+        "A04": {
+          "job": 131708744148,
+          "ciConclusion": "success",
+          "required": 10,
+          "executed": 10,
+          "recordedPasses": 10,
+          "cases": [
+            {
+              "id": "native-positive-control",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "actual-old-job-wall",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "continuous-native-over-64-terminal-jobs",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-job-cut-after_segment_ack",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-job-cut-after_directory_ack",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-job-cut-before_hot_publication",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-job-cut-after_hot_acknowledgement",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-required-segment-missing",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-required-segment-corrupt",
+              "collectionStatus": "PASS"
+            },
+            {
+              "id": "native-required-version-missing",
+              "collectionStatus": "PASS"
+            }
+          ],
+          "ciIndependentReview": "PASS",
+          "fullRawLocalReplay": "NOT_PERFORMED_FAILED_CANDIDATE",
+          "originalCollectionSha256": "d3e336c70a7de77eebee72b69dd1b2e9625b367d38aa60070bbc4dff11c23be7",
+          "classification": "Original native E2E, host and metadata classifications are retained in the complete hashed collection; these rows are status summaries."
+        }
+      },
+      "completed": true,
+      "aggregateJob": 131723132646,
+      "totals": {
+        "required": 121,
+        "executed": 106,
+        "recordedPasses": 104,
+        "failed": 1,
+        "inconclusive": 1,
+        "unexecuted": 15
+      },
+      "pendingProfiles": [],
+      "a04Cost": {
+        "baseline": {
+          "tick": {
+            "p50": 2.981982,
+            "p95": 8.168485,
+            "p99": 13.213475,
+            "max": 23.754995,
+            "samples": 400,
+            "unit": "milliseconds"
+          },
+          "capture": {
+            "p50": 0.000291,
+            "p95": 0.002675,
+            "p99": 0.003176,
+            "max": 0.003727,
+            "samples": 400,
+            "unit": "milliseconds"
+          },
+          "ack": {
+            "p50": 24.877248,
+            "p95": 40.168731,
+            "p99": 64.404385,
+            "max": 64.404385,
+            "samples": 64,
+            "unit": "milliseconds"
+          }
+        },
+        "candidate": {
+          "tick": {
+            "p50": 5.735661,
+            "p95": 15.547924,
+            "p99": 18.835634,
+            "max": 36.993792,
+            "samples": 400,
+            "unit": "milliseconds"
+          },
+          "capture": {
+            "p50": 0.00036,
+            "p95": 0.000501,
+            "p99": 0.000872,
+            "max": 0.00553,
+            "samples": 400,
+            "unit": "milliseconds"
+          },
+          "ack": {
+            "p50": 46.180891,
+            "p95": 65.050426,
+            "p99": 73.06819,
+            "max": 73.06819,
+            "samples": 64,
+            "unit": "milliseconds"
+          }
+        }
+      },
+      "a06Cost": {
+        "id": "representative-active-cost",
+        "status": "PASS_REPRESENTATIVE_ACTIVE_COST",
+        "nativeEffects": 33,
+        "tick": {
+          "p50": 4.611974,
+          "p95": 11.527022,
+          "p99": 24.058538,
+          "max": 64.517115,
+          "samples": 2291,
+          "unit": "milliseconds"
+        },
+        "capture": {
+          "HARVEST": {
+            "p50": 0.69862,
+            "p95": 0.793457,
+            "p99": 0.793457,
+            "max": 0.793457,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 0.627667,
+            "p95": 0.973029,
+            "p99": 0.973029,
+            "max": 0.973029,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 1.111936,
+            "p95": 1.325029,
+            "p99": 1.325029,
+            "max": 1.325029,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "acknowledgement": {
+          "p50": 8.025228,
+          "p95": 25.167884,
+          "p99": 64.682392,
+          "max": 64.682392,
+          "samples": 66,
+          "unit": "milliseconds"
+        },
+        "limits": {
+          "tickP95Ms": 20,
+          "tickP99Ms": 40,
+          "captureP99Ms": 2,
+          "ackMaxMs": 30000
+        },
+        "warmupExcluded": false,
+        "requiredWheatSamples": 1,
+        "diagnosticCaptureCpu": {
+          "HARVEST": {
+            "p50": 0.715838,
+            "p95": 0.811388,
+            "p99": 0.811388,
+            "max": 0.811388,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 0.639087,
+            "p95": 0.854376,
+            "p99": 0.854376,
+            "max": 0.854376,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 1.07607,
+            "p95": 1.342274,
+            "p99": 1.342274,
+            "max": 1.342274,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "diagnosticCapturePhaseMaxMs": {
+          "HARVEST": {
+            "authority": 0.116136,
+            "owner": 0.068657,
+            "participants": 0.40599,
+            "claims": 0.122077,
+            "allowance": 0.12697,
+            "intent": 0.07207,
+            "exclusion": 0.016844
+          },
+          "PICKUP": {
+            "owner": 0.098607,
+            "original-harvest": 0.06077,
+            "native-lineage": 0.410187,
+            "allowance": 0.096757,
+            "intent": 0.163257,
+            "storage-and-ticket": 0.263488
+          },
+          "DEPOSIT": {
+            "authority": 0.684141,
+            "owner": 0.063229,
+            "participants": 0.245761,
+            "claims": 0.152847,
+            "conditions": 0.053694,
+            "intent": 0.284325,
+            "exclusion": 0.019498
+          }
+        }
+      },
+      "a07": {
+        "status": "FAIL_ONE_REQUIRED_LIVE_WINDOW",
+        "required": 27,
+        "recordedPasses": 26,
+        "inconclusive": "ACTOR-PUBLICATION",
+        "w04NativeContextsPassed": 9,
+        "physicalHandoffsPassed": 3,
+        "deathControlsPassed": 3,
+        "lifecycleRoleControlsPassed": 11,
+        "historicalCause": "OPEN_CAUSE_UNPROVEN"
+      },
+      "artifacts": [
+        {
+          "id": 14014941301,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43371343951-1",
+          "bytes": 413655845,
+          "digest": "sha256:dac9dfdbd3d1b0fae8a637173cbc962fc031a2a6ba4e539a7658380ce42f91df",
+          "expiresAt": "2026-12-13T06:04:42Z"
+        },
+        {
+          "id": 14014865755,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43371343951-1",
+          "bytes": 419431123,
+          "digest": "sha256:53b63287f6ab369117b8792e52629678a486dc8f4284ded4de7f02bd82bf1dc6",
+          "expiresAt": "2026-12-13T06:04:38Z"
+        },
+        {
+          "id": 14014860443,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43371343951-1",
+          "bytes": 509790,
+          "digest": "sha256:956eed3a5260ac6f60257fbb5bca808b200d2f1138d7825a372afa99896d0068",
+          "expiresAt": "2026-12-13T06:00:43Z"
+        },
+        {
+          "id": 14014616079,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43371343951-1",
+          "bytes": 314894854,
+          "digest": "sha256:b18ff222d610bf5706a4acb79401196a97d15dfcce74f22e541130af1d1d87cb",
+          "expiresAt": "2026-12-13T06:00:52Z"
+        },
+        {
+          "id": 14014496408,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43371343951-1",
+          "bytes": 419431123,
+          "digest": "sha256:64729669f81435e14dfb4220b9f78660bcd24196471e56bea369dbe1ca71f392",
+          "expiresAt": "2026-12-13T06:00:45Z"
+        },
+        {
+          "id": 14014347621,
+          "name": "cc-runtime-a-a10-campaign-43371343951-1",
+          "bytes": 4158807,
+          "digest": "sha256:cc8a448fbf966a17df907576e2ac604c14e53b5fd3f812fc5d6a58e39becc763",
+          "expiresAt": "2026-12-13T06:04:56Z"
+        },
+        {
+          "id": 14014226677,
+          "name": "cc-runtime-a-a10-A04-native-part-1-43371343951-1",
+          "bytes": 23444691,
+          "digest": "sha256:9d71db59fceabeadc8adf211af69bfeb7edeec1055a41ae31773881468175c54",
+          "expiresAt": "2026-12-13T06:00:01Z"
+        },
+        {
+          "id": 14014226664,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43371343951-1",
+          "bytes": 1223590,
+          "digest": "sha256:2e64f314af5378aaf4407e49863b769032b9b19210ecbf5c926fdb7aa1078620",
+          "expiresAt": "2026-12-13T05:59:56Z"
+        },
+        {
+          "id": 14014137775,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43371343951-1",
+          "bytes": 877110,
+          "digest": "sha256:4abd2cbf6464b74b4181c63e98f42e3a5995cefbde9fdd4752eaf5c1f9a1caf9",
+          "expiresAt": "2026-12-13T06:04:36Z"
+        },
+        {
+          "id": 14013985350,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43371343951-1",
+          "bytes": 327341,
+          "digest": "sha256:927c1008b0ec531dd731e5457c48146c9c1f7ad59fef8e5a41bec5ea2a940114",
+          "expiresAt": "2026-12-13T05:40:26Z"
+        },
+        {
+          "id": 14013851128,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43371343951-1",
+          "bytes": 300644,
+          "digest": "sha256:66b45d2b1b91a4a5e2f6dee267a1e9b5a6584bb42c1384beefe293388799545d",
+          "expiresAt": "2026-12-13T05:39:33Z"
+        },
+        {
+          "id": 14013443140,
+          "name": "cc-runtime-a-a10-A03-native-part-1-43371343951-1",
+          "bytes": 419431276,
+          "digest": "sha256:06833b61c22f8b5be8abaa33287d50777b1f39618b9bbf47270872555c2bb614",
+          "expiresAt": "2026-12-13T05:45:47Z"
+        },
+        {
+          "id": 14013443110,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43371343951-1",
+          "bytes": 402435,
+          "digest": "sha256:ffb25a1185273e77de81f5452eef18db7eaef92415c7509e53e5488b5395b576",
+          "expiresAt": "2026-12-13T05:45:38Z"
+        },
+        {
+          "id": 14013440324,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43371343951-1",
+          "bytes": 125492,
+          "digest": "sha256:a8acbe6a80d73fdd483318948f2f6bab5446258ec055258a820f9191a67a01f8",
+          "expiresAt": "2026-12-13T05:28:36Z"
+        },
+        {
+          "id": 14013430350,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43371343951-1",
+          "bytes": 174145,
+          "digest": "sha256:8a9525ed16e6e6796118bce65304c80ef092f78bb1d47538a77387144b03d244",
+          "expiresAt": "2026-12-13T05:30:05Z"
+        },
+        {
+          "id": 14013418627,
+          "name": "cc-runtime-a-a10-A03-native-part-2-43371343951-1",
+          "bytes": 359615450,
+          "digest": "sha256:c738ff40ae327244eaa6e9a50cf04eddfc7f9174ee02cf99083b2b0a7dc67278",
+          "expiresAt": "2026-12-13T05:45:54Z"
+        },
+        {
+          "id": 14013249672,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43371343951-1",
+          "bytes": 419431122,
+          "digest": "sha256:3e5d0b3e396c5987e0a1dccac0872b11fc0d482eae9598fe6264706f0dc6decf",
+          "expiresAt": "2026-12-13T05:59:57Z"
+        },
+        {
+          "id": 14013156074,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43371343951-1",
+          "bytes": 150068,
+          "digest": "sha256:49b6bafb953665ba814e0efa0e952cb67c204ff8278738f60c493d6f80ab4442",
+          "expiresAt": "2026-12-13T05:29:00Z"
+        },
+        {
+          "id": 14013150172,
+          "name": "cc-runtime-a-a10-exact-jar-units-43371343951-1",
+          "bytes": 150197,
+          "digest": "sha256:f72e0448f3ece61988f96ae00861e39fc574c278158cdad7bb9189e39141e1bd",
+          "expiresAt": "2026-12-13T05:23:22Z"
+        },
+        {
+          "id": 14013143953,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43371343951-1",
+          "bytes": 419431276,
+          "digest": "sha256:90765946af43a67eed5a973f0578f9c606dc7ab80d6d4bfeea26c3a806980a01",
+          "expiresAt": "2026-12-13T05:45:40Z"
+        },
+        {
+          "id": 14013080426,
+          "name": "primitive-diagnostics-43371343951-1",
+          "bytes": 374163,
+          "digest": "sha256:2e2abb1b0016ecb2c49128e62944a8d2174c8545ac197aa62f983a41a483a05e",
+          "expiresAt": "2026-11-27T05:23:22Z"
+        },
+        {
+          "id": 14013026419,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43371343951-1",
+          "bytes": 109874824,
+          "digest": "sha256:528c4201c61164057c5e7beeb40395d03aec85355632566857384c9fd35c36a0",
+          "expiresAt": "2026-12-13T05:28:38Z"
+        },
+        {
+          "id": 14012995487,
+          "name": "cc-runtime-a-a07-lifecycle-6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5-43371343951-1",
+          "bytes": 6772278,
+          "digest": "sha256:56e5a8675400345cdc501a05d8c0dbf2bad3b35a330c0bcbe2753aab0f455f60",
+          "expiresAt": "2026-12-13T05:22:32Z"
+        },
+        {
+          "id": 14012925686,
+          "name": "imp-018-prerequisites",
+          "bytes": 433102,
+          "digest": "sha256:0ad4a003fe12c651e6bb422bdf2045a9b894c5f6e7830c4df817f884654db670",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14012831392,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 429323,
+          "digest": "sha256:b84efa8b80035f26f7a7cc1fa2f6e626a954229ceedbc1310df1cb5ed7fac570",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14012819878,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43371343951-1",
+          "bytes": 355004637,
+          "digest": "sha256:2d1b9d2f3bac831e129bce8f0f933333a17c2bba563fc5ec8ee3c4d33a41ba6c",
+          "expiresAt": "2026-12-13T05:39:35Z"
+        },
+        {
+          "id": 14012729278,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43371343951-1",
+          "bytes": 290155662,
+          "digest": "sha256:6df0c2b38e9ac7dd46b3eeb3a3ee188d1465b2ee21fd95eca443794a83cc1fa1",
+          "expiresAt": "2026-12-13T05:40:28Z"
+        },
+        {
+          "id": 14012638247,
+          "name": "cc-runtime-a-a10-frozen-runtime-43371343951-1",
+          "bytes": 37954079,
+          "digest": "sha256:ca00e7634e4653ccae58bcca026fa29cd66cf474391d0a1f56c4df3236160ae5",
+          "expiresAt": "2026-12-13T05:23:20Z"
+        },
+        {
+          "id": 14012638088,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 426994,
+          "digest": "sha256:90a3d6ecf8231d40172c4434f5fd59a53c1df84c2ed401a7e4442bff49795d19",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14012508083,
+          "name": "cc-runtime-a-a04-contracts-6da7cdfb8fcaf29146e9fb3721554b8bcf48d9d5-43371343951-1",
+          "bytes": 3575806,
+          "digest": "sha256:3f391d09e968bd86c9c50ba713e381da9227c8169956bb6b027a78750dce3ac9",
+          "expiresAt": "2026-12-13T05:23:23Z"
+        },
+        {
+          "id": 14012489174,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43371343951-1",
+          "bytes": 140464821,
+          "digest": "sha256:209a36ff3a55752ce27bafc9f3cce1feef058cb0310a6fbc12c213e2549a205e",
+          "expiresAt": "2026-12-13T05:29:03Z"
+        },
+        {
+          "id": 14012413270,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4262674,
+          "digest": "sha256:a81153cc02e879ffb956f48c85e64477d3c81c6841817905ce3913acdb4ba64c",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14012399487,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43371343951-1",
+          "bytes": 149800336,
+          "digest": "sha256:e8b1c8378f34e53d3ea2e321b01166b93f428cd9e60583fa03ec92f6d83c9f2e",
+          "expiresAt": "2026-12-13T05:30:47Z"
+        },
+        {
+          "id": 14012369506,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43371343951-1",
+          "bytes": 51390,
+          "digest": "sha256:e538fbca1f66884ea60293748948687511d107edcb3756c3369a1532010d17a7",
+          "expiresAt": "2026-12-13T05:30:45Z"
+        },
+        {
+          "id": 14012222916,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 363341,
+          "digest": "sha256:81534a4f1553a42d2ee6de6077757cfe1a48b1bd4b84a404b93fc4fbfaa5b956",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14011969835,
+          "name": "imp-016-world-retention",
+          "bytes": 431385,
+          "digest": "sha256:501c64355d459ec19169b40880c4d271b5a44a2902df9221c467e1f7f5bcda5a",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14011954876,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43371343951-1",
+          "bytes": 127973579,
+          "digest": "sha256:5b58e78d87b4f2c40ec27cff10d6c84ea18bfe4ac3b3545ec61db7128eca9c09",
+          "expiresAt": "2026-12-13T05:30:06Z"
+        },
+        {
+          "id": 14011669254,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 361333,
+          "digest": "sha256:659b16829b325c4f3e04d468bc46e4da050ca81b1b75adee7fc4d03f7b7a23ef",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        },
+        {
+          "id": 14011569786,
+          "name": "imp-015-save-compatibility",
+          "bytes": 431805,
+          "digest": "sha256:2f8f6e9e5d1cd4356cc25bfa555df9841ade599bc82048370e81c5738729f524",
+          "expiresAt": "2027-02-11T05:20:11Z"
+        }
+      ],
+      "preparedCorrection": {
+        "source": "34279b345f7194cbdf05898a8c831d04c56251a1",
+        "tree": "186a83e1926036e10d5e30c5dae4974c9ddac9cf",
+        "evidence": "A10-eighth-launch-correction-local.json",
+        "ownedPython": 146,
+        "baselinePython": 72,
+        "ownershipPaths": 302,
+        "nativeQualification": "NOT_EXECUTED_REQUIRED"
+      }
     }
   },
   "date": "2026-11-13"
