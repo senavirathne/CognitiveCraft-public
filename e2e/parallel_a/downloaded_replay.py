@@ -60,6 +60,7 @@ def acquire(a,directory,source):
     with response,archive.open('wb') as out:shutil.copyfileobj(response,out)
     entries=safe_zip(archive,a['size_in_bytes'],expected[7:])
     with zipfile.ZipFile(archive) as z:z.extractall(directory/'files')
+    archive.unlink()  # The verified extracted payload and immutable artifact receipt remain.
     return directory/'files',{'id':a['id'],'name':a['name'],'bytes':a['size_in_bytes'],'sha256':expected[7:],
                               'entries':entries,'status':'PASS_FULL_OUTER_SIZE_SHA_CRC_PATHS_AND_NO_SYMLINKS'}
 
@@ -77,8 +78,11 @@ def rebuild(profile,parts,folder,source):
         for row in rows:
             path=actual[row['name']];assert path.stat().st_size==row['bytes'] and digest(path)==row['sha256']
             with path.open('rb') as source_file:shutil.copyfileobj(source_file,out)
-    entries=safe_zip(archive,m['archiveBytes'],m['archiveSha256']);native=folder/'native';native.mkdir()
+    entries=safe_zip(archive,m['archiveBytes'],m['archiveSha256'])
+    for i in range(len(parts)):shutil.rmtree(folder/('part-'+str(i)))
+    native=folder/'native';native.mkdir()
     with zipfile.ZipFile(archive) as z:z.extractall(native)
+    archive.unlink()
     return native,{'status':'PASS_FULL_DOWNLOADED_NATIVE_BYTES_SHA_CRC_SAFE_PATHS','profile':profile,**m,
                    'entries':entries,'extraction':'FULL','outerArtifacts':receipts}
 
