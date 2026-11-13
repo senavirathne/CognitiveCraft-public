@@ -13,6 +13,13 @@ WHEAT='minecraft:wheat'
 
 class RecoveryHarness(HarvestHarness):
     case_stage='HARVEST'
+    def reset(self,*args,**kwargs):
+        value=super().reset(*args,**kwargs)
+        if getattr(self,'a10_profile',None) in ('A06','A09'):
+            from nonparticipant_fixture import setup
+            setup(self)
+            value=self.snapshot()
+        return value
     def __init__(self,root):
         super().__init__(root)
         # Capture includes wall-clock pauses. Select a low-pause collector
@@ -100,6 +107,9 @@ def one(h,seed,case):
             mechanics=h.rpc('storage-contracts');require(mechanics['status']=='PASS_NATIVE_STORAGE_MECHANICS_ONLY','Native storage controls failed')
             atomic(h.root/'a06-storage-mechanics.json',mechanics)
         h.reset({},destination=dst,table=False);points=positions(case)
+        if getattr(h,'a10_profile',None) in ('A06','A09'):
+            from nonparticipant_fixture import protects
+            protects(case);result['nonparticipantFixture']=h.current_nonparticipant_fixture
         h.crops(points) if case['item']==WHEAT else h.logs(points,item=case['item'])
         initial=physical(h,case);require(not initial['inventory'] and initial['destination']==0 and not initial['drops'],'Original fixture has foreign custody')
         h.save_checkpoint();token=str(uuid.uuid4());result['arm']=h.rpc('arm',stage=case['checkpoint'],point='RESULT_ACKNOWLEDGED',token=token,save=True)

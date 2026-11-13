@@ -57,6 +57,10 @@ def identity(root,profile,source,jar):
         actor=setup['nativeActor'];citizen=setup['privateCitizen'];assert actor['uuid']==setup['companion'][1]
         assert actor['alive'] and not actor['baby'] and not actor['noAI']
         assert citizen['actor']['citizenId']==setup['companion'][0] and citizen['actor']['entityId']==actor['uuid'] and citizen['availability']=='LOADED'
+    if profile in ('A06','A09'):
+        from nonparticipant_fixture import review_record
+        records=sorted(root.glob('a10-nonparticipant-*.json'));assert 1<=len(records)<=128
+        for path in records:review_record(root,read(path),profile,jar)
     for row in admission['admissions']:
         assert row['callsAfter']['generationCalls']>row['callsBefore']['generationCalls'] and row['view']['marker']['outcome']=='ADMITTED'
     from recovery_seed import ARCHIVE_SHA,SOURCE,ARTIFACT

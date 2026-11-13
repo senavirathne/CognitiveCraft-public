@@ -63,6 +63,10 @@ def one(root,case):
     assert result['nativeOriginalOwnerSettlements']==1
     killed,terminal=(directory/name for name in ('killed-world','terminal-world'))
     assert manifest(killed)==result['killedWorldHashes'] and manifest(terminal)==result['terminalWorldHashes']
+    if 'nonparticipantFixture' in result:
+        from nonparticipant_fixture import review_world
+        review_world(killed,result['nonparticipantFixture'],case)
+        review_world(terminal,result['nonparticipantFixture'],case)
     before=native_saved(killed,case['checkpoint'],case);after=native_saved(terminal,case['checkpoint'],case)
     assert before==result['nativeSavedProof'] and before['key']==after['key']==result['key']
     assert {k:v for k,v in before['native'].items() if k!='memberships'}=={k:v for k,v in after['native'].items() if k!='memberships'}
