@@ -57,7 +57,7 @@ def prepare(h):
     if namespace['kind']!='server' or namespace['releaseSha256']!=expected:raise ValueError('Frozen owned server JAR required')
     if owned['containerResources']['cpusetCpus']!='0-1':raise ValueError('Original Docker server CPU set required')
     value=configure(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True,
-                    server_cpu=0 if h.a10_profile=='A06' else None)
+                    server_cpu=0 if h.a10_profile in ('A05','A06') else None)
     value.update(profile=h.a10_profile,nativeProcess=owned)
     path=h.root/f"a10-compiler-budget-{owned['hostJvmPid']}-{owned['startTicks']}-{uuid.uuid4()}.json"
     atomic(path,value);h.event('a10-compiler-budget',value)
@@ -66,7 +66,7 @@ def prepare(h):
 def review(root,profile,jar,stops):
     records=[json.loads(p.read_text()) for p in sorted(root.glob('a10-compiler-budget-*.json'))]
     assert records,'Missing owned native compiler budget records'
-    server_target=[0] if profile=='A06' else [0,1]
+    server_target=[0] if profile in ('A05','A06') else [0,1]
     for row in records:
         assert row['status']=='PASS_OWNED_COMPILER_BUDGET' and row['profile']==profile
         assert row['cpus']==[0,1] and row['addedCores']==0 and row['heapGcLimitsAndSamplesChanged'] is False
@@ -77,7 +77,7 @@ def review(root,profile,jar,stops):
         assert row['serverThread']['niceBefore']==row['serverThread']['niceAfter']
         assert row['serverThread']['cpusBefore'] in ([0,1],server_target) and row['serverThread']['cpusAfter']==server_target
         assert row['serverThreadCpus']==server_target
-        assert row['serverAffinityPolicy']==('RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET' if profile=='A06' else 'ORIGINAL_TWO_CORES')
+        assert row['serverAffinityPolicy']==('RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET' if profile in ('A05','A06') else 'ORIGINAL_TWO_CORES')
         assert row['backgroundCpus']==[1] and row['observersRequired'] is True
         compilers=row['compilerThreads'];assert compilers
         assert all(any(r['name'].startswith(tier) for r in compilers) for tier in ('C1 ','C2 '))

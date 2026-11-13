@@ -70,6 +70,27 @@ def one(root,case):
     before=native_saved(killed,case['checkpoint'],case);after=native_saved(terminal,case['checkpoint'],case)
     assert before==result['nativeSavedProof'] and before['key']==after['key']==result['key']
     assert {k:v for k,v in before['native'].items() if k!='memberships'}=={k:v for k,v in after['native'].items() if k!='memberships'}
+    if case['id']=='W6-003':
+        from adoption_clock import check,check_snapshot
+        clock=result['adoptionClock'];request=clock['request']
+        assert request['key']==before['key']
+        from recovery_fixture import marker
+        assert request['expected']==marker(before['entry'])
+        for phase,restart in [('first',result['firstRestart']),('second',result['adoptionRestart'])]:
+            check(clock[phase],request,restart['after'])
+            check_snapshot(root,clock[phase])
+            assert clock[phase]['originalJob']['request']==result['originalAtCut']['request']
+            assert clock[phase]['process']==restart['reader']['process']
+            world=directory/('adoption-'+phase+'-world')
+            assert manifest(world)==clock[phase+'WorldHashes']
+            observed=native_saved(world,'PICKUP',case)
+            assert observed['entry']==before['entry'] and observed['key']==before['key']
+        assert clock['first']['process']!=clock['second']['process']
+        released=clock['released'];assert released['beforeOriginalCancellation']
+        assert released['request']['commands']==['tick unfreeze','tick rate 20']
+        assert released['ack']['id']==released['request']['id']
+        assert released['snapshot']['gameTick']>clock['second']['gameTick']
+        assert released['snapshot']['pid']==result['adoptionRestart']['after']['namespaceProcess']['pid']
     key=before['key'];cut=result['reached'];arm=result['arm']
     assert cut['stage']==arm['stage']==case['checkpoint'] and cut['point']==arm['point']=='RESULT_ACKNOWLEDGED' and cut['token']==arm['token']
     assert cut['commands']==[{'command':'tick freeze','result':1},{'command':'save-all flush','result':1}]

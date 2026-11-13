@@ -62,9 +62,10 @@ def physical(h,case):
             'drops':sorted((d['uuid'],d['item'],d['count']) for d in value['drops'] if d['item'] in items),
             'blocks':{coord(p):h.block(p) for p in positions(case)}}
 
-def restart_after_cut(h,before,clients):
+def restart_after_cut(h,before,clients,hold_world=False):
     for player in h.players:h.wait(lambda:not h.action(player,'snapshot')['play'],'Actual cut disconnected '+player,45)
-    h.actions_active=False;h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players));h.console(['tick unfreeze','tick rate 20'],lifecycle=True)
+    h.actions_active=False;h.activated=int(time.time()*1000);h.start('server');reconnect_players(h,list(h.players))
+    h.console(['tick rate 20'] if hold_world else ['tick unfreeze','tick rate 20'],lifecycle=True)
     value=h.wait(h.evidence,'Current native recovery reader',60);h.save_checkpoint();after=native_process(h)
     require((before['hostJvmPid'],before['startTicks'])!=(after['hostJvmPid'],after['startTicks']),'Actual native JVM was not replaced')
     require(all(read(h.root/'clients'/p/'process.json')==old for p,old in clients.items()),'Compatible connected clients were replaced')
@@ -124,16 +125,28 @@ def one(h,seed,case):
         killed=directory/'killed-world';shutil.copytree(h.root/'server/game/world',killed,ignore=shutil.ignore_patterns('session.lock'))
         saved_game=directory/'cut-game';shutil.copytree(h.root/'server/game',saved_game,ignore=shutil.ignore_patterns('session.lock'))
         proof=native_saved(killed,case['checkpoint'],case)
+        clock_request=None
+        if case['id']=='W6-003':
+            from adoption_clock import request as request_clock
+            clock_request=request_clock(h.root,case,proof)
         result.update(killedWorldHashes=manifest(killed),nativeSavedProof=proof,
-                      firstRestart=restart_after_cut(h,before,clients))
+                      firstRestart=restart_after_cut(h,before,clients,hold_world=clock_request is not None))
         h.wait(lambda:(v if (v:=h.stable_entry()) and list(v['reconciliation'].values())==['SAVED_COMPLETE'] else None),'Complete independently saved native cohort',65)
         current=h.wait(lambda:(j if (v:=h.run_view('PlayerA',run)) and (j:=v.get('responsibility')) and j['state']=='INTERRUPTED' and j['attempts'][-1]['uncertain'] else None),'Original interrupted owner before cancellation',45)
         custody=physical(h,case);require(custody['destination']==credit,'Original native delivery quantity differs')
         require(sum(custody['inventory'].values())==(1 if case['checkpoint']=='PICKUP' else 0),'Original actor custody differs')
         result['beforeCancellation']=current
         if case['id']=='W6-003':
-            h.save_checkpoint();result['adoptionRestart']=h.restart(hard=True)
+            from adoption_clock import witnessed,release
+            first=witnessed(h,clock_request,result['firstRestart']['after'])
+            h.save_checkpoint();shutil.copytree(h.root/'server/game/world',directory/'adoption-first-world',ignore=shutil.ignore_patterns('session.lock'))
+            result['adoptionClock']={'request':clock_request,'first':first,'firstWorldHashes':manifest(directory/'adoption-first-world')}
+            result['adoptionRestart']=h.restart(hard=True,hold_world=True)
             h.wait(lambda:(v if (v:=h.stable_entry()) and list(v['reconciliation'].values())==['SAVED_COMPLETE'] else None),'Original P survives adoption re-kill',60)
+            second=witnessed(h,clock_request,result['adoptionRestart']['after'])
+            h.save_checkpoint();shutil.copytree(h.root/'server/game/world',directory/'adoption-second-world',ignore=shutil.ignore_patterns('session.lock'))
+            result['adoptionClock'].update(second=second,secondWorldHashes=manifest(directory/'adoption-second-world'))
+            result['adoptionClock']['released']=release(h)
             verification_token=h.rpc('arm',stage='PICKUP',point='VERIFICATION_ACKNOWLEDGED',token=str(uuid.uuid4()),save=True)['token']
         else:verification_token=None
         result['cancellation']=h.command('PlayerA','/aivillage kernel job-cancel '+key['step'],'job='+key['step']+' cancellation=true')
@@ -169,6 +182,10 @@ def one(h,seed,case):
             try:result['lastRun']=h.run_view('PlayerA',result['run'])
             except Exception as observation_error:result['lastRun']={'unavailable':str(observation_error)}
         atomic(directory/'result.json',result);raise
+    finally:
+        if case['id']=='W6-003':
+            from adoption_clock import cleanup
+            cleanup(h.root)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True);p.add_argument('--seed-archive',type=Path);args=p.parse_args()

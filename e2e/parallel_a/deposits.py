@@ -14,6 +14,13 @@ LIMITS={'tickP95Ms':20,'tickP99Ms':40,'captureP99Ms':2,'ackMaxMs':30000,'ticks':
 
 
 class DepositHarness(ActivityHarness):
+    def __init__(self,root):
+        super().__init__(root)
+        # Both A05 configurations use the same low-pause collector inside the
+        # existing two-core/1536MiB heap allocation; every cold sample remains.
+        self.env['A06_NATIVE_JAVA_TOOL_OPTIONS']=(
+            '-XX:+UseZGC -XX:ConcGCThreads=1 '
+            '-Xlog:gc*,safepoint:file=/evidence/server/a05-gc-%t-%p.log:time,uptime,level,tags:filecount=4,filesize=8M')
     def compose(self,*args):
         result=subprocess.run(['docker','compose','-p',self.project,'-f',str(ROOT/'e2e/compose.yml'),
             '-f',str(ROOT/'e2e/parallel_a/compose-deposits.yml'),*args],cwd=ROOT,env=self.env,text=True,capture_output=True)
@@ -41,13 +48,13 @@ class DepositHarness(ActivityHarness):
         require(response['status']=='PASS','Native A05 observation failed: '+json.dumps(response))
         return response['value']
 
-    def restart(self,hard=False):
+    def restart(self,hard=False,hold_world=False):
         before=native_process(self);clients={p:read(self.root/'clients'/p/'process.json') for p in self.players}
         self.stop('server',hard=hard)
         self.wait(lambda:not same_native_alive(before),'Actual old A05 JVM exited',25)
         for p in self.players:self.wait(lambda:not self.action(p,'snapshot')['play'],'A05 actual disconnect '+p,45)
         self.activated=int(time.time()*1000);self.start('server');reconnect_players(self,list(self.players))
-        self.console(['tick unfreeze','tick rate 20'],lifecycle=True)
+        self.console(['tick rate 20'] if hold_world else ['tick unfreeze','tick rate 20'],lifecycle=True)
         evidence=self.wait(self.evidence,'Current A05 durable evidence reader after JVM replacement',60)
         after=native_process(self)
         require((before['hostJvmPid'],before['startTicks'])!=(after['hostJvmPid'],after['startTicks']),'A05 did not replace native JVM')
@@ -232,7 +239,8 @@ def cost_windows(h,verified_seed,result):
             return {'raw':raw,'selected':selected} if selected else None
         value=h.wait(complete,'Every raw native A05 interval sample retained',15)
         sample=percentiles([r['nanos'] for r in value['selected']]);record={'configuration':mode,'newEnvelopeActivation':enabled,'requiredReaderActive':True,'begin':begin,
-            'nativeProcess':before,'metric':value['raw']['metric'],'tick':sample,'limits':LIMITS,'rawSamples':value['selected'],'nativeEffects':0}
+            'nativeProcess':before,'metric':value['raw']['metric'],'tick':sample,'limits':LIMITS,'rawSamples':value['selected'],
+            'jvm':value['raw']['jvm'],'nativeEffects':0}
         atomic(h.root/('a05-'+mode+'-raw-window.json'),record);windows.append(record)
         require(sample['p95']<=LIMITS['tickP95Ms'] and sample['p99']<=LIMITS['tickP99Ms'],'Frozen A05 '+mode+' tick window failed: '+json.dumps(sample))
     preparations=[]

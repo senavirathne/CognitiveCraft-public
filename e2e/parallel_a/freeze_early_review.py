@@ -284,6 +284,9 @@ def deposits(root,cases):
     windows={}
     for mode in ('baseline','candidate'):
         row=read(root/('a05-'+mode+'-raw-window.json'));samples=row['rawSamples'];assert len(samples)==400
+        assert row['jvm']['availableProcessors']==2
+        assert {'-Xms256M','-Xmx1536M','-XX:+UseZGC','-XX:ConcGCThreads=1'}<=set(row['jvm']['inputArguments'])
+        assert row['nativeProcess']['containerResources']=={'cpusetCpus':'0-1','memoryBytes':2*1024**3}
         assert [s['gameTick'] for s in samples]==list(range(row['begin']['gameTick']+1,row['begin']['gameTick']+401))
         measured=percentiles([s['nanos'] for s in samples]);assert measured==row['tick'] and measured['p95']<=20 and measured['p99']<=40
         windows[mode]=measured

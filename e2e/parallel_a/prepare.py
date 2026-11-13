@@ -118,6 +118,33 @@ column_queries = {
 for original, replacement in column_queries.items():
     assert adapted.count(original) == 1, original
     adapted = adapted.replace(original, replacement)
+# Cache immutable coordinates and query boxes, never native blocks/entities or
+# their occupancy. Every original live query, level and capture remains.
+geometry={
+    'private final RuntimeAObservationJson.BlockRows blockRows = new RuntimeAObservationJson.BlockRows();':
+        'private final RuntimeAObservationJson.BlockRows blockRows = new RuntimeAObservationJson.BlockRows();\n'
+        '    private final RuntimeAObservationGeometry<BlockPos,AABB> observationGeometry =\n'
+        '            new RuntimeAObservationGeometry<>(observationArea,assessment,assessmentMaxDy,BlockPos::new,AABB::new);',
+    'for (int x = observationArea[0]; x <= observationArea[3]; x++)\n'
+    '            for (int z = observationArea[2]; z <= observationArea[4]; z++) {':
+        'for (var observedColumn : observationGeometry.columns()) {\n'
+        '            int x=observedColumn.x(), z=observedColumn.z();',
+    'var pos = new BlockPos(x, observationArea[1], z); String key = x + ","+observationArea[1]+"," + z;':
+        'var pos = observedColumn.position(); String key = observedColumn.key();',
+    'var column = new AABB(x, observationArea[1], z, x + 1, observationArea[1] + 3, z + 1);':
+        'var column = observedColumn.bounds();',
+    'pos.offset(0,dy,0)': 'observedColumn.assessmentPosition(dy)',
+    'pos.below()': 'observedColumn.below()',
+    'new AABB(observationArea[0], observationArea[1], observationArea[2],\n'
+    '                        observationArea[3] + 1, observationArea[1] + 3, observationArea[4] + 1)':
+        'observationGeometry.occupancyBounds()',
+}
+for original,replacement in geometry.items():
+    assert adapted.count(original)==1,original
+    adapted=adapted.replace(original,replacement)
+actor_box='new AABB(observationArea[0]-2,observationArea[1]-2,observationArea[2]-2,\n                observationArea[3]+3,observationArea[1]+5,observationArea[4]+3)'
+assert adapted.count(actor_box)==2
+adapted=adapted.replace(actor_box,'observationGeometry.actorsBounds()')
 assert 'level.getBlockState(' not in adapted and 'level.getBlockEntity(' not in adapted
 generated = ROOT / 'build/parallel-a/generated/RuntimeAArenaObserver.java'
 generated.parent.mkdir(parents=True, exist_ok=True)
@@ -165,7 +192,7 @@ with ZipFile(observer.with_name('observer-baseline.jar')) as source, ZipFile(obs
     for path in out.rglob('*.class'):
         target.write(path, path.relative_to(out).as_posix())
 with ZipFile(release) as packaged:
-    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeALifecycleProbe', 'RuntimeA07Probe', 'RuntimeA08Driver', 'RuntimeA09Driver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeADepositProbe', 'RuntimeADepositTiming', 'RuntimeAHarvestProbe', 'RuntimeAEntityStorageChecks', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'JournalCostProbe'))
+    assert not any(any(name in n for name in ('RuntimeAObserver', 'RuntimeALifecycleProbe', 'RuntimeA07Probe', 'RuntimeA08Driver', 'RuntimeA09Driver', 'RuntimeAArenaObserver', 'RuntimeASecondaryObserver', 'RuntimeAStorageProbe', 'RuntimeALeaseProbe', 'RuntimeAJobProbe', 'RuntimeADepositProbe', 'RuntimeADepositTiming', 'RuntimeAHarvestProbe', 'RuntimeAEntityStorageChecks', 'RuntimeAJobCost', 'RuntimeAObservationLog', 'RuntimeAObservationJson', 'RuntimeAObservationGeometry', 'JournalCostProbe'))
                    for n in packaged.namelist())
 assert digest(release) == before
 (ROOT / 'build/parallel-a/observer-adaptation.json').write_text(json.dumps({
@@ -175,6 +202,7 @@ assert digest(release) == before
     'secondarySourceSha256': digest(secondary_source), 'secondaryArea': [319,208,63,340,78],
     'observerSha256': digest(observer), 'claim': 'test-only existing chunk reads; unload gate still required',
     'a06ObservationSerialization': 'Exact immutable row encoding on the existing observer writer; full raw snapshots and capture cadence retained',
+    'immutableGeometry': 'Coordinates/keys/AABB only; every native block/entity query, original bounds, ordering and capture cadence retained',
     'replacements': replacements,
     'a04ObservationLog': {'enabledOnlyBy': 'COGNITIVECRAFT_A04_PROBE', 'schema': 1,
         'format': 'exact UTF-8 templates with SHA-256 raw Job/run/lease bodies; latest full snapshots unchanged',
@@ -196,6 +224,8 @@ subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.RuntimeAObservationJson'],check=True)
 subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
                 'dev.aivillages.fabric.RuntimeAObserver'],check=True)
+subprocess.run([java('java'), '-cp', os.pathsep.join(map(str,[out,*cp])),
+                'dev.aivillages.fabric.RuntimeAObservationGeometry'],check=True)
 with (ROOT/'build/parallel-a/source-audit/instrument-preparations.jsonl').open('a') as record:
     record.write(json.dumps({'releaseSha256':before,'observerSha256':digest(observer),
         'journalProbe':probe.relative_to(ROOT).as_posix(),'referenceLogProbe':reference_probe.relative_to(ROOT).as_posix(),

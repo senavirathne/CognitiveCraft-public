@@ -18,9 +18,20 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
     private final ScheduledExecutorService writer=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a06"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();
     private final AtomicReference<Object> pending=new AtomicReference<>();
-    private String seen="";private boolean ready;
+    private String seen="";private boolean ready,adoptionHeld;
+    private JsonObject adoptionClock;
     @Override public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"))){writer.shutdown();return;}
+        var clockFile=root.resolve("server/adoption-cohort-clock.json");
+        if(Files.isRegularFile(clockFile))try {
+            if(Files.size(clockFile)>4096)throw new IllegalArgumentException("Bounded adoption clock request");
+            adoptionClock=JsonParser.parseString(Files.readString(clockFile)).getAsJsonObject();
+            if(adoptionClock.get("schema").getAsInt()!=1 || !adoptionClock.get("case").getAsString().equals("W6-003")
+                    || adoptionClock.getAsJsonObject("key").get("ordinal").getAsInt()!=2
+                    || !adoptionClock.getAsJsonObject("expected").get("phase").getAsString().equals("RESULT"))
+                throw new IllegalArgumentException("Only original P adoption clock may be held");
+            UUID.fromString(adoptionClock.get("id").getAsString());
+        }catch(Exception invalid){throw new IllegalStateException("Invalid read-only adoption clock",invalid);}
         writer.scheduleWithFixedDelay(this::poll,0,100,TimeUnit.MILLISECONDS);
         ServerTickEvents.END_SERVER_TICK.register(server->{
             JsonObject active=null;
@@ -35,6 +46,7 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
                     writer.execute(()->write("harvest-ready.json",body));
                 }
                 var stageViews=stages(kernel);
+                holdAdoption(server,kernel,stageViews);
                 pending.set(Map.ofEntries(Map.entry("process",process),Map.entry("runtime",kernel.runtimeStorageView()),Map.entry("time",System.currentTimeMillis()),Map.entry("gameTick",server.overworld().getGameTime()),
                         Map.entry("journal",evidence.snapshot()),Map.entry("pending",evidence.pending()),Map.entry("fenced",evidence.fenced()),Map.entry("reconciliation",stageViews.get("HARVEST").get("reconciliation")),Map.entry("protectedJobs",evidence.protectedJobs()),Map.entry("metrics",stageViews.get("HARVEST").get("metrics")),Map.entry("membershipBirths",protocol.membershipBirths()),Map.entry("stages",stageViews)));
                 var command=request.getAndSet(null);if(command==null)return;active=command;
@@ -56,6 +68,32 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
             catch(Throwable error){if(active!=null)reply(active.get("id").getAsString(),null,error);else System.err.println("A06 harvest observer: "+error);}
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server->{writer.shutdown();flush();});
+    }
+    /** Preserve an already proved saved cohort during its additional adoption-only re-kill. */
+    private void holdAdoption(MinecraftServer server,KernelSession kernel,Map<String,Map<String,Object>> views)throws Exception {
+        if(adoptionClock==null || adoptionHeld)return;
+        var pickup=kernel.pickupEvidenceOwner();if(pickup==null)return;
+        var expected=adoptionClock.getAsJsonObject("expected");String token=expected.get("effect").getAsString();
+        var entry=pickup.evidence().snapshot().entries().stream().filter(e->e.token().equals(token)).findFirst().orElse(null);
+        if(entry==null || entry.result()==null || !entry.result().live().name().equals("COMPLETE"))return;
+        if(!json.toJsonTree(entry.intent().key()).equals(adoptionClock.get("key"))
+                || !entry.intent().digest().equals(expected.get("intent").getAsString())
+                || !entry.result().digest().equals(expected.get("result").getAsString()))
+            throw new IllegalStateException("Adoption clock original key/result differs");
+        var proof=pickup.evidence().reconcile(entry.intent().key());
+        if(proof==null || !proof.result().name().equals("SAVED_COMPLETE"))return;
+        var job=kernel.jobLifecycleOwner().snapshot().jobs().stream().filter(j->j.id().equals(entry.intent().key().step())).findFirst().orElse(null);
+        if(job==null || !job.state().name().equals("INTERRUPTED") || job.current()==null || !job.current().uncertain()
+                || job.generation()!=entry.intent().key().generation() || !job.current().id().equals(entry.intent().key().attempt()))return;
+        int frozen=server.getCommands().getDispatcher().execute("tick freeze",server.createCommandSourceStack());
+        if(frozen!=1)throw new IllegalStateException("Read-only adoption clock did not freeze");
+        write("adoption-cohort-clock-reached.json",Map.ofEntries(Map.entry("schema",1),Map.entry("request",adoptionClock),
+                Map.entry("process",process),Map.entry("pid",ProcessHandle.current().pid()),Map.entry("time",System.currentTimeMillis()),
+                Map.entry("gameTick",server.overworld().getGameTime()),Map.entry("key",entry.intent().key()),
+                Map.entry("marker",Map.of("schema",1,"effect",entry.token(),"intent",entry.intent().digest(),"phase","RESULT","result",entry.result().digest())),
+                Map.entry("classification",proof.result().name()),Map.entry("originalJob",job),
+                Map.entry("commands",List.of(Map.of("command","tick freeze","result",frozen)))));
+        adoptionHeld=true;
     }
     private void barrier(MinecraftServer server,FabricHarvestProtocol protocol,String stage,String point,String token,boolean save) {
         var commands=new ArrayList<Map<String,Object>>();
