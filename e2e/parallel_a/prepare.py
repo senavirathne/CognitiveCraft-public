@@ -121,8 +121,8 @@ for original, replacement in column_queries.items():
 # Cache immutable coordinates and query boxes, never native blocks/entities or
 # their occupancy. Every original live query, level and capture remains.
 geometry={
-    'private final RuntimeAObservationJson.BlockRows blockRows = new RuntimeAObservationJson.BlockRows();':
-        'private final RuntimeAObservationJson.BlockRows blockRows = new RuntimeAObservationJson.BlockRows();\n'
+    'private final int assessmentMaxDy = assessmentMaxDy();':
+        'private final int assessmentMaxDy = assessmentMaxDy();\n'
         '    private final RuntimeAObservationGeometry<BlockPos,AABB> observationGeometry =\n'
         '            new RuntimeAObservationGeometry<>(observationArea,assessment,assessmentMaxDy,BlockPos::new,AABB::new);',
     'for (int x = observationArea[0]; x <= observationArea[3]; x++)\n'
