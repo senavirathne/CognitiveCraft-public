@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 65,
-  "parentSource": "96e44efd169e77e9eec702ea96dd49615a170c2c",
+  "sequence": 66,
+  "parentSource": "ba24d016fd971f2ebae1f7714411d1832479ebd4",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4993,11 +4993,11 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "FROZEN_EXACT_SOURCE_QUALIFICATION_REQUIRED",
-    "sequence": 65,
-    "codeCheckpoint": "96e44efd169e77e9eec702ea96dd49615a170c2c",
-    "codeTree": "707c81aa5708bffab4710bc803838b2b40589dc3",
-    "documentationPreRun": "66847bd5373582561198367201a96cdd7082b9d7",
-    "documentationTree": "92ac1bbd8f9555ed5e9b1d4ae4a1d9155fd27dd4",
+    "sequence": 66,
+    "codeCheckpoint": "ba24d016fd971f2ebae1f7714411d1832479ebd4",
+    "codeTree": "c33609b87f903d0fb13b7857b1a56e9a91e4ce28",
+    "documentationPreRun": "979f24b604cc59044a9bfa4d4240d7f8af01891d",
+    "documentationTree": "979a4d79007a734462fb7c616d40e86b2d2748b0",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
@@ -5015,9 +5015,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Actual read-only saved-P adoption clock hold with independent saved worlds/process proof; paired fixed-budget A05 ZGC/core isolation; immutable observer geometry; verified aggregate transport disk cleanup.",
+    "ownedCorrection": "Move immutable observer geometry initialization after actual assessment field declarations; preserve all batch65 corrections, native assertions and budgets.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 22,
+    "actionsPreviouslyStarted": 24,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -13183,6 +13183,209 @@
           "fullExtraction": true
         }
       }
+    },
+    "twelfthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 65,
+      "status": "FAIL_TEST_INSTRUMENTATION_COMPILATION",
+      "source": "be0dd7564ff1813e3bb409c11994bdbe30c455f7",
+      "tree": "0fe8768a97e2a3da08f120d5c6ea5f14bd022f46",
+      "codeCheckpoint": "96e44efd169e77e9eec702ea96dd49615a170c2c",
+      "codeTree": "707c81aa5708bffab4710bc803838b2b40589dc3",
+      "documentationPreRun": "66847bd5373582561198367201a96cdd7082b9d7",
+      "documentationTree": "92ac1bbd8f9555ed5e9b1d4ae4a1d9155fd27dd4",
+      "groupedRun": 43430102271,
+      "standardRun": 43430102287,
+      "created": "2026-11-13T13:01:41Z",
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "requiredExactJarContracts": 2703,
+      "ownedPython": 166,
+      "baselinePython": 72,
+      "expectedOwnedPaths": 309,
+      "nativeLifecycleDiagnostics": 14,
+      "requiredRegressionSuites": 9,
+      "requiredRegressionJobs": 12,
+      "requiredRegressionSteps": 140,
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 24,
+      "jobReruns": 0,
+      "documentationActions": 0,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "w04": "OPEN_CAUSE_UNPROVEN",
+      "producer": {
+        "job": 131901150816,
+        "conclusion": "failure",
+        "ownedPython": 166,
+        "baselinePython": 72,
+        "gradleModuleXml": 2703,
+        "exactNativeJarContracts": "NOT_EXECUTED",
+        "nativeLifecycleDiagnostics": "NOT_EXECUTED",
+        "nativeCompilation": "FAIL_ILLEGAL_FORWARD_REFERENCE",
+        "errors": 4,
+        "affectedGeneratedClasses": [
+          "RuntimeAArenaObserver",
+          "RuntimeASecondaryObserver"
+        ],
+        "cause": "Immutable geometry initializer preceded assessment and assessmentMaxDy field declarations."
+      },
+      "standard": {
+        "job": 131901150213,
+        "status": "completed",
+        "conclusion": "success",
+        "artifacts": [
+          {
+            "id": 14039657830,
+            "name": "cognitivecraft-imp008-be0dd7564ff1813e3bb409c11994bdbe30c455f7-43430102287",
+            "bytes": 2868291,
+            "digest": "sha256:a9f28679477e9cf36ab2ade3dfcdd826276f165a34aec1785cc356bb207db270"
+          },
+          {
+            "id": 14039567954,
+            "name": "verification-reports-43430102287-1",
+            "bytes": 1293485,
+            "digest": "sha256:97e82cbd28e4b41adc130059ab04b1e41d244b3603aa3cc20669d0923e9dd45f"
+          }
+        ],
+        "fullLocalDownloadReview": "NOT_EXECUTED_ENVIRONMENT_UNAVAILABLE"
+      },
+      "fullDownloadedRawReplay": "NOT_EXECUTED_BLOCKED_BY_FAILED_PRODUCER",
+      "correction": "A10-eleventh-launch-correction-local.json",
+      "preservedFailure": "A10-eleventh-launch-evidence.json",
+      "requiredRegressions": [
+        {
+          "job": 131901151211,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151461,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151544,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151594,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151610,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151618,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151724,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "conclusion": "success",
+          "kind": "STRUCTURAL_INSPECTION_ONLY"
+        },
+        {
+          "job": 131901151730,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        },
+        {
+          "job": 131901151783,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "conclusion": "success",
+          "kind": "EXISTING_HOST_AND_NATIVE_REGRESSION_SUITE"
+        }
+      ],
+      "aggregate": {
+        "job": 131903217873,
+        "conclusion": "failure",
+        "reason": "Mandatory producer failure; no current native profile results exist."
+      },
+      "nativeProfiles": {
+        "required": 10,
+        "executed": 0,
+        "requiredMixedGates": 121,
+        "executedMixedGates": 0
+      },
+      "artifacts": [
+        {
+          "id": 14040400151,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 429053,
+          "digest": "sha256:9b964b632c6bc8c1e510ea79daf9af15a6c738d5de5c827bc317dce4ab19c4a4"
+        },
+        {
+          "id": 14040150841,
+          "name": "cc-runtime-a-a04-contracts-be0dd7564ff1813e3bb409c11994bdbe30c455f7-43430102271-1",
+          "bytes": 3234649,
+          "digest": "sha256:0da9fecf666be13e304ed67fce88a53093d8cd09d2ad08937f218dabd612aab4"
+        },
+        {
+          "id": 14039906224,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 362169,
+          "digest": "sha256:76186600c252cee7a1ee4dcb24c4637c11362abe7f3bc5237814824933b6f488"
+        },
+        {
+          "id": 14039716996,
+          "name": "imp-018-prerequisites",
+          "bytes": 432664,
+          "digest": "sha256:c44f68139243eb8ccba39718595da79a92060f52c0e30542d685ceba3bd8040c"
+        },
+        {
+          "id": 14039622090,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 431914,
+          "digest": "sha256:7fe39dee6152fe7daac754ae6344afd944050b817f7f0d285c17eccf992760f2"
+        },
+        {
+          "id": 14039467127,
+          "name": "primitive-diagnostics-43430102271-1",
+          "bytes": 372053,
+          "digest": "sha256:e2dfafc99c338ae861253d0ea69645e698c54c86e62c4fa99f28f51ca03f859f"
+        },
+        {
+          "id": 14039457078,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 366774,
+          "digest": "sha256:871a85f765280bd345dc9a8089b1c4b504678e0495afb6a32e041d48b9b8e73d"
+        },
+        {
+          "id": 14039272154,
+          "name": "imp-015-save-compatibility",
+          "bytes": 432000,
+          "digest": "sha256:6a28ee8c91a9bb918ab6a96c8cc83854cf041d0a3ae9ea4b22add2e72bed7216"
+        },
+        {
+          "id": 14038857132,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4264169,
+          "digest": "sha256:1052deb4dea9e3bd8edd2ae2fb52c1501460d6382370750dcde272ab607e6351"
+        },
+        {
+          "id": 14038682054,
+          "name": "imp-016-world-retention",
+          "bytes": 430503,
+          "digest": "sha256:a9e2698e52aaaf63a612e96b03740f47e055bba2617b6dcab73c8875bd19e968"
+        }
+      ]
     }
   },
   "date": "2026-11-13"
