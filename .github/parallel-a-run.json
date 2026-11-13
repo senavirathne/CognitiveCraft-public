@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 67,
-  "parentSource": "a4f3219e177b91706ad5c5ac2ac6740859d630a0",
+  "sequence": 68,
+  "parentSource": "2ac33632b9285f597ad4cef17218bd87fd71061c",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -421,6 +421,19 @@
       "correction": "Folded YAML if expression; full workflow parsed locally with13 jobs and original9/12/140 bodies and conditions preserved",
       "groupedNativeCases": "NOT_EXECUTED_WORKFLOW_REJECTED",
       "mainRun": 41843138795
+    },
+    {
+      "sequence": 67,
+      "source": "ea13f8db7bd7839f2193a43afc3dde70b54228bc",
+      "run": 43442006437,
+      "status": "FAIL_GP14_A06_COST_A07_RELOAD_COUNT",
+      "failed": [
+        "GP14 warm known method BUDGET_EXHAUSTED",
+        "A06 P capture wall2.721745ms exceeds2ms",
+        "A07 replay-heldout-W5-002 generation5->7 differs3nativecycles"
+      ],
+      "cause": "A07 returned before full loss ack; A06 scheduling cause unproved, real storage worker omitted from affinity budget; GP14 cause unresolved. All failures retained.",
+      "qualificationPassesImported": 0
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -4993,15 +5006,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "FROZEN_EXACT_SOURCE_QUALIFICATION_REQUIRED",
-    "sequence": 67,
-    "codeCheckpoint": "a4f3219e177b91706ad5c5ac2ac6740859d630a0",
-    "codeTree": "7fc97c6a1d83ea63ab76a0c58318cf21a0cdc143",
-    "documentationPreRun": "d74fbba028bb7bc68ed2141a63dc4bdb03b95c4a",
-    "documentationTree": "389bcc059e972da48d8494c0e2b52c0acba8b1d5",
+    "sequence": 68,
+    "codeCheckpoint": "2ac33632b9285f597ad4cef17218bd87fd71061c",
+    "codeTree": "80142224d7dd3f1015c42c3234d72c40aab0a1dd",
+    "documentationPreRun": "601f57c5b9a18ee84c7820682aacf399a4e865e8",
+    "documentationTree": "932557d8edc7923f5155167c09ac31eb4ace8be5",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 168,
+    "ownedPython": 171,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5015,9 +5028,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Await only unadmitted A02 RPCs within original deadline; A04 prestart/identify both actual storage workers, apply identical core1/nice10 policy, reserve core0 without raising server priority, retain2CPU/heap/G1/all samples/limits; failure analysis in existing aggregate.",
+    "ownedCorrection": "Await original UNLOAD/ack7 in one native frame before W04 reload; bind exact watch UUID and retain intermediate proof; include actual A06 application writers in original core1/nice10 budget, recheck before all11 active windows. Preserve strict generation equality, original contexts, wall limits,2CPU/heap/ZGC/all samples. GP14 unchanged and required.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 27,
+    "actionsPreviouslyStarted": 29,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -14320,7 +14333,702 @@
       "canonicalSha256": "096c5d58587f33c7b6f13d466cad4f867c167af3c76877430d0eff4a7a0e7886",
       "nativeQualification": false,
       "importedCurrentPasses": 0
+    },
+    "fourteenthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 67,
+      "status": "FAIL_GP14_A06_COST_A07_RELOAD_COUNT",
+      "source": "ea13f8db7bd7839f2193a43afc3dde70b54228bc",
+      "tree": "295bf4a83b6dbe607675c72bc51b41c77449f793",
+      "codeCheckpoint": "a4f3219e177b91706ad5c5ac2ac6740859d630a0",
+      "codeTree": "7fc97c6a1d83ea63ab76a0c58318cf21a0cdc143",
+      "documentationPreRun": "d74fbba028bb7bc68ed2141a63dc4bdb03b95c4a",
+      "documentationTree": "389bcc059e972da48d8494c0e2b52c0acba8b1d5",
+      "groupedRun": 43442006437,
+      "standardRun": 43442006798,
+      "created": "2026-11-13T14:21:52Z",
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "requiredExactJarContracts": 2703,
+      "ownedPython": 168,
+      "baselinePython": 72,
+      "expectedOwnedPaths": 310,
+      "nativeLifecycleDiagnostics": 14,
+      "requiredRegressionSuites": 9,
+      "requiredRegressionJobs": 12,
+      "requiredRegressionSteps": 140,
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 29,
+      "jobReruns": 0,
+      "documentationActions": 0,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "w04": "OPEN_CAUSE_UNPROVEN",
+      "producer": {
+        "job": 131941721435,
+        "status": "PASS",
+        "ownedPython": 168,
+        "baselinePython": 72,
+        "ownedPaths": 310,
+        "uniqueModuleContracts": 2703,
+        "modules": {
+          "core": 2439,
+          "providers": 131,
+          "fabric": 133
+        },
+        "nativeLifecycleDiagnostics": 14,
+        "lifecycleCold": 7,
+        "lifecycleWarm": 7,
+        "sameCohortGradleAndNativeJar": true
+      },
+      "standard": {
+        "run": 43442006798,
+        "job": 131941720545,
+        "status": "PASS",
+        "originalConditionalArtifactInspection": "SKIPPED_UNCHANGED"
+      },
+      "fullDownloadedRawReplay": "NOT_EXECUTED_POSITIVE_ALL_TEN_GATE_BLOCKED",
+      "correction": "A10-batch67-correction.json",
+      "preservedFailure": "A10-thirteenth-launch-evidence.json",
+      "qualificationWorkflowRecordsTotal": 28,
+      "diagnosticWorkflowRecordsTotal": 1,
+      "productionSha256": "bddd3f1e7b977a599a4026039f2849364c86976f1d3a35cb08002e4d4d6157a8",
+      "regressions": {
+        "required": 9,
+        "pass": 8,
+        "fail": 1,
+        "failedJob": 131941721912,
+        "failedSuite": "GP14 private diagnostics separate-JVM restart",
+        "cold": {
+          "tests": 6,
+          "failures": 0
+        },
+        "warm": {
+          "tests": 3,
+          "failures": 1
+        },
+        "failure": "Saved known method WAITING/BUDGET_EXHAUSTED, fulfilled0, committedEffects1, elapsedTicks537, instructions142, calls14. Cause unresolved; fixture/limits and required workflow remain unchanged."
+      },
+      "profiles": {
+        "A00": {
+          "job": 131944236955,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 4,
+          "collected": 4,
+          "collectionPass": 4
+        },
+        "A01": {
+          "job": 131944237070,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 2,
+          "collected": 2,
+          "collectionPass": 2
+        },
+        "A02": {
+          "job": 131944236976,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 5,
+          "collected": 5,
+          "collectionPass": 5
+        },
+        "A03": {
+          "job": 131944237208,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 7,
+          "collected": 7,
+          "collectionPass": 7
+        },
+        "A04": {
+          "job": 131944237556,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 10,
+          "collected": 10,
+          "collectionPass": 10
+        },
+        "A05": {
+          "job": 131944236817,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 15,
+          "collected": 15,
+          "collectionPass": 15
+        },
+        "A06": {
+          "job": 131944236829,
+          "status": "FAIL_REQUIRED_PROFILE",
+          "required": 21,
+          "collected": 21,
+          "collectionPass": 20
+        },
+        "A07": {
+          "job": 131944237049,
+          "status": "FAIL_REQUIRED_PROFILE",
+          "required": 27,
+          "collected": 27,
+          "collectionPass": 26
+        },
+        "A08": {
+          "job": 131944237046,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 21,
+          "collected": 21,
+          "collectionPass": 21
+        },
+        "A09": {
+          "job": 131944237048,
+          "status": "PASS_INDEPENDENT_NATIVE_REVIEW",
+          "required": 9,
+          "collected": 9,
+          "collectionPass": 9
+        }
+      },
+      "collectedMixedGates": 121,
+      "collectionPass": 119,
+      "collectionFail": 2,
+      "independentlyPassingProfiles": 8,
+      "independentlyPassingProfileGates": 73,
+      "diagnostic": {
+        "mode": "AUTOMATIC_EXISTING_AGGREGATE_NO_EXTRA_WORKFLOW",
+        "job": 131969492935,
+        "status": "PASS_FULL_FAILED_ARCHIVE_ANALYSIS_ONLY",
+        "canonical": "A10-batch67-retained-failure-diagnostic.json",
+        "bytes": 968142,
+        "sha256": "9f1e1b68b0f0f9459d6eedc0193e582e4768d0ff09b1ac0e1c1d16ea475985a4",
+        "profiles": [
+          "A06",
+          "A07"
+        ],
+        "nativeQualification": false,
+        "importedPasses": 0
+      },
+      "A06Failure": {
+        "acknowledgement": {
+          "max": 13.150778,
+          "p50": 8.132896,
+          "p95": 11.563774,
+          "p99": 13.150778,
+          "samples": 66,
+          "unit": "milliseconds"
+        },
+        "capture": {
+          "DEPOSIT": {
+            "max": 1.292875,
+            "p50": 1.190837,
+            "p95": 1.292875,
+            "p99": 1.292875,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "HARVEST": {
+            "max": 1.004929,
+            "p50": 0.725769,
+            "p95": 1.004929,
+            "p99": 1.004929,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "max": 2.721745,
+            "p50": 0.701063,
+            "p95": 2.721745,
+            "p99": 2.721745,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "diagnosticCaptureCpu": {
+          "DEPOSIT": {
+            "max": 1.305173,
+            "p50": 1.191987,
+            "p95": 1.305173,
+            "p99": 1.305173,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "HARVEST": {
+            "max": 0.895391,
+            "p50": 0.742844,
+            "p95": 0.895391,
+            "p99": 0.895391,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "max": 0.821466,
+            "p50": 0.714636,
+            "p95": 0.821466,
+            "p99": 0.821466,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "diagnosticCapturePhaseMaxMs": {
+          "DEPOSIT": {
+            "authority": 0.656033,
+            "claims": 0.124679,
+            "conditions": 0.054179,
+            "exclusion": 0.037231,
+            "intent": 0.153775,
+            "owner": 0.080432,
+            "participants": 0.239443
+          },
+          "HARVEST": {
+            "allowance": 0.101126,
+            "authority": 0.14587,
+            "claims": 0.112016,
+            "exclusion": 0.030654,
+            "intent": 0.066911,
+            "owner": 0.069123,
+            "participants": 0.596903
+          },
+          "PICKUP": {
+            "allowance": 0.098275,
+            "intent": 0.150989,
+            "native-lineage": 0.202147,
+            "original-harvest": 0.0543,
+            "owner": 0.097304,
+            "storage-and-ticket": 2.232114
+          }
+        },
+        "id": "representative-active-cost",
+        "limits": {
+          "ackMaxMs": 30000,
+          "captureP99Ms": 2,
+          "tickP95Ms": 20,
+          "tickP99Ms": 40
+        },
+        "nativeEffects": 33,
+        "requiredWheatSamples": 1,
+        "status": "FAIL_COST_TARGET",
+        "tick": {
+          "max": 80.29403,
+          "p50": 4.919606,
+          "p95": 13.340299,
+          "p99": 25.211207,
+          "samples": 2299,
+          "unit": "milliseconds"
+        },
+        "warmupExcluded": false,
+        "windows": 11
+      },
+      "A07Failure": {
+        "id": "replay-heldout-W5-002",
+        "reason": "Generation differs from actual native reload count",
+        "beforeGeneration": 5,
+        "afterGeneration": 7,
+        "nativeReloadCycles": 3,
+        "nativeEventTicks": [
+          25147,
+          25156,
+          25157,
+          25158,
+          25159,
+          25160
+        ],
+        "runtimeTrace": "First return LOAD25156 DEFERRED while UNLOAD acknowledgements pending; LOAD25158 accepted5->6; final LOADED_LOOKUP25168 accepted6->7. No historical W04 cause claim.",
+        "allOtherCases": 26,
+        "historicalW04ReproductionsPassed": 8
+      },
+      "allJobs": [
+        {
+          "id": 131941721435,
+          "name": "a04-contracts",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721446,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721454,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721472,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721516,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721570,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721637,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721647,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721769,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131941721912,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 131941723403,
+          "name": "Preserve original three-call protocol with actual prompt and candidate capture",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131941724195,
+          "name": "IMP-019 proposal measurements (${{ matrix.model }}, shard ${{ matrix.shard }})",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131941724817,
+          "name": "IMP-019 genuine held-out shared-backend quality and latency",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 131944236817,
+          "name": "a10-native (A05)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944236829,
+          "name": "a10-native (A06)",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 131944236955,
+          "name": "a10-native (A00)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944236976,
+          "name": "a10-native (A02)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944237046,
+          "name": "a10-native (A08)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944237048,
+          "name": "a10-native (A09)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944237049,
+          "name": "a10-native (A07)",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 131944237070,
+          "name": "a10-native (A01)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944237208,
+          "name": "a10-native (A03)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131944237556,
+          "name": "a10-native (A04)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 131969492935,
+          "name": "a10-aggregate",
+          "status": "completed",
+          "conclusion": "failure"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14050665301,
+          "name": "cc-runtime-a-a10-campaign-43442006437-1",
+          "bytes": 6199968,
+          "digest": "sha256:b79fcaf12c8d298188d35ae5744cc236b8acaaafec9d93a51acd1f73198bd5b1"
+        },
+        {
+          "id": 14049651502,
+          "name": "cc-runtime-a-a10-A04-native-part-1-43442006437-1",
+          "bytes": 24592778,
+          "digest": "sha256:e56d60276d305c43280faa1cdee364b2698b45897c89a667a4444868dcc0be1e"
+        },
+        {
+          "id": 14049581676,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43442006437-1",
+          "bytes": 419431122,
+          "digest": "sha256:e9f1d89bc92d795685dbd36c0cd3573ec51275074507ffcd1d8c7300c15ad2f3"
+        },
+        {
+          "id": 14049398132,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43442006437-1",
+          "bytes": 419431273,
+          "digest": "sha256:086c3ed82687422f7f3bbdb496c78cea7ff381b2c648ec573e860782f2fa0329"
+        },
+        {
+          "id": 14049333221,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43442006437-1",
+          "bytes": 419431273,
+          "digest": "sha256:e95d93324850720c15ecdda12b826fbeb016a33796c1d1b97bfbaf5bdd7283c9"
+        },
+        {
+          "id": 14049300356,
+          "name": "cc-runtime-a-a10-A03-native-part-2-43442006437-1",
+          "bytes": 377025477,
+          "digest": "sha256:5f2306e1c4bdb9761873d39ca9c392c4b6609ca8d3da7217ed237409a6931d04"
+        },
+        {
+          "id": 14049283274,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43442006437-1",
+          "bytes": 926140,
+          "digest": "sha256:7a44a5a9dc21ce8c2996673071657203d30497705afa31e10629d1fe74045a85"
+        },
+        {
+          "id": 14049107604,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43442006437-1",
+          "bytes": 583751,
+          "digest": "sha256:a5d85c2082b9f6bb6a33f7e3dcd9056e9ee5f9539a487d678eb125c80b46b43c"
+        },
+        {
+          "id": 14049027512,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43442006437-1",
+          "bytes": 1240884,
+          "digest": "sha256:75ab2d53ff94cbf123016930d587d48503db62a64cbca2844b2376f46dc7ca54"
+        },
+        {
+          "id": 14048815915,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43442006437-1",
+          "bytes": 419431276,
+          "digest": "sha256:cb4b16957b09abdf04278d07bf1779e63e803df4cc037cf62b0f65461682d1a4"
+        },
+        {
+          "id": 14048521179,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43442006437-1",
+          "bytes": 408160,
+          "digest": "sha256:363c537a8feb90ff061c4baaca1428b5c7aa406ff91f3a0a8f85527fe4c4f4b1"
+        },
+        {
+          "id": 14048464345,
+          "name": "cc-runtime-a-a10-A06-native-part-2-43442006437-1",
+          "bytes": 2304889,
+          "digest": "sha256:6ab984d7be405a6229bb52a0cf5c3e9a953e0486d6857c685343799a6f4ce7f6"
+        },
+        {
+          "id": 14048319137,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43442006437-1",
+          "bytes": 419431123,
+          "digest": "sha256:c6ce3a43eb44a2655ff82966504b8f9eb981a9bf58642157e6103f3613bb6bc1"
+        },
+        {
+          "id": 14048219348,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43442006437-1",
+          "bytes": 345279925,
+          "digest": "sha256:c3028adeb923f6f59b9f233f772f5ee2c4516bf910e1597007c0bb42e4fd0b17"
+        },
+        {
+          "id": 14048141055,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43442006437-1",
+          "bytes": 293633872,
+          "digest": "sha256:42c7570069afa068d3e4d5d19fb33b95afa4d321c1983ce32c285ad86b878d89"
+        },
+        {
+          "id": 14047995466,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43442006437-1",
+          "bytes": 148100170,
+          "digest": "sha256:47c7ef2e910843c9c9e5102a3353e278bde797e609a413a61d1532033288a244"
+        },
+        {
+          "id": 14047990061,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43442006437-1",
+          "bytes": 130252,
+          "digest": "sha256:84d3dedf338d927ded71bd2eea9b23dd805483737646f592b51d49bc889e03d6"
+        },
+        {
+          "id": 14047828562,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43442006437-1",
+          "bytes": 404469109,
+          "digest": "sha256:d01a4737ab09b45858130760f5a61ce1f0e1b9bca4478cb21def7d4c21a60659"
+        },
+        {
+          "id": 14047823518,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43442006437-1",
+          "bytes": 249544,
+          "digest": "sha256:93ed2c1ea6b08932bea50b7775d20d0b219d6db8eca121d113a33e2a591a6173"
+        },
+        {
+          "id": 14047730388,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43442006437-1",
+          "bytes": 108475084,
+          "digest": "sha256:35fc52124e5b38df1d7a09aee57ffd75c845def5fd091e55027b67f16b975dc8"
+        },
+        {
+          "id": 14047689958,
+          "name": "cc-runtime-a-a10-A03-native-part-1-43442006437-1",
+          "bytes": 419431276,
+          "digest": "sha256:380e594209e90d326c5c5b41beb5dc16a57ee44f872100830cf6d9d642af8a73"
+        },
+        {
+          "id": 14047671518,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43442006437-1",
+          "bytes": 160155,
+          "digest": "sha256:4bd1ad2677b29bf9c48d7a0dfcd0108123579795d1e116ad6c8aea8f0e77f813"
+        },
+        {
+          "id": 14047590141,
+          "name": "imp-015-save-compatibility",
+          "bytes": 431591,
+          "digest": "sha256:9ae46af2f5f78dac1ce001b2e2a647cfe5bd8f681e46b255ee7db4b2e254d278"
+        },
+        {
+          "id": 14047490239,
+          "name": "cc-runtime-a-a07-lifecycle-ea13f8db7bd7839f2193a43afc3dde70b54228bc-43442006437-1",
+          "bytes": 6782889,
+          "digest": "sha256:2021c531f15edc1f8100f89329b306ac2e326ac2081af1c39a9c56cd7f730896"
+        },
+        {
+          "id": 14047385406,
+          "name": "primitive-diagnostics-43442006437-1",
+          "bytes": 369638,
+          "digest": "sha256:8b0ec03e80c2bda7308923a698fc7947babffcc9c308705638d4a34965844b62"
+        },
+        {
+          "id": 14047380075,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 425186,
+          "digest": "sha256:c41e166f6054a7ab6269f75082500b0f0bc485931c1d06935cdbe70a1040f070"
+        },
+        {
+          "id": 14047283485,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43442006437-1",
+          "bytes": 350925,
+          "digest": "sha256:4fd8aaa8faeeb2615c7587c6114ac577babcb1f8e4e90a8c909ade5d1fad77fb"
+        },
+        {
+          "id": 14047093281,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43442006437-1",
+          "bytes": 302719,
+          "digest": "sha256:e1be95d26a793fb599bab532205260468fe21ac832dd663989e18dff2409535d"
+        },
+        {
+          "id": 14047045402,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 360973,
+          "digest": "sha256:aa41c00d70ea81fdb4386106ea97e31bc4c2432ffe258e7b78205e4545d81a27"
+        },
+        {
+          "id": 14047005528,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4264455,
+          "digest": "sha256:78098989b03c24708a8b8481b855ceb31b54f6247ab6225c3c582912b4795325"
+        },
+        {
+          "id": 14046728782,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43442006437-1",
+          "bytes": 363178009,
+          "digest": "sha256:6938d9294fc28a4b85cf60ca2acf63549229000e4f14b89d79ab5994373dc319"
+        },
+        {
+          "id": 14046506264,
+          "name": "cc-runtime-a-a10-exact-jar-units-43442006437-1",
+          "bytes": 150914,
+          "digest": "sha256:1bc9030fc5581133e411fde07ff8fbe82e34dc0b40cc2ad610368bf85c406f01"
+        },
+        {
+          "id": 14046447184,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43442006437-1",
+          "bytes": 182554,
+          "digest": "sha256:f3d46004058e58a5ef9d1cf7d41ab39bccf517f02bce9eb1996769349205ebe0"
+        },
+        {
+          "id": 14046336487,
+          "name": "cc-runtime-a-a10-frozen-runtime-43442006437-1",
+          "bytes": 37965906,
+          "digest": "sha256:8ac49ee295e5fe49e17fc7ce0cb6f5a59174a432c92dca188a0559a132284382"
+        },
+        {
+          "id": 14046291468,
+          "name": "cc-runtime-a-a04-contracts-ea13f8db7bd7839f2193a43afc3dde70b54228bc-43442006437-1",
+          "bytes": 3617561,
+          "digest": "sha256:e08e17638c2e05f2ed35556965395f47f24be2aa42dd1601a7b16a119292cb62"
+        },
+        {
+          "id": 14046282497,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43442006437-1",
+          "bytes": 133815085,
+          "digest": "sha256:8d6c8e1044fc16b53db6259aa139b921d3cf75088ce161c57572a6c584f8acb6"
+        },
+        {
+          "id": 14046260921,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 366825,
+          "digest": "sha256:f56bbc2ca5ae72793f8bf95958ffa98ea9b94a11b7206e52404ef525d5645081"
+        },
+        {
+          "id": 14046093337,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 430187,
+          "digest": "sha256:c8c0aa8067576b0fc6881de9a5bb745486c4db88da1443dfbdcc5ce9b1107c0e"
+        },
+        {
+          "id": 14045997703,
+          "name": "imp-018-prerequisites",
+          "bytes": 431949,
+          "digest": "sha256:b220ee5ecc2b133ef9872c2191039c56d38afc4491ff52f01d2c4c3e5efccb4f"
+        },
+        {
+          "id": 14044659813,
+          "name": "imp-016-world-retention",
+          "bytes": 430058,
+          "digest": "sha256:15855b9f1f4170dec4e7c5d60facaf31f6a82ff79297c583b9c69d945de915f9"
+        }
+      ]
+    },
+    "latestRetainedFailureDiagnostic": {
+      "run": 43442006437,
+      "job": 131969492935,
+      "canonicalSha256": "9f1e1b68b0f0f9459d6eedc0193e582e4768d0ff09b1ac0e1c1d16ea475985a4",
+      "nativeQualification": false,
+      "importedCurrentPasses": 0,
+      "extraWorkflowRecords": 0
     }
   },
-  "date": "2026-11-13"
+  "date": "2026-11-14"
 }
