@@ -28,13 +28,25 @@ def main():
                     status=row.get('status','');status=status.get('status','') if isinstance(status,dict) else status
                     if not str(status).startswith('PASS'):failed.append(row)
                 if not failed and not str(value.get('status','')).startswith('PASS'):
-                    failed=[{'id':name,'classification':'EXACT_CAMPAIGN_FAILURE_WITHOUT_FAILED_CASE_ROW','originalCampaign':value}]
+                    failed=[{'id':name,'classification':'EXACT_CAMPAIGN_FAILURE_WITHOUT_FAILED_CASE_ROW',
+                             'originalCampaign':{k:v for k,v in value.items() if k not in ('cases','controls','lastNativeSnapshot')}}]
                 records += failed
             assert records
             result['profiles'][profile]={'transport':receipt,'campaigns':campaigns,'failedRows':records,
                 'scope':'Exact saved failure rows only; mixed gates retain original failed/inconclusive classifications.'}
     args.out.parent.mkdir(parents=True,exist_ok=True);args.out.write_text(json.dumps(result,indent=2)+'\n')
-    body=json.dumps(result,sort_keys=True,separators=(',',':')).encode()
+    output_bytes=args.out.read_bytes()
+    summary={k:v for k,v in result.items() if k!='profiles'}
+    summary['fullFailureRecordFile']={'path':args.out.as_posix(),'bytes':len(output_bytes),'sha256':hashlib.sha256(output_bytes).hexdigest()}
+    summary['profiles']={}
+    keys=('id','status','reason','trace','originalCase','life','native','tick','capture','acknowledgement','limits',
+          'nativeEffects','diagnosticCaptureCpu','diagnosticCapturePhaseMaxMs','originalCampaign','classification')
+    for profile,value in result['profiles'].items():
+        selected=[{k:row[k] for k in keys if k in row} for row in value['failedRows']]
+        summary['profiles'][profile]={k:v for k,v in value.items() if k!='failedRows'}
+        summary['profiles'][profile]['failureSummaries']=selected
+        summary['profiles'][profile]['fullFailedRowsSha256']=hashlib.sha256(json.dumps(value['failedRows'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    body=json.dumps(summary,sort_keys=True,separators=(',',':')).encode()
     encoded=base64.b64encode(body).decode();chunks=[encoded[i:i+12000] for i in range(0,len(encoded),12000)]
     print('A10_RETAINED_FAILURE_SHA256 '+hashlib.sha256(body).hexdigest(),flush=True)
     for i,chunk in enumerate(chunks):print('A10_RETAINED_FAILURE_PART '+str(i)+'/'+str(len(chunks))+' '+chunk,flush=True)
