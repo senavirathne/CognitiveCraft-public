@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 63,
-  "parentSource": "1c5e63996e9e1ad1d662ca52e268d5aa6dfa9070",
+  "sequence": 64,
+  "parentSource": "7da898f695a8b4fe85b6c1df02aadddcca1b0513",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4993,15 +4993,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 63,
-    "codeCheckpoint": "1c5e63996e9e1ad1d662ca52e268d5aa6dfa9070",
-    "codeTree": "1342a9cd1bd7681f2ac63149bf46e50ce2c9eb59",
-    "documentationPreRun": "e99a8701a0de1416e5a4c7682a933c8e3190884d",
-    "documentationTree": "240a4062e4f6406352babb0dd18d81ca3c7cffaa",
+    "sequence": 64,
+    "codeCheckpoint": "7da898f695a8b4fe85b6c1df02aadddcca1b0513",
+    "codeTree": "8c2f3c1445be3165d89ee3a8fcc9d885ed5ac207",
+    "documentationPreRun": "689bf046d8fa1f6e9d3d443169738482e814dbee",
+    "documentationTree": "0b4855b5f276ef5eef2ebae30d7315ad49c07a54",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 154,
+    "ownedPython": 159,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5015,9 +5015,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Consistent pre-request idle foreign actor containment across applicable baseline profiles, one setup per harness; A07 death phase waits for actual original KILLED departure within the unchanged65-second limit and retains saved actor-absence assertions. No production, original task/context, native budget, cost sample, threshold, CPU/heap/GC or physical guard changes. Existing aggregate job fully downloads/verifies/extracts all final raw artifacts then runs unchanged readers in network-denied Docker on a separate runner and requires exact equality with first CI reviews. Downloaded module, lifecycle and standard evidence are independently checked. No extra workflow record; all new tests must pass the producer before native profiles run.",
+    "ownedCorrection": "Fresh current-process enclosure samples across base harnesses; W04-only same-END_SERVER_TICK identity/native capture with unchanged exact-generation equation; A06-only owned Server thread on existing core0 within unchanged0-1 container/processor budget, unchanged priority, heap/GC, wall-time samples and thresholds. Full retained63 failure rows transported in the existing producer; no imported passes or extra workflows.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 18,
+    "actionsPreviouslyStarted": 20,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -10497,7 +10497,7 @@
         "nativeQualification": "NOT_EXECUTED_REQUIRED"
       }
     },
-    "expectedOwnedPaths": 305,
+    "expectedOwnedPaths": 306,
     "ninthLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -11049,6 +11049,1201 @@
         "expectedOwnedPaths": 305,
         "nativeQualification": "NOT_EXECUTED_REQUIRED"
       }
+    },
+    "tenthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 63,
+      "status": "FAIL_REQUIRED_OWNED_GATES",
+      "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+      "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+      "codeCheckpoint": "1c5e63996e9e1ad1d662ca52e268d5aa6dfa9070",
+      "codeTree": "1342a9cd1bd7681f2ac63149bf46e50ce2c9eb59",
+      "documentationPreRun": "e99a8701a0de1416e5a4c7682a933c8e3190884d",
+      "documentationTree": "240a4062e4f6406352babb0dd18d81ca3c7cffaa",
+      "groupedRun": 43388269046,
+      "standardRun": 43388269092,
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "requiredExactJarContracts": 2703,
+      "ownedPython": 154,
+      "baselinePython": 72,
+      "expectedOwnedPaths": 305,
+      "nativeLifecycleDiagnostics": 14,
+      "requiredRegressionSuites": 9,
+      "requiredRegressionJobs": 12,
+      "requiredRegressionSteps": 140,
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 20,
+      "jobReruns": 0,
+      "documentationActions": 0,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "w04": "OPEN_CAUSE_UNPROVEN",
+      "producer": {
+        "schema": 1,
+        "stage": "A10",
+        "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+        "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+        "status": "PASS_PRODUCER_BEFORE_NATIVE_PROFILES",
+        "job": 131761781195,
+        "uniqueModuleContracts": 2703,
+        "modules": {
+          "core": 2439,
+          "providers": 131,
+          "fabric": 133
+        },
+        "ownedPython": 154,
+        "baselinePython": 72,
+        "ownershipPaths": 305,
+        "nativeLifecycleDiagnostics": 14,
+        "binary": {
+          "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+          "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+          "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+          "bundleSha256": "e01e47aede8c1d647007af56297f31b0ad3518f7a7ba1d69479bd7126c728a95",
+          "bundleBytes": 37946948
+        },
+        "observedLogLines": [
+          "2026-11-13T07:47:45.0452936Z PARALLEL_A_OWNERSHIP_PASS 305 owned files; no B-owned edits",
+          "2026-11-13T07:47:45.0754916Z PARALLEL_A_GROUPED_TESTS_PRESERVED workflows=9 jobs=12 steps=140",
+          "2026-11-13T07:47:45.7579313Z Ran 154 tests in 0.268s",
+          "2026-11-13T07:48:56.9926362Z Ran 72 tests in 0.242s",
+          "2026-11-13T07:50:58.0925962Z A10_EXACT_JAR_UNIT {\"module\": \"core\", \"tests\": 2439, \"jarSha256\": \"a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796\"}",
+          "2026-11-13T07:50:59.9389804Z A10_EXACT_JAR_UNIT {\"module\": \"providers\", \"tests\": 131, \"jarSha256\": \"a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796\"}",
+          "2026-11-13T07:51:05.1391746Z A10_EXACT_JAR_UNIT {\"module\": \"fabric\", \"tests\": 133, \"jarSha256\": \"a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796\"}",
+          "2026-11-13T07:51:06.3328011Z A10_FROZEN_BUNDLE {\"source\": \"d19f438cde0ed4608524f435e4212c145c5e2fbb\", \"tree\": \"1db9dc06163275161bd6d04498b6ad0ec708d86e\", \"productionSha256\": \"a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796\", \"bundleSha256\": \"e01e47aede8c1d647007af56297f31b0ad3518f7a7ba1d69479bd7126c728a95\", \"bundleBytes\": 37946948}"
+        ],
+        "claim": "Producer and contracts only; complete native and downloaded-transport gates remain required."
+      },
+      "standard": {
+        "status": "PASS_EXACT_SOURCE_STANDARD_CI",
+        "job": 131761781069,
+        "run": 43388269092,
+        "jarSha256": "dfdcb34b63265fdd4d3393849a84b10d3a506aadcfb28f85ef0ff04ec1ee8cbf",
+        "jarBytes": 3087438
+      },
+      "binary": {
+        "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+        "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+        "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+        "bundleSha256": "e01e47aede8c1d647007af56297f31b0ad3518f7a7ba1d69479bd7126c728a95",
+        "bundleBytes": 37946948,
+        "files": {
+          "build/e2e-driver/client.jar": {
+            "sha256": "054b91c780fac59ca6389c9d9c3b7de89d7fa9cec4c1f309e4b9fa949df181a6"
+          },
+          "build/e2e-driver/observer.jar": {
+            "sha256": "276d36320a8d4c8097e2369580318fdcbb81bdefd63d0e866e8f4d1c31a81921"
+          },
+          "fabric/build/libs/ai-villages-0.1.0.jar": {
+            "sha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796"
+          }
+        }
+      },
+      "fullDownloadedRawReplay": "SKIPPED_AFTER_ORIGINAL_REQUIRED_PROFILE_FAILURES",
+      "correction": "A10-ninth-launch-correction-local.json",
+      "preservedFailure": "A10-ninth-launch-evidence.json",
+      "workspaceStatus": "UNAVAILABLE; no new local-execution claim",
+      "profiles": {
+        "A03": {
+          "job": 131763262529,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A03",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "'LeaseHarness' object has no attribute 'activated'",
+            "requiredCases": 7,
+            "executedCases": 0
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A03",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-A03/a10-secondary-actor-fixture.json'",
+            "branchReady": false
+          }
+        },
+        "A06": {
+          "job": 131763262569,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A06",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "One or more mandatory A06 native controls failed",
+            "requiredCases": 21,
+            "executedCases": 21
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A06",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "",
+            "branchReady": false
+          }
+        },
+        "A05": {
+          "job": 131763262572,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A05",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "requiredCases": 15,
+            "executedCases": 15
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A05",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "observerSha256": "276d36320a8d4c8097e2369580318fdcbb81bdefd63d0e866e8f4d1c31a81921",
+            "clientSha256": "054b91c780fac59ca6389c9d9c3b7de89d7fa9cec4c1f309e4b9fa949df181a6",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 39,
+              "nativeBirths": 39,
+              "serverCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 15,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A04": {
+          "job": 131763262614,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A04",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "'JobHarness' object has no attribute 'activated'",
+            "requiredCases": 10,
+            "executedCases": 0
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A04",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-A04/a10-secondary-actor-fixture.json'",
+            "branchReady": false
+          }
+        },
+        "A01": {
+          "job": 131763262615,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A01",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "'ActivityHarness' object has no attribute 'activated'",
+            "requiredCases": 2,
+            "executedCases": 0
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A01",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "[Errno 2] No such file or directory: 'build/parallel-a/native-A01/a10-secondary-actor-fixture.json'",
+            "branchReady": false
+          }
+        },
+        "A02": {
+          "job": 131763262626,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A02",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "'PersistenceHarness' object has no attribute 'activated'",
+            "requiredCases": 5,
+            "executedCases": 0
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A02",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "",
+            "branchReady": false
+          }
+        },
+        "A07": {
+          "job": 131763262635,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A07",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "1",
+            "requiredCases": 27,
+            "executedCases": 27
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A07",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "",
+            "branchReady": false
+          }
+        },
+        "A09": {
+          "job": 131763262666,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A09",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "requiredCases": 9,
+            "executedCases": 9
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A09",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "observerSha256": "276d36320a8d4c8097e2369580318fdcbb81bdefd63d0e866e8f4d1c31a81921",
+            "clientSha256": "054b91c780fac59ca6389c9d9c3b7de89d7fa9cec4c1f309e4b9fa949df181a6",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 20,
+              "nativeBirths": 20,
+              "serverCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 9,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A08": {
+          "job": 131763262695,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A08",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "requiredCases": 21,
+            "executedCases": 21
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A08",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "observerSha256": "276d36320a8d4c8097e2369580318fdcbb81bdefd63d0e866e8f4d1c31a81921",
+            "clientSha256": "054b91c780fac59ca6389c9d9c3b7de89d7fa9cec4c1f309e4b9fa949df181a6",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 24,
+              "nativeBirths": 24,
+              "serverCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 21,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A00": {
+          "job": 131763262709,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A00",
+            "source": "d19f438cde0ed4608524f435e4212c145c5e2fbb",
+            "productionSha256": "a00c3c7d2fa823adf0de1d8aa157af8488433624d354901cdecfc77883c04796",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "1db9dc06163275161bd6d04498b6ad0ec708d86e",
+            "reason": "'RuntimeAHarness' object has no attribute 'activated'",
+            "requiredCases": 4,
+            "executedCases": 0
+          },
+          "independentReview": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A00",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "",
+            "branchReady": false
+          }
+        }
+      },
+      "requiredRegressions": [
+        {
+          "job": 131761781577,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781609,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781633,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781673,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781677,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781693,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781717,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761781797,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "conclusion": "success"
+        },
+        {
+          "job": 131761782116,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "conclusion": "success"
+        }
+      ],
+      "failure": {
+        "profiles": [
+          "A00",
+          "A01",
+          "A02",
+          "A03",
+          "A04"
+        ],
+        "executedInTheseProfiles": 0,
+        "unexecutedInTheseProfiles": 28,
+        "site": "nonparticipant_fixture.setup.applied",
+        "exception": "AttributeError: base harness has no activated field",
+        "classification": "Harness setup failed before required gameplay; no substituted success or waived profile."
+      },
+      "preparedCorrection": {
+        "sha": "7da898f695a8b4fe85b6c1df02aadddcca1b0513",
+        "tree": "8c2f3c1445be3165d89ee3a8fcc9d885ed5ac207",
+        "plannedOwnedPython": 159,
+        "baselinePython": 72,
+        "ownedPaths": 306,
+        "baseTimestampCorrection": "b04f9428c001bf03832b3a140be33e872a127cda",
+        "lastProductionChange": "ce79ac93660d4fc52b9f91eb87177dea8fe5b352",
+        "evidence": "A10-tenth-launch-correction.json",
+        "localExecution": "UNAVAILABLE_NO_LOCAL_EXECUTION_CLAIM",
+        "nativeQualification": "NOT_EXECUTED_REQUIRED"
+      },
+      "completed": true,
+      "aggregateJob": 131782354433,
+      "aggregateConclusion": "failure",
+      "totals": {
+        "requiredMixedGates": 121,
+        "collectedCaseRecords": 93,
+        "passingCollectionRecords": 91,
+        "failedCollectionRecords": 2,
+        "unexecutedRequiredRecords": 28,
+        "independentlyPassingProfiles": 3,
+        "casesInFullyPassingProfiles": 45,
+        "qualified": false
+      },
+      "A06": {
+        "originals": {
+          "required": 12,
+          "collectionPassed": 12,
+          "allActualCutsReached": true,
+          "fullIndependentProfileReview": "BLOCKED_BY_REQUIRED_COST_FAILURE"
+        },
+        "requiredCost": {
+          "id": "representative-active-cost",
+          "status": "FAIL_COST_TARGET",
+          "windows": 11,
+          "nativeEffects": 33,
+          "tick": {
+            "p50": 5.979304,
+            "p95": 13.973013,
+            "p99": 28.984351,
+            "max": 44.692923,
+            "samples": 2330,
+            "unit": "milliseconds"
+          },
+          "capture": {
+            "HARVEST": {
+              "p50": 0.741925,
+              "p95": 1.659246,
+              "p99": 1.659246,
+              "max": 1.659246,
+              "samples": 12,
+              "unit": "milliseconds"
+            },
+            "PICKUP": {
+              "p50": 0.767454,
+              "p95": 3.728594,
+              "p99": 3.728594,
+              "max": 3.728594,
+              "samples": 11,
+              "unit": "milliseconds"
+            },
+            "DEPOSIT": {
+              "p50": 1.213051,
+              "p95": 1.346532,
+              "p99": 1.346532,
+              "max": 1.346532,
+              "samples": 11,
+              "unit": "milliseconds"
+            }
+          },
+          "acknowledgement": {
+            "p50": 9.7299,
+            "p95": 20.323512,
+            "p99": 110.048419,
+            "max": 110.048419,
+            "samples": 66,
+            "unit": "milliseconds"
+          },
+          "limits": {
+            "tickP95Ms": 20,
+            "tickP99Ms": 40,
+            "captureP99Ms": 2,
+            "ackMaxMs": 30000
+          },
+          "warmupExcluded": false,
+          "requiredWheatSamples": 1,
+          "diagnosticCaptureCpu": {
+            "HARVEST": {
+              "p50": 0.715662,
+              "p95": 0.912303,
+              "p99": 0.912303,
+              "max": 0.912303,
+              "samples": 12,
+              "unit": "milliseconds"
+            },
+            "PICKUP": {
+              "p50": 0.736372,
+              "p95": 0.869039,
+              "p99": 0.869039,
+              "max": 0.869039,
+              "samples": 11,
+              "unit": "milliseconds"
+            },
+            "DEPOSIT": {
+              "p50": 1.224085,
+              "p95": 1.357854,
+              "p99": 1.357854,
+              "max": 1.357854,
+              "samples": 11,
+              "unit": "milliseconds"
+            }
+          },
+          "diagnosticCapturePhaseMaxMs": {
+            "HARVEST": {
+              "authority": 0.110347,
+              "owner": 0.091158,
+              "participants": 0.403832,
+              "claims": 1.123774,
+              "allowance": 0.110467,
+              "intent": 0.087483,
+              "exclusion": 0.03265
+            },
+            "PICKUP": {
+              "owner": 0.09239,
+              "original-harvest": 0.070998,
+              "native-lineage": 0.225382,
+              "allowance": 0.099991,
+              "intent": 3.147013,
+              "storage-and-ticket": 0.37641
+            },
+            "DEPOSIT": {
+              "authority": 0.708424,
+              "owner": 0.110378,
+              "participants": 0.263369,
+              "claims": 0.139711,
+              "conditions": 0.068003,
+              "intent": 0.187284,
+              "exclusion": 0.021212
+            }
+          }
+        },
+        "cpuDiagnostic": {
+          "diagnostic": true,
+          "qualifyingSamples": 0,
+          "run": "65fa40f4-87a6-49a3-8deb-d3d777bcd8bb",
+          "recordingSha256": "c4fc7b7be572b10425c6895848694d162b9b198412e0071c741429b643eb4871",
+          "serverThread": {
+            "samples": 739,
+            "topFrames": [
+              [
+                "net.minecraft.server.level.ServerChunkCache.getChunk",
+                18
+              ],
+              [
+                "java.lang.invoke.LambdaForm$MH.0x000000001f341800.guard",
+                17
+              ],
+              [
+                "java.util.regex.Pattern.lambda$union$0",
+                16
+              ],
+              [
+                "net.minecraft.util.ZeroBitStorage.get",
+                15
+              ],
+              [
+                "com.google.gson.internal.LinkedTreeMap.find",
+                14
+              ],
+              [
+                "java.lang.invoke.DirectMethodHandle$Holder.invokeSpecial",
+                11
+              ],
+              [
+                "dev.aivillages.fabric.RuntimeAArenaObserver.snapshot",
+                10
+              ],
+              [
+                "java.lang.invoke.DirectMethodHandle$Holder.invokeStatic",
+                9
+              ],
+              [
+                "java.util.HashMap.getNode",
+                9
+              ],
+              [
+                "java.lang.AbstractStringBuilder.append",
+                8
+              ],
+              [
+                "com.google.gson.internal.LinkedTreeMap.rebalance",
+                7
+              ],
+              [
+                "java.lang.invoke.Invokers.checkCustomized",
+                6
+              ],
+              [
+                "java.lang.Class.cast",
+                6
+              ],
+              [
+                "java.util.regex.Pattern.compile",
+                6
+              ],
+              [
+                "java.util.Objects.equals",
+                5
+              ],
+              [
+                "net.minecraft.world.level.BlockCollisions.computeNext",
+                5
+              ],
+              [
+                "java.lang.invoke.DelegatingMethodHandle$Holder.delegate",
+                5
+              ],
+              [
+                "it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap.find",
+                5
+              ],
+              [
+                "java.lang.String.equals",
+                5
+              ],
+              [
+                "it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap.get",
+                5
+              ],
+              [
+                "dev.aivillages.core.kernel.SkillCompiler.compile",
+                5
+              ],
+              [
+                "net.minecraft.server.MinecraftServer.tickChildren",
+                5
+              ],
+              [
+                "java.util.Collections$UnmodifiableMap$UnmodifiableEntrySet$1.hasNext",
+                4
+              ],
+              [
+                "java.util.HashMap.putVal",
+                4
+              ],
+              [
+                "java.util.Arrays.copyOf",
+                4
+              ]
+            ],
+            "inclusiveFrames": [
+              [
+                "net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.lambda$static$3",
+                47
+              ],
+              [
+                "dev.aivillages.fabric.RuntimeAArenaObserver.snapshot",
+                43
+              ],
+              [
+                "java.lang.invoke.LambdaForm$MH.0x000000001f341800.guard",
+                37
+              ],
+              [
+                "dev.aivillages.fabric.KernelSession.tick",
+                34
+              ],
+              [
+                "dev.aivillages.fabric.RuntimeAArenaObserver.lambda$onInitialize$0",
+                31
+              ],
+              [
+                "java.lang.invoke.Invokers$Holder.invokeExact_MT",
+                31
+              ],
+              [
+                "java.lang.invoke.DelegatingMethodHandle$Holder.delegate",
+                30
+              ],
+              [
+                "dev.aivillages.fabric.AiVillages.lambda$onInitialize$1",
+                30
+              ],
+              [
+                "dev.aivillages.core.kernel.ArtifactCompatibility$Walk.visit",
+                27
+              ],
+              [
+                "java.lang.invoke.Invokers$Holder.linkToTargetMethod",
+                26
+              ],
+              [
+                "dev.aivillages.core.kernel.BoundedSkillExecutor$Run.tick",
+                26
+              ],
+              [
+                "java.lang.invoke.DirectMethodHandle$Holder.invokeStatic",
+                25
+              ],
+              [
+                "jdk.internal.reflect.DirectMethodHandleAccessor.invokeImpl",
+                25
+              ],
+              [
+                "java.lang.invoke.DirectMethodHandle$Holder.invokeSpecial",
+                25
+              ],
+              [
+                "dev.aivillages.fabric.RuntimeAArenaObserver$$Lambda.0x000000001fd6efb0.onEndTick",
+                25
+              ],
+              [
+                "dev.aivillages.fabric.AiVillages$$Lambda.0x000000001fd63738.onEndTick",
+                24
+              ],
+              [
+                "dev.aivillages.core.kernel.LeasedGateway.poll",
+                24
+              ],
+              [
+                "com.google.gson.JsonObject.add",
+                24
+              ],
+              [
+                "java.lang.invoke.LambdaForm$MH.0x000000001f341c00.invoke",
+                23
+              ],
+              [
+                "dev.aivillages.core.kernel.ArtifactCompatibility.assess",
+                23
+              ],
+              [
+                "com.google.gson.internal.LinkedTreeMap.put",
+                23
+              ],
+              [
+                "net.minecraft.world.level.Level.getChunk",
+                23
+              ],
+              [
+                "net.minecraft.server.level.ServerChunkCache.getChunk",
+                23
+              ],
+              [
+                "net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents$$Lambda.0x000000001fd62408.onEndTick",
+                22
+              ],
+              [
+                "dev.aivillages.core.kernel.StrictJson.append",
+                22
+              ],
+              [
+                "net.minecraft.server.MinecraftServer.tickChildren",
+                22
+              ],
+              [
+                "dev.aivillages.core.kernel.BoundedSkillExecutor$Run.poll",
+                22
+              ],
+              [
+                "com.google.gson.internal.LinkedTreeMap.find",
+                22
+              ],
+              [
+                "dev.aivillages.core.kernel.SkillCompiler.compile",
+                21
+              ],
+              [
+                "java.util.regex.Pattern.compile",
+                18
+              ],
+              [
+                "net.minecraft.server.MinecraftServer.tickServer",
+                18
+              ],
+              [
+                "java.util.regex.Pattern.matches",
+                17
+              ],
+              [
+                "dev.aivillages.core.kernel.VersionedSkillRepository.assessment",
+                17
+              ],
+              [
+                "net.minecraft.world.level.biome.BiomeManager.getBiome",
+                17
+              ],
+              [
+                "java.lang.invoke.LambdaForm$MH.0x000000001f341000.invoke",
+                16
+              ]
+            ]
+          },
+          "captureStackSamples": {
+            "DEPOSIT": {
+              "samples": 1,
+              "topFrames": [
+                [
+                  "java.lang.Integer.parseInt",
+                  1
+                ]
+              ]
+            }
+          }
+        },
+        "failedRequiredCase": "representative-active-cost",
+        "guard": "Original wall2ms captureP99 gate retained; no exclusion, CPU-time substitution or blind rerun."
+      },
+      "A07": {
+        "required": 27,
+        "collectionPassed": 26,
+        "collectionFailed": 1,
+        "failedRequiredCase": "replay-heldout-W5-010",
+        "reason": "Generation differs from actual native reload count",
+        "passedCollection": {
+          "liveRoles": 12,
+          "deathCustody": 3,
+          "handoffControls": 3,
+          "w04Contexts": 8
+        },
+        "independentProfileReview": "BLOCKED_BY_REQUIRED_W04_FAILURE",
+        "observationCause": "UNPROVEN_PENDING_RETAINED_RAW_DIAGNOSIS",
+        "historicalW04": "OPEN_CAUSE_UNPROVEN"
+      },
+      "artifacts": [
+        {
+          "id": 14022246761,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43388269046-1",
+          "bytes": 899734,
+          "digest": "sha256:743ecaaa2a2730f7e629391a1893a3dba6269bf0a3e6844ee3cc96bf06d89471",
+          "expiresAt": "2026-12-13T08:36:40Z"
+        },
+        {
+          "id": 14022226848,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43388269046-1",
+          "bytes": 419431123,
+          "digest": "sha256:cfd68188add24a585b9459a9edaf34df0989d476545233c602f1afb13b4546b5",
+          "expiresAt": "2026-12-13T08:36:42Z"
+        },
+        {
+          "id": 14021691094,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43388269046-1",
+          "bytes": 419431123,
+          "digest": "sha256:de500f20f7efe151e6a669f05f8ba037724c676d8abe7d1ffc93955b5b01e930",
+          "expiresAt": "2026-12-13T08:22:40Z"
+        },
+        {
+          "id": 14021594286,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43388269046-1",
+          "bytes": 419407324,
+          "digest": "sha256:35fbeb73dd1610f811998f7aebf3006f98ea27aee57104feb575bddece3dc8b1",
+          "expiresAt": "2026-12-13T08:36:48Z"
+        },
+        {
+          "id": 14021263836,
+          "name": "cc-runtime-a-a10-campaign-43388269046-1",
+          "bytes": 2594671,
+          "digest": "sha256:3208d64ff1809e507a6cda96bc83cc5f39403ebb113361fe8ef3f07ee7b63c53",
+          "expiresAt": "2026-12-13T08:37:03Z"
+        },
+        {
+          "id": 14021107328,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43388269046-1",
+          "bytes": 250227812,
+          "digest": "sha256:f7a53dbdd8d63d0ab9a2211829ef037eba0d73a107a3cc9221dcc5fbb9212ef7",
+          "expiresAt": "2026-12-13T08:22:44Z"
+        },
+        {
+          "id": 14020800899,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43388269046-1",
+          "bytes": 327630,
+          "digest": "sha256:fc0ef399f642760e928c8b015496369d3a9c78feaad07ee7bc3590b617196d93",
+          "expiresAt": "2026-12-13T08:08:30Z"
+        },
+        {
+          "id": 14020693612,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43388269046-1",
+          "bytes": 586298,
+          "digest": "sha256:cf0867a96ccce05832769aa3dee4dca7d2698d6818f58e2c9beda680d49b514f",
+          "expiresAt": "2026-12-13T08:22:39Z"
+        },
+        {
+          "id": 14020638416,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43388269046-1",
+          "bytes": 399233355,
+          "digest": "sha256:09d83067aa8a1f626d8e1b14ff5341066622a7b2e0b06d9971212341c3e68d0a",
+          "expiresAt": "2026-12-13T08:16:38Z"
+        },
+        {
+          "id": 14020504715,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43388269046-1",
+          "bytes": 240852,
+          "digest": "sha256:28cac35c0761c644e5da417508f04ee6e81e89fe37f7669d8629cdc2b4bf2cd1",
+          "expiresAt": "2026-12-13T08:16:36Z"
+        },
+        {
+          "id": 14020290569,
+          "name": "imp-016-world-retention",
+          "bytes": 430209,
+          "digest": "sha256:47450a13faf9a6d921db0d7e3ac3079a9517d642cee946b79dfeb601eb87eacd",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14020285341,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 429060,
+          "digest": "sha256:0101ef9122824fba1ce7e6326fc7839c266fe114daa66975dd6998de64150c5d",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14020150484,
+          "name": "cc-runtime-a-a07-lifecycle-d19f438cde0ed4608524f435e4212c145c5e2fbb-43388269046-1",
+          "bytes": 6699852,
+          "digest": "sha256:f43fbf637c16098713b066258c75f9f5be8b58780cad613375922c1c32ba02d7",
+          "expiresAt": "2026-12-13T07:50:12Z"
+        },
+        {
+          "id": 14020130812,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 363704,
+          "digest": "sha256:f7f34a13d96ba49cd45c99efe88a6cb0d190913536f5d798f6a797d8b8698c99",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14020115635,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 361540,
+          "digest": "sha256:ed1aee778e316799313bad2868a021dbbd6127332f9d7b546aa5aedf49197bde",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14020103595,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43388269046-1",
+          "bytes": 300474,
+          "digest": "sha256:7c263d9a5731e043916e9843b76eb7c436f7fb7d163d3fe41bab515b6c871f4a",
+          "expiresAt": "2026-12-13T08:06:38Z"
+        },
+        {
+          "id": 14020056691,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43388269046-1",
+          "bytes": 44970,
+          "digest": "sha256:b73fed832a24f3a22cb14f1ba8015efac2f7ab7a7bef4e40261315c54e3d2328",
+          "expiresAt": "2026-12-13T07:54:44Z"
+        },
+        {
+          "id": 14020031342,
+          "name": "cc-runtime-a-a10-frozen-runtime-43388269046-1",
+          "bytes": 37954449,
+          "digest": "sha256:b56ebf0a372fb13e7ecf2e2490468e6f10df38a37dea1acadc9d0bc753039eae",
+          "expiresAt": "2026-12-13T07:51:06Z"
+        },
+        {
+          "id": 14019998738,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43388269046-1",
+          "bytes": 291933881,
+          "digest": "sha256:6eb4458a3aa271adfe4dccf621ab6cdc5981d93bb8ab0edbc4b663b9b90ea424",
+          "expiresAt": "2026-12-13T08:08:32Z"
+        },
+        {
+          "id": 14019975844,
+          "name": "primitive-diagnostics-43388269046-1",
+          "bytes": 371789,
+          "digest": "sha256:f1e1e239ca3ef097db175c73c98f5db3a3d5592aa27f6cc36d09c4640b672560",
+          "expiresAt": "2026-11-27T07:50:02Z"
+        },
+        {
+          "id": 14019951997,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43388269046-1",
+          "bytes": 44156,
+          "digest": "sha256:78f841a0925ea29ce4e7c429396d9de20c392a2286e047bfefc19c77d9da8383",
+          "expiresAt": "2026-12-13T07:55:07Z"
+        },
+        {
+          "id": 14019899060,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43388269046-1",
+          "bytes": 354646658,
+          "digest": "sha256:dcbb2316b22e89282ce64e1fab441739f7c21d9eecb4d5c7d16f543b3c6446fb",
+          "expiresAt": "2026-12-13T08:06:39Z"
+        },
+        {
+          "id": 14019816631,
+          "name": "cc-runtime-a-a10-exact-jar-units-43388269046-1",
+          "bytes": 150338,
+          "digest": "sha256:10ec8498710f0b1dec13cf81e8a6f409da20c002d7461818698b9669dbe58a12",
+          "expiresAt": "2026-12-13T07:51:08Z"
+        },
+        {
+          "id": 14019727332,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43388269046-1",
+          "bytes": 76503908,
+          "digest": "sha256:7362b3d8df9fdbc5b8418e014d17c09abdfbb629ba386ae5c37ea892d766247a",
+          "expiresAt": "2026-12-13T07:54:46Z"
+        },
+        {
+          "id": 14019651507,
+          "name": "imp-015-save-compatibility",
+          "bytes": 432552,
+          "digest": "sha256:326e15ab559ca222f1ef0895e045d24426b7022d022744b7ba2162f4da216a61",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14019592913,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43388269046-1",
+          "bytes": 44689,
+          "digest": "sha256:89afc7f25fde69071bf399c3ef2c34dffe96e287e58ed39f831314a34dc2fe2d",
+          "expiresAt": "2026-12-13T07:54:41Z"
+        },
+        {
+          "id": 14019487736,
+          "name": "cc-runtime-a-a04-contracts-d19f438cde0ed4608524f435e4212c145c5e2fbb-43388269046-1",
+          "bytes": 3577255,
+          "digest": "sha256:991e5ef0aa7b731273af346199140185de34ebf974a5fb85f165cec229ef3f2b",
+          "expiresAt": "2026-12-13T07:51:09Z"
+        },
+        {
+          "id": 14019433813,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43388269046-1",
+          "bytes": 82576820,
+          "digest": "sha256:b6fabdcc0e246ea78db9f961b24d1d665322b7f4892500b4d78b04a0354496cd",
+          "expiresAt": "2026-12-13T07:54:42Z"
+        },
+        {
+          "id": 14019347805,
+          "name": "imp-018-prerequisites",
+          "bytes": 431488,
+          "digest": "sha256:cabbbae43b2a118c5cca7f99c56a44ef21b3b9ffb3e126c714900bb5b83949fe",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14019334155,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43388269046-1",
+          "bytes": 85470976,
+          "digest": "sha256:e88269089fca8d422040855718648be045fd174fc7bf9e78bd96707381608529",
+          "expiresAt": "2026-12-13T07:55:09Z"
+        },
+        {
+          "id": 14019323476,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43388269046-1",
+          "bytes": 44510,
+          "digest": "sha256:64a7af8d27c5e530a292ce9ec0d354cba9da2b0b511f639ef18d1627419b5a07",
+          "expiresAt": "2026-12-13T07:54:55Z"
+        },
+        {
+          "id": 14019323317,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43388269046-1",
+          "bytes": 44836,
+          "digest": "sha256:e49db955f564356926f5123dcf1dd755f7c4d529ce7fb03dac73e1c2981998e4",
+          "expiresAt": "2026-12-13T07:53:56Z"
+        },
+        {
+          "id": 14019303591,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43388269046-1",
+          "bytes": 82821148,
+          "digest": "sha256:ee77aac3b476fe6999bf483c143dbb13d9d18b16747c727558a626373456b342",
+          "expiresAt": "2026-12-13T07:54:56Z"
+        },
+        {
+          "id": 14019287936,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4264736,
+          "digest": "sha256:ac07d09fd7006d2d8fe72429a1f48993a2ad8fbc9ac8cf1da98ff03bf9e79f05",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14019277968,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 431306,
+          "digest": "sha256:e13a0fa880e73ddea6469ae0ea8074b425f9e371214c3303eeacd22bc629746f",
+          "expiresAt": "2027-02-11T07:47:26Z"
+        },
+        {
+          "id": 14019024573,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43388269046-1",
+          "bytes": 78549064,
+          "digest": "sha256:514017f376534a63c30cd4d815d8527eebe1ba7769a22653c57bb286a0b73df4",
+          "expiresAt": "2026-12-13T07:53:57Z"
+        }
+      ]
     }
   },
   "date": "2026-11-13"
