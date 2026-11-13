@@ -17,8 +17,24 @@ class NonparticipantFixtureTests(unittest.TestCase):
 
     def test_profiles_without_this_fixture_are_refused_before_any_setup(self):
         from types import SimpleNamespace
-        for profile in ('A00','A01','A02','A03','A04','A08'):
+        for profile in ('A08',):
             with self.assertRaises(AssertionError):setup(SimpleNamespace(actions_active=False,a10_profile=profile))
+
+    def test_each_harness_sets_up_once_and_participating_profiles_are_not_changed(self):
+        from unittest.mock import patch
+        from baseline import RuntimeAHarness
+        from deposits import DepositHarness
+        from recovery_native import RecoveryHarness
+        from lifecycle_connected import LifecycleHarness
+        scenarios=[(RuntimeAHarness,p,1) for p in ('A00','A01','A02','A03','A04')]
+        scenarios +=[(DepositHarness,'A05',1),(RecoveryHarness,'A06',1),(RecoveryHarness,'A09',1),
+                     (LifecycleHarness,'A07',0),(LifecycleHarness,'A08',0)]
+        for cls,profile,expected in scenarios:
+            with self.subTest(profile=profile),patch('generalization_support.AssessmentHarness.reset',return_value={'parent':True}),patch('nonparticipant_fixture.setup') as setup:
+                h=object.__new__(cls);h.a10_profile=profile;h.move_companion=False;h.snapshot=lambda:{'fixture':True}
+                result=h.reset({},table=False)
+                self.assertEqual(setup.call_count,expected)
+                self.assertEqual(result,{'fixture':True} if expected else {'parent':True})
 
     def test_all_live_lifecycle_targets_and_the_distinct_successor_stay_clear(self):
         points=[[67,208,68],[73,208,73],[77,208,72],[76,208,74],[74,208,69],[68,208,68]]

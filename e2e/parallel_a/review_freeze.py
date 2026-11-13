@@ -57,7 +57,7 @@ def identity(root,profile,source,jar):
         actor=setup['nativeActor'];citizen=setup['privateCitizen'];assert actor['uuid']==setup['companion'][1]
         assert actor['alive'] and not actor['baby'] and not actor['noAI']
         assert citizen['actor']['citizenId']==setup['companion'][0] and citizen['actor']['entityId']==actor['uuid'] and citizen['availability']=='LOADED'
-    if profile in ('A05','A06','A07','A09'):
+    if profile!='A08':
         from nonparticipant_fixture import review_record
         records=sorted(root.glob('a10-nonparticipant-*.json'));assert 1<=len(records)<=128
         for path in records:review_record(root,read(path),profile,jar)
@@ -117,6 +117,16 @@ def review(root,profile,source,jar):
         cases={r['id']:r for r in actual}
         assert all((r['status'] if isinstance(r['status'],str) else r['status']['status'])=='PASS' for r in cases.values())
         details=REVIEW[profile](root,cases)
+        fixture_worlds={'A00':['unflushed-probe/killed-world','saved-restart-signature/killed-world'],
+                        'A01':['saved-original-owner/killed-world'],
+                        'A02':['coherent-before-corruption-world','retained-corrupt-history-world'],
+                        'A03':['qualified-continuous-history-world'],'A04':['qualified-continuous-world']}
+        if profile in fixture_worlds:
+            from nonparticipant_fixture import review_world
+            record=read(sorted(root.glob('a10-nonparticipant-*.json'))[0])
+            task={'source':{'minX':70,'maxX':77,'minY':208,'maxY':208,'minZ':66,'maxZ':66},
+                  'destination':{'x':77,'y':208,'z':72}}
+            details['savedNormalAINonparticipantFixture']={p:review_world(root/p,record,task) for p in fixture_worlds[profile]}
     elif profile=='A06':
         from recovery_cases import originals,complete as all_originals
         from review_recovery_current import one,controls

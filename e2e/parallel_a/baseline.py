@@ -26,6 +26,14 @@ class RuntimeAHarness(AssessmentHarness):
         from freeze_runtime import attach
         attach(self)
 
+    def reset(self,*args,**kwargs):
+        value=super().reset(*args,**kwargs)
+        if getattr(self,'a10_profile',None) in ('A00','A01','A02','A03','A04','A05','A06','A09'):
+            from nonparticipant_fixture import setup
+            setup(self)
+            value=self.snapshot()
+        return value
+
     def observe_live(self, run):
         return None
 

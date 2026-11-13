@@ -13,13 +13,6 @@ WHEAT='minecraft:wheat'
 
 class RecoveryHarness(HarvestHarness):
     case_stage='HARVEST'
-    def reset(self,*args,**kwargs):
-        value=super().reset(*args,**kwargs)
-        if getattr(self,'a10_profile',None) in ('A06','A09'):
-            from nonparticipant_fixture import setup
-            setup(self)
-            value=self.snapshot()
-        return value
     def __init__(self,root):
         super().__init__(root)
         # Capture includes wall-clock pauses. Select a low-pause collector
