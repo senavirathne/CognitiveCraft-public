@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel;
 import dev.aivillages.core.kernel.runtime.persistence.*;
 import dev.aivillages.fabric.KernelSession;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.*;
 import java.util.*;
 import static dev.aivillages.core.kernel.Jobs.*;
@@ -55,8 +56,10 @@ public final class RuntimeAJobCost {
         Snapshot retained=new Snapshot(world,source.revision()+1,source.jobs().stream().filter(j->!selected.contains(j.id())).toList(),
                 source.allocations().stream().filter(a->!selected.contains(a.producer()) && !selected.contains(a.demand())).toList());
         var guard=new ArchiveFormat.Guard(source.revision(),(Long)frozen.get("retentionGeneration"));var samples=new ArrayList<Long>();
+        var preparedInputs=new ArrayList<Map<String,Object>>();
         for(int n=0;n<64;n++) {
-            Path fixture=target.resolve((candidate?"candidate-":"baseline-")+n);copy(target.resolve("template"),fixture);
+            Path fixture=target.resolve((candidate?"candidate-":"baseline-")+n);
+            var prepared=copy(target.resolve("template"),fixture);prepared.put("fixture",fixture.getFileName().toString());preparedInputs.add(prepared);
             try(var journal=JobJournal.open(fixture,world)) {
                 if(candidate)try(var writer=ArchiveWriter.open(fixture,world,PersistencePolicy.defaults())) {
                     long start=System.nanoTime();var result=writer.append(writer.snapshot(),ArchiveFormat.Owner.JOBS,guard,rows,owner->guard);
@@ -71,17 +74,32 @@ public final class RuntimeAJobCost {
         }
         return map("status","PASS","mode",candidate?"archive-ack-domain-verify-and-hot-ack":"legacy-full-hot-snapshot-ack", "fixture",true,"nativeEffects",0,
                 "samplesNanos",samples,"sourceBytes",exact.length,"sourceSha256",sha256(exact),"logicalJobs",64,"selectedJobs",selected.stream().map(UUID::toString).toList(),
-                "archiveSegmentBytes",bytes,"hotAfter",candidate?48:64,"samples",64,"setupOutsideTimer",true);
+                "archiveSegmentBytes",bytes,"hotAfter",candidate?48:64,"samples",64,"setupOutsideTimer",true,
+                "inputDurability","COPIED_INPUT_FILES_AND_DIRECTORIES_FORCED_BEFORE_PUBLICATION_TIMER","preparedInputs",preparedInputs);
     }
-    private static void copy(Path source,Path destination)throws IOException {
+    private static Map<String,Object> copy(Path source,Path destination)throws IOException {
         if(!Files.isDirectory(source,LinkOption.NOFOLLOW_LINKS))throw new IOException("Bounded fixture directory missing");
+        var directories=new ArrayList<Path>();var files=new ArrayList<Map<String,Object>>();
         try(var stream=Files.walk(source)) {
             int count=0;for(Path path:stream.toList()) {
                 if(++count>160 || Files.isSymbolicLink(path))throw new IOException("Bounded fixture copy");
                 Path target=destination.resolve(source.relativize(path));
-                if(Files.isDirectory(path,LinkOption.NOFOLLOW_LINKS))Files.createDirectories(target);else Files.copy(path,target);
+                if(Files.isDirectory(path,LinkOption.NOFOLLOW_LINKS)){Files.createDirectories(target);directories.add(target);}
+                else {
+                    Files.copy(path,target);
+                    // The copied starting world must already be durable, like the
+                    // native acknowledged input. Publication forces stay timed.
+                    try(var channel=FileChannel.open(target,StandardOpenOption.WRITE)){channel.force(true);}
+                    byte[] original=Files.readAllBytes(path),actual=Files.readAllBytes(target);
+                    if(!Arrays.equals(original,actual))throw new IOException("Copied cost input changed");
+                    files.add(map("path",source.relativize(path).toString().replace('\\','/'),"bytes",actual.length,"sha256",sha256(actual)));
+                }
             }
         }
+        for(Path directory:directories.stream().sorted(Comparator.comparingInt(Path::getNameCount).reversed()).toList())
+            try(var channel=FileChannel.open(directory,StandardOpenOption.READ)){channel.force(true);}
+        try(var channel=FileChannel.open(destination.getParent(),StandardOpenOption.READ)){channel.force(true);}
+        return map("files",files,"directories",directories.size(),"parentForced",true,"beforePublicationTimer",true);
     }
     private static Map<String,Object> map(Object... pairs) {
         var result=new LinkedHashMap<String,Object>();for(int n=0;n<pairs.length;n+=2)result.put((String)pairs[n],pairs[n+1]);return result;

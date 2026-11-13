@@ -275,13 +275,21 @@ def w04_case(h,seed,frozen):
         h.enroll(name=c['citizenName'])
         h.vanilla('PlayerA','/tp 66.5 208 69.5')
     else:h.command('PlayerA','/aivillage kernel name '+primary[0]+' '+c['citizenName'],'name='+c['citizenName'])
-    subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]]],[entity])
+    subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]],[10004,207,10004]],[entity])
     before=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['displayName']==c['citizenName'] and v['identity']['availability']=='LOADED' else None),'Frozen W04 named subject',40)
     starting=starting_checkpoint(h,directory);initial_native=h.a07();setup_review=w04_start(directory/'starting-world',c,entity)
     calls=h.model_calls();h.console(['forceload add 10000 10000'])
     h.wait(lambda:'Test passed' in h.command('PlayerA','/execute if loaded 10000 208 10000','Test passed|Test failed'),'Remote original W04 landing chunk loaded',45)
     h.console(['fill 10000 207 10000 10008 207 10008 minecraft:stone','setworldspawn 10004 208 10004'])
-    h.command('PlayerA','/execute if block 10004 207 10004 minecraft:stone','Test passed')
+    # Console acknowledgement means queued, not applied. Keep the original
+    # 30-second verification bound and observe the actual floor before departure.
+    landing_started=time.monotonic()
+    landing=h.wait(lambda:(v if (v:=h.a07()) and (t:=v['targets'].get('10004,207,10004'))
+                    and t.get('loaded') and t.get('block')=='Block{minecraft:stone}' else None),
+                   'Actual W04 landing floor after queued setup',30)
+    landing_remaining=30-(time.monotonic()-landing_started)
+    require(landing_remaining>0 and landing['entities'][entity]['loaded'],'W04 landing verification expired or subject already unloaded')
+    landing_feedback=h.command('PlayerA','/execute if block 10004 207 10004 minecraft:stone','Test passed',timeout=landing_remaining)
     h.vanilla('PlayerA','/tp 10004.5 208 10004.5');started=time.monotonic()
     boundary=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['availability']=='UNLOADED'
                  and v['identity']['lifecycle']['event']=='UNLOAD' else None),'Actual same-citizen native chunk unload',110)
@@ -304,7 +312,7 @@ def w04_case(h,seed,frozen):
     require(h.model_calls()==calls,'W04 identity reproduction invoked a model');h.screenshot('PlayerA','w04-'+name,chat=True)
     reconnect_players(h,['PlayerB'])
     value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'startingWorldHashes':starting,'startingFixtureReview':setup_review,
-           'initialNative':initial_native,'boundary':boundary,'nativeAtUnload':native,
+           'initialNative':initial_native,'landingFloor':{'native':landing,'feedback':landing_feedback,'verificationLimitSeconds':30},'boundary':boundary,'nativeAtUnload':native,
            'after':after,'reloadNative':reload_native,'nativeCycleReview':native_cycles,'unloadSeconds':duration,'originalTimeoutSeconds':110,'clock':'ordinary 20 TPS; no freeze or accelerated ticks',
            'modelCallsBefore':calls,'modelCallsAfter':h.model_calls(),'historicalFailure':frozen['reason'],
            'causeClaim':'Historical timeout is retained. Candidate success does not establish a unique historical cause.'}

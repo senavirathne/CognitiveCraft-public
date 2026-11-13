@@ -4,7 +4,7 @@ Source: CognitiveCraft-Documentation@bd09c72ba350f2a46f96d82fc0d31d19cf700efa,
 docs/implementation/parallel-a/review_a03.py and review_a04.py.
 Only reusable pure functions are copied; no historical source/run/denominator is imported.
 """
-from pathlib import Path
+from pathlib import Path,PurePosixPath
 import hashlib,json,math,re,struct,uuid
 
 def digest(path):
@@ -178,6 +178,21 @@ def complete_performance(native,mode):
     for field,percentile,limit in [('tick','p95','tickP95Ms'),('tick','p99','tickP99Ms'),('capture','p99','captureP99Ms'),('ack','p95','ackP95Ms'),('ack','p99','ackP99Ms'),('ack','max','ackMaxMs')]:
         assert result[field][percentile]<=result['limits'][limit]
     assert result['io']['fixture'] and result['io']['nativeEffects']==0 and result['io']['logicalJobs']==64
+    io=result['io'];assert io['setupOutsideTimer'] and io['inputDurability']=='COPIED_INPUT_FILES_AND_DIRECTORIES_FORCED_BEFORE_PUBLICATION_TIMER'
+    prepared=io['preparedInputs'];assert len(prepared)==64
+    template=native/'job-cost/template';files={p.relative_to(template).as_posix():p for p in template.rglob('*') if p.is_file()}
+    assert 1<=len(files)<=160 and all(not p.is_symlink() for p in files.values())
+    expected={name:(p.stat().st_size,digest(p)) for name,p in files.items()}
+    assert digest(template/'data/cognitivecraft/jobs/v1/state.jsonl')==io['sourceSha256']
+    for number,entry in enumerate(prepared):
+        assert entry['fixture']==mode+'-'+str(number) and entry['parentForced'] and entry['beforePublicationTimer']
+        assert 1<=entry['directories']<=160
+        rows=entry['files'];assert len(rows)==len(files) and len({r['path'] for r in rows})==len(rows)
+        for row in rows:
+            path=PurePosixPath(row['path']);assert not path.is_absolute() and '..' not in path.parts
+            assert (row['bytes'],row['sha256'])==expected[row['path']]
+        # The original durable input is still the backup of the timed replacement.
+        assert digest(native/'job-cost'/entry['fixture']/'data/cognitivecraft/jobs/v1/state.prev.jsonl')==io['sourceSha256']
     return result
 
 def replay_lookup(value,prior):

@@ -166,6 +166,11 @@ def review(root,source):
             b,a=row['before']['identity'],row['after']['identity'];u=row['boundary']['identity']
             assert b['actor']==a['actor']==u['actor'] and b['owner']==a['owner']==u['owner']
             assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD'
+            landing=row['landingFloor'];observed=landing['native'];floor=observed['targets']['10004,207,10004']
+            assert landing['verificationLimitSeconds']==30 and landing['feedback']=='Test passed'
+            assert observed['process']==row['initialNative']['process']==row['nativeAtUnload']['process']
+            assert row['initialNative']['tick']<=observed['tick']<=row['nativeAtUnload']['tick']
+            assert floor['loaded'] and floor['block']=='Block{minecraft:stone}' and observed['entities'][b['actor']['entityId']]['loaded']
             from lifecycle_cycles import review as cycle_review
             assert row['nativeCycleReview']==cycle_review(row['initialNative'],row['reloadNative'],b['actor']['entityId'],b['lifecycle']['generation'],a['lifecycle']['generation'])
             assert row['unloadSeconds']<=row['originalTimeoutSeconds']==110
