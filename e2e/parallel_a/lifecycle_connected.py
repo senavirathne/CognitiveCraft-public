@@ -166,7 +166,12 @@ def role_fixture(h,role):
 
 def live_case(h,seed,role,phase,restart_unloaded=False):
     name=role+'-'+phase;directory=h.root/'connected'/name;directory.mkdir(parents=True,exist_ok=True)
-    h.activate(seed,name);fixture=role_fixture(h,role);before=h.wait(h.life,'Verified original identity',35);calls=h.model_calls()
+    h.activate(seed,name);fixture=role_fixture(h,role)
+    if getattr(h,'a10_profile',None)=='A07':
+        from nonparticipant_fixture import setup
+        require(h.entities['PlayerB']!=h.companion[1],'The handoff successor is not the idle foreign actor')
+        fixture['nonparticipant']=setup(h)
+    before=h.wait(h.life,'Verified original identity',35);calls=h.model_calls()
     starting=starting_checkpoint(h,directory);initial_native=h.a07()
     token=str(uuid.uuid4());h.observation('arm',mode=phase,actor=h.entities['PlayerA'],token=token)
     if role=='FACILITY':run=h.submit(AXE,1,source=fixture['inputs'],destination=fixture['destination'],table=fixture['facility'])

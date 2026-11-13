@@ -35,8 +35,16 @@ def retain(h,directory,name='terminal-world'):
 
 def original_control(h,seed,template,name,point,save=True):
     case=copy.deepcopy(template);case.update(id=name,requested=2);directory=h.root/'controls'/name;directory.mkdir(parents=True,exist_ok=True)
+    from recovery_control_fixture import CASES as FRESH_CASES,expected_case,setup as control_setup
+    contained=getattr(h,'a10_profile',None)=='A06' and name in FRESH_CASES
+    if contained:
+        fresh=expected_case(name);copied=copy.deepcopy(fresh);copied['destination']['x']=81
+        require(case==copied,'Fresh control changed the original copied source or allowance')
+        case=fresh
     h.case_stage=case['checkpoint'];h.restore(seed,name);dst=[case['destination'][k] for k in ('x','y','z')]
-    h.reset({},destination=dst,table=False);h.logs(positions(case),item=case['item']);h.save_checkpoint()
+    h.reset({},destination=dst,table=False);h.logs(positions(case),item=case['item'])
+    physical_fixture=control_setup(h,case) if contained else None
+    h.save_checkpoint()
     token=str(uuid.uuid4());arm=h.rpc('arm',stage=case['checkpoint'],point=point,token=token,save=save);calls=h.model_calls();src=case['source']
     run=h.submit(case['item'],2,minimum=[src[k] for k in ('minX','minY','minZ')],maximum=[src[k] for k in ('maxX','maxY','maxZ')],destination=dst)
     cut=h.wait(lambda:(v if (v:=read(h.root/'server/harvest-cut-reached.json')) and v['token']==token else None),'Actual control boundary '+name,190)
@@ -48,6 +56,7 @@ def original_control(h,seed,template,name,point,save=True):
     shutil.copytree(h.root/'server/game/world',directory/'killed-world',ignore=shutil.ignore_patterns('session.lock'))
     value={'id':name,'originalCase':case,'arm':arm,'reached':cut,'key':key,'run':run,'originalAtCut':original,'modelCallsBefore':calls,
            'killedWorldHashes':manifest(directory/'killed-world'),'restart':restart(h,before,clients)}
+    if physical_fixture is not None:value['physicalFixture']=physical_fixture
     atomic(directory/'started.json',value);return directory,case,value
 
 def torn(h,case,unrelated=False):

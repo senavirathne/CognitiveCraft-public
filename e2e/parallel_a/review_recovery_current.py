@@ -121,6 +121,11 @@ def review_control(root,name):
     directory=root/'controls'/('source-replacement-PICKUP' if name=='unrelated-native-progress' else name)
     r=read(directory/'result.json');world=directory/'terminal-world'
     assert manifest(world)==r['terminalWorldHashes'] and r['modelCallsBefore']==r['modelCallsAfter']
+    if 'physicalFixture' in r:
+        from recovery_control_fixture import review as fixture_review
+        assert r['physicalFixture']['entity']==r['originalAtCut']['attempts'][-1]['worker']['entityId']
+        assert r['physicalFixture']['nativeProcess']['namespaceProcess']['releaseSha256']==r['restart']['before']['namespaceProcess']['releaseSha256']
+        for phase in ('killed-world','terminal-world'):fixture_review(root,directory/phase,r['originalCase'],r['physicalFixture'])
     if name.startswith('source-replacement-'):
         key=r['originalKey'];job,a=original_row(world,key);assert a['uncertain'] and job['state']!='CANCELLED'
         actual=source_row(world,r['expectedSource']);assert (actual['incarnation'],actual['revision'])!=(r['expectedSource']['incarnation'],r['expectedSource']['revision'])

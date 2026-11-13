@@ -57,7 +57,7 @@ def identity(root,profile,source,jar):
         actor=setup['nativeActor'];citizen=setup['privateCitizen'];assert actor['uuid']==setup['companion'][1]
         assert actor['alive'] and not actor['baby'] and not actor['noAI']
         assert citizen['actor']['citizenId']==setup['companion'][0] and citizen['actor']['entityId']==actor['uuid'] and citizen['availability']=='LOADED'
-    if profile in ('A05','A06','A09'):
+    if profile in ('A05','A06','A07','A09'):
         from nonparticipant_fixture import review_record
         records=sorted(root.glob('a10-nonparticipant-*.json'));assert 1<=len(records)<=128
         for path in records:review_record(root,read(path),profile,jar)
@@ -125,10 +125,25 @@ def review(root,profile,source,jar):
         original_reviews=[one(root,c) for c in originals_plan];details=all_originals(originals_plan,original_reviews)
         details['storageMechanics']=storage(root);details['controls']=controls(root)
         assert details['controls']['status']=='PASS_INDEPENDENT_REQUIRED_CONTROLS'
+        from recovery_control_fixture import CASES as FRESH_CONTROL_CASES
+        for name in FRESH_CONTROL_CASES:assert 'physicalFixture' in read(root/'controls'/name/'result.json')
         report=read(root/'a06-original-results.json');assert report['originalStatus']=='PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW' and report['originalOwnerSettlements']==12
     elif profile=='A07':
         from review_lifecycle_connected import review as original
         details=original(root,source);assert details['status']=='PASS_A07_CONNECTED_NATIVE_REVIEW'
+        from nonparticipant_fixture import review_world,protects
+        from lifecycle_cases import LIVE_CASES
+        details['savedNormalAIForeignFixtures']={}
+        for name in LIVE_CASES:
+            folder=root/'connected'/name;row=read(folder/'result.json');fixture=row['fixture'];record=fixture['nonparticipant']
+            assert record['entity']!=row['before']['identity']['actor']['entityId']
+            point=fixture['source'];task={'source':{prefix+axis:point[i] for prefix in ('min','max') for i,axis in enumerate(('X','Y','Z'))},
+                                         'destination':dict(zip(('x','y','z'),fixture['destination']))}
+            for point in (fixture['actor'],fixture['inputs'],fixture['facility']):
+                protects({'source':{prefix+axis:point[i] for prefix in ('min','max') for i,axis in enumerate(('X','Y','Z'))},
+                          'destination':task['destination']})
+            details['savedNormalAIForeignFixtures'][name]={phase:review_world(folder/phase,record,task)
+                                                          for phase in ('starting-world','terminal-world')}
         details['savedHandoffMembership']=handoff_membership(root)
         from handoff_fixture import review as fixture_review
         from lifecycle_cases import HANDOFF_CASES

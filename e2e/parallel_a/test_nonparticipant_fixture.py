@@ -15,10 +15,18 @@ class NonparticipantFixtureTests(unittest.TestCase):
             self.assertTrue(all(abs(wall[0]-p[0])+abs(wall[2]-p[2])>1 for p in [*points,DST]))
         self.assertEqual(task,before)
 
-    def test_participating_actor_profiles_are_refused_before_any_setup(self):
+    def test_profiles_without_this_fixture_are_refused_before_any_setup(self):
         from types import SimpleNamespace
-        for profile in ('A07','A08'):
+        for profile in ('A00','A01','A02','A03','A04','A08'):
             with self.assertRaises(AssertionError):setup(SimpleNamespace(actions_active=False,a10_profile=profile))
+
+    def test_all_live_lifecycle_targets_and_the_distinct_successor_stay_clear(self):
+        points=[[67,208,68],[73,208,73],[77,208,72],[76,208,74],[74,208,69],[68,208,68]]
+        for p in points:
+            task={'source':{prefix+axis:p[i] for prefix in ('min','max') for i,axis in enumerate(('X','Y','Z'))},
+                  'destination':dict(zip(('x','y','z'),[77,208,72]))}
+            self.assertTrue(protects(task))
+            self.assertTrue(all(abs(w[0]-p[0])+abs(w[2]-p[2])>1 for w in layout()))
 
     def test_every_frozen_task_and_its_work_positions_stay_clear(self):
         cases=originals(Path(__file__).with_name('a06_original_cases.json'));before=copy.deepcopy(cases)
