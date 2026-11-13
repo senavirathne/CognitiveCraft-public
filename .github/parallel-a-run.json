@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 64,
-  "parentSource": "7da898f695a8b4fe85b6c1df02aadddcca1b0513",
+  "sequence": 65,
+  "parentSource": "96e44efd169e77e9eec702ea96dd49615a170c2c",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -4992,16 +4992,16 @@
   "nativeQualified": false,
   "branchReady": false,
   "a10Qualification": {
-    "status": "NOT_EXECUTED_REQUIRED",
-    "sequence": 64,
-    "codeCheckpoint": "7da898f695a8b4fe85b6c1df02aadddcca1b0513",
-    "codeTree": "8c2f3c1445be3165d89ee3a8fcc9d885ed5ac207",
-    "documentationPreRun": "689bf046d8fa1f6e9d3d443169738482e814dbee",
-    "documentationTree": "0b4855b5f276ef5eef2ebae30d7315ad49c07a54",
+    "status": "FROZEN_EXACT_SOURCE_QUALIFICATION_REQUIRED",
+    "sequence": 65,
+    "codeCheckpoint": "96e44efd169e77e9eec702ea96dd49615a170c2c",
+    "codeTree": "707c81aa5708bffab4710bc803838b2b40589dc3",
+    "documentationPreRun": "66847bd5373582561198367201a96cdd7082b9d7",
+    "documentationTree": "92ac1bbd8f9555ed5e9b1d4ae4a1d9155fd27dd4",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 159,
+    "ownedPython": 166,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5015,9 +5015,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Fresh current-process enclosure samples across base harnesses; W04-only same-END_SERVER_TICK identity/native capture with unchanged exact-generation equation; A06-only owned Server thread on existing core0 within unchanged0-1 container/processor budget, unchanged priority, heap/GC, wall-time samples and thresholds. Full retained63 failure rows transported in the existing producer; no imported passes or extra workflows.",
+    "ownedCorrection": "Actual read-only saved-P adoption clock hold with independent saved worlds/process proof; paired fixed-budget A05 ZGC/core isolation; immutable observer geometry; verified aggregate transport disk cleanup.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 20,
+    "actionsPreviouslyStarted": 22,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -10497,7 +10497,7 @@
         "nativeQualification": "NOT_EXECUTED_REQUIRED"
       }
     },
-    "expectedOwnedPaths": 306,
+    "expectedOwnedPaths": 309,
     "ninthLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -12244,6 +12244,945 @@
           "expiresAt": "2026-12-13T07:53:57Z"
         }
       ]
+    },
+    "eleventhLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 64,
+      "status": "FAIL_REQUIRED_OWNED_GATES",
+      "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+      "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+      "codeCheckpoint": "7da898f695a8b4fe85b6c1df02aadddcca1b0513",
+      "codeTree": "8c2f3c1445be3165d89ee3a8fcc9d885ed5ac207",
+      "documentationPreRun": "689bf046d8fa1f6e9d3d443169738482e814dbee",
+      "documentationTree": "0b4855b5f276ef5eef2ebae30d7315ad49c07a54",
+      "groupedRun": 43396171488,
+      "standardRun": 43396171822,
+      "created": "2026-11-13T08:48:52Z",
+      "requiredProfiles": 10,
+      "requiredMixedGateCases": 121,
+      "requiredExactJarContracts": 2703,
+      "ownedPython": 159,
+      "baselinePython": 72,
+      "expectedOwnedPaths": 306,
+      "nativeLifecycleDiagnostics": 14,
+      "requiredRegressionSuites": 9,
+      "requiredRegressionJobs": 12,
+      "requiredRegressionSteps": 140,
+      "workflowRecords": 2,
+      "a10WorkflowRecordsTotal": 22,
+      "jobReruns": 0,
+      "documentationActions": 0,
+      "omittedTasks": 0,
+      "omittedTests": 0,
+      "branchReady": false,
+      "mainMerged": false,
+      "peerBranchMerged": false,
+      "w04": "OPEN_CAUSE_UNPROVEN",
+      "producer": "IN_PROGRESS",
+      "standard": {
+        "status": "PASS",
+        "run": 43396171822,
+        "job": 131787489448,
+        "jarSha256": "dfdcb34b63265fdd4d3393849a84b10d3a506aadcfb28f85ef0ff04ec1ee8cbf"
+      },
+      "fullDownloadedRawReplay": "REQUIRED_SEPARATE_AGGREGATE_RUNNER_NETWORK_DENIED_DOCKER",
+      "correction": "A10-tenth-launch-correction.json",
+      "preservedFailure": "A10-tenth-launch-evidence.json",
+      "workspaceStatus": "Restored for offline checks, then unavailable. Full retained A05/A06 archives downloaded, SHA/CRC verified and extracted; producer and standard offline checks passed on batch64 only.",
+      "producerJob": 131787490463,
+      "aggregateJob": 131814472412,
+      "binary": {
+        "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+        "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+        "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+        "bundleSha256": "de0310b919f5c1cbdee38603c3519d06df7b84638bda68b3ce68feadb2c2edf3",
+        "bundleBytes": 37948106
+      },
+      "ownershipPaths": 306,
+      "uniqueModuleContracts": 2703,
+      "requiredMixedGates": 121,
+      "profiles": {
+        "A04": {
+          "job": 131789600472,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A04",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 10,
+            "executedCases": 10
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A04",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 21,
+              "nativeBirths": 21,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 10,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A05": {
+          "job": 131789600473,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A05",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "reason": "Frozen A05 actual preparation capture target failed: {\"p50\": 0.817074, \"p95\": 3.96475, \"p99\": 3.96475, \"max\": 3.96475, \"samples\": 9, \"unit\": \"milliseconds\"}",
+            "requiredCases": 15,
+            "executedCases": 14
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A05",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "",
+            "branchReady": false
+          }
+        },
+        "A01": {
+          "job": 131789600474,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A01",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 2,
+            "executedCases": 2
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A01",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 4,
+              "nativeBirths": 4,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 2,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A03": {
+          "job": 131789600476,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A03",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 7,
+            "executedCases": 7
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A03",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 13,
+              "nativeBirths": 13,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 7,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A06": {
+          "job": 131789600521,
+          "ciConclusion": "failure",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A06",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "FAIL_REQUIRED_GATE",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "reason": "One or more mandatory A06 native controls failed",
+            "requiredCases": 21,
+            "executedCases": 21
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A06",
+            "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+            "reason": "",
+            "branchReady": false
+          }
+        },
+        "A07": {
+          "job": 131789600535,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A07",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 27,
+            "executedCases": 27
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A07",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 38,
+              "nativeBirths": 38,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 27,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A09": {
+          "job": 131789600536,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A09",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 9,
+            "executedCases": 9
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A09",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 20,
+              "nativeBirths": 20,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 9,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A02": {
+          "job": 131789600551,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A02",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 5,
+            "executedCases": 5
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A02",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 6,
+              "nativeBirths": 6,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 5,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A08": {
+          "job": 131789600563,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A08",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 21,
+            "executedCases": 21
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A08",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 24,
+              "nativeBirths": 24,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 21,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        },
+        "A00": {
+          "job": 131789600615,
+          "ciConclusion": "success",
+          "collection": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A00",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "status": "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "requiredCases": 4,
+            "executedCases": 4
+          },
+          "review": {
+            "schema": 1,
+            "stage": "A10",
+            "profile": "A00",
+            "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+            "source": "f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9",
+            "tree": "fcc0ce7695067628c11d3b08e1e068d6373a8a2e",
+            "productionSha256": "282b135a4cd8220533f9455bc09822572f590e62142057832bac064492efb4bb",
+            "observerSha256": "eab2ce0e82612b217fe1ed79d60ed80b33c35dc059e9387edc01af9573ca57ce",
+            "clientSha256": "dd26fdbbdc3a84eb145011dd7e4a86593ce8d8a1158889490fdd5afd806057f8",
+            "compilerBudget": {
+              "status": "PASS_ALL_STOPPED_NATIVE_JVMS_COMPILER_BUDGET",
+              "records": 6,
+              "nativeBirths": 6,
+              "serverCores": [
+                0,
+                1
+              ],
+              "serverThreadCores": [
+                0,
+                1
+              ],
+              "backgroundCores": [
+                1
+              ],
+              "addedCores": 0,
+              "serverThreadPriorityChanged": false,
+              "serverThreadAffinityChanged": false
+            },
+            "seed": {
+              "sha256": "8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8",
+              "source": "d1968aacaf2672854f78825e05c4f89698f35c02",
+              "artifact": 13311090608,
+              "importedCurrentPasses": 0
+            },
+            "requiredCases": 4,
+            "omittedTasks": 0,
+            "omittedTests": 0,
+            "branchReady": false,
+            "scope": "Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim."
+          }
+        }
+      },
+      "totals": {
+        "collected": 120,
+        "collectionPassed": 118,
+        "collectionFailed": 2,
+        "unexecutedRequired": 1,
+        "independentlyPassingProfiles": 8,
+        "casesInIndependentlyPassingProfiles": 85
+      },
+      "requiredRegressions": [
+        {
+          "id": 131787490175,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490276,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490304,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490309,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490335,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490355,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490359,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490376,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "conclusion": "success"
+        },
+        {
+          "id": 131787490585,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "conclusion": "success"
+        }
+      ],
+      "actionsStarted": 22,
+      "fullDownloadedReplay": "BLOCKED_BY_REQUIRED_A05_A06_FAILURES",
+      "artifacts": [
+        {
+          "id": 14026746342,
+          "name": "cc-runtime-a-a10-campaign-43396171488-1",
+          "bytes": 4464381,
+          "digest": "sha256:1b1425c121868abcd3339d01dcef0fdb1e7c501a30569146d732fbf441099069",
+          "expires": "2026-12-13T09:47:37Z"
+        },
+        {
+          "id": 14026736175,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43396171488-1",
+          "bytes": 886315,
+          "digest": "sha256:96b767f1e81a5b28b1619adab116a0a4f7ada3c18d47a931e76bd5f37de1be2f",
+          "expires": "2026-12-13T09:47:15Z"
+        },
+        {
+          "id": 14026412402,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43396171488-1",
+          "bytes": 419431274,
+          "digest": "sha256:161f1cf24f3c9bf75651e10f36fa55d38f3db4f0b1b308db1acc8e6a78fb664b",
+          "expires": "2026-12-13T09:47:17Z"
+        },
+        {
+          "id": 14026282887,
+          "name": "cc-runtime-a-a10-A06-native-part-2-43396171488-1",
+          "bytes": 37987882,
+          "digest": "sha256:a98bfc7a97f5f2f14681aa4915968f0883ffc37fe132f5e923b8cb10c55b83e5",
+          "expires": "2026-12-13T09:47:25Z"
+        },
+        {
+          "id": 14026148039,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43396171488-1",
+          "bytes": 419431274,
+          "digest": "sha256:b0d9c25021d5c30d1e8f4838263c449bc1d977dbb7b968567461e87951bd8ee0",
+          "expires": "2026-12-13T09:47:21Z"
+        },
+        {
+          "id": 14025656442,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43396171488-1",
+          "bytes": 419431122,
+          "digest": "sha256:37bef0e9b778707a922af4958cf22154cf81b69ecbd2594858a9de6cfdaf7a1e",
+          "expires": "2026-12-13T09:30:16Z"
+        },
+        {
+          "id": 14025571570,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43396171488-1",
+          "bytes": 588555,
+          "digest": "sha256:c2addaa9ac7cf5033a365af8502fb676e7ee643011d51add772d8de6d4cd8439",
+          "expires": "2026-12-13T09:31:08Z"
+        },
+        {
+          "id": 14025516855,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43396171488-1",
+          "bytes": 1216158,
+          "digest": "sha256:f6f228fb25f6602942a0834f44751c93f7a5e611d633abed208250d3167ccc39",
+          "expires": "2026-12-13T09:30:14Z"
+        },
+        {
+          "id": 14025356953,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43396171488-1",
+          "bytes": 291201069,
+          "digest": "sha256:0bf31f29dfd041c022e937b95aa1ffb4ed1db54fb74940ce883803ed07a4bb6c",
+          "expires": "2026-12-13T09:31:17Z"
+        },
+        {
+          "id": 14025155964,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43396171488-1",
+          "bytes": 407159,
+          "digest": "sha256:e42429f1d94a79b4f55e9bd04e23f10cf677c4947e93741211c8d1da2aec9f89",
+          "expires": "2026-12-13T09:20:31Z"
+        },
+        {
+          "id": 14024642772,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43396171488-1",
+          "bytes": 419431276,
+          "digest": "sha256:1c0bd861054dea5d49504880b3b2cce1cda82c09fb5752ce53ee260299c8c3d1",
+          "expires": "2026-12-13T09:20:33Z"
+        },
+        {
+          "id": 14024626820,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43396171488-1",
+          "bytes": 388331126,
+          "digest": "sha256:420d1c7cb77b0996b40ac03d0ba3cee4b32b73b7ae2ce0ad5d8453624853f027",
+          "expires": "2026-12-13T09:14:53Z"
+        },
+        {
+          "id": 14024554748,
+          "name": "cc-runtime-a-a10-A04-native-part-1-43396171488-1",
+          "bytes": 23962428,
+          "digest": "sha256:0524490efb80ec693cfce04c6a490c0df3923781ed8a365624884877dced7f0c",
+          "expires": "2026-12-13T09:30:20Z"
+        },
+        {
+          "id": 14024479160,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43396171488-1",
+          "bytes": 419431123,
+          "digest": "sha256:9a76e7ddfdef44de8825c0114393da76ac085708de9ef79a1fa1f2acb027aa80",
+          "expires": "2026-12-13T09:31:10Z"
+        },
+        {
+          "id": 14024333188,
+          "name": "cc-runtime-a-a10-A03-native-part-2-43396171488-1",
+          "bytes": 359383575,
+          "digest": "sha256:e59e79f2149eaea3ce818c10df1cda0ab8a2e5809b38fa62a6b26a986414f7ca",
+          "expires": "2026-12-13T09:20:42Z"
+        },
+        {
+          "id": 14024325925,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43396171488-1",
+          "bytes": 329062,
+          "digest": "sha256:284df7100cb11531432dda367422a80f3dd50fabf79ce1436f4db397ad306ca6",
+          "expires": "2026-12-13T09:08:20Z"
+        },
+        {
+          "id": 14024158800,
+          "name": "cc-runtime-a-a10-A03-native-part-1-43396171488-1",
+          "bytes": 419431276,
+          "digest": "sha256:a2e48403c4acbb8594a205c13124bf84ceae75e51b0f5f4ede546fc3b761276a",
+          "expires": "2026-12-13T09:20:37Z"
+        },
+        {
+          "id": 14024062724,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43396171488-1",
+          "bytes": 366353424,
+          "digest": "sha256:8cb3b46e23d0082b84437c09ec6c0a64cbf30c7e8e9057c14024a23674e3e69a",
+          "expires": "2026-12-13T09:12:19Z"
+        },
+        {
+          "id": 14024055632,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43396171488-1",
+          "bytes": 150409282,
+          "digest": "sha256:fdc34424d96344c374b5ebf6ad220b88c066d95db04bc77aff5eff3f33d414de",
+          "expires": "2026-12-13T09:01:03Z"
+        },
+        {
+          "id": 14023980551,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43396171488-1",
+          "bytes": 110098410,
+          "digest": "sha256:f9d4cd0e160e1f86487971b27ff65a66057c9f9010955a02d581e393be5e8095",
+          "expires": "2026-12-13T08:59:16Z"
+        },
+        {
+          "id": 14023843557,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43396171488-1",
+          "bytes": 301297,
+          "digest": "sha256:4f63525ac9589bb9cd582adec7bcd5df3973d3f46e6b73a114d9f4a1183ade41",
+          "expires": "2026-12-13T09:12:17Z"
+        },
+        {
+          "id": 14023698501,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43396171488-1",
+          "bytes": 244078,
+          "digest": "sha256:1f72bfdd05f71342ddffdce4e4fe5da11d1bd252abdd4f7219251a6b9181cf70",
+          "expires": "2026-12-13T09:14:52Z"
+        },
+        {
+          "id": 14023638890,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43396171488-1",
+          "bytes": 284076982,
+          "digest": "sha256:832b68f1acde57a5d63636b241de792602b71b05c1b2493185ef42215c925bb2",
+          "expires": "2026-12-13T09:08:22Z"
+        },
+        {
+          "id": 14023550597,
+          "name": "imp-015-save-compatibility",
+          "bytes": 427855,
+          "digest": "sha256:3d8ca39d28d71638fd3d7a21de985456b3a07f72bd779fedfab131acd4479974",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14023431835,
+          "name": "cc-runtime-a-a10-exact-jar-units-43396171488-1",
+          "bytes": 150833,
+          "digest": "sha256:e758166e83b77690b5b7c24f82ef43e4e0df831fd5ed34b02d57d1b7b407d3e5",
+          "expires": "2026-12-13T08:53:31Z"
+        },
+        {
+          "id": 14023382427,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43396171488-1",
+          "bytes": 127940456,
+          "digest": "sha256:47990e3bd4b89504934735381389678255e4fa64858b477da1eb87f2fc0b9fc6",
+          "expires": "2026-12-13T09:00:13Z"
+        },
+        {
+          "id": 14023311846,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 366491,
+          "digest": "sha256:81df35aed88eeba930aa417959b6f2337bbc70c7df9427e8c99b7c6403526ffd",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14023188868,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43396171488-1",
+          "bytes": 129974,
+          "digest": "sha256:0be5f0e70d8613cedc16581481ad2d7a4bdb2cc0138aa3e7ffe68dc9a3390049",
+          "expires": "2026-12-13T08:59:14Z"
+        },
+        {
+          "id": 14023151384,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 427179,
+          "digest": "sha256:f351198da51f6478ff8d86a27552acc38440b0999d309e4ab1989970381c203f",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14023128939,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43396171488-1",
+          "bytes": 160851,
+          "digest": "sha256:47bace5596a2d9398cd896dab03ee0ce56c6f6a5acfd4cf670a21a123d2abd64",
+          "expires": "2026-12-13T09:01:02Z"
+        },
+        {
+          "id": 14023127449,
+          "name": "cc-runtime-a-a04-contracts-f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9-43396171488-1",
+          "bytes": 3607196,
+          "digest": "sha256:62ce7ddb29df41bfca39cf0e7af373f247b0e81c5ee2a9dae4046e2567807a74",
+          "expires": "2026-12-13T08:53:33Z"
+        },
+        {
+          "id": 14023017442,
+          "name": "primitive-diagnostics-43396171488-1",
+          "bytes": 372447,
+          "digest": "sha256:cfe52464b779d13a2ea8e39aa622163eb86e32ef76a912b54eaa7f6f90226a29",
+          "expires": "2026-11-27T08:51:38Z"
+        },
+        {
+          "id": 14022887354,
+          "name": "imp-016-world-retention",
+          "bytes": 431065,
+          "digest": "sha256:8ba21b86cb4317550db32ca218ad64f6052e067f277acda3d869fa03c7feec0e",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14022657507,
+          "name": "cc-runtime-a-a07-lifecycle-f6a3b1ae53ec2ad2e0080c50e0b78c866067f9f9-43396171488-1",
+          "bytes": 6650285,
+          "digest": "sha256:5e1334b1e143b21ed337cc0f3cbc0236f4ac5df7f4587365dd469f2ad2e0b06f",
+          "expires": "2026-12-13T08:52:20Z"
+        },
+        {
+          "id": 14022579060,
+          "name": "cc-runtime-a-a10-frozen-runtime-43396171488-1",
+          "bytes": 37956443,
+          "digest": "sha256:912e1ab04ed10f403cc29e7a66aa36e497a8d6cac36608cbf147bac418d24917",
+          "expires": "2026-12-13T08:53:28Z"
+        },
+        {
+          "id": 14022449256,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43396171488-1",
+          "bytes": 181250,
+          "digest": "sha256:48736a9b472b41a9c4d46c11fab6f6ee2c4655baffdcac33fe96c8cee0df1ed6",
+          "expires": "2026-12-13T09:00:11Z"
+        },
+        {
+          "id": 14022439128,
+          "name": "imp-018-prerequisites",
+          "bytes": 430726,
+          "digest": "sha256:302ba17680f8952c5a3e8be2283adda30efa4d63ca7faa3b26266feba1b10dd0",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14022384543,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4266265,
+          "digest": "sha256:553284488a9cefe15397ee14f5268c881757fea6e45b213f190aebaad1d528ef",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14022064784,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 429600,
+          "digest": "sha256:21dfd21c819804b85011cbde77c718d830ae9e6d76b2a0916a0043155fee6386",
+          "expires": "2027-02-11T08:48:53Z"
+        },
+        {
+          "id": 14022049807,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 362694,
+          "digest": "sha256:69ed15beb367cef1263e258083622a0ebc0ac73c8b60b51538267139bcc0f1ee",
+          "expires": "2027-02-11T08:48:53Z"
+        }
+      ],
+      "localVerifiedRaw": {
+        "A05": {
+          "bytes": 388330555,
+          "sha256": "898b9acee5c7adf89428575b0331ea8bcb205a0f1716734da927abfd991755d4",
+          "entries": 4706,
+          "fullExtraction": true
+        },
+        "A06": {
+          "bytes": 876847808,
+          "sha256": "a325979e99473c02d28dd3275a4f219f1142b8bd1ab744cb43bfec5a0fadd096",
+          "entries": 11483,
+          "fullExtraction": true
+        }
+      }
     }
   },
   "date": "2026-11-13"
