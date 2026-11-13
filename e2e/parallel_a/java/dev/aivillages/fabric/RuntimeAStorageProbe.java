@@ -22,6 +22,7 @@ public final class RuntimeAStorageProbe implements ModInitializer {
     private final AtomicReference<JsonObject> request=new AtomicReference<>();private final AtomicBoolean busy=new AtomicBoolean();
     private final AtomicReference<KernelSession.RuntimeStorageView> live=new AtomicReference<>();
     private final List<Long> capture=new ArrayList<>();private boolean measuring,readySent;private String seen="";
+    private int admissionEmptyOffers;private long admissionStartedMillis;
     public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A02_PROBE"))){mailbox.shutdown();baselineIo.shutdown();return;}
         mailbox.scheduleWithFixedDelay(this::poll,0,100,TimeUnit.MILLISECONDS);
@@ -55,8 +56,20 @@ public final class RuntimeAStorageProbe implements ModInitializer {
                     case "headroom" -> headroom(view);
                     default -> throw new java.io.IOException("Unknown A02 fixture operation");
                 });
-                if(work.isEmpty()){reply(id,map("status","BACKPRESSURE","storage",kernel.runtimeHistoryStatus()),null);return;}
-                work.get().whenComplete((value,error)->reply(id,value,error));
+                if(work.isEmpty()){
+                    // ArchiveService guarantees that an empty offer issued no operation.
+                    // Keep this one RPC pending; its original host deadline remains180s.
+                    admissionEmptyOffers++;
+                    if(!request.compareAndSet(null,command))throw new IllegalStateException("A02 admission mailbox replaced");
+                    return;
+                }
+                var admission=map("request",id,"operation",op,"process",process,"emptyOffers",admissionEmptyOffers,
+                        "acceptedOperations",1,"startedMillis",admissionStartedMillis,"admittedMillis",System.currentTimeMillis(),
+                        "contract","EMPTY_OFFERS_ISSUE_NO_OPERATION");
+                work.get().whenComplete((value,error)->{
+                    if(error!=null)reply(id,value,error);
+                    else {var observed=new LinkedHashMap<String,Object>(value);observed.put("writerAdmission",admission);reply(id,observed,null);}
+                });
             }catch(IllegalStateException starting){/* no fabricated startup snapshot */}
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server->{mailbox.shutdown();baselineIo.shutdown();});
@@ -67,7 +80,7 @@ public final class RuntimeAStorageProbe implements ModInitializer {
             var value=JsonParser.parseString(Files.readString(path)).getAsJsonObject();String id=value.get("id").getAsString();if(id.equals(seen))return;
             UUID.fromString(id);seen=id;
             if(!process.toString().equals(value.get("process").getAsString())){write("persistence-response.json",map("id",id,"process",process,"status","STALE_PROCESS"));return;}
-            if(busy.compareAndSet(false,true))request.set(value);
+            if(busy.compareAndSet(false,true)){admissionEmptyOffers=0;admissionStartedMillis=System.currentTimeMillis();request.set(value);}
         }catch(Exception failure){System.err.println("A02 fixture mailbox: "+failure);}
     }
     private void reply(String id,Map<String,Object> value,Throwable error) {

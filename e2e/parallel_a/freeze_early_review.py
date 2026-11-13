@@ -95,6 +95,18 @@ def persistence(root,cases):
         costs[mode]=value
     assert costs['baseline']['io']['sourceSha256']==costs['candidate']['io']['sourceSha256']
     pressure=cases['reserved-metadata-under-ordinary-pressure']['evidence'];assert pressure['reservedOriginalsSettled']==8 and pressure['nativeEffects']==0
+    # Each current writer operation is one original RPC, never a replay of an admitted operation.
+    admission=[]
+    for value,operation in ((before,'compat'),(compat['repeated'],'compat'),(compat['coldVerified'],'verify'),
+                            (compat['coldRepeated'],'compat'),(pressure,'headroom'),(costs['candidate']['io'],'candidate-benchmark')):
+        rpc=read(root/'storage-rpc'/(value['id']+'.json'));request=rpc['request']
+        assert rpc['response']==value and request['id']==value['id'] and request['process']==value['process'] and request['op']==operation
+        observed=value['writerAdmission']
+        assert observed['request']==value['id'] and observed['operation']==operation and observed['process']==value['process']
+        assert observed['acceptedOperations']==1 and observed['contract']=='EMPTY_OFFERS_ISSUE_NO_OPERATION'
+        assert isinstance(observed['emptyOffers'],int) and 0<=observed['emptyOffers']
+        assert 0<=observed['admittedMillis']-observed['startedMillis']<=180000
+        admission.append(observed)
     unknown=cases['unknown-history-fence-and-whole-world-rollback'];assert unknown['fenced']['storage']['readOnly'] and not unknown['restored']['storage']['readOnly']
     healthy=root/'coherent-before-corruption-world';bad=root/'retained-corrupt-history-world'
     good_manifest=healthy/'data/cognitivecraft/runtime-history/v1/manifest.jsonl';bad_manifest=bad/'data/cognitivecraft/runtime-history/v1/manifest.jsonl'
@@ -104,7 +116,8 @@ def persistence(root,cases):
     negative=read(root/'unknown-history-negative.json');assert digest(bad_manifest)==negative['currentSha256'] and digest(good_manifest)==negative['originalHeaderSha256']
     assert chest(bad,DEST).get(LOG,0)==0 and block_name(bad,[70,208,66])==LOG
     return {'performance':{k:{s:v[s] for s in ('tick','capture','ack')} for k,v in costs.items()},
-            'reservedOriginals':8,'syntheticHeadroomNativeEffects':0,'unknownSchemaPreserved':99,'rollback':'COORDINATED_WORLD_AND_METADATA'}
+            'reservedOriginals':8,'syntheticHeadroomNativeEffects':0,'unknownSchemaPreserved':99,'rollback':'COORDINATED_WORLD_AND_METADATA',
+            'singleAdmissionWriterRpcs':admission}
 
 def leases(root,cases):
     positive=cases['legacy-native-positive']['evidence'];successful(positive['view'],2)
