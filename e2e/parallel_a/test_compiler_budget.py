@@ -55,6 +55,18 @@ class CompilerBudgetTest(unittest.TestCase):
         changed=self.native()
         with self.assertRaises(ValueError):configure(40,99,[0,1],server_cpu=2)
         self.assertEqual([],changed)
+    def test_a06_storage_worker_inherited_server_core_is_moved_inside_original_budget(self):
+        self.native(extra_threads=((4,'cognitivecraft-'),))
+        os.sched_setaffinity(4,{0})
+        value=configure(40,99,[0,1],server_cpu=0,application_writers=True,require_storage_writer=True)
+        self.assertEqual([0],value['applicationWriterThreads'][0]['cpusBefore'])
+        self.assertEqual([1],value['applicationWriterThreads'][0]['cpusAfter'])
+        self.assertEqual(10,value['applicationWriterThreads'][0]['niceAfter'])
+        self.assertEqual(0,value['addedCores']);self.assertEqual([0],value['serverThread']['cpusAfter'])
+    def test_missing_a06_actual_storage_worker_refuses_before_mutation(self):
+        changed=self.native(extra_threads=((4,'runtime-a-a06'),))
+        with self.assertRaises(ValueError):configure(40,99,[0,1],server_cpu=0,application_writers=True,require_storage_writer=True)
+        self.assertEqual([],changed)
     def test_missing_owned_observers_is_refused_before_budget_mutation(self):
         changed=self.native()
         with self.assertRaises(ValueError):configure(40,99,[0,1],require_observers=True)

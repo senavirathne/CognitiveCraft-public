@@ -51,4 +51,18 @@ class NativeCycles(unittest.TestCase):
         changed=copy.deepcopy(frame);changed['entities']['actor']['loaded']=False
         self.assertIsNone(loaded_observation(changed,'citizen','actor','Hana'))
 
+    def test_reload_boundary_requires_all_loss_acks_and_native_absence_in_same_frame(self):
+        from lifecycle_cycles import unloaded_observation
+        life={'identity':{'actor':{'citizenId':'citizen','entityId':'actor'},'displayName':'Hana',
+                         'availability':'UNLOADED','lifecycle':{'event':'UNLOAD','acknowledged':7}}}
+        frame={'entities':{'actor':{'loaded':False}},'lifecycle':{'PlayerA':{'citizen':life}}}
+        self.assertIs(unloaded_observation(frame,'citizen','actor','Hana'),life)
+        for ack in (0,1,3):
+            changed=copy.deepcopy(frame);changed['lifecycle']['PlayerA']['citizen']['identity']['lifecycle']['acknowledged']=ack
+            self.assertIsNone(unloaded_observation(changed,'citizen','actor','Hana'))
+        changed=copy.deepcopy(frame);changed['entities']['actor']['loaded']=True
+        self.assertIsNone(unloaded_observation(changed,'citizen','actor','Hana'))
+        changed=copy.deepcopy(frame);changed['entities']={}
+        self.assertIsNone(unloaded_observation(changed,'citizen','actor','Hana'))
+
 if __name__=='__main__':unittest.main()

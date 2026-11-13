@@ -187,6 +187,11 @@ def review_cost(root):
     assert len(windows)==cost['windows']==11 and cost['nativeEffects']==33
     ticks=[];capture={'HARVEST':[],'PICKUP':[],'DEPOSIT':[]};ack=[]
     for w in windows:
+        if (root/'a10-frozen-runtime.json').exists():
+            budget=w['compilerBudget']
+            assert budget['profile']=='A06' and budget['storageWriterRequired'] is True
+            assert budget['applicationWriterThreads'] and budget['serverThreadCpus']==[0] and budget['backgroundCpus']==[1]
+            assert any(read(p)==budget for p in root.glob('a10-compiler-budget-*.json'))
         assert w['activeSamples']==[s for s in w['raw']['samples'] if w['start']<=s['time']<=w['end']] and len(w['activeSamples'])>=40
         ticks.extend(s['nanos'] for s in w['activeSamples']);metrics=w['metrics']
         capture['HARVEST']+=metrics['HARVEST']['preparationNanos'];capture['PICKUP']+=metrics['PICKUP']['captureNanos'];capture['DEPOSIT']+=metrics['DEPOSIT']['beginNanos']

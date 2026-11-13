@@ -43,9 +43,9 @@ class LifecycleHarness(RecoveryHarness):
         reply=self.wait(lambda:(v if (v:=read(self.root/'server/a07-response.json')) and v['id']==request['id'] else None),'A07 '+op,25)
         require(reply['status']=='PASS','A07 observer request failed');return reply
     def watch(self,points,entities,coherent_lifecycle=False):
-        self.observation('watch',positions=points,entities=entities,coherentLifecycle=coherent_lifecycle)
+        reply=self.observation('watch',positions=points,entities=entities,coherentLifecycle=coherent_lifecycle)
         keys={','.join(map(str,p)) for p in points}
-        return self.wait(lambda:(v if (v:=self.a07()) and set(map(str,entities))==set(v['entities']) and keys==set(v['targets']) else None),'Exact A07 native watch set',25)
+        return self.wait(lambda:(v if (v:=self.a07()) and v.get('watchId')==reply['id'] and set(map(str,entities))==set(v['entities']) and keys==set(v['targets']) else None),'Exact A07 native watch request and set',25)
     def life(self,citizen=None,player='PlayerA'):
         value=read(self.root/'server/lifecycle-snapshot.json')
         if not value or value['time']<self.activated:return None
@@ -280,8 +280,8 @@ def w04_case(h,seed,frozen):
         h.enroll(name=c['citizenName'])
         h.vanilla('PlayerA','/tp 66.5 208 69.5')
     else:h.command('PlayerA','/aivillage kernel name '+primary[0]+' '+c['citizenName'],'name='+c['citizenName'])
-    subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]],[10004,207,10004]],[entity],coherent_lifecycle=True)
-    from lifecycle_cycles import loaded_observation
+    subject,entity=h.citizens['PlayerA'],h.entities['PlayerA'];watch=h.watch(c['positions']+[c['destination'],[c['actor'][0],208,c['actor'][2]],[10004,207,10004]],[entity],coherent_lifecycle=True)
+    from lifecycle_cycles import loaded_observation,unloaded_observation
     before_started=time.monotonic()
     h.wait(lambda:(v if (v:=h.a07()) and loaded_observation(v,subject,entity,c['citizenName']) else None),'Frozen W04 named subject in a coherent native frame',40)
     starting=starting_checkpoint(h,directory);fresh_since=int(time.time()*1000)
@@ -290,6 +290,8 @@ def w04_case(h,seed,frozen):
     initial_native=h.wait(lambda:(v if (v:=h.a07()) and v['time']>=fresh_since and loaded_observation(v,subject,entity,c['citizenName']) else None),
                           'Actual current W04 baseline with same-tick lifecycle identity',before_remaining)
     before=loaded_observation(initial_native,subject,entity,c['citizenName']);setup_review=w04_start(directory/'starting-world',c,entity)
+    require(initial_native['watchId']==watch['watchId'],'W04 baseline belongs to another native watch request')
+    atomic(directory/'initial-observation.json',{'before':before,'initialNative':initial_native,'watchId':watch['watchId']})
     calls=h.model_calls();h.console(['forceload add 10000 10000'])
     h.wait(lambda:'Test passed' in h.command('PlayerA','/execute if loaded 10000 208 10000','Test passed|Test failed'),'Remote original W04 landing chunk loaded',45)
     h.console(['fill 10000 207 10000 10008 207 10008 minecraft:stone','setworldspawn 10004 208 10004'])
@@ -303,11 +305,15 @@ def w04_case(h,seed,frozen):
     require(landing_remaining>0 and landing['entities'][entity]['loaded'],'W04 landing verification expired or subject already unloaded')
     landing_feedback=h.command('PlayerA','/execute if block 10004 207 10004 minecraft:stone','Test passed',timeout=landing_remaining)
     h.vanilla('PlayerA','/tp 10004.5 208 10004.5');started=time.monotonic()
-    boundary=h.wait(lambda:(v if (v:=h.life(subject)) and v['identity']['availability']=='UNLOADED'
-                 and v['identity']['lifecycle']['event']=='UNLOAD' else None),'Actual same-citizen native chunk unload',110)
-    duration=time.monotonic()-started;native=h.a07()
+    # Existing lifecycle authority deliberately defers LOAD while loss acknowledgement
+    # is pending. Observe the complete original boundary before requesting a reload.
+    native=h.wait(lambda:(v if (v:=h.a07()) and unloaded_observation(v,subject,entity,c['citizenName']) else None),
+                  'Actual same-citizen native unload with all owner acknowledgements',110)
+    boundary=unloaded_observation(native,subject,entity,c['citizenName']);duration=time.monotonic()-started
     require(not native['entities'][entity]['loaded'],'Lifecycle UNLOAD disagrees with native entity lookup')
     require(any(e['event']=='ENTITY_UNLOAD' and e['entity']==entity for e in native['nativeEvents']),'Native unload event was not recorded')
+    require(native['watchId']==watch['watchId'],'W04 unload belongs to another native watch request')
+    atomic(directory/'unload-observation.json',{'boundary':boundary,'nativeAtUnload':native,'unloadSeconds':duration,'originalTimeoutSeconds':110})
     reload_started=time.monotonic();h.vanilla('PlayerA','/tp 66.5 208 69.5');h.console(['forceload remove 10000 10000'])
     h.quiet(20)
     reload_remaining=80-(time.monotonic()-reload_started)
@@ -315,6 +321,7 @@ def w04_case(h,seed,frozen):
     reload_native=h.wait(lambda:(v if (v:=h.a07()) and loaded_observation(v,subject,entity,c['citizenName']) else None),
                          'Original W04 subject reloads with all acknowledgements in one native frame',reload_remaining)
     after=loaded_observation(reload_native,subject,entity,c['citizenName'])
+    require(reload_native['watchId']==watch['watchId'],'W04 reload belongs to another native watch request')
     from lifecycle_cycles import review as cycle_review
     native_cycles=cycle_review(initial_native,reload_native,entity,before['identity']['lifecycle']['generation'],after['identity']['lifecycle']['generation'])
     require(after['identity']['actor']==before['identity']['actor'] and after['identity']['owner']==before['identity']['owner']

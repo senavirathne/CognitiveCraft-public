@@ -168,15 +168,21 @@ def review(root,source):
                     assert 'axis='+c['logAxis'] in row['initialNative']['targets'][','.join(map(str,pos))]['block']
             box=chest_row(start,c['destination']);assert box['id']=='minecraft:'+c['container']
             assert sorted(item(e) for e in box.get('Items',[]))==sorted((slot,name,count,{}) for slot,name,count in c['destinationSlots'])
-            from lifecycle_cycles import loaded_observation
+            from lifecycle_cycles import loaded_observation,unloaded_observation
             entity=row['before']['identity']['actor']['entityId'];citizen=row['before']['identity']['actor']['citizenId']
             assert row['before']==loaded_observation(row['initialNative'],citizen,entity,c['citizenName'])
             assert row['after']==loaded_observation(row['reloadNative'],citizen,entity,c['citizenName'])
+            assert row['boundary']==unloaded_observation(row['nativeAtUnload'],citizen,entity,c['citizenName'])
+            watch=row['initialNative']['watchId'];assert watch
+            assert watch==row['nativeAtUnload']['watchId']==row['reloadNative']['watchId']==row['landingFloor']['native']['watchId']
+            assert read(folder/'initial-observation.json')=={'before':row['before'],'initialNative':row['initialNative'],'watchId':watch}
+            assert read(folder/'unload-observation.json')=={'boundary':row['boundary'],'nativeAtUnload':row['nativeAtUnload'],
+                'unloadSeconds':row['unloadSeconds'],'originalTimeoutSeconds':110}
             assert row['coherentObservations']=={'mode':'SAME_END_SERVER_TICK_NATIVE_AND_LIFECYCLE',
                 'beforeTick':row['initialNative']['tick'],'afterTick':row['reloadNative']['tick'],'setupLimitSeconds':40,'reloadLimitSeconds':80}
             b,a=row['before']['identity'],row['after']['identity'];u=row['boundary']['identity']
             assert b['actor']==a['actor']==u['actor'] and b['owner']==a['owner']==u['owner']
-            assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD'
+            assert u['availability']=='UNLOADED' and u['lifecycle']['event']=='UNLOAD' and u['lifecycle']['acknowledged']==7
             landing=row['landingFloor'];observed=landing['native'];floor=observed['targets']['10004,207,10004']
             assert landing['verificationLimitSeconds']==30 and landing['feedback']=='Test passed'
             assert observed['process']==row['initialNative']['process']==row['nativeAtUnload']['process']

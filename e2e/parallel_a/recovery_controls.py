@@ -174,6 +174,10 @@ def cost(h,seed,templates):
     directory=h.root/'controls/representative-active-cost';directory.mkdir(parents=True,exist_ok=True);windows=[];captures={s:[] for s in ('HARVEST','PICKUP','DEPOSIT')};capture_cpu={s:[] for s in captures};ack=[]
     for n,template in enumerate(templates):
         case,dst=prepare_cost_case(h,seed,template,'cost-'+str(n))
+        budget=None
+        if getattr(h,'a10_profile',None)=='A06':
+            from compiler_budget import prepare
+            budget=prepare(h)
         start=int(time.time()*1000);calls=h.model_calls()
         run,view=run_cost_case(h,case,dst)
         end=int(time.time()*1000);h.quiet(400);raw=read(h.root/'server/runtime-a-ticks.json');active=[r for r in raw['samples'] if start<=r['time']<=end];require(len(active)>=40,'Cost interval lacks active tick coverage')
@@ -183,6 +187,7 @@ def cost(h,seed,templates):
             capture_cpu[stage]+=[n for n in v.get('captureCpuNanos',[]) if n>=0]
         require(h.model_calls()==calls,'Active known-work cost interval called a model')
         window={'id':case['id'],'item':case['item'],'run':run,'view':view,'start':start,'end':end,'activeSamples':active,'raw':raw,'metrics':metrics,'modelCallsUnchanged':True}
+        if budget is not None:window['compilerBudget']=budget
         target=directory/case['id'];target.mkdir(parents=True,exist_ok=True)
         window['worldHashes']=retain(h,target);window['nativeSaved']=native_saved(target/'terminal-world','DEPOSIT',case);window['originalCase']=case
         atomic(directory/(case['id']+'.json'),window);windows.append(window)

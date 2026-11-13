@@ -28,3 +28,15 @@ def loaded_observation(native,citizen,entity,name):
     if marker.get('event')!='LOAD' or marker.get('acknowledged')!=7:return None
     if not native.get('entities',{}).get(entity,{}).get('loaded'):return None
     return value
+
+def unloaded_observation(native,citizen,entity,name):
+    """Require native absence and the existing completed loss acknowledgements together."""
+    if not native:return None
+    value=native.get('lifecycle',{}).get('PlayerA',{}).get(citizen)
+    if not value:return None
+    identity=value.get('identity',{});actor=identity.get('actor',{});marker=identity.get('lifecycle',{})
+    if actor.get('citizenId')!=citizen or actor.get('entityId')!=entity:return None
+    if identity.get('displayName')!=name or identity.get('availability')!='UNLOADED':return None
+    if marker.get('event')!='UNLOAD' or marker.get('acknowledged')!=7:return None
+    if native.get('entities',{}).get(entity,{}).get('loaded') is not False:return None
+    return value

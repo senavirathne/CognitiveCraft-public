@@ -21,7 +21,7 @@ public final class RuntimeA07Probe implements ModInitializer {
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
     private final ScheduledExecutorService io=Executors.newSingleThreadScheduledExecutor(r->new Thread(r,"runtime-a-a07"));
     private final AtomicReference<JsonObject> request=new AtomicReference<>();
-    private volatile Object pending;private String seen="";private KernelSession attached;
+    private volatile Object pending;private String seen="",watchId="";private KernelSession attached;
     private final List<List<Integer>> positions=new ArrayList<>();
     private final Map<UUID,Entity> tracked=new LinkedHashMap<>();
     private final List<Map<String,Object>> events=new ArrayList<>();
@@ -59,6 +59,7 @@ public final class RuntimeA07Probe implements ModInitializer {
                 if(command!=null) {
                     String id=command.get("id").getAsString(),op=command.get("op").getAsString();
                     if(op.equals("watch")) {
+                        watchId=id;
                         coherentLifecycle=command.has("coherentLifecycle")&&command.get("coherentLifecycle").getAsBoolean();
                         positions.clear();tracked.clear();events.clear();
                         for(var point:command.getAsJsonArray("positions")){
@@ -126,9 +127,10 @@ public final class RuntimeA07Probe implements ModInitializer {
                     }
                     lifecycleRows.put(player.getGameProfile().name(),Map.copyOf(citizens));
                 }
-                pending=Map.of("schema",1,"process",process,"pid",ProcessHandle.current().pid(),"time",System.currentTimeMillis(),
-                        "tick",level.getGameTime(),"targets",Map.copyOf(targetRows),"entities",Map.copyOf(entityRows),
-                        "nativeEvents",List.copyOf(events),"damage",LifecycleItemDamage.facts(),"lifecycle",Map.copyOf(lifecycleRows));
+                pending=Map.ofEntries(Map.entry("schema",1),Map.entry("process",process),Map.entry("pid",ProcessHandle.current().pid()),
+                        Map.entry("time",System.currentTimeMillis()),Map.entry("tick",level.getGameTime()),Map.entry("watchId",watchId),
+                        Map.entry("targets",Map.copyOf(targetRows)),Map.entry("entities",Map.copyOf(entityRows)),
+                        Map.entry("nativeEvents",List.copyOf(events)),Map.entry("damage",LifecycleItemDamage.facts()),Map.entry("lifecycle",Map.copyOf(lifecycleRows)));
             }catch(Exception failure){write("a07-error.json",Map.of("error",failure.toString()));}
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(s->{io.shutdown();flush();});
