@@ -36,6 +36,40 @@ class NonparticipantFixtureTests(unittest.TestCase):
                 self.assertEqual(setup.call_count,expected)
                 self.assertEqual(result,{'fixture':True} if expected else {'parent':True})
 
+    def test_actual_setup_uses_fresh_process_bound_snapshot_without_activation_subclass(self):
+        import json,tempfile
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from nonparticipant_fixture import review_record
+        for profile in ('A00','A01','A02','A03','A04','A05','A06','A07','A09'):
+            with self.subTest(profile=profile),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);(root/'server').mkdir()
+                process={'kind':'server','pid':17,'start':100,'releaseSha256':'jar'}
+                (root/'server/process.json').write_text(json.dumps(process))
+                actor={'uuid':'foreign','alive':True,'baby':False,'noAI':False,'controlled':False,'pos':[82.5,208,65.5]}
+                snapshot={'pid':17,'time':123457,'actors':[actor],
+                          'blocks':{','.join(map(str,p)):'minecraft:glass' for p in layout()},
+                          'knownPlayers':{'PlayerB':{'uuid':'owner','citizens':{'citizens':[
+                              {'actor':{'citizenId':'citizen','entityId':'foreign'},'availability':'LOADED'}]}}}}
+                calls=[];rejections=[]
+                def wait(predicate,message,timeout):
+                    if message.startswith('Actual ordinary'):
+                        for bad in ({'time':123455},{'pid':18}):
+                            stale={**snapshot,**bad};(root/'server/snapshot.json').write_text(json.dumps(stale))
+                            rejections.append(predicate())
+                        (root/'server/snapshot.json').write_text(json.dumps(snapshot))
+                    result=predicate();self.assertIsNotNone(result);return result
+                h=SimpleNamespace(root=root,actions_active=False,a10_profile=profile,
+                    entities={'PlayerA':'primary','PlayerB':'foreign'},citizens={'PlayerB':'citizen'},
+                    players={'PlayerB':'owner'},snapshot=lambda:snapshot,wait=wait,
+                    console=lambda commands:calls.append(commands),event=lambda *args:None)
+                with patch('nonparticipant_fixture.time.time',return_value=123.456),patch('baseline.native_process',return_value={'namespaceProcess':process}):
+                    record=setup(h)
+                self.assertFalse(hasattr(h,'activated'))
+                self.assertEqual(rejections,[None,None]);self.assertEqual(len(calls),1)
+                self.assertEqual(record['setupIssuedAtMillis'],123456)
+                self.assertEqual(review_record(root,record,profile,'jar')['status'],'PASS_APPLIED_NORMAL_AI_IDLE_ACTOR_FIXTURE')
+
     def test_all_live_lifecycle_targets_and_the_distinct_successor_stay_clear(self):
         points=[[67,208,68],[73,208,73],[77,208,72],[76,208,74],[74,208,69],[68,208,68]]
         for p in points:

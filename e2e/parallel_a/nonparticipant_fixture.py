@@ -1,5 +1,5 @@
 """Ordinary setup containment for the idle foreign villager, outside resource work."""
-import hashlib,json,uuid
+import hashlib,json,time,uuid
 from pathlib import Path
 
 def layout():
@@ -21,10 +21,12 @@ def setup(h):
     commands=['fill 81 208 64 84 210 64 minecraft:glass','fill 81 208 67 84 210 67 minecraft:glass',
               'fill 81 208 65 81 210 66 minecraft:glass','fill 84 208 65 84 210 66 minecraft:glass',
               'tp '+entity+' 82.5 208 65.5']
+    issued=int(time.time()*1000)
+    process=json.loads((h.root/'server/process.json').read_bytes())
     h.console(commands)
     def applied():
         raw=(h.root/'server/snapshot.json').read_bytes();value=json.loads(raw)
-        if value['time']<h.activated:return None
+        if value['time']<issued or value['pid']!=process['pid']:return None
         actor=next((a for a in value['actors'] if a['uuid']==entity),None)
         if not actor or not (82<=actor['pos'][0]<84 and 65<=actor['pos'][2]<67):return None
         if not all('minecraft:glass' in value['blocks'].get(','.join(map(str,p)),'') for p in layout()):return None
@@ -44,7 +46,8 @@ def setup(h):
             'setupBlockPlacements':36,'preRequestActorRelocations':1,
             'claim':'Pre-request fixture setup only; no Job, journal, receipt or tested gameplay accounting mutation.',
             'normalAI':True,'nativeEffects':0,'beforeGameplay':True,'nativeSnapshot':path.relative_to(h.root).as_posix(),
-            'nativeSnapshotSha256':hashlib.sha256(raw).hexdigest(),'nativeProcess':native_process(h)}
+            'nativeSnapshotSha256':hashlib.sha256(raw).hexdigest(),'nativeProcess':native_process(h),
+            'setupIssuedAtMillis':issued}
     target=h.root/('a10-nonparticipant-'+str(uuid.uuid4())+'.json');target.write_text(json.dumps(record,indent=2)+'\n')
     h.current_nonparticipant_fixture=record;h.event('a10-idle-foreign-actor-fixture',record)
     return record
@@ -68,6 +71,7 @@ def review_record(root,record,profile,jar):
     assert any(c['actor']['citizenId']==record['citizen'] and c['actor']['entityId']==record['entity'] and c['availability']=='LOADED' for c in owner['citizens']['citizens'])
     process=record['nativeProcess']['namespaceProcess'];assert process['kind']=='server' and process['releaseSha256']==jar
     assert snapshot['pid']==process['pid'] and snapshot['time']>=process['start']*1000
+    assert snapshot['time']>=record['setupIssuedAtMillis']
     return {'status':'PASS_APPLIED_NORMAL_AI_IDLE_ACTOR_FIXTURE','entity':record['entity'],'snapshotSha256':record['nativeSnapshotSha256'],'blocks':36}
 
 def review_world(world,record,case):
