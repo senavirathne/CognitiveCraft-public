@@ -92,7 +92,7 @@ final class FabricCitizenLifecycle {
                 offer(c, lifecycle.marker(c.actor().citizenId()).generation(), Event.MISSING, Source.MISSING_LOOKUP);
         }
         if (cursor > CitizenRegistry.MAX_CITIZENS * 1024) cursor %= Math.max(1, rows.size());
-        lifecycle.step();
+        lifecycle.step(tick());
     }
     int lastLookups() { return lastLookups; }
     private long tick() { return server.overworld().getGameTime(); }

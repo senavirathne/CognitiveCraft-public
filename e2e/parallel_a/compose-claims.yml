@@ -1,0 +1,18 @@
+services:
+  minecraft:
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.claims
+      network: none
+    environment:
+      COGNITIVECRAFT_A08_DRIVER: 'true'
+  client-a:
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.claims
+      network: none
+  client-b:
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.claims
+      network: none

@@ -10,6 +10,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import dev.aivillages.core.kernel.BootstrapController;
+import dev.aivillages.core.kernel.JobHistory;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.permissions.Permissions;
@@ -17,6 +18,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 
 import java.util.Comparator;
 import java.util.UUID;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -50,6 +52,27 @@ final class KernelCommands {
     }
     private void attachCommands(LiteralArgumentBuilder<CommandSourceStack> root) {
         var kernel = literal("kernel");
+        kernel.then(literal("activities").executes(c -> safe(c, (ctx, session) -> {
+            tell(ctx, "activities=" + session.activities(ctx.getSource().getPlayerOrException(), 0, 4)); return 1;
+        })).then(argument("offset", IntegerArgumentType.integer(0,JobHistory.JOBS+64)).executes(c -> safe(c, (ctx, session) -> {
+            tell(ctx, "activities=" + session.activities(ctx.getSource().getPlayerOrException(),
+                    IntegerArgumentType.getInteger(ctx,"offset"), 4)); return 1;
+        }))));
+        kernel.then(literal("activity").then(argument("root-job-id",StringArgumentType.word())
+                .executes(c -> safe(c, (ctx, session) -> {
+                    var v = session.activity(ctx.getSource().getPlayerOrException(), uuid(ctx,"root-job-id"));
+                    tell(ctx, "activity="+v.root()+" goal="+v.goal()+" principal="+v.authorizingPrincipal()
+                            +" villager="+v.responsible()+" generation="+v.executionGeneration()+" state="+v.state()
+                            +" owner="+v.route()+" recoveryOwner="+v.recoveryOwner()+" process="+v.process()
+                            +" blocker="+v.blocker()+" reason="+v.jobReason()+" cancellation="+v.cancellationIntent()
+                            +" verifiedLegacyQuantity="+v.verifiedLegacyQuantity()+" progress="+v.progressEvidence()
+                            +" physical="+v.physicalEvidence()
+                            +(v.progress()==null?"":" checkpoints="+v.progress().verifiedCheckpoints()+"/"+v.progress().plannedSteps()
+                            +" checklist="+v.progress().checkpoints().stream().map(p->p.step()+":"+p.quantity()+":"+p.evidence()).toList()
+                            +" remaining="+v.progress().remainingGoal()+" next="+v.progress().next()+" deadline="+v.progress().originalDeadline()
+                            +" nativeSettlement="+v.progress().availability().previousEffectsSettled()
+                            +" currentStock="+(v.progress().availability().known()?v.progress().availability().destinationQuantity():"unknown"))); return 1;
+                }))));
         kernel.then(literal("enroll")
                 .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .executes(context -> safe(context, (c, session) -> {
@@ -204,6 +227,19 @@ final class KernelCommands {
                 .suggests((c,b)->suggestJobIds(c,b,true)).executes(c->safe(c,(ctx,session)->{
                     var change=session.cancelQueuedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
                     tell(ctx,"job="+uuid(ctx,"job-id")+" cancellation="+change.accepted()+" reason="+change.reason());return change.accepted()?1:0;
+                }))));
+        kernel.then(literal("job-handoff").then(argument("job-id",StringArgumentType.word())
+                .then(argument("revision",LongArgumentType.longArg(0)).then(argument("generation",LongArgumentType.longArg(1))
+                .then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
+                .executes(c->safe(c,(ctx,session)->{
+                    boolean accepted=session.handoffJoinedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"),
+                            LongArgumentType.getLong(ctx,"revision"),LongArgumentType.getLong(ctx,"generation"),uuid(ctx,"actor-id"));
+                    tell(ctx,"job="+uuid(ctx,"job-id")+" handoff="+accepted);return accepted?1:0;
+                })))))));
+        kernel.then(literal("job-resume").then(argument("job-id",StringArgumentType.word())
+                .executes(c->safe(c,(ctx,session)->{
+                    boolean accepted=session.resumeJoinedJob(ctx.getSource().getPlayerOrException(),uuid(ctx,"job-id"));
+                    tell(ctx,"job="+uuid(ctx,"job-id")+" resume="+accepted);return accepted?1:0;
                 }))));
         kernel.then(literal("status").then(argument("run-id", StringArgumentType.word())
                 .suggests((context, builder) -> suggestRunOrTicketIds(context, builder, false))

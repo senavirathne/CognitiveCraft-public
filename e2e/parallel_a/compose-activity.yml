@@ -1,0 +1,4 @@
+services:
+  minecraft:
+    environment:
+      COGNITIVECRAFT_ACTIVITY_VIEW: 'true'

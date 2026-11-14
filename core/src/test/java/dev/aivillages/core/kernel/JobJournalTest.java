@@ -4,12 +4,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.util.*;
 
 import static dev.aivillages.core.kernel.Contracts.*;
@@ -19,6 +21,70 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class JobJournalTest {
     @TempDir Path world;
+    @Test void complete64JobJournalRetainsTheExactLegacyWireBytes() throws Exception {
+        var scene=new JobLifecycleStoreTest.Scene();
+        for(int n=0;n<64;n++)scene.report(scene.assign(scene.create(1)),1,ExecutionStatus.SUCCEEDED);
+        Snapshot source=scene.memory.state;byte[] encoded=JobJournal.encode(source);
+        assertEquals(64,source.jobs().size());assertTrue(encoded.length>StrictJson.MAX_BYTES);
+        assertArrayEquals(legacyBytes(source),encoded);
+        Path directory=world.resolve(JobJournal.WORLD_RELATIVE_PATH);Files.createDirectories(directory);
+        Files.write(directory.resolve("state.jsonl"),encoded);
+        try(var journal=JobJournal.open(world,scene.world)){assertFalse(journal.readOnly());assertEquals(source,journal.snapshot());}
+        assertArrayEquals(encoded,Files.readAllBytes(directory.resolve("state.jsonl")));
+    }
+    @Test void recordScopedStrictUtf8PreservesMultibyteEvidenceWithoutChangingTheJournal() throws Exception {
+        var scene=new JobLifecycleStoreTest.Scene();Snapshot source=unicodeSnapshot(scene);byte[] encoded=JobJournal.encode(source);
+        assertArrayEquals(legacyBytes(source),encoded);
+        Path directory=world.resolve(JobJournal.WORLD_RELATIVE_PATH);Files.createDirectories(directory);Files.write(directory.resolve("state.jsonl"),encoded);
+        try(var journal=JobJournal.open(world,scene.world)) {
+            assertFalse(journal.readOnly());assertEquals(source,journal.snapshot());
+            assertEquals("résumé λ 🚀",journal.snapshot().jobs().getFirst().current().terminal().completion().id());
+        }
+        assertArrayEquals(encoded,Files.readAllBytes(directory.resolve("state.jsonl")));
+    }
+    @ParameterizedTest @ValueSource(strings={"MISSING_FINAL_LF","EMPTY_RECORD","COUNT","MALFORMED_UTF8","SPLIT_UTF8"})
+    void framedRecordCorruptionWithAValidDigestStillFencesAndPreservesBothVersions(String mutation) throws Exception {
+        var scene=new JobLifecycleStoreTest.Scene();Snapshot source=unicodeSnapshot(scene);byte[] original=JobJournal.encode(source);
+        int first=0;while(original[first]!='\n')first++;
+        var header=StrictJson.object(new String(original,0,first,StandardCharsets.UTF_8));byte[] payload=Arrays.copyOfRange(original,first+1,original.length);
+        long records=1;
+        switch(mutation) {
+            case "MISSING_FINAL_LF" -> payload=Arrays.copyOf(payload,payload.length-1);
+            case "EMPTY_RECORD" -> {payload=Arrays.copyOf(payload,payload.length+1);payload[payload.length-1]='\n';records=2;}
+            case "COUNT" -> records=0;
+            default -> {
+                int at=-1;for(int n=0;n<payload.length-1;n++)if(payload[n]==(byte)0xc3 && payload[n+1]==(byte)0xa9){at=n;break;}
+                assertTrue(at>=0,"Fixture must contain a real two-byte UTF-8 character");
+                if(mutation.equals("MALFORMED_UTF8"))payload[at+1]=0x28;
+                else {payload=ByteBuffer.allocate(payload.length+1).put(payload,0,at+1).put((byte)'\n').put(payload,at+1,payload.length-at-1).array();records=2;}
+            }
+        }
+        header.put("sha256",HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(payload)));header.put("records",records);
+        byte[] prefix=(StrictJson.canonical(header)+"\n").getBytes(StandardCharsets.UTF_8);
+        byte[] broken=ByteBuffer.allocate(prefix.length+payload.length).put(prefix).put(payload).array();
+        Path directory=world.resolve(JobJournal.WORLD_RELATIVE_PATH);Files.createDirectories(directory);
+        Files.write(directory.resolve("state.jsonl"),broken);Files.write(directory.resolve("state.prev.jsonl"),original);
+        try(var journal=JobJournal.open(world,scene.world)){assertTrue(journal.readOnly());assertEquals(source,journal.snapshot());}
+        assertArrayEquals(broken,Files.readAllBytes(directory.resolve("state.jsonl")));assertArrayEquals(original,Files.readAllBytes(directory.resolve("state.prev.jsonl")));
+    }
+    private static Snapshot unicodeSnapshot(JobLifecycleStoreTest.Scene scene) {
+        Job job=scene.assign(scene.create(1));Attempt attempt=job.current();
+        var terminal=new Execution(ExecutionStatus.SUCCEEDED,null,1,new EvidenceRef("résumé λ 🚀","crop-delivery:1",scene.owner.scope().domainId().toString()));
+        assertTrue(scene.store.recordExecutionResult(job.id(),job.guard(),new Report(attempt.id(),attempt.generation(),1,
+                Map.of(Budgets.Kind.CALLS,1L),JobLifecycleStoreTest.receipts(attempt,1),terminal),scene.owner).accepted());
+        scene.settle();return scene.memory.state;
+    }
+    /** Frozen pre-change wire construction is an independent byte-compatibility oracle. */
+    private static byte[] legacyBytes(Snapshot snapshot) throws Exception {
+        var lines=new ArrayList<String>();for(Job job:snapshot.jobs())lines.add(JobCodec.job(job));
+        for(Allocation allocation:snapshot.allocations())lines.add(JobCodec.allocation(allocation));
+        String payload=lines.isEmpty()?"":String.join("\n",lines)+"\n";
+        long schema=snapshot.jobs().stream().anyMatch(j->j.preparation()!=null)||snapshot.allocations().stream().anyMatch(Allocation::material)?3L:
+                snapshot.jobs().stream().anyMatch(JobCodec::resourceForm)?2L:1L;
+        String header=StrictJson.canonical(Map.of("schema",schema,"world",snapshot.worldId().toString(),"revision",snapshot.revision(),
+                "records",(long)lines.size(),"sha256",HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(payload.getBytes(StandardCharsets.UTF_8)))));
+        return (header+"\n"+payload).getBytes(StandardCharsets.UTF_8);
+    }
     @Test void boundJobsRoundTripWithoutDuplicatingRequestOutcomeOrArtifactSemantics() throws Exception {
         var scene=new JobLifecycleStoreTest.Scene();
         var job=scene.assign(scene.create(5));

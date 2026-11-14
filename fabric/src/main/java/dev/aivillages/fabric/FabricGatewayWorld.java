@@ -39,6 +39,12 @@ import net.minecraft.world.phys.Vec3;
 
 /** Minecraft 26.3 server-thread adapter. It never requests an unloaded chunk. */
 public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
+    @FunctionalInterface public interface EffectFence {
+        boolean blocked(ValidatedRequest request, Effect effect, Cell target);
+    }
+    private EffectFence effectFence = (request, effect, target) -> false;
+    /** Composition-owned, derived Jobs exclusion. It cannot grant native permission or mutate state. */
+    public void effectFence(EffectFence fence) { effectFence = Objects.requireNonNull(fence); }
     private final ServerLevel level;
     private final Map<UUID, MovementTravel> movementTravel = new HashMap<>();
     private final Map<UUID, Route> routes = new HashMap<>();
@@ -238,7 +244,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     }
     @Override public void stopMovement(ActorRef actor) {
         Villager v = villager(actor);
-        if (v != null) terminal(v, routes.get(actor.entityId()), "gateway-stop", 0, 0);
+        if (v != null && GatewayControl.controls(v)) {
+            terminal(v, routes.get(actor.entityId()), "gateway-stop", 0, 0);
+            // Arrival removes the route, but a later stop still owns these
+            // control inputs. Keep gravity, collisions and native AI enabled.
+            v.getNavigation().stop();
+            ((PathNavigationAccessor)v.getNavigation()).cognitivecraft$setHasDelayedRecomputation(false);
+            v.getMoveControl().setWantedPosition(v.getX(), v.getY(), v.getZ(), 0.0);
+            v.setXxa(0.0F);v.setYya(0.0F);v.setSpeed(0.0F);
+        }
         routes.remove(actor.entityId());
     }
     private void stopOwnedNavigation(Villager v, Route route) {
@@ -248,6 +262,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         // recompute. Clear this flag only while the gateway holds this villager.
         ((PathNavigationAccessor)v.getNavigation()).cognitivecraft$setHasDelayedRecomputation(false);
         v.getMoveControl().setWantedPosition(v.getX(), v.getY(), v.getZ(), 0.0);
+        v.setXxa(0.0F);v.setYya(0.0F);v.setSpeed(0.0F);
     }
     @Override public Reason permit(ValidatedRequest request, Effect effect, Cell target) {
         ActorRef actor = ((ActorValue)request.request().arguments().get("actor")).value();
@@ -260,6 +275,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if ((effect == Effect.HARVEST || effect == Effect.PICKUP || effect == Effect.TRANSFER
                 || effect==Effect.WITHDRAW || effect==Effect.CRAFT || effect==Effect.PLACE)
                 && !level.getGameRules().get(GameRules.MOB_GRIEFING)) return Reason.AUTHORITY_DENIED;
+        if (effectFence.blocked(request, effect, target)) return Reason.INTERRUPTED;
         return null;
     }
     @Override public CropState crop(Cell cell) {
@@ -342,10 +358,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             }
         return samples;
     }
-    private boolean oakApproachGeometry(Villager v, BlockPos target) {
-        BlockPos now=v.blockPosition();
-        if (Math.abs((long)now.getX()-target.getX())+Math.abs((long)now.getZ()-target.getZ())!=1) return false;
-        double dx=v.getX()-(target.getX()+.5),dz=v.getZ()-(target.getZ()+.5);
+    static boolean logFooting(BlockPos standing,BlockPos target,double x,double z,boolean faceOnly) {
+        long adjacentX=Math.abs((long)standing.getX()-target.getX());
+        long adjacentZ=Math.abs((long)standing.getZ()-target.getZ());
+        if(adjacentX>1 || adjacentZ>1 || adjacentX+adjacentZ==0 || faceOnly && adjacentX+adjacentZ!=1)return false;
+        double dx=x-(target.getX()+.5),dz=z-(target.getZ()+.5);
         return dx*dx+dz*dz<=OAK_APPROACH_DISTANCE_SQUARED;
     }
     @Override public Movement move(ActorRef actor, Cell target, int maxNavigationCalls) {
@@ -359,11 +376,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 : SurvivalGateway.WorldAccess.super.approachResource(actor,target,maximum,item);
     }
     @Override public Movement approachResourceDrop(ActorRef actor,UUID id,int expected,int maximum,ResourceDelivery.ItemIdentity item) {
-        if(!LogAcquisition.log(item))
+        if(!LogAcquisition.log(item) && !item.equals(ResourceDelivery.WHEAT))
             return SurvivalGateway.WorldAccess.super.approachResourceDrop(actor,id,expected,maximum,item);
         Villager v=villager(actor);Entity entity=level.getEntity(id);
         if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive()
-                || !defaultLog(drop.getItem(),item) || drop.getItem().getCount()!=expected)
+                || !(item.equals(ResourceDelivery.WHEAT)?drop.getItem().is(Items.WHEAT) && ItemStack.isSameItemSameComponents(drop.getItem(),new ItemStack(Items.WHEAT)):defaultLog(drop.getItem(),item))
+                || drop.getItem().getCount()!=expected)
             return new Movement(false,true,0,0);
         BlockPos actual=drop.blockPosition();
         if(!loaded(actual) || !level.mayInteract(v,actual))return new Movement(false,true,0,0);
@@ -414,7 +432,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         // alternate harvest points and tighter radius are not placement reach.
         boolean adjacent=reserved!=null && solidApproach
                 ? Math.abs((long)now.getX()-targetPos.getX())+Math.abs((long)now.getZ()-targetPos.getZ())==1
-                : oakApproachGeometry(v,targetPos);
+                : logFooting(now,targetPos,v.getX(),v.getZ(),true);
         // A worker can still be falling or jumping when a request starts. Wait
         // for ordinary landing before spending finite ground-path approaches.
         Route route = routes.get(v.getUUID());
@@ -642,24 +660,15 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 "plank-container:"+p.asLong()+":"+System.identityHashCode(c));
     }
     private static ItemContainerCapacity.Sample itemCapacity(Container c,ItemStack item) {
+        int itemLimit=Math.min(item.getMaxStackSize(),c.getMaxStackSize(item));
         return ItemContainerCapacity.inspect(c.getContainerSize(),slot -> {
             ItemStack current=c.getItem(slot);
-            int limit=Math.min(item.getMaxStackSize(),c.getMaxStackSize(item));
-            if(!current.isEmpty()) limit=Math.min(limit,current.getMaxStackSize());
+            int limit=current.isEmpty()?itemLimit:Math.min(itemLimit,current.getMaxStackSize());
             return new ItemContainerCapacity.Slot(c.canPlaceItem(slot,item),current.isEmpty(),
                     ItemStack.isSameItemSameComponents(current,item),current.getCount(),limit);
         });
     }
-    private static String logInventoryFingerprint(Container c,ResourceDelivery.ItemIdentity item) {
-        // Default oak stacks are fungible, but their slot/count footprint may not change
-        // outside a witnessed pickup/transfer. Other slots still affect live capacity.
-        StringBuilder rows=new StringBuilder();
-        for(int i=0;i<c.getContainerSize();i++) {
-            ItemStack stack=c.getItem(i);
-            rows.append(i).append(':').append(stack.isEmpty() ? "empty" :
-                    defaultLog(stack,item) ? (item.equals(ResourceDelivery.OAK_LOG) ? "oak" : "birch") : stack.is(FabricResourceItems.item(item)) ? (item.equals(ResourceDelivery.OAK_LOG) ? "unsupported-oak" : "unsupported-birch") : "other")
-                    .append(':').append(stack.getCount()).append(';');
-        }
+    private static String logInventoryFingerprint(StringBuilder rows) {
         try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                 .digest(rows.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
         catch(java.security.NoSuchAlgorithmException impossible) { throw new AssertionError(impossible); }
@@ -675,7 +684,8 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         long ticks=(long)Math.ceil((double)hardness*30.0);
         boolean supported=Float.isFinite(hardness) && hardness>0 && !state.requiresCorrectToolForDrops()
                 && ticks>=1 && ticks<=200;
-        return new ItemBlock(ObservationStatus.PRESENT,supported,state.toString(),supported ? (int)ticks : 0);
+        return new ItemBlock(ObservationStatus.PRESENT,supported,
+                dev.aivillages.fabric.runtime.evidence.HarvestSourceState.blockStateText(state),supported ? (int)ticks : 0);
     }
     @Override public ItemStock resourceInventory(ActorRef actor,ResourceDelivery.ItemIdentity item) {
         if(item.equals(ResourceDelivery.BIRCH_PLANKS) || item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
@@ -687,15 +697,28 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(v==null || !loaded(v.blockPosition()))
             return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",null);
         Container c=v.getInventory(); long quantity=0; Reason reason=null;
-        if(c.getContainerSize()>128) return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",Reason.BUDGET_EXHAUSTED);
-        for(int slot=0;slot<c.getContainerSize();slot++) {
+        int size=c.getContainerSize();
+        if(size>128) return new ItemStock(ObservationStatus.UNKNOWN,"actor:"+actor.entityId(),0,0,"",Reason.BUDGET_EXHAUSTED);
+        var nativeItem=FabricResourceItems.item(item);
+        var prototype=new ItemStack(nativeItem);
+        String log=item.equals(ResourceDelivery.OAK_LOG)?"oak":"birch";
+        String unsupported="unsupported-"+log;
+        // Bind the amount and its exact slot/count fingerprint to the same inventory read.
+        var rows=new StringBuilder();
+        for(int slot=0;slot<size;slot++) {
             ItemStack stack=c.getItem(slot);
-            if(defaultLog(stack,item)) quantity=Math.addExact(quantity,stack.getCount());
-            else if(stack.is(FabricResourceItems.item(item))) reason=Reason.TARGET_INVALID;
+            String kind="other";
+            if(stack.isEmpty())kind="empty";
+            else if(ItemStack.isSameItemSameComponents(stack,prototype)) {
+                kind=log;quantity=Math.addExact(quantity,stack.getCount());
+            }else if(stack.is(nativeItem)) {
+                kind=unsupported;reason=Reason.TARGET_INVALID;
+            }
+            rows.append(slot).append(':').append(kind).append(':').append(stack.getCount()).append(';');
         }
-        var capacity=itemCapacity(c,new ItemStack(FabricResourceItems.item(item)));
+        var capacity=itemCapacity(c,prototype);
         return new ItemStock(ObservationStatus.PRESENT,"actor:"+actor.entityId(),quantity,capacity.capacity(),
-                logInventoryFingerprint(c,item),reason);
+                logInventoryFingerprint(rows),reason);
     }
     @Override public ItemStock resourceContainer(ContainerRef target,ResourceDelivery.ItemIdentity item) {
         if(item.equals(ResourceDelivery.BIRCH_PLANKS) || item.equals(ResourceDelivery.OAK_PLANKS) || item.equals(ResourceDelivery.STICK) || item.equals(ResourceDelivery.WOODEN_AXE) || item.equals(ResourceDelivery.CRAFTING_TABLE)) {
@@ -712,6 +735,11 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         }
         return new ItemStock(inspection.status(),inspection.identity(),quantity,inspection.capacity(),"",null);
     }
+    @Override public boolean resourceContainerAvailable(ContainerRef target,ResourceDelivery.ItemIdentity item) {
+        if(!item.equals(ResourceDelivery.WHEAT))return SurvivalGateway.WorldAccess.super.resourceContainerAvailable(target,item);
+        var pos=new BlockPos(target.x(),target.y(),target.z());
+        return target.dimension().equals(dimension()) && loaded(pos) && box(pos)!=null;
+    }
     @Override public Reason resourceBreakEligibility(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item) {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourceBreakEligibility(actor,target,item);
         Villager v=villager(actor); BlockPos p=position(target);
@@ -720,7 +748,16 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 || !level.getGameRules().get(GameRules.BLOCK_DROPS)) return Reason.AUTHORITY_DENIED;
         if(!v.getMainHandItem().isEmpty() || !v.getOffhandItem().isEmpty() || !v.getActiveEffects().isEmpty())
             return Reason.TARGET_INVALID;
-        if(!v.onGround() || v.isInWater() || v.isInLava() || !oakApproachGeometry(v,p) || oakInteractionPoint(v,p)==null) return Reason.TARGET_UNAVAILABLE;
+        // Navigation selects a face. The actual break can continue from a nearby
+        // corner while the same physical distance and line of sight still hold.
+        boolean footing=logFooting(v.blockPosition(),p,v.getX(),v.getZ(),false);
+        if(!v.onGround() || v.isInWater() || v.isInLava() || !footing || oakInteractionPoint(v,p)==null) {
+            if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
+                System.out.println("CognitiveCraft LOG_BREAK unavailable actor="+v.getUUID()+" position="+v.position()
+                        +" target="+p+" onGround="+v.onGround()+" water="+v.isInWater()+" lava="+v.isInLava()
+                        +" footing="+footing+" tick="+tick());
+            return Reason.TARGET_UNAVAILABLE;
+        }
         return resourceBlock(target,item).eligible() ? null : Reason.TARGET_INVALID;
     }
     @Override public ItemHarvest resourceHarvest(ActorRef actor,Cell target,ResourceDelivery.ItemIdentity item,long elapsedTicks) {
@@ -749,6 +786,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             // stock and other batches merging into this entity; manual gateway pickup keeps
             // the exact stack. The tick mixin clears the target when actor control is lost.
             if(defaultLog(stack,item)) entity.setTarget(entity.getUUID());
+            dev.aivillages.fabric.runtime.evidence.HarvestBirthScope.spawned(entity);
             if(!level.addFreshEntity(entity)) { failed=true; continue; }
             if(defaultLog(stack,item)) tracked.add(new ItemDrop(entity.getUUID(),stack.getCount()));
         }
@@ -762,6 +800,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         BlockPos p=drop.blockPosition();
         return new ItemDropState(loaded(p) ? ObservationStatus.PRESENT : ObservationStatus.UNKNOWN,
                 new Cell(dimension(),p.getX(),p.getY(),p.getZ()),defaultLog(drop.getItem(),item) ? drop.getItem().getCount() : 0);
+    }
+    @Override public boolean resourcePickupDelayed(ActorRef actor,UUID id,int expected,ResourceDelivery.ItemIdentity item) {
+        var v=villager(actor);var entity=level.getEntity(id);
+        if(v==null || !(entity instanceof ItemEntity drop) || !drop.isAlive() || !loaded(drop.blockPosition()) || drop.getItem().getCount()!=expected)return false;
+        boolean matching=item.equals(ResourceDelivery.WHEAT)?drop.getItem().is(Items.WHEAT):LogAcquisition.log(item)&&defaultLog(drop.getItem(),item);
+        return matching && drop.hasPickUpDelay();
     }
     @Override public ItemPickup resourcePickup(ActorRef actor,UUID id,int expected,ResourceDelivery.ItemIdentity item) {
         if(!LogAcquisition.log(item)) return SurvivalGateway.WorldAccess.super.resourcePickup(actor,id,expected,item);
@@ -855,6 +899,18 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             if (stack.isEmpty()) continue;
             ItemEntity entity = new ItemEntity(level, p.getX()+0.5, p.getY()+0.25, p.getZ()+0.5, stack.copy());
             entity.setDefaultPickUpDelay();
+            if(stack.is(Items.WHEAT)) {
+                UUID originalRun=GatewayControl.owner(v);
+                if(originalRun!=null) {
+                    // Put the actual harvest output down at its crop instead of tossing
+                    // it outside the stationary worker's already checked reach.
+                    entity.setDeltaMovement(new Vec3(0,entity.getDeltaMovement().y,0));
+                    entity.setThrower(v);entity.setTarget(entity.getUUID());
+                    ((dev.aivillages.fabric.runtime.evidence.LiveHarvestDrop)entity).cognitivecraft$liveCustody(
+                            v.getUUID(),()->v.isAlive() && !v.isRemoved() && GatewayControl.holds(v,originalRun));
+                }
+            }
+            dev.aivillages.fabric.runtime.evidence.HarvestBirthScope.spawned(entity);
             if (!level.addFreshEntity(entity)) { failedSpawn = true; continue; }
             if (stack.is(Items.WHEAT)) wheat.add(new Drop(entity.getUUID(), stack.getCount()));
         }

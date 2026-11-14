@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.time.Clock;
+import dev.aivillages.core.kernel.runtime.activity.*;
 import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -32,7 +33,12 @@ public final class JobLifecycleStore {
             public boolean controls(ActorRef actor, TrustedContext origin) { return control.test(actor, origin); }
         };
     }
-    private record Written(Snapshot snapshot, Throwable error, long completedAt) { }
+    private record Written(Snapshot snapshot, Throwable error, long completedAt, long completedNanos) { }
+    public record PublicationTiming(long revision,long durationNanos){}
+    private final ArrayDeque<PublicationTiming> publicationTimings=new ArrayDeque<>();
+    private long publicationStartedNanos;
+    /** Bounded diagnostic durations only; these records grant no acknowledgement or effect authority. */
+    public List<PublicationTiming> publicationTimings(){thread();return List.copyOf(publicationTimings);}
     private static final class Limited extends RuntimeException {
         final Reason reason;
         Limited(Reason reason) { this.reason = reason; }
@@ -55,6 +61,48 @@ public final class JobLifecycleStore {
     private long deadline;
     private boolean fenced, readOnly;
     private Reason failure;
+    private RecoveryEvidenceAuthority recoveryAuthority;
+    private record Reassignment(UUID attempt,long generation,ActorRef from,ActorRef to,TrustedContext origin) { }
+    private final Map<UUID,Reassignment> reassignments = new HashMap<>();
+    private boolean explicitReassignment;
+    public record PublicationObservation(Snapshot before,Snapshot requested) { }
+    private java.util.function.Consumer<PublicationObservation> publicationObserver;
+    /** Optional trusted diagnostics before storage submission; the requested snapshot is not a durable acknowledgement. */
+    public void observePublications(java.util.function.Consumer<PublicationObservation> observer) { thread();publicationObserver=observer; }
+    /** Runtime composition enables guarded retries; old standalone callers remain compatible. */
+    public void requireExplicitReassignment() { thread(); explicitReassignment = true; }
+    /** One process-local owner policy per bounded Job. This grants no effect or settlement evidence. */
+    public boolean authorizeReassignment(UUID id, Guard expected, ActorRef successor, TrustedContext caller) {
+        thread(); Job job=controlled(id,caller);
+        if(job==null || successor==null || !ready() || !job.guard().equals(expected) || job.cancellationOutcome()!=null
+                || job.state()!=State.INTERRUPTED && job.state()!=State.READY
+                || job.current()==null || clock.millis()>job.allowance().deadlineEpochMillis()
+                || !policy.controls(successor,job.origin())
+                || !job.current().worker().dimension().equals(successor.dimension())
+                || job.current().worker().equals(successor)
+                || job.current().worker().entityId().equals(successor.entityId()))return false;
+        if(!reassignments.containsKey(id) && reassignments.size()>=settings.total())return false;
+        var old=job.current();
+        reassignments.put(id,new Reassignment(old.id(),old.generation(),old.worker(),successor,job.origin()));
+        return true;
+    }
+    private boolean assignmentPolicy(Job job,ActorRef worker) {
+        if(!explicitReassignment || job.current()==null)return true;
+        var old=job.current();var grant=reassignments.get(job.id());
+        if(grant!=null && grant.attempt().equals(old.id()) && grant.generation()==job.generation()
+                && grant.from().equals(old.worker()) && grant.origin().equals(job.origin()))
+            return grant.to().equals(worker) && policy.controls(worker,job.origin());
+        return old.worker().equals(worker);
+    }
+    private java.util.function.BiPredicate<CapabilityId,Long> activityOperations=(cap,q)->LogAcquisition.is(cap)||CropDelivery.ID.equals(cap);
+    private boolean activityOperationsAttached;
+    /** Trusted host advertises only independently implemented operations; unavailable shapes remain data. */
+    public void activityOperations(java.util.function.BiPredicate<CapabilityId,Long> available) {
+        thread();if(activityOperationsAttached)throw new IllegalStateException("Activity host policy already attached");
+        activityOperations=Objects.requireNonNull(available);activityOperationsAttached=true;
+    }
+    private JobHistory history;
+    private JobArchive archiving;
     private Snapshot indexed;
     private Map<TrustedContext, List<Job>> dispatchIndex = Map.of();
     private java.util.function.Predicate<Snapshot> retentionGuard = next -> true;
@@ -91,15 +139,43 @@ public final class JobLifecycleStore {
             if (changed) publish(rows, state.allocations(), null, null, 0);
         }
     }
-    public boolean ready() { thread(); return !readOnly && !fenced && pending == null; }
+    private boolean storageReady() { return !readOnly && !fenced && pending == null && (history==null || history.ready()); }
+    public boolean ready() { thread(); return storageReady() && archiving==null; }
     public Reason unavailableReason() {
-        thread(); return readOnly || fenced ? Reason.STORAGE_UNAVAILABLE
-                : pending != null ? Reason.BUDGET_EXHAUSTED : null;
+        thread(); return readOnly || fenced || history!=null && !history.ready() ? Reason.STORAGE_UNAVAILABLE
+                : pending != null || archiving!=null ? Reason.BUDGET_EXHAUSTED : null;
     }
     public Reason lastFailure() { thread(); return failure; }
     /** Trusted composition/retention seam, not an unscoped player query. */
     public Snapshot snapshot() { thread(); return state; }
     public Settings settings() { return settings; }
+    public boolean deadlineExpired(UUID root,TrustedContext caller){thread();return clock.millis()>=query(root,caller).allowance().deadlineEpochMillis();}
+    public void attachHistory(JobHistory history) {
+        thread();if(this.history!=null)throw new IllegalStateException("Job history already attached");
+        this.history=Objects.requireNonNull(history);
+    }
+    boolean beginArchive(JobArchive client,Snapshot expected) {
+        thread();if(!ready() || state!=expected)return false;archiving=Objects.requireNonNull(client);return true;
+    }
+    boolean archiveHeldBy(JobArchive client){thread();return archiving==client;}
+    void endArchive(JobArchive client) {
+        thread();if(archiving==client)archiving=null;else if(archiving!=null)throw new IllegalStateException("Job archive capture owner");
+    }
+    /** Only this owner's process-bound archive acknowledgement may remove a closed hot component. */
+    public boolean archive(JobArchive.Publication publication) {
+        thread();if(!storageReady() || publication==null || !publication.permits(this,state))return false;
+        Set<UUID> ids=publication.ids();var rows=rows();ids.forEach(rows::remove);
+        var allocations=state.allocations().stream().filter(a->!ids.contains(a.producer()) && !ids.contains(a.demand())).toList();
+        return publish(rows,allocations,null,null,0,true).code()==Code.PENDING;
+    }
+
+    /** One process-local recovery client; Jobs remains the sole durable publisher. */
+    public RecoveryEvidenceAuthority attachRecovery(TrustedStoppedSource source) {
+        thread();
+        if (recoveryAuthority != null) throw new IllegalStateException("Recovery owner already attached");
+        recoveryAuthority = Jobs.recoveryEvidenceAuthority(source);
+        return recoveryAuthority;
+    }
 
     /** Disposable private index; rebuilt only when the authoritative publication changes. */
     public DispatchPage dispatchPage(TrustedContext caller, UUID after, int maximum) {
@@ -130,7 +206,8 @@ public final class JobLifecycleStore {
     /** Preview only: the assign operation revalidates this binding and never trusts a preview. */
     public ValidatedRequest bindWorker(UUID id, Guard expected, ActorRef worker, TrustedContext caller) {
         thread(); Job job = controlled(id, caller);
-        if (job == null || !job.guard().equals(expected) || !policy.controls(worker, job.origin()))
+        if (job == null || !job.guard().equals(expected) || !policy.controls(worker, job.origin())
+                || !assignmentPolicy(job,worker) || job.activity()!=null && !job.responsible().equals(worker))
             throw new SecurityException("Current assignment authority required");
         return remainingRequest(job, worker);
     }
@@ -145,7 +222,14 @@ public final class JobLifecycleStore {
             for (Job ancestor : ancestors(id, rows)) value = Math.min(value, available(ancestor.id(), kind, rows));
             maxima.put(kind, Math.max(0, value));
         }
-        return new Budgets.Limits(maxima, job.allowance().deadlineEpochMillis());
+        long deadline=job.allowance().deadlineEpochMillis();var stopped=job.current();
+        if(stopped!=null && !stopped.open() && !stopped.uncertain() && stopped.terminal()!=null && stopped.terminal().status()==ExecutionStatus.INTERRUPTED
+                && LogAcquisition.is(job.request().request().capability()) && ((IntValue)job.request().request().arguments().get("amount")).value()==2
+                && job.attempts().size()==1 && stopped.effects()==3 && stopped.credited()==1) {
+            for(var kind:Budgets.Kind.values())maxima.merge(kind,Math.max(0,stopped.allowance().maximum(kind)-stopped.usage().getOrDefault(kind,0L)),Math::min);
+            deadline=Math.min(deadline,stopped.allowance().deadlineEpochMillis());
+        }
+        return new Budgets.Limits(maxima, deadline);
     }
     /** Returns no foreign assignment metadata. The guarded assign still repeats this test. */
     public boolean workerAvailable(ActorRef worker, TrustedContext origin) {
@@ -155,7 +239,7 @@ public final class JobLifecycleStore {
     }
 
     public Job query(UUID id, TrustedContext caller) {
-        thread(); Job job = find(id);
+        thread(); Job job = historicalFind(id);
         if (job == null || !sameWorld(caller) || !policy.mayRead(caller, job))
             throw new SecurityException("Job unavailable in your scope");
         return job;
@@ -172,7 +256,7 @@ public final class JobLifecycleStore {
     }
     /** The scope owner revalidates current policy and original-owner consent before this host-only call. */
     public Job scopedQuery(UUID id, TrustedContext caller, NamedReadGrant grant) {
-        thread(); Job job = find(id);
+        thread(); Job job = historicalFind(id);
         if (job == null || caller == null || !sameWorld(caller) || grant == null
                 || !grant.jobId().equals(id) || !grant.origin().equals(job.origin())
                 || !policy.mayRead(caller, job) && !grant.readers().contains(caller))
@@ -197,8 +281,41 @@ public final class JobLifecycleStore {
     }
     public Optional<Job> bySubmission(UUID submission, TrustedContext caller) {
         thread();
-        return state.jobs().stream().filter(j -> j.submissionId().equals(submission)
-                && sameWorld(caller) && policy.mayRead(caller, j)).findFirst();
+        if(!sameWorld(caller))return Optional.empty();
+        Job job=state.jobs().stream().filter(j->j.submissionId().equals(submission)).findFirst().orElse(null);
+        if(job==null && history!=null)job=history.submission(submission);
+        return job!=null && policy.mayRead(caller,job)?Optional.of(job):Optional.empty();
+    }
+    /** Trusted bootstrap retention predicate. It exposes no Job, actor, outcome or foreign context. */
+    public boolean settledSubmission(UUID submission) {
+        thread();Job job=state.jobs().stream().filter(j->j.submissionId().equals(submission)).findFirst().orElse(null);
+        if(job==null && history!=null && history.ready())job=history.submission(submission);
+        return job!=null && job.state().terminal() && job.attempts().stream().noneMatch(Attempt::open);
+    }
+    /** At most four private roots; binary archive lookup plus the existing bounded hot set. */
+    public HistoryPage historyRoots(TrustedContext caller,int offset,int maximum) {
+        thread();int bound=history==null?settings.total():JobHistory.JOBS+settings.total();
+        if(!sameWorld(caller) || offset<0 || offset>bound || maximum<1 || maximum>4)
+            throw new IllegalArgumentException("Private activity page bounds");
+        List<Job> archived=history==null?List.of():history.rootRows(caller);
+        List<Job> extra=state.jobs().stream().filter(j->j.parent()==null && j.origin().equals(caller)
+                && (history==null || history.archived(j.id())==null)).toList();
+        int[] positions=new int[extra.size()];
+        for(int n=0;n<extra.size();n++) {
+            String id=extra.get(n).id().toString();int low=0,high=archived.size();
+            while(low<high){int middle=(low+high)>>>1;if(archived.get(middle).id().toString().compareTo(id)<0)low=middle+1;else high=middle;}
+            positions[n]=low+n;
+        }
+        int total=archived.size()+extra.size(),end=Math.min(total,offset+maximum);var result=new ArrayList<Job>();
+        for(int at=offset;at<end;at++) {
+            Job selected=null;int archiveAt=at;
+            for(int n=0;n<positions.length;n++) {
+                if(positions[n]==at){selected=extra.get(n);break;}if(positions[n]<at)archiveAt--;
+            }
+            if(selected==null)selected=archived.get(archiveAt);
+            if(policy.mayRead(caller,selected))result.add(selected);
+        }
+        return new HistoryPage(result,end,end<total);
     }
     public ReadyPage readyJobs(TrustedContext caller, int offset) {
         thread();
@@ -311,12 +428,17 @@ public final class JobLifecycleStore {
     }
     private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
                           Budgets.Limits allowance,List<UUID> dependencies,boolean staged,int initialInstructions,int initialObservations) {
+        return create(id,submission,request,caller,observation,allowance,dependencies,staged,initialInstructions,initialObservations,null);
+    }
+    private Change create(UUID id,UUID submission,CapabilityRequest request,TrustedContext caller,ObservationRef observation,
+                          Budgets.Limits allowance,List<UUID> dependencies,boolean staged,int initialInstructions,int initialObservations,ActivityPayload activity) {
         thread(); var work = new Work();
         if (!sameWorld(caller)) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
         try {
-            if (id == null || submission == null || find(id) != null
-                    || state.jobs().stream().anyMatch(j -> j.submissionId().equals(submission)))
+            if (id == null || submission == null || historicalFind(id) != null
+                    || state.jobs().stream().anyMatch(j -> j.submissionId().equals(submission))
+                    || history!=null && history.submission(submission)!=null)
                 return reject(Reason.REQUEST_INVALID, work);
             RequestValidator.Result validation = RequestValidator.validate(request, caller, observation,
                     capabilities, environment);
@@ -325,12 +447,14 @@ public final class JobLifecycleStore {
                 return reject(Reason.BUDGET_EXHAUSTED, work);
             Job job = fresh(id, submission, ((RequestValidator.Accepted) validation).value(),
                     null, allowance, dependencies);
+            if(activity!=null){var edit=new Edit(job);edit.activity=activity;edit.state=State.WAITING;job=edit.finish(EventKind.ACTIVITY_PREPARED,settings.events());}
             if(initialInstructions>0 || initialObservations>0) {
                 if(initialInstructions>allowance.maximum(Budgets.Kind.INSTRUCTIONS) || initialObservations>allowance.maximum(Budgets.Kind.OBSERVATIONS))return reject(Reason.BUDGET_EXHAUSTED,work);
                 var billed=new Edit(job);billed.usage=Jobs.usage(Map.of(Budgets.Kind.INSTRUCTIONS,(long)initialInstructions,Budgets.Kind.OBSERVATIONS,(long)initialObservations));
                 job=billed.finish(EventKind.OBSERVED,settings.events());
             }
-            var rows = rows(); rows.put(id, job);
+            Snapshot base=withHistorical(dependencies);var rows = new LinkedHashMap<UUID,Job>();
+            base.jobs().forEach(j->rows.put(j.id(),j));rows.put(id, job);
             checkCapacity(rows);
             checkGraph(job.id(), rows, work);
             job = dependencyState(job, rows, false);
@@ -340,11 +464,56 @@ public final class JobLifecycleStore {
             for (UUID dependency : dependencies) if (rows.get(dependency).state() == State.CANCELLED
                     || rows.get(dependency).state() == State.FAILED) failed.add(dependency);
             propagate(rows, failed, work);
-            return publish(rows, state.allocations(), rows.get(id), null, work.edges);
+            return publish(rows, base.allocations(), rows.get(id), null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
         catch (IllegalArgumentException | NullPointerException | ArithmeticException invalid) {
             return reject(Reason.REQUEST_INVALID, work);
         }
+    }
+    /** Opt-in authoritative root. Ordinary create/schema-1/2/3 behavior is unchanged. */
+    public Change createActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,Budgets.Limits allowance,int plannedSteps) {
+        if(goal==null || !ResourceDelivery.isDelivery(goal.capability()))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        try{return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,ActivityPayload.initial(goal.capability(),plannedSteps));}
+        catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
+    }
+    /** No receipt, effect or terminal status occurs in a proposal. The acknowledged Job is preparation authority. */
+    public Change prepareActivity(ActivityRuntime.Proposal proposal,TrustedContext caller) {
+        thread();var work=new Work();Job job=controlled(proposal.root(),caller);
+        if(job==null || !policy.controls(job.responsible(),job.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        if(!ready())return reject(unavailableReason(),work);
+        if(job.activity()==null)return reject(Reason.REQUEST_INVALID,work);
+        var payload=job.activity();
+        var same=payload.steps().stream().filter(s->s.token().equals(proposal.token()) || s.proposal().equals(proposal.id())).findFirst();
+        if(same.isPresent())return same.get().token().equals(proposal.token()) && same.get().bodyDigest().equals(proposal.bodyDigest())?duplicate(job,work):reject(Reason.STALE_OBSERVATION,work);
+        Change denied=guard(job,proposal.expected(),work);if(denied!=null)return denied;
+        if(job.state().terminal() || job.cancellationOutcome()!=null || job.state()==State.CANCELLING)return reject(Reason.CANCELLED,work);
+        if(payload.current()!=null || job.current()!=null&&job.current().open() || job.state()==State.INTERRUPTED)
+            return reject(Reason.STALE_OBSERVATION,work);
+        if(payload.steps().size()>=settings.attempts() || proposal.plannedSteps()<=payload.checkpoints().size())return reject(Reason.STORAGE_LIMIT_REACHED,work);
+        try {
+            if(clock.millis()>=job.allowance().deadlineEpochMillis() || clock.millis()>=proposal.allowance().deadlineEpochMillis())return reject(Reason.BUDGET_EXHAUSTED,work);
+            var exact=new HashMap<>(job.request().request().arguments());exact.put("amount",new IntValue(proposal.quantities().demand()));
+            // Never relax the immutable exact root request or the B resolver. This segment is a subset of that root.
+            if(!new CapabilityRequest(job.request().request().capability(),exact).equals(proposal.request())
+                    || !proposal.artifact().capability().equals(job.request().request().capability())
+                    || proposal.quantities().demand()>((IntValue)job.request().request().arguments().get("amount")).value()-job.fulfilled())
+                return reject(Reason.REQUEST_INVALID,work);
+            var validation=RequestValidator.validate(proposal.request(),job.origin(),job.request().observation(),capabilities,environment);
+            if(validation instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
+            envelope(proposal.allowance(),remainingAllowance(job.id(),caller));
+            for(var step:payload.steps())if(step.signature().equals(proposal.signature()) && step.creditBefore()==job.fulfilled())return reject(Reason.STALE_OBSERVATION,work);
+            boolean executable=proposal.choice()==null && proposal.quantities().exact()
+                    && activityOperations.test(job.request().request().capability(),proposal.quantities().demand());
+            var step=new ActivityPayload.Step(UUID.randomUUID(),proposal.id(),proposal.token(),proposal.bodyDigest(),proposal.signature(),job.fulfilled(),
+                    proposal.quantities().demand(),proposal.artifact(),proposal.choice(),proposal.quantities(),proposal.allowance(),Math.addExact(job.revision(),1),null);
+            var edit=new Edit(job);edit.activity=payload.prepared(step,proposal.plannedSteps(),executable);
+            edit.state=executable?State.READY:State.WAITING;edit.reason=null;
+            Job changed=edit.finish(EventKind.ACTIVITY_PREPARED,settings.events());var rows=rows();rows.put(job.id(),changed);
+            // Serialization bounds are checked before storage submission; no partially admitted oversized payload.
+            StrictJson.object(JobCodec.job(changed));
+            return publish(rows,state.allocations(),changed,null,0);
+        }catch(Limited limited){return reject(limited.reason,work);}
+        catch(StrictJson.Invalid | IllegalArgumentException | NullPointerException | ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
     }
     public Change transition(UUID id, Guard guard, State target, Reason reason, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
@@ -623,6 +792,7 @@ public final class JobLifecycleStore {
         catch(IllegalArgumentException|NullPointerException|ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
     }
     public boolean materialReady(Job job) {
+        if(job.activity()!=null && (job.activity().current()==null || job.activity().blocker()!=ActivityPayload.Blocker.NONE))return false;
         thread();var p=job.preparation();if(p==null)return true;if(p.method()==null)return false;
         for(var intent:p.materials()) {
             long allocated=state.allocations().stream().filter(a->a.material() && a.demand().equals(job.id()) && a.producer().equals(intent.producer()) && a.item().equals(intent.item()))
@@ -633,10 +803,9 @@ public final class JobLifecycleStore {
     }
     /** Receipt lineage + current stock proof. Neither alone creates an input entitlement. */
     public Change allocateMaterial(Allocation allocation,Guard guard,Prerequisites.Supply stock,long currentTick,TrustedContext caller) {
-        thread();var work=new Work();Job demand=controlled(allocation.demand(),caller),producer=controlled(allocation.producer(),caller);
+        thread();var work=new Work();Change replay=allocationReplay(allocation,caller,work);if(replay!=null)return replay;
+        Job demand=controlled(allocation.demand(),caller),producer=controlled(allocation.producer(),caller);
         if(demand==null||producer==null||!producer.origin().equals(demand.origin()))return reject(Reason.AUTHORITY_DENIED,work);
-        var existing=state.allocations().stream().filter(a->a.id().equals(allocation.id())).findFirst();
-        if(existing.isPresent())return existing.get().equals(allocation)?duplicate(demand,work):reject(Reason.REQUEST_INVALID,work);
         var denied=guard(demand,guard,work);if(denied!=null)return denied;
         if(!allocation.material() || demand.state()!=State.READY || producer.state()!=State.SUCCEEDED)return reject(Reason.REQUEST_INVALID,work);
         if(stock.reason()==Reason.AUTHORITY_DENIED)return reject(Reason.AUTHORITY_DENIED,work);
@@ -698,13 +867,14 @@ public final class JobLifecycleStore {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
+        if(history!=null && history.attemptOwner(attemptId)!=null)return reject(Reason.REQUEST_INVALID,work);
         try {
             if (!materialReady(job) || !ResourceDelivery.isDelivery(job.request().request().capability())
                     || (job.state() != State.READY && !(job.state() == State.WAITING && artifact == null))
                     || job.current() != null && job.current().open()
                     || !dependenciesSucceeded(job, rows(), work))
                 return reject(Reason.REQUEST_INVALID, work);
-            if (!policy.controls(worker, job.origin())) return reject(Reason.AUTHORITY_DENIED, work);
+            if (!policy.controls(worker, job.origin()) || !assignmentPolicy(job,worker)) return reject(Reason.AUTHORITY_DENIED, work);
             if (job.attempts().size() == settings.attempts()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
             for (Job other : state.jobs()) for (Attempt a : other.attempts())
                 if (a.id().equals(attemptId) || a.open() && a.worker().entityId().equals(worker.entityId()))
@@ -715,6 +885,14 @@ public final class JobLifecycleStore {
                 for (Budgets.Kind kind : Budgets.Kind.values())
                     if (allowance.maximum(kind) > available(ancestor.id(), kind, rows()))
                         return reject(Reason.BUDGET_EXHAUSTED, work);
+            if(job.activity()!=null) {
+                var step=job.activity().current();
+                if(step==null || step.attempt()!=null || step.choice()!=null || !step.quantities().exact()
+                        || !activityOperations.test(job.request().request().capability(),step.quantity())
+                        || !job.responsible().equals(worker) || !Objects.equals(artifact,step.artifact())
+                        || job.activity().blocker()!=ActivityPayload.Blocker.NONE)return reject(Reason.REQUEST_INVALID,work);
+                envelope(allowance,step.allowance());
+            }
             ValidatedRequest bound = remainingRequest(job, worker);
             var validated = RequestValidator.validate(bound.request(), job.origin(), bound.observation(), capabilities, environment);
             if (validated instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
@@ -728,6 +906,7 @@ public final class JobLifecycleStore {
                     Map.of(), List.of(), 0, 0, null, false, 0);
             var edit = new Edit(job); edit.generation = generation; edit.state = State.ACTIVE; edit.reason = null;
             var attempts = new ArrayList<>(job.attempts()); attempts.add(attempt); edit.attempts = attempts;
+            if(job.activity()!=null)edit.activity=job.activity().assigned(attemptId);
             Job changed = edit.finish(EventKind.ASSIGNED, settings.events()); var rows = rows(); rows.put(id, changed);
             return publish(rows, state.allocations(), changed, null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
@@ -739,6 +918,8 @@ public final class JobLifecycleStore {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
+        if(history!=null && history.executionOwner(reference.runId())!=null
+                && !history.executionOwner(reference.runId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
         Attempt a = job.current();
         if (job.state() != State.ACTIVE || a == null || !a.open()) return reject(Reason.REQUEST_INVALID, work);
         if (!reference.artifact().capability().equals(job.request().request().capability()))
@@ -777,21 +958,88 @@ public final class JobLifecycleStore {
                             TrustedContext caller) {
         return observe(id, guard, report, caller, true, completeStoppedObservation);
     }
-    private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
-                           boolean reconciliation, boolean certain) {
+    /** Typed host evidence for the original stopped attempt; legacy boolean API remains compatible. */
+    public Change reconcileStopped(UUID id, Guard guard, StoppedEvidence evidence, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
+        if (recoveryAuthority == null || !recoveryAuthority.authentic(evidence))
+            return reject(Reason.STALE_OBSERVATION, work);
+        var context = evidence.context(); var observation = evidence.observation();
+        var current = job.current();
+        if (current == null || !context.world().equals(state.worldId()) || !context.job().equals(id)
+                || !context.origin().equals(job.origin()) || !context.attempt().equals(current.id())
+                || context.generation() != job.generation() || !context.guard().equals(guard))
+            return reject(Reason.STALE_OBSERVATION, work);
+        Report report = observation.report();
+        // A registered native source may account for known partial custody once
+        // the original execution is stopped and cancellation forbids further work.
+        // This path never returns an interrupted partial-custody Job to READY.
+        boolean cancelledPartial = observation.kind() == StoppedKind.PARTIAL && report != null
+                && report.terminal() != null && report.terminal().status() == ExecutionStatus.CANCELLED
+                && report.effects() > 0 && (!report.receipts().isEmpty() || !report.resourceReceipts().isEmpty());
+        boolean deliveredUnit=false;
+        if(observation.kind()==StoppedKind.DELIVERED_UNIT)try {
+            deliveredUnit=job.cancellationOutcome()==null && job.state()==State.INTERRUPTED
+                    && LogAcquisition.is(current.bound().request().capability()) && job.attempts().size()==1
+                    && ((IntValue)job.request().request().arguments().get("amount")).value()==2
+                    && report.effects()==3 && report.receipts().isEmpty() && report.resourceReceipts().size()==3
+                    && report.usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)==3 && report.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)==3
+                    && report.resourceReceipts().stream().allMatch(r->r.quantity()==1)
+                    && quantity(current,report.receipts(),report.resourceReceipts())==1;
+        }catch(RuntimeException invalid){return reject(Reason.REQUEST_INVALID,work);}
+        if (observation.kind() != StoppedKind.NO_EFFECT && observation.kind() != StoppedKind.EFFECT_COMPLETE
+                && !cancelledPartial && !deliveredUnit)
+            return reject(Reason.INTERRUPTED, work);
+        if (!current.open() && current.effects() == report.effects() && current.usage().equals(report.usage())
+                && current.receipts().equals(report.receipts()) && current.resourceReceipts().equals(report.resourceReceipts())
+                && Objects.equals(current.terminal(), report.terminal())) return duplicate(job, work);
+        if (cancelledPartial && job.state() != State.CANCELLING && job.cancellationOutcome() == null)
+            return reject(Reason.INTERRUPTED, work);
+        if (!job.guard().equals(guard) || !context.original().equals(current)
+                || observation.kind() == StoppedKind.NO_EFFECT && (current.effects() != 0 || current.receiptCount() != 0))
+            return reject(Reason.STALE_OBSERVATION, work);
+        return observe(id, guard, report, caller, true, true, true);
+    }
+    private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
+                           boolean reconciliation, boolean certain) {
+        return observe(id, guard, report, caller, reconciliation, certain, false);
+    }
+    private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
+                           boolean reconciliation, boolean certain, boolean typedStopped) {
+        thread(); var work = new Work(); Job job = controlled(id, caller);
+        if(job==null && history!=null && history.ready() && sameWorld(caller)) {
+            Job archived=history.archived(id);
+            if(archived!=null && policy.mayControl(caller,archived)) {
+                Attempt attempt=archived.attempts().stream().filter(a->a.id().equals(report.attemptId())
+                        && a.generation()==report.generation()).findFirst().orElse(null);
+                return attempt!=null && archived.guard().equals(guard) && attempt.effects()==report.effects()
+                        && attempt.usage().equals(report.usage()) && attempt.receipts().equals(report.receipts())
+                        && attempt.resourceReceipts().equals(report.resourceReceipts()) && Objects.equals(attempt.terminal(),report.terminal())
+                        ?duplicate(archived,work):reject(Reason.STALE_OBSERVATION,work);
+            }
+        }
+        if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         if (!ready()) return reject(unavailableReason(), work);
+        if(history!=null && history.archived(id)!=null) {
+            Attempt attempt=job.attempts().stream().filter(a->a.id().equals(report.attemptId()) && a.generation()==report.generation()).findFirst().orElse(null);
+            return attempt!=null && job.guard().equals(guard) && attempt.effects()==report.effects()
+                    && attempt.usage().equals(report.usage()) && attempt.receipts().equals(report.receipts())
+                    && attempt.resourceReceipts().equals(report.resourceReceipts()) && Objects.equals(attempt.terminal(),report.terminal())
+                    ?duplicate(job,work):reject(Reason.STALE_OBSERVATION,work);
+        }
         try {
             Attempt old = job.attempts().stream().filter(a -> a.id().equals(report.attemptId())
                     && a.generation() == report.generation()).findFirst().orElse(null);
             if (old == null) return reject(Reason.STALE_OBSERVATION, work);
             boolean current = old.generation() == job.generation();
-            if (reconciliation && (!current || job.state() != State.INTERRUPTED || !certain || report.terminal() == null))
+            if (reconciliation && (!current || job.state() != State.INTERRUPTED
+                    && !(typedStopped && job.state() == State.CANCELLING) || !certain || report.terminal() == null))
                 return reject(Reason.STALE_OBSERVATION, work);
             Map<UUID, CropDelivery.CropReceipt> receipts = new LinkedHashMap<>();
             old.receipts().forEach(r -> receipts.put(r.receiptId(), r));
             for (var receipt : report.receipts()) {
+                if(history!=null && history.receiptOwner(receipt.receiptId())!=null
+                        && !history.receiptOwner(receipt.receiptId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
                 validateReceipt(old, receipt);
                 var previous = receipts.putIfAbsent(receipt.receiptId(), receipt);
                 if (previous != null && !previous.equals(receipt)) return reject(Reason.REQUEST_INVALID, work);
@@ -803,6 +1051,8 @@ public final class JobLifecycleStore {
             Map<UUID, ResourceDelivery.Receipt> resources = new LinkedHashMap<>();
             old.resourceReceipts().forEach(r -> resources.put(r.receiptId(),r));
             for (var receipt : report.resourceReceipts()) {
+                if(history!=null && history.receiptOwner(receipt.receiptId())!=null
+                        && !history.receiptOwner(receipt.receiptId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
                 validateReceipt(old,receipt);
                 var previous = resources.putIfAbsent(receipt.receiptId(),receipt);
                 if (previous != null && !previous.equals(receipt) || receipts.containsKey(receipt.receiptId()))
@@ -839,6 +1089,8 @@ public final class JobLifecycleStore {
                 return reject(Reason.ACTION_FAILED, work);
             boolean uncertain = reconciliation ? false : old.uncertain()
                     || !obsolete && terminal != null && terminal.status() == ExecutionStatus.INTERRUPTED;
+            if(job.activity()!=null && terminal!=null && terminal.status()!=ExecutionStatus.SUCCEEDED && effects>0
+                    && old.executions().stream().noneMatch(r->ResourceDelivery.completed(old.bound(),r.runId(),merged,mergedResources)))uncertain=true;
             Attempt updated = attempt(old, old.executions(), usage, merged, effects, credit,
                     terminal, uncertain, old.cancellationDeliveries(), mergedResources);
             if (updated.equals(old)) return duplicate(job, work);
@@ -870,6 +1122,16 @@ public final class JobLifecycleStore {
                     }
                 }
             }
+            if(job.activity()!=null && !obsolete) {
+                if(terminal!=null && terminal.status()==ExecutionStatus.SUCCEEDED && !updated.open()) {
+                    edit.activity=job.activity().completed(updated);
+                    long total=edit.attempts.stream().mapToLong(Attempt::credited).reduce(0,Math::addExact);
+                    edit.state=total==((IntValue)job.request().request().arguments().get("amount")).value()?State.SUCCEEDED:State.WAITING;
+                    edit.reason=null;
+                } else if(updated.open() && terminal!=null) {
+                    edit.state=State.INTERRUPTED;edit.reason=Reason.INTERRUPTED;
+                }
+            }
             Job changed = edit.finish(obsolete ? EventKind.LATE_EFFECTS
                     : reconciliation ? EventKind.RECONCILED : EventKind.OBSERVED, settings.events());
             rows.put(id, changed);
@@ -894,6 +1156,10 @@ public final class JobLifecycleStore {
     }
     public Change cancel(UUID id, Guard guard, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
+        if(job==null && history!=null && history.ready() && sameWorld(caller)) {
+            Job archived=history.archived(id);
+            if(archived!=null && policy.mayControl(caller,archived))return duplicate(archived,work);
+        }
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         if(job.state()==State.SUCCEEDED && BlueprintMaterials.valid(job.request().request())) {
             Change denied=guard(job,guard,work);if(denied!=null)return denied;
@@ -925,22 +1191,27 @@ public final class JobLifecycleStore {
     }
     /** IMP-018 bounds partial native deposit receipts by the proposed producer/demand unit total. */
     public Change allocate(Allocation allocation, Guard demandGuard, long pairMaximum, TrustedContext caller) {
-        thread(); var work = new Work(); Job demand = controlled(allocation.demand(), caller);
+        thread(); var work = new Work();
+        if(allocation.material())return reject(Reason.REQUEST_INVALID,work);
+        Change replay=allocationReplay(allocation,caller,work);if(replay!=null)return replay;
+        Job demand = controlled(allocation.demand(), caller);
         Job producer = controlled(allocation.producer(), caller);
-        if (allocation.material())return reject(Reason.REQUEST_INVALID,work);
+        if(producer==null && history!=null && history.ready() && sameWorld(caller)) {
+            var archived=history.archived(allocation.producer());
+            if(archived!=null && policy.mayControl(caller,archived))producer=archived;
+        }
         if (demand == null || producer == null || !producer.origin().equals(demand.origin()))
             return reject(Reason.AUTHORITY_DENIED, work);
         // A direct oak request promises newly acquired output from this invocation.
         // Historical production evidence is not a downstream material-demand contract.
         if (ResourceDelivery.resource(demand.request().request().capability()))
             return reject(Reason.REQUEST_INVALID, work);
-        var existing = state.allocations().stream().filter(a -> a.id().equals(allocation.id())).findFirst();
-        if (existing.isPresent()) return existing.get().equals(allocation) ? duplicate(demand, work)
-                : reject(Reason.REQUEST_INVALID, work);
         Change denied = guard(demand, demandGuard, work); if (denied != null) return denied;
         try {
-            if (state.allocations().size() == settings.allocations()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
-            if (demand.state() != State.READY || !dependenciesSucceeded(demand, rows(), work)
+            Snapshot base=withHistorical(List.of(producer.id()));
+            var rows=new LinkedHashMap<UUID,Job>();base.jobs().forEach(j->rows.put(j.id(),j));
+            if (base.allocations().size() == settings.allocations()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
+            if (demand.state() != State.READY || !dependenciesSucceeded(demand, rows, work)
                     || !sameBindings(producer.request(), demand.request()))
                 return reject(Reason.REQUEST_INVALID, work);
             Attempt attempt = producer.attempts().stream().filter(a -> a.id().equals(allocation.attempt())).findFirst().orElseThrow();
@@ -948,7 +1219,7 @@ public final class JobLifecycleStore {
             var receipt = credit(attempt,allocation.receipt()).filter(Credit::deposit).orElseThrow();
             if (pairMaximum < 1) return reject(Reason.REQUEST_INVALID, work);
             long receiptUse = 0, batchUse = 0, demandUse = 0, pairUse = 0;
-            for (Allocation used : state.allocations()) {
+            for (Allocation used : base.allocations()) {
                 if(used.material())continue;
                 if (used.demand().equals(demand.id())) demandUse = Math.addExact(demandUse, used.quantity());
                 if (used.demand().equals(demand.id()) && used.producer().equals(producer.id()))
@@ -967,12 +1238,12 @@ public final class JobLifecycleStore {
                     || Math.addExact(batchUse, allocation.quantity()) > batch
                     || Math.addExact(demandUse, allocation.quantity()) > needed - demand.fulfilled())
                 return reject(Reason.RESOURCE_MISSING, work);
-            var allocations = new ArrayList<>(state.allocations()); allocations.add(allocation);
+            var allocations = new ArrayList<>(base.allocations()); allocations.add(allocation);
             var edit = new Edit(demand);
             if (demandUse + allocation.quantity() + demand.fulfilled() == needed) {
                 edit.state = State.SUCCEEDED; edit.reason = null;
             }
-            Job changed = edit.finish(EventKind.ALLOCATED, settings.events()); var rows = rows(); rows.put(demand.id(), changed);
+            Job changed = edit.finish(EventKind.ALLOCATED, settings.events()); rows.put(demand.id(), changed);
             propagate(rows, Set.of(demand.id()), work);
             return publish(rows, allocations, rows.get(demand.id()), null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
@@ -985,13 +1256,17 @@ public final class JobLifecycleStore {
         for (Snapshot snapshot : pending == null ? List.of(state) : List.of(state, pending))
             for (Job job : snapshot.jobs()) {
                 jobs.add(job.id()); jobs.addAll(job.dependencies()); jobs.addAll(job.children());
+                if(job.activity()!=null)job.activity().steps().forEach(s->artifacts.add(s.artifact()));
                 if(job.preparation()!=null && job.preparation().method()!=null)artifacts.add(job.preparation().method());
                 for (Attempt a : job.attempts()) {
                     runs.add(a.id());
                     for (var ref : a.executions()) { runs.add(ref.runId()); artifacts.addAll(ref.pinned()); }
                 }
             }
-        return new Roots(artifacts, runs, jobs, !readOnly && !fenced);
+        if(history!=null && history.ready()) {
+            Roots archived=history.roots();artifacts.addAll(archived.artifacts());runs.addAll(archived.runs());jobs.addAll(archived.jobs());
+        }
+        return new Roots(artifacts, runs, jobs, !readOnly && !fenced && (history==null || history.ready()));
     }
     /** One ack, or one durable notification preparation, per tick. */
     public void tick() {
@@ -1003,6 +1278,8 @@ public final class JobLifecycleStore {
                     || written.completedAt() > deadline) {
                 fenced = true; failure = Reason.STORAGE_UNAVAILABLE; afterWrite = null; return;
             }
+            if(publicationTimings.size()==64)publicationTimings.removeFirst();
+            publicationTimings.addLast(new PublicationTiming(pending.revision(),Math.max(0,written.completedNanos()-publicationStartedNanos)));
             state = pending; pending = null;
             Runnable after = afterWrite; afterWrite = null;
             if (after != null) try { after.run(); }
@@ -1035,8 +1312,13 @@ public final class JobLifecycleStore {
     }
     private Change publish(Map<UUID, Job> rows, List<Allocation> allocations, Job changed,
                            Runnable after, int inspectedEdges) {
+        return publish(rows,allocations,changed,after,inspectedEdges,false);
+    }
+    private Change publish(Map<UUID, Job> rows, List<Allocation> allocations, Job changed,
+                           Runnable after, int inspectedEdges,boolean archival) {
         try {
-            if (!ready()) return new Change(Code.REJECTED, null, unavailableReason(), inspectedEdges);
+            if (!storageReady() || archiving!=null && !archival)
+                return new Change(Code.REJECTED, null, unavailableReason(), inspectedEdges);
             // Propagation can update accounting and state in the same transaction.
             // Publish one revision per changed job, including its bounded event summaries.
             for (Job prior : state.jobs()) {
@@ -1047,16 +1329,20 @@ public final class JobLifecycleStore {
                             ? new Event(revision,event.kind(),event.attempt(),event.generation()) : event).toList();
                     rows.put(updated.id(),new Job(updated.id(),updated.submissionId(),revision,updated.request(),updated.parent(),
                             updated.dependencies(),updated.children(),updated.state(),updated.reason(),updated.cancellationOutcome(),
-                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events,updated.preparation()));
+                            updated.allowance(),updated.usage(),updated.generation(),updated.attempts(),events,updated.preparation(),updated.activity()));
                 }
             }
             Snapshot next = new Snapshot(state.worldId(), Math.addExact(state.revision(), 1),
                     List.copyOf(rows.values()), allocations);
+            if(next.jobs().stream().anyMatch(j->j.activity()!=null))validateSnapshot(next,settings);
+            if(history!=null)try{history.validateHot(next);}
+            catch(IllegalArgumentException replay){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,inspectedEdges);}
             if (!retentionGuard.test(next)) return new Change(Code.REJECTED, null, Reason.STORAGE_UNAVAILABLE, inspectedEdges);
             deadline = Math.addExact(clock.millis(), settings.publicationMillis());
-            pending = next; afterWrite = after;
+            pending = next; afterWrite = after;publicationStartedNanos=System.nanoTime();
+            if(publicationObserver!=null)publicationObserver.accept(new PublicationObservation(state,next));
             storage.replace(state, next).whenComplete((value, error) ->
-                    writes.add(new Written(value, error, clock.millis())));
+                    writes.add(new Written(value, error, clock.millis(),System.nanoTime())));
             return new Change(Code.PENDING, changed == null ? null : rows.get(changed.id()), null, inspectedEdges);
         } catch (RuntimeException error) {
             fenced = true; afterWrite = null; failure = Reason.STORAGE_UNAVAILABLE;
@@ -1071,6 +1357,7 @@ public final class JobLifecycleStore {
     }
     private Change guard(Job job, Guard guard, Work work) {
         if (!ready()) return reject(unavailableReason(), work);
+        if(history!=null && history.archived(job.id())!=null)return reject(Reason.STALE_OBSERVATION,work);
         if (guard == null || !job.guard().equals(guard))
             return new Change(Code.CONFLICT, null, Reason.STALE_OBSERVATION, work.edges);
         return null;
@@ -1083,6 +1370,21 @@ public final class JobLifecycleStore {
         return caller != null && caller.scope().worldId().equals(state.worldId());
     }
     private Job find(UUID id) { return state.jobs().stream().filter(j -> j.id().equals(id)).findFirst().orElse(null); }
+    private Job historicalFind(UUID id) {
+        Job job=find(id);return job!=null || history==null?job:history.archived(id);
+    }
+    private Snapshot withHistorical(Collection<UUID> references) {
+        if(history==null)return state;
+        var jobs=rows();var allocations=new LinkedHashMap<UUID,Allocation>();state.allocations().forEach(a->allocations.put(a.id(),a));
+        for(UUID id:references)if(!jobs.containsKey(id)) {
+            Snapshot component=history.component(id);if(component==null)continue;
+            for(Job job:component.jobs())jobs.putIfAbsent(job.id(),job);
+            for(Allocation allocation:component.allocations())allocations.putIfAbsent(allocation.id(),allocation);
+        }
+        checkCapacity(jobs);
+        if(allocations.size()>settings.allocations())throw new Limited(Reason.STORAGE_LIMIT_REACHED);
+        return new Snapshot(state.worldId(),state.revision(),List.copyOf(jobs.values()),List.copyOf(allocations.values()));
+    }
     private LinkedHashMap<UUID, Job> rows() {
         var rows = new LinkedHashMap<UUID, Job>(); state.jobs().forEach(j -> rows.put(j.id(), j)); return rows;
     }
@@ -1090,6 +1392,15 @@ public final class JobLifecycleStore {
         return new Change(Code.REJECTED, null, Objects.requireNonNull(reason), Math.min(work.edges, settings.edges()));
     }
     private Change duplicate(Job job, Work work) { return new Change(Code.DUPLICATE, job, null, work.edges); }
+    private Change allocationReplay(Allocation allocation,TrustedContext caller,Work work) {
+        Allocation existing=state.allocations().stream().filter(a->a.id().equals(allocation.id())).findFirst().orElse(null);
+        if(existing==null && history!=null && history.ready())existing=history.allocation(allocation.id());
+        if(existing==null)return null;
+        if(!sameWorld(caller))return reject(Reason.AUTHORITY_DENIED,work);
+        Job demand=historicalFind(existing.demand());
+        if(demand==null || !policy.mayControl(caller,demand))return reject(Reason.AUTHORITY_DENIED,work);
+        return existing.equals(allocation)?duplicate(demand,work):reject(Reason.REQUEST_INVALID,work);
+    }
     private void checkCapacity(Map<UUID, Job> rows) {
         if (rows.size() > settings.total() || rows.values().stream().filter(j -> !j.state().terminal()).count() > settings.active())
             throw new Limited(Reason.STORAGE_LIMIT_REACHED);
@@ -1113,13 +1424,14 @@ public final class JobLifecycleStore {
         return true;
     }
     private Job dependencyState(Job job, Map<UUID, Job> rows, boolean increment) {
+        if(job.activity()!=null)return job;
         boolean ready = job.dependencies().stream().allMatch(id -> rows.get(id).state() == State.SUCCEEDED);
         if (job.state() == State.READY && !ready || job.state() == State.WAITING && ready && job.reason() == null) {
             var edit = new Edit(job); edit.state = ready ? State.READY : State.WAITING;
             return increment ? edit.finish(EventKind.TRANSITIONED, settings.events())
                     : new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(), job.dependencies(),
                     job.children(), edit.state, job.reason(), job.cancellationOutcome(), job.allowance(),
-                    job.usage(), job.generation(), job.attempts(), job.events(),job.preparation());
+                    job.usage(), job.generation(), job.attempts(), job.events(),job.preparation(),job.activity());
         }
         return job;
     }
@@ -1207,6 +1519,10 @@ public final class JobLifecycleStore {
                 .mapToLong(Allocation::quantity).reduce(0, Math::addExact);
         long remaining = ((IntValue)args.get("amount")).value() - job.fulfilled() - allocated;
         if (remaining <= 0) throw new Limited(Reason.REQUEST_INVALID);
+        if(job.activity()!=null) {
+            var step=job.activity().current();if(step==null || step.quantity()>remaining)throw new Limited(Reason.REQUEST_INVALID);
+            remaining=step.quantity();
+        }
         args.put("amount", new IntValue(remaining));
         return new ValidatedRequest(new CapabilityRequest(job.request().request().capability(), args),
                 job.origin(), job.request().observation());
@@ -1225,7 +1541,7 @@ public final class JobLifecycleStore {
     private static Job copyUsage(Job job, Map<Budgets.Kind, Long> usage) {
         return new Job(job.id(), job.submissionId(), job.revision(), job.request(), job.parent(),
                 job.dependencies(), job.children(), job.state(), job.reason(), job.cancellationOutcome(),
-                job.allowance(), usage, job.generation(), job.attempts(), job.events(),job.preparation());
+                job.allowance(), usage, job.generation(), job.attempts(), job.events(),job.preparation(),job.activity());
     }
     private static void validateReceipt(Attempt attempt, CropDelivery.CropReceipt receipt) {
         if (!attempt.bound().request().capability().equals(CropDelivery.ID)
@@ -1326,6 +1642,7 @@ public final class JobLifecycleStore {
                     || job.attempts().stream().mapToInt(Attempt::receiptCount).sum() > settings.receipts()
                     || job.attempts().stream().anyMatch(a -> a.cancellationDeliveries() > settings.cancellationDeliveries()))
                 throw new IllegalArgumentException("Configured job bounds");
+            if(job.activity()!=null)job.activity().validate(job);
             boolean goal=job.request().request().capability().equals(PlanningGoals.ID);
             boolean staging=job.request().request().capability().equals(BlueprintMaterials.ID);
             if ((!ResourceDelivery.isDelivery(job.request().request().capability()) && !goal && !staging)

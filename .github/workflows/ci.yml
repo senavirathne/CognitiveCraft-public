@@ -818,3 +818,32 @@ jobs:
             fabric/build/hardkill-gametest-run/gametest-results.xml
             fabric/build/hardkill-gametest-run/logs/
             fabric/build/hardkill-gametest-run/crash-reports/
+
+  # BEGIN A-OWNED READ-ONLY ARTIFACT INSPECTION
+  a08_artifact_inspection:
+    name: A08 frozen artifact inspection
+    if: >-
+      ${{ github.event_name == 'push' && startsWith(github.event.head_commit.message, 'test(runtime-a): A08 artifact-review') }}
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify append-only ownership and Python syntax
+        run: |
+          python3 e2e/parallel_a/ownership.py
+          python3 -m py_compile e2e/parallel_a/artifact_export.py
+      - name: Fetch only the frozen diagnostic archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 e2e/parallel_a/artifact_export.py fetch --control .github/parallel-a-evidence.json --directory build/parallel-a/evidence-export
+      - name: Inspect hashes, JSON and XML with no network
+        run: |
+          docker run --rm --network none --user "$(id -u):$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -v "$PWD:$PWD:ro" -w "$PWD" python:3.12-slim python3 e2e/parallel_a/artifact_export.py read --control .github/parallel-a-evidence.json --directory build/parallel-a/evidence-export
+  # END A-OWNED READ-ONLY ARTIFACT INSPECTION

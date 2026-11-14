@@ -7,10 +7,17 @@ import static dev.aivillages.core.kernel.Accomplishments.*;
 
 /** Trusted, off-thread owner adapter. No command, narrative or model can supply outcome facts. */
 public final class JobOutcomeSource {
-    private final Supplier<Jobs.Snapshot> jobs;
+    private final JobHistory.Source jobs;
     private final Supplier<CitizenRegistry.Snapshot> citizens;
     public JobOutcomeSource(Supplier<Jobs.Snapshot> jobs,Supplier<CitizenRegistry.Snapshot> citizens){
+        Objects.requireNonNull(jobs);this.jobs=()->{var hot=jobs.get();return hot==null?null:JobHistory.View.hot(hot);};
+        this.citizens=Objects.requireNonNull(citizens);
+    }
+    private JobOutcomeSource(JobHistory.Source jobs,Supplier<CitizenRegistry.Snapshot> citizens,boolean history){
         this.jobs=Objects.requireNonNull(jobs);this.citizens=Objects.requireNonNull(citizens);
+    }
+    public static JobOutcomeSource withHistory(JobHistory.Source jobs,Supplier<CitizenRegistry.Snapshot> citizens){
+        return new JobOutcomeSource(jobs,citizens,true);
     }
     static final class Work {
         final int maximum;int count;
@@ -25,10 +32,11 @@ public final class JobOutcomeSource {
     Verified read(OutcomeRef reference,Work work){return read(reference,work,false);}
     Verified readDelivery(OutcomeRef reference,Work work){return read(reference,work,true);}
     private Verified read(OutcomeRef reference,Work work,boolean resources){
-        var snapshot=jobs.get();var identities=citizens.get();
+        JobHistory.View snapshot;
+        try{snapshot=jobs.read();}catch(IllegalStateException unavailable){throw new Invalid();}
+        var identities=citizens.get();
         if(snapshot==null||identities==null||!reference.world().equals(snapshot.worldId())||!reference.world().equals(identities.worldId()))throw new Invalid();
-        Jobs.Job selected=null;
-        for(var job:snapshot.jobs()){work.step();if(job.id().equals(reference.job()))selected=job;}
+        work.step();Jobs.Job selected=snapshot.job(reference.job());
         if(selected==null)throw new Invalid();
         if(selected.revision()!=reference.revision())throw new Stale();
         if(resources&&ResourceDelivery.resource(selected.request().request().capability()))return readResource(snapshot,identities,selected,work);
@@ -60,13 +68,11 @@ public final class JobOutcomeSource {
                     &&(attempt.uncertain()||attempt.executions().stream().noneMatch(e->completed(attempt,e,work))))throw new Invalid();
         }
         // Detect forged reuse of one action across jobs even at a misconfigured trusted test source.
-        for(var other:snapshot.jobs())if(!other.id().equals(selected.id()))for(var attempt:other.attempts())for(var receipt:attempt.receipts()){
-            work.step();if(ids.contains(receipt.receiptId()))throw new Invalid();
-        }
+        for(UUID receipt:ids){work.step();if(!selected.id().equals(snapshot.receiptOwner(receipt)))throw new Invalid();}
         return new Verified(selected,Map.copyOf(index));
     }
     /** Reuse the same receipt-family verifiers as Jobs; a terminal status alone teaches nothing. */
-    private Verified readResource(Jobs.Snapshot snapshot,CitizenRegistry.Snapshot identities,Jobs.Job selected,Work work){
+    private Verified readResource(JobHistory.View snapshot,CitizenRegistry.Snapshot identities,Jobs.Job selected,Work work){
         var index=new HashMap<UUID,CitizenRegistry.Citizen>();
         for(var citizen:identities.citizens()){work.step();index.put(citizen.actor().citizenId(),citizen);}
         var ids=new HashSet<UUID>();
@@ -102,10 +108,7 @@ public final class JobOutcomeSource {
             if(attempt.terminal()!=null&&attempt.terminal().status()==Outcomes.ExecutionStatus.SUCCEEDED
                     &&(attempt.uncertain()||attempt.executions().stream().noneMatch(e->completed(attempt,e,work))))throw new Invalid();
         }
-        for(var other:snapshot.jobs())if(!other.id().equals(selected.id()))for(var attempt:other.attempts()){
-            for(var receipt:attempt.receipts()){work.step();if(ids.contains(receipt.receiptId()))throw new Invalid();}
-            for(var receipt:attempt.resourceReceipts()){work.step();if(ids.contains(receipt.receiptId()))throw new Invalid();}
-        }
+        for(UUID receipt:ids){work.step();if(!selected.id().equals(snapshot.receiptOwner(receipt)))throw new Invalid();}
         return new Verified(selected,Map.copyOf(index));
     }
     static boolean completed(Jobs.Attempt attempt,Jobs.ExecutionReference execution,Work work){

@@ -1,0 +1,21 @@
+services:
+  minecraft:
+    cpuset: '0-1'
+    environment:
+      COGNITIVECRAFT_A10_PROFILE: '${COGNITIVECRAFT_A10_PROFILE:-}'
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.freeze
+      network: none
+  client-a:
+    cpuset: '2'
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.freeze
+      network: none
+  client-b:
+    cpuset: '3'
+    build:
+      context: parallel_a
+      dockerfile: Dockerfile.freeze
+      network: none

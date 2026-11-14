@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.runtime.activity.ActivityPayload;
 
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Outcomes.*;
@@ -21,7 +22,7 @@ public final class Jobs {
     }
     public enum EventKind {
         CREATED, DEPENDENCY, ASSIGNED, PINNED, OBSERVED, TRANSITIONED, CANCEL_REQUESTED,
-        CANCEL_DELIVERY, RECONCILED, LATE_EFFECTS, ALLOCATED, RESTORED
+        CANCEL_DELIVERY, RECONCILED, LATE_EFFECTS, ALLOCATED, RESTORED, ACTIVITY_PREPARED
     }
     public enum Code { PENDING, APPLIED, DUPLICATE, CONFLICT, REJECTED }
 
@@ -119,7 +120,12 @@ public final class Jobs {
                       UUID parent, List<UUID> dependencies, List<UUID> children,
                       State state, Reason reason, State cancellationOutcome,
                       Budgets.Limits allowance, Map<Budgets.Kind, Long> usage,
-                      long generation, List<Attempt> attempts, List<Event> events, Preparation preparation) {
+                      long generation, List<Attempt> attempts, List<Event> events, Preparation preparation, ActivityPayload activity) {
+        public Job(UUID id,UUID submissionId,long revision,ValidatedRequest request,UUID parent,List<UUID> dependencies,List<UUID> children,
+                   State state,Reason reason,State cancellationOutcome,Budgets.Limits allowance,Map<Budgets.Kind,Long> usage,
+                   long generation,List<Attempt> attempts,List<Event> events,Preparation preparation) {
+            this(id,submissionId,revision,request,parent,dependencies,children,state,reason,cancellationOutcome,allowance,usage,generation,attempts,events,preparation,null);
+        }
         public Job(UUID id,UUID submissionId,long revision,ValidatedRequest request,UUID parent,List<UUID> dependencies,List<UUID> children,
                    State state,Reason reason,State cancellationOutcome,Budgets.Limits allowance,Map<Budgets.Kind,Long> usage,
                    long generation,List<Attempt> attempts,List<Event> events) {
@@ -213,6 +219,10 @@ public final class Jobs {
     public record DispatchPage(List<Job> jobs, int total) {
         public DispatchPage { jobs = List.copyOf(jobs); }
     }
+    /** Private history projection, never an executable or expanded hot snapshot. */
+    public record HistoryPage(List<Job> jobs,int nextOffset,boolean more) {
+        public HistoryPage { jobs=List.copyOf(jobs);if(jobs.size()>4 || nextOffset<0)throw new IllegalArgumentException("History page"); }
+    }
     public record Roots(Set<ArtifactRef> artifacts, Set<UUID> runs, Set<UUID> jobs, boolean complete) {
         public Roots {
             artifacts = Set.copyOf(artifacts); runs = Set.copyOf(runs); jobs = Set.copyOf(jobs);
@@ -238,6 +248,80 @@ public final class Jobs {
         }
     }
     public record Cancellation(UUID jobId, UUID attemptId, long generation, TrustedContext origin) { }
+
+    /** A-owned runtime boundary. Observations are supplied by a registered native host, never JSON. */
+    public enum StoppedKind { WAIT_WORLD, AMBIGUOUS, STOPPED, NO_EFFECT, EFFECT_COMPLETE, PARTIAL, DELIVERED_UNIT }
+    public record StoppedContext(UUID world, UUID job, Guard guard, UUID attempt, long generation,
+                                 TrustedContext origin, Attempt original) {
+        public StoppedContext {
+            Objects.requireNonNull(world); Objects.requireNonNull(job); Objects.requireNonNull(guard);
+            Objects.requireNonNull(attempt); Objects.requireNonNull(origin); Objects.requireNonNull(original);
+            if (!world.equals(origin.scope().worldId()) || generation != original.generation()
+                    || !attempt.equals(original.id()) || generation != guard.generation())
+                throw new IllegalArgumentException("Original stopped-attempt identity");
+        }
+        public static StoppedContext of(Job job) {
+            if (job.current() == null) throw new IllegalArgumentException("Original attempt required");
+            return new StoppedContext(job.origin().scope().worldId(), job.id(), job.guard(),
+                    job.current().id(), job.generation(), job.origin(), job.current());
+        }
+    }
+    public record StoppedObservation(StoppedKind kind, Report report, String witness) {
+        public StoppedObservation {
+            Objects.requireNonNull(kind); Objects.requireNonNull(witness);
+            if (witness.isBlank() || witness.length() > 256) throw new IllegalArgumentException("Bounded host witness");
+            if ((kind == StoppedKind.WAIT_WORLD || kind == StoppedKind.AMBIGUOUS) && report != null)
+                throw new IllegalArgumentException("Unknown state cannot provide a report");
+            if ((kind == StoppedKind.NO_EFFECT || kind == StoppedKind.EFFECT_COMPLETE || kind == StoppedKind.PARTIAL || kind == StoppedKind.DELIVERED_UNIT)
+                    && (report == null || report.terminal() == null))
+                throw new IllegalArgumentException("Complete native report required");
+            if (kind == StoppedKind.NO_EFFECT && (report.effects() != 0 || !report.receipts().isEmpty()
+                    || !report.resourceReceipts().isEmpty() || report.terminal().status() == ExecutionStatus.SUCCEEDED))
+                throw new IllegalArgumentException("No-effect evidence contradicts physical work");
+            if (kind == StoppedKind.EFFECT_COMPLETE && report.terminal().status() != ExecutionStatus.SUCCEEDED)
+                throw new IllegalArgumentException("Complete effect requires verified completion");
+            if (kind == StoppedKind.DELIVERED_UNIT && (report.terminal().status()!=ExecutionStatus.INTERRUPTED
+                    && !(report.terminal().status()==ExecutionStatus.BLOCKED && report.terminal().reason()==Reason.BUDGET_EXHAUSTED)))
+                throw new IllegalArgumentException("Delivered unit requires bounded remaining-demand accounting");
+        }
+        public static StoppedObservation ambiguous(String witness) {
+            return new StoppedObservation(StoppedKind.AMBIGUOUS, null, witness);
+        }
+    }
+    @FunctionalInterface public interface TrustedStoppedSource {
+        StoppedObservation observe(StoppedContext original);
+    }
+    /** Opaque capability: no constructor/factory taking player data or a certainty boolean. */
+    public static final class StoppedEvidence {
+        private final RecoveryEvidenceAuthority authority;
+        private final StoppedContext context;
+        private final StoppedObservation observation;
+        private StoppedEvidence(RecoveryEvidenceAuthority authority, StoppedContext context, StoppedObservation observation) {
+            this.authority = authority; this.context = context; this.observation = observation;
+        }
+        public StoppedContext context() { return context; }
+        public StoppedObservation observation() { return observation; }
+        public UUID process() { return authority.process(); }
+    }
+    /** Registered once by the composition root. capture calls its trusted source, not caller-supplied proof data. */
+    public static final class RecoveryEvidenceAuthority {
+        private final UUID process = UUID.randomUUID();
+        private final TrustedStoppedSource source;
+        private RecoveryEvidenceAuthority(TrustedStoppedSource source) { this.source = Objects.requireNonNull(source); }
+        public UUID process() { return process; }
+        public StoppedEvidence capture(StoppedContext original) {
+            Objects.requireNonNull(original);
+            var observed = Objects.requireNonNull(source.observe(original));
+            if (observed.report() != null && (!observed.report().attemptId().equals(original.attempt())
+                    || observed.report().generation() != original.generation()))
+                throw new IllegalArgumentException("Host report changed original identity");
+            return new StoppedEvidence(this, original, observed);
+        }
+        boolean authentic(StoppedEvidence evidence) { return evidence != null && evidence.authority == this; }
+    }
+    static RecoveryEvidenceAuthority recoveryEvidenceAuthority(TrustedStoppedSource source) {
+        return new RecoveryEvidenceAuthority(source);
+    }
 
     public static boolean legal(State from, State to) {
         return switch (from) {
@@ -271,10 +355,11 @@ public final class Jobs {
         Map<Budgets.Kind, Long> usage;
         long generation;
         Preparation preparation;
+        ActivityPayload activity;
         Edit(Job job) {
             old = job; state = job.state(); reason = job.reason(); cancellationOutcome = job.cancellationOutcome();
             dependencies = job.dependencies(); children = job.children(); attempts = job.attempts();
-            usage = job.usage(); generation = job.generation(); preparation=job.preparation();
+            usage = job.usage(); generation = job.generation(); preparation=job.preparation();activity=job.activity();
         }
         Job finish(EventKind kind, int eventCap) {
             long revision = Math.addExact(old.revision(), 1);
@@ -283,7 +368,7 @@ public final class Jobs {
             events.add(new Event(revision, kind, attempts.isEmpty() ? null : attempts.getLast().id(), generation));
             return new Job(old.id(), old.submissionId(), revision, old.request(), old.parent(),
                     dependencies, children, state, reason, cancellationOutcome, old.allowance(),
-                    usage, generation, attempts, events,preparation);
+                    usage, generation, attempts, events,preparation,activity);
         }
     }
 }

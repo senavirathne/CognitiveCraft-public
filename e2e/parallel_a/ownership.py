@@ -1,0 +1,89 @@
+"""Fail closed on edits outside the A00–A09 owned source boundary."""
+import subprocess
+from pathlib import Path
+
+base='ea7de8000b2b484b885576c34ed5358274936ce9'
+allowed={
+    'core/src/test/java/dev/aivillages/core/kernel/ActivityRuntimeTest.java',
+    '.github/workflows/ci.yml',
+    '.github/parallel-a-evidence.json',
+    'core/src/test/java/dev/aivillages/core/kernel/ImmediateClaimsTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/StagedTransfersTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/FabricStagedTransfers.java',
+    'core/src/test/java/dev/aivillages/core/kernel/JobPublicationObservationTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/LifecycleItemDamageMixin.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ReassignmentPolicyTest.java',
+    'core/src/main/java/dev/aivillages/core/kernel/CitizenLifecycle.java',
+    'core/src/test/java/dev/aivillages/core/kernel/CitizenLifecycleTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/LifecycleTraceTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/FabricCitizenLifecycle.java',
+    'fabric/src/gameTest/java/dev/aivillages/fabric/CitizenLifecycleGameTests.java',
+    'fabric/src/gameTest/java/dev/aivillages/fabric/CitizenLifecycleRestartGameTests.java',
+    '.github/workflows/parallel-a-runtime.yml',
+    '.github/parallel-a-run.json',
+    'core/src/main/java/dev/aivillages/core/kernel/Jobs.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobCodec.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobJournal.java',
+    'core/src/test/java/dev/aivillages/core/kernel/JobJournalTest.java',
+    'core/src/main/java/dev/aivillages/core/kernel/BootstrapController.java',
+    'core/src/main/java/dev/aivillages/core/kernel/WorkerDispatcher.java',
+    'core/src/main/java/dev/aivillages/core/kernel/SurvivalGateway.java',
+    'core/src/main/java/dev/aivillages/core/kernel/LeasedGateway.java',
+    'core/src/test/java/dev/aivillages/core/kernel/HarvestLeasePublicationTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/KernelSession.java',
+    'fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java',
+    'fabric/src/test/java/dev/aivillages/fabric/FabricLogFootingTest.java',
+    'fabric/src/main/java/dev/aivillages/fabric/KernelCommands.java',
+    'core/src/test/java/dev/aivillages/core/kernel/RecoveredJobOwnersTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/DepositGatewayTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/KnowledgeAccessAcknowledgedSourceTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveHistoryReaderTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveWriterTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveServiceTest.java',
+    'core/src/main/java/dev/aivillages/core/kernel/WorldRetentionManager.java',
+    'core/src/main/java/dev/aivillages/core/kernel/ResourceLeaseService.java',
+    'core/src/main/java/dev/aivillages/core/kernel/LeaseArchive.java',
+    'core/src/test/java/dev/aivillages/core/kernel/LeaseArchiveTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/JobExecutorIntegrationTest.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobArchive.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobHistory.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobHistoryCodec.java',
+    'core/src/main/java/dev/aivillages/core/kernel/JobOutcomeSource.java',
+    'core/src/main/java/dev/aivillages/core/kernel/KnowledgeAccessSource.java',
+    'core/src/test/java/dev/aivillages/core/kernel/JobArchiveTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/ArchiveRequirementTest.java',
+    'fabric/src/main/resources/ai-villages.mixins.json',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositVillagerParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositInventoryMutationMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestRemovalMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositStackMutationMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChestStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositChunkStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/DepositEntityStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestSourceMutationMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkStorageMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestChunkStorageLoadMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestDropParticipantMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/HarvestCustodyPickupMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/EntityStorageEvidenceMixin.java',
+    'fabric/src/main/java/dev/aivillages/fabric/mixin/EntityMembershipMixin.java',
+    'core/src/test/java/dev/aivillages/core/kernel/HarvestGatewayTest.java',
+    'core/src/test/java/dev/aivillages/core/kernel/HarvestStoppedSourceTest.java',
+}
+prefixes=('e2e/parallel_a/','core/src/main/java/dev/aivillages/core/kernel/runtime/',
+          'core/src/test/java/dev/aivillages/core/kernel/runtime/evidence/')
+prefixes+=('fabric/src/main/java/dev/aivillages/fabric/runtime/evidence/',
+           'fabric/src/test/java/dev/aivillages/fabric/runtime/evidence/')
+prefixes+=('core/src/test/resources/dev/aivillages/core/kernel/runtime/evidence/','core/src/test/resources/dev/aivillages/core/kernel/runtime/activity/',)
+changed=sorted(set(subprocess.check_output(['git','diff','--name-only',base],text=True).splitlines())
+               |set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines()))
+original_ci=subprocess.check_output(['git','show',base+':.github/workflows/ci.yml'],text=True)
+current_ci=Path('.github/workflows/ci.yml').read_text()
+if current_ci!=original_ci and not current_ci.startswith(original_ci+'\n  # BEGIN A-OWNED READ-ONLY ARTIFACT INSPECTION\n'):
+    raise SystemExit('Original standard verification workflow must remain byte-preserved; A may only append its read-only artifact job')
+bad=[p for p in changed if p not in allowed and not p.startswith(prefixes)]
+if bad:raise SystemExit('Not owned by current A stage: '+repr(bad))
+print('PARALLEL_A_OWNERSHIP_PASS '+str(len(changed))+' owned files; no B-owned edits')

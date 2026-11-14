@@ -1,0 +1,129 @@
+package dev.aivillages.core.kernel.runtime.evidence;
+
+import dev.aivillages.core.kernel.Contracts.*;
+import dev.aivillages.core.kernel.StrictJson;
+import dev.aivillages.core.kernel.ResourceDelivery;
+import dev.aivillages.core.kernel.Budgets;
+import org.junit.jupiter.api.Test;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import static dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Synthetic contract fixtures; these are never Minecraft effects or save witnesses. */
+final class NativeDepositTest {
+    static final UUID WORLD=UUID.fromString("10000000-0000-0000-0000-000000000001");
+    static final String LOG="minecraft:oak_log";
+    static final TrustedContext OWNER=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(WORLD,UUID.randomUUID()));
+    static Participant actor(int count,long revision) {
+        var slots=new ArrayList<>(Collections.nCopies(8,new Slot("minecraft:air",0)));slots.set(0,new Slot(count==0?"minecraft:air":LOG,count));
+        return new Participant(Kind.ACTOR,"minecraft:overworld","20000000-0000-0000-0000-000000000001",UUID.fromString("30000000-0000-0000-0000-000000000001"),revision,slots);
+    }
+    static Participant chest(int count,long revision) {
+        var slots=new ArrayList<>(Collections.nCopies(27,new Slot("minecraft:air",0)));slots.set(0,new Slot(count==0?"minecraft:air":LOG,count));
+        return new Participant(Kind.CHEST,"minecraft:overworld","10,64,10",UUID.fromString("40000000-0000-0000-0000-000000000001"),revision,slots);
+    }
+    static Conditions conditions() {return new Conditions(UUID.randomUUID(),5,10_000,9_000,8,100,2500,1000,List.of(new Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1)),Map.of(dev.aivillages.core.kernel.Budgets.Kind.COMMITTED_EFFECTS,2L));}
+    static Intent intent() {return new Intent(new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,1),OWNER,UUID.randomUUID(),UUID.randomUUID(),actor(1,7),chest(5,11),LOG,0,0,64,conditions());}
+    static UUID fixtureId(Intent intent,String suffix){return UUID.nameUUIDFromBytes(("fixture:deposit/"+intent.key().token()+"/"+suffix).getBytes(StandardCharsets.UTF_8));}
+    static Map<Budgets.Kind,Long> fixtureUsage(Intent intent,boolean complete){var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);usage.putAll(intent.conditions().usage());usage.merge(Budgets.Kind.ATTEMPTED_EFFECTS,1L,Math::addExact);if(complete)usage.merge(Budgets.Kind.COMMITTED_EFFECTS,1L,Math::addExact);return usage;}
+    static Result observed(Intent intent,Participant actor,Participant chest,String failure){return NativeDeposit.observed(intent,actor,chest,failure,null,fixtureUsage(intent,false));}
+    static Entry completed(Intent intent) {
+        var receipt=new ResourceDelivery.Receipt(fixtureId(intent,"receipt"),intent.origin(),intent.run(),intent.operation(),fixtureId(intent,"batch"),new ActorRef(intent.conditions().citizen(),UUID.fromString(intent.actor().address()),intent.actor().dimension()),
+                new Cuboid("minecraft:overworld",2,64,2,2,64,2),new ContainerRef("minecraft:overworld",10,64,10),new ResourceDelivery.ItemIdentity(LOG,"default"),ResourceDelivery.Stage.DEPOSIT,1,
+                new ResourceDelivery.BlockPosition("minecraft:overworld",2,64,2),List.of(fixtureId(intent,"drop")));
+        return new Entry(intent,NativeDeposit.observed(intent,actor(0,8),chest(6,12),"",receipt,fixtureUsage(intent,true)));
+    }
+    static Marker marker(Entry entry,MarkerPhase phase) {return new Marker(entry.token(),entry.intent().digest(),phase,phase==MarkerPhase.RESULT?entry.result().digest():"");}
+
+    @Test void exactOriginalIdentityAndClosedCanonicalRecordRoundTrip() {
+        Entry entry=completed(intent());assertEquals(entry,decode(encode(entry)));
+        assertEquals(entry.token(),decode(encode(entry)).intent().key().token());
+        Marker marker=marker(entry,MarkerPhase.RESULT);assertEquals(marker,markerJson(markerJson(marker)));
+    }
+    @Test void boundedImmediateClaimsStillRequireUniqueIdsOneGroupAndNonnegativeUsage() {
+        Conditions original=conditions();UUID group=UUID.randomUUID(),epoch=UUID.randomUUID();var claims=new ArrayList<Claim>();
+        for(int n=0;n<4;n++)claims.add(new Claim(UUID.randomUUID(),epoch,group,1));
+        java.util.function.Function<List<Claim>,Conditions> bind=rows->new Conditions(original.citizen(),5,10_000,9_000,8,100,2500,1000,rows,original.usage());
+        assertEquals(claims,bind.apply(claims).claims());
+        assertThrows(IllegalArgumentException.class,()->bind.apply(List.of()));
+        assertThrows(IllegalArgumentException.class,()->bind.apply(List.of(claims.getFirst(),claims.getFirst())));
+        assertThrows(IllegalArgumentException.class,()->bind.apply(List.of(claims.getFirst(),new Claim(UUID.randomUUID(),epoch,UUID.randomUUID(),1))));
+        var excessive=new ArrayList<>(claims);excessive.add(new Claim(UUID.randomUUID(),epoch,group,1));
+        assertThrows(IllegalArgumentException.class,()->bind.apply(excessive));
+        assertThrows(IllegalArgumentException.class,()->new Conditions(original.citizen(),5,10_000,9_000,8,100,2500,1000,claims,Map.of(Budgets.Kind.CALLS,-1L)));
+    }
+    @Test void liveMutationAndJournalDataNeverSupplySavedEvidence() {
+        Entry entry=completed(intent());Marker marker=marker(entry,MarkerPhase.RESULT);
+        assertEquals(Reconciliation.UNPROVEN,classify(entry,new Witness(entry.result().actor(),marker,false),new Witness(entry.result().chest(),marker,false)));
+        assertEquals(Reconciliation.SAVED_COMPLETE,classify(entry,new Witness(entry.result().actor(),marker,true),new Witness(entry.result().chest(),marker,true)));
+    }
+    @Test void independentParticipantPhasesDetectTheActualTornCombination() {
+        Entry entry=completed(intent());Marker before=marker(entry,MarkerPhase.PREPARED),after=marker(entry,MarkerPhase.RESULT);
+        assertEquals(Reconciliation.TORN_PARTICIPANTS,classify(entry,new Witness(entry.result().actor(),after,true),new Witness(entry.intent().chest(),before,true)));
+        assertEquals(Reconciliation.JOURNAL_AHEAD_OF_PARTICIPANTS,classify(entry,new Witness(entry.intent().actor(),before,true),new Witness(entry.intent().chest(),before,true)));
+    }
+    @Test void preparedNoEffectRequiresBothOriginalSavedParticipants() {
+        Entry entry=new Entry(intent(),null);Marker marker=marker(entry,MarkerPhase.PREPARED);
+        assertEquals(Reconciliation.PREPARED_NO_EFFECT,classify(entry,new Witness(entry.intent().actor(),marker,true),new Witness(entry.intent().chest(),marker,true)));
+        assertEquals(Reconciliation.WAIT_WORLD,classify(entry,null,new Witness(entry.intent().chest(),marker,true)));
+        assertEquals(Reconciliation.UNPROVEN,classify(entry,new Witness(entry.intent().actor(),null,true),new Witness(entry.intent().chest(),marker,true)));
+    }
+    @Test void equalCountsAfterAnotherMutationDoNotRecreateCausalEvidence() {
+        Entry entry=completed(intent());Marker marker=marker(entry,MarkerPhase.RESULT);
+        Participant original=entry.result().chest();Participant swapped=new Participant(original.kind(),original.dimension(),original.address(),original.incarnation(),original.revision()+1,original.slots());
+        assertEquals(original.slots(),swapped.slots());
+        assertEquals(Reconciliation.UNPROVEN,classify(entry,new Witness(entry.result().actor(),marker,true),new Witness(swapped,marker,true)));
+    }
+    @Test void sameCoordinateReplacementAndWrongEffectMarkersCannotSettle() {
+        Entry entry=completed(intent());Marker marker=marker(entry,MarkerPhase.RESULT);Participant old=entry.result().chest();
+        Participant replacement=new Participant(old.kind(),old.dimension(),old.address(),UUID.randomUUID(),old.revision(),old.slots());
+        assertEquals(Reconciliation.UNPROVEN,classify(entry,new Witness(entry.result().actor(),marker,true),new Witness(replacement,marker,true)));
+        Marker foreign=new Marker(intent().key().token(),marker.intent(),MarkerPhase.RESULT,marker.result());
+        assertEquals(Reconciliation.UNPROVEN,classify(entry,new Witness(entry.result().actor(),foreign,true),new Witness(old,marker,true)));
+    }
+    @Test void completePartialObservationStaysVisibleWithoutInventingACompletedDeposit() {
+        Intent intent=intent();Entry partial=new Entry(intent,observed(intent,actor(0,8),intent.chest(),"exception after actor removal"));
+        assertEquals(Live.PARTIAL,partial.result().live());Marker marker=marker(partial,MarkerPhase.RESULT);
+        assertEquals(Reconciliation.PARTIAL_UNRESOLVED,classify(partial,new Witness(partial.result().actor(),marker,true),new Witness(partial.result().chest(),marker,true)));
+        assertThrows(IllegalArgumentException.class,()->new Entry(intent,new Result(intent.digest(),Live.COMPLETE,actor(0,8),intent.chest(),"")));
+    }
+    @Test void noEffectNeedsUnchangedParticipantsAndItsOwnSavedResult() {
+        Intent intent=intent();Entry entry=new Entry(intent,observed(intent,intent.actor(),intent.chest(),"capacity changed before native call"));
+        assertEquals(Live.NO_EFFECT,entry.result().live());Marker marker=marker(entry,MarkerPhase.RESULT);
+        assertEquals(Reconciliation.SAVED_NO_EFFECT,classify(entry,new Witness(intent.actor(),marker,true),new Witness(intent.chest(),marker,true)));
+    }
+    @Test void exceptionAfterBothWritesRetainsTheActualDeltaWithoutInventingAGatewayReceipt() {
+        Intent intent=intent();Result result=observed(intent,actor(0,8),chest(6,12),"host exception before returning the transfer");
+        Entry entry=new Entry(intent,result);assertEquals(Live.UNRECEIPTED_EFFECT,result.live());assertNull(result.receipt());
+        assertEquals(entry,decode(encode(entry)));Marker marker=marker(entry,MarkerPhase.RESULT);
+        assertEquals(Reconciliation.PARTIAL_UNRESOLVED,classify(entry,new Witness(result.actor(),marker,true),new Witness(result.chest(),marker,true)));
+        var invalid=new Verification(Reconciliation.SAVED_COMPLETE,result.actor(),result.chest(),marker,marker,UUID.randomUUID(),100);
+        assertThrows(IllegalArgumentException.class,()->new Entry(intent,result,invalid));
+    }
+    @Test void boundedSchemaRejectsExtraFieldsWrongWorldNoncanonicalAndMalformedUtf8() throws Exception {
+        Entry entry=completed(intent());byte[] raw=encode(entry);var row=StrictJson.object(new String(raw,StandardCharsets.UTF_8));row.put("trusted",true);
+        assertThrows(IllegalArgumentException.class,()->decode(StrictJson.canonical(row).getBytes(StandardCharsets.UTF_8)));
+        assertThrows(IllegalArgumentException.class,()->decode((" "+new String(raw,StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8)));
+        byte[] broken=raw.clone();broken[1]=(byte)0xc3;broken[2]=0x28;assertThrows(IllegalArgumentException.class,()->decode(broken));
+        Intent i=entry.intent();Key wrong=new Key(UUID.randomUUID(),i.key().root(),i.key().step(),i.key().attempt(),1,1);
+        assertThrows(IllegalArgumentException.class,()->new Intent(wrong,i.origin(),i.run(),i.operation(),i.actor(),i.chest(),LOG,0,0,64,i.conditions()));
+        assertThrows(IllegalArgumentException.class,()->new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),0,1));
+        assertThrows(IllegalArgumentException.class,()->new Key(WORLD,UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1,65));
+    }
+    @Test void savedVerificationPersistsBothActualWitnessesAndCannotPromoteTornData() {
+        Entry original=completed(intent());Marker marker=marker(original,MarkerPhase.RESULT);
+        var proof=new Verification(Reconciliation.SAVED_COMPLETE,original.result().actor(),original.result().chest(),marker,marker,UUID.randomUUID(),100);
+        Entry verified=new Entry(original.intent(),original.result(),proof);assertEquals(verified,decode(encode(verified)));
+        var torn=new Verification(Reconciliation.SAVED_COMPLETE,original.intent().actor(),original.intent().chest(),marker,marker,UUID.randomUUID(),100);
+        assertThrows(IllegalArgumentException.class,()->new Entry(original.intent(),original.result(),torn));
+    }
+    @Test void actualReceiptCannotBeReboundAndCapturedUsageCannotBeReduced() {
+        Entry complete=completed(intent());var r=complete.result().receipt();
+        var foreign=new ResourceDelivery.Receipt(r.receiptId(),r.origin(),UUID.randomUUID(),r.operationId(),r.batchId(),r.actor(),r.source(),r.destination(),r.item(),r.stage(),r.quantity(),r.sourceBlock(),r.dropIds());
+        Result wrong=new Result(complete.result().intent(),Live.COMPLETE,complete.result().actor(),complete.result().chest(),"",foreign,complete.result().usage());
+        assertThrows(IllegalArgumentException.class,()->new Entry(complete.intent(),wrong));
+        Result lowered=new Result(complete.result().intent(),Live.COMPLETE,complete.result().actor(),complete.result().chest(),"",r,Map.of(Budgets.Kind.COMMITTED_EFFECTS,1L));
+        assertThrows(IllegalArgumentException.class,()->new Entry(complete.intent(),lowered));
+    }
+}

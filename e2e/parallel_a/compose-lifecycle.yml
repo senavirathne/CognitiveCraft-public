@@ -1,0 +1,5 @@
+services:
+  minecraft:
+    environment:
+      COGNITIVECRAFT_LIFECYCLE_TRACE: 'true'
+      COGNITIVECRAFT_A07_PROBE: 'true'

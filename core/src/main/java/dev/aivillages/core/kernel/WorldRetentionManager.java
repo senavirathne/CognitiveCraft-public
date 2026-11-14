@@ -31,10 +31,15 @@ public final class WorldRetentionManager {
                          int links, int sliceRecords, int sliceBytes, int diagnostics) {
         public Policy {
             categories = Map.copyOf(categories); Objects.requireNonNull(total);
-            if (categories.size() != Category.values().length || owners < 1 || owners > 16
+            if (categories.size() != Category.values().length || owners < 1 || owners > 17
                     || nodes < 1 || nodes > 8192 || links < 1 || links > 65536
                     || sliceRecords < 1 || sliceRecords > 64 || sliceBytes < 65536 || sliceBytes > 1_048_576
                     || diagnostics < 0 || diagnostics > 32) throw new IllegalArgumentException("Finite retention policy");
+        }
+        /** One named A06 journal requires one additional owner; byte/record/work quotas stay fixed. */
+        public Policy withHarvestEvidence() {
+            if(owners!=16)throw new IllegalStateException("Harvest owner slot requires the legacy sixteen-owner policy");
+            return new Policy(categories,total,17,nodes,links,sliceRecords,sliceBytes,diagnostics);
         }
         public static Policy defaults() {
             var categories = new EnumMap<Category, Quota>(Category.class);
@@ -77,6 +82,8 @@ public final class WorldRetentionManager {
         default void bindPolicy(WorldRetentionManager manager) { }
         /** Concurrent independent writers reserve their hard ceiling in admission assessments. */
         default Optional<Amount> admissionCeiling() { return Optional.empty(); }
+        /** Reduced journal reservations are valid only for one shared, enforced writer thread. */
+        default Optional<Thread> serializedWriter() { return Optional.empty(); }
         OwnerResult collect(Entry entry, long expectedRevision, BooleanSupplier cancel);
     }
     public enum State { INVENTORY, ROOTS, REACHABILITY, ELIGIBILITY, READY, INVALID, CANCELLED }
@@ -105,6 +112,11 @@ public final class WorldRetentionManager {
     public void register(Owner owner) {
         Objects.requireNonNull(owner);
         if (owners.size() >= policy.owners || owners.containsKey(owner.id())) throw new IllegalArgumentException("Owner registration");
+        if(owner.serializedWriter().isPresent()) {
+            Thread writer=owner.serializedWriter().orElseThrow();
+            for(Owner existing:owners.values())if(existing.serializedWriter().isPresent() && existing.serializedWriter().orElseThrow()!=writer)
+                throw new IllegalArgumentException("Evidence journals require one shared serialized writer");
+        }
         owners.put(owner.id(), owner);
         ownerEpoch = Math.addExact(ownerEpoch, 1);
         owner.bindPolicy(this);
@@ -113,9 +125,17 @@ public final class WorldRetentionManager {
     RetentionRoots references() { return roots; }
     /** Approval for an owner's finite window replacement, with the same graph and reference fence. */
     public final class DiscardLease implements AutoCloseable {
-        private final Scan scan; private final Object token; private boolean closed;
-        private DiscardLease(Scan scan, Object token) { this.scan = scan; this.token = token; }
+        private final Scan scan; private final Object token; private final Set<Key> approved; private boolean closed;
+        private DiscardLease(Scan scan, Object token, Set<Key> approved) { this.scan = scan; this.token = token; this.approved=Set.copyOf(approved); }
         public boolean valid() { try { return !closed && scan.current(); } catch (IOException failure) { return false; } }
+        /** Scoped storage cleanup capability; an unrelated approval cannot authorize another file. */
+        public boolean permits(Key key,long ownerRevision) {
+            return approved.contains(key) && Objects.equals(scan.revisions.get(key.owner()),ownerRevision) && valid();
+        }
+        public boolean permits(Key key,long ownerRevision,Owner expectedOwner) {
+            return scan.sources.stream().anyMatch(owner->owner==expectedOwner && owner.id().equals(key.owner()))
+                    && permits(key,ownerRevision);
+        }
         @Override public void close() { if (!closed) { closed = true; roots.endDelete(token); scan.close(); } }
     }
     public record DiscardApproval(Capacity status, DiscardLease lease) { }
@@ -131,7 +151,7 @@ public final class WorldRetentionManager {
         }
         Object token = roots.beginDelete(scan.references.generation());
         if (token == null) { scan.close(); return new DiscardApproval(Capacity.STORAGE_UNAVAILABLE, null); }
-        var lease = new DiscardLease(scan, token);
+        var lease = new DiscardLease(scan, token, removed);
         if (!lease.valid()) { lease.close(); return new DiscardApproval(Capacity.STORAGE_UNAVAILABLE, null); }
         return new DiscardApproval(Capacity.AVAILABLE, lease);
     }
@@ -267,13 +287,16 @@ public final class WorldRetentionManager {
                         Math.addExact(cat.records - old.records, replacement.records));
                 var all = new Amount(Math.addExact(total.bytes - old.bytes, replacement.bytes),
                         Math.addExact(total.records - old.records, replacement.records));
+                var reservedCategories=new EnumMap<Category,Amount>(Category.class);reservedCategories.putAll(categories);
+                reservedCategories.put(category,projected);
                 for (Owner source : sources) if (!source.id().equals(owner) && source.admissionCeiling().isPresent()) {
                     Amount ceiling = source.admissionCeiling().orElseThrow(); Amount measured = ownerUsage.getOrDefault(source.id(), new Amount(0, 0));
                     var growth = new Amount(Math.max(0, ceiling.bytes - measured.bytes), Math.max(0, ceiling.records - measured.records));
                     all = all.plus(growth);
                     Category reservedCategory = ownerCategories.get(source.id());
                     if (reservedCategory == null) return new CapacityResult(Capacity.STORAGE_UNAVAILABLE, category, replacement, policy.categories.get(category), false);
-                    Amount reserved = categories.get(reservedCategory).plus(growth);
+                    Amount reserved = reservedCategories.get(reservedCategory).plus(growth);
+                    reservedCategories.put(reservedCategory,reserved);
                     Quota reservedQuota = policy.categories.get(reservedCategory);
                     if (!reservedQuota.allows(reserved)) return new CapacityResult(Capacity.STORAGE_LIMIT_REACHED, reservedCategory, reserved, reservedQuota, false);
                 }

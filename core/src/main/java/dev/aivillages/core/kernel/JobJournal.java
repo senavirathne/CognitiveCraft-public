@@ -15,6 +15,7 @@ public final class JobJournal implements AutoCloseable {
     public static final int SCHEMA = 1;
     public static final int RESOURCE_SCHEMA = 2;
     public static final int PREPARATION_SCHEMA = 3;
+    public static final int ACTIVITY_SCHEMA = 4;
     public static final int MAX_BYTES = 2_097_152;
     public static final int MAX_RECORDS = 192;
     public static final String WORLD_RELATIVE_PATH = "data/cognitivecraft/jobs/v1";
@@ -115,16 +116,26 @@ public final class JobJournal implements AutoCloseable {
         for (Allocation allocation : snapshot.allocations()) lines.add(JobCodec.allocation(allocation));
         for (String line : lines) try { StrictJson.object(line); }
         catch (StrictJson.Invalid limit) { throw new IOException("Job record byte/token quota",limit); }
-        String payload = lines.isEmpty() ? "" : String.join("\n",lines)+"\n";
-        String header = StrictJson.canonical(Map.of("schema",snapshot.jobs().stream().anyMatch(j->j.preparation()!=null) || snapshot.allocations().stream().anyMatch(Allocation::material) ? 3L : snapshot.jobs().stream().anyMatch(JobCodec::resourceForm) ? 2L : 1L,"world",snapshot.worldId().toString(),
-                "revision",snapshot.revision(),"records",(long)lines.size(),"sha256",sha(payload.getBytes(StandardCharsets.UTF_8))));
-        byte[] bytes = (header+"\n"+payload).getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > MAX_BYTES || lines.size() > MAX_RECORDS) throw new IOException("Job snapshot byte/record quota");
+        if (lines.size() > MAX_RECORDS) throw new IOException("Job snapshot byte/record quota");
+        var encoded = new ArrayList<byte[]>(); MessageDigest checksum = checksum(); int payloadBytes = 0;
+        for (String line : lines) {
+            byte[] record = line.getBytes(StandardCharsets.UTF_8); encoded.add(record);
+            payloadBytes = Math.addExact(payloadBytes, record.length + 1);
+            if (payloadBytes > MAX_BYTES) throw new IOException("Job snapshot byte/record quota");
+            checksum.update(record); checksum.update((byte)'\n');
+        }
+        String header = StrictJson.canonical(Map.of("schema",snapshot.jobs().stream().anyMatch(j->j.activity()!=null) ? 4L : snapshot.jobs().stream().anyMatch(j->j.preparation()!=null) || snapshot.allocations().stream().anyMatch(Allocation::material) ? 3L : snapshot.jobs().stream().anyMatch(JobCodec::resourceForm) ? 2L : 1L,"world",snapshot.worldId().toString(),
+                "revision",snapshot.revision(),"records",(long)lines.size(),"sha256",HexFormat.of().formatHex(checksum.digest())));
+        byte[] first = header.getBytes(StandardCharsets.UTF_8);
+        if ((long)first.length + 1 + payloadBytes > MAX_BYTES) throw new IOException("Job snapshot byte/record quota");
+        byte[] bytes = new byte[first.length + 1 + payloadBytes];
+        System.arraycopy(first,0,bytes,0,first.length); int offset = first.length; bytes[offset++] = '\n';
+        for (byte[] record : encoded) { System.arraycopy(record,0,bytes,offset,record.length); offset += record.length; bytes[offset++] = '\n'; }
         return bytes;
     }
     /** Documented schema-0 import fixture, with the exact same schema-1 semantic records. */
     public static byte[] encodeImport(Snapshot snapshot) throws IOException {
-        if(snapshot.jobs().stream().anyMatch(j->j.preparation()!=null || JobCodec.resourceForm(j)))
+        if(snapshot.jobs().stream().anyMatch(j->j.activity()!=null || j.preparation()!=null || JobCodec.resourceForm(j)))
             throw new IOException("Schema-0 import is restricted to legacy schema-1 records");
         var rows = new ArrayList<Object>();
         try {
@@ -141,7 +152,7 @@ public final class JobJournal implements AutoCloseable {
         Map<String,Object> header = firstObject(bytes);
         Object version = header.get("schema");
         if (!Long.valueOf(1).equals(version) && !Long.valueOf(2).equals(version)
-                && !Long.valueOf(3).equals(version) && !Long.valueOf(0).equals(version)) throw new UnknownSchema();
+                && !Long.valueOf(3).equals(version) && !Long.valueOf(4).equals(version) && !Long.valueOf(0).equals(version)) throw new UnknownSchema();
         try {
             UUID world = UUID.fromString(Outcomes.string(header,"world","$"));
             if (!world.equals(expectedWorld)) throw new IOException("Job world identity mismatch");
@@ -158,21 +169,24 @@ public final class JobJournal implements AutoCloseable {
                 }
             } else {
                 Outcomes.exact(header,"schema","world","revision","records","sha256");
-                String text = utf8(bytes);
-                int end = text.indexOf('\n'); if (end < 0) throw new IOException("Job snapshot header newline");
-                String payload = text.substring(end+1);
-                if (!sha(payload.getBytes(StandardCharsets.UTF_8)).equals(Outcomes.string(header,"sha256","$")))
+                int end = newline(bytes,0); if (end < 0) throw new IOException("Job snapshot header newline");
+                if (!sha(bytes,end+1,bytes.length-end-1).equals(Outcomes.string(header,"sha256","$")))
                     throw new IOException("Job snapshot digest");
-                String[] lines = payload.isEmpty() ? new String[0] : payload.split("\n",-1);
-                int count = lines.length == 0 ? 0 : lines.length-1;
-                if (count > MAX_RECORDS || count != Outcomes.number(header,"records","$")
-                        || lines.length > 0 && !lines[lines.length-1].isEmpty()) throw new IOException("Job snapshot rows");
-                for (int i=0;i<count;i++) decode(StrictJson.object(lines[i]),jobs,allocations);
+                var ends = new ArrayList<Integer>(); int offset = end+1;
+                while (offset < bytes.length) {
+                    int next = newline(bytes,offset);
+                    if (next < 0 || ends.size() >= MAX_RECORDS) throw new IOException("Job snapshot rows");
+                    ends.add(next); offset = next+1;
+                }
+                if (ends.size() != Outcomes.number(header,"records","$")) throw new IOException("Job snapshot rows");
+                offset = end+1;
+                for (int next : ends) { decode(StrictJson.object(utf8(bytes,offset,next-offset)),jobs,allocations); offset = next+1; }
             }
             var result = new Snapshot(world,revision,jobs,allocations);
-            if(!Long.valueOf(2).equals(version) && !Long.valueOf(3).equals(version) && jobs.stream().anyMatch(JobCodec::resourceForm))
+            if(!Long.valueOf(2).equals(version) && !Long.valueOf(3).equals(version) && !Long.valueOf(4).equals(version) && jobs.stream().anyMatch(JobCodec::resourceForm))
                 throw new IOException("Resource records require schema-2 envelope");
-            if(!Long.valueOf(3).equals(version) && (jobs.stream().anyMatch(j->j.preparation()!=null)||allocations.stream().anyMatch(Allocation::material)))throw new IOException("Prepared records require schema-3 envelope");
+            if(!Long.valueOf(3).equals(version) && !Long.valueOf(4).equals(version) && (jobs.stream().anyMatch(j->j.preparation()!=null)||allocations.stream().anyMatch(Allocation::material)))throw new IOException("Prepared records require schema-3 envelope");
+            if(!Long.valueOf(4).equals(version) && jobs.stream().anyMatch(j->j.activity()!=null))throw new IOException("Activities require schema-4 envelope");
             JobLifecycleStore.validateSnapshot(result,Settings.defaults());
             return result;
         } catch (StrictJson.Invalid | RuntimeException invalid) { throw new IOException("Invalid job snapshot",invalid); }
@@ -184,9 +198,14 @@ public final class JobJournal implements AutoCloseable {
         else throw new StrictJson.Invalid("$","RECORD_KIND");
     }
     private static Map<String,Object> firstObject(byte[] bytes) throws IOException {
-        String text = utf8(bytes); int end = text.indexOf('\n');
-        try { return StrictJson.object(end < 0 ? text : text.substring(0,end)); }
+        int end = newline(bytes,0), length = end < 0 ? bytes.length : end;
+        if (length > StrictJson.MAX_BYTES) throw new IOException("Invalid job header byte quota");
+        try { return StrictJson.object(utf8(bytes,0,length)); }
         catch (StrictJson.Invalid invalid) { throw new IOException("Invalid job header",invalid); }
+    }
+    private static int newline(byte[] bytes,int offset) {
+        for (int n=offset;n<bytes.length;n++) if (bytes[n]=='\n') return n;
+        return -1;
     }
     private static byte[] bytes(Path path) throws IOException {
         byte[] bytes;
@@ -194,8 +213,8 @@ public final class JobJournal implements AutoCloseable {
         if (bytes.length > MAX_BYTES) throw new IOException("Job input byte quota");
         return bytes;
     }
-    private static String utf8(byte[] bytes) throws IOException {
-        try { return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString(); }
+    private static String utf8(byte[] bytes,int offset,int length) throws IOException {
+        try { return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes,offset,length)).toString(); }
         catch (CharacterCodingException invalid) { throw new IOException("Job UTF-8",invalid); }
     }
     private static void write(Path path,byte[] bytes) throws IOException {
@@ -204,9 +223,13 @@ public final class JobJournal implements AutoCloseable {
             var content = ByteBuffer.wrap(bytes); while (content.hasRemaining()) output.write(content); output.force(true);
         }
     }
-    private static String sha(byte[] bytes) {
-        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); }
+    private static MessageDigest checksum() {
+        try { return MessageDigest.getInstance("SHA-256"); }
         catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
+    private static String sha(byte[] bytes,int offset,int length) {
+        MessageDigest checksum=checksum(); checksum.update(bytes,offset,length);
+        return HexFormat.of().formatHex(checksum.digest());
     }
     @Override public synchronized void close() throws IOException {
         try { lock.release(); } finally { channel.close(); }

@@ -1,0 +1,6 @@
+services:
+  minecraft:
+    environment:
+      COGNITIVECRAFT_RUNTIME_HISTORY: 'true'
+      COGNITIVECRAFT_LEASE_HISTORY: 'true'
+      COGNITIVECRAFT_A03_PROBE: 'true'

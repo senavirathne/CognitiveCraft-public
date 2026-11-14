@@ -141,9 +141,17 @@ public final class LeasedGateway implements GatewayPort {
                 || !run.binding.equals(bindings.bind(request,correlation)))
             return new Result(Code.REJECTED,Reason.AUTHORITY_DENIED,null,List.of(),0,0);
         if(!leases.ready())return new Result(Code.PENDING,leases.failure(),null,List.of(),0,0);
-        if(run.acquisition==null)run.acquisition=leases.acquire(run.binding.owner(),run.binding.demands(),duration,request.context());
+        if(run.acquisition==null){var acquired=acquire(run);if(acquired.code()==Code.PENDING)return acquired;}
         if(run.acquisition.group()==null)return run.acquisition;
         return leases.group(run.acquisition.group(),run.binding.owner(),request.context());
+    }
+    private Result acquire(Run run) {
+        var result=leases.acquire(run.binding.owner(),run.binding.demands(),duration,run.request.context());
+        // An initial unavailable native observation creates no claims or effects. Keep
+        // this same action pending within its existing waiting budget and reobserve.
+        if(result.group()==null && (result.code()==Code.PENDING || result.code()==Code.REJECTED && result.reason()==Reason.TARGET_UNAVAILABLE))
+            return new Result(Code.PENDING,result.reason(),null,List.of(),0,result.inspected());
+        run.acquisition=result;return result;
     }
     public Result validate(ValidatedRequest request,RunCorrelation correlation) {
         Result group=prepare(request,correlation);
@@ -157,7 +165,7 @@ public final class LeasedGateway implements GatewayPort {
             for(var ingredient:action.ingredients)pending.add(ingredient.getKey().id());
         }
         for(Ref ref:group.leases()) {
-            if(pending.contains(ref.id()))continue;
+            if(pending.contains(ref.id()) || pendingHarvestSource(correlation,ref))continue;
             Result valid=leases.validate(ref,request.context());if(!valid.usable())return valid;
         }
         return group;
@@ -210,13 +218,17 @@ public final class LeasedGateway implements GatewayPort {
         }
         Run run=action.run;
         if(run.acquisition==null) {
-            run.acquisition=leases.acquire(run.binding.owner(),run.binding.demands(),duration,run.request.context());
-            if(run.acquisition.code()!=Code.PENDING)return fail(action,run.acquisition.reason());
+            var acquired=acquire(run);
+            if(acquired.code()!=Code.PENDING)return fail(action,acquired.reason());
             return waitForPublication(action);
         }
-        Result granted=currentClaims(run);
+        boolean harvestPending=action.nativeHandle!=null && delegate.harvestResultPending(action.nativeHandle);
+        Result granted=harvestPending?leases.group(run.acquisition.group(),run.binding.owner(),run.request.context()):currentClaims(run);
         if(!granted.usable())return granted.code()==Code.PENDING?waitForPublication(action):fail(action,granted.reason());
         for(Ref ref:granted.leases()) {
+            // The exact started harvest has already removed one block. Its result publication
+            // is accounting only; group() above still checks owner, epoch, expiry and state.
+            if(harvestPending && harvestSource(run,ref))continue;
             Result valid=leases.validate(ref,run.request.context());
             if(!valid.usable())return valid.code()==Code.PENDING?waitForPublication(action):fail(action,valid.reason());
         }
@@ -226,7 +238,7 @@ public final class LeasedGateway implements GatewayPort {
                 || operation.shared()==GatewayPrimitives.Operation.HARVEST_NEXT_OAK_LOG) {
             for(Ref ref:granted.leases()) {
                 Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
-                if((claim.resource().item().equals("minecraft:mature_wheat") || claim.resource().logBlocks()) && claim.remaining()<1)
+                if(!harvestPending && (claim.resource().item().equals("minecraft:mature_wheat") || claim.resource().logBlocks()) && claim.remaining()<1)
                     return fail(action,Reason.RESOURCE_MISSING);
             }
         }
@@ -281,6 +293,17 @@ public final class LeasedGateway implements GatewayPort {
         }
         return action.current;
     }
+    private boolean harvestSource(Run run,Ref ref) {
+        var source=sourceResource(run.request.context().scope().worldId(),run.request);
+        return leases.snapshot().leases().stream().anyMatch(l->l.id().equals(ref.id())
+                && l.owner().equals(run.binding.owner()) && l.resource().equals(source) && l.resource().logBlocks());
+    }
+    private boolean pendingHarvestSource(RunCorrelation correlation,Ref ref) {
+        for(Action action:actions.values())if(action.run.correlation.equals(correlation) && !action.current.terminal()
+                && action.nativeHandle!=null && delegate.harvestResultPending(action.nativeHandle)
+                && harvestSource(action.run,ref))return true;
+        return false;
+    }
     /** Only a polled execution maintains its existing claim; idle/released runs still expire. */
     private Result currentClaims(Run run) {
         Result group=leases.group(run.acquisition.group(),run.binding.owner(),run.request.context());
@@ -301,8 +324,9 @@ public final class LeasedGateway implements GatewayPort {
     }
     @Override public ActionReceipt cancel(ActionHandle handle) {
         checkThread();Action a=get(handle);if(a.current.terminal())return a.current;
+        boolean harvestPending=a.nativeHandle!=null && delegate.nativeResultPending(a.nativeHandle);
         ActionReceipt receipt=a.nativeHandle==null?a.current:delegate.cancel(a.nativeHandle);
-        a.current=map(receipt,handle,true,Reason.CANCELLED);releaseRun(handle.runId());return a.current;
+        a.current=map(receipt,handle,true,harvestPending || receipt.reason()==Reason.INTERRUPTED?Reason.INTERRUPTED:Reason.CANCELLED);releaseRun(handle.runId());return a.current;
     }
     public void releaseRun(UUID id) {
         checkThread();delegate.releaseRun(id);
@@ -348,11 +372,12 @@ public final class LeasedGateway implements GatewayPort {
                     .map(l->l.resource().kind()+":"+l.resource().item()+" remaining="+l.remaining()+" expires="+l.expires()
                             +" renewed="+l.renewed()+" renewals="+l.renewals()+" state="+l.state()+" reason="+l.reason()).toList());
         ActionReceipt evidence=a.current;
+        boolean harvestPending=a.nativeHandle!=null && delegate.nativeResultPending(a.nativeHandle);
         if(a.nativeHandle!=null) {
             ActionReceipt stopped=delegate.cancel(a.nativeHandle);
             if(stopped.committedEffects()>=evidence.committedEffects())evidence=stopped;
         }
-        a.current=map(evidence,a.handle,true,reason==null?Reason.ACTION_FAILED:reason);releaseRun(a.handle.runId());return a.current;
+        a.current=map(evidence,a.handle,true,harvestPending || evidence.reason()==Reason.INTERRUPTED?Reason.INTERRUPTED:reason==null?Reason.ACTION_FAILED:reason);releaseRun(a.handle.runId());return a.current;
     }
     private static ActionReceipt map(ActionReceipt r,ActionHandle handle,boolean terminal,Reason reason) {
         return new ActionReceipt(handle,terminal,r.committedEffects(),r.cropReceipts(),reason,
