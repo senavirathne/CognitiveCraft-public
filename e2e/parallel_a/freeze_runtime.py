@@ -23,6 +23,8 @@ def attach(h):
     # Capture the most-derived implementation, including RecoveryHarness checks.
     h.a10_original_start=h.start
     h.start=types.MethodType(start,h)
+    h.a10_original_stop=h.stop
+    h.stop=types.MethodType(stop,h)
     h.compose=types.MethodType(compose,h)
     if profile in ('A00','A01','A02','A03','A04','A05'):h.bootstrap=types.MethodType(bootstrap,h)
 
@@ -33,15 +35,45 @@ def start(h,component):
         prepare(h)
     return result
 
-def docker(h,*args):
+def stop(h,component='server',hard=False):
+    if component!='server' or component not in h.booted:
+        return h.a10_original_stop(component,hard=hard)
+    from suite import atomic,read
+    from stop_ack import container,acknowledge
+    identifier=h.compose('ps','--all','-q','minecraft').stdout.strip()
+    before=container(json.loads(docker(h,'inspect',identifier).stdout),identifier,h.project)
+    process=read(h.root/'server/process.json')
+    result=h.a10_original_stop(component,hard=hard)
+    # Compose stop returning is not a native-process exit acknowledgement.
+    # Wait for the exact container, then inspect that same stopped incarnation.
+    waited=docker(h,'wait',identifier,timeout=20).stdout.strip()
+    after=container(json.loads(docker(h,'inspect',identifier).stdout),identifier,h.project)
+    receipt=acknowledge(before,after,waited,process,hard)
+    receipt.update(profile=h.a10_profile)
+    h.a10_stopped_server=receipt
+    path=h.root/('a10-stop-ack-'+__import__('uuid').uuid4().hex+'.json')
+    atomic(path,receipt);h.event('a10-container-stop-acknowledged',receipt)
+    return result
+
+def docker(h,*args,timeout=300):
     from suite import ROOT
-    value=subprocess.run(['docker',*args],cwd=ROOT,env=h.env,text=True,capture_output=True,timeout=300)
+    value=subprocess.run(['docker',*args],cwd=ROOT,env=h.env,text=True,capture_output=True,timeout=timeout)
     with (h.root/'docker.log').open('a') as out:out.write(value.stdout+value.stderr)
     if value.returncode:raise RuntimeError('A10 pinned Docker setup '+str(args[:2])+': '+value.stderr[-2400:])
     return value
 
 def compose(h,*args):
     from suite import ROOT,atomic
+    stopped=getattr(h,'a10_stopped_server',None)
+    if h.a10_profile=='A03' and args==('up','-d','--no-deps','minecraft') and stopped is not None:
+        # Recreate only the stopped container, using the same declared image,
+        # environment and bind-mounted saved world. This starts one new JVM;
+        # it cannot replay a failed start or use the old Running-state decision.
+        args=('up','-d','--no-deps','--force-recreate','minecraft')
+        h.a10_stopped_server=None
+        h.event('a10-recreate-stopped-server',{'container':stopped['after']['id'],
+                'previousStartedAt':stopped['after']['startedAt'],'worldVolumeChanged':False,
+                'attempts':1,'sameComposeImageEnvironmentAndResources':True})
     files=compose_files(h.a10_profile);cmd=['docker','compose','-p',h.project]
     for file in files:cmd+=['-f',str(ROOT/file)]
     if args and args[0]=='build':

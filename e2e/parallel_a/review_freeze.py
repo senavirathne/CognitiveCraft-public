@@ -34,6 +34,8 @@ def identity(root,profile,source,jar):
     assert stops and all(p['kind']=='server' and p['releaseSha256']==jar for p in stops)
     from compiler_budget import review as compiler_review
     compiler=compiler_review(root,profile,jar,stops)
+    from stop_ack import review as stop_review
+    stop_acknowledgements=stop_review(root,profile,jar,stops)
     for process in stops:
         actual={r['name']:r['sha256'] for r in process['mods']}
         assert actual['ai-villages-0.1.0.jar']==jar and actual['observer.jar']==metadata['binaries']['observer']['sha256']
@@ -67,6 +69,7 @@ def identity(root,profile,source,jar):
     assert continuation['archiveSha256']==ARCHIVE_SHA and continuation['source']==SOURCE and continuation['artifact']==ARTIFACT
     return {'source':source,'tree':frozen['tree'],'productionSha256':jar,'observerSha256':metadata['binaries']['observer']['sha256'],
             'clientSha256':metadata['binaries']['clientDriver']['sha256'],'runtimeBindings':native,'immutableBuildImages':images,'compilerBudget':compiler,
+            'stopAcknowledgements':stop_acknowledgements,
             'seed':{'sha256':ARCHIVE_SHA,'source':SOURCE,'artifact':ARTIFACT,'importedCurrentPasses':0}}
 
 def modules(root=ROOT):

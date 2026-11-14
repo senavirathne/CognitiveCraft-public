@@ -99,6 +99,7 @@ class CompilerBudgetTest(unittest.TestCase):
         events=[]
         class Derived:
             def start(self,component):events.append(('derived-ready',component));return 'original-result'
+            def stop(self,component,hard=False):raise AssertionError('This test starts only')
         h=Derived()
         with patch.dict(os.environ,{'COGNITIVECRAFT_A10_PROFILE':'A06'}),patch('compiler_budget.prepare',side_effect=lambda h:events.append(('compiler-budget','server'))):
             attach(h);self.assertEqual('original-result',h.start('server'));self.assertEqual('original-result',h.start('PlayerA'))
