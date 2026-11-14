@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 70,
-  "parentSource": "3f8488254cf0c6177911014082325d8218d7bcfe",
+  "sequence": 71,
+  "parentSource": "b6b6f896c5823aafeb80b2720b9c98ae09db5cd8",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -465,6 +465,22 @@
       "failure": "D capture4.618007ms against2ms; A07 explicit zero-work cancellation BUDGET_EXHAUSTED; GP14 warm observe_inventory lease-gate ACTION_TIMEOUT before native start.",
       "correction": "Bounded exact busy cancellation retry; existing two-core A06 auxiliary thread allocation completed. GP14 required unchanged.",
       "qualificationPassesImported": 0
+    },
+    {
+      "sequence": 70,
+      "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+      "run": 43603308932,
+      "status": "FAIL_A03_RESTART_TRANSPORT_SIX_REQUIRED_GATES_UNEXECUTED",
+      "independentPassProfiles": 9,
+      "independentPassGates": 114,
+      "collectionPassed": 115,
+      "unexecutedRequired": 6,
+      "originalOwnerSettlements": 12,
+      "w04Passed": 9,
+      "failure": "A03 original server exited0; Compose up then reported Running but returned an empty running-container ID before the cold lookup. All other9 profiles, all9 regressions and standard CI pass.",
+      "correction": "Acknowledge exact owned container exit. A03 recreates the stopped container once through the same Compose definition and saved bind-mounted world. All original gates and limits required again.",
+      "qualificationPassesImported": 0,
+      "evidence": "A10-seventeenth-launch-evidence.json"
     }
   ],
   "independentArchiveReview": "Same offline Docker job reviews source543/sourceb075 failures, sourceed5 failed contract XML, immutable source119c positive native/contracts, and the current raw native world/module XML",
@@ -5037,15 +5053,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "FROZEN_EXACT_SOURCE_QUALIFICATION_REQUIRED",
-    "sequence": 70,
-    "codeCheckpoint": "3f8488254cf0c6177911014082325d8218d7bcfe",
-    "codeTree": "5b9426b50e68acf72a70fa1df2f2372b549a88d3",
-    "documentationPreRun": "11dd846d188f4f9c4c2375a4d10595d73b7e844a",
-    "documentationTree": "793cf917749fc4b2e26facb69fed2ad2633d18c2",
+    "sequence": 71,
+    "codeCheckpoint": "b6b6f896c5823aafeb80b2720b9c98ae09db5cd8",
+    "codeTree": "357bdda1bcdc530a9ed08d78a32a82fe53adba2e",
+    "documentationPreRun": "5d058c2313022b161a2ec3d75717b386cca376ca",
+    "documentationTree": "9fc868bdb91b9a92e730f457793484e3e383b62b",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 176,
+    "ownedPython": 184,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5059,9 +5075,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "A07 retries only an explicit cancellation=false reason=BUDGET_EXHAUSTED zero-work publication refusal. Same original public cancellation request and total30-second feedback deadline; other denials fail. Original45-second terminal cancellation assertion remains. A06 places current auxiliary JVM threads, including Netty and concurrent GC workers, on original core1/nice>=10 together with compiler/observer/storage workers. Original Server thread stays core0 at unchanged priority. JVM main thread retains declared0-1 CPU set. No extra CPU, heap, GC flag, threshold, sample exclusion, workload or deadline change. GP14 remains a required fresh regression; no historical passes imported.",
+    "ownedCorrection": "Keep the original server stop once. Then wait up to20s for the exact owned Docker container to exit and independently inspect the same container incarnation as exited, PID0, no OOM. A new process cannot satisfy this acknowledgement. A03 only: after an acknowledged stop, force recreation of the stopped server container once through the original Compose definition. Preserve the exact declared image, environment, resources and bind-mounted saved world; launch one replacement JVM, without a failed-start retry. Other profiles keep their original environment-sensitive Compose startup. Preserve original native proof assertions and require an exact stop acknowledgement for every recorded stopped native birth. Every original assertion, fixture, timing sample, limit, CPU/heap/GC setting and default-off production flag remains. No earlier pass is imported.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 33,
+    "actionsPreviouslyStarted": 35,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -10541,7 +10557,7 @@
         "nativeQualification": "NOT_EXECUTED_REQUIRED"
       }
     },
-    "expectedOwnedPaths": 312,
+    "expectedOwnedPaths": 314,
     "ninthLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -15898,6 +15914,894 @@
       "actions": {
         "candidate": 2,
         "cumulativeA10Records": 33,
+        "jobReruns": 0,
+        "documentationActions": 0,
+        "separateDiagnosis": 0
+      },
+      "branchReady": false
+    },
+    "seventeenthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 70,
+      "status": "FAIL_A03_RESTART_TRANSPORT_SIX_REQUIRED_GATES_UNEXECUTED",
+      "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+      "tree": "3f99f6ed337f9b8cbec08927fe32e86f63c97468",
+      "jarSha256": "9c56610133a6cc173648a275128c618d49bc68743877ca279926e7c16bfc62c5",
+      "groupedRun": 43603308932,
+      "standardRun": 43603308984,
+      "standardStatus": "PASS",
+      "independentProfilesPassed": 9,
+      "independentGatesPassed": 114,
+      "requiredMixedGates": 121,
+      "collection": {
+        "pass": 115,
+        "fail": 0,
+        "notExecutedRequired": 6
+      },
+      "originalOwnerSettlements": 12,
+      "w04Reproductions": 9,
+      "w04Passed": 9,
+      "requiredRegressionsPassed": 9,
+      "requiredRegressionsFailed": 0,
+      "exactNativeJarContracts": 2703,
+      "nativeLifecycleDiagnostics": 14,
+      "python": {
+        "owned": 176,
+        "baseline": 72
+      },
+      "counts": {
+        "pass": 115,
+        "fail": 0,
+        "notExecutedRequired": 6
+      },
+      "profiles": [
+        {
+          "profile": "A03",
+          "status": "FAIL_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": null,
+          "reviewSha256": "4c9e5aec01c9cb567f77cfb96250285cd28cdb9b8713ccc7fe0472a16306ff6a"
+        },
+        {
+          "profile": "A04",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 10,
+          "reviewSha256": "de6d12408589ec8b274932ed4fa2ba9034497daf7f36526cf2524970e5d03bc5"
+        },
+        {
+          "profile": "A07",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 27,
+          "reviewSha256": "f3edb1e75cb5b3acc8719d20276b8bbb3a4ac3a36a39f428fa239c24e85d735b"
+        },
+        {
+          "profile": "A06",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 21,
+          "reviewSha256": "16fe5e461e03111c8422fb4d5c381cc29eb8c6e8b4a0a1c5c9c7b2e3363dbb1e"
+        },
+        {
+          "profile": "A02",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 5,
+          "reviewSha256": "706d3653bdb1970ad58742aabd721731843acf5137eab9cbaaae9721ca3066c7"
+        },
+        {
+          "profile": "A08",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 21,
+          "reviewSha256": "fac47d4cb1684cffdbefea2fcc7dc10740b9032d29758766ab638fe677f49d2e"
+        },
+        {
+          "profile": "A05",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 15,
+          "reviewSha256": "71a31abedf2e6eda5444ab554cabb159409fb007bda8d8f568fd34b1776af46b"
+        },
+        {
+          "profile": "A09",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 9,
+          "reviewSha256": "cb1a8772c8967f280a7f37ea40c137d84481e95575ce977a9a8607d36521d5d8"
+        },
+        {
+          "profile": "A00",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 4,
+          "reviewSha256": "e9e97908a0e91d0231079a8159a1e001ac6f6fe31f84914a29052737c695f044"
+        },
+        {
+          "profile": "A01",
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "requiredCases": 2,
+          "reviewSha256": "089da23f664f7d9e6a041d8e2e2d6a3f65d06db29c3cebc578828b57b54ad2d2"
+        }
+      ],
+      "a06": {
+        "review": {
+          "status": "PASS_INDEPENDENT_A10_PROFILE_REVIEW",
+          "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+          "tree": "3f99f6ed337f9b8cbec08927fe32e86f63c97468",
+          "productionSha256": "9c56610133a6cc173648a275128c618d49bc68743877ca279926e7c16bfc62c5",
+          "requiredCases": 21
+        },
+        "originalStatus": "PASS_ALL_TWELVE_PENDING_INDEPENDENT_REVIEW",
+        "originalOwnerSettlements": 12,
+        "cost": {
+          "id": "representative-active-cost",
+          "status": "PASS_REPRESENTATIVE_ACTIVE_COST",
+          "windows": 11,
+          "nativeEffects": 33,
+          "tick": {
+            "p50": 6.175691,
+            "p95": 16.12512,
+            "p99": 37.13692,
+            "max": 114.224153,
+            "samples": 2284,
+            "unit": "milliseconds"
+          },
+          "capture": {
+            "HARVEST": {
+              "p50": 0.908764,
+              "p95": 1.133117,
+              "p99": 1.133117,
+              "max": 1.133117,
+              "samples": 12,
+              "unit": "milliseconds"
+            },
+            "PICKUP": {
+              "p50": 0.850577,
+              "p95": 1.075543,
+              "p99": 1.075543,
+              "max": 1.075543,
+              "samples": 11,
+              "unit": "milliseconds"
+            },
+            "DEPOSIT": {
+              "p50": 1.436481,
+              "p95": 1.81725,
+              "p99": 1.81725,
+              "max": 1.81725,
+              "samples": 11,
+              "unit": "milliseconds"
+            }
+          },
+          "acknowledgement": {
+            "p50": 13.570208,
+            "p95": 20.81276,
+            "p99": 29.481629,
+            "max": 29.481629,
+            "samples": 66,
+            "unit": "milliseconds"
+          },
+          "limits": {
+            "tickP95Ms": 20,
+            "tickP99Ms": 40,
+            "captureP99Ms": 2,
+            "ackMaxMs": 30000
+          },
+          "warmupExcluded": false,
+          "requiredWheatSamples": 1,
+          "diagnosticCaptureCpu": {
+            "HARVEST": {
+              "p50": 0.923841,
+              "p95": 1.149326,
+              "p99": 1.149326,
+              "max": 1.149326,
+              "samples": 12,
+              "unit": "milliseconds"
+            },
+            "PICKUP": {
+              "p50": 0.869705,
+              "p95": 1.025742,
+              "p99": 1.025742,
+              "max": 1.025742,
+              "samples": 11,
+              "unit": "milliseconds"
+            },
+            "DEPOSIT": {
+              "p50": 1.450096,
+              "p95": 1.830136,
+              "p99": 1.830136,
+              "max": 1.830136,
+              "samples": 11,
+              "unit": "milliseconds"
+            }
+          },
+          "diagnosticCapturePhaseMaxMs": {
+            "HARVEST": {
+              "authority": 0.181677,
+              "owner": 0.103622,
+              "participants": 0.543687,
+              "claims": 0.1703,
+              "allowance": 0.114626,
+              "intent": 0.091463,
+              "exclusion": 0.035614
+            },
+            "PICKUP": {
+              "owner": 0.114621,
+              "original-harvest": 0.306064,
+              "native-lineage": 0.256011,
+              "allowance": 0.134995,
+              "intent": 0.258905,
+              "storage-and-ticket": 0.327096
+            },
+            "DEPOSIT": {
+              "authority": 0.890158,
+              "owner": 0.128457,
+              "participants": 0.258574,
+              "claims": 0.171984,
+              "conditions": 0.076932,
+              "intent": 0.230498,
+              "exclusion": 0.042301
+            }
+          }
+        }
+      },
+      "binary": {
+        "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+        "tree": "3f99f6ed337f9b8cbec08927fe32e86f63c97468",
+        "productionSha256": "9c56610133a6cc173648a275128c618d49bc68743877ca279926e7c16bfc62c5",
+        "nativeUnits": {
+          "total": 2703,
+          "modules": {
+            "core": 2439,
+            "providers": 131,
+            "fabric": 133
+          }
+        },
+        "bundleSha256": "4e72c78a0deaf6f03ba23090590fcc4df182b36e60689814823370dde8efc7af",
+        "bundleBytes": 37957613,
+        "filesVerified": 19,
+        "files": [
+          {
+            "path": "build/e2e-driver/client.jar",
+            "bytes": 17301,
+            "sha256": "f67f332ac952b39ab58d99c64595dcf2eca8409c222097260283fec86def81a1",
+            "mode": 420
+          },
+          {
+            "path": "build/e2e-driver/observer.jar",
+            "bytes": 438069,
+            "sha256": "193f56e3c7f1104c89273aa257d564d7b091210c36d6c56d4ed378ccc15aa9cb",
+            "mode": 420
+          },
+          {
+            "path": "build/needle/LICENSE",
+            "bytes": 11358,
+            "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+            "mode": 420
+          },
+          {
+            "path": "build/needle/manifest.json",
+            "bytes": 558,
+            "sha256": "3c3fb6dc758ecaadb99f36edb88e79ba6e363950587208c5c7bd146e069fdf64",
+            "mode": 420
+          },
+          {
+            "path": "build/needle/needle",
+            "bytes": 1517200,
+            "sha256": "b197ceaef3b300a0b14c3a4fde92305527e43f9256c53d2a53d2a2fe8fe69678",
+            "mode": 493
+          },
+          {
+            "path": "build/needle/needle3.cact",
+            "bytes": 35335380,
+            "sha256": "c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/core/TEST-junit-jupiter.xml",
+            "bytes": 1097409,
+            "sha256": "ca437fd0abb2abccf7bf112055785b1f2df976dd251d3a5e0e4da4be1e3472be",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/core/TEST-junit-platform-suite.xml",
+            "bytes": 15288,
+            "sha256": "e42e53b660bfd9bc29a5ef86ff491345814c7a0dac88955ea2f5ac5a01efd394",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/core/TEST-junit-vintage.xml",
+            "bytes": 15263,
+            "sha256": "9a7c5defbab1282b21b2035eeedfc6707b9ed7f8a42238e97c02bd5ee5749865",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/fabric/TEST-junit-jupiter.xml",
+            "bytes": 75320,
+            "sha256": "1a473898038ba8d3ae765d71bbe32fd9104f53fddf22aecc97244ae606b95857",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/fabric/TEST-junit-platform-suite.xml",
+            "bytes": 15315,
+            "sha256": "820d459ca89acf2db0549d0dc1bc520c525e317a40b3d0cdc645a65e6e2385c1",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/fabric/TEST-junit-vintage.xml",
+            "bytes": 15290,
+            "sha256": "27b0ff4747ce5ac6fc7e7d3ae94c14c5ce0c15e6475d6fa57073ba3a5a51652b",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/native-unit.json",
+            "bytes": 37882,
+            "sha256": "dd79872348b20b7c9a9d8b85ad0d2008dec34e90d69bcd4243941d2edfe30d5b",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/providers/TEST-junit-jupiter.xml",
+            "bytes": 69856,
+            "sha256": "f5b57ea92fc79bdd194582b524a19f984247598489b5c85ad417849802ec0c0a",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/providers/TEST-junit-platform-suite.xml",
+            "bytes": 15308,
+            "sha256": "57616a594ffa6321b12080e1e8b0fa3df878d258957efddfd37701c37a7e34c0",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/a10-native-unit/providers/TEST-junit-vintage.xml",
+            "bytes": 15287,
+            "sha256": "88166fd3ebebcaf42bb6f9938491a8f458790bf0b6045343acbc7b4ba45f6488",
+            "mode": 420
+          },
+          {
+            "path": "build/parallel-a/observer-adaptation.json",
+            "bytes": 2987,
+            "sha256": "0b646be55cabd02d8c9b08df60f3e641f6dbe66d9e0538c9c217f33ea47e156f",
+            "mode": 420
+          },
+          {
+            "path": "fabric/build/libs/ai-villages-0.1.0-gametest.jar",
+            "bytes": 1943998,
+            "sha256": "896bf602e21dd3eb2ce3172aef7d3b638a6ffbeb5f12b2099c95cc1cd5cd9dd5",
+            "mode": 420
+          },
+          {
+            "path": "fabric/build/libs/ai-villages-0.1.0.jar",
+            "bytes": 2808199,
+            "sha256": "9c56610133a6cc173648a275128c618d49bc68743877ca279926e7c16bfc62c5",
+            "mode": 420
+          }
+        ],
+        "status": "PASS_DOWNLOADED_FROZEN_BUNDLE_19_FILES_SIZE_HASH_CRC"
+      },
+      "standard": {
+        "status": "PASS_DOWNLOADED_STANDARD_RELEASE_AND_ALL_2703_XML_CASES",
+        "run": 43603308984,
+        "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+        "releaseSha256": "e1f2e3b6ce28d4b2ca5b79a9e4ee9202f9a6ea33eb75a7740c0e04aeb2d32572",
+        "releaseBytes": 3087460,
+        "modules": {
+          "core": 2439,
+          "providers": 131,
+          "fabric": 133
+        },
+        "releaseAudit": {
+          "schema": 1,
+          "jar": "ai-villages-0.1.0.jar",
+          "bytes": 3087460,
+          "sha256": "e1f2e3b6ce28d4b2ca5b79a9e4ee9202f9a6ea33eb75a7740c0e04aeb2d32572",
+          "archives": [
+            {
+              "archive": "ai-villages-0.1.0.jar",
+              "entries": 1410,
+              "bytes": 3087460,
+              "sha256": "e1f2e3b6ce28d4b2ca5b79a9e4ee9202f9a6ea33eb75a7740c0e04aeb2d32572"
+            }
+          ],
+          "excludedGameTestSources": 72,
+          "testModExcluded": true,
+          "testClassesExcluded": true,
+          "modelWeightsExcluded": true
+        }
+      },
+      "a01Supplemental": {
+        "status": "PASS_SUPPLEMENTAL_LOCAL_FULL_A01_REPLAY_BYTE_IDENTICAL",
+        "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+        "profile": "A01",
+        "cases": 2,
+        "nativeArchiveMembers": 736,
+        "firstCiReviewSha256": "089da23f664f7d9e6a041d8e2e2d6a3f65d06db29c3cebc578828b57b54ad2d2",
+        "localReviewSha256": "089da23f664f7d9e6a041d8e2e2d6a3f65d06db29c3cebc578828b57b54ad2d2",
+        "byteIdentical": true,
+        "originalArchiveArtifact": 14117367182,
+        "originalReviewArtifact": 14117347280,
+        "extraWorkflowRecords": 0,
+        "tenProfileDockerReplayStillRequired": true
+      },
+      "a03": {
+        "schema": 1,
+        "source": "3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364",
+        "run": 43603308932,
+        "job": 132473679689,
+        "profile": "A03",
+        "nativeQualification": false,
+        "status": "FAIL_RESTART_CONTAINER_STARTUP",
+        "requiredCases": 7,
+        "collectedCases": 1,
+        "unexecutedRequired": 6,
+        "lastCompletedWork": "43 native Jobs retired129 legitimate leases; this unfinalized cohort is not a qualified required case",
+        "trace": "LeaseHarness.restart -> original Harness.start -> docker inspect with empty identifier after compose up reported Running",
+        "savedLog": "server/stdout.log ends with normal Stopping server / Saving worlds / Saving chunks at14:24:19; no subsequent new JVM startup",
+        "retainedDockerLog": "compose stop reports Stopped; next compose up reports Running; immediate ps -q is empty",
+        "inference": "Harness treated Compose stop return as process exit; explicit exact-container wait/exit acknowledgement closes this transition gap. Unique daemon-level cause remains unproven.",
+        "transport": {
+          "status": "PASS_FULL_ORIGINAL_OUTER_AND_INNER_SIZE_SHA_CRC_SAFE_PATHS",
+          "archive": {
+            "schema": 1,
+            "archiveBytes": 589018639,
+            "archiveSha256": "d5317630b1fc75434c72ef6a5198bc441677f495e3a9462f7f43396ea64d432e",
+            "parts": [
+              {
+                "name": "part-000.bin",
+                "bytes": 419430400,
+                "sha256": "49721fcd67259502241cf1197c5418d47749d2c2b33fe4c9512613a26e5bb101"
+              },
+              {
+                "name": "part-001.bin",
+                "bytes": 169588239,
+                "sha256": "7bee804a358c30aba8bbaa763bea91b348da46b4934e79fedd00f8fbf72cda1d"
+              }
+            ]
+          },
+          "members": 736,
+          "outerArtifacts": [
+            14118290771,
+            14118136268
+          ]
+        },
+        "selectedFiles": {
+          "docker.log": {
+            "bytes": 18888,
+            "sha256": "356666c66c05f5af3c8254f6aff2ae69f621e45c17d8cf4806788d16621f83d6"
+          },
+          "supervisor.jsonl": {
+            "bytes": 2670965,
+            "sha256": "2a3e05257cb9961335afcbc3b62570433261505d675d47ada43643614023feed"
+          },
+          "server/stdout.log": {
+            "bytes": 223198,
+            "sha256": "c4d65560d4a3723d0da755659afd8deb2fe838238ca2af2ddc192aeddd9da66f"
+          },
+          "server/process.json": {
+            "bytes": 3998,
+            "sha256": "bc320aa5b2cf58587c85399a198587fe27a0eb65dcbb17282b2c8a508e8b4dd9"
+          }
+        },
+        "nextSourceCredit": 0,
+        "extraWorkflows": 0,
+        "originalExit": {
+          "pid": 8,
+          "time": 1794666259.5504658,
+          "exit": 0
+        },
+        "originalExitSha256": "78f02f67bc6131742795e065f0035acb5c82f209b0ea6d05153dd4ad1e53c9b0"
+      },
+      "jobs": [
+        {
+          "id": 132472504308,
+          "name": "IMP-021 matrix, regressions and two-JVM GP-21",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504428,
+          "name": "IMP-022 matrix, regressions and two-JVM GP-22",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504447,
+          "name": "IMP-017 trusted evidence, recovery, privacy and GP-17",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504469,
+          "name": "IMP-018 stock, recipes, graph bounds, owned credit and GP-18",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504476,
+          "name": "IMP-020 matrix, full regressions and two-JVM GP-20 inspection",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504495,
+          "name": "a04-contracts",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504498,
+          "name": "IMP-016 bounded owners, process-kill and loaded-world acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504522,
+          "name": "IMP-019 matrix, regressions and two-JVM GP-19",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504523,
+          "name": "IMP-014.1 private bounded diagnostics and saved-world acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472504552,
+          "name": "IMP-015 owner migration and separate-process loaded-world acceptance",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132472505450,
+          "name": "Preserve original three-call protocol with actual prompt and candidate capture",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 132472505783,
+          "name": "IMP-019 proposal measurements (${{ matrix.model }}, shard ${{ matrix.shard }})",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 132472505881,
+          "name": "IMP-019 genuine held-out shared-backend quality and latency",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 132473679677,
+          "name": "a10-native (A01)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679689,
+          "name": "a10-native (A03)",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "id": 132473679701,
+          "name": "a10-native (A00)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679704,
+          "name": "a10-native (A02)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679710,
+          "name": "a10-native (A04)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679711,
+          "name": "a10-native (A05)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679720,
+          "name": "a10-native (A09)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679756,
+          "name": "a10-native (A08)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679760,
+          "name": "a10-native (A06)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132473679799,
+          "name": "a10-native (A07)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 132487036466,
+          "name": "a10-aggregate",
+          "status": "completed",
+          "conclusion": "failure"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14119476728,
+          "name": "cc-runtime-a-a10-A06-native-part-1-43603308932-1",
+          "bytes": 419066448,
+          "digest": "sha256:f0ededaed714ecf73c93836c00c24dd61c43d6c088e157f78e192d453a124c8b",
+          "expired": false
+        },
+        {
+          "id": 14119412089,
+          "name": "cc-runtime-a-a10-campaign-43603308932-1",
+          "bytes": 4642768,
+          "digest": "sha256:0e9938b8d649420d0b2e51a73ea7c33ea1758a86295b850eed0a42e834f91635",
+          "expired": false
+        },
+        {
+          "id": 14119067480,
+          "name": "cc-runtime-a-a10-A06-diagnostics-43603308932-1",
+          "bytes": 1128237,
+          "digest": "sha256:c33a8cc8d4dbb10fa322f66f149af30717aeab6c6aacac98ac9ab8275538450c",
+          "expired": false
+        },
+        {
+          "id": 14119007454,
+          "name": "cc-runtime-a-a10-A06-native-part-0-43603308932-1",
+          "bytes": 419431123,
+          "digest": "sha256:5814763c00587dabcc404c2ba71be54ca019d44189a11ef56a90828b2e8864cb",
+          "expired": false
+        },
+        {
+          "id": 14118496094,
+          "name": "cc-runtime-a-a10-A04-native-part-1-43603308932-1",
+          "bytes": 27600270,
+          "digest": "sha256:a189a4a94a8c7fa051efc41b2d9de0786f8a0c8940ae4a577d96677bef4e0548",
+          "expired": false
+        },
+        {
+          "id": 14118328112,
+          "name": "cc-runtime-a-a10-A05-native-part-0-43603308932-1",
+          "bytes": 400314381,
+          "digest": "sha256:8aa529859bf1d29fd635681c8a4033791daea14746757e96b2d328c0e7c74ef3",
+          "expired": false
+        },
+        {
+          "id": 14118290771,
+          "name": "cc-runtime-a-a10-A03-native-part-0-43603308932-1",
+          "bytes": 419431123,
+          "digest": "sha256:f230b4f23bfa3830f23a3b7c9b1b39e07a0396e7a7eb7b74783e4598b84ab70b",
+          "expired": false
+        },
+        {
+          "id": 14118258232,
+          "name": "cc-runtime-a-a10-A05-diagnostics-43603308932-1",
+          "bytes": 250789,
+          "digest": "sha256:4379eb481d06f796f76eb6a029196ca9d14206506249ccd8ad1e6e3bf6dcf961",
+          "expired": false
+        },
+        {
+          "id": 14118246028,
+          "name": "cc-runtime-a-a10-A08-diagnostics-43603308932-1",
+          "bytes": 302555,
+          "digest": "sha256:8359e2684fad8329d51aaab598468e2e6a799b8a3755d9a18a43c7360d39302a",
+          "expired": false
+        },
+        {
+          "id": 14118210931,
+          "name": "cc-runtime-a-a10-A03-diagnostics-43603308932-1",
+          "bytes": 141811,
+          "digest": "sha256:22bc5a6e93c31b39452479d3c606a2d8c6997e54e56bcedd26443d2060e61d10",
+          "expired": false
+        },
+        {
+          "id": 14118136268,
+          "name": "cc-runtime-a-a10-A03-native-part-1-43603308932-1",
+          "bytes": 169588962,
+          "digest": "sha256:46b9ba1286ae88a27d08ebfe104480ffcf450dee8ff9a302e41308854da2377c",
+          "expired": false
+        },
+        {
+          "id": 14118078858,
+          "name": "cc-runtime-a-a10-A07-native-part-1-43603308932-1",
+          "bytes": 250138632,
+          "digest": "sha256:df35f45413ba5d3aaf4d518412a2ea9d012a3a407427610a859fd8563363a3d0",
+          "expired": false
+        },
+        {
+          "id": 14118053807,
+          "name": "cc-runtime-a-a10-A07-diagnostics-43603308932-1",
+          "bytes": 594548,
+          "digest": "sha256:f3e170160c254d5babedb42c4707750d69d6f7066ff609466ba603b18a3ee285",
+          "expired": false
+        },
+        {
+          "id": 14117971739,
+          "name": "cc-runtime-a-a10-A08-native-part-0-43603308932-1",
+          "bytes": 348370145,
+          "digest": "sha256:39d8a6509d625e3aabd0d5c51e413d8bb48183c0fe1cc6befe7c519089bfafb4",
+          "expired": false
+        },
+        {
+          "id": 14117955879,
+          "name": "cc-runtime-a-a10-A02-native-part-0-43603308932-1",
+          "bytes": 133763034,
+          "digest": "sha256:7717a3dee0003b9adeceeb356427d3641e802202267ca9f879424f79c6ec2ed5",
+          "expired": false
+        },
+        {
+          "id": 14117924296,
+          "name": "cc-runtime-a-a10-A07-native-part-0-43603308932-1",
+          "bytes": 419431123,
+          "digest": "sha256:cacac60621c07cf7fc5eeffca7db8d0b6432124b2ad1766fc30168ee6b589165",
+          "expired": false
+        },
+        {
+          "id": 14117879807,
+          "name": "cc-runtime-a-a10-A04-native-part-0-43603308932-1",
+          "bytes": 419431122,
+          "digest": "sha256:26566db5a23e7cf62c937ca12fd7e12a10017a95b83ec2649fb5478f1957c040",
+          "expired": false
+        },
+        {
+          "id": 14117879794,
+          "name": "cc-runtime-a-a10-A04-diagnostics-43603308932-1",
+          "bytes": 1231420,
+          "digest": "sha256:22f4a0aa814bf7ed3d483114aa7410e65e857a9fc53d3d23bd865b23b829b441",
+          "expired": false
+        },
+        {
+          "id": 14117836554,
+          "name": "cc-runtime-a-a10-A02-diagnostics-43603308932-1",
+          "bytes": 182295,
+          "digest": "sha256:27dc361643fcee10862ea476104bb99125fd8362837eece884002618664fb187",
+          "expired": false
+        },
+        {
+          "id": 14117831424,
+          "name": "cc-runtime-a-a10-A00-native-part-0-43603308932-1",
+          "bytes": 149845431,
+          "digest": "sha256:f2bf8924688d67aa7077e0eebc8bb27110f343dd7c73ad659bdc410dc0b2f25d",
+          "expired": false
+        },
+        {
+          "id": 14117825033,
+          "name": "imp-017-observed-knowledge",
+          "bytes": 428935,
+          "digest": "sha256:2e9ad9f394e47e8b13cf65ce7320ce935786e340688050839c81d6502e735fad",
+          "expired": false
+        },
+        {
+          "id": 14117745016,
+          "name": "primitive-diagnostics-43603308932-1",
+          "bytes": 374221,
+          "digest": "sha256:e8e117fdfcf792d14012ba80dbb44393a88e6620790a526cfeec04fe8cd199d3",
+          "expired": false
+        },
+        {
+          "id": 14117692382,
+          "name": "cc-runtime-a-a10-A09-native-part-0-43603308932-1",
+          "bytes": 299223122,
+          "digest": "sha256:d54d1f46a63853d164182f06380b545d7104f2ad3f21de05df5c0410856b8c9f",
+          "expired": false
+        },
+        {
+          "id": 14117645377,
+          "name": "imp-016-world-retention",
+          "bytes": 431259,
+          "digest": "sha256:dedf6c51458cbd33e7468638c9e579f415d03b0e5450628c0e081e130dab140d",
+          "expired": false
+        },
+        {
+          "id": 14117597777,
+          "name": "cc-runtime-a-a10-A09-diagnostics-43603308932-1",
+          "bytes": 349681,
+          "digest": "sha256:de1bcda0dbfcbb8c5fc8cbb5facedba3a91c30decd650e5ed00a6dccc86a3ec9",
+          "expired": false
+        },
+        {
+          "id": 14117506818,
+          "name": "cc-runtime-a-a10-frozen-runtime-43603308932-1",
+          "bytes": 37964303,
+          "digest": "sha256:40792d071b54561b2b2f27c8d30ff01183a33d812cdd9c5a6d387bd2de8e0924",
+          "expired": false
+        },
+        {
+          "id": 14117475907,
+          "name": "imp-018-prerequisites",
+          "bytes": 431500,
+          "digest": "sha256:95bee74a4d438912fa090ed3ade3722fe1ac05f253c44292c1614f5b71b1babb",
+          "expired": false
+        },
+        {
+          "id": 14117401259,
+          "name": "cc-runtime-a-a07-lifecycle-3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364-43603308932-1",
+          "bytes": 6752934,
+          "digest": "sha256:38ad4db1086d9ab057789519690df3942cca512f2ce4d0f71d3cf567f24ec8cc",
+          "expired": false
+        },
+        {
+          "id": 14117367182,
+          "name": "cc-runtime-a-a10-A01-native-part-0-43603308932-1",
+          "bytes": 114238380,
+          "digest": "sha256:12fd9da7dc884c336a922844bf6977e4ab2f00a220abb49b10601cd2314bc4cb",
+          "expired": false
+        },
+        {
+          "id": 14117347280,
+          "name": "cc-runtime-a-a10-A01-diagnostics-43603308932-1",
+          "bytes": 130411,
+          "digest": "sha256:ba293755a18b70b2710de077a2bb9375f2a254437222109bb5c3672305fc0d8d",
+          "expired": false
+        },
+        {
+          "id": 14117281605,
+          "name": "imp-022-knowledge-apprenticeship-acceptance",
+          "bytes": 4266337,
+          "digest": "sha256:7d64cbce0eb360a3516ec897a9ccbba04680f131db1d9c4ca08424360d1b2339",
+          "expired": false
+        },
+        {
+          "id": 14117281420,
+          "name": "imp-021-accomplishment-evidence-acceptance",
+          "bytes": 364493,
+          "digest": "sha256:d0d0a390619034e2feaa0ce6f3e53a303f5eb611fd07dcf571f5d88eaab82ef3",
+          "expired": false
+        },
+        {
+          "id": 14117232744,
+          "name": "imp-015-save-compatibility",
+          "bytes": 427782,
+          "digest": "sha256:3f88b8265cccebcb5f7f00a9a4bdabaa6f66b9423dbe5511dbc6dd68d550e8a7",
+          "expired": false
+        },
+        {
+          "id": 14117224379,
+          "name": "cc-runtime-a-a10-A00-diagnostics-43603308932-1",
+          "bytes": 160312,
+          "digest": "sha256:79544fa43b4c449dd2c2e3c62d3c412ce35d25c34410e834bc6639b579934030",
+          "expired": false
+        },
+        {
+          "id": 14116809213,
+          "name": "imp-019-planning-acceptance",
+          "bytes": 429973,
+          "digest": "sha256:aff87a3e13fad1cce696afc7dbaedd0d232e1c31f83e8e7ac687c66824b70e06",
+          "expired": false
+        },
+        {
+          "id": 14116779569,
+          "name": "cc-runtime-a-a10-exact-jar-units-43603308932-1",
+          "bytes": 150418,
+          "digest": "sha256:a2815062de128c5ffcbf40c5c3fcdc8d67297589025a940caaefef05fbf30604",
+          "expired": false
+        },
+        {
+          "id": 14116749688,
+          "name": "cc-runtime-a-a04-contracts-3482a3904791d0f7dd7b22a0dbb4d96d3f1d4364-43603308932-1",
+          "bytes": 3615611,
+          "digest": "sha256:0799f30379c75b36431966825139f1439d0ddfd37766dd2dfea4dc96bb765809",
+          "expired": false
+        },
+        {
+          "id": 14116709761,
+          "name": "imp-020-blueprint-boundary-acceptance",
+          "bytes": 362886,
+          "digest": "sha256:3f00cceea418903240992876cc04b2c1961c53b38e4a9b1009bfffb127f27ded",
+          "expired": false
+        }
+      ],
+      "fullTenArchiveReplay": "NOT_EXECUTED_REQUIRED_A03_PREREQUISITE_FAILED",
+      "qualificationPassesImportedToNextSource": 0,
+      "actions": {
+        "candidate": 2,
+        "cumulativeA10Records": 35,
         "jobReruns": 0,
         "documentationActions": 0,
         "separateDiagnosis": 0
