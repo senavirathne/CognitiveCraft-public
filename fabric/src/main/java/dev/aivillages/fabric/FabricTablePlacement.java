@@ -20,6 +20,16 @@ import net.minecraft.world.phys.*;
 final class FabricTablePlacement {
     private final ServerLevel level;private final FabricGatewayWorld world;
     FabricTablePlacement(ServerLevel level,FabricGatewayWorld world){this.level=level;this.world=world;}
+    PlacementTransaction.Mutation withdraw(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String sourceFingerprint,RecipeTransaction.HostObserver observer) {
+        if(observer==null || observer==RecipeTransaction.HostObserver.NONE)return withdraw(actor,captured,custody,sourceFingerprint);
+        return new FabricHostObservations(level,world).call(actor,captured.source(),null,captured.target(),"WITHDRAW",captured.siteFingerprint(),observer,
+                ()->withdraw(actor,captured,custody,sourceFingerprint),FabricHostObservations::placement);
+    }
+    PlacementTransaction.Mutation place(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String sourceFingerprint,RecipeTransaction.HostObserver observer) {
+        if(observer==null || observer==RecipeTransaction.HostObserver.NONE)return place(actor,captured,custody,sourceFingerprint);
+        return new FabricHostObservations(level,world).call(actor,captured.source(),null,captured.target(),"PLACE",captured.siteFingerprint(),observer,
+                ()->place(actor,captured,custody,sourceFingerprint),FabricHostObservations::placement);
+    }
     private record Site(String fingerprint,Reason reason,String guard,boolean pending) { }
     private Site blockedSite(String guard,Reason reason){return new Site("",reason,guard,false);}
     private record Guard(Reason reason,boolean pending) { }

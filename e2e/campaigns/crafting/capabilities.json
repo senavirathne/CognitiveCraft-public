@@ -1,0 +1,791 @@
+{
+  "schema": 1,
+  "productionBaseline": "ea7de8000b2b484b885576c34ed5358274936ce9",
+  "physicalVerification": "NOT_EXECUTED",
+  "capabilities": [
+    {
+      "gameplayCapability": "oak log to planks",
+      "playerSurface": "/aivillage kernel make-planks",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricRecipeTransactions.java",
+      "primitiveOperations": [
+        "OBSERVE_PLANK_INPUTS",
+        "MOVE_TO_INPUT",
+        "WITHDRAW_OAK_LOG",
+        "CRAFT_OAK_PLANKS",
+        "MOVE_TO_DESTINATION",
+        "TRANSFER_OAK_PLANKS"
+      ],
+      "abstractFamilies": [
+        "P1",
+        "P3",
+        "P4",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "minecraft:oak_log \u2192 minecraft:oak_planks"
+      ],
+      "limits": "1..64 new planks, whole 1:4 batches",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Vanilla additional eligible inputs/other wood families are assessed separately, not granted by recipe existence"
+    },
+    {
+      "gameplayCapability": "birch log to planks",
+      "playerSurface": "/aivillage kernel make-birch-planks",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricRecipeTransactions.java",
+      "primitiveOperations": [
+        "OBSERVE_BIRCH_PLANK_INPUTS",
+        "MOVE_TO_INPUT",
+        "WITHDRAW_BIRCH_LOG",
+        "CRAFT_BIRCH_PLANKS",
+        "MOVE_TO_DESTINATION",
+        "TRANSFER_BIRCH_PLANKS"
+      ],
+      "abstractFamilies": [
+        "P1",
+        "P3",
+        "P4",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "minecraft:birch_log \u2192 minecraft:birch_planks"
+      ],
+      "limits": "1..64 new planks, whole 1:4 batches",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Vanilla additional eligible inputs/other wood families are assessed separately, not granted by recipe existence"
+    },
+    {
+      "gameplayCapability": "sticks",
+      "playerSurface": "/aivillage kernel make-sticks",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricRecipeTransactions.java",
+      "primitiveOperations": [
+        "OBSERVE_STICK_INPUTS",
+        "WITHDRAW_OAK_PLANKS",
+        "CRAFT_STICKS",
+        "TRANSFER_STICKS"
+      ],
+      "abstractFamilies": [
+        "P2",
+        "P3",
+        "P4",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Default oak planks, exact default sticks where required",
+        "All live vanilla alternatives generated as equivalence probes"
+      ],
+      "limits": "1..64 outputs, two oak planks yield four sticks",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Registered recipe input identity is oak-specific; safe rejection of a valid alternative is not PASS"
+    },
+    {
+      "gameplayCapability": "wooden axes",
+      "playerSurface": "/aivillage kernel make-axes",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricRecipeTransactions.java",
+      "primitiveOperations": [
+        "OBSERVE_AXE_INPUTS",
+        "WITHDRAW_AXE_INPUTS",
+        "MOVE_TO_TABLE",
+        "CRAFT_WOODEN_AXE",
+        "TRANSFER_WOODEN_AXES"
+      ],
+      "abstractFamilies": [
+        "P2",
+        "P3",
+        "P4",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Default oak planks, exact default sticks where required",
+        "All live vanilla alternatives generated as equivalence probes"
+      ],
+      "limits": "1..4 axes, three oak planks and two sticks per axe",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Registered recipe input identity is oak-specific; safe rejection of a valid alternative is not PASS"
+    },
+    {
+      "gameplayCapability": "crafting-table items",
+      "playerSurface": "/aivillage kernel make-tables",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricRecipeTransactions.java",
+      "primitiveOperations": [
+        "OBSERVE_TABLE_INPUTS",
+        "WITHDRAW_TABLE_PLANKS",
+        "CRAFT_CRAFTING_TABLE",
+        "TRANSFER_CRAFTING_TABLES"
+      ],
+      "abstractFamilies": [
+        "P2",
+        "P3",
+        "P4",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Default oak planks, exact default sticks where required",
+        "All live vanilla alternatives generated as equivalence probes"
+      ],
+      "limits": "1..4 tables, four oak planks per table",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Registered recipe input identity is oak-specific; safe rejection of a valid alternative is not PASS"
+    },
+    {
+      "gameplayCapability": "physical table placement",
+      "playerSurface": "/aivillage kernel place-table",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricTablePlacement.java",
+      "primitiveOperations": [
+        "OBSERVE_TABLE_SITE",
+        "WITHDRAW_TABLE_ITEM",
+        "MOVE_TO_PLACEMENT",
+        "PLACE_CRAFTING_TABLE"
+      ],
+      "abstractFamilies": [
+        "P5",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "minecraft:crafting_table"
+      ],
+      "limits": "One supplied item, one explicitly approved site",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Occupied, unsupported and colliding sites are expected safe refusals; actor-held supplied item lacks a source-container adapter"
+    },
+    {
+      "gameplayCapability": "prerequisite composition: axes",
+      "playerSurface": "/aivillage kernel compose-axes",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/ResourceComposition.java",
+      "primitiveOperations": [
+        "Existing acquisition, production, placement and transfer primitives"
+      ],
+      "abstractFamilies": [
+        "P3",
+        "P4",
+        "P5",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Only registered exact material families"
+      ],
+      "limits": "0..4 graph levels",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No arbitrary recipe graphs; source stock is explicitly bound; split-container and actor-custody distributions are reported as contract gaps if refused"
+    },
+    {
+      "gameplayCapability": "prerequisite composition: tables",
+      "playerSurface": "/aivillage kernel compose-tables",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/ResourceComposition.java",
+      "primitiveOperations": [
+        "Existing acquisition, production, placement and transfer primitives"
+      ],
+      "abstractFamilies": [
+        "P3",
+        "P4",
+        "P5",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Only registered exact material families"
+      ],
+      "limits": "0..4 graph levels",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No arbitrary recipe graphs; source stock is explicitly bound; split-container and actor-custody distributions are reported as contract gaps if refused"
+    },
+    {
+      "gameplayCapability": "prerequisite composition: birch planks",
+      "playerSurface": "/aivillage kernel compose-birch-planks",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/ResourceComposition.java",
+      "primitiveOperations": [
+        "Existing acquisition, production, placement and transfer primitives"
+      ],
+      "abstractFamilies": [
+        "P3",
+        "P4",
+        "P5",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Only registered exact material families"
+      ],
+      "limits": "0..4 graph levels",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No arbitrary recipe graphs; source stock is explicitly bound; split-container and actor-custody distributions are reported as contract gaps if refused"
+    },
+    {
+      "gameplayCapability": "prerequisite composition: facility and axe",
+      "playerSurface": "/aivillage kernel provision-axe",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/FacilityPrerequisites.java",
+      "primitiveOperations": [
+        "Existing acquisition, production, placement and transfer primitives"
+      ],
+      "abstractFamilies": [
+        "P3",
+        "P4",
+        "P5",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Only registered exact material families"
+      ],
+      "limits": "0..4 graph levels, explicit site",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No arbitrary recipe graphs; source stock is explicitly bound; split-container and actor-custody distributions are reported as contract gaps if refused"
+    },
+    {
+      "gameplayCapability": "blueprint read-only material calculation",
+      "playerSurface": "/aivillage kernel blueprint-materials preflight",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/BlueprintMaterials.java",
+      "primitiveOperations": [
+        "Read-only world, recipe, stock and blueprint observations"
+      ],
+      "abstractFamilies": [
+        "P6"
+      ],
+      "applicableMaterials": [
+        "Default oak planks for staging; broader blueprint data is not execution"
+      ],
+      "limits": "Rotations 0..3; bounded site volume <=256; full bill <=64",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Preflight must create no Jobs, leases or physical effects"
+    },
+    {
+      "gameplayCapability": "blueprint material staging",
+      "playerSurface": "/aivillage kernel blueprint-materials stage",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/BlueprintMaterials.java",
+      "primitiveOperations": [
+        "Existing plank production and oak acquisition only"
+      ],
+      "abstractFamilies": [
+        "P6",
+        "P7"
+      ],
+      "applicableMaterials": [
+        "Default oak planks"
+      ],
+      "limits": "One staging container also acts as input source; no construction",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Independent stock, outstanding bill and already-correct cells are separate quantities; other-source transfer explicitly unsupported"
+    },
+    {
+      "gameplayCapability": "legacy bread production and delivery",
+      "playerSurface": "/aivillage food <name>",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FarmPort.java",
+      "primitiveOperations": [
+        "CRAFT_BREAD",
+        "DELIVER_BREAD",
+        "GO_HOME"
+      ],
+      "abstractFamilies": [
+        "P8"
+      ],
+      "applicableMaterials": [
+        "Default wheat \u2192 bread, physical table near legacy home"
+      ],
+      "limits": "Legacy bounded food plan; no kernel capability; actor cannot also be kernel-enrolled",
+      "owner": "Agent 2",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "Separate actor required. Bread uses a hand-coded item transformation; comparison with actual installed bread semantics is required. New legacy gameplay evidence remains unexecuted"
+    },
+    {
+      "gameplayCapability": "wheat harvesting, replanting and collection",
+      "playerSurface": "/aivillage food; kernel harvest",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FarmPort.java; fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
+      "primitiveOperations": [
+        "HARVEST_WHEAT",
+        "PLANT_WHEAT",
+        "COLLECT_WHEAT",
+        "PICKUP_TRACKED_WHEAT"
+      ],
+      "abstractFamilies": [],
+      "applicableMaterials": [
+        "As registered on frozen commit"
+      ],
+      "limits": "See Agent 1 scope",
+      "owner": "Agent 1 (assignment only; reconciliation pending)",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No Agent 1 results imported or claimed. Acquisition and movement are additionally exercised within this campaign where crafting prerequisites need them"
+    },
+    {
+      "gameplayCapability": "oak and birch acquisition",
+      "playerSurface": "kernel gather-oak; gather-birch",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
+      "primitiveOperations": [
+        "HARVEST_NEXT_OAK_LOG",
+        "HARVEST_NEXT_BIRCH_LOG",
+        "PICKUP_TRACKED_OAK_LOGS",
+        "PICKUP_TRACKED_BIRCH_LOGS"
+      ],
+      "abstractFamilies": [],
+      "applicableMaterials": [
+        "As registered on frozen commit"
+      ],
+      "limits": "See Agent 1 scope",
+      "owner": "Agent 1 (assignment only; reconciliation pending)",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No Agent 1 results imported or claimed. Acquisition and movement are additionally exercised within this campaign where crafting prerequisites need them"
+    },
+    {
+      "gameplayCapability": "wheat and log delivery",
+      "playerSurface": "kernel harvest; gather-oak; gather-birch",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/FabricGatewayWorld.java",
+      "primitiveOperations": [
+        "TRANSFER_WHEAT",
+        "TRANSFER_OAK_LOGS",
+        "TRANSFER_BIRCH_LOGS"
+      ],
+      "abstractFamilies": [],
+      "applicableMaterials": [
+        "As registered on frozen commit"
+      ],
+      "limits": "See Agent 1 scope",
+      "owner": "Agent 1 (assignment only; reconciliation pending)",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No Agent 1 results imported or claimed. Acquisition and movement are additionally exercised within this campaign where crafting prerequisites need them"
+    },
+    {
+      "gameplayCapability": "movement and reach",
+      "playerSurface": "Player requests using movement",
+      "productionExecutor": "fabric/src/main/java/dev/aivillages/fabric/NavigationRoute.java",
+      "primitiveOperations": [
+        "MOVE",
+        "MOVE_TO_SOURCE",
+        "MOVE_TO_DESTINATION",
+        "APPROACH_OAK_LOG",
+        "APPROACH_BIRCH_LOG"
+      ],
+      "abstractFamilies": [],
+      "applicableMaterials": [
+        "As registered on frozen commit"
+      ],
+      "limits": "See Agent 1 scope",
+      "owner": "Agent 1 (assignment only; reconciliation pending)",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No Agent 1 results imported or claimed. Acquisition and movement are additionally exercised within this campaign where crafting prerequisites need them"
+    },
+    {
+      "gameplayCapability": "citizen enrollment, naming and lifecycle",
+      "playerSurface": "kernel enroll; name; native lifecycle",
+      "productionExecutor": "core/src/main/java/dev/aivillages/core/kernel/CitizenRegistry.java",
+      "primitiveOperations": [
+        "Enrollment and loaded citizen effects"
+      ],
+      "abstractFamilies": [],
+      "applicableMaterials": [
+        "As registered on frozen commit"
+      ],
+      "limits": "See Agent 1 scope",
+      "owner": "Agent 1 (assignment only; reconciliation pending)",
+      "status": "AUDITED_NOT_PHYSICALLY_VERIFIED",
+      "genuineExecutions": 0,
+      "successes": 0,
+      "failures": 0,
+      "safeRefusals": 0,
+      "unsupported": 0,
+      "recoveryConservation": "Generated and unexecuted",
+      "limitations": "No Agent 1 results imported or claimed. Acquisition and movement are additionally exercised within this campaign where crafting prerequisites need them"
+    }
+  ],
+  "kernelPrimitiveAudit": [
+    {
+      "enum": "OBSERVE_SOURCE",
+      "signature": "observe_source",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "OBSERVE_INVENTORY",
+      "signature": "observe_inventory",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "OBSERVE_CONTAINER",
+      "signature": "observe_container",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "MOVE",
+      "signature": "move",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "MOVE_TO_SOURCE",
+      "signature": "move_to_source",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "MOVE_TO_DESTINATION",
+      "signature": "move_to_destination",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "HARVEST_WHEAT",
+      "signature": "harvest_wheat",
+      "effect": "HARVEST"
+    },
+    {
+      "enum": "HARVEST_NEXT_WHEAT",
+      "signature": "harvest_next_wheat",
+      "effect": "HARVEST"
+    },
+    {
+      "enum": "PICKUP_WHEAT",
+      "signature": "pickup_wheat",
+      "effect": "PICKUP"
+    },
+    {
+      "enum": "PICKUP_TRACKED_WHEAT",
+      "signature": "pickup_tracked_wheat",
+      "effect": "PICKUP"
+    },
+    {
+      "enum": "TRANSFER_WHEAT",
+      "signature": "transfer_wheat",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_OAK_SOURCE",
+      "signature": "observe_oak_source",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "OBSERVE_OAK_INVENTORY",
+      "signature": "observe_oak_inventory",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "OBSERVE_OAK_CONTAINER",
+      "signature": "observe_oak_container",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "APPROACH_OAK_LOG",
+      "signature": "approach_oak_log",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "HARVEST_NEXT_OAK_LOG",
+      "signature": "harvest_next_oak_log",
+      "effect": "HARVEST"
+    },
+    {
+      "enum": "PICKUP_TRACKED_OAK_LOGS",
+      "signature": "pickup_tracked_oak_logs",
+      "effect": "PICKUP"
+    },
+    {
+      "enum": "TRANSFER_OAK_LOGS",
+      "signature": "transfer_oak_logs",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_PLANK_INPUTS",
+      "signature": "observe_plank_inputs",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "MOVE_TO_INPUT",
+      "signature": "move_to_input",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "WITHDRAW_OAK_LOG",
+      "signature": "withdraw_oak_log",
+      "effect": "WITHDRAW"
+    },
+    {
+      "enum": "CRAFT_OAK_PLANKS",
+      "signature": "craft_oak_planks",
+      "effect": "CRAFT"
+    },
+    {
+      "enum": "TRANSFER_OAK_PLANKS",
+      "signature": "transfer_oak_planks",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_STICK_INPUTS",
+      "signature": "observe_stick_inputs",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "WITHDRAW_OAK_PLANKS",
+      "signature": "withdraw_oak_planks",
+      "effect": "WITHDRAW"
+    },
+    {
+      "enum": "CRAFT_STICKS",
+      "signature": "craft_sticks",
+      "effect": "CRAFT"
+    },
+    {
+      "enum": "TRANSFER_STICKS",
+      "signature": "transfer_sticks",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_AXE_INPUTS",
+      "signature": "observe_axe_inputs",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "WITHDRAW_AXE_INPUTS",
+      "signature": "withdraw_axe_inputs",
+      "effect": "WITHDRAW"
+    },
+    {
+      "enum": "MOVE_TO_TABLE",
+      "signature": "move_to_table",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "CRAFT_WOODEN_AXE",
+      "signature": "craft_wooden_axe",
+      "effect": "CRAFT"
+    },
+    {
+      "enum": "TRANSFER_WOODEN_AXES",
+      "signature": "transfer_wooden_axes",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_TABLE_INPUTS",
+      "signature": "observe_table_inputs",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "WITHDRAW_TABLE_PLANKS",
+      "signature": "withdraw_table_planks",
+      "effect": "WITHDRAW"
+    },
+    {
+      "enum": "CRAFT_CRAFTING_TABLE",
+      "signature": "craft_crafting_table",
+      "effect": "CRAFT"
+    },
+    {
+      "enum": "TRANSFER_CRAFTING_TABLES",
+      "signature": "transfer_crafting_tables",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_TABLE_SITE",
+      "signature": "observe_table_site",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "WITHDRAW_TABLE_ITEM",
+      "signature": "withdraw_table_item",
+      "effect": "WITHDRAW"
+    },
+    {
+      "enum": "MOVE_TO_PLACEMENT",
+      "signature": "move_to_placement",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "PLACE_CRAFTING_TABLE",
+      "signature": "place_crafting_table",
+      "effect": "PLACE"
+    },
+    {
+      "enum": "OBSERVE_BIRCH_SOURCE",
+      "signature": "observe_birch_source",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "OBSERVE_BIRCH_INVENTORY",
+      "signature": "observe_birch_inventory",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "OBSERVE_BIRCH_CONTAINER",
+      "signature": "observe_birch_container",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "APPROACH_BIRCH_LOG",
+      "signature": "approach_birch_log",
+      "effect": "MOVE"
+    },
+    {
+      "enum": "HARVEST_NEXT_BIRCH_LOG",
+      "signature": "harvest_next_birch_log",
+      "effect": "HARVEST"
+    },
+    {
+      "enum": "PICKUP_TRACKED_BIRCH_LOGS",
+      "signature": "pickup_tracked_birch_logs",
+      "effect": "PICKUP"
+    },
+    {
+      "enum": "TRANSFER_BIRCH_LOGS",
+      "signature": "transfer_birch_logs",
+      "effect": "TRANSFER"
+    },
+    {
+      "enum": "OBSERVE_BIRCH_PLANK_INPUTS",
+      "signature": "observe_birch_plank_inputs",
+      "effect": "OBSERVE"
+    },
+    {
+      "enum": "WITHDRAW_BIRCH_LOG",
+      "signature": "withdraw_birch_log",
+      "effect": "WITHDRAW"
+    },
+    {
+      "enum": "CRAFT_BIRCH_PLANKS",
+      "signature": "craft_birch_planks",
+      "effect": "CRAFT"
+    },
+    {
+      "enum": "TRANSFER_BIRCH_PLANKS",
+      "signature": "transfer_birch_planks",
+      "effect": "TRANSFER"
+    }
+  ],
+  "nonCapabilities": [
+    {
+      "name": "Arbitrary blueprint construction",
+      "reason": "Structural data/staging do not register general block construction"
+    },
+    {
+      "name": "Arbitrary Minecraft recipes",
+      "reason": "Vanilla recipe presence is not a registered executor"
+    },
+    {
+      "name": "Automatic production-task resume after restart",
+      "reason": "Current contract conservatively interrupts unfinished work; no instruction replay"
+    },
+    {
+      "name": "Chest/barrel placement",
+      "reason": "No registered player-facing placement adapter beyond crafting tables"
+    },
+    {
+      "name": "Production ownership transfer/revocation",
+      "reason": "No player-facing kernel revocation command found. Independent-principal effect-time revocation and lease competition require Agent 1 reconciliation or a separately witnessed available surface; not claimed covered"
+    }
+  ],
+  "finiteOwnerLimits": {
+    "evidence": "SOURCE_ONLY_NOT_RUNTIME_MEASURED",
+    "jobs": {
+      "total": 64,
+      "active": 32,
+      "settings": "core/src/main/java/dev/aivillages/core/kernel/Jobs.java",
+      "capacityGuard": "core/src/main/java/dev/aivillages/core/kernel/JobLifecycleStore.java"
+    },
+    "bootstrapMarkers": {
+      "total": 16,
+      "source": "core/src/main/java/dev/aivillages/core/kernel/BootstrapJournal.java"
+    },
+    "campaignResponse": "Interleave families and stop only if an actual request reports STORAGE_LIMIT_REACHED; preserve all remaining cases as unexecuted; never raise production quotas"
+  }
+}

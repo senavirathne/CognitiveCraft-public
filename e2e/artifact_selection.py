@@ -9,7 +9,14 @@ import urllib.request
 
 MAX_ARTIFACTS = 100
 MAX_RESPONSE_BYTES = 2_000_000
-PROFILES = ("acquire", "deterministic", "nlu", "resilience")
+PROFILES = ("acquire", "deterministic", "nlu", "resilience", "lifecycle")
+
+
+class SelectionError(ValueError):
+    """Stable refusal codes, while preserving ValueError compatibility."""
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
 
 
 def positive(value):
@@ -39,14 +46,15 @@ def select(document, names, run_id, head):
         artifact_id = artifact.get("id")
         if (not positive(artifact_id) or artifact_id in seen or identity.get("id") != run_id
                 or identity.get("head_sha") != head):
-            raise ValueError("Artifact identity mismatch")
+            code = "FOREIGN_SOURCE" if identity.get("head_sha") != head else "FOREIGN_RUN" if identity.get("id") != run_id else "BAD_ARTIFACT_ID"
+            raise SelectionError(code, "Artifact identity mismatch")
         seen.add(artifact_id)
         if name not in selected or artifact_id > selected[name]["id"]:
             selected[name] = artifact
     if set(selected) != set(names):
-        raise ValueError("Missing required profile evidence")
+        raise SelectionError("MISSING", "Missing required profile evidence")
     if any(row.get("expired") is not False for row in selected.values()):
-        raise ValueError("Latest required evidence is expired or unavailable")
+        raise SelectionError("EXPIRED", "Latest required evidence is expired or unavailable")
     return [selected[name] for name in names]
 
 

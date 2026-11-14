@@ -1,0 +1,471 @@
+{
+  "schema": 1,
+  "freezeCommit": "3a1f159d352581e787d20546582fd3cf6f76f59c",
+  "entropyRunAfterFreeze": "40401941237",
+  "seed": 5727977010340620222,
+  "generatorSha256": "609ff821385c04f8d7e243d4c6e077cdfaf1d0c942877b02b2028d452c0de951",
+  "assertionSpecSha256": "344f943e64019f994528287497725efbf3f52a193f6b22b62f33cd21001c6bc1",
+  "cases": [
+    {
+      "id": "B07-H-5744433576effead",
+      "seed": 5727977010340620222,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:oak_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-f5b993ba94c24f71",
+      "seed": 5727977010340620222,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-51297962c25f1cbe",
+      "seed": 5727977010340620222,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-0e258213948e39ca",
+      "seed": 5727977010340620222,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 1,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-a162da02dbd0ee35",
+      "seed": 5727977010340620222,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 3,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-9cf7717dcacf31b4",
+      "seed": 5727977010340620222,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 4,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 4,
+        "actorSurplus": 0,
+        "rootRequested": 4
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-f0c29dd6ae6743b4",
+      "seed": 5727977010340620222,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 7,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 2,
+        "physicalPlanks": 8,
+        "delivered": 7,
+        "actorSurplus": 1,
+        "rootRequested": 7
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-9d1755fb263bdf75",
+      "seed": 5727977010340620222,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-f0d8305c04ed8e64",
+      "seed": 5727977010340620222,
+      "axis": "actor",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-c76baadd94cfae10",
+      "seed": 5727977010340620222,
+      "axis": "actor",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 1,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-e4e4beef946b200a",
+      "seed": 5727977010340620222,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 0,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-0eb3629a21f1b2b2",
+      "seed": 5727977010340620222,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-200d259a9fff42c8",
+      "seed": 5727977010340620222,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-bd77096c1fcccca0",
+      "seed": 5727977010340620222,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 0,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-943407fce5aa56c4",
+      "seed": 5727977010340620222,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 1,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-b5e59a80d8a2a37d",
+      "seed": 5727977010340620222,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-04b6de43926d7c13",
+      "seed": 5727977010340620222,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-eadccc93d08d952a",
+      "seed": 5727977010340620222,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-4ec86b4836a406a0",
+      "seed": 5727977010340620222,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-eddbfac5653c0698",
+      "seed": 5727977010340620222,
+      "axis": "dimension",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 11,
+        "actor": 0,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    }
+  ],
+  "nativeExecuted": 0
+}

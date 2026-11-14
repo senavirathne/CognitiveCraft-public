@@ -1,0 +1,1 @@
+{"expected":"VALID_ARITHMETIC_NOT_EXECUTION","goal":{"mode":"MAKE_NEW","requested":3},"id":"fixture:q3-y4","proposal":{"goalAllocation":3,"parentAllocation":0,"requestedDemand":3,"surplus":1},"recipe":{"batches":1,"physicalOutput":4,"yield":4},"schema":1}

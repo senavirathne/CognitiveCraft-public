@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.production.BatchQuantities;
 import static dev.aivillages.core.kernel.Contracts.*;
 
 /** Exact registered prerequisite projections. No program, scheduler, inventory or model. */
@@ -13,6 +14,18 @@ public final class ResourceComposition {
                 || need.bound().request().capability().equals(WoodenAxeProduction.ID) && need.item().equals(ResourceDelivery.WOODEN_AXE.id())
                 || need.bound().request().capability().equals(CraftingTableProduction.ID) && need.item().equals(ResourceDelivery.CRAFTING_TABLE.id()))
                 && need.allocation()==Prerequisites.AllocationPolicy.MATERIAL_ONLY;
+    }
+    /** An exact MAKE root delivers its demand; material children deposit whole batches. */
+    public static BatchQuantities.Role quantityRole(Prerequisites.Need need,String item) {
+        return make(need) && item.equals(need.item()) ? BatchQuantities.Role.ROOT : BatchQuantities.Role.MATERIAL_CHILD;
+    }
+    public static dev.aivillages.core.kernel.production.RecipeChoicePlan proposeChoice(UUID root,long revision,
+            ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice) {
+        return dev.aivillages.core.kernel.production.RecipeChoicePlan.propose(root,revision,request,choice);
+    }
+    public static dev.aivillages.core.kernel.production.RecipeChoicePlan proposeChoice(UUID root,long revision,ValidatedRequest request,
+            dev.aivillages.core.kernel.production.RecipeChoice choice,dev.aivillages.core.kernel.production.RecipeSources sources) {
+        return dev.aivillages.core.kernel.production.RecipeChoicePlan.propose(root,revision,request,choice,sources);
     }
     public static CapabilityRequest project(Prerequisites.Need need,CapabilityId capability,long quantity) {
         if(!make(need))throw new IllegalArgumentException("Registered axe MAKE goal required");

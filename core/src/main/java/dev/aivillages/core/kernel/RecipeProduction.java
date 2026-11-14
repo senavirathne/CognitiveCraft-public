@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel;
 
 import java.util.*;
+import dev.aivillages.core.kernel.production.BatchQuantities;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.GatewayPrimitives.Operation;
 
@@ -16,6 +17,9 @@ public final class RecipeProduction {
         public int secondaryInputs(long amount) {return axe() ? WoodenAxeProduction.sticks(amount) : 0;}
         public int maximumAmount() {return axe() || table() ? 4 : 64;}
         public int maximumBatches() {return axe() || table() ? 4 : 16;}
+        public BatchQuantities quantities(long demand,BatchQuantities.Role role) {
+            return BatchQuantities.project(demand,outputPerBatch(),maximumAmount(),maximumBatches(),role);
+        }
         public int batches(long amount) {return table() ? CraftingTableProduction.batches(amount) : axe() ? WoodenAxeProduction.batches(amount) : OakPlankProduction.batches(amount);}
         public int withdrawalUnits(ResourceDelivery.ItemIdentity item) {
             return input.equals(item) ? inputPerBatch : axe() && ResourceDelivery.STICK.equals(item) ? 2 : 0;
@@ -53,6 +57,11 @@ public final class RecipeProduction {
         if(WoodenAxeProduction.ID.equals(id))return AXES;
         if(CraftingTableProduction.ID.equals(id))return TABLES;
         throw new IllegalArgumentException("Unsupported production capability");
+    }
+    /** Version 2 is proposed only; this does not register a runtime capability or alter version 1. */
+    public static Definition choiceDefinition(CapabilityId id) {
+        if(id.version()!=2)throw new IllegalArgumentException("Concrete choice compatibility version 2 required");
+        return of(new CapabilityId(id.name(),1));
     }
     public static Definition recipe(String key) {
         if(BirchPlankProduction.RECIPE.equals(key))return BIRCH_PLANKS;

@@ -1,0 +1,471 @@
+{
+  "schema": 1,
+  "freezeCommit": "93f275394d4099da56dd817062c1726deb14c682",
+  "entropyRunAfterFreeze": "40398752751",
+  "seed": 798520342149394736,
+  "generatorSha256": "bb1bf1b9f0b3fb80239d466048a21a078f371153178e75233105eda450312b1c",
+  "assertionSpecSha256": "34dc61fd680db18a607dc60f94824167083c1ddd3bb5d375db7cb0c5e2ab4466",
+  "cases": [
+    {
+      "id": "B07-H-f5b6c17b33730d44",
+      "seed": 798520342149394736,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:oak_log",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-8338a454dcdbb318",
+      "seed": 798520342149394736,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-38e5cf9493628c22",
+      "seed": 798520342149394736,
+      "axis": "material",
+      "bindings": {
+        "material": "minecraft:stripped_birch_log",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-8e676706b9ab5512",
+      "seed": 798520342149394736,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-e989fe676fa06345",
+      "seed": 798520342149394736,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 3,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 3,
+        "actorSurplus": 1,
+        "rootRequested": 3
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-ed6559a460d8abae",
+      "seed": 798520342149394736,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 4,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 4,
+        "actorSurplus": 0,
+        "rootRequested": 4
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-6874d82875003b45",
+      "seed": 798520342149394736,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 7,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 2,
+        "physicalPlanks": 8,
+        "delivered": 7,
+        "actorSurplus": 1,
+        "rootRequested": 7
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-aa9f9064f17a33c4",
+      "seed": 798520342149394736,
+      "axis": "quantity",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 11,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 3,
+        "physicalPlanks": 12,
+        "delivered": 11,
+        "actorSurplus": 1,
+        "rootRequested": 11
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-038b1dc461b9444d",
+      "seed": 798520342149394736,
+      "axis": "actor",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 0,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-697b14984d9dc6b6",
+      "seed": 798520342149394736,
+      "axis": "actor",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-55d49ef289f30f07",
+      "seed": 798520342149394736,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 0,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-8195b668fac8b10c",
+      "seed": 798520342149394736,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 1,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-4aecc62f8b6875c1",
+      "seed": 798520342149394736,
+      "axis": "sourceBinding",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-78b161a5d8033b56",
+      "seed": 798520342149394736,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 0,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-e34a0dbbe9f2e3ad",
+      "seed": 798520342149394736,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 1,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-4ac07c0f6fdd4b2e",
+      "seed": 798520342149394736,
+      "axis": "destinationBinding",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-e4108b81c9688124",
+      "seed": 798520342149394736,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "near",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-0017b0334d268f02",
+      "seed": 798520342149394736,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "offset",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-2c1aaf33551d4b0b",
+      "seed": 798520342149394736,
+      "axis": "geometry",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    },
+    {
+      "id": "B07-H-51399faa3fd7b1fa",
+      "seed": 798520342149394736,
+      "axis": "dimension",
+      "bindings": {
+        "material": "minecraft:birch_wood",
+        "quantity": 1,
+        "actor": 1,
+        "sourceBinding": 2,
+        "destinationBinding": 2,
+        "geometry": "around-obstacle",
+        "dimension": "minecraft:overworld"
+      },
+      "expected": {
+        "inputLogs": 1,
+        "physicalPlanks": 4,
+        "delivered": 1,
+        "actorSurplus": 3,
+        "rootRequested": 1
+      },
+      "status": "NOT_EXECUTED",
+      "dimensionSupport": "only baseline overworld; no extra dimension claim"
+    }
+  ],
+  "nativeExecuted": 0
+}

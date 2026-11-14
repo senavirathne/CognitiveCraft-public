@@ -1,0 +1,321 @@
+{
+  "schema": 1,
+  "scope": "Selectively ported historical qualification code, not production or claimed new gameplay",
+  "files": [
+    {
+      "path": "e2e/campaigns/crafting/__init__.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "92dbb41c8d9bc31fdd1292d9b597de26333f1cd92a5df7687d8f1f6dfaa98b97",
+      "currentSha256": "92dbb41c8d9bc31fdd1292d9b597de26333f1cd92a5df7687d8f1f6dfaa98b97",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/capabilities.json",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "03d6ffe523c079c412006dae457b35e2b7aebd8a78ff702f256de3ed8dbb50b0",
+      "currentSha256": "03d6ffe523c079c412006dae457b35e2b7aebd8a78ff702f256de3ed8dbb50b0",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/evidence.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "c338135d0c57fdecdc8459f25d6fae30443b0f71c6412bc09ac3297f84a03942",
+      "currentSha256": "c338135d0c57fdecdc8459f25d6fae30443b0f71c6412bc09ac3297f84a03942",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/execution.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "bcfd455d9e48c95540951ea3928619544d1ae0f7b7d6ab9b623f60beae0e9523",
+      "currentSha256": "bcfd455d9e48c95540951ea3928619544d1ae0f7b7d6ab9b623f60beae0e9523",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/generator.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204",
+      "currentSha256": "6a8884647e8804019ebc91de2951a5653d7a01eb30f3934b258b77f7347e9204",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/harness.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "f8ab2fc906bcbcc5f145bd943e56fbad4186a60dd97a956e3b4d7d92ac5fd1f4",
+      "currentSha256": "fd88ccef553a143a79244172ee949611c511fcc29b92be1c7976adb0f845fa03",
+      "modifiedForB01": true
+    },
+    {
+      "path": "e2e/campaigns/crafting/invariants.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "7e90b3a367678a955b145916bf63d22fffb4a39ce348a11e0940cbab89afcb50",
+      "currentSha256": "7e90b3a367678a955b145916bf63d22fffb4a39ce348a11e0940cbab89afcb50",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/observer/assessment-language.json",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "f54fd1f928c6866bfb634e49639c949eb0898f7bfb0ea3c631003aafcd52b478",
+      "currentSha256": "f54fd1f928c6866bfb634e49639c949eb0898f7bfb0ea3c631003aafcd52b478",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/observer/crafting-trace.mixins.json",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "8cf917d5d31cfbf8d72ab37b2131600444b39dcd479760270faf5cfc76fe381a",
+      "currentSha256": "8cf917d5d31cfbf8d72ab37b2131600444b39dcd479760270faf5cfc76fe381a",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingPrimitiveTrace.java",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "49222faa630057d18c3c8cbb249ae3b764b2770cb777c1ea5ba60c2de3e38172",
+      "currentSha256": "49222faa630057d18c3c8cbb249ae3b764b2770cb777c1ea5ba60c2de3e38172",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/CraftingRecipeOracle.java",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "9c6eb13b5fa1c8bb926602cda2ed2b3b5572dc0d14b92f86fe11934e8a10c53b",
+      "currentSha256": "9c6eb13b5fa1c8bb926602cda2ed2b3b5572dc0d14b92f86fe11934e8a10c53b",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/crafting/mixin/CraftingGatewayTraceMixin.java",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "233c9ed9a5ff479bc7c5ad43565afc3d82171c37ad82e9d97581abbb39fafc45",
+      "currentSha256": "233c9ed9a5ff479bc7c5ad43565afc3d82171c37ad82e9d97581abbb39fafc45",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/observer/java/dev/aivillages/e2e/crafting/mixin/CraftingLegacyTraceMixin.java",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "7d79120cbf3c9490b1439717627098ce7d3fbfab1637031702d25b98c7712271",
+      "currentSha256": "7d79120cbf3c9490b1439717627098ce7d3fbfab1637031702d25b98c7712271",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/oracle.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "d5e8eff6585c8672f3b549de7f069f552833bd98b9a014fdec28ed2b5c91f9a4",
+      "currentSha256": "d5e8eff6585c8672f3b549de7f069f552833bd98b9a014fdec28ed2b5c91f9a4",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/recipe_model.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "773475c84c57680689cf9f9701d55a12c3fc444601261c7faba94c98596b4907",
+      "currentSha256": "773475c84c57680689cf9f9701d55a12c3fc444601261c7faba94c98596b4907",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/reproductions.json",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "9283aa8cd6388d835f98f7fde9565c05d873ff2d6fd1447b541121e90177604b",
+      "currentSha256": "9283aa8cd6388d835f98f7fde9565c05d873ff2d6fd1447b541121e90177604b",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/run.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "af25a6204511465f300bcab8aaef6c487b107fbd64bdcfac3bdfb33a8c9d3179",
+      "currentSha256": "af25a6204511465f300bcab8aaef6c487b107fbd64bdcfac3bdfb33a8c9d3179",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/scheduling.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "63c231d8f5b2f226b9e54b24fd5ad8c33320adb1ad1e0822a403e23f97ceffa6",
+      "currentSha256": "63c231d8f5b2f226b9e54b24fd5ad8c33320adb1ad1e0822a403e23f97ceffa6",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/test_campaign.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "57b2fef70215101ba621c59fbc117e9591a69e5d952a2e3b69dcb0db94e5fac3",
+      "currentSha256": "57b2fef70215101ba621c59fbc117e9591a69e5d952a2e3b69dcb0db94e5fac3",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/test_harness_guards.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "6d6f59ae29bd5b50d87a2d1479df523d208b2ae0b45e1908c3eb41142428ecac",
+      "currentSha256": "6d6f59ae29bd5b50d87a2d1479df523d208b2ae0b45e1908c3eb41142428ecac",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/test_runtime_bootstrap.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "5917649d350dacc8966279ff1a1ea5b3d38606691af53f5df52f522ab95ca793",
+      "currentSha256": "5917649d350dacc8966279ff1a1ea5b3d38606691af53f5df52f522ab95ca793",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-crafting/prepare.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "15516da84f41112388a0d11d06cc6e5ff2a00c1d6ea0da08ea0c704cf354a533",
+      "currentSha256": "e6f248f6ca00a69a37fa2af3983a2cea0eee588fd7760d3f775dd4a7c2615cb6",
+      "modifiedForB01": true
+    },
+    {
+      "path": "scripts/campaign-crafting/verify.py",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "b888c70055b6aaccafcdbac6350d47d8743b98bd8a9d62055b1361e479e680f1",
+      "currentSha256": "b888c70055b6aaccafcdbac6350d47d8743b98bd8a9d62055b1361e479e680f1",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/client/java/dev/aivillages/e2e/world/WorldClient.java",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "dc3679c5823413ccf4e30c31465992208563c2cd6c20062989f60fdedecc2920",
+      "currentSha256": "dc3679c5823413ccf4e30c31465992208563c2cd6c20062989f60fdedecc2920",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/cohort.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "0abfac610190b8791a635e1336d4007b185e4ba0146b8546d2e04c3f5ca65a30",
+      "currentSha256": "0abfac610190b8791a635e1336d4007b185e4ba0146b8546d2e04c3f5ca65a30",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/controlled-probes.json",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "2a413da8b9a9c2fd2afd1df6140b02c057973336b6dfcc943344afbf3d3c3350",
+      "currentSha256": "2a413da8b9a9c2fd2afd1df6140b02c057973336b6dfcc943344afbf3d3c3350",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/extra.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "0ac7553d8104a6b9dccff2f3cd96e509b85983b26c02a5061af68613c09bc460",
+      "currentSha256": "0ac7553d8104a6b9dccff2f3cd96e509b85983b26c02a5061af68613c09bc460",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/failure-probes.json",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "410c34bd41bbaf2d51c487a1501edaa7ea6c2d0cd4d8847570ee25886bd084cb",
+      "currentSha256": "410c34bd41bbaf2d51c487a1501edaa7ea6c2d0cd4d8847570ee25886bd084cb",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/generate.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "5dd6e0a9ad335b667cca81d09383c0a34f6ff0f83536b4b27015bca5c5c06145",
+      "currentSha256": "5dd6e0a9ad335b667cca81d09383c0a34f6ff0f83536b4b27015bca5c5c06145",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/legacy_extra.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "e79f06e629c88ceddbb76eb731bcdd79718b34278d98578e0613f435e011ca0c",
+      "currentSha256": "e79f06e629c88ceddbb76eb731bcdd79718b34278d98578e0613f435e011ca0c",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/oracle.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "7e5b6ee09dc1fc83b55f78edf6ed4fd3325196db5723aff8b057fed06363fc6e",
+      "currentSha256": "7e5b6ee09dc1fc83b55f78edf6ed4fd3325196db5723aff8b057fed06363fc6e",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/replay-cases.json",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "d239b5a08c1e43a88dad465d11f7be0d79cfe2e954bf56fcd1e81c6015904f8c",
+      "currentSha256": "d239b5a08c1e43a88dad465d11f7be0d79cfe2e954bf56fcd1e81c6015904f8c",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/runner.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "0175364d2f7552556693fdcdfc3a04f58e19b8319930965ac7720f635c891078",
+      "currentSha256": "0175364d2f7552556693fdcdfc3a04f58e19b8319930965ac7720f635c891078",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/seed.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "756419d627c9bc812355f35f57a09aa34a02b504566e738fc89f8ed56a3f31cf",
+      "currentSha256": "756419d627c9bc812355f35f57a09aa34a02b504566e738fc89f8ed56a3f31cf",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/world/test_campaign.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "b0c2dec4eb68f372939656a438fc7fff55556b60383305b39b9f0ee1d19c3017",
+      "currentSha256": "b0c2dec4eb68f372939656a438fc7fff55556b60383305b39b9f0ee1d19c3017",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/artifact.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "38dcf054cfdd1701522ed358e853eb6b97cda062f7909da782577e3548496b7e",
+      "currentSha256": "38dcf054cfdd1701522ed358e853eb6b97cda062f7909da782577e3548496b7e",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/certificate.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "63ccf194bd3cde9f3391f62e1311d61bbe81e9e01d131f381fc92199801ade2d",
+      "currentSha256": "63ccf194bd3cde9f3391f62e1311d61bbe81e9e01d131f381fc92199801ade2d",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/compile.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "93fe5af7f3b3248ec4d4f2a33614fbe5286cff28ffa38427438eca7fab902c8b",
+      "currentSha256": "93fe5af7f3b3248ec4d4f2a33614fbe5286cff28ffa38427438eca7fab902c8b",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/extract.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "8f2e5e88a48106b071d9a5f8e9eb5c70e08fab4c2f31841d8d3653c3d721a2f5",
+      "currentSha256": "8f2e5e88a48106b071d9a5f8e9eb5c70e08fab4c2f31841d8d3653c3d721a2f5",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/inspect_prior.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "4a7ec9410bc1b1507f20129179d2928049d9197c6a04f74863c16ffb5f0243a2",
+      "currentSha256": "4a7ec9410bc1b1507f20129179d2928049d9197c6a04f74863c16ffb5f0243a2",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/inventory.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "38a795c26800f861b5aff248ece50426ded2c9815af5161a8aa4918915180eb8",
+      "currentSha256": "38a795c26800f861b5aff248ece50426ded2c9815af5161a8aa4918915180eb8",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/launch.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "bc1aef7b40d257709177adbc53817ee5a0646331213618158aeb5e86892e6068",
+      "currentSha256": "bc1aef7b40d257709177adbc53817ee5a0646331213618158aeb5e86892e6068",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/review.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "6dba07da43001b40b81138ed514fc0425af48704a1cafa4f7d6cefbe2d1973b4",
+      "currentSha256": "6dba07da43001b40b81138ed514fc0425af48704a1cafa4f7d6cefbe2d1973b4",
+      "modifiedForB01": false
+    },
+    {
+      "path": "scripts/campaign-world/test_transport.py",
+      "sourceCommit": "8fecacd074aa43921435938e7cad34776b74c9d5",
+      "sourceSha256": "78a5e039e624b9c04d37b295675e7a6175d3ef8794851510d7be9cffbcf7b642",
+      "currentSha256": "78a5e039e624b9c04d37b295675e7a6175d3ef8794851510d7be9cffbcf7b642",
+      "modifiedForB01": false
+    },
+    {
+      "path": "e2e/campaigns/crafting/baseline.json",
+      "sourceCommit": "9844e4eb3f8127aafb6fab95d379d4ec9e6447e2",
+      "sourceSha256": "237ea68c1a2627b244c35ec4756c1f3370dc53f4f409ab8dff33151d4ab3f648",
+      "currentSha256": "237ea68c1a2627b244c35ec4756c1f3370dc53f4f409ab8dff33151d4ab3f648",
+      "modifiedForB01": false
+    }
+  ]
+}
