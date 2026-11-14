@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sequence": 69,
-  "parentSource": "1bea44a94b2cb7f8a79b239f6245cc37cd7fecd5",
+  "sequence": 70,
+  "parentSource": "3f8488254cf0c6177911014082325d8218d7bcfe",
   "stage": "A10",
   "scope": "Freeze final A-owned runtime: all original A00-A09 mandatory gate profiles on one production JAR and common compiled instruments",
   "nativeHarvestProducer": "DEFAULT_OFF_NATIVE_LOG_AND_WHEAT_H_CANDIDATE",
@@ -448,6 +448,22 @@
       "originalOwnerSettlements": 12,
       "failure": "P capture5.812586ms, pairedCPU0.792450ms; all other A06 collection gates and nine independent profiles pass. No GC/safepoint pause in the entire failed active window. Exact delay source unproved.",
       "correction": "Move stable native storage binding out of normal capture and avoid VM identity hashing within unchanged8-ticket capacity.",
+      "qualificationPassesImported": 0
+    },
+    {
+      "sequence": 69,
+      "source": "91616b935c199b8a671ff87546f267fd392d7f92",
+      "run": 43501839709,
+      "status": "FAIL_A06_DEPOSIT_COST_A07_CANCEL_BUSY_AND_GP14_RESTART",
+      "independentPassProfiles": 8,
+      "independentPassGates": 73,
+      "collectedMixedGates": 121,
+      "collectionPass": 119,
+      "collectionFail": 2,
+      "originalOwnerSettlements": 12,
+      "w04Passed": 9,
+      "failure": "D capture4.618007ms against2ms; A07 explicit zero-work cancellation BUDGET_EXHAUSTED; GP14 warm observe_inventory lease-gate ACTION_TIMEOUT before native start.",
+      "correction": "Bounded exact busy cancellation retry; existing two-core A06 auxiliary thread allocation completed. GP14 required unchanged.",
       "qualificationPassesImported": 0
     }
   ],
@@ -5021,15 +5037,15 @@
   "branchReady": false,
   "a10Qualification": {
     "status": "FROZEN_EXACT_SOURCE_QUALIFICATION_REQUIRED",
-    "sequence": 69,
-    "codeCheckpoint": "1bea44a94b2cb7f8a79b239f6245cc37cd7fecd5",
-    "codeTree": "ade034200b1c940ab14075f849509c6f75517884",
-    "documentationPreRun": "eba70ec83e940d01968dacf4962e5ea5a86e5478",
-    "documentationTree": "4bd55f8ff10bb2dfb9a85dbee9bce41f8471dabe",
+    "sequence": 70,
+    "codeCheckpoint": "3f8488254cf0c6177911014082325d8218d7bcfe",
+    "codeTree": "5b9426b50e68acf72a70fa1df2f2372b549a88d3",
+    "documentationPreRun": "11dd846d188f4f9c4c2375a4d10595d73b7e844a",
+    "documentationTree": "793cf917749fc4b2e26facb69fed2ad2633d18c2",
     "requiredProfiles": 10,
     "requiredMixedGateCases": 121,
     "targetModules": 2703,
-    "ownedPython": 171,
+    "ownedPython": 176,
     "baselinePython": 72,
     "nativeLifecycleDiagnostics": 14,
     "requiredRegressionWorkflows": 9,
@@ -5043,9 +5059,9 @@
     "mainMerged": false,
     "peerBranchMerged": false,
     "scope": "Native E2E, native host and metadata-fault gates keep original classifications; I00 planner/recipe/generalized recovery/full corpus/endurance remain separate.",
-    "ownedCorrection": "Cache the stable per-level native entity-storage owner during protocol startup, preserving null late-binding fallback and per-capture live availability; replace the eight-ticket identity hash set with a preallocated identity list. All original limits/fixtures/clock/CPU/heap/GC unchanged. No earlier native passes imported.",
+    "ownedCorrection": "A07 retries only an explicit cancellation=false reason=BUDGET_EXHAUSTED zero-work publication refusal. Same original public cancellation request and total30-second feedback deadline; other denials fail. Original45-second terminal cancellation assertion remains. A06 places current auxiliary JVM threads, including Netty and concurrent GC workers, on original core1/nice>=10 together with compiler/observer/storage workers. Original Server thread stays core0 at unchanged priority. JVM main thread retains declared0-1 CPU set. No extra CPU, heap, GC flag, threshold, sample exclusion, workload or deadline change. GP14 remains a required fresh regression; no historical passes imported.",
     "w04": "OPEN_CAUSE_UNPROVEN",
-    "actionsPreviouslyStarted": 31,
+    "actionsPreviouslyStarted": 33,
     "firstLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -10525,7 +10541,7 @@
         "nativeQualification": "NOT_EXECUTED_REQUIRED"
       }
     },
-    "expectedOwnedPaths": 310,
+    "expectedOwnedPaths": 312,
     "ninthLaunch": {
       "schema": 1,
       "stage": "A10",
@@ -15616,6 +15632,277 @@
           "digest": "sha256:c59ef505b8de352b1bf0acf269531ae05af597d407389286e2855c8b7576d247"
         }
       ]
+    },
+    "sixteenthLaunch": {
+      "schema": 1,
+      "stage": "A10",
+      "sequence": 69,
+      "source": "91616b935c199b8a671ff87546f267fd392d7f92",
+      "tree": "6f15c0a5905381429fd5ce0890afd321d0d58f35",
+      "jarSha256": "4622be3f1256cf9f1f5dff6bfd62df6d23075878123e36975ceeba34c31304c6",
+      "run": 43501839709,
+      "standardRun": 43501839648,
+      "standardStatus": "PASS",
+      "status": "FAIL_A06_DEPOSIT_COST_A07_CANCEL_BUSY_AND_GP14_RESTART",
+      "independentProfilesPassed": 8,
+      "independentGatesPassed": 73,
+      "requiredMixedGates": 121,
+      "nativeCollectionPassed": 119,
+      "nativeCollectionFailed": 2,
+      "originalSavedInterruptionCases": 12,
+      "originalOwnerSettlements": 12,
+      "w04Reproductions": 9,
+      "w04Passed": 9,
+      "cost": {
+        "id": "representative-active-cost",
+        "status": "FAIL_COST_TARGET",
+        "windows": 11,
+        "nativeEffects": 33,
+        "tick": {
+          "p50": 6.838269,
+          "p95": 18.242747,
+          "p99": 34.157972,
+          "max": 111.004419,
+          "samples": 2317,
+          "unit": "milliseconds"
+        },
+        "capture": {
+          "HARVEST": {
+            "p50": 0.947002,
+            "p95": 1.146875,
+            "p99": 1.146875,
+            "max": 1.146875,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 0.862207,
+            "p95": 0.974843,
+            "p99": 0.974843,
+            "max": 0.974843,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 1.549768,
+            "p95": 4.618007,
+            "p99": 4.618007,
+            "max": 4.618007,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "acknowledgement": {
+          "p50": 19.623956,
+          "p95": 29.390577,
+          "p99": 32.563614,
+          "max": 32.563614,
+          "samples": 66,
+          "unit": "milliseconds"
+        },
+        "limits": {
+          "tickP95Ms": 20,
+          "tickP99Ms": 40,
+          "captureP99Ms": 2,
+          "ackMaxMs": 30000
+        },
+        "warmupExcluded": false,
+        "requiredWheatSamples": 1,
+        "diagnosticCaptureCpu": {
+          "HARVEST": {
+            "p50": 0.968711,
+            "p95": 1.166884,
+            "p99": 1.166884,
+            "max": 1.166884,
+            "samples": 12,
+            "unit": "milliseconds"
+          },
+          "PICKUP": {
+            "p50": 0.877744,
+            "p95": 0.994548,
+            "p99": 0.994548,
+            "max": 0.994548,
+            "samples": 11,
+            "unit": "milliseconds"
+          },
+          "DEPOSIT": {
+            "p50": 1.542843,
+            "p95": 1.68229,
+            "p99": 1.68229,
+            "max": 1.68229,
+            "samples": 11,
+            "unit": "milliseconds"
+          }
+        },
+        "diagnosticCapturePhaseMaxMs": {
+          "HARVEST": {
+            "authority": 0.147997,
+            "owner": 0.124253,
+            "participants": 0.495468,
+            "claims": 0.166114,
+            "allowance": 0.144592,
+            "intent": 0.106927,
+            "exclusion": 0.038256
+          },
+          "PICKUP": {
+            "owner": 0.11538,
+            "original-harvest": 0.085285,
+            "native-lineage": 0.259462,
+            "allowance": 0.132014,
+            "intent": 0.15614,
+            "storage-and-ticket": 0.307912
+          },
+          "DEPOSIT": {
+            "authority": 3.808287,
+            "owner": 0.117122,
+            "participants": 0.481308,
+            "claims": 0.200866,
+            "conditions": 0.070794,
+            "intent": 0.285329,
+            "exclusion": 0.041962
+          }
+        }
+      },
+      "handoffFailure": {
+        "id": "handoff-revoked",
+        "status": "INCONCLUSIVE_REQUIRED_NATIVE_WINDOW",
+        "reason": "Feedback PlayerA: /aivillage kernel job-cancel 55fb5ba7-5539-4239-a894-ce1e65d20ec5 expected=cancellation=true; last=None",
+        "actualNativeFeedback": "job=55fb5ba7-5539-4239-a894-ce1e65d20ec5 cancellation=false reason=BUDGET_EXHAUSTED",
+        "feedbackTime": 1794603704724,
+        "commandWasExecuted": true,
+        "retryPerformed": false
+      },
+      "requiredRegressions": {
+        "passed": 8,
+        "failed": 1,
+        "failure": "GP14 warm restart original saved method: observe_inventory lease gate ACTION_TIMEOUT before native start at tick447; consumed stock0, facility and space active; reason for prolonged pending not established."
+      },
+      "frozenBundleLocalReview": {
+        "source": "91616b935c199b8a671ff87546f267fd392d7f92",
+        "tree": "6f15c0a5905381429fd5ce0890afd321d0d58f35",
+        "productionSha256": "4622be3f1256cf9f1f5dff6bfd62df6d23075878123e36975ceeba34c31304c6",
+        "nativeUnits": {
+          "total": 2703,
+          "modules": {
+            "core": 2439,
+            "providers": 131,
+            "fabric": 133
+          }
+        },
+        "bundleSha256": "32f8d7a2b3a4ce2caa1b904a182cfbf76ae65f941dfe20dfea8a76332f2e9372",
+        "filesVerified": 19
+      },
+      "failedNativeArchives": {
+        "A06": {
+          "job": 132151599874,
+          "originalConclusion": "failure",
+          "transport": {
+            "status": "PASS_FULL_DOWNLOADED_NATIVE_BYTES_SHA_CRC_SAFE_PATHS",
+            "profile": "A06",
+            "schema": 1,
+            "archiveBytes": 862150343,
+            "archiveSha256": "256aafd6ffc23e701314b25661fa3a728ec1b79c03d81d337b9855d76576a527",
+            "parts": [
+              {
+                "name": "part-000.bin",
+                "bytes": 419430400,
+                "sha256": "765bd1b02c84fef5d8100a1e224ca2bbca8f061901c8e21942cadaa132b26334"
+              },
+              {
+                "name": "part-001.bin",
+                "bytes": 419430400,
+                "sha256": "a81a3614684fdd067f4a89231622de79d491c1816ce3f77cce3ee52f05f81e48"
+              },
+              {
+                "name": "part-002.bin",
+                "bytes": 23289543,
+                "sha256": "f329fd24a172f1cdf3b2619392c3f77102378a37159ece03995cdbc55ff601eb"
+              }
+            ],
+            "entries": 11886,
+            "extraction": "FULL",
+            "outerArtifacts": [
+              {
+                "id": 14078785585,
+                "name": "cc-runtime-a-a10-A06-native-part-0-43501839709-1",
+                "bytes": 419431274,
+                "sha256": "109120b74eb02cf2c13a6909c1a8bfcc0ed3a54b620d5286b36cd5b33c716a52",
+                "entries": 2,
+                "status": "PASS_FULL_OUTER_SIZE_SHA_CRC_PATHS_AND_NO_SYMLINKS"
+              },
+              {
+                "id": 14078590922,
+                "name": "cc-runtime-a-a10-A06-native-part-1-43501839709-1",
+                "bytes": 419431274,
+                "sha256": "fc3a3c6c79a8e3baa072361c5ee378928e481a1037453452d4591249bab134fe",
+                "entries": 2,
+                "status": "PASS_FULL_OUTER_SIZE_SHA_CRC_PATHS_AND_NO_SYMLINKS"
+              },
+              {
+                "id": 14078620821,
+                "name": "cc-runtime-a-a10-A06-native-part-2-43501839709-1",
+                "bytes": 23290417,
+                "sha256": "8d4ee5d00a7dd4bfb1993c26806aa311813d06cb27d6ad929d890d9aaf147531",
+                "entries": 2,
+                "status": "PASS_FULL_OUTER_SIZE_SHA_CRC_PATHS_AND_NO_SYMLINKS"
+              }
+            ]
+          }
+        },
+        "A07": {
+          "job": 132151599983,
+          "originalConclusion": "failure",
+          "transport": {
+            "status": "PASS_FULL_DOWNLOADED_NATIVE_BYTES_SHA_CRC_SAFE_PATHS",
+            "profile": "A07",
+            "schema": 1,
+            "archiveBytes": 684061584,
+            "archiveSha256": "d9a8d95a5179e6653b09ea41474db0efa77b74d5d4246997fb1510b7420320b1",
+            "parts": [
+              {
+                "name": "part-000.bin",
+                "bytes": 419430400,
+                "sha256": "a6c6835c82db8211127402736f21d3628d4f537f2e51f16b336c692e3128f489"
+              },
+              {
+                "name": "part-001.bin",
+                "bytes": 264631184,
+                "sha256": "0b85fa77ac3fa2ade4fa1a2a5df4637a848b990d89652811c186322b8b999646"
+              }
+            ],
+            "entries": 10284,
+            "extraction": "FULL",
+            "outerArtifacts": [
+              {
+                "id": 14077261502,
+                "name": "cc-runtime-a-a10-A07-native-part-0-43501839709-1",
+                "bytes": 419431123,
+                "sha256": "f7df463f9a8952496cb85d66f5c4f983ea76724a924961c7cc1eb9542935f4df",
+                "entries": 2,
+                "status": "PASS_FULL_OUTER_SIZE_SHA_CRC_PATHS_AND_NO_SYMLINKS"
+              },
+              {
+                "id": 14077121594,
+                "name": "cc-runtime-a-a10-A07-native-part-1-43501839709-1",
+                "bytes": 264631907,
+                "sha256": "51f20094aac9730a2b4e800003f63d72b61939150253d78ccb9e1b8b0464f5fc",
+                "entries": 2,
+                "status": "PASS_FULL_OUTER_SIZE_SHA_CRC_PATHS_AND_NO_SYMLINKS"
+              }
+            ]
+          }
+        }
+      },
+      "fullTenArchiveReplay": "NOT_EXECUTED_REQUIRED_PREREQUISITES_FAILED",
+      "qualificationPassesImportedToNextSource": 0,
+      "actions": {
+        "candidate": 2,
+        "cumulativeA10Records": 33,
+        "jobReruns": 0,
+        "documentationActions": 0,
+        "separateDiagnosis": 0
+      },
+      "branchReady": false
     }
   },
   "date": "2026-11-14"
