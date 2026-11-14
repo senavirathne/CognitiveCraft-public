@@ -7,12 +7,13 @@ def birth(pid):
     if fields[0]=='Z':raise ValueError('Native JVM is no longer live')
     return int(fields[19])
 
-def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None,application_writers=False,require_writer_fixtures=False,require_storage_writer=False):
+def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None,application_writers=False,require_writer_fixtures=False,require_storage_writer=False,isolate_auxiliary=False):
     if birth(pid)!=start_ticks:raise ValueError('Native JVM birth changed')
     if Path(f'/proc/{pid}').stat().st_uid!=os.getuid():raise ValueError('Foreign JVM UID refused')
     cpus=sorted(cpus)
     if len(cpus)!=2 or sorted(os.sched_getaffinity(pid))!=cpus:raise ValueError('Original two-core JVM budget required')
     if server_cpu is not None and server_cpu not in cpus:raise ValueError('Server core must be inside the original budget')
+    if isolate_auxiliary and server_cpu!=cpus[0]:raise ValueError('Auxiliary isolation requires the original reserved server core')
     server_target=cpus if server_cpu is None else [server_cpu]
     tasks=list(Path(f'/proc/{pid}/task').iterdir())
     if len(tasks)>256:raise ValueError('Native thread inspection bound')
@@ -32,6 +33,9 @@ def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None,appli
                                     or not any(r['name']=='runtime-bench04' for r in application)):
         raise ValueError('Both actual prestarted native and baseline storage workers required before budget changes')
     background=[*compilers,*observers,*application];target=[cpus[1]]
+    selected={pid,*(r['tid'] for r in [*servers,*background])}
+    auxiliary=[r for r in rows if r['tid'] not in selected] if isolate_auxiliary else []
+    background+=auxiliary
     for row in [*servers,*background]:
         row['niceBefore']=os.getpriority(os.PRIO_PROCESS,row['tid'])
         row['cpusBefore']=sorted(os.sched_getaffinity(row['tid']))
@@ -53,8 +57,9 @@ def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None,appli
             'serverThread':servers[0],'compilerThreads':compilers,'observerThreads':observers,'observersRequired':require_observers,
             'applicationWriterThreads':application,'applicationWritersIncluded':application_writers,'writerFixturesRequired':require_writer_fixtures,
             'storageWriterRequired':require_storage_writer,
+            'auxiliaryThreads':auxiliary,'auxiliaryThreadIsolation':isolate_auxiliary,
             'backgroundCpus':target,'serverThreadCpus':server_target,'heapGcLimitsAndSamplesChanged':False,
-            'addedCores':0,'priorityPolicy':'Owned C1/C2, observers and selected A04/A06 application writers use original core1, niceness >=10; server priority is unchanged',
+            'addedCores':0,'priorityPolicy':'Owned C1/C2, observers, selected A04/A06 application writers and A06 auxiliary threads use original core1, niceness >=10; server priority is unchanged',
             'serverAffinityPolicy':'ORIGINAL_TWO_CORES' if server_cpu is None else 'RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET'}
 
 def prepare(h,writer_fixtures=False):
@@ -67,7 +72,7 @@ def prepare(h,writer_fixtures=False):
     value=configure(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True,
                     server_cpu=0 if h.a10_profile in ('A04','A05','A06') else None,
                     application_writers=h.a10_profile in ('A04','A06'),require_writer_fixtures=writer_fixtures,
-                    require_storage_writer=h.a10_profile=='A06')
+                    require_storage_writer=h.a10_profile=='A06',isolate_auxiliary=h.a10_profile=='A06')
     value.update(profile=h.a10_profile,nativeProcess=owned)
     path=h.root/f"a10-compiler-budget-{owned['hostJvmPid']}-{owned['startTicks']}-{uuid.uuid4()}.json"
     atomic(path,value);h.event('a10-compiler-budget',value)
@@ -102,7 +107,10 @@ def review(root,profile,jar,stops):
         if row['writerFixturesRequired']:
             assert profile=='A04' and any(t['name'].startswith('cognitivecraft-') for t in application)
             assert any(t['name']=='runtime-bench04' for t in application)
-        background=[*compilers,*observers,*application]
+        auxiliary=row['auxiliaryThreads'];assert row['auxiliaryThreadIsolation']==(profile=='A06')
+        if profile!='A06':assert not auxiliary
+        assert all(t['tid']!=row['hostJvmPid'] and t['name']!='Server thread' for t in auxiliary)
+        background=[*compilers,*observers,*application,*auxiliary]
         assert len({r['tid'] for r in [row['serverThread'],*background]})==len(background)+1
         for thread in background:
             assert thread['cpusBefore'] in (([0,1],[0],[1]) if profile in ('A04','A06') else ([0,1],[1])) and thread['cpusAfter']==[1]

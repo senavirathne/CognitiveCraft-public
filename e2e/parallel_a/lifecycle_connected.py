@@ -13,6 +13,7 @@ from generalization import receipts
 from baseline import native_process
 from deposits import manifest
 from lifecycle_fixture import w04_start
+from cancellation import cancel
 
 
 class LifecycleHarness(RecoveryHarness):
@@ -418,7 +419,7 @@ def handoff_case(h,seed,template,kind):
             value['closedOriginalBeforeDenied']=blocked
             closed_command='/aivillage kernel job-handoff '+blocked['id']+' '+str(blocked['revision'])+' '+str(blocked['generation'])+' '+h.companion[0]
             denied['closedOriginal']=h.command('PlayerA',closed_command,'handoff=false')
-            h.command('PlayerA','/aivillage kernel job-cancel '+current['id'],'cancellation=true')
+            cancel(h,'PlayerA',current['id'])
             final=h.wait(lambda:(j if (j:=job(h,value['run'])) and j['state']=='CANCELLED' else None),'Revoked handoff cancellation settles',45)
             h.vanilla('PlayerB','/gamerule minecraft:mob_griefing true');status='PASS_REVOKED_NEW_EFFECTS_HISTORICAL_ACCOUNTING'
         else:

@@ -67,6 +67,17 @@ class CompilerBudgetTest(unittest.TestCase):
         changed=self.native(extra_threads=((4,'runtime-a-a06'),))
         with self.assertRaises(ValueError):configure(40,99,[0,1],server_cpu=0,application_writers=True,require_storage_writer=True)
         self.assertEqual([],changed)
+    def test_a06_auxiliary_workers_share_core_one_without_raising_server_priority(self):
+        changed=self.native(extra_threads=((4,'Netty Epoll IO #'),(5,'ZWorker#0'),(6,'cognitivecraft-')))
+        value=configure(40,99,[0,1],server_cpu=0,application_writers=True,require_storage_writer=True,isolate_auxiliary=True)
+        self.assertEqual({4,5},{r['tid'] for r in value['auxiliaryThreads']})
+        self.assertTrue(all(r['cpusAfter']==[1] and r['niceAfter']==10 for r in value['auxiliaryThreads']))
+        self.assertEqual([0],value['serverThread']['cpusAfter']);self.assertEqual(0,value['serverThread']['niceAfter'])
+        self.assertEqual(0,value['addedCores']);self.assertTrue(all(tid!=1 for tid,_ in changed))
+    def test_auxiliary_isolation_requires_the_existing_server_reservation(self):
+        changed=self.native(extra_threads=((4,'Netty Epoll IO #'),))
+        with self.assertRaises(ValueError):configure(40,99,[0,1],isolate_auxiliary=True)
+        self.assertEqual([],changed)
     def test_missing_owned_observers_is_refused_before_budget_mutation(self):
         changed=self.native()
         with self.assertRaises(ValueError):configure(40,99,[0,1],require_observers=True)
