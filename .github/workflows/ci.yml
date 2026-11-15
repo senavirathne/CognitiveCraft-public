@@ -2,6 +2,7 @@ name: CognitiveCraft verification
 
 on:
   push:
+    branches-ignore: [integration/activity-runtime-production]
   pull_request:
   workflow_dispatch:
 

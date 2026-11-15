@@ -10,6 +10,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 BRANCH = "integration/activity-runtime-production"
 PINS = (
+    "ea7de8000b2b484b885576c34ed5358274936ce9",
+    "62a303e784db78d318893f0def1f1908586348f8",
     "0312c55c06a72be7556a0d8563b7cb644d312617",
     "12fb3af99e0c9496171b89d4dd2ffff3f5c7a824",
 )
@@ -25,7 +27,7 @@ def git(*args):
     return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
 
 
-def candidate(source, jar):
+def checkout(source):
     ci = {key: os.environ.get(key, "") for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")}
     if not all(re.fullmatch(r"[1-9][0-9]*", value) for value in ci.values()):
         raise ValueError("I00 requires a GitHub Actions run and attempt")
@@ -36,10 +38,14 @@ def candidate(source, jar):
     for predecessor in PINS:
         if subprocess.run(["git", "merge-base", "--is-ancestor", predecessor, source], cwd=ROOT).returncode:
             raise ValueError("I00 candidate does not include frozen handoff " + predecessor)
+    return {"source": source, "tree": git("rev-parse", "HEAD^{tree}"), "ci": ci}
+
+
+def candidate(source, jar):
+    result = checkout(source)
     if jar != sha256(PRODUCTION):
         raise ValueError("I00 candidate production binary changed")
-    return {"source": source, "tree": git("rev-parse", "HEAD^{tree}"),
-            "productionSha256": jar, "ci": ci}
+    return {**result, "productionSha256": jar}
 
 
 def verify_metadata(metadata, expected):
