@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 public final class RuntimeI00EnduranceMeter implements ModInitializer {
     private record Sample(long sequence, long nativeTick, long timeMillis, UUID world, long tickNanos, long captureNanos,
                           int hotJobs, int activeJobs, int hotLeases, int activeLeases, long archiveRevision,
+                          long jobHotBytes, long leaseHotBytes, long archiveBytes, int archiveSegments,
                           List<PublicationTiming> jobAcknowledgements) { }
     private record Closure(UUID process, long pid, long startedMillis, long observed, long dropped, String error) { }
 
@@ -51,7 +52,8 @@ public final class RuntimeI00EnduranceMeter implements ModInitializer {
                 long captured = System.nanoTime() - startCapture;
                 var sample = new Sample(++observed, server.overworld().getGameTime(), System.currentTimeMillis(),
                         view.jobs().worldId(), startCapture - tickStart, captured, jobs.hot(), jobs.active(),
-                        leases.hot(), leases.active(), storage.manifest().revision(), acknowledgements);
+                        leases.hot(), leases.active(), storage.manifest().revision(), jobs.hotBytes(), leases.hotBytes(),
+                        leases.archiveBytes(), storage.manifest().segments().size(), acknowledgements);
                 if (!samples.offer(sample)) dropped++;
             } catch (IllegalStateException startup) {
                 if (observed > 0) failure = startup.toString();

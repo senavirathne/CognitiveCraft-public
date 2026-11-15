@@ -19,6 +19,7 @@ jobs:
     outputs:
       production_sha256: ${{ steps.bundle.outputs.production_sha256 }}
       source_tree: ${{ steps.bundle.outputs.source_tree }}
+      full: ${{ steps.scope.outputs.full }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -36,6 +37,19 @@ jobs:
             build/e2e-sdk
             build/server-sdk
           key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - name: Select full qualification only on a designated integration candidate
+        id: scope
+        run: |
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          control = Path('.github/i00-candidate.json')
+          value = json.loads(control.read_text()) if control.is_file() else {'qualification': False}
+          if set(value) != {'qualification'} or type(value['qualification']) is not bool:
+              raise ValueError('Qualification switch must be a single Boolean')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+              print(f"full={str(value['qualification']).lower()}", file=output)
+          PYCODE
       - name: Verify frozen parents and build production and test JARs once
         run: |
           python3 -c 'from e2e.parallel_i00.bundle import identity; print(identity())'
@@ -51,9 +65,11 @@ jobs:
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
-          mkdir -p build/i00-instruments/{a,b}
+          mkdir -p build/i00-instruments/{a,b,endurance}
           python3 e2e/parallel_a/prepare.py
           cp build/e2e-driver/observer.jar build/i00-instruments/a/observer.jar
+          python3 -m e2e.parallel_i00.endurance_prepare
+          cp build/e2e-driver/observer.jar build/i00-instruments/endurance/observer.jar
           cp build/e2e-driver/observer-baseline.jar build/e2e-driver/observer.jar
           python3 scripts/campaign-crafting/prepare.py
           python3 e2e/parallel_b/prepare_diagnostics.py
@@ -73,6 +89,7 @@ jobs:
             build/e2e-driver/client.jar
             build/e2e-sdk/integrity.json
             build/i00-instruments/
+            build/parallel-i00/endurance-observer/integrity.json
             build/parallel-a/observer-adaptation.json
             build/b-diagnostics/integrity.json
             build/campaign-crafting-oracle/integrity.json
@@ -197,6 +214,34 @@ jobs:
         run: |
           python3 e2e/parallel_b/interference_native.py --root "$B_ROOT/interference"
           python3 e2e/parallel_b/native_audit.py --root "$B_ROOT/interference"
+      - name: Exercise genuine all-family admission and cold reuse
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        run: |
+          result=0
+          root=build/e2e/i00/variant-admission
+          python3 -m e2e.parallel_i00.variant_admission run --root "$root" || result=$?
+          python3 -m e2e.parallel_i00.variant_admission review --root "$root" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
+          exit "$result"
+      - name: Exercise and independently review integrated custody controls
+        if: ${{ !cancelled() && needs.build.outputs.full == 'true' && steps.quantities.outcome == 'success' }}
+        run: |
+          result=0
+          root=build/e2e/i00/integrated-controls
+          python3 -m e2e.parallel_i00.integrated_controls run --root "$root" --seed-root "$B_ROOT/quantity" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=$?
+          python3 -m e2e.parallel_i00.integrated_controls review --root "$root" --out "$root/review.json" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
+          exit "$result"
+      - name: Preserve independent compatibility reviews
+        if: ${{ !cancelled() && needs.build.outputs.full == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i00-review-b-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            build/e2e/i00/b-compatibility/harness/adversarial-review.json
+            build/e2e/i00/integrated-controls/review.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -204,7 +249,10 @@ jobs:
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 30
-          path: build/e2e/i00/b-compatibility/
+          path: |
+            build/e2e/i00/b-compatibility/
+            build/e2e/i00/variant-admission/
+            build/e2e/i00/integrated-controls/
 
   regression-ci:
     uses: ./.github/workflows/ci.yml
@@ -287,12 +335,12 @@ jobs:
       - name: Independently inspect the complete original native evidence in Docker
         if: ${{ !cancelled() && steps.native.outcome != 'skipped' }}
         run: |
-          docker pull python:3.12-slim
+          docker pull python:3.12
           output="$PWD/build/e2e/i00/recovery/$I00_PROFILE"
           mkdir -p "$output"
           docker run --rm --network none --user "$(id -u):$(id -g)" \
             -e PYTHONDONTWRITEBYTECODE=1 -e GITHUB_SHA -e GITHUB_REF -e GITHUB_RUN_ID -e GITHUB_RUN_ATTEMPT \
-            -v "$PWD:$PWD:ro" -v "$output:$output:rw" -w "$PWD" python:3.12-slim \
+            -v "$PWD:$PWD:ro" -v "$output:$output:rw" -w "$PWD" python:3.12 \
             python3 -m e2e.parallel_i00.recovery review --profile "$I00_PROFILE" --root "$output" \
             --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" --out "$output"
       - name: Preserve original native bytes and independent verdict
@@ -304,3 +352,155 @@ jobs:
           include-hidden-files: true
           retention-days: 30
           path: build/e2e/i00/recovery/${{ matrix.profile }}/
+      - name: Retain the compact independent profile review
+        if: ${{ !cancelled() && needs.build.outputs.full == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i00-review-a-${{ matrix.profile }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: build/e2e/i00/recovery/${{ matrix.profile }}/review.json
+
+  walkthrough:
+    name: Decisive player goal ${{ matrix.cohort }}
+    needs: [build, smoke]
+    if: needs.build.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        cohort: [live, saved-online, saved-offline, unsaved]
+    env:
+      I00_JAR_SHA256: ${{ needs.build.outputs.production_sha256 }}
+      I00_COHORT: ${{ matrix.cohort }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Verify the matching binary and prepare the real Minecraft SDK
+        run: |
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer b
+          python3 e2e/runtime.py prepare
+      - name: Run the connected player goal and independently check its witnesses
+        run: |
+          result=0
+          root="build/e2e/i00/walkthrough/$I00_COHORT"
+          python3 -m e2e.parallel_i00.walkthrough --root "$root" --cohort "$I00_COHORT" || result=$?
+          python3 -m e2e.parallel_i00.walkthrough_review --root "$root" --cohort "$I00_COHORT" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i00-walkthrough-${{ matrix.cohort }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
+          path: build/e2e/i00/walkthrough/${{ matrix.cohort }}/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i00-review-walkthrough-${{ matrix.cohort }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: build/e2e/i00/walkthrough/${{ matrix.cohort }}/review.json
+
+  coverage:
+    name: Native I00 coverage ${{ matrix.track }}
+    needs: [build, walkthrough]
+    if: needs.build.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        track: [original-0, original-1, original-2, original-3, original-4, original-5, held-out, endurance]
+    env:
+      I00_JAR_SHA256: ${{ needs.build.outputs.production_sha256 }}
+      I00_TRACK: ${{ matrix.track }}
+      I00_SHARDS: '6'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Verify exact build identity and prepare the real Minecraft SDK
+        id: prepare
+        run: |
+          observer=b
+          if [[ "$I00_TRACK" == endurance ]]; then observer=endurance; fi
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer "$observer"
+          python3 e2e/runtime.py prepare
+          case "$I00_TRACK" in
+            original-*) root="build/e2e/i00/campaign/${I00_TRACK#original-}" ;;
+            *) root="build/e2e/i00/$I00_TRACK" ;;
+          esac
+          printf 'root=%s\n' "$root" >> "$GITHUB_OUTPUT"
+      - name: Exercise and independently review the frozen required cases
+        env:
+          I00_ROOT: ${{ steps.prepare.outputs.root }}
+        run: |
+          result=0
+          case "$I00_TRACK" in
+            original-*)
+              python3 -m e2e.parallel_i00.campaign run --root "$I00_ROOT" \
+                --shard-index "${I00_TRACK#original-}" --shard-count "$I00_SHARDS" || result=$?
+              python3 -m e2e.parallel_i00.campaign review --root "$I00_ROOT" \
+                --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
+              ;;
+            held-out)
+              python3 -m e2e.parallel_i00.held_out run --root "$I00_ROOT" || result=$?
+              python3 -m e2e.parallel_i00.held_out review --root "$I00_ROOT" \
+                --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
+              ;;
+            endurance)
+              python3 -m e2e.parallel_i00.endurance --root "$I00_ROOT" \
+                --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=$?
+              python3 -m e2e.parallel_i00.endurance_review --root "$I00_ROOT" \
+                --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" --out "$I00_ROOT/review.json" || result=1
+              ;;
+            *) exit 2 ;;
+          esac
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.prepare.outputs.root != '' }}
+        with:
+          name: i00-coverage-${{ matrix.track }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
+          path: ${{ steps.prepare.outputs.root }}/
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.prepare.outputs.root != '' }}
+        with:
+          name: i00-review-${{ matrix.track }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: ${{ steps.prepare.outputs.root }}/review.json

@@ -244,12 +244,14 @@ def contend(h, first, second):
     result = finish_case(h, first, a, {"overlap": evidence, "owners": owners})
     _, waiting = h.await_job(b[1], lambda frame, job: job["state"] == "WAITING" and
                              frame["containers"][key(SHARED)].get(LOG, 0) == 0, "Second eligible owner waits on empty stock")
+    _, waiting_frame = h.capture(b[0], "eligible-stock-wait")
     h.action("PlayerB", "open", pos=list(SHARED))
     def donor():
         native = h.client_snapshot("PlayerB")
         return next((slot for slot in native["slots"] if native["menu"] > 0 and slot["playerInventory"]
                      and slot["item"] == LOG and slot["count"] == 1), None)
     slot = h.wait(donor, "Real connected donor stock")
+    eligible = int(time.time() * 1000)
     h.action("PlayerB", "menu-click", slot=slot["slot"], quick=True)
     def moved_stock():
         frame = h.client_snapshot("PlayerB")
@@ -257,7 +259,8 @@ def contend(h, first, second):
     donated = h.wait(moved_stock, "Connected private stock leaves donor inventory")
     h.action("PlayerB", "close-menu")
     later = finish_case(h, second, b, {"overlap": evidence, "owners": owners, "waitingOwner": waiting,
-                                      "donorSlot": slot, "donated": donated, "eligibleMillis": int(time.time() * 1000)})
+                                      "waitingFrame": waiting_frame, "donorSlot": slot, "donated": donated,
+                                      "eligibleMillis": eligible})
     h.actions_active = False
     return [result, later]
 
@@ -294,6 +297,7 @@ def run(root, source, jar):
         status["foreignReplay"] = h.wait(lambda: h.lookup(early, foreign=True), "Foreign archived Job privacy", 40)
         status["finalSave"] = h.save_checkpoint()
         h.stop("server")
+        status["stoppedWorld"] = h.world_hashes()
         status["status"] = "COLLECTED_PENDING_INDEPENDENT_REVIEW"
     except Exception as error:
         status.update(status="FAILED_OR_INCOMPLETE", reason=str(error), trace=traceback.format_exc())
