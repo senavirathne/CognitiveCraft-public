@@ -24,6 +24,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
+import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.state.properties.ChestType;
 import static dev.aivillages.core.kernel.RecipeTransaction.fingerprint;
 
@@ -51,20 +53,22 @@ final class FabricRecipeParticipants {
         List<Capture> result=new ArrayList<>();
         result.add(capture(actorAddress(actor),null,(DepositParticipant)villager,villager.getInventory(),true));
         for(var container:containers) {
-            var chest=chest(container);
-            if(chest==null || world.recipeContainer(container)!=chest)throw new IllegalStateException("Exact recipe requires a loaded single chest");
+            var chest=container(container);
+            if(chest==null || world.recipeContainer(container)!=chest)throw new IllegalStateException("Exact recipe requires loaded native storage");
             result.add(capture(chestAddress(container),container,(DepositParticipant)chest,chest,true));
         }
         return List.copyOf(result);
     }
-    private ChestBlockEntity chest(ContainerRef ref) {
+    private BaseContainerBlockEntity container(ContainerRef ref) {
         if(!level.dimension().identifier().toString().equals(ref.dimension()))return null;
         var pos=new BlockPos(ref.x(),ref.y(),ref.z());
         var chunk=level.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);
         if(chunk==null)return null;
         var state=chunk.getBlockState(pos);
+        var entity=chunk.getBlockEntities().get(pos);
+        if(state.is(Blocks.BARREL) && entity instanceof BarrelBlockEntity barrel)return barrel;
         return state.is(Blocks.CHEST) && state.getValue(ChestBlock.TYPE)==ChestType.SINGLE
-                && chunk.getBlockEntities().get(pos) instanceof ChestBlockEntity chest ? chest : null;
+                && entity instanceof ChestBlockEntity chest?chest:null;
     }
     private Capture capture(String address,ContainerRef ref,DepositParticipant participant,Container inventory,boolean track) {
         var state=participant.cognitivecraft$depositParticipant();
@@ -162,7 +166,7 @@ final class FabricRecipeParticipants {
             String[] coordinates=address.substring(chest.length()).split(",",-1);
             if(coordinates.length!=3)return null;
             var ref=new ContainerRef(dimension,Integer.parseInt(coordinates[0]),Integer.parseInt(coordinates[1]),Integer.parseInt(coordinates[2]));
-            var current=chest(ref);
+            var current=container(ref);
             if(current!=null)return capture(address,ref,(DepositParticipant)current,current,false);
         }
         return null;

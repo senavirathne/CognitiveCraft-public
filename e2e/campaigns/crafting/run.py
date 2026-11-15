@@ -285,9 +285,10 @@ def run_case(h, case, *, integrated_recipe=False):
             for receipt in receipts:
                 if receipt["stage"] == "WITHDRAW":
                     withdrawals[receipt["item"]["id"]] += receipt["quantity"]
-            reconciled = produced == expected["produced"] and deposited == requested and dict(withdrawals) == expected["consumed"]
+            withdrawn = h.exact_withdrawals(result["views"][0], receipts) if integrated_recipe else dict(withdrawals)
+            reconciled = produced == expected["produced"] and deposited == requested and withdrawn == expected["consumed"]
             row["receiptReconciliation"].update(produced=produced, deposited=deposited,
-                                                withdrawals=dict(withdrawals), exact=reconciled)
+                                                withdrawals=withdrawn, exact=reconciled)
             if not reconciled or not attribution:
                 row["status"] = "FAIL_SAFETY"
         elif not attribution:

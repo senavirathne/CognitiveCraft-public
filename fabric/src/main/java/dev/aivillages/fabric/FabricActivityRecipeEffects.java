@@ -79,13 +79,14 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         final NativeRecipeJournal.Intent intent;
         final Jobs.Job owner;
         final List<ContainerRef> containers;
+        final long actionDeadline;
         final CompletableFuture<NativeRecipeJournal.Entry> prepared;
         CompletableFuture<NativeRecipeJournal.Entry> result;
         boolean possibleEffect;
         Reason blocked;
-        Pending(NativeRecipeJournal.Intent intent,Jobs.Job owner,List<ContainerRef> containers,
+        Pending(NativeRecipeJournal.Intent intent,Jobs.Job owner,List<ContainerRef> containers,long actionDeadline,
                 CompletableFuture<NativeRecipeJournal.Entry> prepared) {
-            this.intent=intent; this.owner=owner; this.containers=containers; this.prepared=prepared;
+            this.intent=intent; this.owner=owner; this.containers=containers; this.actionDeadline=actionDeadline; this.prepared=prepared;
         }
     }
 
@@ -152,8 +153,9 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             if(run.observedPhases>0 && !owner.current().resourceReceipts().getLast().choice().custodyAfter()
                     .equals(captured.getFirst().evidence().slots()))return refusal(Reason.STALE_OBSERVATION,false);
             var intent=new NativeRecipeJournal.Intent(id(operation.id(),"journal"),run.root,run.step,run.attempt,run.generation,
-                    operation.id(),run.correlation.artifact().sha256(),run.choice.digest(),batch,phase,stop,FabricRecipeParticipants.evidence(captured));
-            run.pending=new Pending(intent,owner,containers,write(()->journal.prepare(intent)));
+                    operation.id(),run.correlation.artifact().sha256(),run.choice.digest(),batch,phase,
+                    owner.allowance().deadlineEpochMillis(),FabricRecipeParticipants.evidence(captured));
+            run.pending=new Pending(intent,owner,containers,stop,write(()->journal.prepare(intent)));
             return waiting(false);
         } catch(FabricConcreteRecipeChoices.Refused denied){return refusal(denied.reason,false);}
         catch(Budgets.Exhausted exhausted){return refusal(Reason.BUDGET_EXHAUSTED,false);}
@@ -188,7 +190,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private void apply(Run run,Pending pending,Budgets.Ledger usage) {
         var intent=pending.intent;
         var current=current(run);
-        if(current==null || !LiveAttemptAuthority.unchanged(pending.owner,current) || clock.millis()>intent.deadline()
+        if(current==null || !LiveAttemptAuthority.unchanged(pending.owner,current) || clock.millis()>pending.actionDeadline
                 || !permits(run,intent.phase())) {
             noEffect(pending,current==null?Reason.INTERRUPTED:Reason.STALE_OBSERVATION,usage.snapshot());
             return;

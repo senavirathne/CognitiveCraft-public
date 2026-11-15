@@ -7,6 +7,17 @@ import static dev.aivillages.core.kernel.WorldReferenceResolver.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProductionLanguageTest {
+    @Test void progressiveAxeKeepsOneValidatedGoalAndDoesNotAllowUnrelatedCompounds() {
+        String request="Ada, make one wooden axe. Use the available resources, gather what is missing, and store the finished axe in this chest.";
+        assertEquals(Intent.UNKNOWN,classify(request,List.of("Ada")).intent());
+        var action=classify(ProductionLanguage.progressiveAxe(request).orElseThrow(),List.of("Ada"));
+        assertEquals(Intent.MAKE_WOODEN_AXES,action.intent());
+        assertEquals("Ada",action.actor().first());
+        assertEquals(ObjectType.CHEST,action.destination().objectType());
+        assertEquals(ReferenceState.EXPLICIT_NEAREST,action.destination().state());
+        assertTrue(ProductionLanguage.progressiveAxe(request.replace("gather","do not gather")).isEmpty());
+        assertTrue(ProductionLanguage.progressiveAxe(request+" Then gather oak logs.").isEmpty());
+    }
     @Test void originalSeparatesTwoIngredientsFromSevenRequestedOutputsAndImplicitActor() {
         var c=classify("Could you turn these two oak logs into seven planks for me?",List.of("Ada"));
         assertEquals(Intent.MAKE_OAK_PLANKS,c.intent());assertEquals(ReferenceState.OMITTED,c.actor().state());

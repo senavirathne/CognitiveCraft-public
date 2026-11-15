@@ -12,7 +12,7 @@ from .campaign import admissions
 from .campaign_review import HELD_OUT_PROFILE as PROFILE
 from .frozen_campaign import HELD_OUT_COUNT, HELD_OUT_SHA256, held_out
 from .gameplay import NativeGameplay, point, witness_identity
-from .native_evidence import (closed_job, item_at, raw_slices, request_job, require_command,
+from .native_evidence import (closed_job, exact_withdrawals, item_at, raw_slices, request_job, require_command,
                               require_native_primitive, stock_at, terminal_job, trace_offsets, verify_frames, verify_installation)
 from campaigns.crafting.generator import BIRCH, OAK
 from campaigns.crafting.harness import coord
@@ -71,13 +71,15 @@ def validate(case, row):
     steps = [step for step in job["activity"]["steps"] if step.get("choice")]
     require(steps and {step["artifact"]["sha256"] for step in steps} == {row["methodPin"]}, "No actual selected recipe pin")
     receipts = Counter()
-    for attempt in job["attempts"]:
-        for receipt in attempt["resourceReceipts"]:
-            require(receipt["origin"]["principal"]["id"] == row["principal"] and receipt["actor"]["entityId"] == actor,
-                    "Held-out effect authority changed")
+    actual = [receipt for attempt in job["attempts"] for receipt in attempt["resourceReceipts"]]
+    for receipt in actual:
+        require(receipt["origin"]["principal"]["id"] == row["principal"] and receipt["actor"]["entityId"] == actor,
+                "Held-out effect authority changed")
+        if receipt["stage"] != "WITHDRAW":
             receipts[receipt["stage"], receipt["item"]["id"]] += receipt["quantity"]
-    require(receipts == {("WITHDRAW", material): expected["inputLogs"], ("CRAFT", output): expected["physicalPlanks"],
-                          ("DEPOSIT", output): expected["delivered"]}, "Held-out native receipts differ from independent custody")
+    require(exact_withdrawals(job, actual) == {material: expected["inputLogs"]}
+            and receipts == {("CRAFT", output): expected["physicalPlanks"], ("DEPOSIT", output): expected["delivered"]},
+            "Held-out native receipts differ from independent custody")
     require(row["modelCallsBefore"] == row["modelCallsAfter"], "Known-method held-out invoked the stopped model")
 
 

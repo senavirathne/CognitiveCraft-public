@@ -146,6 +146,9 @@ public final class LanguageRequests {
         List<String> references(TrustedContext caller);
         CitizenRegistry.Addresses address(String reference, TrustedContext caller);
         BootstrapController.Submission submit(CapabilityRequest request, TrustedContext caller);
+        default BootstrapController.Submission submit(CapabilityRequest request,TrustedContext caller,Input authorizedInput) {
+            return submit(request,caller);
+        }
         void cancel(UUID run, TrustedContext caller);
 
         /** Scoped read only; bindings without run-status access expose no submitted cancellations. */
@@ -213,6 +216,7 @@ public final class LanguageRequests {
         final TrustedContext owner;
         final long deadline;
         Input input;
+        Input authorizedInput;
         Map<String, CitizenRegistry.Addresses> initialAddresses;
         Handle handle;
         CompletionStage<Timed> result;
@@ -253,6 +257,9 @@ public final class LanguageRequests {
     }
 
     public View ask(String text, TrustedContext caller) {
+        return ask(text,caller,false);
+    }
+    public View ask(String text,TrustedContext caller,boolean productionModifiers) {
         thread(); Objects.requireNonNull(caller);
         long deadline;
         try { deadline = Math.addExact(clock.millis(), DEADLINE_MILLIS); }
@@ -263,7 +270,12 @@ public final class LanguageRequests {
             tickets.remove(evict.id);
         }
         tickets.put(t.id, t);
-        try { t.input = new Input(text, binding.references(caller)); }
+        try {
+            var references=binding.references(caller);
+            t.authorizedInput=new Input(text,references);
+            t.input=productionModifiers?ProductionLanguage.progressiveAxe(text)
+                    .map(action->new Input(action,references)).orElse(t.authorizedInput):t.authorizedInput;
+        }
         catch (RuntimeException malformed) {
             return finish(t, Phase.REJECTED, Reason.REQUEST_INVALID, "Input/context limit", List.of(), null, false);
         }
@@ -564,7 +576,7 @@ public final class LanguageRequests {
             case NAMED -> finish(t, Phase.NAMED, null, resolved.message(), List.of(), null, false);
             case REQUEST -> {
                 BootstrapController.Submission submitted;
-                try { submitted = binding.submit(resolved.request(), t.owner); }
+                try { submitted = binding.submit(resolved.request(), t.owner,t.authorizedInput); }
                 catch (SecurityException denied) {
                     finish(t, Phase.REJECTED, Reason.AUTHORITY_DENIED,
                             "Current authority denied", List.of(), null, false); return;

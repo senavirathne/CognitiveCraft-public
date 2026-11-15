@@ -10,7 +10,7 @@ import runpy
 
 from .frozen_campaign import ORIGINAL_SHA256, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
-from .native_evidence import raw_slices, require_command, verify_installation
+from .native_evidence import exact_withdrawals, raw_slices, require_command, verify_installation
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
 from campaigns.crafting.run import needed_artifacts, require_case_fence, run_case
@@ -104,6 +104,9 @@ def review_case(case, row, root, pins, recipes, validate):
                 "Exact recipe choice or genuine immutable method is missing")
         reconciled = row["receiptReconciliation"]
         require(reconciled["exact"] and reconciled["attribution"], "Exact input/output receipts are missing")
+        actual = exact_withdrawals(job, row["execution"]["receipts"])
+        require(actual == reconciled["withdrawals"] == row["independentExpectation"]["consumed"],
+                "Actual bound batch materials differ from the frozen native oracle")
         require(row["delivered"] == case["quantity"], "Original exact goal was not delivered")
     return {"id": case["id"], "status": row["status"], "resultSha256": digest(root / "cases" / case["id"] / "result.json")}
 

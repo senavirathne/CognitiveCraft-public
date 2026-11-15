@@ -91,6 +91,10 @@ class NativeGameplay(CraftingHarness):
                 and ingredient in recipe["ingredients"][0], "Missing installed canonical variant input: " + ingredient)
         return ["" if slot < 0 else ingredient for slot in recipe["slots"]]
 
+    def exact_withdrawals(self, job, receipts):
+        from .native_evidence import exact_withdrawals
+        return exact_withdrawals(job, receipts)
+
 
 def witness_identity(metadata, source, jar, profile):
     tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, text=True).strip()

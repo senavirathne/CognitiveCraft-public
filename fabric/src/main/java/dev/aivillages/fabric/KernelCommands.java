@@ -73,6 +73,30 @@ final class KernelCommands {
                             +" nativeSettlement="+v.progress().availability().previousEffectsSettled()
                             +" currentStock="+(v.progress().availability().known()?v.progress().availability().destinationQuantity():"unknown"))); return 1;
                 }))));
+        var production=literal("production-activity");
+        var productionCitizen=argument("production-citizen",StringArgumentType.word());
+        var productionRecipe=argument("production-recipe",StringArgumentType.word());
+        var productionQuantity=argument("production-quantity",IntegerArgumentType.integer(1,64));
+        String[] productionPoint={"production-sx","production-sy","production-sz","production-dx","production-dy",
+                "production-dz","production-tx","production-ty","production-tz"};
+        ArgumentBuilder<CommandSourceStack,?> productionTail=null;
+        for(int i=productionPoint.length-1;i>=0;i--) {
+            var coordinate=argument(productionPoint[i],IntegerArgumentType.integer());
+            if(productionTail!=null)coordinate.then(productionTail);
+            if(i==5 || i==8) {
+                int length=i+1;
+                coordinate.executes(c->safe(c,(ctx,session)->{
+                    var points=new int[length];
+                    for(int index=0;index<length;index++)points[index]=IntegerArgumentType.getInteger(ctx,productionPoint[index]);
+                    var submitted=session.queueProduction(ctx.getSource().getPlayerOrException(),uuid(ctx,"production-citizen"),
+                            StringArgumentType.getString(ctx,"production-recipe"),IntegerArgumentType.getInteger(ctx,"production-quantity"),points);
+                    tell(ctx,"activity="+submitted.id()+" accepted="+submitted.accepted()+" reason="+submitted.reason());
+                    return submitted.accepted()?1:0;
+                }));
+            }
+            productionTail=coordinate;
+        }
+        kernel.then(production.then(productionCitizen.then(productionRecipe.then(productionQuantity.then(productionTail)))));
         kernel.then(literal("enroll")
                 .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .executes(context -> safe(context, (c, session) -> {

@@ -53,7 +53,14 @@ final class FabricProductionActivities {
                 var model=decision.model();
                 var next=control.next(model.memory(),model.blocker(),model.nextCheckMillis());
                 if(decision.proposal()==null)jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),next);
-                else jobs.prepareActivity(decision.proposal(),job.origin(),next);
+                else {
+                    var prepared=jobs.prepareActivity(decision.proposal(),job.origin(),next);
+                    if(!prepared.accepted() && jobs.ready()) {
+                        var refused=control.next(control.memory(),prepared.reason()==null?"ACTIVITY_PREPARATION_REFUSED":prepared.reason().name(),
+                                Math.min(job.allowance().deadlineEpochMillis(),clock.millis()+1000));
+                        jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),refused);
+                    }
+                }
             } catch(IllegalArgumentException | IllegalStateException unavailable) {
                 var next=control.next(control.memory(),"CURRENT_NATIVE_PLAN_UNAVAILABLE",
                         Math.min(job.allowance().deadlineEpochMillis(),clock.millis()+1000));
@@ -88,11 +95,6 @@ final class FabricProductionActivities {
                 || !authority.currentlyAllows(root.responsible(),Effect.OBSERVE,root.origin()))return ActivityRuntime.Validation.INVALID;
         if(choice==null) {
             var op=request.request().capability();
-            if(CraftingTablePlacement.is(op)) {
-                var preflight=world.placementPreflight(request);
-                return preflight.reason()==null && preflight.availableItems()>=1?
-                        ActivityRuntime.Validation.VALID:ActivityRuntime.Validation.INVALID;
-            }
             if(LogAcquisition.is(op)) {
                 var available=acquisition(root);
                 if(!available.isEmpty() && available.getFirst().method()!=null
@@ -105,6 +107,17 @@ final class FabricProductionActivities {
         var recipe=choice.recipe();
         return world.validateActivityChoice(v2,recipe,choiceAuthority(root,v2),ActivityRecipeEvidence.sources(v2,recipe))==null?
                 ActivityRuntime.Validation.VALID:ActivityRuntime.Validation.INVALID;
+    }
+
+    ObservationSnapshot routingObservation(Jobs.Job job,ValidatedRequest invocation,ObservationSnapshot original) {
+        var step=job.activity().current();
+        if(validate(job,invocation,step.choice(),step.quantities())!=ActivityRuntime.Validation.VALID)return original;
+        var counts=new HashMap<>(original.counts());
+        counts.put("unknown_cells",0L);counts.put("recipe_supported",1L);
+        var output=RecipeProduction.of(invocation.request().capability()).output();
+        counts.put("output_capacity",(long)world.inspectRecipeContainer(ResourceDelivery.destinationAddress(invocation.request()),output).capacity());
+        return new ObservationSnapshot(original.reference(),ObservationStatus.PRESENT,original.targetIdentity(),
+                original.observedTick(),original.scannedCells(),counts);
     }
 
     private Snapshot observe(Jobs.Job job) {
@@ -144,7 +157,7 @@ final class FabricProductionActivities {
         return new Snapshot(SCHEMA,job.origin().scope().worldId(),job.id(),job.revision(),job.origin(),
                 new Owner(job.origin().principal().id(),actor,job.generation(),writable,false,false,false),
                 goal,destination,job.fulfilled(),ProductionActivityPlanner.budget(job),clock.millis(),revision,
-                stock,acquisition,profiles,facility,List.of(),Set.of(Kind.PRODUCE,Kind.ACQUIRE,Kind.PLACE_TABLE),
+                stock,acquisition,profiles,facility,List.of(),Set.of(Kind.PRODUCE,Kind.ACQUIRE),
                 progress(job),true,false,0);
     }
 

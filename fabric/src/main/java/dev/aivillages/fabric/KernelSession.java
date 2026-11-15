@@ -10,6 +10,10 @@ import dev.aivillages.core.kernel.runtime.evidence.PickupJournal;
 import dev.aivillages.core.kernel.runtime.evidence.PickupStoppedSource;
 import dev.aivillages.core.kernel.runtime.evidence.JoinedDepositStoppedSource;
 import dev.aivillages.core.kernel.runtime.evidence.HarvestPickupRetention;
+import dev.aivillages.core.kernel.runtime.evidence.NativeRecipeJournal;
+import dev.aivillages.core.kernel.runtime.evidence.RecipeEvidenceRetention;
+import dev.aivillages.core.kernel.runtime.activity.ActivityPayload;
+import dev.aivillages.core.kernel.runtime.activity.ActivityRuntime;
 import dev.aivillages.fabric.runtime.evidence.FabricPickupProtocol;
 import dev.aivillages.fabric.runtime.evidence.FabricHarvestProtocol;
 import dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol;
@@ -65,7 +69,8 @@ public final class KernelSession implements AutoCloseable {
                           dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter history,JobHistory jobHistory,
                           DepositJournal deposits,DepositJournal.Snapshot initialDeposits,boolean depositsReadOnly,
                           HarvestJournal harvests,HarvestJournal.Snapshot initialHarvests,boolean harvestsReadOnly,
-                          PickupJournal pickups,PickupJournal.Snapshot initialPickups,boolean pickupsReadOnly) { }
+                          PickupJournal pickups,PickupJournal.Snapshot initialPickups,boolean pickupsReadOnly,
+                          NativeRecipeJournal exactRecipes) { }
 
     private final MinecraftServer server;
     private final Clock clock = Clock.systemUTC();
@@ -143,6 +148,10 @@ public final class KernelSession implements AutoCloseable {
     private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activityRuntime;
     private dev.aivillages.core.kernel.runtime.activity.ActivityCheckpoints activityCheckpoints;
     private final boolean activityRuntimeEnabled = "true".equalsIgnoreCase(System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_RUNTIME","false"));
+    private final boolean exactProductionEnabled = activityRuntimeEnabled && depositEvidenceEnabled
+            && "true".equalsIgnoreCase(System.getenv().getOrDefault("COGNITIVECRAFT_I00_PRODUCTION","false"));
+    private FabricProductionActivities productionActivities;
+    private FabricActivityRecipeEffects exactRecipeEffects;
     private final boolean activityViewEnabled = "true".equalsIgnoreCase(
             System.getenv().getOrDefault("COGNITIVECRAFT_ACTIVITY_VIEW", "false"));
     private final Map<String, java.util.Set<WorldRetentionManager.Key>> desiredRoots = new LinkedHashMap<>();
@@ -231,6 +240,7 @@ public final class KernelSession implements AutoCloseable {
             DepositJournal deposits=null;
             HarvestJournal harvests=null;
             PickupJournal pickups=null;
+            NativeRecipeJournal exactRecipes=null;
             try {
                 journal = BootstrapJournal.open(world);
                 identities = CitizenIdentityStore.open(world, journal.state().worldId());
@@ -239,8 +249,10 @@ public final class KernelSession implements AutoCloseable {
                     throw new IllegalStateException("Bootstrap compatibility migration: " + migration.status());
                 jobs = JobJournal.open(world, journal.state().worldId());
                 leases = ResourceLeaseJournal.open(world, journal.state().worldId());
-                if(depositEvidenceEnabled || DepositJournal.exists(world))
+                if(depositEvidenceEnabled || DepositJournal.exists(world) || NativeRecipeJournal.exists(world))
                     deposits=DepositJournal.open(world,journal.state().worldId());
+                if(exactProductionEnabled || NativeRecipeJournal.exists(world))
+                    exactRecipes=NativeRecipeJournal.open(world,journal.state().worldId());
                 if(harvestEvidenceEnabled || pickupEvidenceEnabled || PickupJournal.exists(world) || HarvestJournal.exists(world))
                     harvests=HarvestJournal.open(world,journal.state().worldId());
                 if(pickupEvidenceEnabled || PickupJournal.exists(world))
@@ -323,7 +335,8 @@ public final class KernelSession implements AutoCloseable {
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
                 if(history!=null)retention.register(history.retentionOwner());
-                if(deposits!=null) {
+                if(exactRecipes!=null)retention.register(RecipeEvidenceRetention.bind(deposits,exactRecipes));
+                else if(deposits!=null) {
                     retention.register(harvests==null?deposits.retentionOwner():deposits.retentionOwnerForCurrentWriter());
                     deposits.capacity(amount->retention.assessReplacement("deposits",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
                 }
@@ -350,8 +363,9 @@ public final class KernelSession implements AutoCloseable {
                         organizations, organizations.snapshot(), organizations.readOnly(),
                         mandates, mandates.snapshot(), mandates.readOnly(), history,jobHistory, deposits,deposits==null?null:deposits.snapshot(),deposits!=null && deposits.readOnly(),
                         harvests,harvests==null?null:harvests.snapshot(),harvests!=null && harvests.readOnly(),
-                        pickups,pickups==null?null:pickups.snapshot(),pickups!=null && pickups.readOnly());
+                        pickups,pickups==null?null:pickups.snapshot(),pickups!=null && pickups.readOnly(),exactRecipes);
             } catch (Exception failure) {
+                if(exactRecipes!=null)try{exactRecipes.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(pickups!=null)try{pickups.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(harvests!=null)try{harvests.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
                 if(deposits!=null)try{deposits.close();}catch(Exception closeFailure){failure.addSuppressed(closeFailure);}
@@ -457,6 +471,7 @@ public final class KernelSession implements AutoCloseable {
         stagingTransfers.tick();
         recoveredOwners.step();
         if(activityCheckpoints!=null)activityCheckpoints.step();
+        if(productionActivities!=null)productionActivities.step(this::activitySettled);
         if(dispatchRevision!=jobs.snapshot().revision()) {
             dispatchScopes=jobs.snapshot().jobs().stream().filter(this::dispatchableSubmission)
                     .map(Jobs.Job::origin).distinct().sorted(java.util.Comparator.comparing(c->c.principal().id().toString()
@@ -779,11 +794,41 @@ public final class KernelSession implements AutoCloseable {
                 access,grants,runControl,dispatchGateway,
                 dispatchGateway::releaseRun,clock,()->server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8,16,32,64));
+        if(loaded.exactRecipes()!=null) {
+            exactRecipeEffects=new FabricActivityRecipeEffects(worldAccess,jobs,leases,loaded.exactRecipes(),authority,clock,worker);
+            if(exactProductionEnabled && !loaded.exactRecipes().fenced()) {
+                gateway.exactRecipeEffects(exactRecipeEffects);
+                productionActivities=new FabricProductionActivities(server.overworld(),worldAccess,jobs,leases,repository,access,authority,clock);
+                jobs.activityAdapter(new ActivityRuntime.SemanticAdapter() {
+                    public ActivityRuntime.Validation validate(ActivityPayload.Choice c,ActivityPayload.Quantities q,CapabilityRequest r) {
+                        return ActivityRuntime.Validation.UNAVAILABLE;
+                    }
+                    public ActivityRuntime.Validation validate(Jobs.Job root,ValidatedRequest r,ActivityPayload.Choice c,ActivityPayload.Quantities q) {
+                        if(c==null && LogAcquisition.is(r.request().capability()) && activityCheckpoints==null)
+                            return ActivityRuntime.Validation.UNAVAILABLE;
+                        return productionActivities.validate(root,r,c,q);
+                    }
+                    public boolean acknowledged(Jobs.Job root,Jobs.Attempt attempt,ResourceDelivery.Receipt receipt) {
+                        return exactRecipeEffects.acknowledged(root,attempt,receipt);
+                    }
+                    public Jobs.StoppedObservation observeStopped(Jobs.StoppedContext original,ActivityPayload.Choice c) {
+                        return exactRecipeEffects.observeStopped(original,c);
+                    }
+                });
+            }
+        }
         dispatcher=new WorkerDispatcher(jobs,new MandateWorkers(citizens,mandates),this::observe,resolver::resolve,
-                WorkerDispatcher.executorPort(dispatchExecutor,repository),WorkerDispatcher.leasedClaims(dispatchGateway),
+                WorkerDispatcher.executorPort(dispatchExecutor,repository,(job,bound,method,run)->
+                        productionActivities==null?Reason.UNSUPPORTED_PRIMITIVE:exactRecipeEffects.bind(job,bound,method,run)),
+                WorkerDispatcher.leasedClaims(dispatchGateway),
                 job->ResourceDelivery.isDelivery(job.request().request().capability()) && dispatchableSubmission(job),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
-        dispatcher.jobResolver((job,request,observation)->resolver.withEligibility(access.policyForJob(job.id())).resolve(request,observation));
+        dispatcher.jobResolver((job,request,observation)->{
+            var scoped=resolver.withEligibility(access.policyForJob(job.id()));
+            if(productionActivities!=null && job.activity()!=null && job.activity().current().exactChoice())
+                return scoped.resolveForPrerequisite(request,productionActivities.routingObservation(job,request,observation));
+            return scoped.resolve(request,observation);
+        });
 
         // Trusted runtime staging uses the same Jobs, lease writer, native permission/fence and
         // cumulative allowance. It supplies no model method, goal credit or durable side ledger.
@@ -824,6 +869,9 @@ public final class KernelSession implements AutoCloseable {
                         return dev.aivillages.core.kernel.runtime.RecoveredJobOwners.Presence.AVAILABLE;
                     }
                 }, original -> {
+                    var root=jobs.query(original.job(),original.origin());
+                    if(root.activity()!=null && root.activity().current()!=null && root.activity().current().exactChoice()
+                            && exactRecipeEffects!=null)return exactRecipeEffects.observeStopped(original,root.activity().current().choice());
                     if(depositProtocol!=null && pickupProtocol!=null && depositProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
                             && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
                         return new JoinedDepositStoppedSource(jobs,new JoinedDepositStoppedSource.Evidence() {
@@ -848,7 +896,8 @@ public final class KernelSession implements AutoCloseable {
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target)
                 || depositProtocol!=null && depositProtocol.blocked(request,effect,target)
                 || harvestProtocol!=null && harvestProtocol.blocked(request,effect,target)
-                || pickupProtocol!=null && pickupProtocol.blocked(request,effect,target));
+                || pickupProtocol!=null && pickupProtocol.blocked(request,effect,target)
+                || exactRecipeEffects!=null && exactRecipeEffects.blocked(request,effect,target));
 
         lifecycle = new CitizenLifecycle(citizens, new CitizenWorkReconciler(actor -> {
             // Notify both owners; short-circuiting would leave the second owner's work running.
@@ -884,9 +933,24 @@ public final class KernelSession implements AutoCloseable {
             @Override public BootstrapController.Submission submit(CapabilityRequest request, TrustedContext caller) {
                 return submitRequest(request, caller, interpretingPlayer,true);
             }
-            @Override public void cancel(UUID run, TrustedContext caller) { controller.cancel(run, caller); }
+            @Override public BootstrapController.Submission submit(CapabilityRequest request,TrustedContext caller,LanguageRequests.Input input) {
+                if(productionActivities!=null && RecipeProduction.is(request.capability()))
+                    return submitProduction(request,caller,interpretingPlayer,authorizedGathering(input.text()));
+                return submit(request,caller);
+            }
+            @Override public void cancel(UUID run, TrustedContext caller) {
+                if(productionActivities!=null && !controller.ownsSubmission(run)) {
+                    var job=jobs.query(run,caller);
+                    if(job.activity()!=null && job.activity().production()!=null)jobs.cancel(run,job.guard(),caller);
+                    else throw new SecurityException("No owned production activity");
+                } else controller.cancel(run, caller);
+            }
             @Override public List<UUID> cancellableRunIds(TrustedContext caller) {
-                return controller.cancellableRunIds(caller);
+                var runs=new ArrayList<>(controller.cancellableRunIds(caller));
+                if(productionActivities!=null)jobs.snapshot().jobs().stream()
+                        .filter(j->j.origin().equals(caller) && j.activity()!=null && j.activity().production()!=null && !j.state().terminal())
+                        .map(Jobs.Job::id).forEach(runs::add);
+                return List.copyOf(runs);
             }
         }, clock);
     }
@@ -1586,6 +1650,61 @@ public final class KernelSession implements AutoCloseable {
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
     public Jobs.Job queuedJob(ServerPlayer player,UUID id){ready();return jobs.query(id,caller(player));}
+    BootstrapController.Submission queueProduction(ServerPlayer player,UUID citizenId,String recipe,int quantity,int[] at) {
+        ready();var owner=caller(player);var citizen=citizens.query(citizenId,owner);var actor=citizen.actor();
+        var cap=switch(recipe) {
+            case "sticks"->StickProduction.ID;
+            case "crafting-table","crafting-tables"->CraftingTableProduction.ID;
+            case "wooden-axe","wooden-axes"->WoodenAxeProduction.ID;
+            default->RecipeProduction.PlankMaterial.forOutput("minecraft:"+recipe.replace('-','_'))
+                    .map(m->m.capability(1)).orElse(null);
+        };
+        if(cap==null || at.length!=(cap.equals(WoodenAxeProduction.ID)?9:6))
+            return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
+        var dim=actor.dimension();
+        var args=new java.util.HashMap<String,Value>();
+        args.put("actor",new ActorValue(actor));args.put("amount",new IntValue(quantity));
+        args.put("source",new ContainerValue(new ContainerRef(dim,at[0],at[1],at[2])));
+        args.put("destination",new ContainerValue(new ContainerRef(dim,at[3],at[4],at[5])));
+        if(at.length==9)args.put("table",new FacilityValue(new FacilityRef(dim,at[6],at[7],at[8])));
+        return submitProduction(new CapabilityRequest(cap,args),owner,player,false);
+    }
+    private static boolean authorizedGathering(String original) {
+        return ProductionLanguage.progressiveAxe(original).isPresent();
+    }
+    private BootstrapController.Submission submitProduction(CapabilityRequest request,TrustedContext owner,ServerPlayer player,boolean gather) {
+        UUID id=UUID.randomUUID();
+        if(productionActivities==null)return new BootstrapController.Submission(id,false,Reason.UNSUPPORTED_PRIMITIVE);
+        if(player==null || player.hasDisconnected() || !player.getUUID().equals(owner.principal().id())
+                || !(request.arguments().get("actor") instanceof ActorValue selected) || !controls(selected.value(),owner))
+            return new BootstrapController.Submission(id,false,Reason.AUTHORITY_DENIED);
+        var actor=selected.value();
+        if(villager(actor)==null || villager(actor).level()!=player.level())return new BootstrapController.Submission(id,false,Reason.ACTOR_UNAVAILABLE);
+        var source=((ContainerValue)request.arguments().get("source")).value();
+        var destination=ResourceDelivery.destinationAddress(request);
+        long tick=server.overworld().getGameTime();
+        var observation=new ObservationRef(UUID.randomUUID(),tick,actor.dimension());
+        var bound=new ValidatedRequest(request,owner,observation);
+        var denied=worldAccess.permit(bound,Effect.WITHDRAW,new SurvivalGateway.Cell(source.dimension(),source.x(),source.y(),source.z()));
+        if(denied==null)denied=worldAccess.permit(bound,Effect.TRANSFER,new SurvivalGateway.Cell(destination.dimension(),destination.x(),destination.y(),destination.z()));
+        if(denied!=null)return new BootstrapController.Submission(id,false,denied);
+        Cuboid acquisition=null;
+        if(gather && activityCheckpoints!=null)acquisition=new Cuboid(source.dimension(),source.x()-4,source.y()-1,source.z()-4,
+                source.x()+4,source.y()+1,source.z()+4);
+        jobs.tick();
+        var change=jobs.createProductionActivity(id,request,owner,observation,OakPlankProduction.executionLimits(clock.millis()).total(),
+                ActivityPayload.MAX_STEPS,acquisition);
+        return new BootstrapController.Submission(id,change.accepted(),change.reason());
+    }
+    private boolean activitySettled(Jobs.Job job) {
+        if(job.activity()==null)return true;
+        var latest=job.activity().checkpoints().isEmpty()?null:job.activity().checkpoints().getLast();
+        if(job.activity().production()==null)return activityCheckpoints!=null && activityCheckpoints.ready(job);
+        if(activityCheckpoints!=null && !activityCheckpoints.ready(job))return false;
+        if(latest==null)return true;
+        var step=job.activity().forAttempt(latest.attempt());
+        return !step.exactChoice() || exactRecipeEffects!=null && exactRecipeEffects.settled(job,step);
+    }
     /** Read-only and private. Enabled explicitly for initial qualification, off by default. */
     /** Public opt-in A integration boundary. No model entry point is connected. */
     public dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Snapshot planningSnapshot(ServerPlayer player,UUID root) {
@@ -1610,7 +1729,7 @@ public final class KernelSession implements AutoCloseable {
         if(activityRuntime==null) {
             activityRuntime=new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(jobs,job->{
                 var request=job.request();var actor=job.responsible();var target=ResourceDelivery.destinationAddress(request.request());
-                boolean settled=activityCheckpoints!=null && activityCheckpoints.ready(job);
+                boolean settled=activitySettled(job);
                 if(!controls(actor,job.origin()) || !citizens.available(actor) || villager(actor)==null
                         || worldAccess.permit(request,Effect.OBSERVE,new SurvivalGateway.Cell(target.dimension(),target.x(),target.y(),target.z()))!=null)
                     return dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable();
@@ -1679,6 +1798,7 @@ public final class KernelSession implements AutoCloseable {
     }
     private boolean dispatchableSubmission(Jobs.Job job) {
         if(job.activity()!=null && !activityRuntimeEnabled)return false;
+        if(job.activity()!=null && job.activity().production()!=null && productionActivities==null)return false;
         if(stagingSubmissions.containsKey(job.submissionId()))return false;
         if(!controller.ownsSubmission(job.submissionId()))return true;
         if(controller.liveSubmission(job.submissionId()))return false;
@@ -1695,7 +1815,7 @@ public final class KernelSession implements AutoCloseable {
     void clearDispatchCache(){ready();dispatcher.clearPolicyCache();dispatchRevision=-1;dispatchScopes=List.of();}
     public LanguageRequests.View ask(ServerPlayer player, String message) {
         ready();
-        var view = language.ask(message, caller(player));
+        var view = language.ask(message,caller(player),productionActivities!=null);
         if (view.phase() == LanguageRequests.Phase.INTERPRETING) interpretingPlayer = player;
         return view;
     }
@@ -1883,6 +2003,10 @@ public final class KernelSession implements AutoCloseable {
                     opened.retentionService().closeWorker();
                     opened.knowledgeService().closeWorker();
                     Exception failedClose = null;
+                    if(opened.exactRecipes()!=null)try{opened.exactRecipes().close();}catch(Exception closeFailure){
+                        AiVillages.LOG.error("Exact recipe evidence close failed",closeFailure);
+                        failedClose=closeFailure;
+                    }
                     for (AutoCloseable store : List.of(opened.access(),opened.accomplishments(),opened.mandates(),opened.organizations(),opened.blueprints(),opened.plans(),opened.observations(), opened.evidence(), opened.repository(), opened.identities(), opened.journal(), opened.jobs(), opened.leases())) {
                         try { store.close(); }
                         catch (Exception closeFailure) {

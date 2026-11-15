@@ -20,12 +20,12 @@ public final class ProductionActivityPlanner {
 
     public Decision propose(Jobs.Job root,Snapshot frame,Memory memory,Budgets.Limits remaining,NativeChoice nativeChoice) {
         requireOriginal(root,frame,remaining);
-        var selected=planner.next(frame,null,memory);
+        var selected=planner.next(frame,null,memory,1);
         if(selected.neededChoice()!=null) {
             var candidate=PlanningChoiceBuilder.build(frame,selected.neededChoice());
             var offer=new ChoiceOffer(new ValidatedRequest(candidate.invocation(),root.origin(),root.request().observation()),
                     candidate.choice(),candidate.sources());
-            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),null,memory);
+            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),null,memory,1);
         }
         var state=new PlanningModelDecision(selected.memory(),selected.blocker(),
                 selected.analysis()!=null && selected.analysis().feasibility()==Feasibility.FEASIBLE,selected.nextCheckMillis());
@@ -40,6 +40,7 @@ public final class ProductionActivityPlanner {
                 || !frame.owner().executor().equals(root.responsible()) || frame.owner().executionGeneration()!=root.generation()
                 || !frame.owner().originalOwner().equals(root.origin().principal().id()) || frame.confirmedCredit()!=root.fulfilled()
                 || frame.goal().mode()!=Mode.valueOf(root.activity().mode().name())
+                || !RecipeProduction.of(request.capability()).output().id().equals(frame.goal().item().id())
                 || frame.goal().demand()!=((IntValue)request.arguments().get("amount")).value()
                 || !frame.goal().destination().equals(ResourceDelivery.destinationAddress(request))
                 || frame.budget().absoluteDeadlineMillis()!=root.allowance().deadlineEpochMillis()

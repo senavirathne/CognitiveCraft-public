@@ -2,6 +2,7 @@ package dev.aivillages.core.kernel;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static dev.aivillages.core.kernel.Contracts.CapabilityId;
@@ -45,6 +46,19 @@ public final class ProductionLanguage {
     private static final Pattern INPUT_CLAUSE=Pattern.compile("(?:\\s*[.;]\\s*(?:please\\s+)?use\\s+|\\s+(?:using|with)\\s+)"
             +INPUT+"\\s+from\\s+(?<container>.{1,180}?)(?=\\s*(?:[.;!?]|$|(?:and\\s+)?(?:put|store|deposit|deliver)\\b))",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern PROGRESSIVE_AXE=Pattern.compile(
+            "^(?<goal>[^.!?;]+?\\b(?:make|craft|produce)\\s+(?:"+COUNT+")\\s+wooden\\s+axes?)[.!?;]\\s*"
+            +"(?:please\\s+)?use\\s+(?:the\\s+)?available\\s+(?:resources|materials|stock|supplies)\\s*,\\s*"
+            +"gather\\s+(?:only\\s+)?(?:what\\s+is\\s+missing|any\\s+missing\\s+resources)\\s*,\\s*(?:and\\s+)?"
+            +"(?<delivery>store|deposit|put|deliver)\\s+(?:the\\s+(?:finished\\s+)?(?:wooden\\s+)?axes?|it|them)\\s+"
+            +"(?<destination>(?:in|into|to|at)\\s+[^.!?;]+)[.!?]*$",Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /** One production goal plus an explicitly authorized gather-if-needed modifier. */
+    public static Optional<String> progressiveAxe(String submitted) {
+        var match=PROGRESSIVE_AXE.matcher(submitted.strip());
+        if(!match.matches() || Pattern.compile("\\b(?:not|never|don['’]t|cannot)\\b",Pattern.CASE_INSENSITIVE).matcher(submitted).find())
+            return Optional.empty();
+        return Optional.of(match.group("goal")+" and "+match.group("delivery")+" it "+match.group("destination"));
+    }
     // Existing registered single-input producers. Multi-ingredient methods require their own semantics.
     private static final List<CapabilityId> PRODUCERS=List.of(OakPlankProduction.ID,BirchPlankProduction.ID,
             StickProduction.ID,CraftingTableProduction.ID);

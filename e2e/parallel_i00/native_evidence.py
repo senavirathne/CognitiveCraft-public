@@ -1,6 +1,9 @@
 """Independent readers for synchronized native client and server witnesses."""
 from __future__ import annotations
 
+import base64
+from collections import Counter
+import hashlib
 import json
 import re
 
@@ -131,3 +134,31 @@ def verify_installation(root, metadata, players):
             file = mods / name
             require(file.is_file() and not file.is_symlink() and digest(file) == binaries[key]["sha256"],
                     "Installed gameplay binary or instrument changed: " + str(file))
+
+
+def exact_withdrawals(job, receipts):
+    """Project each authenticated batch withdrawal onto its observed exact materials."""
+    attempts = {attempt["id"]: attempt for attempt in job["attempts"]}
+    steps = {step["id"]: step for step in job["activity"]["steps"]}
+    by_batch, totals = set(), Counter()
+    for receipt in receipts:
+        if receipt["stage"] != "WITHDRAW":
+            continue
+        witness = receipt["choice"]
+        step = steps[witness["step"]]
+        attempt = attempts[witness["attempt"]]
+        choice = step["choice"]
+        body = base64.b64decode(choice["base64"], validate=True)
+        require(witness["root"] == job["id"] and attempt["id"] == step["attempt"]
+                and attempt["generation"] == witness["generation"] and receipt in attempt["resourceReceipts"]
+                and choice["exactRecipe"] is True and hashlib.sha256(body).hexdigest() == choice["sha256"] == witness["choiceDigest"],
+                "Withdrawal not bound to its original certified exact choice and unchanged attempt")
+        choice_batches = json.loads(body)["batches"]
+        batch_index = witness["batch"]
+        require(0 <= batch_index < len(choice_batches) and (step["id"], batch_index) not in by_batch,
+                "Unknown or duplicate exact-choice withdrawal")
+        by_batch.add((step["id"], batch_index))
+        bindings = choice_batches[batch_index]["bindings"]
+        require(len(bindings) == receipt["quantity"], "Aggregate native withdrawal does not cover every exact grid input")
+        totals.update(binding["item"]["id"] for binding in bindings)
+    return dict(totals)

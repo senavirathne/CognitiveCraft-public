@@ -47,11 +47,11 @@ public final class ActivityCheckpoints {
         try {
             if(entry.result()==null || entry.result().live()!=Live.COMPLETE || entry.intent().pickupPrefix()==null)return false;
             var k=entry.intent().key();Job job=jobs.query(k.root(),entry.intent().origin());
-            if(job.activity()==null || !k.root().equals(k.step()) || !job.origin().equals(entry.intent().origin())
-                    || !LogAcquisition.is(job.request().request().capability()))return false;
+            if(job.activity()==null || !k.root().equals(k.step()) || !job.origin().equals(entry.intent().origin()))return false;
             var checkpoint=job.activity().checkpoints().stream().filter(c->c.attempt().equals(k.attempt())&&c.generation()==k.generation()).findFirst();
             if(checkpoint.isEmpty() || checkpoint.get().quantity()!=1)return false;
             var attempt=job.attempts().stream().filter(a->a.id().equals(k.attempt())&&a.generation()==k.generation()).findFirst().orElseThrow();
+            if(!LogAcquisition.is(attempt.bound().request().capability()))return false;
             var pickup=entry.intent().pickupPrefix().pickup();var harvest=pickup.intent().harvest();
             var receipts=List.of(harvest.result().receipt(),pickup.result().receipt(),entry.result().receipt());
             return !attempt.open() && attempt.terminal()!=null && attempt.terminal().status()==Outcomes.ExecutionStatus.SUCCEEDED
@@ -69,6 +69,10 @@ public final class ActivityCheckpoints {
         // The qualified native predecessor is within this original root, never an unrelated old activity.
         if(job.activity().checkpoints().isEmpty())return entries.stream().noneMatch(e->e.intent().actor().address().equals(job.responsible().entityId().toString())&&!e.intent().key().root().equals(job.id()));
         for(var c:job.activity().checkpoints()) {
+            if(job.activity().production()!=null) {
+                var step=job.activity().forAttempt(c.attempt());
+                if(step==null || step.invocation()==null || !LogAcquisition.is(step.invocation().capability()))continue;
+            }
             var found=entries.stream().filter(e->e.intent().key().root().equals(job.id())&&e.intent().key().attempt().equals(c.attempt())
                     &&e.intent().key().generation()==c.generation()&&matches(e)).toList();
             if(found.size()!=1 || !deposits.settled(found.getFirst()))return false;
