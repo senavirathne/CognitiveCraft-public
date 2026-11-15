@@ -30,6 +30,18 @@ def recipe_key(output):
     return output.removeprefix("minecraft:").replace("_", "-")
 
 
+def variant_material(output):
+    if output not in NEW_PLANKS:
+        raise ValueError("No independent variant admission binding for " + output)
+    return output.removeprefix("minecraft:").removesuffix("_planks")
+
+
+def variant_input(output):
+    material = variant_material(output)
+    suffix = {"bamboo": "block", "crimson": "stem", "warped": "stem"}.get(material, "log")
+    return "minecraft:" + material + "_" + suffix
+
+
 class NativeGameplay(CraftingHarness):
     admission_order = CraftingHarness.admission_order + NEW_PLANKS
 
@@ -65,8 +77,17 @@ class NativeGameplay(CraftingHarness):
         output = case.get("output")
         if output not in NEW_PLANKS:
             return super().command_text(case)
-        return (f"/aivillage kernel make-{recipe_key(output)} {self.citizens['PlayerA']} {case['quantity']} "
+        return (f"/aivillage kernel make-variant-planks {variant_material(output)} {self.citizens['PlayerA']} {case['quantity']} "
                 + coord(self.source + self.destination))
+
+    def admission_grid(self, output, recipe):
+        if output not in NEW_PLANKS:
+            return super().admission_grid(output, recipe)
+        ingredient = variant_input(output)
+        require(len(recipe["ingredients"]) == 1 and recipe["slots"].count(0) == 1
+                and all(slot in (-1, 0) for slot in recipe["slots"])
+                and ingredient in recipe["ingredients"][0], "Missing installed canonical variant input: " + ingredient)
+        return ["" if slot < 0 else ingredient for slot in recipe["slots"]]
 
 
 def witness_identity(metadata, source, jar, profile):

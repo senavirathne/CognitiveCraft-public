@@ -276,6 +276,12 @@ class CraftingHarness(Harness):
     def admission_command_text(self, case):
         return self.command_text(case)
 
+    def admission_grid(self, output, recipe):
+        return ["" if i < 0 else (OAK if OAK in recipe["ingredients"][i] else
+                "minecraft:oak_log" if "minecraft:oak_log" in recipe["ingredients"][i] else
+                "minecraft:birch_log" if "minecraft:birch_log" in recipe["ingredients"][i] else recipe["ingredients"][i][0])
+                for i in recipe["slots"]]
+
     def submit_command(self, text):
         self.actions_active = True
         self.case_attempted = True
@@ -375,14 +381,12 @@ class CraftingHarness(Harness):
                 fixture_blocks = {}
                 recipe = self.recipes.get(output)
                 if recipe:
-                    grid = ["" if i < 0 else (OAK if OAK in recipe["ingredients"][i] else
-                            "minecraft:oak_log" if "minecraft:oak_log" in recipe["ingredients"][i] else
-                            "minecraft:birch_log" if "minecraft:birch_log" in recipe["ingredients"][i] else recipe["ingredients"][i][0])
-                            for i in recipe["slots"]]
+                    grid = self.admission_grid(output, recipe)
                     case = {"id": self.family, "mode": "recipe", "output": output, "recipe": output,
                             "grid": grid, "quantity": recipe["count"], "surplus": 0,
                             "actor": 0, "location": 0, "layout": "packed", "container": "chest"}
-                    expected = requirements(self.probe(case), case["quantity"])
+                    probe = self.probe(case)
+                    expected = requirements(probe, case["quantity"])
                     self.prepare(case, expected)
                     text = self.admission_command_text(case)
                 else:
@@ -420,10 +424,13 @@ class CraftingHarness(Harness):
                                 self.container(self.source, TABLE) == 0, "No physical supplied-item placement")
                     else:
                         require(self.container(self.destination, material) == 1, "No physical gathered input")
+                frame = self.screenshot("PlayerA", "genuine-admission", chat=True)
                 self.artifacts[output] = view["marker"]["artifactSha256"]
                 row.update(status="PASS", request=request, result=result, callsBefore=calls, callsAfter=self.model_calls(),
-                           before=physical_before, after=physical_after, conservation=balance)
-                self.screenshot("PlayerA", "genuine-admission", chat=True)
+                           before=physical_before, after=physical_after, clientBefore=client_before,
+                           clientAfter=client_after, conservation=balance, frame=frame)
+                if recipe:
+                    row.update(case=case, nativeProbe=probe, source=self.source, destination=self.destination)
             except Exception as error:
                 row.update(status="BLOCKED_ADMISSION", error=repr(error))
                 self.cleanup()

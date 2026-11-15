@@ -121,6 +121,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 ? oakBox(new BlockPos(ref.x(),ref.y(),ref.z())) : null;
     }
     boolean recipeReach(Villager v,BlockPos p) {return canReach(v,p) && level.mayInteract(v,p);}
+    ServerLevel level() { return level; }
     String recipeContainerFingerprint(ContainerRef ref) {
         Container c=recipeContainer(ref);return c==null ? "" : FabricRecipeTransactions.fingerprint(c);
     }

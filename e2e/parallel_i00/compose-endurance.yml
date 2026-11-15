@@ -1,0 +1,7 @@
+services:
+  minecraft:
+    environment:
+      COGNITIVECRAFT_I00_PRODUCTION: 'true'
+      COGNITIVECRAFT_ACTIVITY_RUNTIME: 'true'
+      COGNITIVECRAFT_ACTIVITY_VIEW: 'true'
+      COGNITIVECRAFT_I00_ENDURANCE_OBSERVER: 'true'
