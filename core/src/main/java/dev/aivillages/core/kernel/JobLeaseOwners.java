@@ -32,6 +32,10 @@ public final class JobLeaseOwners implements ResourceLeaseService.Owners {
         return new OwnerFacts(job.origin(),actor,run,reason==null,reason);
     }
     public Owner byRun(ValidatedRequest request,RunCorrelation correlation) {
+        var job=execution(request,correlation);
+        return new Owner(job.id(),job.generation());
+    }
+    public Jobs.Job execution(ValidatedRequest request,RunCorrelation correlation) {
         for(Jobs.Job job:jobs.snapshot().jobs()) {
             Jobs.Attempt attempt=job.current();
             Jobs.ExecutionReference current=attempt==null || attempt.executions().isEmpty()
@@ -43,7 +47,7 @@ public final class JobLeaseOwners implements ResourceLeaseService.Owners {
                     && attempt.bound().context().equals(request.context())
                     && current.artifact().equals(correlation.artifact())
                     && jobs.mayControl(job.id(),job.generation(),request.context()))
-                return new Owner(job.id(),job.generation());
+                return job;
         }
         throw new SecurityException("No current durable job execution");
     }

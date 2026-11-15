@@ -5,9 +5,11 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
+import re
 import shutil
 import traceback
 import urllib.request
+import uuid
 
 from .gameplay import NativeGameplay, ROOT
 from .native_evidence import TERMINAL, closed_job, item_at, job_at, stock_at, terminal_job, trace_offsets, uuid_field
@@ -15,7 +17,7 @@ from campaigns.crafting.generator import AXE, LOG, OAK, STICK, TABLE
 from campaigns.crafting.harness import coord, fixture_observation
 from campaigns.crafting.invariants import delta, physical_custody, totals
 from campaigns.crafting.run import log_slices
-from parallel_b.guards import clean_owners
+from parallel_b.guards import clean_owners, clock_response
 from suite import atomic, read, reconnect_players, require
 
 PROFILE = "I00_PLAYER_AXE_WALKTHROUGH"
@@ -30,6 +32,37 @@ COLLECTED = "COLLECTED_PENDING_INDEPENDENT_REVIEW"
 
 class MissedCut(Exception):
     pass
+
+
+class WalkthroughHarness(NativeGameplay):
+    def clock(self, command):
+        require(command in {"tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze"}, "Unsafe native clock operation")
+        # The gameplay principal remains an ordinary player. Only the harness's
+        # established server console sends the bounded vanilla clock command.
+        log = self.root / "server/stdout.log"
+        offset = log.stat().st_size
+        control = {"id": str(uuid.uuid4()), "commands": [command]}
+        atomic(self.root / "server/control.json", control)
+
+        def acknowledgement():
+            sent = read(self.root / "server/control-ack.json")
+            if not sent or sent["id"] != control["id"]:
+                return None
+            with log.open("rb") as stream:
+                stream.seek(offset)
+                lines = stream.read().decode(errors="replace").splitlines()
+            for line in lines:
+                response = re.split(r"\]:\s+", line, maxsplit=1)[-1].strip()
+                try:
+                    if clock_response(command, response):
+                        return response
+                except ValueError:
+                    continue
+            return None
+
+        response = self.wait(acknowledgement, "Actual vanilla server clock response: " + command, 30)
+        self.event("verified-native-clock", {"command": command, "feedback": response, "control": control["id"]})
+        return response
 
 
 def cases(cohort):
@@ -72,7 +105,7 @@ def backend(h):
 
 
 def boot_trial(root, seed):
-    h = NativeGameplay(root, profile=PROFILE)
+    h = WalkthroughHarness(root, profile=PROFILE)
     # Each trial copies the admitted stopped world, then preserves that same
     # world's bytes across the measured cut. Only Docker and model cache reuse.
     h.project = seed.project

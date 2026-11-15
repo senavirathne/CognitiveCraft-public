@@ -573,7 +573,9 @@ public final class ResourceLeaseService {
         long held=held(r,rows,tick);return held==Long.MAX_VALUE?0:Math.max(0,stock-held);
     }
     static boolean conflicts(Resource a,Resource b) {
-        if(!a.world().equals(b.world()) || a.kind()!=b.kind() || !overlaps(a.area(),b.area()))return false;
+        if(!a.world().equals(b.world()) || !overlaps(a.area(),b.area()))return false;
+        if(a.recipeSource() && b.containerStock() || b.recipeSource() && a.containerStock())return true;
+        if(a.kind()!=b.kind())return false;
         return switch(a.kind()) {
             case SPACE,FACILITY -> true;
             case EQUIPMENT -> a.slot()==b.slot();

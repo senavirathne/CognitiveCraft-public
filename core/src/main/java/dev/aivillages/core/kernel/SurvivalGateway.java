@@ -22,6 +22,27 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
  */
 public final class SurvivalGateway implements GatewayPort {
     private static final long BREAK_STANCE_GRACE_TICKS = 4;
+    /** One composition-owned exact recipe adapter. The admitted interpreter still drives every operation. */
+    public interface ExactRecipeEffects {
+        boolean owns(UUID run);
+        Reason observe(ValidatedRequest request,RunCorrelation run,Budgets.Ledger usage);
+        ExactRecipeResult poll(ValidatedRequest request,RunCorrelation run,ActionHandle operation,
+                               ResourceDelivery.Stage phase,Budgets.Ledger usage,long deadline);
+        boolean possibleEffect(ActionHandle operation);
+        void release(UUID run);
+    }
+    public record ExactRecipeResult(boolean pending,boolean committed,ResourceDelivery.Receipt receipt,Reason reason) {
+        public ExactRecipeResult {
+            if(pending && (receipt!=null || reason!=null) || !pending && (receipt==null)==(reason==null)
+                    || receipt!=null && !committed)throw new IllegalArgumentException("Exact native effect result");
+        }
+    }
+    private ExactRecipeEffects exactRecipes;
+    public void exactRecipeEffects(ExactRecipeEffects effects) {
+        thread();
+        if(exactRecipes!=null)throw new IllegalStateException("Exact recipe adapter already attached");
+        exactRecipes=Objects.requireNonNull(effects);
+    }
     public enum ObservationKind { SOURCE_CROPS, ACTOR_STOCK, CONTAINER_STOCK,
         SOURCE_OAK_LOGS, ACTOR_OAK_STOCK, CONTAINER_OAK_STOCK, SOURCE_BIRCH_LOGS, ACTOR_BIRCH_STOCK, CONTAINER_BIRCH_STOCK }
     /** Exact bounded context inspected by an observation primitive, never a whole-world assertion. */
@@ -506,7 +527,8 @@ public final class SurvivalGateway implements GatewayPort {
 
     boolean nativeResultPending(ActionHandle handle){thread();return nativeResultPending(get(handle));}
     private boolean nativeResultPending(Active a) {
-        return a.pendingReceiptStart>=0 && (a.harvestTicket!=null && a.harvestOutcome!=null && a.harvestOutcome.harvest().removed()
+        return exactRecipes!=null && exactRecipes.possibleEffect(a.handle)
+                || a.pendingReceiptStart>=0 && (a.harvestTicket!=null && a.harvestOutcome!=null && a.harvestOutcome.harvest().removed()
                 || a.pickupTicket!=null && a.pickupOutcome!=null && a.pickupOutcome.pickup().collected()>0
                 || a.depositTicket!=null && a.depositOutcome!=null && a.depositOutcome.deposited()>0);
     }
@@ -527,17 +549,22 @@ public final class SurvivalGateway implements GatewayPort {
         world.stopMovement(run.actor);
         world.release(run.actor, runId);
         runs.remove(runId);
+        if(exactRecipes!=null)exactRecipes.release(runId);
     }
     /** Executor/controller must call this after terminal execution; no crash replay exists. */
     public void releaseRun(UUID runId) {
         thread();
         Run run = runs.remove(runId);
-        if (run == null) return;
+        if (run == null) {
+            if(exactRecipes!=null)exactRecipes.release(runId);
+            return;
+        }
         for (Active action : handles.values())
             if (action.run == run && !action.current.terminal())
                 finish(action, Reason.INTERRUPTED, null, null);
         world.stopMovement(run.actor);
         world.release(run.actor, runId);
+        if(exactRecipes!=null)exactRecipes.release(runId);
     }
     /**
      * Retains terminal answers while capacity allows. Once a run is released, its oldest
@@ -672,6 +699,10 @@ public final class SurvivalGateway implements GatewayPort {
         if (!allows(action,effect,target)) {finish(action,Reason.AUTHORITY_DENIED,null,null);return;}
         Reason denied=world.permit(run.request,effect,target);
         if(denied!=null) {finish(action,denied,null,null);return;}
+        if(exactRecipes!=null && exactRecipes.owns(run.id)) {
+            stepExactRecipe(action,effect,target);
+            return;
+        }
         long requested=((IntValue)run.request.request().arguments().get("amount")).value();
         if(op==Operation.OBSERVE_BIRCH_PLANK_INPUTS || op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.OBSERVE_TABLE_INPUTS) {
             if(run.recipe!=null || run.inputsWithdrawn!=0) {finish(action,Reason.REQUEST_INVALID,null,null);return;}
@@ -750,6 +781,33 @@ public final class SurvivalGateway implements GatewayPort {
             if(Boolean.getBoolean("cognitivecraft.gametest.trace"))System.out.println((definition.table() ? "RB006A_EFFECT run=" : definition.axe() ? "RB004_EFFECT run=" : run.request.request().capability().equals(StickProduction.ID) ? "RB003_EFFECT run=" : "RB002_EFFECT run=")+run.id+" stage="+stage+" quantity="+quantity+" retained="+retained);
             finish(action,null,new IntValue(quantity),null);
         } else finish(action,result.reason()==null ? Reason.ACTION_FAILED : result.reason(),null,null);
+    }
+
+    private void stepExactRecipe(Active action,Effect effect,Cell target) {
+        var run=action.run;
+        if(effect==Effect.OBSERVE) {
+            Reason denied=exactRecipes.observe(run.request,run.correlation,action.usage);
+            finish(action,denied,denied==null?new BoolValue(true):null,null);
+            return;
+        }
+        if(effect==Effect.MOVE) {
+            move(action,target);
+            return;
+        }
+        var phase=switch(effect) {
+            case WITHDRAW -> ResourceDelivery.Stage.WITHDRAW;
+            case CRAFT -> ResourceDelivery.Stage.CRAFT;
+            case TRANSFER -> ResourceDelivery.Stage.DEPOSIT;
+            default -> null;
+        };
+        if(phase==null) {finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
+        if(!exactRecipes.possibleEffect(action.handle) && !effectAllowance(action))return;
+        var result=exactRecipes.poll(run.request,run.correlation,action.handle,phase,action.usage,action.deadlineMillis);
+        if(result.committed())action.effects=1;
+        if(result.pending())return;
+        if(result.receipt()==null) {finish(action,result.reason(),null,null);return;}
+        run.resourceReceipts.add(result.receipt());action.resourceReceipts.add(result.receipt());
+        finish(action,null,new IntValue(result.receipt().quantity()),null);
     }
 
     private void moveToSource(Active action) {
@@ -1346,6 +1404,7 @@ public final class SurvivalGateway implements GatewayPort {
     }
     private void finish(Active action, Reason reason, Value result, ObservationSnapshot snapshot) {
         if (action.current.terminal()) return;
+        if(exactRecipes!=null && exactRecipes.possibleEffect(action.handle))action.effects=1;
         if(nativeResultPending(action))reason=Reason.INTERRUPTED;
         if(action.pickupTicket!=null && pickupProtocol!=null){pickupProtocol.forget(action.pickupTicket);action.pickupTicket=null;}
         if(action.depositTicket!=null && depositProtocol!=null){depositProtocol.forget(action.depositTicket);action.depositTicket=null;}

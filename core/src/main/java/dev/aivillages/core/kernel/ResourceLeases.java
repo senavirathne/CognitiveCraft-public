@@ -29,6 +29,7 @@ public final class ResourceLeases {
         public static Settings production() { return new Settings(64,128,8,4,1200,10,8,8,256,256,0,30000); }
     }
     public record Resource(UUID world, Kind kind, Cuboid area, String item, int slot) {
+        private static final String RECIPE_SOURCE = "cognitivecraft:recipe_source";
         public Resource {
             Objects.requireNonNull(world); Objects.requireNonNull(kind); Objects.requireNonNull(area);
             Objects.requireNonNull(item);
@@ -39,7 +40,7 @@ public final class ResourceLeases {
                         || slot == -2 && (item.equals("minecraft:oak_log") || item.equals("minecraft:birch_log"));
                 case EQUIPMENT -> point && slot >= 0 && slot < 128 && item.equals("minecraft:iron_hoe");
                 case FACILITY -> point && slot == -1 && (item.equals("minecraft:storage")
-                        || item.equals("minecraft:crafting_table"));
+                        || item.equals("minecraft:crafting_table") || item.equals(RECIPE_SOURCE));
                 case SPACE -> slot == -1 && item.equals("space");
             };
             if (!valid || cells(area) > 256) throw new IllegalArgumentException("Unsupported resource");
@@ -68,6 +69,12 @@ public final class ResourceLeases {
         public static Resource facility(UUID world, ContainerRef c) {
             return new Resource(world,Kind.FACILITY,point(c),"minecraft:storage",-1);
         }
+        /** An exclusive facility claim protects every exact slot of the imminent recipe withdrawal. */
+        public static Resource recipeSource(UUID world,ContainerRef source) {
+            return new Resource(world,Kind.FACILITY,point(source),RECIPE_SOURCE,-1);
+        }
+        boolean recipeSource(){return kind==Kind.FACILITY && item.equals(RECIPE_SOURCE);}
+        boolean containerStock(){return kind==Kind.STOCK && slot==-1 && !item.equals("minecraft:mature_wheat");}
         public static Resource space(UUID world, Cuboid a) {
             return new Resource(world,Kind.SPACE,a,"space",-1);
         }

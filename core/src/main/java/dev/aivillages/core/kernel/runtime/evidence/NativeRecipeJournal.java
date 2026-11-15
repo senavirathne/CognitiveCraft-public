@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel.runtime.evidence;
 import dev.aivillages.core.kernel.ResourceDelivery.Stage;
 import dev.aivillages.core.kernel.StrictJson;
 import dev.aivillages.core.kernel.WorldRetentionManager.Amount;
+import dev.aivillages.core.kernel.WorldRetentionManager;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -22,7 +23,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import static dev.aivillages.core.kernel.RecipeTransaction.fingerprint;
 import static dev.aivillages.core.kernel.RecipeTransaction.hash;
@@ -117,7 +121,7 @@ public final class NativeRecipeJournal implements AutoCloseable {
     private volatile long bytes, revision;
     private String head;
     private BasicFileAttributes attributes;
-    private int pending;
+    private volatile int pending;
     private Predicate<Amount> capacity = ignored -> false;
 
     private NativeRecipeJournal(Path data, Path required, UUID world, FileChannel channel, FileLock lock) {
@@ -156,6 +160,46 @@ public final class NativeRecipeJournal implements AutoCloseable {
     public List<Entry> entries() { return entries; }
     public List<Entry> entries(UUID attempt) { return attempts.getOrDefault(attempt,List.of()); }
     public void capacity(Predicate<Amount> capacity) { thread(); this.capacity=Objects.requireNonNull(capacity); }
+    public WorldRetentionManager.Owner retentionOwner() {
+        var paths=List.of(data,required,next,data.resolveSibling("writer.lock"));
+        return new WorldRetentionManager.Owner() {
+            public String id(){return "recipe-evidence";}
+            public long revision() throws IOException {
+                if(fenced)throw new IOException("Recipe evidence inventory fenced");
+                return NativeRecipeJournal.this.revision;
+            }
+            public Optional<Thread> serializedWriter(){return Optional.of(writer);}
+            public Optional<Amount> admissionCeiling(){
+                return Optional.of(new Amount(bytes+pending*(MAX_ROW+1L)+2048,entries.size()));
+            }
+            public WorldRetentionManager.Cursor open() throws IOException {
+                long captured=revision();
+                int records=entries.size();
+                return new WorldRetentionManager.Cursor() {
+                    private int index;
+                    public long revision(){return captured;}
+                    public WorldRetentionManager.Page next(int maximum,int byteLimit) throws IOException {
+                        List<WorldRetentionManager.Entry> found=new ArrayList<>();
+                        int inspected=0;
+                        while(index<paths.size() && inspected<maximum) {
+                            int current=index++;inspected++;
+                            var file=paths.get(current);
+                            if(!present(file))continue;
+                            var actual=attributes(file);
+                            found.add(new WorldRetentionManager.Entry(new WorldRetentionManager.Key(id(),"file:"+current),
+                                    WorldRetentionManager.Category.EVIDENCE,new Amount(actual.size(),current==0?records:0),
+                                    List.of(),true,false,Set.of(),""));
+                        }
+                        return new WorldRetentionManager.Page(found,index==paths.size(),!fenced && captured==NativeRecipeJournal.this.revision
+                                && (captured&1)==0,inspected,0);
+                    }
+                };
+            }
+            public WorldRetentionManager.OwnerResult collect(WorldRetentionManager.Entry entry,long expected,BooleanSupplier cancel) {
+                return WorldRetentionManager.OwnerResult.of(WorldRetentionManager.OwnerStatus.PROTECTED);
+            }
+        };
+    }
 
     public Entry prepare(Intent intent) throws IOException {
         thread();

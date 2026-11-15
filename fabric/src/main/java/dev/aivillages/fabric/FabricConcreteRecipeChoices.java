@@ -123,12 +123,13 @@ final class FabricConcreteRecipeChoices {
 
     /** Proposal snapshots may read a current, scoped actor before any exclusive native run exists. */
     void validateProposal(ValidatedRequest request,RecipeChoice choice,ChoiceAuthority authority,RecipeSources sources) {
-        thread();validateChoice(request,choice,authority,sources,presentActor(request));
+        thread();
+        if(view(choice.capability()).epoch()!=choice.reloadEpoch())throw refuse(Reason.STALE_OBSERVATION);
+        validateChoice(request,choice,authority,sources,presentActor(request));
     }
 
     private void validateChoice(ValidatedRequest request,RecipeChoice choice,ChoiceAuthority authority,RecipeSources sources,Villager villager) {
         sources.validate(request);checkRequest(request,choice);var current=view(choice.capability());
-        if(current.epoch()!=choice.reloadEpoch())throw refuse(Reason.STALE_OBSERVATION);
         facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
         if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);
         wholeChoiceCapacity(request,authority,choice,current,sources,villager,ChoicePhase.PREPARE);
@@ -257,7 +258,7 @@ final class FabricConcreteRecipeChoices {
         var v=nativeActor(request,run);checkRequest(request,choice);var recipe=view(choice.capability());nativeMatch(choice,batch,recipe);
         facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
         var target=container(request,"destination");
-        if(recipe.epoch()!=choice.reloadEpoch())throw refuse(Reason.STALE_OBSERVATION);
+        // A new preparation can revalidate immutable choices after a semantic-equivalent reload.
         var boxes=sourceContainers(request,authority,sources,ChoicePhase.PREPARE,true);
         var to=permitted(request,authority,target,ChoicePhase.PREPARE,false);
         if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);

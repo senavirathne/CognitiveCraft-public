@@ -20,8 +20,8 @@ def uuid_field(text, field):
 
 def trace_offsets(root):
     result = offsets(root)
-    for name in ("events.jsonl", "stdout.log"):
-        key = "clients/PlayerB/" + name
+    for key in ("clients/PlayerA/observations.jsonl", "clients/PlayerB/observations.jsonl",
+                "clients/PlayerB/events.jsonl", "clients/PlayerB/stdout.log"):
         path = root / key
         result[key] = path.stat().st_size if path.exists() else 0
     return result
