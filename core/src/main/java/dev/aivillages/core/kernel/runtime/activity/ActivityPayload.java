@@ -2,6 +2,7 @@ package dev.aivillages.core.kernel.runtime.activity;
 
 import dev.aivillages.core.kernel.*;
 import dev.aivillages.core.kernel.production.RecipeChoice;
+import dev.aivillages.core.kernel.production.planning.PlanningModel;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
@@ -10,12 +11,32 @@ import static dev.aivillages.core.kernel.Jobs.*;
 
 /** Immutable data embedded in the root Job. No second lifecycle, inventory or writer. */
 public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UUID currentStep,
-                              List<Step> steps, List<Checkpoint> checkpoints, Blocker blocker) {
+                              List<Step> steps, List<Checkpoint> checkpoints, Blocker blocker,ProductionControl production) {
     public static final int SCHEMA=1, MAX_STEPS=8, CHOICE_BYTES=768, EXACT_CHOICE_BYTES=24_576;
     public enum GoalMode { ACQUIRE_NEW, MAKE_NEW, SUPPLY }
     public enum Policy { ORIGINAL_ACTOR_SETTLED_EFFECTS }
     public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION }
     public enum Evidence { LIVE_RECEIPTS }
+    public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
+                                    String blocker, long nextCheckMillis) {
+        public static final int MAX_DECISIONS=32;
+        public ProductionControl {
+            Objects.requireNonNull(memory);Objects.requireNonNull(blocker);
+            if(decisions<0 || decisions>MAX_DECISIONS || blocker.length()>128 || nextCheckMillis<0)
+                throw new IllegalArgumentException("Bounded production coordination");
+            if(acquisition!=null && Math.multiplyExact(Math.multiplyExact((long)acquisition.maxX()-acquisition.minX()+1,
+                    (long)acquisition.maxY()-acquisition.minY()+1),(long)acquisition.maxZ()-acquisition.minZ()+1)>256)
+                throw new IllegalArgumentException("Bounded original acquisition area");
+        }
+        public static ProductionControl initial(Cuboid source){return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0);}
+        public ProductionControl next(PlanningModel.Memory next,String reason,long checkAt){
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt);
+        }
+    }
+    public ActivityPayload(GoalMode mode,Policy policy,int plannedSteps,UUID currentStep,List<Step> steps,
+                           List<Checkpoint> checkpoints,Blocker blocker) {
+        this(mode,policy,plannedSteps,currentStep,steps,checkpoints,blocker,null);
+    }
     /** Opaque canonical bytes are data only. Reload epoch is never semantic identity. */
     public record Choice(String base64, String sha256, boolean exactRecipe) {
         public Choice(String base64,String sha256){this(base64,sha256,false);}
@@ -101,15 +122,18 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     }
     public Step current(){return currentStep==null?null:steps.stream().filter(s->s.id().equals(currentStep)).findFirst().orElseThrow();}
     public Step forAttempt(UUID attempt){return steps.stream().filter(s->attempt.equals(s.attempt())).findFirst().orElse(null);}
+    public ActivityPayload planning(ProductionControl control){
+        return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps,checkpoints,blocker,Objects.requireNonNull(control));
+    }
     public ActivityPayload prepared(Step step,int planned,boolean executable) {
         if(currentStep!=null)throw new IllegalArgumentException("One prepared writer");
         var next=new ArrayList<>(steps);next.add(step);
-        return new ActivityPayload(mode,policy,planned,step.id(),next,checkpoints,executable?Blocker.NONE:Blocker.INTEGRATION_PENDING);
+        return new ActivityPayload(mode,policy,planned,step.id(),next,checkpoints,executable?Blocker.NONE:Blocker.INTEGRATION_PENDING,production);
     }
     public ActivityPayload assigned(UUID attempt) {
         Step selected=Objects.requireNonNull(current());
         if(selected.attempt()!=null)throw new IllegalArgumentException("Preparation already assigned");
-        return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps.stream().map(s->s.id().equals(currentStep)?s.assigned(attempt):s).toList(),checkpoints,blocker);
+        return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps.stream().map(s->s.id().equals(currentStep)?s.assigned(attempt):s).toList(),checkpoints,blocker,production);
     }
     public ActivityPayload completed(Attempt attempt) {
         Step selected=Objects.requireNonNull(current());
@@ -118,7 +142,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             throw new IllegalArgumentException("Settled actual segment required");
         var refs=new ArrayList<UUID>();attempt.receipts().forEach(r->refs.add(r.receiptId()));attempt.resourceReceipts().forEach(r->refs.add(r.receiptId()));
         var history=new ArrayList<>(checkpoints);history.add(new Checkpoint(selected.id(),attempt.id(),attempt.generation(),attempt.credited(),refs,Evidence.LIVE_RECEIPTS));
-        return new ActivityPayload(mode,policy,plannedSteps,null,steps,history,Blocker.AWAITING_PROPOSAL);
+        return new ActivityPayload(mode,policy,plannedSteps,null,steps,history,Blocker.AWAITING_PROPOSAL,production);
     }
     /** Load validation binds every reference back to the sole authoritative Job and original attempts. */
     public void validate(Job job) {
@@ -131,6 +155,18 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             throw new IllegalArgumentException("Unvalidated semantics cannot authorize execution");
         long goal=((IntValue)job.request().request().arguments().get("amount")).value(),verified=0;
         if(mode!=initial(job.request().request().capability(),1).mode())throw new IllegalArgumentException("Goal mode");
+        if(production!=null) {
+            var m=production.memory();
+            var budget=ProductionActivityPlanner.budget(job);
+            if(steps.size()>production.decisions() || production.acquisition()!=null
+                    && !production.acquisition().dimension().equals(job.responsible().dimension())
+                    || !m.originalBudgetDigest().isEmpty() && (!job.id().equals(m.root())
+                        || !job.origin().scope().worldId().equals(m.world()) || !job.origin().equals(m.context())
+                        || !job.origin().principal().id().equals(m.owner()) || m.originalDeadlineMillis()!=job.allowance().deadlineEpochMillis()
+                        || !budget.initialDigest().equals(m.originalBudgetDigest())
+                        || Arrays.stream(PlanningModel.Counter.values()).anyMatch(k->m.observedUsage().get(k)>budget.used().get(k))))
+                throw new IllegalArgumentException("Foreign production memory or decision history");
+        }
         var assigned=new HashSet<UUID>();long priorCredit=0,priorRevision=0;int index=0;
         for(Step s:steps) {
             if(s.creditBefore()!=priorCredit || s.preparedRevision()<=priorRevision || s.attempt()==null&&!s.id().equals(currentStep))

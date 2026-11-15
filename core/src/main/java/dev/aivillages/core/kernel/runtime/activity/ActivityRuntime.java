@@ -88,7 +88,8 @@ public final class ActivityRuntime {
                 job.state().terminal()?Next.TERMINAL:jobs.deadlineExpired(root,caller)?Next.EXPIRED:p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?Next.INTEGRATION_PENDING:
                 !supported.contains(job.request().request().capability())?Next.INTEGRATION_PENDING:p.current()!=null?Next.PREPARED_FOR_DISPATCH:Next.PREPARE;
         String blocker=next==Next.WAIT_NATIVE_SETTLEMENT?"original checkpoint native settlement pending":next==Next.EXPIRED?"original absolute deadline expired":uncertain?"uncertain original effect; no replay":p!=null&&p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?
-                "exact-choice semantic/host adapter unavailable":job.reason()==null?"":job.reason().name();
+                "exact-choice semantic/host adapter unavailable":p!=null && p.production()!=null && !p.production().blocker().isBlank()?
+                p.production().blocker():job.reason()==null?"":job.reason().name();
         Budgets.Limits limits;
         try{limits=jobs.remainingAllowance(root,caller);}
         catch(SecurityException readOnlyHistory) {
@@ -107,6 +108,6 @@ public final class ActivityRuntime {
                 Math.max(0,goal-credit),a==null?job.responsible():a.worker(),job.generation(),a==null?null:a.id(),job.state(),cancelling,
                 checkpoints,checkpoints.size(),p==null?null:p.plannedSteps(),checkpoints.isEmpty()?null:checkpoints.getLast().evidence(),
                 p==null?null:p.currentStep(),next,blocker,limits,job.usage(),job.allowance().deadlineEpochMillis(),available,effects,
-                supported,repeated,false);
+                supported,repeated,p!=null && p.production()!=null && jobs.productionPlanningReady());
     }
 }

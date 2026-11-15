@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import defaultdict
 from pathlib import Path
 
 from e2e.parallel_b import campaign_contracts
@@ -65,4 +66,20 @@ def held_out():
 def shard(cases, index, count):
     if not 1 <= count <= len(cases) or not 0 <= index < count:
         raise ValueError("Invalid frozen-campaign shard")
-    return cases[index::count]
+    grouped = defaultdict(list)
+    for case in cases:
+        grouped[(case["mode"], case.get("output", ""))].append(case)
+    if count > len(grouped):
+        raise ValueError("Shard count exceeds the compatible native fixture groups")
+    cohorts = [[] for _ in range(count)]
+    weights = [0] * count
+    # Keep all recipe variants for the same immutable admitted method on one
+    # long-lived client. Recovery cases need two JVMs and consume more time.
+    def cost(items):
+        return len(items) * (3 if items[0]["mode"] == "recovery" else 1)
+    for items in sorted(grouped.values(), key=cost, reverse=True):
+        target = min(range(count), key=weights.__getitem__)
+        cohorts[target].extend(items)
+        weights[target] += cost(items)
+    selected = {case["id"] for case in cohorts[index]}
+    return [case for case in cases if case["id"] in selected]

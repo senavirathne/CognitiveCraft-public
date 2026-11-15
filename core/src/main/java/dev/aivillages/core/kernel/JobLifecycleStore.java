@@ -110,6 +110,7 @@ public final class JobLifecycleStore {
         activityAdapter=Objects.requireNonNull(adapter);
         activityAdapterAttached=true;
     }
+    public boolean productionPlanningReady(){thread();return activityAdapterAttached;}
     private JobHistory history;
     private JobArchive archiving;
     private Snapshot indexed;
@@ -485,8 +486,20 @@ public final class JobLifecycleStore {
         try{return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,ActivityPayload.initial(goal.capability(),plannedSteps));}
         catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
     }
+    /** Production admission adds planning data to the same original Job. */
+    public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
+                                           Budgets.Limits allowance,int plannedSteps,Cuboid acquisition) {
+        if(goal==null || !RecipeProduction.is(goal.capability()))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+        try {
+            var payload=ActivityPayload.initial(goal.capability(),plannedSteps).planning(ActivityPayload.ProductionControl.initial(acquisition));
+            return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,payload);
+        } catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
+    }
     /** No receipt, effect or terminal status occurs in a proposal. The acknowledged Job is preparation authority. */
     public Change prepareActivity(ActivityRuntime.Proposal proposal,TrustedContext caller) {
+        return prepareActivity(proposal,caller,null);
+    }
+    public Change prepareActivity(ActivityRuntime.Proposal proposal,TrustedContext caller,ActivityPayload.ProductionControl production) {
         thread();var work=new Work();Job job=controlled(proposal.root(),caller);
         if(job==null || !policy.controls(job.responsible(),job.origin()))return reject(Reason.AUTHORITY_DENIED,work);
         if(!ready())return reject(unavailableReason(),work);
@@ -495,6 +508,8 @@ public final class JobLifecycleStore {
         var same=payload.steps().stream().filter(s->s.token().equals(proposal.token()) || s.proposal().equals(proposal.id())).findFirst();
         if(same.isPresent())return same.get().token().equals(proposal.token()) && same.get().bodyDigest().equals(proposal.bodyDigest())?duplicate(job,work):reject(Reason.STALE_OBSERVATION,work);
         Change denied=guard(job,proposal.expected(),work);if(denied!=null)return denied;
+        if(payload.production()!=null && (!proposal.integrated() || !productionAdvance(payload.production(),production))
+                || payload.production()==null && production!=null)return reject(Reason.STALE_OBSERVATION,work);
         if(job.state().terminal() || job.cancellationOutcome()!=null || job.state()==State.CANCELLING)return reject(Reason.CANCELLED,work);
         if(payload.current()!=null || job.current()!=null&&job.current().open() || job.state()==State.INTERRUPTED)
             return reject(Reason.STALE_OBSERVATION,work);
@@ -526,6 +541,7 @@ public final class JobLifecycleStore {
                     proposal.quantities().demand(),proposal.artifact(),proposal.choice(),proposal.quantities(),proposal.allowance(),Math.addExact(job.revision(),1),null,
                     proposal.integrated()?proposal.request():null,proposal.goalCredit());
             var edit=new Edit(job);edit.activity=payload.prepared(step,proposal.plannedSteps(),executable);
+            if(production!=null)edit.activity=edit.activity.planning(production);
             edit.state=executable?State.READY:State.WAITING;edit.reason=null;
             Job changed=edit.finish(EventKind.ACTIVITY_PREPARED,settings.events());var rows=rows();rows.put(job.id(),changed);
             // Serialization bounds are checked before storage submission; no partially admitted oversized payload.
@@ -533,6 +549,29 @@ public final class JobLifecycleStore {
             return publish(rows,state.allocations(),changed,null,0);
         }catch(Limited limited){return reject(limited.reason,work);}
         catch(StrictJson.Invalid | IllegalArgumentException | NullPointerException | ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
+    /** Durably remembers a bounded no-progress decision without granting any execution. */
+    public Change recordActivityPlanning(UUID id,Guard expected,TrustedContext caller,ActivityPayload.ProductionControl production) {
+        thread();
+        var work=new Work();
+        Job job=controlled(id,caller);
+        if(job==null || !policy.controls(job.responsible(),job.origin()))return reject(Reason.AUTHORITY_DENIED,work);
+        Change denied=guard(job,expected,work);if(denied!=null)return denied;
+        if(job.activity()==null || job.activity().current()!=null || job.state().terminal()
+                || job.current()!=null && job.current().open() || job.cancellationOutcome()!=null
+                || !productionAdvance(job.activity().production(),production))return reject(Reason.STALE_OBSERVATION,work);
+        try {
+            var edit=new Edit(job);
+            edit.activity=job.activity().planning(production);
+            edit.state=State.WAITING;
+            Job changed=edit.finish(EventKind.ACTIVITY_PLAN_CHECKED,settings.events());
+            var rows=rows();rows.put(id,changed);
+            return publish(rows,state.allocations(),changed,null,work.edges);
+        } catch(IllegalArgumentException | ArithmeticException invalid){return reject(Reason.REQUEST_INVALID,work);}
+    }
+    private static boolean productionAdvance(ActivityPayload.ProductionControl previous,ActivityPayload.ProductionControl next) {
+        return previous!=null && next!=null && next.decisions()==previous.decisions()+1
+                && Objects.equals(previous.acquisition(),next.acquisition());
     }
     public Change transition(UUID id, Guard guard, State target, Reason reason, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);

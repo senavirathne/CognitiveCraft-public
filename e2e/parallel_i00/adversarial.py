@@ -86,6 +86,14 @@ PARTIAL = {
     "A29": {"A09": ("two-segments-saved-checkpoint-restart",)},
 }
 
+INTEGRATED = {
+    "A01": ("component-bearing-lookalike", {"realComponentBearingInput": True, "effectCount": 0}),
+    "A05": ("player-removes-checkpoint-stock", {"originalCredit": 3, "historicalLineageUnchanged": True,
+                                               "playerRemoved": 3, "availableAfter": 0}),
+    "A08": ("birch-q3-same-container-old-stock", {"oldOutput": 11, "withdrawn": 1, "crafted": 4,
+                                                 "delivered": 3, "surplus": 1}),
+}
+
 
 def read(path):
     return json.loads(path.read_text())
@@ -203,6 +211,14 @@ def ledger(root, identity):
     available = profiles(root, identity)
     observer_path = root / "b-compatibility/harness/adversarial-review.json"
     observer = reread(observer_path, identity)
+    controls_path = root / "integrated-controls/review.json"
+    controls = reread(controls_path, identity)
+    exact_choice = {}
+    if controls and controls.get("stage") == "I00":
+        for row in controls.get("cases", []):
+            if row.get("id") in exact_choice:
+                raise ValueError("Duplicate integrated control in independent review")
+            exact_choice[row["id"]] = row
     rows = []
     for number, challenge in enumerate(CHALLENGES, 1):
         case_id = f"A{number:02d}"
@@ -212,6 +228,14 @@ def ledger(root, identity):
         if claims:
             status = ("PASS_NATIVE_CHALLENGE" if required and len(claims) == len(required)
                       else "PARTIAL_NATIVE_COVERAGE")
+        if case_id in INTEGRATED:
+            identifier, assertions = INTEGRATED[case_id]
+            row = exact_choice.get(identifier, {})
+            if ((row.get("status"), row.get("scope")) == ("PASS", "I00_CONNECTED_EXACT_CHOICE")
+                    and all(row.get(key) == value for key, value in assertions.items())):
+                status = "PASS_NATIVE_CHALLENGE"
+                claims.append({"scope": row["scope"], "cases": [row["id"]],
+                               "reviewSha256": sha256(controls_path), "path": controls_path.relative_to(root).as_posix()})
         if case_id == "A30" and observer:
             copies = observer.get("corruptCopies", {})
             if ((observer.get("stage"), observer.get("id"), observer.get("status")) !=

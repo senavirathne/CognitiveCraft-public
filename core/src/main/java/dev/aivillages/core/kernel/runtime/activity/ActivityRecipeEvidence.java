@@ -53,7 +53,10 @@ public final class ActivityRecipeEvidence {
             return staging.equals(invocation.arguments().get("source"))
                     && Objects.equals(original.arguments().get("table"),invocation.arguments().get("target"));
         return staging.value().equals(ResourceDelivery.destinationAddress(invocation))
-                && (LogAcquisition.is(invocation.capability()) || staging.equals(invocation.arguments().get("source")));
+                && (LogAcquisition.is(invocation.capability()) ? root.activity().production()!=null
+                    && root.activity().production().acquisition()!=null
+                    && new AreaValue(root.activity().production().acquisition()).equals(invocation.arguments().get("source"))
+                    : staging.equals(invocation.arguments().get("source")));
     }
 
     public static Receipt receipt(ValidatedRequest bound,UUID id,UUID run,UUID operation,UUID batch,
