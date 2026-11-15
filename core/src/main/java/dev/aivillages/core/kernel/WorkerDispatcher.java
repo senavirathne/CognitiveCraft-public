@@ -37,6 +37,13 @@ public final class WorkerDispatcher {
         List<ArtifactRef> pinned(ArtifactRef artifact);
         Start start(ValidatedRequest bound, ArtifactRef artifact, UUID run,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage);
+        default Start startActivity(Jobs.Job job,ValidatedRequest bound,ArtifactRef artifact,UUID run,
+                                    Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
+            return new Start(null,Reason.UNSUPPORTED_PRIMITIVE);
+        }
+    }
+    @FunctionalInterface public interface ActivityBinding {
+        Reason bind(Jobs.Job job,ValidatedRequest bound,ArtifactRef artifact,UUID run);
     }
     @FunctionalInterface public interface JobResolver {
         CapabilityResolver.Decision resolve(Jobs.Job job, ValidatedRequest request, ObservationSnapshot observation);
@@ -79,11 +86,23 @@ public final class WorkerDispatcher {
         };
     }
     public static ExecutionPort executorPort(BoundedSkillExecutor executor, ArtifactCatalog catalog) {
+        return executorPort(executor,catalog,(job,bound,artifact,run)->Reason.UNSUPPORTED_PRIMITIVE);
+    }
+    public static ExecutionPort executorPort(BoundedSkillExecutor executor, ArtifactCatalog catalog,ActivityBinding activity) {
         Objects.requireNonNull(executor);Objects.requireNonNull(catalog);
+        Objects.requireNonNull(activity);
         return new ExecutionPort() {
             public List<ArtifactRef> pinned(ArtifactRef ref){return JobArtifactPins.closure(catalog.find(ref).orElseThrow(),catalog);}
             public Start start(ValidatedRequest bound,ArtifactRef ref,UUID id,Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
-                var started=executor.startAdmitted(bound,ref,new RunCorrelation(id,ref,null),limits,usage);
+                return handle(executor.startAdmitted(bound,ref,new RunCorrelation(id,ref,null),limits,usage));
+            }
+            public Start startActivity(Jobs.Job job,ValidatedRequest bound,ArtifactRef ref,UUID id,
+                                       Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
+                Reason refused=activity.bind(job,bound,ref,id);
+                if(refused!=null)return new Start(null,refused);
+                return handle(executor.startAdmittedActivity(bound,ref,new RunCorrelation(id,ref,null),limits,usage,job));
+            }
+            private Start handle(BoundedSkillExecutor.Start started) {
                 if(started instanceof BoundedSkillExecutor.Rejected rejected)return new Start(null,rejected.reason());
                 var run=((BoundedSkillExecutor.Started)started).run();
                 return new Start(new Handle() {
@@ -399,8 +418,12 @@ public final class WorkerDispatcher {
                     else {
                         l.usage=new Budgets.Ledger(attempt.allowance(),clock);
                         Start started;
-                        try { started=execution.start(l.bound,l.artifact,l.run,
-                                new Budgets.ExecutionLimits(attempt.allowance(),settings.actionMillis()),l.usage); }
+                        try {
+                            var limits=new Budgets.ExecutionLimits(attempt.allowance(),settings.actionMillis());
+                            started=job.activity()!=null && job.activity().current().exactChoice()
+                                    ?execution.startActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
+                                    :execution.start(l.bound,l.artifact,l.run,limits,l.usage);
+                        }
                         catch(RuntimeException failed){started=new Start(null,Reason.ACTION_FAILED);}
                         if(started.handle()==null)stop(l,started.rejected(),false);
                         else { l.handle=started.handle();l.phase=Phase.RUNNING;work.starts++;remember(decision(job,l.worker,Code.STARTED,l.resolution,null),work); }

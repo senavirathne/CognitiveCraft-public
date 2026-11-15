@@ -1,5 +1,7 @@
 package dev.aivillages.core.kernel;
 
+import dev.aivillages.core.kernel.runtime.activity.ActivityRecipeEvidence;
+
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -115,7 +117,19 @@ public final class BoundedSkillExecutor {
     public Start startAdmitted(ValidatedRequest request, ArtifactRef artifact,
                                RunCorrelation correlation, Budgets.ExecutionLimits limits,
                                Budgets.Ledger usage) {
-        return start(request, artifact, correlation, limits, usage, null);
+        return start(request, artifact, correlation, limits, usage, null, null);
+    }
+    /** The existing interpreter can use exact-choice receipts only for its original active Jobs attempt. */
+    Start startAdmittedActivity(ValidatedRequest request,ArtifactRef artifact,RunCorrelation correlation,
+                                Budgets.ExecutionLimits limits,Budgets.Ledger usage,Jobs.Job root) {
+        var attempt=root.current();
+        var step=root.activity()==null?null:root.activity().current();
+        if(root.state()!=Jobs.State.ACTIVE || attempt==null || !attempt.open() || step==null || !step.exactChoice()
+                || !attempt.id().equals(correlation.runId()) || !attempt.id().equals(step.attempt())
+                || !step.artifact().equals(artifact) || !attempt.bound().request().equals(request.request())
+                || !attempt.bound().context().equals(request.context()) || !attempt.allowance().equals(limits.total()))
+            return new Rejected(Reason.STALE_OBSERVATION);
+        return start(request,artifact,correlation,limits,usage,null,root);
     }
     public Start startTrial(ValidatedRequest request, ArtifactRef artifact,
                             RunCorrelation correlation, Budgets.ExecutionLimits limits,
@@ -125,10 +139,10 @@ public final class BoundedSkillExecutor {
                 || clock.millis() > permit.expiresAtMillis()
                 || !trials.authorized(permit, request, limits))
             return new Rejected(Reason.AUTHORITY_DENIED);
-        return start(request, artifact, correlation, limits, usage, permit);
+        return start(request, artifact, correlation, limits, usage, permit, null);
     }
     private Start start(ValidatedRequest request, ArtifactRef artifact, RunCorrelation correlation,
-                        Budgets.ExecutionLimits limits, Budgets.Ledger usage, TrialPermit permit) {
+                        Budgets.ExecutionLimits limits, Budgets.Ledger usage, TrialPermit permit, Jobs.Job activity) {
         thread();
         Objects.requireNonNull(request); Objects.requireNonNull(artifact);
         Objects.requireNonNull(correlation); Objects.requireNonNull(limits);
@@ -148,7 +162,7 @@ public final class BoundedSkillExecutor {
         SkillCompiler.CompiledSkill root = pinned.get(artifact);
         if (!arguments(root.artifact().descriptor().parameters(), request.request().arguments()))
             return new Rejected(Reason.REQUEST_INVALID);
-        return new Started(new Run(request, correlation, limits, usage, pinned, permit != null));
+        return new Started(new Run(request, correlation, limits, usage, pinned, permit != null,activity));
     }
 
     private Reason pin(ArtifactRef ref, boolean trialRoot, ActorRef actor, TrustedContext context,
@@ -240,6 +254,7 @@ public final class BoundedSkillExecutor {
         private final Budgets.Ledger usage;
         private final Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned;
         private final boolean trial;
+        private final Jobs.Job activity;
         private final Deque<Frame> stack = new ArrayDeque<>();
         private final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         private final List<Trace> trace = new ArrayList<>();
@@ -254,11 +269,12 @@ public final class BoundedSkillExecutor {
 
         private Run(ValidatedRequest request, RunCorrelation correlation,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage,
-                    Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, boolean trial) {
+                    Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, boolean trial, Jobs.Job activity) {
             this.request = request; this.correlation = correlation;
             this.limits = limits; this.usage = usage;
             this.pinned = Collections.unmodifiableMap(new LinkedHashMap<>(pinned));
             this.trial = trial;
+            this.activity=activity;
             lastTick = tickClock.getAsLong();
             stack.push(new Frame(correlation.artifact(), pinned.get(correlation.artifact()).program(),
                     request.request().arguments(), null));
@@ -365,7 +381,8 @@ public final class BoundedSkillExecutor {
                 stack.pop();
                 record("return", frame.ref);
                 if (stack.isEmpty()) {
-                    if (ResourceDelivery.completed(request, correlation.runId(), receipts, resourceReceipts))
+                    if (activity==null?ResourceDelivery.completed(request, correlation.runId(), receipts, resourceReceipts)
+                            :ActivityRecipeEvidence.completed(activity,activity.current(),activity.activity().current(),receipts,resourceReceipts))
                         finish(ExecutionStatus.SUCCEEDED, null);
                     else finish(ExecutionStatus.FAILED, Reason.ACTION_FAILED);
                 } else if (frame.returnInto != null && !frame.returnInto.isEmpty()) {
@@ -457,7 +474,9 @@ public final class BoundedSkillExecutor {
                 }
             }
             for (ResourceDelivery.Receipt receipt : answer.resourceReceipts()) {
-                if (!ResourceDelivery.matches(request, correlation.runId(), receipt)) throw new InvalidRun();
+                boolean matches=activity==null?ResourceDelivery.matches(request,correlation.runId(),receipt)
+                        :ActivityRecipeEvidence.matches(activity,activity.current(),activity.activity().current(),receipt);
+                if (!matches) throw new InvalidRun();
                 ResourceDelivery.Receipt prior = resourceReceiptsById.get(receipt.receiptId());
                 if (prior != null && !prior.equals(receipt)) throw new InvalidRun();
                 if (prior == null) {

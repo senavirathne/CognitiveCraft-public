@@ -165,7 +165,10 @@ public final class Jobs {
         public Attempt current() { return attempts.isEmpty() ? null : attempts.getLast(); }
         public long fulfilled() {
             long result = 0;
-            for (Attempt attempt : attempts) result = Math.addExact(result, attempt.credited());
+            for (Attempt attempt : attempts) {
+                var step=activity==null?null:activity.forAttempt(attempt.id());
+                result=Math.addExact(result,step==null?attempt.credited():step.creditedToGoal(attempt));
+            }
             return result;
         }
         public long effects() {

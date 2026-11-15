@@ -2,6 +2,8 @@ package dev.aivillages.core.kernel.runtime.activity;
 
 import dev.aivillages.core.kernel.*;
 import dev.aivillages.core.kernel.production.RecipeChoice;
+import dev.aivillages.core.kernel.production.RecipeChoicePlan;
+import dev.aivillages.core.kernel.production.RecipeSources;
 import java.util.*;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Jobs.*;
@@ -11,6 +13,48 @@ import static dev.aivillages.core.kernel.ResourceDelivery.*;
 public final class ActivityRecipeEvidence {
     private static final List<Stage> PHASES=List.of(Stage.WITHDRAW,Stage.CRAFT,Stage.DEPOSIT);
     private ActivityRecipeEvidence(){}
+
+    /** Reconstructs the B invocation from the immutable A step. A calls native validation separately. */
+    public static ValidatedRequest exactInvocation(Job root,ValidatedRequest invocation,ActivityPayload.Choice encoded,
+                                                   ActivityPayload.Quantities quantities) {
+        RecipeChoice choice=encoded.recipe();
+        var operation=invocation.request();
+        if(!operation.capability().equals(new CapabilityId(choice.capability().name(),1))
+                || choice.demand()!=quantities.demand() || choice.resultCount()!=quantities.yield()
+                || choice.batches().size()!=quantities.batches() || quantities.allocation()!=quantities.demand()
+                || choice.remainders().stream().mapToLong(RecipeChoice.ItemAmount::count).sum()!=quantities.remainders())
+            throw new IllegalArgumentException("Exact choice and authoritative quantity disagree");
+        var request=new ValidatedRequest(new CapabilityRequest(choice.capability(),operation.arguments()),
+                invocation.context(),invocation.observation());
+        RecipeChoicePlan.propose(root.id(),root.revision(),request,choice,sources(request,choice));
+        return request;
+    }
+
+    public static RecipeSources sources(ValidatedRequest invocation,RecipeChoice choice) {
+        var explicit=((ContainerValue)invocation.request().arguments().get("source")).value();
+        var sources=new LinkedHashSet<ContainerRef>();
+        sources.add(explicit);
+        choice.batches().forEach(b->b.bindings().forEach(binding->sources.add(binding.source())));
+        return new RecipeSources(List.copyOf(sources));
+    }
+
+    public static boolean permittedInvocation(Job root,CapabilityRequest invocation,long credit) {
+        var original=root.request().request();
+        if(!ResourceDelivery.isDelivery(invocation.capability())
+                || !new ActorValue(root.responsible()).equals(invocation.arguments().get("actor")))return false;
+        if(credit>0) {
+            var expected=new HashMap<>(original.arguments());
+            expected.put("amount",new IntValue(credit));
+            return new CapabilityRequest(original.capability(),expected).equals(invocation);
+        }
+        if(!(original.arguments().get("source") instanceof ContainerValue staging)
+                || original.capability().equals(invocation.capability()))return false;
+        if(CraftingTablePlacement.is(invocation.capability()))
+            return staging.equals(invocation.arguments().get("source"))
+                    && Objects.equals(original.arguments().get("table"),invocation.arguments().get("target"));
+        return staging.value().equals(ResourceDelivery.destinationAddress(invocation))
+                && (LogAcquisition.is(invocation.capability()) || staging.equals(invocation.arguments().get("source")));
+    }
 
     public static Receipt receipt(ValidatedRequest bound,UUID id,UUID run,UUID operation,UUID batch,
                                   Stage stage,long quantity,ChoiceWitness witness) {

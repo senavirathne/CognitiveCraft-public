@@ -9,14 +9,22 @@ import static dev.aivillages.core.kernel.Jobs.*;
 public final class ActivityRuntime {
     public record Proposal(int version,UUID id,UUID root,Guard expected,String token,CapabilityRequest request,
                            ArtifactRef artifact,ActivityPayload.Choice choice,ActivityPayload.Quantities quantities,
-                           Budgets.Limits allowance,int plannedSteps) {
+                           Budgets.Limits allowance,int plannedSteps,boolean integrated,long goalCredit) {
+        public Proposal(int version,UUID id,UUID root,Guard expected,String token,CapabilityRequest request,
+                        ArtifactRef artifact,ActivityPayload.Choice choice,ActivityPayload.Quantities quantities,
+                        Budgets.Limits allowance,int plannedSteps) {
+            this(version,id,root,expected,token,request,artifact,choice,quantities,allowance,plannedSteps,false,quantities.demand());
+        }
         public Proposal {
             Objects.requireNonNull(id);Objects.requireNonNull(root);Objects.requireNonNull(expected);Objects.requireNonNull(request);
             Objects.requireNonNull(artifact);Objects.requireNonNull(quantities);Objects.requireNonNull(allowance);
-            if(version!=1 || token==null || !token.matches("[A-Za-z0-9._:-]{1,64}") || plannedSteps<1 || plannedSteps>8)
+            if(version!=1 || token==null || !token.matches("[A-Za-z0-9._:-]{1,64}") || plannedSteps<1 || plannedSteps>8
+                    || goalCredit!=0 && goalCredit!=quantities.demand() || !integrated && goalCredit!=quantities.demand()
+                    || choice!=null && choice.exactRecipe()&&!integrated)
                 throw new IllegalArgumentException("Proposal envelope");
         }
-        public String signature(){return ActivityPayload.digest(RequestCodec.encode(request)+"\n"+artifact+"\n"+choice+"\n"+quantities);}
+        public String signature(){return ActivityPayload.digest(RequestCodec.encode(request)+"\n"+artifact+"\n"+choice+"\n"+quantities
+                +(integrated?"\nexact-activity\n"+goalCredit:""));}
         public String bodyDigest(){var maxima=new TreeMap<String,Long>();allowance.maxima().forEach((k,v)->maxima.put(k.name(),v));
             return ActivityPayload.digest(signature()+"\n"+StrictJson.canonical(Map.of("maxima",maxima,"deadline",allowance.deadlineEpochMillis(),"plannedSteps",(long)plannedSteps)));}
     }
@@ -25,6 +33,9 @@ public final class ActivityRuntime {
      * A09 deliberately supplies no implementation capable of generalized recipe execution/recovery. */
     public interface SemanticAdapter {
         Validation validate(ActivityPayload.Choice choice,ActivityPayload.Quantities quantities,CapabilityRequest exactBindings);
+        default Validation validate(Job root,ValidatedRequest invocation,ActivityPayload.Choice choice,
+                                    ActivityPayload.Quantities quantities) {return Validation.UNAVAILABLE;}
+        default boolean acknowledged(Job root,Attempt attempt,ResourceDelivery.Receipt receipt){return false;}
         StoppedObservation observeStopped(StoppedContext original,ActivityPayload.Choice choice);
         static SemanticAdapter unavailable(){return new SemanticAdapter(){
             public Validation validate(ActivityPayload.Choice c,ActivityPayload.Quantities q,CapabilityRequest r){return Validation.UNAVAILABLE;}

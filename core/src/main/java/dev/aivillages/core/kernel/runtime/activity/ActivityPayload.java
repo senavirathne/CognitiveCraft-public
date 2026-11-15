@@ -126,7 +126,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                 || !ResourceDelivery.isDelivery(job.request().request().capability()) || job.attempts().size()>steps.size())
             throw new IllegalArgumentException("Activity root ownership");
         var selected=current();
-        if(selected!=null && blocker==Blocker.NONE && (selected.choice()!=null || !selected.quantities().exact()
+        if(selected!=null && blocker==Blocker.NONE && !selected.integrated() && (selected.choice()!=null || !selected.quantities().exact()
                 || !LogAcquisition.is(job.request().request().capability()) && !CropDelivery.ID.equals(job.request().request().capability())))
             throw new IllegalArgumentException("Unvalidated semantics cannot authorize execution");
         long goal=((IntValue)job.request().request().arguments().get("amount")).value(),verified=0;
@@ -136,16 +136,22 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             if(s.creditBefore()!=priorCredit || s.preparedRevision()<=priorRevision || s.attempt()==null&&!s.id().equals(currentStep))
                 throw new IllegalArgumentException("Ordered historical preparation");
             priorRevision=s.preparedRevision();
-            if(s.preparedRevision()>job.revision() || !s.artifact().capability().equals(job.request().request().capability())
-                    || Math.addExact(s.creditBefore(),s.quantity())>goal || s.allowance().deadlineEpochMillis()>job.allowance().deadlineEpochMillis())
+            if(s.preparedRevision()>job.revision() || (s.integrated() ?
+                    !ActivityRecipeEvidence.permittedInvocation(job,s.invocation(),s.goalCredit()) :
+                    !s.artifact().capability().equals(job.request().request().capability()))
+                    || Math.addExact(s.creditBefore(),s.goalCredit())>goal || s.allowance().deadlineEpochMillis()>job.allowance().deadlineEpochMillis())
                 throw new IllegalArgumentException("Original activity envelope");
+            if(s.exactChoice())ActivityRecipeEvidence.exactInvocation(job,
+                    new ValidatedRequest(s.invocation(),job.origin(),job.request().observation()),s.choice(),s.quantities());
             for(var k:Budgets.Kind.values())if(s.allowance().maximum(k)>job.allowance().maximum(k))throw new IllegalArgumentException("Step allowance");
             if(s.attempt()!=null) {
                 if(!assigned.add(s.attempt()))throw new IllegalArgumentException("Duplicate step writer");
                 Attempt a=job.attempts().get(index++);
                 if(!a.id().equals(s.attempt()))throw new IllegalArgumentException("Original attempt order");
-                priorCredit=Math.addExact(priorCredit,a.credited());
-                if(!a.open() && a.effects()>0 && a.executions().stream().noneMatch(e->ResourceDelivery.completed(a.bound(),e.runId(),a.receipts(),a.resourceReceipts())))
+                priorCredit=Math.addExact(priorCredit,s.creditedToGoal(a));
+                if(s.integrated()&&!a.bound().request().equals(s.invocation()))
+                    throw new IllegalArgumentException("Changed integrated invocation");
+                if(!a.open() && a.effects()>0 && !ActivityRecipeEvidence.completed(job,a,s,a.receipts(),a.resourceReceipts()))
                     throw new IllegalArgumentException("Unclassified activity effects");
                 if(((IntValue)a.bound().request().arguments().get("amount")).value()!=s.quantity()
                         || !a.worker().equals(job.responsible()) || a.executions().stream().anyMatch(e->!e.artifact().equals(s.artifact())))
@@ -163,9 +169,9 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             var refs=new ArrayList<UUID>();a.receipts().forEach(r->refs.add(r.receiptId()));a.resourceReceipts().forEach(r->refs.add(r.receiptId()));
             if(!Objects.equals(s.attempt(),a.id()) || a.generation()!=c.generation() || a.open() || a.terminal()==null
                     || a.terminal().status()!=Outcomes.ExecutionStatus.SUCCEEDED || c.quantity()!=a.credited() || !refs.equals(c.receipts())
-                    || a.executions().stream().noneMatch(e->ResourceDelivery.completed(a.bound(),e.runId(),a.receipts(),a.resourceReceipts())))
+                    || !ActivityRecipeEvidence.completed(job,a,s,a.receipts(),a.resourceReceipts()))
                 throw new IllegalArgumentException("Forged historical checkpoint");
-            verified=Math.addExact(verified,c.quantity());
+            verified=Math.addExact(verified,s.creditedToGoal(a));
         }
         if(job.fulfilled()>goal || verified>job.fulfilled() || job.state()==State.SUCCEEDED
                 && (verified!=goal || currentStep!=null || job.attempts().stream().anyMatch(Attempt::open)))

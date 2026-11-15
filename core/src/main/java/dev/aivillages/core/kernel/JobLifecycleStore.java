@@ -96,10 +96,19 @@ public final class JobLifecycleStore {
     }
     private java.util.function.BiPredicate<CapabilityId,Long> activityOperations=(cap,q)->LogAcquisition.is(cap)||CropDelivery.ID.equals(cap);
     private boolean activityOperationsAttached;
+    private ActivityRuntime.SemanticAdapter activityAdapter=ActivityRuntime.SemanticAdapter.unavailable();
+    private boolean activityAdapterAttached;
     /** Trusted host advertises only independently implemented operations; unavailable shapes remain data. */
     public void activityOperations(java.util.function.BiPredicate<CapabilityId,Long> available) {
         thread();if(activityOperationsAttached)throw new IllegalStateException("Activity host policy already attached");
         activityOperations=Objects.requireNonNull(available);activityOperationsAttached=true;
+    }
+    /** Trusted runtime composition, disabled until the native validation and acknowledgement port is attached. */
+    public void activityAdapter(ActivityRuntime.SemanticAdapter adapter) {
+        thread();
+        if(activityAdapterAttached)throw new IllegalStateException("Activity native adapter already attached");
+        activityAdapter=Objects.requireNonNull(adapter);
+        activityAdapterAttached=true;
     }
     private JobHistory history;
     private JobArchive archiving;
@@ -494,18 +503,28 @@ public final class JobLifecycleStore {
             if(clock.millis()>=job.allowance().deadlineEpochMillis() || clock.millis()>=proposal.allowance().deadlineEpochMillis())return reject(Reason.BUDGET_EXHAUSTED,work);
             var exact=new HashMap<>(job.request().request().arguments());exact.put("amount",new IntValue(proposal.quantities().demand()));
             // Never relax the immutable exact root request or the B resolver. This segment is a subset of that root.
-            if(!new CapabilityRequest(job.request().request().capability(),exact).equals(proposal.request())
-                    || !proposal.artifact().capability().equals(job.request().request().capability())
-                    || proposal.quantities().demand()>((IntValue)job.request().request().arguments().get("amount")).value()-job.fulfilled())
+            if((proposal.integrated() ? !ActivityRecipeEvidence.permittedInvocation(job,proposal.request(),proposal.goalCredit())
+                    : !new CapabilityRequest(job.request().request().capability(),exact).equals(proposal.request()))
+                    || !proposal.artifact().capability().equals(proposal.request().capability())
+                    || proposal.goalCredit()>((IntValue)job.request().request().arguments().get("amount")).value()-job.fulfilled())
                 return reject(Reason.REQUEST_INVALID,work);
             var validation=RequestValidator.validate(proposal.request(),job.origin(),job.request().observation(),capabilities,environment);
             if(validation instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
             envelope(proposal.allowance(),remainingAllowance(job.id(),caller));
             for(var step:payload.steps())if(step.signature().equals(proposal.signature()) && step.creditBefore()==job.fulfilled())return reject(Reason.STALE_OBSERVATION,work);
-            boolean executable=proposal.choice()==null && proposal.quantities().exact()
+            boolean executable;
+            if(proposal.integrated()) {
+                var bound=((RequestValidator.Accepted)validation).value();
+                if(proposal.choice()!=null)ActivityRecipeEvidence.exactInvocation(job,bound,proposal.choice(),proposal.quantities());
+                var current=activityAdapter.validate(job,bound,proposal.choice(),proposal.quantities());
+                if(current!=ActivityRuntime.Validation.VALID)
+                    return reject(current==ActivityRuntime.Validation.INVALID?Reason.STALE_OBSERVATION:Reason.UNSUPPORTED_PRIMITIVE,work);
+                executable=true;
+            } else executable=proposal.choice()==null && proposal.quantities().exact()
                     && activityOperations.test(job.request().request().capability(),proposal.quantities().demand());
             var step=new ActivityPayload.Step(UUID.randomUUID(),proposal.id(),proposal.token(),proposal.bodyDigest(),proposal.signature(),job.fulfilled(),
-                    proposal.quantities().demand(),proposal.artifact(),proposal.choice(),proposal.quantities(),proposal.allowance(),Math.addExact(job.revision(),1),null);
+                    proposal.quantities().demand(),proposal.artifact(),proposal.choice(),proposal.quantities(),proposal.allowance(),Math.addExact(job.revision(),1),null,
+                    proposal.integrated()?proposal.request():null,proposal.goalCredit());
             var edit=new Edit(job);edit.activity=payload.prepared(step,proposal.plannedSteps(),executable);
             edit.state=executable?State.READY:State.WAITING;edit.reason=null;
             Job changed=edit.finish(EventKind.ACTIVITY_PREPARED,settings.events());var rows=rows();rows.put(job.id(),changed);
@@ -887,8 +906,8 @@ public final class JobLifecycleStore {
                         return reject(Reason.BUDGET_EXHAUSTED, work);
             if(job.activity()!=null) {
                 var step=job.activity().current();
-                if(step==null || step.attempt()!=null || step.choice()!=null || !step.quantities().exact()
-                        || !activityOperations.test(job.request().request().capability(),step.quantity())
+                if(step==null || step.attempt()!=null || !step.integrated() && (step.choice()!=null || !step.quantities().exact()
+                        || !activityOperations.test(job.request().request().capability(),step.quantity()))
                         || !job.responsible().equals(worker) || !Objects.equals(artifact,step.artifact())
                         || job.activity().blocker()!=ActivityPayload.Blocker.NONE)return reject(Reason.REQUEST_INVALID,work);
                 envelope(allowance,step.allowance());
@@ -896,6 +915,11 @@ public final class JobLifecycleStore {
             ValidatedRequest bound = remainingRequest(job, worker);
             var validated = RequestValidator.validate(bound.request(), job.origin(), bound.observation(), capabilities, environment);
             if (validated instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
+            if(job.activity()!=null && job.activity().current().integrated()) {
+                var step=job.activity().current();
+                if(activityAdapter.validate(job,bound,step.choice(),step.quantities())!=ActivityRuntime.Validation.VALID)
+                    return reject(Reason.STALE_OBSERVATION,work);
+            }
             if (artifact != null && (!artifact.capability().equals(bound.request().capability())
                     || job.preparation()!=null && !artifact.equals(job.preparation().method())))
                 return reject(Reason.REQUEST_INVALID, work);
@@ -922,7 +946,8 @@ public final class JobLifecycleStore {
                 && !history.executionOwner(reference.runId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
         Attempt a = job.current();
         if (job.state() != State.ACTIVE || a == null || !a.open()) return reject(Reason.REQUEST_INVALID, work);
-        if (!reference.artifact().capability().equals(job.request().request().capability()))
+        if (!reference.artifact().capability().equals(a.bound().request().capability())
+                || job.activity()!=null && job.activity().current().exactChoice())
             return reject(Reason.REQUEST_INVALID, work);
         var same = a.executions().stream().filter(r -> r.runId().equals(reference.runId())).findFirst();
         if (same.isPresent()) return same.get().equals(reference) ? duplicate(job, work)
@@ -1031,6 +1056,8 @@ public final class JobLifecycleStore {
             Attempt old = job.attempts().stream().filter(a -> a.id().equals(report.attemptId())
                     && a.generation() == report.generation()).findFirst().orElse(null);
             if (old == null) return reject(Reason.STALE_OBSERVATION, work);
+            var integrated=job.activity()==null?null:job.activity().forAttempt(old.id());
+            if(integrated!=null && !integrated.exactChoice())integrated=null;
             boolean current = old.generation() == job.generation();
             if (reconciliation && (!current || job.state() != State.INTERRUPTED
                     && !(typedStopped && job.state() == State.CANCELLING) || !certain || report.terminal() == null))
@@ -1053,7 +1080,10 @@ public final class JobLifecycleStore {
             for (var receipt : report.resourceReceipts()) {
                 if(history!=null && history.receiptOwner(receipt.receiptId())!=null
                         && !history.receiptOwner(receipt.receiptId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
-                validateReceipt(old,receipt);
+                if(integrated==null)validateReceipt(old,receipt);
+                else if(!ActivityRecipeEvidence.matches(job,old,integrated,receipt)
+                        || !resources.containsKey(receipt.receiptId()) && !activityAdapter.acknowledged(job,old,receipt))
+                    return reject(Reason.STALE_OBSERVATION,work);
                 var previous = resources.putIfAbsent(receipt.receiptId(),receipt);
                 if (previous != null && !previous.equals(receipt) || receipts.containsKey(receipt.receiptId()))
                     return reject(Reason.REQUEST_INVALID,work);
@@ -1080,17 +1110,18 @@ public final class JobLifecycleStore {
             boolean obsolete = !current || old.terminal() != null && !reconciliation;
             List<CropDelivery.CropReceipt> merged = List.copyOf(receipts.values());
             List<ResourceDelivery.Receipt> mergedResources = List.copyOf(resources.values());
-            long credit = obsolete ? old.credited() : Math.min(quantity(old, merged, mergedResources),
+            long attributed=integrated==null?quantity(old,merged,mergedResources):
+                    ActivityRecipeEvidence.quantity(job,old,integrated,mergedResources);
+            long credit = obsolete ? old.credited() : Math.min(attributed,
                     ((IntValue)old.bound().request().arguments().get("amount")).value());
             Execution terminal = obsolete ? old.terminal() : report.terminal();
             if (!obsolete && terminal != null && terminal.status() == ExecutionStatus.SUCCEEDED
-                    && old.executions().stream().noneMatch(r ->
-                    ResourceDelivery.completed(old.bound(), r.runId(), merged, mergedResources)))
+                    && !completed(job,old,merged,mergedResources))
                 return reject(Reason.ACTION_FAILED, work);
             boolean uncertain = reconciliation ? false : old.uncertain()
                     || !obsolete && terminal != null && terminal.status() == ExecutionStatus.INTERRUPTED;
             if(job.activity()!=null && terminal!=null && terminal.status()!=ExecutionStatus.SUCCEEDED && effects>0
-                    && old.executions().stream().noneMatch(r->ResourceDelivery.completed(old.bound(),r.runId(),merged,mergedResources)))uncertain=true;
+                    && !completed(job,old,merged,mergedResources))uncertain=true;
             Attempt updated = attempt(old, old.executions(), usage, merged, effects, credit,
                     terminal, uncertain, old.cancellationDeliveries(), mergedResources);
             if (updated.equals(old)) return duplicate(job, work);
@@ -1125,9 +1156,11 @@ public final class JobLifecycleStore {
             if(job.activity()!=null && !obsolete) {
                 if(terminal!=null && terminal.status()==ExecutionStatus.SUCCEEDED && !updated.open()) {
                     edit.activity=job.activity().completed(updated);
-                    long total=edit.attempts.stream().mapToLong(Attempt::credited).reduce(0,Math::addExact);
-                    edit.state=total==((IntValue)job.request().request().arguments().get("amount")).value()?State.SUCCEEDED:State.WAITING;
-                    edit.reason=null;
+                    if(!job.activity().current().integrated() || job.cancellationOutcome()==null && job.state()!=State.CANCELLING) {
+                        long total=edit.attempts.stream().mapToLong(a->edit.activity.forAttempt(a.id()).creditedToGoal(a)).reduce(0,Math::addExact);
+                        edit.state=total==((IntValue)job.request().request().arguments().get("amount")).value()?State.SUCCEEDED:State.WAITING;
+                        edit.reason=null;
+                    }
                 } else if(updated.open() && terminal!=null) {
                     edit.state=State.INTERRUPTED;edit.reason=Reason.INTERRUPTED;
                 }
@@ -1520,7 +1553,8 @@ public final class JobLifecycleStore {
         long remaining = ((IntValue)args.get("amount")).value() - job.fulfilled() - allocated;
         if (remaining <= 0) throw new Limited(Reason.REQUEST_INVALID);
         if(job.activity()!=null) {
-            var step=job.activity().current();if(step==null || step.quantity()>remaining)throw new Limited(Reason.REQUEST_INVALID);
+            var step=job.activity().current();if(step==null || step.goalCredit()>remaining)throw new Limited(Reason.REQUEST_INVALID);
+            if(step.integrated())return new ValidatedRequest(step.invocation(),job.origin(),job.request().observation());
             remaining=step.quantity();
         }
         args.put("amount", new IntValue(remaining));
@@ -1556,6 +1590,11 @@ public final class JobLifecycleStore {
                 || attempt.executions().stream().noneMatch(r -> r.runId().equals(receipt.runId()))
                 || !ResourceDelivery.matches(attempt.bound(),receipt.runId(),receipt))
             throw new Limited(Reason.AUTHORITY_DENIED);
+    }
+    private static boolean completed(Job job,Attempt attempt,List<CropDelivery.CropReceipt> crops,List<ResourceDelivery.Receipt> resources) {
+        var step=job.activity()==null?null:job.activity().forAttempt(attempt.id());
+        return step==null?attempt.executions().stream().anyMatch(r->ResourceDelivery.completed(attempt.bound(),r.runId(),crops,resources)):
+                ActivityRecipeEvidence.completed(job,attempt,step,crops,resources);
     }
     private static long quantity(Attempt attempt, List<CropDelivery.CropReceipt> receipts) {
         return quantity(attempt,receipts,attempt.resourceReceipts());
@@ -1688,19 +1727,24 @@ public final class JobLifecycleStore {
                 if (!attempts.add(attempt.id()) || attempt.open() && !openWorkers.add(attempt.worker().entityId()))
                     throw new IllegalArgumentException("Duplicate assignment");
                 envelope(attempt.allowance(), job.allowance());
-                if (!sameBindings(attempt.bound(), new ValidatedRequest(new CapabilityRequest(job.request().request().capability(),
-                        withWorker(job.request().request().arguments(),attempt.worker())),job.origin(),job.request().observation()))
-                        || attempt.executions().stream().anyMatch(r -> !r.artifact().capability().equals(job.request().request().capability())))
+                var step=job.activity()==null?null:job.activity().forAttempt(attempt.id());
+                var expected=step!=null && step.integrated()?step.invocation():new CapabilityRequest(job.request().request().capability(),
+                        withWorker(job.request().request().arguments(),attempt.worker()));
+                if (!sameBindings(attempt.bound(), new ValidatedRequest(expected,job.origin(),job.request().observation()))
+                        || attempt.executions().stream().anyMatch(r -> !r.artifact().capability().equals(expected.capability())))
                     throw new IllegalArgumentException("Changed assignment bindings");
                 for (var receipt : attempt.receipts()) {
                     validateReceipt(attempt, receipt);
                     if (!receipts.add(receipt.receiptId())) throw new IllegalArgumentException("Duplicate receipt ownership");
                 }
                 for (var receipt : attempt.resourceReceipts()) {
-                    validateReceipt(attempt,receipt);
+                    if(step==null || !step.exactChoice())validateReceipt(attempt,receipt);
+                    else if(!ActivityRecipeEvidence.matches(job,attempt,step,receipt))throw new IllegalArgumentException("Foreign exact-choice evidence");
                     if (!receipts.add(receipt.receiptId())) throw new IllegalArgumentException("Duplicate resource receipt ownership");
                 }
-                if (attempt.credited() > quantity(attempt, attempt.receipts()))
+                long attributed=step!=null && step.exactChoice()?ActivityRecipeEvidence.quantity(job,attempt,step,attempt.resourceReceipts()):
+                        quantity(attempt,attempt.receipts());
+                if (attempt.credited() > attributed)
                     throw new IllegalArgumentException("Unattributed credit");
             }
             for (var entry : job.usage().entrySet())
