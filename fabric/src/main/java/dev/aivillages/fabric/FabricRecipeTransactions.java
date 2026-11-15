@@ -45,6 +45,14 @@ final class FabricRecipeTransactions {
             dev.aivillages.core.kernel.production.planning.PlanningModel.Cost allowance) {return concrete.describe(capability,allowance);}
     void validateChoice(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,UUID run,
             RecipeTransaction.ChoiceAuthority authority,dev.aivillages.core.kernel.production.RecipeSources sources) {concrete.validate(request,choice,run,authority,sources);}
+    dev.aivillages.core.kernel.production.RecipeChoice selectProposal(ValidatedRequest request,
+            RecipeTransaction.ChoiceAuthority authority,dev.aivillages.core.kernel.production.RecipeSources sources) {
+        return concrete.selectProposal(request,authority,sources);
+    }
+    void validateProposal(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,
+            RecipeTransaction.ChoiceAuthority authority,dev.aivillages.core.kernel.production.RecipeSources sources) {
+        concrete.validateProposal(request,choice,authority,sources);
+    }
     RecipeTransaction.Mutation craft(ActorRef actor,RecipeTransaction.Preflight captured,String custody,RecipeTransaction.HostObserver observer) {
         if(observer==null || observer==RecipeTransaction.HostObserver.NONE)return craft(actor,captured,custody);
         return new FabricHostObservations(level,world).call(actor,null,null,captured.facility(),"CRAFT",captured.recipe()==null?RecipeTransaction.fingerprint("unavailable-legacy-recipe"):captured.recipe().fingerprint(),observer,

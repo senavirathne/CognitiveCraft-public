@@ -56,7 +56,7 @@ def baseline():
     print(json.dumps(record))
 
 
-def validate_case(row, root):
+def validate_case(row, root, *, integrated_recipe=False):
     problems = record_problems(row)
     case = row["case"]
     passing = row["status"] in PASS_STATUSES
@@ -124,7 +124,7 @@ def validate_case(row, root):
         problems.append("No original player request")
     if row["status"] == "PASS" and row.get("delivered") != row.get("requested"):
         problems.append("False physical completion")
-    if row["status"] == "PASS" and case.get("missingAdapter"):
+    if row["status"] == "PASS" and case.get("missingAdapter") and not integrated_recipe:
         problems.append("Unreachable adapter cannot count as a gameplay success")
     return problems
 

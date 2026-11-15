@@ -101,7 +101,7 @@ def needed_artifacts(case):
     return list(dict.fromkeys(needed))
 
 
-def run_case(h, case):
+def run_case(h, case, *, integrated_recipe=False):
     require(not record_problems({"case": case, "status": "NOT_EXECUTED", "attempted": False,
                                  "terminalObserved": False}), "Invalid generated or replayed case identity")
     folder = evidence_path(h.root, "cases/" + case["id"])
@@ -119,7 +119,7 @@ def run_case(h, case):
             probe = h.probe(case)
             expected = requirements(probe, case["quantity"])
             row.update(vanillaProbe=probe, independentExpectation=expected)
-            if case.get("missingAdapter"):
+            if case.get("missingAdapter") and not integrated_recipe:
                 row.update(status="GAP_NO_GAMEPLAY_ADAPTER", reason="Vanilla equivalent output has no registered player-facing production adapter")
                 return row
         missing = [x for x in needed_artifacts(case) if x not in h.artifacts]
@@ -201,8 +201,18 @@ def run_case(h, case):
                         for c in h.blueprint_cells), "Staging changed construction blocks")
         artifacts_ok, used = check_artifacts(h, result)
         if case["mode"] == "recipe" and result["completed"]:
-            marker = result["views"][0].get("marker", {})
-            artifacts_ok = artifacts_ok and marker.get("artifactSha256") == h.artifacts[output]
+            root = result["views"][0]
+            if integrated_recipe:
+                attempts = {a["id"] for a in root["attempts"]}
+                choices = [step for step in root["activity"]["steps"]
+                           if step.get("choice") and step.get("attempt") in attempts]
+                pins = {step["artifact"]["sha256"] for step in choices}
+                artifacts_ok = artifacts_ok and pins == {h.artifacts[output]}
+                used = sorted(set(used) | pins)
+                row["integratedRecipe"] = {"root": root["id"], "choices": choices, "methodPins": sorted(pins)}
+            else:
+                marker = root.get("marker", {})
+                artifacts_ok = artifacts_ok and marker.get("artifactSha256") == h.artifacts[output]
         require(artifacts_ok, "Known gameplay changed an admitted artifact identity")
         require(h.model_calls() == calls, "Known execution invoked a model")
         reason = refusal_reason(request, result)

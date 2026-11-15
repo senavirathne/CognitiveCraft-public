@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel.runtime.activity;
 
 import dev.aivillages.core.kernel.*;
+import dev.aivillages.core.kernel.production.RecipeChoice;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
@@ -10,20 +11,31 @@ import static dev.aivillages.core.kernel.Jobs.*;
 /** Immutable data embedded in the root Job. No second lifecycle, inventory or writer. */
 public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UUID currentStep,
                               List<Step> steps, List<Checkpoint> checkpoints, Blocker blocker) {
-    public static final int SCHEMA=1, MAX_STEPS=8, CHOICE_BYTES=768;
+    public static final int SCHEMA=1, MAX_STEPS=8, CHOICE_BYTES=768, EXACT_CHOICE_BYTES=24_576;
     public enum GoalMode { ACQUIRE_NEW, MAKE_NEW, SUPPLY }
     public enum Policy { ORIGINAL_ACTOR_SETTLED_EFFECTS }
     public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION }
     public enum Evidence { LIVE_RECEIPTS }
     /** Opaque canonical bytes are data only. Reload epoch is never semantic identity. */
-    public record Choice(String base64, String sha256) {
+    public record Choice(String base64, String sha256, boolean exactRecipe) {
+        public Choice(String base64,String sha256){this(base64,sha256,false);}
         public Choice {
             Objects.requireNonNull(base64);Objects.requireNonNull(sha256);
-            if(base64.length()>1024)throw new IllegalArgumentException("Recipe choice byte bound");
+            int maximum=exactRecipe?EXACT_CHOICE_BYTES:CHOICE_BYTES;
+            if(base64.length()>maximum*4/3)throw new IllegalArgumentException("Recipe choice byte bound");
             byte[] bytes=Base64.getDecoder().decode(base64);
-            if(bytes.length==0 || bytes.length>CHOICE_BYTES || !Base64.getEncoder().encodeToString(bytes).equals(base64)
+            if(bytes.length==0 || bytes.length>maximum || !Base64.getEncoder().encodeToString(bytes).equals(base64)
                     || !digest(bytes).equals(sha256))throw new IllegalArgumentException("Recipe choice identity");
         }
+        public static Choice of(RecipeChoice recipe) {
+            var bytes=recipe.canonicalBytes();
+            return new Choice(Base64.getEncoder().encodeToString(bytes),recipe.digest(),true);
+        }
+        public RecipeChoice recipe() {
+            if(!exactRecipe)throw new IllegalArgumentException("Opaque activity choice has no exact recipe authority");
+            return RecipeChoice.fromCanonical(new String(Base64.getDecoder().decode(base64),StandardCharsets.UTF_8));
+        }
+        @Override public String toString(){return "Choice[base64="+base64+", sha256="+sha256+"]";}
     }
     /** Contract arithmetic; acceptance of this shape is not native recipe support. */
     public record Quantities(long demand,long yield,long batches,long produced,long allocation,long surplus,long remainders) {
@@ -38,16 +50,29 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     }
     public record Step(UUID id,UUID proposal,String token,String bodyDigest,String signature,long creditBefore,
                        long quantity,ArtifactRef artifact,Choice choice,Quantities quantities,Budgets.Limits allowance,
-                       long preparedRevision,UUID attempt) {
+                       long preparedRevision,UUID attempt,CapabilityRequest invocation,long goalCredit) {
+        public Step(UUID id,UUID proposal,String token,String bodyDigest,String signature,long creditBefore,
+                    long quantity,ArtifactRef artifact,Choice choice,Quantities quantities,Budgets.Limits allowance,
+                    long preparedRevision,UUID attempt) {
+            this(id,proposal,token,bodyDigest,signature,creditBefore,quantity,artifact,choice,quantities,allowance,
+                    preparedRevision,attempt,null,quantity);
+        }
         public Step {
             Objects.requireNonNull(id);Objects.requireNonNull(proposal);Objects.requireNonNull(artifact);
             Objects.requireNonNull(quantities);Objects.requireNonNull(allowance);
             if(!hash(artifact.sha256()) || token==null || !token.matches("[A-Za-z0-9._:-]{1,64}") || !hash(bodyDigest) || !hash(signature)
-                    || creditBefore<0 || quantity<1 || quantity>64 || quantities.demand()!=quantity || preparedRevision<1)
+                    || creditBefore<0 || quantity<1 || quantity>64 || quantities.demand()!=quantity || preparedRevision<1
+                    || (goalCredit!=0 && goalCredit!=quantity) || invocation==null && goalCredit!=quantity
+                    || invocation!=null && (!artifact.capability().equals(invocation.capability())
+                        || !(invocation.arguments().get("amount") instanceof IntValue amount) || amount.value()!=quantity)
+                    || (choice!=null && choice.exactRecipe())!=(invocation!=null && RecipeProduction.is(artifact.capability())))
                 throw new IllegalArgumentException("Bounded activity preparation");
         }
+        public boolean integrated(){return invocation!=null;}
+        public boolean exactChoice(){return choice!=null && choice.exactRecipe();}
+        public long creditedToGoal(Attempt a){return Math.min(a.credited(),goalCredit);}
         public Step assigned(UUID original){return new Step(id,proposal,token,bodyDigest,signature,creditBefore,quantity,
-                artifact,choice,quantities,allowance,preparedRevision,Objects.requireNonNull(original));}
+                artifact,choice,quantities,allowance,preparedRevision,Objects.requireNonNull(original),invocation,goalCredit);}
     }
     /** References to actual original receipts. Never a new receipt or stock allocation. */
     public record Checkpoint(UUID step,UUID attempt,long generation,long quantity,List<UUID> receipts,Evidence evidence) {
@@ -75,6 +100,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         return new ActivityPayload(mode,Policy.ORIGINAL_ACTOR_SETTLED_EFFECTS,planned,null,List.of(),List.of(),Blocker.AWAITING_PROPOSAL);
     }
     public Step current(){return currentStep==null?null:steps.stream().filter(s->s.id().equals(currentStep)).findFirst().orElseThrow();}
+    public Step forAttempt(UUID attempt){return steps.stream().filter(s->attempt.equals(s.attempt())).findFirst().orElse(null);}
     public ActivityPayload prepared(Step step,int planned,boolean executable) {
         if(currentStep!=null)throw new IllegalArgumentException("One prepared writer");
         var next=new ArrayList<>(steps);next.add(step);

@@ -12,11 +12,20 @@ from recovery_fixture import MEMBERSHIP,marker
 
 ROOT=Path(__file__).resolve().parents[2]
 
-def identity(root,profile,source,jar):
-    frozen=read(root/'a10-frozen-runtime.json');metadata=read(root/'metadata.json')
+def verify_original_bundle(root,source,jar,metadata):
+    frozen=read(root/'a10-frozen-runtime.json')
     assert frozen['schema']==1 and frozen['stage']=='A10' and frozen['source']==metadata['sourceCommit']==source
     assert frozen['tree']==metadata['sourceTree'] and metadata['dirty'] is False
     assert frozen['productionSha256']==metadata['releaseSha256']==jar and frozen['plan']==plan()
+    unit=modules()
+    assert unit['source']==source and unit['tree']==frozen['tree'] and unit['productionSha256']==jar
+    assert frozen['nativeUnits']=={'total':sum(MODULES.values()),'modules':MODULES}
+    for row in frozen['files']:assert (ROOT/row['path']).stat().st_size==row['bytes'] and digest(ROOT/row['path'])==row['sha256']
+    return frozen
+
+def identity(root,profile,source,jar,verify_bundle):
+    metadata=read(root/'metadata.json')
+    frozen=verify_bundle(root,source,jar,metadata)
     assert metadata['minecraft']=='26.3' and metadata['loader']=='0.19.5'
     cpu=read(root/'a10-cpu-topology.json');assert cpu['profile']==profile
     assert cpu['isolationApplied'] and cpu['orchestratorAfter']==[2,3] and cpu['serverCores']==[0,1]
@@ -24,10 +33,6 @@ def identity(root,profile,source,jar):
     files={r['path']:r for r in frozen['files']}
     assert files['build/e2e-driver/observer.jar']['sha256']==metadata['binaries']['observer']['sha256']
     assert files['build/e2e-driver/client.jar']['sha256']==metadata['binaries']['clientDriver']['sha256']
-    unit=modules()
-    assert unit['source']==source and unit['tree']==frozen['tree'] and unit['productionSha256']==jar
-    assert frozen['nativeUnits']=={'total':sum(MODULES.values()),'modules':MODULES}
-    for row in frozen['files']:assert (ROOT/row['path']).stat().st_size==row['bytes'] and digest(ROOT/row['path'])==row['sha256']
     native=runtime_proof(root,metadata)
     stops=[json.loads(line) for line in (root/'supervisor.jsonl').read_text().splitlines()]
     stops=[r['data']['process'] for r in stops if r['kind'] in ('stop','sigkill') and r['data'].get('component')=='server']
@@ -108,9 +113,9 @@ def handoff_membership(root):
     assert set(checks)=={old,new} and all(checks.values())
     return {'status':'PASS_SAVED_NATIVE_HANDOFF_MEMBERSHIP','oldActor':old,'successor':new,'rows':checks,'creditMintedByDeparture':0}
 
-def review(root,profile,source,jar):
-    identity_result=identity(root,profile,source,jar);collection=read(root/'a10-collection.json')
-    assert collection['status']=='COLLECTED_PENDING_INDEPENDENT_REVIEW' and collection['profile']==profile
+def review(root,profile,source,jar,*,verify_bundle=verify_original_bundle,stage='A10'):
+    identity_result=identity(root,profile,source,jar,verify_bundle);collection=read(root/'a10-collection.json')
+    assert collection['status']=='COLLECTED_PENDING_INDEPENDENT_REVIEW' and collection['profile']==profile and collection['stage']==stage
     assert collection['source']==source and collection['tree']==identity_result['tree'] and collection['productionSha256']==jar
     actual=results(root,profile);complete=ledger(profile,actual)
     assert collection['cases']==complete and collection['executedCases']==collection['requiredCases']==len(CASES[profile])
@@ -172,7 +177,7 @@ def review(root,profile,source,jar):
     else:
         from review_activity_connected import review as original
         details=original(root,source);assert details['status']=='PASS_ALL_REQUIRED_A09_NATIVE_REVIEW'
-    return {'schema':1,'stage':'A10','profile':profile,'status':'PASS_INDEPENDENT_A10_PROFILE_REVIEW',**identity_result,
+    return {'schema':1,'stage':stage,'profile':profile,'status':'PASS_INDEPENDENT_'+stage+'_PROFILE_REVIEW',**identity_result,
             'requiredCases':len(CASES[profile]),'cases':[{'id':name,'status':'PASS_ORIGINAL_CLASSIFICATION_RETAINED'} for name in CASES[profile]],
             'details':details,'omittedTasks':0,'omittedTests':0,'branchReady':False,
             'scope':'Original native E2E, native host and metadata-fault classifications retained. Not an I00 or broad gameplay claim.'}

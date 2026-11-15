@@ -19,7 +19,7 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.Blocks;
 
-/** Version-2 native host, deliberately not registered on a player/runtime route before I00. */
+/** Version-2 installed-recipe host. The caller supplies current authority and effect ownership. */
 final class FabricConcreteRecipeChoices {
     private final ServerLevel level;
     private final FabricGatewayWorld world;
@@ -43,7 +43,7 @@ final class FabricConcreteRecipeChoices {
         }
     }
     record Result(Context continuation,ChoiceObservation observation){}
-    private static final class Refused extends RuntimeException {
+    static final class Refused extends RuntimeException {
         final Reason reason;Refused(Reason reason){super(reason.name());this.reason=reason;}
     }
     private static Refused refuse(Reason reason){return new Refused(reason);}
@@ -118,10 +118,20 @@ final class FabricConcreteRecipeChoices {
     }
     /** Validate a planner-selected immutable grid and all batches/capacity without a physical effect. */
     void validate(ValidatedRequest request,RecipeChoice choice,UUID run,ChoiceAuthority authority,RecipeSources sources) {
-        thread();nativeActor(request,run);sources.validate(request);checkRequest(request,choice);var current=view(choice.capability());
-        sourceContainers(request,run,authority,sources,ChoicePhase.PREPARE,false);permitted(request,run,authority,container(request,"destination"),ChoicePhase.PREPARE,false);facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
+        thread();validateChoice(request,choice,authority,sources,nativeActor(request,run));
+    }
+
+    /** Proposal snapshots may read a current, scoped actor before any exclusive native run exists. */
+    void validateProposal(ValidatedRequest request,RecipeChoice choice,ChoiceAuthority authority,RecipeSources sources) {
+        thread();validateChoice(request,choice,authority,sources,presentActor(request));
+    }
+
+    private void validateChoice(ValidatedRequest request,RecipeChoice choice,ChoiceAuthority authority,RecipeSources sources,Villager villager) {
+        sources.validate(request);checkRequest(request,choice);var current=view(choice.capability());
+        if(current.epoch()!=choice.reloadEpoch())throw refuse(Reason.STALE_OBSERVATION);
+        facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
         if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);
-        wholeChoiceCapacity(request,run,authority,choice,current,sources);
+        wholeChoiceCapacity(request,authority,choice,current,sources,villager,ChoicePhase.PREPARE);
     }
     private CraftingInput input(RecipeChoice choice,int index) {
         return CraftingInput.of(choice.width(),choice.height(),choice.batch(index).grid().stream().map(this::stack).toList());
@@ -139,12 +149,17 @@ final class FabricConcreteRecipeChoices {
     }
     private ActorRef actor(ValidatedRequest request){if(!(request.request().arguments().get("actor") instanceof ActorValue a))throw refuse(Reason.REQUEST_INVALID);return a.value();}
     private ContainerRef container(ValidatedRequest request,String key){if(!(request.request().arguments().get(key) instanceof ContainerValue v))throw refuse(Reason.REQUEST_INVALID);return v.value();}
-    private Villager nativeActor(ValidatedRequest request,UUID run) {
-        var actor=actor(request);var v=world.recipeActor(actor);
-        if(v==null || !v.isAlive() || !world.holds(actor,run))throw refuse(Reason.ACTOR_UNAVAILABLE);
-        if(!v.onGround())throw refuse(Reason.ACTOR_UNAVAILABLE);return v;
+    private Villager presentActor(ValidatedRequest request) {
+        var villager=world.recipeActor(actor(request));
+        if(villager==null || !villager.isAlive() || !villager.onGround())throw refuse(Reason.ACTOR_UNAVAILABLE);
+        return villager;
     }
-    private Container permitted(ValidatedRequest request,UUID run,ChoiceAuthority authority,ContainerRef ref,ChoicePhase phase,boolean reach) {
+    private Villager nativeActor(ValidatedRequest request,UUID run) {
+        var villager=presentActor(request);
+        if(!world.holds(actor(request),run))throw refuse(Reason.ACTOR_UNAVAILABLE);
+        return villager;
+    }
+    private Container permitted(ValidatedRequest request,ChoiceAuthority authority,ContainerRef ref,ChoicePhase phase,boolean reach) {
         if(authority==null || !authority.permits(request.context(),actor(request),ref,phase))throw refuse(Reason.AUTHORITY_DENIED);
         var box=world.recipeContainer(ref);if(box==null)throw refuse(Reason.TARGET_UNAVAILABLE);
         var pos=new BlockPos(ref.x(),ref.y(),ref.z());var v=world.recipeActor(actor(request));
@@ -168,19 +183,27 @@ final class FabricConcreteRecipeChoices {
     RecipeChoice select(ValidatedRequest request,UUID run,ChoiceAuthority authority) {
         return select(request,run,authority,RecipeSources.single(request));
     }
-    private Map<ContainerRef,Container> sourceContainers(ValidatedRequest request,UUID run,ChoiceAuthority authority,RecipeSources sources,ChoicePhase phase,boolean reach) {
+    private Map<ContainerRef,Container> sourceContainers(ValidatedRequest request,ChoiceAuthority authority,RecipeSources sources,ChoicePhase phase,boolean reach) {
         sources.validate(request);var result=new LinkedHashMap<ContainerRef,Container>();
-        for(var source:sources.containers())result.put(source,permitted(request,run,authority,source,phase,reach));return result;
+        for(var source:sources.containers())result.put(source,permitted(request,authority,source,phase,reach));return result;
     }
     private Map<ContainerRef,List<ItemStack>> copies(Map<ContainerRef,Container> boxes){var result=new HashMap<ContainerRef,List<ItemStack>>();boxes.forEach((ref,box)->result.put(ref,FabricRecipeTransactions.copy(box)));return result;}
     private Map<ContainerRef,String> fingerprints(Map<ContainerRef,Container> boxes){var result=new HashMap<ContainerRef,String>();boxes.forEach((ref,box)->result.put(ref,fingerprint(box)));return result;}
     RecipeChoice select(ValidatedRequest request,UUID run,ChoiceAuthority authority,RecipeSources sources) {
-        thread();sources.validate(request);
-        nativeActor(request,run);var cap=request.request().capability();var d=RecipeProduction.choiceDefinition(cap);var recipe=view(cap);
+        thread();return select(request,authority,sources,nativeActor(request,run));
+    }
+
+    RecipeChoice selectProposal(ValidatedRequest request,ChoiceAuthority authority,RecipeSources sources) {
+        thread();return select(request,authority,sources,presentActor(request));
+    }
+
+    private RecipeChoice select(ValidatedRequest request,ChoiceAuthority authority,RecipeSources sources,Villager villager) {
+        sources.validate(request);
+        var cap=request.request().capability();var d=RecipeProduction.choiceDefinition(cap);var recipe=view(cap);
         if(!(request.request().arguments().get("amount") instanceof IntValue amount))throw refuse(Reason.REQUEST_INVALID);
         var quantities=d.quantities(amount.value(),BatchQuantities.Role.ROOT);
-        var boxes=sourceContainers(request,run,authority,sources,ChoicePhase.DISCOVER,false);
-        permitted(request,run,authority,container(request,"destination"),ChoicePhase.DISCOVER,false);
+        var boxes=sourceContainers(request,authority,sources,ChoicePhase.DISCOVER,false);
+        permitted(request,authority,container(request,"destination"),ChoicePhase.DISCOVER,false);
         var selectedFacility=facility(request,authority,ChoicePhase.DISCOVER,null,false);
         var available=copies(boxes);var batches=new ArrayList<RecipeChoice.Batch>();RecipeChoice.ItemKey resultKey=null;int width=d.axe()?3:2;
         for(int b=0;b<quantities.batches();b++) {
@@ -201,12 +224,13 @@ final class FabricConcreteRecipeChoices {
             resultKey=keyResult;batches.add(new RecipeChoice.Batch(grid,bindings));
         }
         var choice=new RecipeChoice(cap,d.recipe(),recipe.semantic(),RecipeChoice.RUNTIME,recipe.epoch(),width,width,batches,resultKey,d.outputPerBatch(),amount.value(),List.of(),selectedFacility);
-        wholeChoiceCapacity(request,run,authority,choice,recipe,sources);return choice;
+        wholeChoiceCapacity(request,authority,choice,recipe,sources,villager,ChoicePhase.DISCOVER);return choice;
     }
-    private void wholeChoiceCapacity(ValidatedRequest request,UUID run,ChoiceAuthority authority,RecipeChoice choice,View recipe,RecipeSources sources) {
-        var v=nativeActor(request,run);var target=container(request,"destination");
-        var boxes=sourceContainers(request,run,authority,sources,ChoicePhase.DISCOVER,false);
-        var to=permitted(request,run,authority,target,ChoicePhase.DISCOVER,false);
+    private void wholeChoiceCapacity(ValidatedRequest request,ChoiceAuthority authority,RecipeChoice choice,View recipe,RecipeSources sources,
+                                     Villager v,ChoicePhase phase) {
+        var target=container(request,"destination");
+        var boxes=sourceContainers(request,authority,sources,phase,false);
+        var to=permitted(request,authority,target,phase,false);
         var inputCopies=copies(boxes);var destination=inputCopies.containsKey(target)?inputCopies.get(target):FabricRecipeTransactions.copy(to);
         var held=FabricRecipeTransactions.copy(v.getInventory());
         for(int batch=0;batch<choice.batches().size();batch++) {
@@ -233,8 +257,9 @@ final class FabricConcreteRecipeChoices {
         var v=nativeActor(request,run);checkRequest(request,choice);var recipe=view(choice.capability());nativeMatch(choice,batch,recipe);
         facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
         var target=container(request,"destination");
-        var boxes=sourceContainers(request,run,authority,sources,ChoicePhase.PREPARE,true);
-        var to=permitted(request,run,authority,target,ChoicePhase.PREPARE,false);
+        if(recipe.epoch()!=choice.reloadEpoch())throw refuse(Reason.STALE_OBSERVATION);
+        var boxes=sourceContainers(request,authority,sources,ChoicePhase.PREPARE,true);
+        var to=permitted(request,authority,target,ChoicePhase.PREPARE,false);
         if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);
         var sourceCopies=copies(boxes);var custody=FabricRecipeTransactions.copy(v.getInventory());
         for(var binding:choice.batch(batch).bindings()) {
@@ -308,8 +333,8 @@ final class FabricConcreteRecipeChoices {
             if(current.manager()!=c.recipe.manager() || current.recipe()!=c.recipe.recipe())throw refuse(Reason.ARTIFACT_INCOMPATIBLE);
             if(!fingerprint(v.getInventory()).equals(c.custody))throw refuse(Reason.STALE_OBSERVATION);
             var target=container(c.request,"destination");
-            var boxes=sourceContainers(c.request,c.run,c.authority,c.sources,phase,phase==ChoicePhase.WITHDRAW);
-            var to=permitted(c.request,c.run,c.authority,target,phase,phase==ChoicePhase.DEPOSIT);
+            var boxes=sourceContainers(c.request,c.authority,c.sources,phase,phase==ChoicePhase.WITHDRAW);
+            var to=permitted(c.request,c.authority,target,phase,phase==ChoicePhase.DEPOSIT);
             if(boxes.entrySet().stream().anyMatch(e->e.getValue()!=c.nativeSources.get(e.getKey())) || to!=c.nativeDestination
                     || !FabricRecipeTransactions.identity(target,to).equals(c.destinationIdentity))throw refuse(Reason.STALE_OBSERVATION);
             var custody=FabricRecipeTransactions.copy(v.getInventory());var sourceCopies=copies(boxes);

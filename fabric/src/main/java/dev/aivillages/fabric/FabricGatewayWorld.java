@@ -10,6 +10,11 @@ import dev.aivillages.fabric.mixin.PathNavigationAccessor;
 import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.SurvivalGateway;
+import dev.aivillages.core.kernel.RecipeTransaction.ChoiceAuthority;
+import dev.aivillages.core.kernel.RecipeTransaction.ChoicePhase;
+import dev.aivillages.core.kernel.production.RecipeChoice;
+import dev.aivillages.core.kernel.production.RecipeSources;
+import dev.aivillages.core.kernel.production.planning.PlanningModel;
 import dev.aivillages.core.kernel.ResourceDelivery;
 import dev.aivillages.core.kernel.LogAcquisition;
 import dev.aivillages.core.kernel.SurvivalGateway.*;
@@ -118,6 +123,29 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     boolean recipeReach(Villager v,BlockPos p) {return canReach(v,p) && level.mayInteract(v,p);}
     String recipeContainerFingerprint(ContainerRef ref) {
         Container c=recipeContainer(ref);return c==null ? "" : FabricRecipeTransactions.fingerprint(c);
+    }
+    PlanningModel.RecipeProfile describeChoice(CapabilityId capability, PlanningModel.Cost allowance) {
+        return recipeTransactions.describeChoice(capability,allowance);
+    }
+    RecipeChoice selectActivityChoice(ValidatedRequest request, ChoiceAuthority authority, RecipeSources sources) {
+        return recipeTransactions.selectProposal(request,authority,sources);
+    }
+    Reason validateActivityChoice(ValidatedRequest request, RecipeChoice choice, ChoiceAuthority authority, RecipeSources sources) {
+        try {
+            recipeTransactions.validateProposal(request,choice,authority,sources);
+            return null;
+        } catch(FabricConcreteRecipeChoices.Refused refused) {
+            return refused.reason;
+        } catch(IllegalArgumentException invalid) {
+            return Reason.REQUEST_INVALID;
+        }
+    }
+    FabricConcreteRecipeChoices.Context prepareChoice(ValidatedRequest request, RecipeChoice choice, int batch, UUID run,
+                                                       ChoiceAuthority authority, RecipeSources sources) {
+        return recipeTransactions.prepareChoice(request,choice,batch,run,authority,sources);
+    }
+    FabricConcreteRecipeChoices.Result executeChoice(FabricConcreteRecipeChoices.Context context, ChoicePhase phase) {
+        return recipeTransactions.executeChoice(context,phase);
     }
     @Override public dev.aivillages.core.kernel.RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {
         return recipeTransactions.preflight(request);

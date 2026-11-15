@@ -8,6 +8,7 @@ import static dev.aivillages.core.kernel.runtime.activity.ActivityPayload.*;
 
 /** Strict bounded optional Job-schema-4 payload. Archive rows use the identical representation. */
 public final class ActivityCodec {
+    private static final int CHUNK=768, MAX_CHUNKS=(EXACT_CHOICE_BYTES*4/3+CHUNK-1)/CHUNK;
     private ActivityCodec(){}
     public static Map<String,Object> encode(ActivityPayload p) {
         var row=new LinkedHashMap<String,Object>();row.put("schema",1L);row.put("mode",p.mode().name());row.put("policy",p.policy().name());
@@ -16,7 +17,15 @@ public final class ActivityCodec {
             var v=new LinkedHashMap<String,Object>();v.put("id",s.id().toString());v.put("proposal",s.proposal().toString());v.put("token",s.token());
             v.put("bodyDigest",s.bodyDigest());v.put("signature",s.signature());v.put("creditBefore",s.creditBefore());v.put("quantity",s.quantity());
             v.put("artifact",Map.of("name",s.artifact().capability().name(),"version",(long)s.artifact().capability().version(),"sha256",s.artifact().sha256()));
-            if(s.choice()!=null)v.put("choice",Map.of("base64",s.choice().base64(),"sha256",s.choice().sha256()));
+            if(s.choice()!=null) {
+                var c=s.choice();
+                v.put("choice",c.exactRecipe()?Map.of("chunks",chunks(c.base64()),"sha256",c.sha256())
+                        :Map.of("base64",c.base64(),"sha256",c.sha256()));
+            }
+            if(s.integrated()) {
+                v.put("invocation",request(s.invocation()));
+                v.put("goalCredit",s.goalCredit());
+            }
             var q=s.quantities();v.put("quantities",Map.of("demand",q.demand(),"yield",q.yield(),"batches",q.batches(),"produced",q.produced(),"allocation",q.allocation(),"surplus",q.surplus(),"remainders",q.remainders()));
             var maxima=new TreeMap<String,Long>();s.allowance().maxima().forEach((k,n)->maxima.put(k.name(),n));v.put("allowance",Map.of("maxima",maxima,"deadline",s.allowance().deadlineEpochMillis()));
             v.put("preparedRevision",s.preparedRevision());if(s.attempt()!=null)v.put("attempt",s.attempt().toString());return v;
@@ -28,21 +37,59 @@ public final class ActivityCodec {
         fields(row,Set.of("schema","mode","policy","plannedSteps","blocker","steps","checkpoints"),Set.of("currentStep"));
         if(number(row,"schema","$")!=1)throw new IllegalArgumentException("Activity schema");
         var steps=new ArrayList<Step>();for(Object raw:list(row,"steps",8)) {
-            var s=object(raw);fields(s,Set.of("id","proposal","token","bodyDigest","signature","creditBefore","quantity","artifact","quantities","allowance","preparedRevision"),Set.of("choice","attempt"));
+            var s=object(raw);fields(s,Set.of("id","proposal","token","bodyDigest","signature","creditBefore","quantity","artifact","quantities","allowance","preparedRevision"),Set.of("choice","attempt","invocation","goalCredit"));
             var a=object(s.get("artifact"));exact(a,"name","version","sha256");var q=object(s.get("quantities"));exact(q,"demand","yield","batches","produced","allocation","surplus","remainders");
-            Choice choice=null;if(s.containsKey("choice")){var c=object(s.get("choice"));exact(c,"base64","sha256");choice=new Choice(string(c,"base64","$"),string(c,"sha256","$"));}
+            Choice choice=null;
+            if(s.containsKey("choice")) {
+                var c=object(s.get("choice"));
+                if(c.containsKey("chunks")) {
+                    exact(c,"chunks","sha256");
+                    var parts=list(c,"chunks",MAX_CHUNKS);
+                    var joined=new StringBuilder();
+                    for(var part:parts) {
+                        if(!(part instanceof String text) || text.isEmpty() || text.length()>CHUNK)
+                            throw new IllegalArgumentException("Invalid exact-choice chunk");
+                        joined.append(text);
+                    }
+                    String base64=joined.toString();
+                    if(!chunks(base64).equals(parts))throw new IllegalArgumentException("Noncanonical exact-choice chunks");
+                    choice=new Choice(base64,string(c,"sha256","$"),true);
+                    choice.recipe();
+                } else {
+                    exact(c,"base64","sha256");
+                    choice=new Choice(string(c,"base64","$"),string(c,"sha256","$"));
+                }
+            }
+            boolean integrated=s.containsKey("invocation");
+            if(integrated!=s.containsKey("goalCredit"))throw new IllegalArgumentException("Activity invocation and credit must accompany one another");
+            CapabilityRequest invocation=null;
+            if(integrated) {
+                if(!(RequestCodec.decode(StrictJson.canonical(object(s.get("invocation")))) instanceof RequestCodec.Valid valid))
+                    throw new IllegalArgumentException("Invalid persisted activity invocation");
+                invocation=valid.request();
+            }
             var limits=object(s.get("allowance"));exact(limits,"maxima","deadline");var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
             for(var e:object(limits.get("maxima")).entrySet())maxima.put(Budgets.Kind.valueOf(e.getKey()),(Long)e.getValue());
             steps.add(new Step(id(s,"id"),id(s,"proposal"),string(s,"token","$"),string(s,"bodyDigest","$"),string(s,"signature","$"),number(s,"creditBefore","$"),number(s,"quantity","$"),
                     new ArtifactRef(new CapabilityId(string(a,"name","$"),Math.toIntExact(number(a,"version","$"))),string(a,"sha256","$")),choice,
                     new Quantities(number(q,"demand","$"),number(q,"yield","$"),number(q,"batches","$"),number(q,"produced","$"),number(q,"allocation","$"),number(q,"surplus","$"),number(q,"remainders","$")),
-                    new Budgets.Limits(maxima,number(limits,"deadline","$")),number(s,"preparedRevision","$"),s.containsKey("attempt")?id(s,"attempt"):null));
+                    new Budgets.Limits(maxima,number(limits,"deadline","$")),number(s,"preparedRevision","$"),s.containsKey("attempt")?id(s,"attempt"):null,
+                    invocation,integrated?number(s,"goalCredit","$"):number(s,"quantity","$")));
         }
         var checkpoints=new ArrayList<Checkpoint>();for(Object raw:list(row,"checkpoints",8)) {
             var c=object(raw);exact(c,"step","attempt","generation","quantity","receipts","evidence");var refs=new ArrayList<UUID>();for(Object id:list(c,"receipts",64))refs.add(UUID.fromString((String)id));
             checkpoints.add(new Checkpoint(id(c,"step"),id(c,"attempt"),number(c,"generation","$"),number(c,"quantity","$"),refs,Evidence.valueOf(string(c,"evidence","$"))));
         }
         return new ActivityPayload(GoalMode.valueOf(string(row,"mode","$")),Policy.valueOf(string(row,"policy","$")),Math.toIntExact(number(row,"plannedSteps","$")),row.containsKey("currentStep")?id(row,"currentStep"):null,steps,checkpoints,Blocker.valueOf(string(row,"blocker","$")));
+    }
+    private static List<String> chunks(String text) {
+        var result=new ArrayList<String>();
+        for(int at=0;at<text.length();at+=CHUNK)result.add(text.substring(at,Math.min(text.length(),at+CHUNK)));
+        return List.copyOf(result);
+    }
+    private static Map<String,Object> request(CapabilityRequest request) {
+        try{return StrictJson.object(RequestCodec.encode(request));}
+        catch(StrictJson.Invalid invalid){throw new IllegalArgumentException("Invalid activity invocation",invalid);}
     }
     private static long number(Map<String,Object> row,String key,String path){if(!(row.get(key) instanceof Long n))throw new IllegalArgumentException("Activity integer");return n;}
     private static String string(Map<String,Object> row,String key,String path){if(!(row.get(key) instanceof String s))throw new IllegalArgumentException("Activity string");return s;}

@@ -32,11 +32,31 @@ public final class ResourceDelivery {
         }
     }
 
+    /** Binds one acknowledged exact-choice phase to its original Jobs and native journal identities. */
+    public record ChoiceWitness(UUID root, UUID step, UUID attempt, long generation, String choiceDigest,
+                                int batch, UUID journalToken, String custodyBefore, String custodyAfter) {
+        public ChoiceWitness {
+            Objects.requireNonNull(root); Objects.requireNonNull(step); Objects.requireNonNull(attempt);
+            Objects.requireNonNull(journalToken);
+            if (generation < 1 || batch < 0 || batch > 15 || !RecipeTransaction.hash(choiceDigest)
+                    || !RecipeTransaction.hash(custodyBefore) || !RecipeTransaction.hash(custodyAfter))
+                throw new IllegalArgumentException("Exact-choice phase witness");
+        }
+    }
+
     /** Issued by the gateway and retained by its existing execution/Jobs owners, never accepted from IR. */
     public record Receipt(UUID receiptId, TrustedContext origin, UUID runId, UUID operationId, UUID batchId,
                           ActorRef actor, Cuboid source, ContainerRef destination, ItemIdentity item,
                           Stage stage, long quantity, BlockPosition sourceBlock, List<UUID> dropIds,
-                          RecipeTransaction.Transformation transformation,PlacementTransaction.Evidence placement) {
+                          RecipeTransaction.Transformation transformation,PlacementTransaction.Evidence placement,
+                          ChoiceWitness choice) {
+        public Receipt(UUID receiptId, TrustedContext origin, UUID runId, UUID operationId, UUID batchId,
+                       ActorRef actor, Cuboid source, ContainerRef destination, ItemIdentity item,
+                       Stage stage, long quantity, BlockPosition sourceBlock, List<UUID> dropIds,
+                       RecipeTransaction.Transformation transformation, PlacementTransaction.Evidence placement) {
+            this(receiptId,origin,runId,operationId,batchId,actor,source,destination,item,stage,quantity,sourceBlock,
+                    dropIds,transformation,placement,null);
+        }
         public Receipt(UUID receiptId,TrustedContext origin,UUID runId,UUID operationId,UUID batchId,
                        ActorRef actor,Cuboid source,ContainerRef destination,ItemIdentity item,Stage stage,long quantity,
                        BlockPosition sourceBlock,List<UUID> dropIds,RecipeTransaction.Transformation transformation) {
@@ -55,7 +75,9 @@ public final class ResourceDelivery {
             Objects.requireNonNull(sourceBlock); dropIds=List.copyOf(dropIds);
             if (quantity < 1 || quantity > 64 || !actor.dimension().equals(source.dimension())
                     || !actor.dimension().equals(destination.dimension()) || !sourceBlock.inside(source)
-                    || (placement!=null ? transformation!=null || !dropIds.isEmpty() || quantity!=1 || !item.equals(CRAFTING_TABLE)
+                    || (choice!=null ? transformation!=null || placement!=null || !dropIds.isEmpty()
+                            || stage!=Stage.WITHDRAW && stage!=Stage.CRAFT && stage!=Stage.DEPOSIT
+                    : placement!=null ? transformation!=null || !dropIds.isEmpty() || quantity!=1 || !item.equals(CRAFTING_TABLE)
                         || stage!=Stage.WITHDRAW && stage!=Stage.PLACE
                         || !placement.target().dimension().equals(actor.dimension())
                         || stage==Stage.WITHDRAW && !placement.blockState().equals("minecraft:air")
@@ -86,6 +108,7 @@ public final class ResourceDelivery {
     }
 
     public static boolean matches(ValidatedRequest bound, UUID run, Receipt r) {
+        if(r.choice()!=null)return false;
         if(CraftingTablePlacement.is(bound.request().capability()))return CraftingTablePlacement.matches(bound,run,r);
         if(RecipeProduction.is(bound.request().capability()))return TransformationDelivery.matches(bound,run,r);
         if(!LogAcquisition.is(bound.request().capability()) || r.transformation()!=null || r.placement()!=null) return false;

@@ -57,6 +57,8 @@ class AdmissionBlocked(RuntimeError):
 
 
 class CraftingHarness(Harness):
+    admission_order = (OAK, BIRCH, STICK, TABLE, AXE, "placement", "oak-acquisition", "birch-acquisition")
+
     def __init__(self, root, baseline):
         super().__init__(root, "compose", None)
         atomic(self.root / "observation-area.json", AREA)
@@ -271,6 +273,9 @@ class CraftingHarness(Harness):
         return head + name + " " + actor + " " + str(case["quantity"]) + " " + coord(
             self.source+self.destination+(self.facility if output == AXE else [])+LO+HI)
 
+    def admission_command_text(self, case):
+        return self.command_text(case)
+
     def submit_command(self, text):
         self.actions_active = True
         self.case_attempted = True
@@ -343,8 +348,7 @@ class CraftingHarness(Harness):
         instruments(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar", ROOT / "build/e2e-driver/observer.jar")
         observer_inputs(self.root)
         # No seeded executable bodies. The only inference phase is genuine method admission.
-        order = [OAK, BIRCH, STICK, TABLE, AXE, "placement", "oak-acquisition", "birch-acquisition"]
-        selected = order if required is None else [item for item in order if item in required]
+        selected = [item for item in self.admission_order if required is None or item in required]
         metadata = read(self.root / "metadata.json")
         metadata["methodAdmissionRequirements"] = selected
         atomic(self.root / "metadata.json", metadata)
@@ -380,13 +384,13 @@ class CraftingHarness(Harness):
                             "actor": 0, "location": 0, "layout": "packed", "container": "chest"}
                     expected = requirements(self.probe(case), case["quantity"])
                     self.prepare(case, expected)
-                    text = self.command_text(case)
+                    text = self.admission_command_text(case)
                 else:
                     case = {"mode": "facility", "facility": "direct", "output": TABLE, "quantity": 1,
                             "actor": 0, "location": 0, "layout": "packed", "container": "chest"}
                     self.prepare(case)
                     if output == "placement":
-                        text = self.command_text(case)
+                        text = self.admission_command_text(case)
                     else:
                         material = LOG if output == "oak-acquisition" else "minecraft:birch_log"
                         self.console(["setblock " + coord(LO) + " " + material])

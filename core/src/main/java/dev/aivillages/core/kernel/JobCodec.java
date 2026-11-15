@@ -214,6 +214,17 @@ final class JobCodec {
                 || job.attempts().stream().anyMatch(a -> !a.resourceReceipts().isEmpty());
     }
     private static Map<String,Object> resourceReceipt(ResourceDelivery.Receipt r,ValidatedRequest bound) {
+        if(r.choice()!=null) {
+            if(!ActivityRecipeEvidence.boundReceipt(bound,r.runId(),r))throw new IllegalArgumentException("Exact-choice attempt binding");
+            var witness=r.choice();
+            var evidence=Map.of("root",witness.root().toString(),"step",witness.step().toString(),
+                    "attempt",witness.attempt().toString(),"generation",witness.generation(),"digest",witness.choiceDigest(),
+                    "index",witness.batch(),"journal",witness.journalToken().toString(),
+                    "before",witness.custodyBefore(),"after",witness.custodyAfter());
+            return Map.of("schema",5L,"binding","attempt","id",r.receiptId().toString(),"run",r.runId().toString(),
+                    "operation",r.operationId().toString(),"batch",r.batchId().toString(),"stage",r.stage().name(),
+                    "quantity",r.quantity(),"choice",evidence);
+        }
         if(r.placement()!=null) {
             if(!CraftingTablePlacement.matches(bound,r.runId(),r))throw new IllegalArgumentException("Placement attempt binding");
             var p=r.placement();var target=p.target();
@@ -250,6 +261,18 @@ final class JobCodec {
     }
     private static ResourceDelivery.Receipt resourceReceipt(Map<String,Object> row,ValidatedRequest bound) throws StrictJson.Invalid {
         long schema=number(row,"schema","$");
+        if(schema==5) {
+            exact(row,"schema","binding","id","run","operation","batch","stage","quantity","choice");
+            if(!"attempt".equals(string(row,"binding","$")) || !RecipeProduction.is(bound.request().capability()))
+                throw new StrictJson.Invalid("$","EXACT_CHOICE_BINDING_SCHEMA");
+            var c=object(row,"choice","$");
+            exact(c,"root","step","attempt","generation","digest","index","journal","before","after");
+            var witness=new ResourceDelivery.ChoiceWitness(id(c,"root"),id(c,"step"),id(c,"attempt"),
+                    number(c,"generation","$"),string(c,"digest","$"),integer(c,"index"),id(c,"journal"),
+                    string(c,"before","$"),string(c,"after","$"));
+            return ActivityRecipeEvidence.receipt(bound,id(row,"id"),id(row,"run"),id(row,"operation"),id(row,"batch"),
+                    ResourceDelivery.Stage.valueOf(string(row,"stage","$")),number(row,"quantity","$"),witness);
+        }
         if(schema==4) {
             exact(row,"schema","binding","id","run","operation","batch","stage","quantity","placement");
             if(!"attempt".equals(string(row,"binding","$")) || !CraftingTablePlacement.is(bound.request().capability()))throw new StrictJson.Invalid("$","PLACEMENT_BINDING_SCHEMA");
