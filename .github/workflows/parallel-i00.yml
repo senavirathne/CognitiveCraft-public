@@ -504,3 +504,54 @@ jobs:
           name: i00-review-${{ matrix.track }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: ${{ steps.prepare.outputs.root }}/review.json
+
+  qualify:
+    name: Reconcile all mandatory native evidence for this exact candidate
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.full == 'true' }}
+    needs:
+      - build
+      - smoke
+      - a-recovery
+      - b-compatibility
+      - walkthrough
+      - coverage
+      - regression-ci
+      - regression-accomplishment-evidence
+      - regression-knowledge-apprenticeship
+      - regression-primitive-diagnostics
+      - regression-goal-planning
+      - regression-observed-knowledge
+      - regression-world-retention
+      - regression-save-compatibility
+      - regression-blueprint-boundary
+      - regression-prerequisites
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      I00_JAR_SHA256: ${{ needs.build.outputs.production_sha256 }}
+      I00_WORKFLOW_NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: i00-review-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/i00-downloads
+      - name: Require original, later held-out, adversarial and endurance denominators
+        run: |
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer b
+          python3 -m e2e.parallel_i00.qualification --artifacts build/i00-downloads --out build/i00-qualification \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" --shard-count 6
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i00-qualification-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/i00-qualification/
