@@ -1,6 +1,10 @@
 package dev.aivillages.fabric;
 
+import java.util.Arrays;
+import dev.aivillages.core.kernel.RecipeProduction;
 import dev.aivillages.core.kernel.ResourceDelivery;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
@@ -18,8 +22,17 @@ final class FabricResourceItems {
             case "minecraft:stick" -> Items.STICK;
             case "minecraft:wooden_axe" -> Items.WOODEN_AXE;
             case "minecraft:crafting_table" -> Items.CRAFTING_TABLE;
-            default -> throw new IllegalArgumentException("Unregistered resource item");
+            default -> additionalPlankItem(identity);
         };
+    }
+    private static Item additionalPlankItem(ResourceDelivery.ItemIdentity identity) {
+        // This lookup is restricted to the canonical input/output pair of the finite recipe catalogue.
+        if (Arrays.stream(RecipeProduction.PlankMaterial.values())
+                .noneMatch(material -> material.canonicalInput().equals(identity.id()) || material.output().equals(identity.id())))
+            throw new IllegalArgumentException("Unregistered resource item");
+        var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(identity.id()));
+        if (item == Items.AIR) throw new IllegalArgumentException("Missing installed resource item");
+        return item;
     }
     static Block log(ResourceDelivery.ItemIdentity identity) {
         return switch (identity.id()) {

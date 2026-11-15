@@ -197,7 +197,7 @@ public final class CapabilityResolver {
                 if (!envelope.unavoidableEffects().contains(required)) continue;
                 boolean present = false;
                 for (GatewayPrimitives.Operation operation : GatewayPrimitives.Operation.values()) {
-                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.birchLog() || operation.birchPlank() || operation.plank() || operation.stick() || operation.axe() || operation.table() || operation.placement())
+                    if (spec.id().equals(CropDelivery.ID) && (operation.oak() || operation.birchLog() || operation.birchPlank() || operation.variantPlank() || operation.plank() || operation.stick() || operation.axe() || operation.table() || operation.placement())
                             || CraftingTablePlacement.is(spec.id()) && !CraftingTablePlacement.permits(operation)
                             || RecipeProduction.is(spec.id()) && !RecipeProduction.permits(spec.id(),operation)
                             || LogAcquisition.is(spec.id()) && !LogAcquisition.permits(spec.id(),operation)) continue;

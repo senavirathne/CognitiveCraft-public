@@ -92,38 +92,43 @@ public final class RecipeProduction {
         }
     }
 
-    private static final Map<CapabilityId, Definition> ADDITIONAL_PLANK_CHOICES = additionalPlankChoices();
+    private static final Map<CapabilityId, Definition> ADDITIONAL_PLANKS = additionalPlanks();
 
-    private static Map<CapabilityId, Definition> additionalPlankChoices() {
-        var choices = new HashMap<CapabilityId, Definition>();
+    private static Map<CapabilityId, Definition> additionalPlanks() {
+        var definitions = new HashMap<CapabilityId, Definition>();
         for (var material : PlankMaterial.values()) {
             if (material == PlankMaterial.OAK || material == PlankMaterial.BIRCH) continue;
             var legacy = OakPlankProduction.SPEC;
-            var capability = material.capability(2);
+            var capability = material.capability(1);
             int maximum = material == PlankMaterial.BAMBOO ? 32 : OakPlankProduction.MAX_AMOUNT;
             var parameters = legacy.parameters().stream().map(parameter -> parameter.name().equals("amount")
                     ? new Parameter("amount", Type.INT, 1, maximum) : parameter).toList();
             var spec = new CapabilitySpec(capability, parameters, legacy.resultType(), legacy.effects(), legacy.completion());
-            choices.put(capability, new Definition(spec, material.output(),
+            definitions.put(capability, new Definition(spec, material.output(),
                     new ResourceDelivery.ItemIdentity(material.canonicalInput(), "default"),
                     new ResourceDelivery.ItemIdentity(material.output(), "default"), 1));
         }
-        return Map.copyOf(choices);
+        return Map.copyOf(definitions);
     }
-    public static boolean is(CapabilityId id) {return BirchPlankProduction.ID.equals(id) || OakPlankProduction.ID.equals(id) || StickProduction.ID.equals(id) || WoodenAxeProduction.ID.equals(id) || CraftingTableProduction.ID.equals(id);}
+
+    public static boolean additionalPlank(CapabilityId id) {return id != null && ADDITIONAL_PLANKS.containsKey(id);}
+
+    public static boolean is(CapabilityId id) {return BirchPlankProduction.ID.equals(id) || OakPlankProduction.ID.equals(id) || StickProduction.ID.equals(id) || WoodenAxeProduction.ID.equals(id) || CraftingTableProduction.ID.equals(id) || additionalPlank(id);}
     public static Definition of(CapabilityId id) {
         if(BirchPlankProduction.ID.equals(id))return BIRCH_PLANKS;
         if(OakPlankProduction.ID.equals(id))return PLANKS;
         if(StickProduction.ID.equals(id))return STICKS;
         if(WoodenAxeProduction.ID.equals(id))return AXES;
         if(CraftingTableProduction.ID.equals(id))return TABLES;
+        if (id != null) {
+            var additional = ADDITIONAL_PLANKS.get(id);
+            if (additional != null) return additional;
+        }
         throw new IllegalArgumentException("Unsupported production capability");
     }
     /** Version 2 is proposed only; this does not register a runtime capability or alter version 1. */
     public static Definition choiceDefinition(CapabilityId id) {
         if(id.version()!=2)throw new IllegalArgumentException("Concrete choice compatibility version 2 required");
-        var added = ADDITIONAL_PLANK_CHOICES.get(id);
-        if (added != null) return added;
         return of(new CapabilityId(id.name(),1));
     }
     public static Definition recipe(String key) {
@@ -132,6 +137,8 @@ public final class RecipeProduction {
         if(StickProduction.RECIPE.equals(key))return STICKS;
         if(WoodenAxeProduction.RECIPE.equals(key))return AXES;
         if(CraftingTableProduction.RECIPE.equals(key))return TABLES;
+        var material = PlankMaterial.forOutput(key);
+        if (material.isPresent()) return of(material.get().capability(1));
         throw new IllegalArgumentException("Unsupported static recipe");
     }
     public static boolean permits(CapabilityId id,Operation op) {
@@ -141,9 +148,13 @@ public final class RecipeProduction {
                 || id.equals(CraftingTableProduction.ID) && op.table()
                 || id.equals(StickProduction.ID) && op.stick()
                 || id.equals(OakPlankProduction.ID) && op.plank()
-                || id.equals(BirchPlankProduction.ID) && op.birchPlank();
+                || id.equals(BirchPlankProduction.ID) && op.birchPlank()
+                || additionalPlank(id) && op.variantPlank();
     }
     public static List<Operation> operations(CapabilityId id) {
+        if (additionalPlank(id)) return List.of(Operation.OBSERVE_PLANK_VARIANT_INPUTS, Operation.MOVE_TO_INPUT,
+                Operation.WITHDRAW_PLANK_VARIANT_INPUT, Operation.CRAFT_PLANK_VARIANT, Operation.MOVE_TO_DESTINATION,
+                Operation.TRANSFER_PLANK_VARIANT);
         if(id.equals(BirchPlankProduction.ID))return List.of(Operation.OBSERVE_BIRCH_PLANK_INPUTS,Operation.MOVE_TO_INPUT,
                 Operation.WITHDRAW_BIRCH_LOG,Operation.CRAFT_BIRCH_PLANKS,Operation.MOVE_TO_DESTINATION,Operation.TRANSFER_BIRCH_PLANKS);
         if(id.equals(CraftingTableProduction.ID))return List.of(Operation.OBSERVE_TABLE_INPUTS,Operation.MOVE_TO_INPUT,

@@ -1351,6 +1351,14 @@ public final class KernelSession implements AutoCloseable {
     }
     public BootstrapController.Submission makePlanks(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(OakPlankProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
+    BootstrapController.Submission makeVariantPlanks(ServerPlayer player, String family, UUID actorId, int amount,
+            int sx, int sy, int sz, int dx, int dy, int dz) {
+        var capability = RecipeProduction.PlankMaterial.forOutput("minecraft:" + family + "_planks")
+                .map(material -> material.capability(1)).filter(RecipeProduction::additionalPlank);
+        if (!activityRuntimeEnabled || capability.isEmpty())
+            return new BootstrapController.Submission(UUID.randomUUID(), false, Reason.REQUEST_INVALID);
+        return makeRecipe(capability.get(), player, actorId, amount, sx, sy, sz, dx, dy, dz);
+    }
     public BootstrapController.Submission makeAxes(ServerPlayer player,UUID actorId,int amount,int sx,int sy,int sz,int dx,int dy,int dz,int tx,int ty,int tz) {
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
         if(amount<1 || amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);

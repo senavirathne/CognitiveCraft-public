@@ -147,6 +147,23 @@ final class KernelCommands {
         kernel.then(literal("make-"+recipe).then(argument("actor-id",StringArgumentType.word()).suggests(this::suggestCitizenIds)
                 .then(argument("amount",IntegerArgumentType.integer(1,recipe.equals("tables") ? 4 : 64)).then(plankCoords))));
         }
+        String[] variantNames = {"source-x", "source-y", "source-z", "chest-x", "chest-y", "chest-z"};
+        ArgumentBuilder<CommandSourceStack, ?> variantCoords = argument(variantNames[5], IntegerArgumentType.integer())
+                .executes(c -> safe(c, (ctx, session) -> {
+                    int[] at = new int[6];
+                    for (int i = 0; i < at.length; i++) at[i] = IntegerArgumentType.getInteger(ctx, variantNames[i]);
+                    var result = session.makeVariantPlanks(ctx.getSource().getPlayerOrException(),
+                            StringArgumentType.getString(ctx, "material"), uuid(ctx, "actor-id"),
+                            IntegerArgumentType.getInteger(ctx, "amount"), at[0], at[1], at[2], at[3], at[4], at[5]);
+                    tell(ctx, "run=" + result.id() + " accepted=" + result.accepted()
+                            + (result.reason() == null ? "" : " reason=" + result.reason()));
+                    return result.accepted() ? 1 : 0;
+                }));
+        for (int i = variantNames.length - 2; i >= 0; i--)
+            variantCoords = argument(variantNames[i], IntegerArgumentType.integer()).then(variantCoords);
+        kernel.then(literal("make-variant-planks").then(argument("material", StringArgumentType.word())
+                .then(argument("actor-id", StringArgumentType.word()).suggests(this::suggestCitizenIds)
+                .then(argument("amount", IntegerArgumentType.integer(1, 64)).then(variantCoords)))));
         String[] birchNames={"source-x","source-y","source-z","dest-x","dest-y","dest-z","log-min-x","log-min-y","log-min-z","log-max-x","log-max-y","log-max-z"};
         ArgumentBuilder<CommandSourceStack,?> birchCoords=argument(birchNames[11],IntegerArgumentType.integer()).executes(c->safe(c,(ctx,session)->{
             int[] at=new int[12];for(int i=0;i<12;i++)at[i]=IntegerArgumentType.getInteger(ctx,birchNames[i]);

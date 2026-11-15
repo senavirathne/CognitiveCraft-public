@@ -84,6 +84,8 @@ final class FabricRecipeTransactions {
 
     private RecipeView capture(String key) {
         var d=RecipeProduction.recipe(key);if(d.axe())return captureAxe(key,d);boolean stick=d.inputPerBatch()==2,table=d.table();
+        var additional = RecipeProduction.additionalPlank(d.spec().id())
+                ? RecipeProduction.PlankMaterial.forOutput(d.output().id()).orElseThrow() : null;
         var current=level.getServer().getRecipeManager();
         var holder=current.byKey(ResourceKey.create(Registries.RECIPE,Identifier.parse(key)));
         if(holder.isEmpty() || holder.get().value().getClass()!=(stick || table ? ShapedRecipe.class : ShapelessRecipe.class))return null;
@@ -96,7 +98,8 @@ final class FabricRecipeTransactions {
             var options=ingredient.items().limit(17).toList();
             if(options.isEmpty() || options.size()>16)return null;
             var names=options.stream().map(i->i.unwrapKey().orElseThrow().identifier().toString()).sorted().toList();
-            if(!names.contains(d.input().id()))return null;alternatives.add(names);
+            if(!names.contains(d.input().id()) || additional != null && !additional.inputs().containsAll(names))return null;
+            alternatives.add(names);
         }
         for(int position=0;position<(table ? 1 : stick ? 2 : 4);position++) {
             var grid=new ArrayList<ItemStack>(List.of(ItemStack.EMPTY,ItemStack.EMPTY,ItemStack.EMPTY,ItemStack.EMPTY));
@@ -116,6 +119,10 @@ final class FabricRecipeTransactions {
         String semantic=table ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots+"|four-default-oak-planks|one-default-crafting-table|no-remainders" : stick ? "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives+"|"+slots
                 +"|two-vertical-default-oak-planks|four-default-sticks|no-remainders"
                 : "inventory-2x2|"+key+"|"+recipe.getClass().getName()+"|"+alternatives.getFirst()+"|one-default-"+(d.input().equals(ResourceDelivery.BIRCH_LOG) ? "birch-log|four-default-birch-planks" : "oak-log|four-default-oak-planks")+"|no-remainders";
+        if (additional != null) {
+            semantic = "inventory-2x2|" + key + "|" + recipe.getClass().getName() + "|" + alternatives.getFirst()
+                    + "|one-default-" + d.input().id() + "|" + d.outputPerBatch() + "-default-" + d.output().id() + "|no-remainders";
+        }
         String fingerprint=RecipeTransaction.fingerprint(semantic);var old=snapshots.get(key);
         long generation=old==null ? 1 : old.snapshot().generation();
         if(old!=null && (managers.get(key)!=current || old.recipe()!=recipe || !old.snapshot().fingerprint().equals(fingerprint)))

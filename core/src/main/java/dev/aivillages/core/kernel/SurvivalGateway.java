@@ -1434,7 +1434,7 @@ public final class SurvivalGateway implements GatewayPort {
             if(RecipeProduction.of(request.request().capability()).axe() && (!(values.get("table") instanceof FacilityValue f)
                     || !f.value().dimension().equals(((ActorValue)values.get("actor")).value().dimension())
                     || args.containsKey("table") && !values.get("table").equals(args.get("table"))))return Reason.REQUEST_INVALID;
-            if((op==Operation.OBSERVE_BIRCH_PLANK_INPUTS || op==Operation.OBSERVE_PLANK_INPUTS || op==Operation.OBSERVE_STICK_INPUTS || op==Operation.OBSERVE_AXE_INPUTS || op==Operation.OBSERVE_TABLE_INPUTS) && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
+            if(op.signature().effects().contains(Effect.OBSERVE) && !Objects.equals(values.get("amount"),args.get("amount")))return Reason.REQUEST_INVALID;
         }
         if(LogAcquisition.is(request.request().capability())) {
             try {
@@ -1447,7 +1447,7 @@ public final class SurvivalGateway implements GatewayPort {
         if (!ResourceDelivery.isDelivery(request.request().capability())
                 || !placement && op!=Operation.MOVE_TO_DESTINATION && (plank ? !RecipeProduction.permits(request.request().capability(),op)
                 : LogAcquisition.is(request.request().capability()) ? !LogAcquisition.permits(request.request().capability(),op)
-                : op.placement() || op.plank() || op.birchPlank() || op.birchLog() || op.stick() || op.axe() || op.table() || op.oak())
+                : op.placement() || op.plank() || op.birchPlank() || op.variantPlank() || op.birchLog() || op.stick() || op.axe() || op.table() || op.oak())
                 || !args.keySet().equals(op.signature().parameters().stream()
                 .map(Parameter::name).collect(java.util.stream.Collectors.toSet())))
             return Reason.REQUEST_INVALID;

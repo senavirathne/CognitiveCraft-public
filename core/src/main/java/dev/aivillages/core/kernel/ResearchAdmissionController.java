@@ -450,6 +450,7 @@ public final class ResearchAdmissionController {
                     : bound.request().capability().equals(CraftingTableProduction.ID) ? "Propose independent schema-1 crafting-table item production. Use observe_table_inputs once, batchSize=1, five cycle IDs: move_to_input, withdraw_table_planks, craft_crafting_table, move_to_destination, transfer_crafting_tables. Four actual oak planks produce one table item in inventory 2x2; no facility or producer dependency. All bindings are runtime parameters and result is amount. "
                     : bound.request().capability().equals(StickProduction.ID) ? PLANK_BRIEF.replace("oak-plank", "stick").replace("supplied logs", "supplied oak planks").replace("one oak log", "two oak planks").replace("four planks", "four sticks").replace("one-log", "two-plank").replace("plank transfer", "stick transfer")
                     : bound.request().capability().equals(BirchPlankProduction.ID) ? PLANK_BRIEF.replace("oak","birch")
+                    : RecipeProduction.additionalPlank(bound.request().capability()) ? variantPlankBrief(bound.request().capability())
                     : RecipeProduction.is(bound.request().capability()) ? PLANK_BRIEF
                     : LogAcquisition.is(bound.request().capability()) ? (bound.request().capability().equals(BirchLogDelivery.ID) ? OAK_BRIEF.replace("oak","birch") : OAK_BRIEF) : CROP_BRIEF) + context;
             if (prompt.getBytes(StandardCharsets.UTF_8).length > settings.maxContextBytes()) {
@@ -792,6 +793,14 @@ public final class ResearchAdmissionController {
             } catch (RuntimeException ignored) { }
             referenceGuard.test(java.util.Set.of());
         }
+    }
+    private static String variantPlankBrief(CapabilityId capability) {
+        var recipe = RecipeProduction.of(capability);
+        return "Propose schema-1 parameterized plank production. Observe once before effects. The installed recipe consumes one "
+                + recipe.input().id() + " and produces " + recipe.outputPerBatch() + " " + recipe.output().id()
+                + " per batch. Use move, withdrawal, craft, move, transfer in that order. Bind the requested amount and keep final surplus in citizen custody. "
+                + "Choose registered preflight, batchSize=" + recipe.outputPerBatch()
+                + " and five registered cycle primitive IDs. Bind actor, amount, source and destination as runtime parameters, and return result={param:amount}. ";
     }
     private static List<PrimitiveSignature> primitiveBrief(CapabilityId id) {
         var ops=CraftingTablePlacement.is(id) ? CraftingTablePlacement.operations() : RecipeProduction.is(id) ? RecipeProduction.operations(id) : LogAcquisition.is(id) ? LogAcquisition.operations(id) : List.of(GatewayPrimitives.Operation.MOVE_TO_SOURCE,

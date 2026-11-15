@@ -103,6 +103,16 @@ public final class ResourceDelivery {
         if(CraftingTablePlacement.is(bound.request().capability()))return crops.isEmpty() && CraftingTablePlacement.completed(bound,run,resources);
         if (bound.request().capability().equals(CropDelivery.ID))
             return resources.isEmpty() && CropDelivery.completed(bound, run, crops);
+        if (RecipeProduction.additionalPlank(bound.request().capability())) {
+            if (!crops.isEmpty()) return false;
+            try {
+                var amount = ((IntValue)bound.request().arguments().get("amount")).value();
+                RecipeProduction.of(bound.request().capability()).batches(amount);
+                return TransformationDelivery.quantity(bound, run, resources) == amount;
+            } catch (RuntimeException invalid) {
+                return false;
+            }
+        }
         return crops.isEmpty() && (RecipeProduction.is(bound.request().capability())
                 ? (bound.request().capability().equals(CraftingTableProduction.ID) ? CraftingTableProduction.completed(bound,run,resources) : bound.request().capability().equals(WoodenAxeProduction.ID) ? WoodenAxeProduction.completed(bound,run,resources) : bound.request().capability().equals(StickProduction.ID) ? StickProduction.completed(bound,run,resources) : bound.request().capability().equals(BirchPlankProduction.ID) ? BirchPlankProduction.completed(bound,run,resources) : OakPlankProduction.completed(bound,run,resources)) : bound.request().capability().equals(BirchLogDelivery.ID) ? BirchLogDelivery.completed(bound,run,resources) : OakLogDelivery.completed(bound, run, resources));
     }

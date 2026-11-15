@@ -91,7 +91,16 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         OBSERVE_BIRCH_PLANK_INPUTS("observe_birch_plank_inputs",Type.BOOL,Effect.OBSERVE,actor(),new Parameter("source",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
         WITHDRAW_BIRCH_LOG("withdraw_birch_log",Type.INT,Effect.WITHDRAW,actor(),new Parameter("source",Type.CONTAINER,0,0)),
         CRAFT_BIRCH_PLANKS("craft_birch_planks",Type.INT,Effect.CRAFT,actor()),
-        TRANSFER_BIRCH_PLANKS("transfer_birch_planks",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64));
+        TRANSFER_BIRCH_PLANKS("transfer_birch_planks",Type.INT,Effect.TRANSFER,actor(),new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
+        // These select the registered additional plank capability of the bound invocation.
+        // Neither an item ID nor a native recipe selector is supplied by the method.
+        OBSERVE_PLANK_VARIANT_INPUTS("observe_plank_variant_inputs",Type.BOOL,Effect.OBSERVE,actor(),
+                new Parameter("source",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64)),
+        WITHDRAW_PLANK_VARIANT_INPUT("withdraw_plank_variant_input",Type.INT,Effect.WITHDRAW,actor(),
+                new Parameter("source",Type.CONTAINER,0,0)),
+        CRAFT_PLANK_VARIANT("craft_plank_variant",Type.INT,Effect.CRAFT,actor()),
+        TRANSFER_PLANK_VARIANT("transfer_plank_variant",Type.INT,Effect.TRANSFER,actor(),
+                new Parameter("destination",Type.CONTAINER,0,0),new Parameter("amount",Type.INT,1,64));
 
         private final PrimitiveSignature signature;
         Operation(String name, Type result, Effect effect, Parameter... parameters) {
@@ -102,6 +111,8 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
         }
         public PrimitiveSignature signature() { return signature; }
         public boolean birchPlank() {return this==OBSERVE_BIRCH_PLANK_INPUTS || this==WITHDRAW_BIRCH_LOG || this==CRAFT_BIRCH_PLANKS || this==TRANSFER_BIRCH_PLANKS;}
+        public boolean variantPlank() {return this==OBSERVE_PLANK_VARIANT_INPUTS || this==WITHDRAW_PLANK_VARIANT_INPUT
+                || this==CRAFT_PLANK_VARIANT || this==TRANSFER_PLANK_VARIANT;}
         public boolean birchLog() {return name().contains("BIRCH") && !birchPlank();}
         /** Shared control flow only, after item-specific request/signature validation. */
         public Operation shared() {
@@ -113,10 +124,10 @@ public final class GatewayPrimitives implements PrimitiveCatalog {
                 case HARVEST_NEXT_BIRCH_LOG -> HARVEST_NEXT_OAK_LOG;
                 case PICKUP_TRACKED_BIRCH_LOGS -> PICKUP_TRACKED_OAK_LOGS;
                 case TRANSFER_BIRCH_LOGS -> TRANSFER_OAK_LOGS;
-                case OBSERVE_BIRCH_PLANK_INPUTS -> OBSERVE_PLANK_INPUTS;
-                case WITHDRAW_BIRCH_LOG -> WITHDRAW_OAK_LOG;
-                case CRAFT_BIRCH_PLANKS -> CRAFT_OAK_PLANKS;
-                case TRANSFER_BIRCH_PLANKS -> TRANSFER_OAK_PLANKS;
+                case OBSERVE_BIRCH_PLANK_INPUTS, OBSERVE_PLANK_VARIANT_INPUTS -> OBSERVE_PLANK_INPUTS;
+                case WITHDRAW_BIRCH_LOG, WITHDRAW_PLANK_VARIANT_INPUT -> WITHDRAW_OAK_LOG;
+                case CRAFT_BIRCH_PLANKS, CRAFT_PLANK_VARIANT -> CRAFT_OAK_PLANKS;
+                case TRANSFER_BIRCH_PLANKS, TRANSFER_PLANK_VARIANT -> TRANSFER_OAK_PLANKS;
                 default -> this;
             };
         }

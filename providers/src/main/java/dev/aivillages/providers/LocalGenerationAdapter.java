@@ -285,7 +285,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                     && ir.get("body") instanceof Map<?, ?>) {
                 var normalized = new java.util.HashMap<String, Object>(ir);
                 normalized.put("body",(dev.aivillages.core.kernel.RecipeProduction.is(call.request.capability().id()) || dev.aivillages.core.kernel.CraftingTablePlacement.is(call.request.capability().id()))
-                        ? plankIrBody(ir.get("body"),call.request.primitives()) : cropIrBody(ir.get("body"), call.request.primitives()));
+                        ? plankIrBody(ir.get("body"),call.request.primitives(),plankYield(call.request.capability().id()))
+                        : cropIrBody(ir.get("body"), call.request.primitives()));
                 ir = normalized;
                 candidateIr = StrictJson.canonical(ir);
             }
@@ -500,7 +501,7 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         List<String> fingerprints = request.primitives().stream()
                 .map(Contracts.PrimitiveSignature::fingerprint).distinct().toList();
         Map<String, Object> bodyShape = (dev.aivillages.core.kernel.RecipeProduction.is(spec.id()) || dev.aivillages.core.kernel.CraftingTablePlacement.is(spec.id()))
-                ? plankBodyShape(request.primitives()) : ResourceDelivery.isDelivery(spec.id())
+                ? plankBodyShape(request.primitives(),plankYield(spec.id())) : ResourceDelivery.isDelivery(spec.id())
                 ? cropBodyShape(request.primitives()) : Map.of("type", "array",
                         "items", nodeShape(2, primitiveIds, fingerprints, true),
                         "minItems", 1, "maxItems", 8);
@@ -543,6 +544,11 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                                 + "craft one real batch, move to destination, transfer produced planks. "
                                 + "Return result param amount. The adapter binds runtime parameters; the compiler and physical trial validate it. "
                                 + "No Java, harvesting, dependency calls or authority claims."
+                                : dev.aivillages.core.kernel.RecipeProduction.additionalPlank(spec.id())
+                                ? "Return the JSON proposal only. Select cognitivecraft:observe_plank_variant_inputs, batchSize " + plankYield(spec.id())
+                                + ", and five registered cycle primitive IDs in this order: cognitivecraft:move_to_input, cognitivecraft:withdraw_plank_variant_input, "
+                                + "cognitivecraft:craft_plank_variant, cognitivecraft:move_to_destination, cognitivecraft:transfer_plank_variant. "
+                                + "Return result param amount. Use runtime parameters and the bound recipe only. No dependencies or authority claims."
                                 : ResourceDelivery.isDelivery(spec.id())
                                 ? "Return the JSON proposal only. Choose registered primitive IDs for prepare, "
                                 + "wait.primitive and each finish entry in causal order. "
@@ -567,9 +573,14 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
         } catch(StrictJson.Invalid invalid) { throw new IllegalArgumentException("Canonical material facts required",invalid); }
     }
 
-    /** The model selects each primitive and wait count; the adapter lowers its bounded plan to Skill IR. */
-    private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives) {
-        boolean placement=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_site"));boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int batch=placement || axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1 : 4,cycleSize=placement ? 4 : axe ? 6 : 5;
+    private static int plankYield(Contracts.CapabilityId capability) {
+        return dev.aivillages.core.kernel.CraftingTablePlacement.is(capability) ? 1
+                : dev.aivillages.core.kernel.RecipeProduction.of(capability).outputPerBatch();
+    }
+
+    /** The model selects each primitive; the adapter lowers its bounded plan to Skill IR. */
+    private static Map<String,Object> plankBodyShape(List<Contracts.PrimitiveSignature> primitives, int batch) {
+        boolean placement=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_site"));boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int cycleSize=placement ? 4 : axe ? 6 : 5;
         var preflight=Map.of("type","string","enum",primitives.stream().filter(p->p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         var cycleId=Map.of("type","string","enum",primitives.stream().filter(p->!p.effects().contains(Contracts.Effect.OBSERVE)).map(Contracts.PrimitiveSignature::id).toList());
         return Map.of("type","object","required",List.of("preflight","batchSize","cycle","result"),
@@ -578,8 +589,8 @@ public final class LocalGenerationAdapter implements Contracts.GenerationPort, A
                         "result",Map.of("type","object","required",List.of("param"),"additionalProperties",false,
                                 "properties",Map.of("param",Map.of("type","string","enum",List.of("amount"))))));
     }
-    private static List<Object> plankIrBody(Object proposal,List<Contracts.PrimitiveSignature> primitives) {
-        boolean placement=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_site"));boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));long batch=placement || axe || primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_inputs")) ? 1L : 4L;int cycleSize=placement ? 4 : axe ? 6 : 5;
+    private static List<Object> plankIrBody(Object proposal,List<Contracts.PrimitiveSignature> primitives, long batch) {
+        boolean placement=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_table_site"));boolean axe=primitives.stream().anyMatch(p->p.id().equals("cognitivecraft:observe_axe_inputs"));int cycleSize=placement ? 4 : axe ? 6 : 5;
         if(!(proposal instanceof Map<?,?> p) || !p.keySet().equals(java.util.Set.of("preflight","batchSize","cycle","result"))
                 || !(p.get("preflight") instanceof String preflight) || !Long.valueOf(batch).equals(p.get("batchSize"))
                 || !(p.get("cycle") instanceof List<?> cycle) || cycle.size()!=cycleSize || !Map.of("param","amount").equals(p.get("result")))
