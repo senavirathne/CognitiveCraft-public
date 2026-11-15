@@ -10,7 +10,8 @@ import runpy
 
 from .frozen_campaign import ORIGINAL_SHA256, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
-from campaigns.crafting.evidence import PASS_STATUSES, evidence_path, record_problems
+from .native_evidence import raw_slices, require_command, verify_installation
+from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
 from campaigns.crafting.run import needed_artifacts, require_case_fence, run_case
 from runtime import digest
@@ -76,6 +77,11 @@ def review_case(case, row, root, pins, recipes, validate):
     integrated = case["mode"] == "recipe"
     problems = validate(row, root, integrated_recipe=integrated)
     require(not problems, "; ".join(problems))
+    if integrated:
+        events = "clients/PlayerA/events.jsonl"
+        path = raw_slices(root, row, {events})[events]
+        req = row["request"]
+        require_command(path, req["command"], req["feedback"], "PlayerA")
     before, after = totals(row["before"], row["clientBefore"]), totals(row["after"], row["clientAfter"])
     balanced, _ = (recipe_balance(before, after, row["independentExpectation"])
                    if row.get("independentExpectation") else composition_balance(before, after, recipes))
@@ -113,6 +119,7 @@ def review(root, source, jar):
         manifest = read(root / "metadata.json")
         result.update(witness_identity(manifest, source, jar, PROFILE), shardIndex=scheduled["shardIndex"],
                       shardCount=scheduled["shardCount"], requiredCases=len(expected))
+        verify_installation(root, manifest, ("PlayerA",))
         catalogue = read(root / "oracle-recipes.json")
         require(catalogue["worldEffects"] == 0 and catalogue["minecraft"] == "26.3" and catalogue["serverPid"],
                 "Missing native read-only recipe catalogue")

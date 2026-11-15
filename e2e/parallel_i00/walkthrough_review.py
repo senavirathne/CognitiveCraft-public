@@ -11,7 +11,7 @@ import traceback
 from .campaign import admissions
 from .gameplay import witness_identity, ROOT
 from .native_evidence import (item_at, jsonl, raw_slices, require_command,
-                              require_native_primitive, stock_at, verify_frames)
+                              require_native_primitive, stock_at, verify_frames, verify_installation)
 from .walkthrough import (ASK, AXE, COLLECTED, COHORTS, CUTS, DESTINATION, PROFILE, SOURCE,
                           assert_goal, cases, tables, witnessed)
 from campaigns.crafting.invariants import physical_custody
@@ -152,7 +152,9 @@ def appeared(path, items, key=None):
 
 
 def review_case(folder, case, row, cohort, pins, source, jar):
-    witness_identity(read(folder / "metadata.json"), source, jar, PROFILE)
+    metadata = read(folder / "metadata.json")
+    witness_identity(metadata, source, jar, PROFILE)
+    verify_installation(folder, metadata, ("PlayerA", "PlayerB"))
     require(row["id"] == case and row["cohort"] == cohort and row["requiredCut"] == (case if case in CUTS else None),
             "Evidence describes a different walkthrough case")
     require(row["status"] == COLLECTED or cohort == "unsaved" and row["status"] == "CONTAINMENT_ONLY",

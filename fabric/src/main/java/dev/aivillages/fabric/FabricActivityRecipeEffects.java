@@ -5,6 +5,8 @@ import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.JobLeaseOwners;
 import dev.aivillages.core.kernel.JobLifecycleStore;
 import dev.aivillages.core.kernel.Jobs;
+import dev.aivillages.core.kernel.Outcomes.Execution;
+import dev.aivillages.core.kernel.Outcomes.ExecutionStatus;
 import dev.aivillages.core.kernel.Outcomes.Reason;
 import dev.aivillages.core.kernel.RecipeTransaction.*;
 import dev.aivillages.core.kernel.ResourceDelivery;
@@ -16,6 +18,7 @@ import dev.aivillages.core.kernel.SurvivalGateway.ExactRecipeResult;
 import dev.aivillages.core.kernel.production.RecipeChoice;
 import dev.aivillages.core.kernel.production.RecipeSources;
 import dev.aivillages.core.kernel.runtime.activity.ActivityRecipeEvidence;
+import dev.aivillages.core.kernel.runtime.activity.ActivityPayload;
 import dev.aivillages.core.kernel.runtime.evidence.LiveAttemptAuthority;
 import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Marker;
 import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.MarkerPhase;
@@ -24,7 +27,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +53,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private final Executor writer;
     private final FabricRecipeParticipants participants;
     private final Map<UUID,Run> live=new HashMap<>();
+    private final HashSet<UUID> appliedHere=new HashSet<>();
 
     private static final class Run {
         final UUID root,step,attempt;
@@ -161,7 +167,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         try { pending.prepared.join(); }
         catch(CompletionException failed){run.pending=null;return refusal(journal.fenced()?Reason.STORAGE_UNAVAILABLE:Reason.STORAGE_LIMIT_REACHED,false);}
         if(pending.result==null) {
-            if(jobs.lastFailure()==null && !jobs.ready() || leases.failure()==null && !leases.ready())return waiting(false);
+            if(jobs.unavailableReason()==Reason.BUDGET_EXHAUSTED || leases.failure()==null && !leases.ready())return waiting(false);
             apply(run,pending,usage);
             return waiting(pending.possibleEffect);
         }
@@ -173,6 +179,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                 return refusal(pending.blocked==null?Reason.INTERRUPTED:pending.blocked,pending.possibleEffect);
             }
             var receipt=receipt(run.bound,run.choice,entry);
+            appliedHere.add(entry.intent().token());
             run.pending=null; run.observedPhases++;
             return new ExactRecipeResult(false,true,receipt,null);
         }catch(RuntimeException missing){return refusal(Reason.INTERRUPTED,pending.possibleEffect);}
@@ -183,23 +190,22 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         var current=current(run);
         if(current==null || !LiveAttemptAuthority.unchanged(pending.owner,current) || clock.millis()>intent.deadline()
                 || !permits(run,intent.phase())) {
-            noEffect(pending,current==null?Reason.INTERRUPTED:Reason.STALE_OBSERVATION);
+            noEffect(pending,current==null?Reason.INTERRUPTED:Reason.STALE_OBSERVATION,usage.snapshot());
             return;
         }
         List<FabricRecipeParticipants.Capture> before;
         try {before=participants.capture(run.actor,pending.containers);}
-        catch(RuntimeException unavailable){noEffect(pending,Reason.TARGET_UNAVAILABLE);return;}
-        if(!intent.before().equals(FabricRecipeParticipants.evidence(before))) {noEffect(pending,Reason.STALE_OBSERVATION);return;}
-        if(!usage.canDebit(Budgets.Kind.COMMITTED_EFFECTS,1) || !usage.canDebit(Budgets.Kind.ATTEMPTED_EFFECTS,1)) {
-            noEffect(pending,Reason.BUDGET_EXHAUSTED);return;
-        }
+        catch(RuntimeException unavailable){noEffect(pending,Reason.TARGET_UNAVAILABLE,usage.snapshot());return;}
+        if(!intent.before().equals(FabricRecipeParticipants.evidence(before))) {noEffect(pending,Reason.STALE_OBSERVATION,usage.snapshot());return;}
+        Budgets.Ledger.PhysicalEffect charge;
+        try {charge=usage.beginPhysicalEffect();}
+        catch(Budgets.Exhausted exhausted){noEffect(pending,Reason.BUDGET_EXHAUSTED,usage.snapshot());return;}
         String effect=fingerprint(intent.token().toString()), digest=intent.digest();
         var mutating=new Marker(effect,digest,MarkerPhase.MUTATING,"");
         List<FabricRecipeParticipants.Capture> after=List.of();
         NativeRecipeJournal.Status status=NativeRecipeJournal.Status.UNCERTAIN;
         try {
             before.forEach(participant->participant.mark(mutating));
-            usage.debit(Budgets.Kind.ATTEMPTED_EFFECTS,1);
             pending.possibleEffect=true;
             var nativeResult=world.executeChoice(run.context,ChoicePhase.valueOf(intent.phase().name()));
             after=participants.capture(run.actor,pending.containers);
@@ -212,23 +218,23 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                 status=NativeRecipeJournal.Status.APPLIED; run.context=nativeResult.continuation();
             }
         } catch(RuntimeException unavailable){pending.blocked=Reason.INTERRUPTED;}
-        if(pending.possibleEffect)usage.debit(Budgets.Kind.COMMITTED_EFFECTS,1);
+        finally {charge.settle(pending.possibleEffect);}
         if(status==NativeRecipeJournal.Status.UNCERTAIN) {
             pending.blocked=Reason.INTERRUPTED;
-            submitResult(pending,new NativeRecipeJournal.Result(intent.token(),digest,status,List.of()));
+            submitResult(pending,new NativeRecipeJournal.Result(intent.token(),digest,status,List.of(),usage.snapshot()));
             return;
         }
-        var result=new NativeRecipeJournal.Result(intent.token(),digest,status,FabricRecipeParticipants.evidence(after));
+        var result=new NativeRecipeJournal.Result(intent.token(),digest,status,FabricRecipeParticipants.evidence(after),usage.snapshot());
         var marker=new Marker(effect,digest,MarkerPhase.RESULT,result.digest());
         try {after.forEach(participant->participant.mark(marker));}
-        catch(RuntimeException invalid){pending.blocked=Reason.INTERRUPTED;submitResult(pending,new NativeRecipeJournal.Result(intent.token(),digest,NativeRecipeJournal.Status.UNCERTAIN,List.of()));return;}
+        catch(RuntimeException invalid){pending.blocked=Reason.INTERRUPTED;submitResult(pending,new NativeRecipeJournal.Result(intent.token(),digest,NativeRecipeJournal.Status.UNCERTAIN,List.of(),usage.snapshot()));return;}
         submitResult(pending,result);
     }
 
-    private void noEffect(Pending pending,Reason blocked) {
+    private void noEffect(Pending pending,Reason blocked,Map<Budgets.Kind,Long> usage) {
         pending.blocked=blocked;
         submitResult(pending,new NativeRecipeJournal.Result(pending.intent.token(),pending.intent.digest(),
-                NativeRecipeJournal.Status.NO_EFFECT,pending.intent.before()));
+                NativeRecipeJournal.Status.NO_EFFECT,pending.intent.before(),usage));
     }
     private void submitResult(Pending pending,NativeRecipeJournal.Result result){pending.result=write(()->journal.result(result));}
 
@@ -248,6 +254,78 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         return false;
     }
 
+    /** A preceding step is available only from this process's acknowledgements or saved native evidence. */
+    boolean settled(Jobs.Job job,ActivityPayload.Step step) {
+        thread();
+        if(journal.fenced() || step==null || !step.exactChoice() || step.attempt()==null)return false;
+        var attempt=job.attempts().stream().filter(row->row.id().equals(step.attempt())).findFirst().orElse(null);
+        if(attempt==null || attempt.open() || attempt.uncertain())return false;
+        var rows=journal.entries(step.attempt());
+        try {
+            var receipts=complete(job,attempt,step,rows);
+            return receipts!=null && receipts.equals(attempt.resourceReceipts())
+                    && (rows.stream().allMatch(row->appliedHere.contains(row.intent().token())) || restored(rows));
+        }catch(RuntimeException unavailable){return false;}
+    }
+
+    Jobs.StoppedObservation observeStopped(Jobs.StoppedContext context,ActivityPayload.Choice choice) {
+        thread();
+        if(journal.fenced() || live.containsKey(context.attempt()))return Jobs.StoppedObservation.ambiguous("Native recipe writer unavailable or still live");
+        try {
+            var job=jobs.query(context.job(),context.origin());
+            var step=job.activity()==null?null:job.activity().forAttempt(context.attempt());
+            if(step==null || !step.exactChoice() || !step.choice().equals(choice) || !job.guard().equals(context.guard())
+                    || !context.original().equals(job.current()))return Jobs.StoppedObservation.ambiguous("Original exact recipe attempt unavailable");
+            var old=context.original();
+            var rows=journal.entries(old.id());
+            if(rows.isEmpty() && old.effects()==0 && old.receiptCount()==0) {
+                var result=new Execution(ExecutionStatus.INTERRUPTED,Reason.INTERRUPTED,0,null);
+                return new Jobs.StoppedObservation(Jobs.StoppedKind.NO_EFFECT,
+                        new Jobs.Report(old.id(),old.generation(),0,old.usage(),List.of(),result,List.of()),"Intact write-ahead journal has no native intent");
+            }
+            var receipts=complete(job,old,step,rows);
+            if(receipts==null || !restored(rows))return Jobs.StoppedObservation.ambiguous("Required exact recipe participant saves are incomplete");
+            int saved=receipts.size();
+            if(old.effects()>saved || old.resourceReceipts().size()>saved
+                    || !old.resourceReceipts().equals(receipts.subList(0,old.resourceReceipts().size())))
+                return Jobs.StoppedObservation.ambiguous("Stopped prefix differs from the authoritative attempt");
+            var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);
+            usage.putAll(old.usage());
+            for(var row:rows)row.result().usage().forEach((kind,used)->usage.merge(kind,used,Math::max));
+            if(usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=saved
+                    || usage.entrySet().stream().anyMatch(charge->charge.getValue()>old.allowance().maximum(charge.getKey())))
+                return Jobs.StoppedObservation.ambiguous("Stopped effect accounting exceeds the original allowance");
+            var result=new Execution(ExecutionStatus.SUCCEEDED,null,saved,null);
+            return new Jobs.StoppedObservation(Jobs.StoppedKind.EFFECT_COMPLETE,
+                    new Jobs.Report(old.id(),old.generation(),saved,usage,List.of(),result,receipts),"Exact journal and native saved participants agree");
+        }catch(RuntimeException unavailable){return Jobs.StoppedObservation.ambiguous("Exact recipe recovery evidence unavailable");}
+    }
+
+    private List<ResourceDelivery.Receipt> complete(Jobs.Job job,Jobs.Attempt attempt,ActivityPayload.Step step,List<NativeRecipeJournal.Entry> rows) {
+        var choice=step.choice().recipe();
+        if(rows.size()!=choice.batches().size()*PHASES.size())return null;
+        List<ResourceDelivery.Receipt> receipts=new ArrayList<>();
+        for(var row:rows) {
+            if(row.result()==null || row.result().status()!=NativeRecipeJournal.Status.APPLIED
+                    || !row.intent().method().equals(step.artifact().sha256()))return null;
+            receipts.add(receipt(attempt.bound(),choice,row));
+        }
+        return ActivityRecipeEvidence.completed(job,attempt,step,List.of(),receipts)?List.copyOf(receipts):null;
+    }
+
+    private record LastSaved(NativeRecipeJournal.Entry row,NativeRecipeJournal.Participant participant) {}
+    private boolean restored(List<NativeRecipeJournal.Entry> rows) {
+        Map<String,LastSaved> latest=new HashMap<>();
+        for(var row:rows) {
+            for(var before:row.intent().before()) {
+                var prior=latest.get(before.address());
+                if(prior!=null && !prior.participant().equals(before))return false;
+            }
+            for(var after:row.result().after())latest.put(after.address(),new LastSaved(row,after));
+        }
+        return !latest.isEmpty() && latest.values().stream().allMatch(witness->participants.restored(witness.row(),witness.participant()));
+    }
+
     @Override public boolean possibleEffect(ActionHandle operation) {
         thread();
         var run=live.get(operation.runId());
@@ -258,7 +336,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         var run=live.remove(id);
         if(run==null || run.pending==null || run.pending.result!=null || run.pending.possibleEffect)return;
         var pending=run.pending;
-        pending.prepared.thenRun(()->noEffect(pending,Reason.INTERRUPTED));
+        pending.prepared.thenRun(()->noEffect(pending,Reason.INTERRUPTED,pending.owner.current().usage()));
     }
 
     boolean blocked(ValidatedRequest request,Effect effect,SurvivalGateway.Cell target) {
@@ -311,9 +389,11 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         if(!run.sources.containers().contains(run.destination))resources.add(ResourceLeases.Resource.facility(worldId,run.destination));
         if(run.choice.facility()!=null)resources.add(ResourceLeases.Resource.table(worldId,run.choice.facility().reference()));
         UUID group=null;
-        for(var lease:leases.snapshot().leases()) {
+        var snapshot=leases.snapshot();
+        for(var lease:snapshot.leases()) {
             if(!lease.owner().equals(owner) || !lease.origin().equals(run.bound.context())
-                    || lease.state()!=ResourceLeases.State.ACTIVE || lease.expires()<=world.tick() || !resources.remove(lease.resource()))continue;
+                    || !lease.epoch().equals(snapshot.epoch()) || lease.state()!=ResourceLeases.State.ACTIVE
+                    || lease.expires()<=world.tick() || !resources.remove(lease.resource()))continue;
             if(group==null)group=lease.group();else if(!group.equals(lease.group()))return false;
         }
         return resources.isEmpty();

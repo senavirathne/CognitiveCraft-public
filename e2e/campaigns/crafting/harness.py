@@ -288,17 +288,19 @@ class CraftingHarness(Harness):
         pending = {"command": text, "feedback": None, "accepted": False, "kind": None, "identity": None}
         self.last_request = pending
         self.case_requests.append(pending)
-        answer = self.command("PlayerA", text, "run=|job=|accepted=false|Denied|unavailable", 40)
+        feedback_pattern = "run=|job=|activity=|accepted=false|Denied|unavailable"
+        answer = self.command("PlayerA", text, feedback_pattern, 40)
         # Only a refused zero-work publication may be resubmitted; never accepted work.
         deadline = time.monotonic() + 20
         rejected = []
         while "accepted=false reason=BUDGET_EXHAUSTED" in answer and time.monotonic() < deadline:
             rejected.append(answer)
             time.sleep(.3)
-            answer = self.command("PlayerA", text, "run=|job=|accepted=false|Denied|unavailable", 40)
-        match = re.search("(run|job)=(" + UUID_PATTERN + ")", answer)
+            answer = self.command("PlayerA", text, feedback_pattern, 40)
+        match = re.search("(run|job|activity)=(" + UUID_PATTERN + ")", answer)
         result = {"command": text, "feedback": answer, "accepted": "accepted=true" in answer,
-                  "kind": match[1] if match else None, "identity": match[2] if match else None,
+                  "kind": ("run" if match[1] == "run" else "job") if match else None,
+                  "identity": match[2] if match else None,
                   "publicationRefusals": rejected}
         pending.update(result)
         self.event("crafting-player-request", result)

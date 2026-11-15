@@ -29,8 +29,9 @@ def trace_offsets(root):
 
 def request_job(h, player, command):
     h.actions_active = True
-    response = h.command(player, command, r"job=|accepted=false|[Dd]enied|unavailable", 50)
-    return {"command": command, "feedback": response, "player": player, "root": uuid_field(response, "job"),
+    response = h.command(player, command, r"job=|activity=|accepted=false|[Dd]enied|unavailable", 50)
+    return {"command": command, "feedback": response, "player": player,
+            "root": uuid_field(response, "activity") or uuid_field(response, "job"),
             "accepted": "accepted=true" in response}
 
 
@@ -117,3 +118,16 @@ def verify_frames(root, frames, minimum=1):
         require(frame["nativeClientFrame"] is True and len(header) == 24 and header[:8] == b"\x89PNG\r\n\x1a\n"
                 and int.from_bytes(header[16:20], "big") >= 800 and int.from_bytes(header[20:24], "big") >= 600,
                 "Native frame identity or dimensions changed")
+
+
+def verify_installation(root, metadata, players):
+    """Compare installed mod bytes with the sealed evidence envelope."""
+    binaries = metadata["binaries"]
+    locations = [("server", "observer", "observer.jar")]
+    locations += [(f"clients/{player}", "clientDriver", "client.jar") for player in players]
+    for directory, instrument, instrument_name in locations:
+        mods = root / directory / "game/mods"
+        for name, key in (("ai-villages-0.1.0.jar", "production"), (instrument_name, instrument)):
+            file = mods / name
+            require(file.is_file() and not file.is_symlink() and digest(file) == binaries[key]["sha256"],
+                    "Installed gameplay binary or instrument changed: " + str(file))

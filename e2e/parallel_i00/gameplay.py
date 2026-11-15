@@ -8,7 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "e2e"))
-from campaigns.crafting.generator import AXE, OAK, BIRCH, COMMANDS
+from campaigns.crafting.generator import AXE, STICK, COMMANDS
 from campaigns.crafting.harness import CraftingHarness, coord
 from suite import atomic, read, require
 
@@ -27,6 +27,8 @@ def point(value):
 def recipe_key(output):
     if output not in (*COMMANDS, *NEW_PLANKS):
         raise ValueError("No integrated player recipe binding for " + output)
+    if output == STICK:
+        return "sticks"
     return output.removeprefix("minecraft:").replace("_", "-")
 
 

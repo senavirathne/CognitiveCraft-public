@@ -28,7 +28,8 @@ def verify_review(path, profile, cases, expected, shard_spec=None):
     rows = report["cases"]
     require([row["id"] for row in rows] == [case["id"] for case in cases], "Missing, duplicated, or foreign native cases")
     for case, row in zip(cases, rows, strict=True):
-        expected_pass = {"PASS"} if profile == HELD_OUT_PROFILE or case.get("missingAdapter") else PASS_STATUSES
+        positive_recipe = case.get("mode") == "recipe" and not case.get("dynamic")
+        expected_pass = {"PASS"} if profile == HELD_OUT_PROFILE or positive_recipe else PASS_STATUSES
         require(row["status"] in expected_pass and re.fullmatch(r"[a-f0-9]{64}", row.get("resultSha256", "")),
                 "Native case failed or has no independently reviewed original result digest: " + case["id"])
     return rows

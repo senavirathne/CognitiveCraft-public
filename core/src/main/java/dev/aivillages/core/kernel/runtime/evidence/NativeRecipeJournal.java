@@ -1,6 +1,7 @@
 package dev.aivillages.core.kernel.runtime.evidence;
 
 import dev.aivillages.core.kernel.ResourceDelivery.Stage;
+import dev.aivillages.core.kernel.Budgets.Kind;
 import dev.aivillages.core.kernel.StrictJson;
 import dev.aivillages.core.kernel.WorldRetentionManager.Amount;
 import dev.aivillages.core.kernel.WorldRetentionManager;
@@ -75,16 +76,20 @@ public final class NativeRecipeJournal implements AutoCloseable {
 
     public enum Status { APPLIED, NO_EFFECT, UNCERTAIN }
 
-    public record Result(UUID token, String intent, Status status, List<Participant> after) {
+    public record Result(UUID token, String intent, Status status, List<Participant> after,Map<Kind,Long> usage) {
         public Result {
             Objects.requireNonNull(token); Objects.requireNonNull(status);
             after = List.copyOf(after);
-            if (!hash(intent) || after.size() > 4 || status != Status.UNCERTAIN && after.isEmpty())
+            usage=Map.copyOf(usage);
+            if (!hash(intent) || after.size() > 4 || status != Status.UNCERTAIN && after.isEmpty()
+                    || usage.values().stream().anyMatch(quantity->quantity<0))
                 throw new IllegalArgumentException("Invalid exact-choice result");
         }
         private Map<String,Object> value() {
+            var charges=new HashMap<String,Long>();
+            usage.forEach((kind,quantity)->charges.put(kind.name(),quantity));
             return Map.of("kind","result","token",token.toString(),"intent",intent,"status",status.name(),
-                    "after",after.stream().map(Participant::value).toList());
+                    "after",after.stream().map(Participant::value).toList(),"usage",charges);
         }
         public String digest() { return fingerprint(StrictJson.canonical(value())); }
     }
@@ -159,7 +164,10 @@ public final class NativeRecipeJournal implements AutoCloseable {
     public long bytes() { return bytes; }
     public List<Entry> entries() { return entries; }
     public List<Entry> entries(UUID attempt) { return attempts.getOrDefault(attempt,List.of()); }
-    public void capacity(Predicate<Amount> capacity) { thread(); this.capacity=Objects.requireNonNull(capacity); }
+    public void capacity(Predicate<Amount> capacity) {
+        if(Thread.currentThread()!=writer)throw new IllegalStateException("Recipe evidence writer unavailable");
+        this.capacity=Objects.requireNonNull(capacity);
+    }
     public WorldRetentionManager.Owner retentionOwner() {
         var paths=List.of(data,required,next,data.resolveSibling("writer.lock"));
         return new WorldRetentionManager.Owner() {
@@ -271,7 +279,9 @@ public final class NativeRecipeJournal implements AutoCloseable {
                     || rows.putIfAbsent(intent.token(),new Entry(intent,null))!=null)throw new IllegalArgumentException("Repeated recipe intent");
             pending++;
         } else if("result".equals(row.get("kind"))) {
-            var result=new Result(uuid(row,"token"),(String)row.get("intent"),Status.valueOf((String)row.get("status")),participants(row.get("after")));
+            var usage=new java.util.EnumMap<Kind,Long>(Kind.class);
+            ((Map<?,?>)row.get("usage")).forEach((kind,quantity)->usage.put(Kind.valueOf((String)kind),(Long)quantity));
+            var result=new Result(uuid(row,"token"),(String)row.get("intent"),Status.valueOf((String)row.get("status")),participants(row.get("after")),usage);
             var old=rows.get(result.token());
             if(!line.equals(frame(result.value(),head)) || old==null || old.result()!=null)throw new IllegalArgumentException("Missing or repeated recipe result");
             rows.put(old.intent().token(),new Entry(old.intent(),result)); pending--;

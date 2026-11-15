@@ -138,17 +138,14 @@ final class FabricRecipeParticipants {
     }
 
     /** Trusts only restored native provenance and matching saved markers/slots. */
-    boolean restored(NativeRecipeJournal.Entry entry) {
+    boolean restored(NativeRecipeJournal.Entry entry,NativeRecipeJournal.Participant saved) {
         var result=entry.result();
-        if(result==null || result.status()!=NativeRecipeJournal.Status.APPLIED)return false;
+        if(result==null || result.status()!=NativeRecipeJournal.Status.APPLIED || !result.after().contains(saved))return false;
         var expected=new Marker(fingerprint(entry.intent().token().toString()),entry.intent().digest(),MarkerPhase.RESULT,result.digest());
         try {
-            for(var saved:result.after()) {
-                var current=reopen(saved.address());
-                if(current==null || !current.marker().restored() || !expected.equals(current.marker().marker())
-                        || !saved.equals(current.evidence()))return false;
-            }
-            return true;
+            var current=reopen(saved.address());
+            return current!=null && current.marker().restored() && expected.equals(current.marker().marker())
+                    && saved.equals(current.evidence());
         }catch(RuntimeException unavailable){return false;}
     }
     private Capture reopen(String address) {

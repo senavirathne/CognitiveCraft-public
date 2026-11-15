@@ -13,7 +13,7 @@ from .campaign_review import HELD_OUT_PROFILE as PROFILE
 from .frozen_campaign import HELD_OUT_COUNT, HELD_OUT_SHA256, held_out
 from .gameplay import NativeGameplay, point, witness_identity
 from .native_evidence import (closed_job, item_at, raw_slices, request_job, require_command,
-                              require_native_primitive, stock_at, terminal_job, trace_offsets, verify_frames)
+                              require_native_primitive, stock_at, terminal_job, trace_offsets, verify_frames, verify_installation)
 from campaigns.crafting.generator import BIRCH, OAK
 from campaigns.crafting.harness import coord
 from campaigns.crafting.invariants import delta, totals
@@ -161,7 +161,9 @@ def run(root):
 def review(root, source, jar):
     result = {"profile": PROFILE, "requiredCases": HELD_OUT_COUNT, "status": "FAIL_REQUIRED_CASES", "cases": []}
     try:
-        result.update(witness_identity(read(root / "metadata.json"), source, jar, PROFILE))
+        metadata = read(root / "metadata.json")
+        result.update(witness_identity(metadata, source, jar, PROFILE))
+        verify_installation(root, metadata, ("PlayerA", "PlayerB"))
         pins = admissions(root)
         for case in held_out()["cases"]:
             path = root / "cases" / case["id"] / "result.json"

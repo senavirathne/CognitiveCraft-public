@@ -117,6 +117,7 @@ public final class Budgets {
         private final Object monitor;
         private final EnumMap<Kind, Long> usage = new EnumMap<>(Kind.class);
         private long reservedOutput;
+        private long reservedPhysicalEffects;
         private Reservation outputReservation;
 
         public Ledger(Limits limits, Clock clock) {
@@ -169,7 +170,7 @@ public final class Budgets {
         public long remaining(Kind kind) {
             synchronized (monitor) {
                 return lineage().stream().mapToLong(l -> l.limits.maximum(kind)
-                        - l.usage.getOrDefault(kind, 0L) - (kind == Kind.OUTPUT_BYTES ? l.reservedOutput : 0)).min().orElseThrow();
+                        - l.usage.getOrDefault(kind, 0L) - l.reserved(kind)).min().orElseThrow();
             }
         }
         /** Reserve one frozen shared response before preparation. Actual chunks consume this hold.
@@ -202,11 +203,40 @@ public final class Budgets {
                 }
             }
         }
+        /** Holds one committed effect and charges the attempt before the native mutation can begin. */
+        public PhysicalEffect beginPhysicalEffect() {
+            synchronized(monitor) {
+                if(!canDebit(Kind.COMMITTED_EFFECTS,1))throw new Exhausted();
+                debit(Kind.ATTEMPTED_EFFECTS,1);
+                var charged=lineage();
+                charged.forEach(ledger->ledger.reservedPhysicalEffects++);
+                return new PhysicalEffect(charged);
+            }
+        }
+        public final class PhysicalEffect {
+            private final List<Ledger> charged;
+            private boolean settled;
+            private PhysicalEffect(List<Ledger> charged){this.charged=charged;}
+            /** Physical accounting uses the original reservation even if its deadline just elapsed. */
+            public void settle(boolean mayHaveMutated) {
+                synchronized(monitor) {
+                    if(settled)throw new IllegalStateException("Native effect reservation already settled");
+                    settled=true;
+                    for(var ledger:charged) {
+                        ledger.reservedPhysicalEffects--;
+                        if(mayHaveMutated)ledger.usage.merge(Kind.COMMITTED_EFFECTS,1L,Math::addExact);
+                    }
+                }
+            }
+        }
+        private long reserved(Kind kind) {
+            return kind==Kind.OUTPUT_BYTES?reservedOutput:kind==Kind.COMMITTED_EFFECTS?reservedPhysicalEffects:0;
+        }
         public Ledger child(Limits allowance) {
             synchronized (monitor) {
                 for (Kind kind : Kind.values()) {
                     long remaining = limits.maximum(kind) - usage.getOrDefault(kind, 0L)
-                            - (kind == Kind.OUTPUT_BYTES ? reservedOutput : 0);
+                            - reserved(kind);
                     if (allowance.maximum(kind) > remaining) throw new Exhausted();
                 }
                 return new Ledger(allowance, clock, this);
@@ -223,7 +253,7 @@ public final class Budgets {
                 for (Ledger cursor : lineage()) {
                     if (clock.millis() > cursor.limits.deadlineEpochMillis()) return false;
                     long current = cursor.usage.getOrDefault(kind, 0L);
-                    long reserved = kind == Kind.OUTPUT_BYTES ? cursor.reservedOutput : 0;
+                    long reserved = cursor.reserved(kind);
                     long owned = kind == Kind.OUTPUT_BYTES && outputReservation != null ? outputReservation.remaining : 0;
                     if (amount > cursor.limits.maximum(kind) - current - reserved + owned) return false;
                 }
@@ -247,7 +277,7 @@ public final class Budgets {
                         long next;
                         try { next = Math.addExact(current, amount); }
                         catch (ArithmeticException exception) { throw new Exhausted(); }
-                        long reserved = kind == Kind.OUTPUT_BYTES ? cursor.reservedOutput - owned : 0;
+                        long reserved = cursor.reserved(kind) - (kind == Kind.OUTPUT_BYTES ? owned : 0);
                         if (next > cursor.limits.maximum(kind) - reserved) throw new Exhausted();
                     }
                 }
