@@ -1,6 +1,7 @@
 name: Primitive diagnostics acceptance
 
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     paths:
@@ -10,6 +11,7 @@ on:
       - 'fabric/**'
       - '.github/workflows/primitive-diagnostics.yml'
   push:
+    branches-ignore: [integration/activity-runtime-production]
     paths:
       - 'e2e/**'
       - 'core/**'

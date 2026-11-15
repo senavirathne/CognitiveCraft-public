@@ -1,10 +1,12 @@
 name: World retention acceptance
 
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/world-retention.yml']
   push:
+    branches-ignore: [integration/activity-runtime-production]
     paths: ['e2e/**', 'core/**', 'providers/**', 'fabric/**', '.github/workflows/world-retention.yml']
 
 permissions:

@@ -43,6 +43,7 @@ jobs:
           python3 -m unittest discover -s e2e -p 'test_*.py'
           python3 -m unittest discover -s e2e/parallel_a -p 'test_*.py'
           python3 -m unittest discover -s e2e/parallel_b -p 'test_*.py'
+          python3 -m unittest discover -s e2e/parallel_i00 -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/crafting -p 'test_*.py'
           python3 -m unittest discover -s e2e/campaigns/world -p 'test_*.py'
           python3 e2e/parallel_b/campaign_contracts.py verify
@@ -184,6 +185,7 @@ jobs:
         run: |
           python3 e2e/parallel_b/native_qualification.py --integration --root "$B_ROOT/harness" --seed-root "$B_ROOT/quantity"
           python3 e2e/parallel_b/native_audit.py --root "$B_ROOT/harness"
+          python3 -m e2e.parallel_i00.adversarial audit-observer --root "$B_ROOT/harness" --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" --out "$B_ROOT/harness/adversarial-review.json"
       - name: Native 22-case legacy diagnostics and independent replay
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         run: |
@@ -203,3 +205,102 @@ jobs:
           include-hidden-files: true
           retention-days: 30
           path: build/e2e/i00/b-compatibility/
+
+  regression-ci:
+    uses: ./.github/workflows/ci.yml
+
+  regression-accomplishment-evidence:
+    uses: ./.github/workflows/accomplishment-evidence.yml
+
+  regression-knowledge-apprenticeship:
+    uses: ./.github/workflows/knowledge-apprenticeship.yml
+
+  regression-primitive-diagnostics:
+    uses: ./.github/workflows/primitive-diagnostics.yml
+
+  regression-goal-planning:
+    uses: ./.github/workflows/goal-planning.yml
+
+  regression-observed-knowledge:
+    uses: ./.github/workflows/observed-knowledge.yml
+
+  regression-world-retention:
+    uses: ./.github/workflows/world-retention.yml
+
+  regression-save-compatibility:
+    uses: ./.github/workflows/save-compatibility.yml
+
+  regression-blueprint-boundary:
+    uses: ./.github/workflows/blueprint-boundary.yml
+
+  regression-prerequisites:
+    uses: ./.github/workflows/prerequisites.yml
+
+  a-recovery:
+    name: Exact legacy A runtime regression ${{ matrix.profile }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        profile: [A00, A01, A02, A03, A04, A05, A06, A07, A08, A09]
+    env:
+      I00_JAR_SHA256: ${{ needs.build.outputs.production_sha256 }}
+      I00_PROFILE: ${{ matrix.profile }}
+      JAVA_TOOL_OPTIONS: ""
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Verify exact integration binary and pinned stopped admission input
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer a
+          python3 e2e/runtime.py prepare
+          mkdir -p build/i00-fixtures
+          gh api repos/"$GITHUB_REPOSITORY"/actions/artifacts/13311090608/zip > build/i00-fixtures/three-admissions.zip
+          echo '8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8  build/i00-fixtures/three-admissions.zip' | sha256sum --check
+      - name: Run the original native profile on this candidate
+        id: native
+        run: |
+          python3 -m e2e.parallel_i00.recovery run --profile "$I00_PROFILE" \
+            --root "build/e2e/i00/recovery/$I00_PROFILE" --source "$GITHUB_SHA" \
+            --jar-sha256 "$I00_JAR_SHA256" --seed-archive build/i00-fixtures/three-admissions.zip
+      - name: Independently inspect the complete original native evidence in Docker
+        if: ${{ !cancelled() && steps.native.outcome != 'skipped' }}
+        run: |
+          docker pull python:3.12-slim
+          output="$PWD/build/e2e/i00/recovery/$I00_PROFILE"
+          mkdir -p "$output"
+          docker run --rm --network none --user "$(id -u):$(id -g)" \
+            -e PYTHONDONTWRITEBYTECODE=1 -e GITHUB_SHA -e GITHUB_REF -e GITHUB_RUN_ID -e GITHUB_RUN_ATTEMPT \
+            -v "$PWD:$PWD:ro" -v "$output:$output:rw" -w "$PWD" python:3.12-slim \
+            python3 -m e2e.parallel_i00.recovery review --profile "$I00_PROFILE" --root "$output" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" --out "$output"
+      - name: Preserve original native bytes and independent verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i00-a-${{ matrix.profile }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
+          path: build/e2e/i00/recovery/${{ matrix.profile }}/

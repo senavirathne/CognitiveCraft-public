@@ -1,10 +1,12 @@
 name: Blueprint artifact boundary acceptance
 
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
   push:
+    branches-ignore: [integration/activity-runtime-production]
     paths: ['core/**', 'fabric/**', 'providers/**', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/**', '.github/workflows/blueprint-boundary.yml', '.github/implementation/IMP-020*']
 
 permissions:
