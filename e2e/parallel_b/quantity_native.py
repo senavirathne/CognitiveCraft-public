@@ -15,7 +15,7 @@ from suite import Harness,ROOT,UUID_PATTERN,atomic,read,require
 from runtime import SDK,digest
 from campaigns.crafting.oracle import candidates
 from parallel_b.baseline import scenario,seed,submit,physical,inventory,coord,SOURCE,DESTINATION,LOW,HIGH,LOG,PLANK,OTHER
-from parallel_b.guards import clean_owners,instruments,observer_inputs
+from parallel_b.guards import clean_owners,compatibility_source,instruments,observer_inputs
 from parallel_b.qualification import verify,load
 from parallel_b.diagnostics import settled
 
@@ -74,16 +74,23 @@ def extra_cases(h,artifact):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--root",type=Path,required=True);args=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--root",type=Path,required=True)
+    p.add_argument("--integration",action="store_true",help="Rerun this compatibility gate on the exact I00 Actions candidate")
+    args=p.parse_args()
+    branch, candidate=compatibility_source(args.integration)
     h=Harness(args.root,"compose",None);h.project=os.environ.get('COGNITIVECRAFT_B_QUALIFICATION_PROJECT',"cc-production-b-"+read(h.root/"metadata.json")["fixtureInstance"][:8]);h.family="B02-QUANTITIES"
     result={"status":"NOT_EXECUTED"}
     expected={"sourceCommit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
               "sourceTree":subprocess.check_output(["git","rev-parse","HEAD^{tree}"],cwd=ROOT,text=True).strip(),
-              "sourceBranch":"impl/activity-production-planning","profile":"B02",
+              "sourceBranch":branch,"profile":"B02",
               "releaseSha256":digest(ROOT/"fabric/build/libs/ai-villages-0.1.0.jar"),
               "observerSha256":digest(ROOT/"build/e2e-driver/observer.jar"),
               "GITHUB_RUN_ID":os.environ["GITHUB_RUN_ID"],"GITHUB_RUN_ATTEMPT":os.environ["GITHUB_RUN_ATTEMPT"]}
     try:
+        if candidate is not None:
+            from parallel_i00.identity import verify_metadata
+            verify_metadata(read(h.root/"metadata.json"),candidate)
         instruments(ROOT/"fabric/build/libs/ai-villages-0.1.0.jar",ROOT/"build/e2e-driver/observer.jar")
         atomic(h.root/"oracle-candidates.json",candidates(SDK/"minecraft-client.jar"));observer_inputs(h.root)
         h.compose("build","minecraft")

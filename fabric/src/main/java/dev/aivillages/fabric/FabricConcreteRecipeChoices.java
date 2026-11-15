@@ -87,15 +87,14 @@ final class FabricConcreteRecipeChoices {
         if(item==Items.AIR || !itemKey(level,value).equals(key))throw refuse(Reason.TARGET_INVALID);
         return value;
     }
-    static final Set<String> PLANK_MATERIALS=Set.of("oak","spruce","birch","jungle","acacia","dark_oak","mangrove","cherry","bamboo","crimson","warped","pale_oak","poplar");
+    static final Set<String> PLANK_MATERIALS=Arrays.stream(RecipeProduction.PlankMaterial.values())
+            .map(RecipeProduction.PlankMaterial::material).collect(java.util.stream.Collectors.toUnmodifiableSet());
     private boolean permittedInput(RecipeProduction.Definition definition,ItemStack value) {
         if(!FabricRecipeTransactions.plain(value,value.getItem()))return false;
         String id=BuiltInRegistries.ITEM.getKey(value.getItem()).toString();
-        if(!definition.output().id().endsWith("_planks"))return definition.axe() && value.is(Items.STICK)
-                || PLANK_MATERIALS.stream().anyMatch(material->id.equals("minecraft:"+material+"_planks"));
-        String family=definition.output().id().replace("_planks","");
-        String namespace=family.substring(0,family.indexOf(':')+1),material=family.substring(family.indexOf(':')+1);
-        return Set.of(family+"_log",family+"_wood",namespace+"stripped_"+material+"_log",namespace+"stripped_"+material+"_wood").contains(id);
+        var family = RecipeProduction.PlankMaterial.forOutput(definition.output().id());
+        if (family.isPresent()) return family.get().inputs().contains(id);
+        return definition.axe() && value.is(Items.STICK) || RecipeProduction.PlankMaterial.forOutput(id).isPresent();
     }
     private record Cell(int gridSlot,Ingredient ingredient){}
     private List<Cell> cells(View view,RecipeProduction.Definition definition) {
@@ -112,7 +111,9 @@ final class FabricConcreteRecipeChoices {
         var alternatives=new ArrayList<List<RecipeChoice.ItemKey>>();var prototype=new ArrayList<>(Collections.nCopies(width*width,ItemStack.EMPTY));
         for(var cell:cells(current,d)){var options=cell.ingredient().items().map(h->itemKey(level,new ItemStack(h))).sorted(Comparator.comparing(RecipeChoice.ItemKey::id)).toList();if(options.isEmpty() || options.size()>16)throw refuse(Reason.UNSUPPORTED_PRIMITIVE);alternatives.add(options);prototype.set(cell.gridSlot(),stack(options.getFirst()));}
         var input=CraftingInput.of(width,width,prototype);if(!current.recipe().matches(input,level))throw refuse(Reason.UNSUPPORTED_PRIMITIVE);var result=current.recipe().assemble(input);
-        if(result.getCount()!=d.outputPerBatch() || !result.is(FabricResourceItems.item(d.output())) || !FabricRecipeTransactions.plain(result,result.getItem()) || current.recipe().getRemainingItems(input).stream().anyMatch(s->!s.isEmpty()))throw refuse(Reason.UNSUPPORTED_PRIMITIVE);
+        if(result.getCount()!=d.outputPerBatch() || !BuiltInRegistries.ITEM.getKey(result.getItem()).toString().equals(d.output().id())
+                || !FabricRecipeTransactions.plain(result,result.getItem())
+                || current.recipe().getRemainingItems(input).stream().anyMatch(s->!s.isEmpty()))throw refuse(Reason.UNSUPPORTED_PRIMITIVE);
         return new dev.aivillages.core.kernel.production.planning.PlanningModel.RecipeProfile(d.recipe(),capability,alternatives,itemKey(level,result),current.semantic(),null,allowance,current.epoch());
     }
     /** Validate a planner-selected immutable grid and all batches/capacity without a physical effect. */

@@ -12,15 +12,18 @@ public final class RecipeProduction {
                              ResourceDelivery.ItemIdentity output,int inputPerBatch) {
         public boolean axe() {return spec.id().equals(WoodenAxeProduction.ID);}
         public boolean table() {return spec.id().equals(CraftingTableProduction.ID);}
-        public int outputPerBatch() {return axe() || table() ? 1 : 4;}
+        public int outputPerBatch() {
+            if (axe() || table()) return 1;
+            return PlankMaterial.BAMBOO.output().equals(output.id()) ? 2 : 4;
+        }
         public int totalInputs() {return inputPerBatch+(axe() ? 2 : 0);}
         public int secondaryInputs(long amount) {return axe() ? WoodenAxeProduction.sticks(amount) : 0;}
-        public int maximumAmount() {return axe() || table() ? 4 : 64;}
+        public int maximumAmount() {return Math.multiplyExact(outputPerBatch(), maximumBatches());}
         public int maximumBatches() {return axe() || table() ? 4 : 16;}
         public BatchQuantities quantities(long demand,BatchQuantities.Role role) {
             return BatchQuantities.project(demand,outputPerBatch(),maximumAmount(),maximumBatches(),role);
         }
-        public int batches(long amount) {return table() ? CraftingTableProduction.batches(amount) : axe() ? WoodenAxeProduction.batches(amount) : OakPlankProduction.batches(amount);}
+        public int batches(long amount) {return Math.toIntExact(quantities(amount, BatchQuantities.Role.ROOT).batches());}
         public int withdrawalUnits(ResourceDelivery.ItemIdentity item) {
             return input.equals(item) ? inputPerBatch : axe() && ResourceDelivery.STICK.equals(item) ? 2 : 0;
         }
@@ -49,6 +52,64 @@ public final class RecipeProduction {
             ResourceDelivery.OAK_PLANKS,ResourceDelivery.WOODEN_AXE,3);
     private static final Definition TABLES=new Definition(CraftingTableProduction.SPEC,CraftingTableProduction.RECIPE,
             ResourceDelivery.OAK_PLANKS,ResourceDelivery.CRAFTING_TABLE,4);
+
+    /** Exact installed 26.3 plank families. Native recipe matching still validates every ingredient. */
+    public enum PlankMaterial {
+        OAK("oak"), BIRCH("birch"), SPRUCE("spruce"), JUNGLE("jungle"), ACACIA("acacia"),
+        DARK_OAK("dark_oak"), MANGROVE("mangrove"), CHERRY("cherry"),
+        BAMBOO("bamboo", "block"), CRIMSON("crimson", "stem", "hyphae"),
+        WARPED("warped", "stem", "hyphae"), PALE_OAK("pale_oak"), POPLAR("poplar");
+
+        private final String material;
+        private final String output;
+        private final String canonicalInput;
+        private final Set<String> inputs;
+
+        PlankMaterial(String material) {this(material, "log", "wood");}
+
+        PlankMaterial(String material, String... shapes) {
+            this.material = material;
+            output = "minecraft:" + material + "_planks";
+            canonicalInput = "minecraft:" + material + "_" + shapes[0];
+            var expanded = new HashSet<String>();
+            for (String shape : shapes) {
+                expanded.add("minecraft:" + material + "_" + shape);
+                expanded.add("minecraft:stripped_" + material + "_" + shape);
+            }
+            inputs = Set.copyOf(expanded);
+        }
+
+        public String material() {return material;}
+        public String output() {return output;}
+        public String canonicalInput() {return canonicalInput;}
+        public Set<String> inputs() {return inputs;}
+        public CapabilityId capability(int version) {
+            return new CapabilityId("cognitivecraft:produce_" + material + "_planks", version);
+        }
+
+        public static Optional<PlankMaterial> forOutput(String item) {
+            return Arrays.stream(values()).filter(candidate -> candidate.output.equals(item)).findFirst();
+        }
+    }
+
+    private static final Map<CapabilityId, Definition> ADDITIONAL_PLANK_CHOICES = additionalPlankChoices();
+
+    private static Map<CapabilityId, Definition> additionalPlankChoices() {
+        var choices = new HashMap<CapabilityId, Definition>();
+        for (var material : PlankMaterial.values()) {
+            if (material == PlankMaterial.OAK || material == PlankMaterial.BIRCH) continue;
+            var legacy = OakPlankProduction.SPEC;
+            var capability = material.capability(2);
+            int maximum = material == PlankMaterial.BAMBOO ? 32 : OakPlankProduction.MAX_AMOUNT;
+            var parameters = legacy.parameters().stream().map(parameter -> parameter.name().equals("amount")
+                    ? new Parameter("amount", Type.INT, 1, maximum) : parameter).toList();
+            var spec = new CapabilitySpec(capability, parameters, legacy.resultType(), legacy.effects(), legacy.completion());
+            choices.put(capability, new Definition(spec, material.output(),
+                    new ResourceDelivery.ItemIdentity(material.canonicalInput(), "default"),
+                    new ResourceDelivery.ItemIdentity(material.output(), "default"), 1));
+        }
+        return Map.copyOf(choices);
+    }
     public static boolean is(CapabilityId id) {return BirchPlankProduction.ID.equals(id) || OakPlankProduction.ID.equals(id) || StickProduction.ID.equals(id) || WoodenAxeProduction.ID.equals(id) || CraftingTableProduction.ID.equals(id);}
     public static Definition of(CapabilityId id) {
         if(BirchPlankProduction.ID.equals(id))return BIRCH_PLANKS;
@@ -61,6 +122,8 @@ public final class RecipeProduction {
     /** Version 2 is proposed only; this does not register a runtime capability or alter version 1. */
     public static Definition choiceDefinition(CapabilityId id) {
         if(id.version()!=2)throw new IllegalArgumentException("Concrete choice compatibility version 2 required");
+        var added = ADDITIONAL_PLANK_CHOICES.get(id);
+        if (added != null) return added;
         return of(new CapabilityId(id.name(),1));
     }
     public static Definition recipe(String key) {

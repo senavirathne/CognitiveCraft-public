@@ -22,7 +22,7 @@ from suite import Harness, ROOT, UUID_PATTERN, atomic, read, require
 from runtime import SDK, digest
 from campaigns.crafting.oracle import candidates
 from parallel_b.baseline import seed, coord, SOURCE, DESTINATION, LOG, PLANK, OTHER
-from parallel_b.guards import clean_owners, instruments, observer_inputs, verified_clock
+from parallel_b.guards import clean_owners, compatibility_source, instruments, observer_inputs, verified_clock
 from parallel_b.qualification import verify, load
 
 
@@ -63,27 +63,36 @@ def negative_collectors(root,expected):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root",type=Path,required=True)
+    parser.add_argument("--integration",action="store_true",help="Rerun this compatibility gate on the exact I00 Actions candidate")
     seeds=parser.add_mutually_exclusive_group(required=True)
     seeds.add_argument("--seed",type=Path,help="Historical archive root containing build/e2e/parallel-b/B00")
     seeds.add_argument("--seed-root",type=Path,help="Exact stopped native quantity/admission evidence root")
     args=parser.parse_args()
+    branch, candidate=compatibility_source(args.integration)
+    if candidate is not None:
+        require(args.seed_root is not None,"I00 compatibility reuse requires the same-attempt native seed")
     original=args.seed_root if args.seed_root else args.seed/"build/e2e/parallel-b/B00"
     seed_metadata=read(original/"metadata.json")
     production=ROOT/"fabric/build/libs/ai-villages-0.1.0.jar"
     observer=ROOT/"build/e2e-driver/observer.jar"
     require(seed_metadata and digest(production)==seed_metadata["releaseSha256"],
             "Saved method reuse requires the exact previously qualified production binary")
+    if candidate is not None:
+        from parallel_i00.identity import verify_metadata
+        verify_metadata(seed_metadata,candidate)
     instruments(production,observer)
     h=Harness(args.root,"compose",None)
     h.project=os.environ.get('COGNITIVECRAFT_B_QUALIFICATION_PROJECT',"cc-production-b-"+read(h.root/"metadata.json")["fixtureInstance"][:8])
     h.family="B01-QUALIFICATION"
     expected={"sourceCommit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
               "sourceTree":subprocess.check_output(["git","rev-parse","HEAD^{tree}"],cwd=ROOT,text=True).strip(),
-              "sourceBranch":"impl/activity-production-planning","releaseSha256":digest(production),
+              "sourceBranch":branch,"releaseSha256":digest(production),
               "observerSha256":digest(observer),"profile":"B01",
               "GITHUB_RUN_ID":os.environ["GITHUB_RUN_ID"],"GITHUB_RUN_ATTEMPT":os.environ["GITHUB_RUN_ATTEMPT"]}
     result={"status":"NOT_EXECUTED","nativeGameplayAttempts":0}
     try:
+        if candidate is not None:
+            verify_metadata(read(h.root/"metadata.json"),candidate)
         game=h.root/"server/game";shutil.copytree(original/"server/game",game)
         props=game/"server.properties"
         props.write_text(re.sub(r"(?m)^server-port=.*$","server-port="+str(h.port),props.read_text()))

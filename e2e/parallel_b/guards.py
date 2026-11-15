@@ -9,6 +9,16 @@ TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
 ACTIVE_PHASES = {"PERSISTING", "ROUTING", "EXECUTING", "RESEARCHING", "RESOLVING", "INTERPRETING"}
 
 
+def compatibility_source(integration):
+    """I00 may rerun this legacy gate, with its original assertions."""
+    if not integration:
+        return "impl/activity-production-planning", None
+    import os
+    from parallel_i00.identity import BRANCH, PRODUCTION, candidate, sha256
+
+    return BRANCH, candidate(os.environ.get("GITHUB_SHA"), sha256(PRODUCTION))
+
+
 def settled_owner(view):
     return (isinstance(view, dict) and view.get("state") in TERMINAL
             and isinstance(view.get("attempts"), list)
