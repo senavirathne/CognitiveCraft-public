@@ -75,13 +75,21 @@ def cold_reuse(h, output, pin):
 
 def run(root):
     root.mkdir(parents=True, exist_ok=False)
-    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_VARIANTS", "cold": []}
+    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_VARIANTS", "stage": "startup", "cold": []}
     h = None
     try:
         h = NativeGameplay(root, profile=PROFILE)
         witness_identity(read(root / "metadata.json"), os.environ["GITHUB_SHA"], digest(PRODUCTION), PROFILE)
+        result["stage"] = "live-admission"
         h.bootstrap(set(NEW_PLANKS))
+        result["live"] = [{"capability": row["capability"], "status": row["status"], "reason": row.get("error")}
+                          for row in h.admissions]
+        for row in result["live"]:
+            print("I00_VARIANT_ADMISSION " + json.dumps(row), flush=True)
+        require(set(h.artifacts) == set(NEW_PLANKS), "Missing genuine native admissions for: "
+                + ", ".join(item for item in NEW_PLANKS if item not in h.artifacts))
         settle(h)
+        result["stage"] = "stopped-world-restart"
         result.update(admissionComplete=len(h.artifacts), beforeStopCalls=h.model_calls(),
                       checkpoint=h.save_checkpoint(), firstServer=read(root / "server/process.json"))
         h.stop("server")
@@ -94,6 +102,7 @@ def run(root):
         h.assert_backend_stopped()
         h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
         result.update(secondServer=read(root / "server/process.json"), afterRestartCalls=h.model_calls())
+        result["stage"] = "offline-reuse"
         for output in NEW_PLANKS:
             try:
                 row = cold_reuse(h, output, h.artifacts[output])
@@ -105,13 +114,15 @@ def run(root):
             print("I00_VARIANT_REUSE " + json.dumps({"item": output, "status": row["status"],
                                                      "reason": row.get("reason")}), flush=True)
         if all(row["status"] == "PASS" for row in result["cold"]):
-            result["status"] = "COLLECTED_PENDING_INDEPENDENT_REVIEW"
+            result.update(status="COLLECTED_PENDING_INDEPENDENT_REVIEW", stage="complete")
     except Exception as error:
         result.update(reason=str(error), trace=traceback.format_exc())
     finally:
         if h:
             h.finish()
         atomic(root / "variant-run.json", result)
+        print("I00_VARIANT_PRODUCER " + json.dumps({k: result[k] for k in ("status", "stage", "reason") if k in result}),
+              flush=True)
     return result["status"] == "COLLECTED_PENDING_INDEPENDENT_REVIEW"
 
 
@@ -225,8 +236,10 @@ def review(root, source, jar):
     try:
         result.update(witness_identity(read(root / "metadata.json"), source, jar, PROFILE))
         collection, admission = read(root / "variant-run.json"), read(root / "admissions.json")
-        require(collection["status"] == "COLLECTED_PENDING_INDEPENDENT_REVIEW"
-                and set(admission["artifacts"]) == set(NEW_PLANKS) and len(admission["rows"]) == len(NEW_PLANKS)
+        require(collection and collection["status"] == "COLLECTED_PENDING_INDEPENDENT_REVIEW",
+                "Producer failed during " + (collection or {}).get("stage", "unavailable") + ": "
+                + (collection or {}).get("reason", "see native case outcomes"))
+        require(admission and set(admission["artifacts"]) == set(NEW_PLANKS) and len(admission["rows"]) == len(NEW_PLANKS)
                 and len(collection["cold"]) == len(NEW_PLANKS), "Missing full admission or cold-reuse denominator")
         first, second = collection["firstServer"], collection["secondServer"]
         require(first["start"] < second["start"] and first["releaseSha256"] == second["releaseSha256"] == jar

@@ -10,6 +10,7 @@ import traceback
 
 from .campaign import admissions
 from .gameplay import witness_identity, ROOT
+from . import recipe_journal
 from .native_evidence import (item_at, jsonl, raw_slices, require_command,
                               require_native_primitive, stock_at, verify_frames, verify_installation)
 from .walkthrough import (ASK, AXE, COLLECTED, COHORTS, CUTS, DESTINATION, PROFILE, SOURCE,
@@ -35,6 +36,36 @@ def native_items(rows):
     return dict(result)
 
 
+def certify_recipe_cut(world, world_id, row, actor_nbt, chest_rows):
+    stage = {"after-craft": "CRAFT", "at-final-delivery": "DEPOSIT"}.get(row["requiredCut"])
+    if not stage:
+        return None
+    raw = recipe_journal.read(world, expected_world=world_id)
+    job = row["killObservation"]["job"]
+    records = [receipt for attempt in job["attempts"] for receipt in attempt["resourceReceipts"]
+               if receipt["stage"] == stage and receipt["item"]["id"] == AXE]
+    require(len(records) == 1, "Expected exactly one original axe phase at this cut")
+    receipt = records[0]
+    witness = receipt["choice"]
+    token = witness["journalToken"]
+    effect = raw[token]
+    intent, result = effect["prepare"], effect["result"]
+    require(recipe_journal.positive(effect) and intent["phase"] == stage and intent["root"] == witness["root"] == job["id"]
+            and intent["step"] == witness["step"] and intent["attempt"] == witness["attempt"]
+            and intent["generation"] == witness["generation"] and intent["operation"] == receipt["operationId"]
+            and intent["choice"] == witness["choiceDigest"] and intent["batch"] == witness["batch"],
+            "Original axe effect does not bind the acknowledged native recipe frames")
+    actor_address = "actor:minecraft:overworld/" + row["actor"]
+    chest_address = "chest:minecraft:overworld/" + ",".join(map(str, DESTINATION))
+    native = {actor_address: actor_nbt, chest_address: chest_rows[tuple(DESTINATION)]}
+    addresses = [p["address"] for p in result["after"]]
+    required = [actor_address] if stage == "CRAFT" else [actor_address, chest_address]
+    require(addresses == required, "Incomplete or substituted saved native recipe participant set")
+    markers = [recipe_journal.saved_marker(native[p["address"]], effect, p) for p in result["after"]]
+    return {"journalToken": token, "stage": stage, "savedParticipants": addresses,
+            "resultSha256": markers[0]["result"], "usage": result["usage"]}
+
+
 def independently_saved(world, row):
     cut, actor = row["killObservation"]["state"], row["actor"]
     header, records = journal(world / "data/cognitivecraft/jobs/v1/state.jsonl")
@@ -54,7 +85,8 @@ def independently_saved(world, row):
                 "Persisted native chest custody differs from the cut")
     for site in tables(cut):
         require(block_name(world, tuple(map(int, site.split(",")))) == "minecraft:crafting_table", "Witnessed table is absent from actual saved terrain")
-    return {"world": header["world"], "jobRevision": roots[0]["revision"], "nativeActorAndChestsReconciled": True}
+    return {"world": header["world"], "jobRevision": roots[0]["revision"], "nativeActorAndChestsReconciled": True,
+            "certifiedExactRecipeCut": certify_recipe_cut(world, header["world"], row, actor_rows[0], chest_rows)}
 
 
 def original_lineage(row, *, resumed):
@@ -203,11 +235,22 @@ def review(root, cohort, source, jar):
     try:
         result.update(witness_identity(read(root / "seed/metadata.json"), source, jar, PROFILE))
         result["ci"] = {"GITHUB_RUN_ID": result["run"], "GITHUB_RUN_ATTEMPT": result["attempt"]}
+        run_details = read(root / "walkthrough.json") or {}
         pins = admissions(root / "seed")
         for case in required:
             try:
                 folder = root / "cases" / case
-                row, external = review_case(folder, case, read(folder / "result.json"), cohort, pins, source, jar)
+                record = read(folder / "result.json")
+                if record is None:
+                    result["cases"].append({"id": case, "status": "NOT_EXECUTED_REQUIRED",
+                                            "reason": run_details.get("error", "Case has no native result")})
+                    continue
+                if record["status"] not in {COLLECTED, "CONTAINMENT_ONLY"}:
+                    result["cases"].append({"id": case, "status": record["status"],
+                                            "reason": record.get("reason", "Case did not produce the required observation"),
+                                            "resultSha256": digest(folder / "result.json")})
+                    continue
+                row, external = review_case(folder, case, record, cohort, pins, source, jar)
                 result["cases"].append(row)
                 if external:
                     result["checkpointStockRemoved"] = external

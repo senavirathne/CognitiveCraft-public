@@ -70,10 +70,11 @@ public final class PlanningModel {
             if(!d.recipe().equals(recipe) || !d.output().id().equals(result.id()) || cells.size()!=d.totalInputs() || allowance.effects<3 || allowance.ticks<1
                     || cells.stream().anyMatch(c->c.isEmpty() || c.size()>16 || c.stream().anyMatch(RecipeChoice.ItemKey::empty))
                     || method!=null && (!method.capability.equals(capability) || !method.semanticFingerprint.equals(semanticFingerprint)))throw new IllegalArgumentException("Bounded static profile, result and immutable method pin required");
+            var plankFamily = RecipeProduction.PlankMaterial.forOutput(d.output().id());
             for(var cell:cells)for(var key:cell){boolean stick=d.axe() && key.id().equals("minecraft:stick");boolean primary;
                 if(capability.version()==1)primary=key.id().equals(d.input().id());
-                else if(d.output().id().endsWith("_planks")){String log=d.input().id();primary=Set.of(log,log.replace("_log","_wood"),log.replace(":",":stripped_"),log.replace(":",":stripped_").replace("_log","_wood")).contains(key.id());}
-                else primary=key.id().matches("minecraft:(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped|pale_oak|poplar)_planks");
+                else if(plankFamily.isPresent())primary=plankFamily.get().inputs().contains(key.id());
+                else primary=RecipeProduction.PlankMaterial.forOutput(key.id()).isPresent();
                 if(!primary && !stick)throw new IllegalArgumentException("Profile cannot widen the pinned material envelope");}
             if(d.axe() && (cells.stream().filter(c->c.stream().allMatch(k->k.id().equals("minecraft:stick"))).count()!=2
                     || cells.stream().anyMatch(c->c.stream().anyMatch(k->k.id().equals("minecraft:stick")) && c.stream().anyMatch(k->!k.id().equals("minecraft:stick")))))throw new IllegalArgumentException("Three plank cells and two stick cells required");

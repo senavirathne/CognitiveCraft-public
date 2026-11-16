@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel.runtime.evidence;
 import dev.aivillages.core.kernel.WorldRetentionManager;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Predicate;
 import static dev.aivillages.core.kernel.WorldRetentionManager.*;
 
 /**
@@ -11,7 +12,8 @@ import static dev.aivillages.core.kernel.WorldRetentionManager.*;
  */
 public final class HarvestPickupRetention implements Owner {
     private final Thread writer=Thread.currentThread();private final HarvestJournal harvest;private final PickupJournal pickup;
-    private final List<Owner> children;private WorldRetentionManager manager;
+    private final List<Owner> children;
+    private Predicate<Amount> capacity;
     private HarvestPickupRetention(HarvestJournal harvest,PickupJournal pickup) {
         this.harvest=Objects.requireNonNull(harvest);this.pickup=Objects.requireNonNull(pickup);
         if(!harvest.snapshot().world().equals(pickup.snapshot().world()))throw new IllegalArgumentException("H/P retention world");
@@ -23,7 +25,15 @@ public final class HarvestPickupRetention implements Owner {
     private void thread(){if(Thread.currentThread()!=writer)throw new IllegalStateException("H/P shared storage writer");}
     public String id(){return "harvests";}
     public Optional<Thread> serializedWriter(){return Optional.of(writer);}
-    public void bindPolicy(WorldRetentionManager manager){thread();if(this.manager!=null)throw new IllegalStateException("H/P retention already registered");this.manager=Objects.requireNonNull(manager);}
+    public void bindPolicy(WorldRetentionManager manager) {
+        Objects.requireNonNull(manager);
+        bindCapacity(amount -> manager.assessReplacement(id(),Category.EVIDENCE,amount).status()==Capacity.AVAILABLE);
+    }
+    void bindCapacity(Predicate<Amount> reserve) {
+        thread();
+        if(capacity!=null)throw new IllegalStateException("H/P retention already bound");
+        capacity=Objects.requireNonNull(reserve);
+    }
     private boolean valid(){return !harvest.readOnly()&&!pickup.readOnly()&&(long)harvest.snapshot().entries().size()+pickup.snapshot().entries().size()<=NativePickup.MAX_ENTRIES;}
     public long revision()throws IOException {
         if(!valid())throw new IOException("Fenced/oversized H/P family; preserve files without a partial inventory");
@@ -32,9 +42,9 @@ public final class HarvestPickupRetention implements Owner {
     private static Amount sum(Amount a,Amount b){return new Amount(Math.addExact(a.bytes(),b.bytes()),Math.addExact(a.records(),b.records()));}
     public Optional<Amount> admissionCeiling(){return Optional.of(sum(children.get(0).admissionCeiling().orElseThrow(),children.get(1).admissionCeiling().orElseThrow()));}
     private boolean reserve(int child,Amount replacement) {
-        thread();if(manager==null||!valid())return false;
+        thread();if(capacity==null||!valid())return false;
         Amount combined=sum(replacement,children.get(1-child).admissionCeiling().orElseThrow());
-        return combined.records()<=NativePickup.MAX_ENTRIES&&manager.assessReplacement(id(),Category.EVIDENCE,combined).status()==Capacity.AVAILABLE;
+        return combined.records()<=NativePickup.MAX_ENTRIES&&capacity.test(combined);
     }
     private Key key(Key original) {
         if(original.owner().equals(children.get(0).id()))return new Key(id(),"harvest:"+original.id());

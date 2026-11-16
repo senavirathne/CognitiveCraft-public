@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel.production.planning;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import dev.aivillages.core.kernel.*;
+import dev.aivillages.core.kernel.runtime.activity.ActivityPlan;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
 import static dev.aivillages.core.kernel.production.planning.PlannerFixtures.*;
@@ -11,6 +12,27 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Synthetic adversarial/projection fixtures. No trusted receipt or Minecraft outcome is manufactured. */
 final class PlanningBoundaryTest {
     final StaticProductionPlanner planner=new StaticProductionPlanner();final PlanningCoordinator coordinator=new PlanningCoordinator();
+    @Test void persistedPlanReusesOriginalMethodsAndRevalidatesActualIntermediateStock() throws Exception {
+        var fixture=new PlannerFixtures().logs(3);
+        var original=planner.analyse(fixture.snapshot()).plan();
+        var packed=ActivityPlan.of(original);
+        var bytes=StrictJson.canonical(packed.encode());
+        var decoded=ActivityPlan.decode(StrictJson.object(bytes));
+        assertEquals(packed,decoded);
+        assertEquals(original,decoded.bind(fixture.snapshot()));
+        var first=original.actions().getFirst();
+        assertEquals(Kind.PRODUCE,first.kind());
+        fixture.stock.clear();
+        fixture.stock.add(fixture.stock("remaining-logs",0,LOG,2));
+        fixture.stock.add(fixture.stock("observed-checkpoint-planks",1,PLANK,first.yield()));
+        fixture.settle(original,0,1,0);
+        assertEquals(Feasibility.FEASIBLE,planner.revalidate(fixture.snapshot(),decoded.bind(fixture.snapshot())).feasibility());
+        fixture.stock.clear();
+        assertNotEquals(Feasibility.FEASIBLE,planner.revalidate(fixture.snapshot(),decoded.bind(fixture.snapshot())).feasibility());
+        fixture.destination=new ContainerRef(DIM,81,64,0);
+        fixture.context=new TrustedContext(new PrincipalRef(id("changed-caller")),fixture.context.scope());
+        assertThrows(IllegalArgumentException.class,()->decoded.bind(fixture.snapshot()));
+    }
     @Test void exhaustedComputeBoundReturnsUnknownRatherThanAnInventedImpossibility(){var f=new PlannerFixtures().logs(3);var bounded=new StaticProductionPlanner(1).analyse(f.snapshot());assertEquals(1,bounded.expansions());assertEquals(Feasibility.UNKNOWN,bounded.feasibility());assertNull(bounded.plan());assertEquals(Feasibility.FEASIBLE,planner.analyse(f.snapshot()).feasibility());}
     @Test void onePhysicalSlotOrAcquisitionRegionCannotBeCountedTwice(){var f=new PlannerFixtures().logs(1);f.stock.add(f.stock("duplicate-physical-slot",0,LOG,1));assertThrows(IllegalArgumentException.class,f::snapshot);var trees=new PlannerFixtures().logSource(7);var a=trees.acquisition.getFirst();trees.acquisition.add(new Acquisition("fixture:overlapping-tree-query",a.source(),a.result(),7,a.availability(),true,true,a.method(),a.allowance()));assertThrows(IllegalArgumentException.class,trees::snapshot);}
     @Test void availableAndObservedCountsRemainDistinctInConcreteBindings(){var f=new PlannerFixtures().goal(Mode.MAKE_NEW,PLANK,3);f.stock.add(new Stock("fixture:reserved-neighbours",new Location(f.source,null,0),LOG,1,16,0,null,List.of(),Eligibility.NONE,Availability.PRESENT,true,true,0,0));var wanted=coordinator.next(f.snapshot(),null,Memory.empty());var prepared=f.withChoice(wanted);assertEquals(DecisionKind.PROPOSE,prepared.kind());assertEquals(16,prepared.proposal().nativeChoice().choice().batch(0).bindings().getFirst().expectedCount());assertEquals(1,prepared.proposal().bindings().getFirst().units());}

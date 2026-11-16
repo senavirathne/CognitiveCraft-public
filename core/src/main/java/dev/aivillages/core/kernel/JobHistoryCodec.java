@@ -1,5 +1,6 @@
 package dev.aivillages.core.kernel;
 
+import dev.aivillages.core.kernel.runtime.activity.ActivityRecipeEvidence;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import static dev.aivillages.core.kernel.Jobs.*;
@@ -7,7 +8,7 @@ import static dev.aivillages.core.kernel.Jobs.*;
 /** Separate archive envelope; the original Job/request/receipt codecs keep their meanings. */
 final class JobHistoryCodec {
     private JobHistoryCodec() { }
-    enum Custody { NO_EFFECT, BALANCED_DELIVERY, CLOSED_COMPOSITION, CLOSED_ALLOCATIONS }
+    enum Custody { NO_EFFECT, BALANCED_DELIVERY, CLOSED_COMPOSITION, CLOSED_ALLOCATIONS, BALANCED_EXACT_RECIPE }
     static Custody custody(Job job,Snapshot component) {
         Custody disposition=custody(job);
         if(disposition!=null)return disposition;
@@ -28,6 +29,9 @@ final class JobHistoryCodec {
             if(!job.children().isEmpty() || !job.dependencies().isEmpty())return Custody.CLOSED_COMPOSITION;
             return job.state()==State.SUCCEEDED?null:Custody.NO_EFFECT;
         }
+        if(job.state()==State.SUCCEEDED && job.activity()!=null && job.activity().production()!=null
+                && job.activity().steps().stream().anyMatch(step->step.exactChoice()))
+            return balancedExactRecipe(job)?Custody.BALANCED_EXACT_RECIPE:null;
         boolean delivered=false;
         for(Attempt attempt:job.attempts()) {
             if(attempt.terminal()==null)return null;
@@ -58,6 +62,20 @@ final class JobHistoryCodec {
             delivered=true;
         }
         return delivered?Custody.BALANCED_DELIVERY:job.state()==State.SUCCEEDED?null:Custody.NO_EFFECT;
+    }
+    /** A complete immutable recipe history is eligible once every batch is delivered and accounted for. */
+    private static boolean balancedExactRecipe(Job job) {
+        var activity=job.activity();
+        if(activity.current()!=null || activity.checkpoints().size()!=activity.steps().size()
+                || activity.steps().size()!=job.attempts().size())return false;
+        for(var attempt:job.attempts()) {
+            var step=activity.forAttempt(attempt.id());
+            if(step==null || !step.exactChoice() || step.quantities().surplus()!=0 || step.quantities().remainders()!=0
+                    || attempt.uncertain() || attempt.terminal()==null || attempt.terminal().status()!=Outcomes.ExecutionStatus.SUCCEEDED
+                    || attempt.credited()!=step.quantity()
+                    || !ActivityRecipeEvidence.completed(job,attempt,step,attempt.receipts(),attempt.resourceReceipts()))return false;
+        }
+        return true;
     }
     static byte[] encode(Snapshot component) {
         JobLifecycleStore.validateSnapshot(component,Settings.defaults());

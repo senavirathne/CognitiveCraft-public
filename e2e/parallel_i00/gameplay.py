@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -18,6 +19,26 @@ PRODUCTION = ROOT / "fabric/build/libs/ai-villages-0.1.0.jar"
 NEW_PLANKS = tuple(f"minecraft:{material}_planks" for material in (
     "acacia", "bamboo", "cherry", "crimson", "dark_oak", "jungle", "mangrove", "pale_oak", "poplar", "spruce", "warped"))
 QUALIFICATION_COMPOSE = ROOT / "e2e/parallel_i00/compose-qualification.yml"
+
+
+def startup_failure(native_log):
+    """Report the native startup exception rather than a missing observer field."""
+    marker = "CognitiveCraft kernel disabled"
+    offset = native_log.rfind(marker)
+    if offset < 0:
+        return None
+    lines = [marker]
+    for line in native_log[offset:].splitlines()[1:]:
+        if re.match(r"^\[[0-9]{2}:[0-9]{2}:[0-9]{2}\]", line):
+            break
+        if line.strip():
+            lines.append(line.strip())
+    return "\n".join(lines)[-4000:]
+
+
+def ready_kernel(state):
+    return (isinstance(state, dict) and not state.get("kernelLoading") and all(
+        type(state.get(k)) is int and state[k] >= 0 for k in ("needleCalls", "generationCalls")))
 
 
 def point(value):
@@ -52,6 +73,21 @@ class NativeGameplay(CraftingHarness):
         metadata = read(self.root / "metadata.json")
         metadata["i00Profile"] = profile
         atomic(self.root / "metadata.json", metadata)
+
+    def start(self, component):
+        super().start(component)
+        if component != "server":
+            return
+        latest = self.root / "server/game/logs/latest.log"
+
+        def active():
+            if latest.is_file() and (failure := startup_failure(latest.read_text(errors="replace"))):
+                atomic(self.root / "kernel-startup-failure.json", {"reason": failure, "nativeLog": "server/game/logs/latest.log"})
+                raise RuntimeError("Native I00 kernel startup failed\n" + failure)
+            state = self.snapshot()
+            return state if ready_kernel(state) else None
+
+        self.wait(active, "Initialized I00 native kernel with both measured model counters", 60)
 
     def compose(self, *args):
         command = ["docker", "compose", "-p", self.project, "-f", str(ROOT / "e2e/compose.yml"),

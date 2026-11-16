@@ -8,6 +8,8 @@ from uuid import UUID
 MAX_JOURNAL_BYTES = 8 * 1024 * 1024
 PARTICIPANT = "cognitivecraft_deposit_evidence"
 PHASES = ("WITHDRAW", "CRAFT", "DEPOSIT")
+USAGE_KINDS = {"CALLS", "REPAIRS", "INPUT_BYTES", "OUTPUT_BYTES", "CANDIDATES", "TRIALS", "INSTRUCTIONS",
+               "OBSERVATIONS", "TRAVEL_BLOCKS", "ATTEMPTED_EFFECTS", "COMMITTED_EFFECTS", "ELAPSED_TICKS"}
 
 
 def canonical(value):
@@ -28,12 +30,14 @@ def bounded(path, size):
     return raw
 
 
-def read(world):
+def read(world, *, expected_world=None):
     base = world / "data/cognitivecraft"
     rows = bounded(base / "recipe-evidence/phases.jsonl", MAX_JOURNAL_BYTES)
     commit = bounded(base / "recipe-evidence-required.json", 1024)
     manifest = json.loads(commit)
     world_id = str(UUID(manifest["world"]))
+    if expected_world is not None and world_id != expected_world:
+        raise ValueError("Exact recipe journal is from a different saved world")
     head = digest(world_id.encode())
     evidence = {}
     operations = set()
@@ -55,10 +59,14 @@ def read(world):
             evidence[token] = {"prepare": value, "result": None}
         elif value["kind"] == "result":
             existing = evidence.get(token)
-            if (set(value) != {"kind", "token", "intent", "status", "after"}
+            if (set(value) != {"kind", "token", "intent", "status", "after", "usage"}
                     or not existing or existing["result"] is not None or value["intent"] != digest(canonical(existing["prepare"]))
                     or value["status"] not in ("APPLIED", "NO_EFFECT", "UNCERTAIN")):
                 raise ValueError("Recipe result lacks the original exact preparation")
+            usage = value["usage"]
+            if (not isinstance(usage, dict) or not set(usage) <= USAGE_KINDS
+                    or any(type(quantity) is not int or quantity < 0 for quantity in usage.values())):
+                raise ValueError("Invalid exact recipe phase cumulative usage")
             before = existing["prepare"]["before"]
             after = value["after"]
             if value["status"] != "UNCERTAIN" and (len(before) != len(after) or any(

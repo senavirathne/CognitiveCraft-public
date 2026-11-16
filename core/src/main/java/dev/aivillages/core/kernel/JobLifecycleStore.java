@@ -510,6 +510,9 @@ public final class JobLifecycleStore {
         Change denied=guard(job,proposal.expected(),work);if(denied!=null)return denied;
         if(payload.production()!=null && (!proposal.integrated() || !productionAdvance(payload.production(),production))
                 || payload.production()==null && production!=null)return reject(Reason.STALE_OBSERVATION,work);
+        if(production!=null && (production.plan()==null || !production.coveredActions().containsKey(proposal.id())
+                || production.coveredActions().size()!=payload.production().coveredActions().size()+1))
+            return reject(Reason.STALE_OBSERVATION,work);
         if(job.state().terminal() || job.cancellationOutcome()!=null || job.state()==State.CANCELLING)return reject(Reason.CANCELLED,work);
         if(payload.current()!=null || job.current()!=null&&job.current().open() || job.state()==State.INTERRUPTED)
             return reject(Reason.STALE_OBSERVATION,work);
@@ -559,7 +562,9 @@ public final class JobLifecycleStore {
         Change denied=guard(job,expected,work);if(denied!=null)return denied;
         if(job.activity()==null || job.activity().current()!=null || job.state().terminal()
                 || job.current()!=null && job.current().open() || job.cancellationOutcome()!=null
-                || !productionAdvance(job.activity().production(),production))return reject(Reason.STALE_OBSERVATION,work);
+                || !productionAdvance(job.activity().production(),production)
+                || !Objects.equals(job.activity().production().plan(),production.plan())
+                || !job.activity().production().coveredActions().equals(production.coveredActions()))return reject(Reason.STALE_OBSERVATION,work);
         try {
             var edit=new Edit(job);
             edit.activity=job.activity().planning(production);
@@ -571,7 +576,9 @@ public final class JobLifecycleStore {
     }
     private static boolean productionAdvance(ActivityPayload.ProductionControl previous,ActivityPayload.ProductionControl next) {
         return previous!=null && next!=null && next.decisions()==previous.decisions()+1
-                && Objects.equals(previous.acquisition(),next.acquisition());
+                && Objects.equals(previous.acquisition(),next.acquisition())
+                && (previous.plan()==null || previous.plan().equals(next.plan()))
+                && next.coveredActions().entrySet().containsAll(previous.coveredActions().entrySet());
     }
     public Change transition(UUID id, Guard guard, State target, Reason reason, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
@@ -1328,7 +1335,13 @@ public final class JobLifecycleStore {
         for (Snapshot snapshot : pending == null ? List.of(state) : List.of(state, pending))
             for (Job job : snapshot.jobs()) {
                 jobs.add(job.id()); jobs.addAll(job.dependencies()); jobs.addAll(job.children());
-                if(job.activity()!=null)job.activity().steps().forEach(s->artifacts.add(s.artifact()));
+                if(job.activity()!=null) {
+                    job.activity().steps().forEach(s->artifacts.add(s.artifact()));
+                    var control=job.activity().production();
+                    if(control!=null && control.plan()!=null && !job.state().terminal())
+                        control.plan().methods().values().forEach(p->artifacts.add(
+                                new ArtifactRef(new CapabilityId(p.capability().name(),1),p.artifactHash())));
+                }
                 if(job.preparation()!=null && job.preparation().method()!=null)artifacts.add(job.preparation().method());
                 for (Attempt a : job.attempts()) {
                     runs.add(a.id());

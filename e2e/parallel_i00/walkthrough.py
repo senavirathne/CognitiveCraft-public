@@ -11,7 +11,7 @@ import traceback
 import urllib.request
 import uuid
 
-from .gameplay import NativeGameplay, ROOT
+from .gameplay import NativeGameplay, ROOT, point
 from .native_evidence import TERMINAL, closed_job, item_at, job_at, stock_at, terminal_job, trace_offsets, uuid_field
 from campaigns.crafting.generator import AXE, LOG, OAK, STICK, TABLE
 from campaigns.crafting.harness import coord, fixture_observation
@@ -188,6 +188,12 @@ def tables(state):
     return {where for where, block in state["blocks"].items() if TABLE in block}
 
 
+def table_binding(job):
+    ref = job["request"]["request"]["arguments"]["table"]["value"]
+    require(ref["dimension"] == "minecraft:overworld", "Activity selected an unobserved table dimension")
+    return ",".join(map(str, point(ref)))
+
+
 def witnessed(cut, job, state, actor):
     if not job or not job.get("activity") or job["state"] in TERMINAL:
         return False
@@ -198,7 +204,7 @@ def witnessed(cut, job, state, actor):
     if cut == "after-material-deposit":
         return stages["DEPOSIT", LOG] >= 3 and not placed and not crafted
     if cut == "after-table-placement":
-        return placed == stages["PLACE", TABLE] == 1 and not crafted
+        return tables(state) == {table_binding(job)} and stages["PLACE", TABLE] == 1 and not crafted
     if cut == "after-craft":
         return crafted == stock_at(state, actor).get(AXE, 0) == 1 and delivered == 0
     if cut == "at-final-delivery":
@@ -256,10 +262,15 @@ def assert_goal(case, row):
     arguments = job["request"]["request"]["arguments"]
     require(arguments["amount"]["value"] == 1 and arguments["actor"]["value"]["entityId"] == row["actor"]
             and job["request"]["context"]["principal"]["id"] == row["principal"], "Original goal, authorizer or worker changed")
+    require(point(arguments["source"]["value"]) == SOURCE and point(arguments["destination"]["value"]) == DESTINATION
+            and arguments["source"]["value"]["dimension"] == arguments["destination"]["value"]["dimension"] == "minecraft:overworld",
+            "Actual player goal was grounded to different source or destination stock")
     before, after = row["before"], row["after"]
     require(row["clientMenuCount"] == item_at(after, DESTINATION, AXE) == 1 and item_at(before, DESTINATION, AXE) == 0,
             "Axe was not delivered to the exact pointed chest with actual client confirmation")
-    require(not tables(before) and len(tables(after)) == 1, "Required table placement is absent or duplicated")
+    site = table_binding(job)
+    require(not tables(before) and "minecraft:air" in before["blocks"].get(site, "") and tables(after) == {site},
+            "Originally empty grounded table site did not receive the sole native placement")
     require(delta(totals(before, row["clientBefore"]), totals(after, row["clientAfter"])) ==
             {LOG: -3, OAK: 3, STICK: 2, TABLE: 1, AXE: 1}, "Axe/table/missing-material custody does not reconcile")
     require(("principal=" + row["principal"]) in row["publicView"]["owner"] and

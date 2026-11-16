@@ -18,19 +18,38 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION }
     public enum Evidence { LIVE_RECEIPTS }
     public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
-                                    String blocker, long nextCheckMillis) {
+                                    String blocker, long nextCheckMillis,ActivityPlan plan,
+                                    Map<UUID,List<String>> coveredActions) {
         public static final int MAX_DECISIONS=32;
+        public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis) {
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of());
+        }
         public ProductionControl {
             Objects.requireNonNull(memory);Objects.requireNonNull(blocker);
+            var actionBindings=new HashMap<UUID,List<String>>();
+            coveredActions.forEach((id,tokens)->actionBindings.put(Objects.requireNonNull(id),List.copyOf(tokens)));
+            coveredActions=Map.copyOf(actionBindings);
             if(decisions<0 || decisions>MAX_DECISIONS || blocker.length()>128 || nextCheckMillis<0)
                 throw new IllegalArgumentException("Bounded production coordination");
+            var covered=coveredActions.values().stream().flatMap(List::stream).toList();
+            if(plan==null && !coveredActions.isEmpty() || coveredActions.size()>MAX_STEPS
+                    || coveredActions.values().stream().anyMatch(List::isEmpty)
+                    || new HashSet<>(covered).size()!=covered.size()
+                    || plan!=null && !plan.tokens().containsAll(covered))
+                throw new IllegalArgumentException("Exact prior action token coverage");
             if(acquisition!=null && Math.multiplyExact(Math.multiplyExact((long)acquisition.maxX()-acquisition.minX()+1,
                     (long)acquisition.maxY()-acquisition.minY()+1),(long)acquisition.maxZ()-acquisition.minZ()+1)>256)
                 throw new IllegalArgumentException("Bounded original acquisition area");
         }
         public static ProductionControl initial(Cuboid source){return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0);}
         public ProductionControl next(PlanningModel.Memory next,String reason,long checkAt){
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions);
+        }
+        public ProductionControl prepared(PlanningModel.Memory next,ActivityPlan pinned,UUID proposal,List<String> tokens) {
+            if(plan!=null && !plan.equals(pinned))throw new IllegalArgumentException("Original pinned production plan changed");
+            var actions=new HashMap<>(coveredActions);
+            if(actions.putIfAbsent(proposal,List.copyOf(tokens))!=null)throw new IllegalArgumentException("Duplicate authoritative proposal");
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions);
         }
     }
     public ActivityPayload(GoalMode mode,Policy policy,int plannedSteps,UUID currentStep,List<Step> steps,
@@ -160,6 +179,8 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             var budget=ProductionActivityPlanner.budget(job);
             if(steps.size()>production.decisions() || production.acquisition()!=null
                     && !production.acquisition().dimension().equals(job.responsible().dimension())
+                    || !steps.stream().map(Step::proposal).collect(java.util.stream.Collectors.toSet()).containsAll(production.coveredActions().keySet())
+                    || production.plan()!=null && steps.size()!=production.coveredActions().size()
                     || !m.originalBudgetDigest().isEmpty() && (!job.id().equals(m.root())
                         || !job.origin().scope().worldId().equals(m.world()) || !job.origin().equals(m.context())
                         || !job.origin().principal().id().equals(m.owner()) || m.originalDeadlineMillis()!=job.allowance().deadlineEpochMillis()

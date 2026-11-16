@@ -100,7 +100,9 @@ public final class WorkerDispatcher {
                                        Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
                 Reason refused=activity.bind(job,bound,ref,id);
                 if(refused!=null)return new Start(null,refused);
-                return handle(executor.startAdmittedActivity(bound,ref,new RunCorrelation(id,ref,null),limits,usage,job));
+                if(job.activity().current().exactChoice())
+                    return handle(executor.startAdmittedActivity(bound,ref,new RunCorrelation(id,ref,null),limits,usage,job));
+                return start(bound,ref,id,limits,usage);
             }
             private Start handle(BoundedSkillExecutor.Start started) {
                 if(started instanceof BoundedSkillExecutor.Rejected rejected)return new Start(null,rejected.reason());
@@ -420,7 +422,9 @@ public final class WorkerDispatcher {
                         Start started;
                         try {
                             var limits=new Budgets.ExecutionLimits(attempt.allowance(),settings.actionMillis());
-                            started=job.activity()!=null && job.activity().current().exactChoice()
+                            var step=job.activity()==null?null:job.activity().current();
+                            started=step!=null && (step.exactChoice() || step.integrated()
+                                    && CraftingTablePlacement.is(step.invocation().capability()))
                                     ?execution.startActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
                                     :execution.start(l.bound,l.artifact,l.run,limits,l.usage);
                         }

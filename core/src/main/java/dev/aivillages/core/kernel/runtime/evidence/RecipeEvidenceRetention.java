@@ -9,20 +9,34 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import static dev.aivillages.core.kernel.WorldRetentionManager.*;
 
-/** Same serialized evidence owner and category budgets with the optional exact recipe journal. */
+/** Present all active native evidence journals under one serialized retention owner. */
 public final class RecipeEvidenceRetention implements Owner {
     private final Thread writer=Thread.currentThread();
     private final List<Owner> evidence;
     private WorldRetentionManager manager;
 
-    private RecipeEvidenceRetention(DepositJournal deposits,NativeRecipeJournal recipes) {
-        evidence=List.of(deposits.retentionOwnerForCurrentWriter(),recipes.retentionOwner());
+    private RecipeEvidenceRetention(DepositJournal deposits,NativeRecipeJournal recipes,
+                                    HarvestJournal harvest,PickupJournal pickup) {
+        var owners=new ArrayList<Owner>();
+        owners.add(deposits.retentionOwnerForCurrentWriter());
+        owners.add(recipes.retentionOwner());
+        if(pickup!=null) {
+            var family=HarvestPickupRetention.bind(harvest,pickup);
+            owners.add(family);
+            family.bindCapacity(amount->reserve(2,amount));
+        } else if(harvest!=null) {
+            owners.add(harvest.retentionOwnerForCurrentWriter());
+            harvest.capacity(amount->reserve(2,amount));
+        }
+        evidence=List.copyOf(owners);
         if(evidence.stream().anyMatch(owner->owner.serializedWriter().orElse(null)!=writer))
-            throw new IllegalArgumentException("Recipe and deposit require one serialized evidence writer");
+            throw new IllegalArgumentException("Native evidence requires one serialized writer");
         deposits.capacity(amount->reserve(0,amount));
         recipes.capacity(amount->reserve(1,amount));
     }
-    public static Owner bind(DepositJournal deposits,NativeRecipeJournal recipes){return new RecipeEvidenceRetention(deposits,recipes);}
+    public static Owner bind(DepositJournal deposits,NativeRecipeJournal recipes,HarvestJournal harvest,PickupJournal pickup) {
+        return new RecipeEvidenceRetention(deposits,recipes,harvest,pickup);
+    }
     private void thread(){if(Thread.currentThread()!=writer)throw new IllegalStateException("Recipe evidence storage writer");}
     public String id(){return evidence.getFirst().id();}
     public Optional<Thread> serializedWriter(){return Optional.of(writer);}
@@ -31,16 +45,34 @@ public final class RecipeEvidenceRetention implements Owner {
         if(this.manager!=null)throw new IllegalStateException("Evidence retention already bound");
         this.manager=Objects.requireNonNull(manager);
     }
-    public long revision() throws IOException {return Math.addExact(evidence.getFirst().revision(),evidence.getLast().revision());}
-    private static Amount combined(Amount a,Amount b) {return new Amount(Math.addExact(a.bytes(),b.bytes()),Math.addExact(a.records(),b.records()));}
-    public Optional<Amount> admissionCeiling(){return Optional.of(combined(evidence.getFirst().admissionCeiling().orElseThrow(),evidence.getLast().admissionCeiling().orElseThrow()));}
+    public long revision() throws IOException {
+        long revision=0;
+        for(Owner owner:evidence)revision=Math.addExact(revision,owner.revision());
+        return revision;
+    }
+    public Optional<Amount> admissionCeiling(){return Optional.of(ceiling(-1,new Amount(0,0)));}
+    private Amount ceiling(int changed,Amount proposed) {
+        long bytes=0,records=0;
+        for(int index=0;index<evidence.size();index++) {
+            Amount amount=index==changed?proposed:evidence.get(index).admissionCeiling().orElseThrow();
+            bytes=Math.addExact(bytes,amount.bytes());
+            records=Math.addExact(records,amount.records());
+        }
+        return new Amount(bytes,records);
+    }
     private boolean reserve(int child,Amount proposed) {
         thread();
         return manager!=null && manager.assessReplacement(id(),Category.EVIDENCE,
-                combined(proposed,evidence.get(1-child).admissionCeiling().orElseThrow())).status()==Capacity.AVAILABLE;
+                ceiling(child,proposed)).status()==Capacity.AVAILABLE;
     }
-    /** Keep all original deposit IDs. Only the added protected files receive a nested key. */
-    private Key combinedKey(Key key){return key.owner().equals(evidence.getLast().id())?new Key(id(),"recipe:"+key.id()):key;}
+    /** Keep deposit keys and namespace the other children inside this owner. */
+    private Key combinedKey(Key key) {
+        for(int index=1;index<evidence.size();index++) {
+            if(evidence.get(index).id().equals(key.owner()))
+                return new Key(id(),(index==1?"recipe:":"acquisition:")+key.id());
+        }
+        return key;
+    }
     private Entry combinedEntry(Entry source) {
         return new Entry(combinedKey(source.key()),source.category(),source.usage(),source.dependencies().stream().map(this::combinedKey).toList(),
                 source.protectedRecord(),source.eligible(),source.viewers(),source.identity());

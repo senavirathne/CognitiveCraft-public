@@ -132,6 +132,20 @@ final class FabricRecipeParticipants {
         }
         return true;
     }
+
+    /** A table uses one ordinary item unit. The actual cell transition is checked separately. */
+    static boolean placement(ItemKey table,Stage phase,List<Capture> before,List<Capture> after) {
+        int expectedParticipants=phase==Stage.WITHDRAW?2:1;
+        if(before.size()!=expectedParticipants || after.size()!=expectedParticipants)return false;
+        for(int index=0;index<expectedParticipants;index++) {
+            var prior=before.get(index);var actual=after.get(index);
+            if(prior.inventory()!=actual.inventory() || !prior.evidence().incarnation().equals(actual.evidence().incarnation()))return false;
+            var expected=totals(prior.slots());
+            change(expected,table,phase==Stage.WITHDRAW && index==0?1:-1);
+            if(!expected.equals(totals(actual.slots())))return false;
+        }
+        return true;
+    }
     private static Map<ItemKey,Integer> totals(List<Slot> slots) {
         Map<ItemKey,Integer> result=new HashMap<>();
         for(var slot:slots)if(slot.count()>0)change(result,slot.item(),slot.count());

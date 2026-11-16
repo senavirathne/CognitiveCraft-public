@@ -13,28 +13,35 @@ public final class ProductionActivityPlanner {
     @FunctionalInterface public interface NativeChoice {
         boolean validate(ChoiceOffer choice);
     }
-    public record Decision(PlanningModelDecision model,ActivityRuntime.Proposal proposal) {}
+    public record Decision(PlanningModelDecision model,ActivityRuntime.Proposal proposal,ActivityPlan plan,
+                           List<String> coveredActions) {
+        public Decision {coveredActions=List.copyOf(coveredActions);}
+    }
     public record PlanningModelDecision(Memory memory,String blocker,boolean feasible,long nextCheckMillis) {}
 
     private final PlanningCoordinator planner=new PlanningCoordinator();
 
     public Decision propose(Jobs.Job root,Snapshot frame,Memory memory,Budgets.Limits remaining,NativeChoice nativeChoice) {
         requireOriginal(root,frame,remaining);
-        var selected=planner.next(frame,null,memory,1);
+        var previous=root.activity().production().plan();
+        var saved=previous==null?null:previous.bind(frame);
+        var selected=planner.next(frame,saved,memory,1);
         if(selected.neededChoice()!=null) {
             var candidate=PlanningChoiceBuilder.build(frame,selected.neededChoice());
             var offer=new ChoiceOffer(new ValidatedRequest(candidate.invocation(),root.origin(),root.request().observation()),
                     candidate.choice(),candidate.sources());
-            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),null,memory,1);
+            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),saved,memory,1);
         }
         var state=new PlanningModelDecision(selected.memory(),selected.blocker(),
                 selected.analysis()!=null && selected.analysis().feasibility()==Feasibility.FEASIBLE,selected.nextCheckMillis());
-        return new Decision(state,selected.kind()==DecisionKind.PROPOSE?authoritative(root,frame,remaining,selected.proposal()):null);
+        if(selected.kind()!=DecisionKind.PROPOSE)return new Decision(state,null,previous,List.of());
+        return new Decision(state,authoritative(root,frame,remaining,selected.proposal()),ActivityPlan.of(selected.analysis().plan()),
+                selected.proposal().coveredActionTokens());
     }
 
     private static void requireOriginal(Jobs.Job root,Snapshot frame,Budgets.Limits remaining) {
         var request=root.request().request();
-        if(root.activity()==null || root.activity().current()!=null || root.current()!=null && root.current().open()
+        if(root.activity()==null || root.activity().production()==null || root.activity().current()!=null || root.current()!=null && root.current().open()
                 || root.state().terminal() || !frame.world().equals(root.origin().scope().worldId())
                 || !frame.context().equals(root.origin()) || !frame.root().equals(root.id()) || frame.revision()!=root.revision()
                 || !frame.owner().executor().equals(root.responsible()) || frame.owner().executionGeneration()!=root.generation()

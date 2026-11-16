@@ -51,9 +51,10 @@ final class FabricProductionActivities {
                         offer->world.validateActivityChoice(offer.request(),offer.choice(),
                                 choiceAuthority(job,offer.request()),offer.sources())==null);
                 var model=decision.model();
-                var next=control.next(model.memory(),model.blocker(),model.nextCheckMillis());
-                if(decision.proposal()==null)jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),next);
+                if(decision.proposal()==null)jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),
+                        control.next(model.memory(),model.blocker(),model.nextCheckMillis()));
                 else {
+                    var next=control.prepared(model.memory(),decision.plan(),decision.proposal().id(),decision.coveredActions());
                     var prepared=jobs.prepareActivity(decision.proposal(),job.origin(),next);
                     if(!prepared.accepted() && jobs.ready()) {
                         var refused=control.next(control.memory(),prepared.reason()==null?"ACTIVITY_PREPARATION_REFUSED":prepared.reason().name(),
@@ -258,9 +259,10 @@ final class FabricProductionActivities {
             confirmed=Math.addExact(confirmed,step.creditedToGoal(attempt));
             var refs=checkpoint.receipts().stream().limit(16).map(UUID::toString).toList();
             var effect=attempt.resourceReceipts().isEmpty()?refs.getLast():attempt.resourceReceipts().getLast().operationId().toString();
-            progress.add(new SettledProgress(job.id(),step.token(),step.id().toString(),attempt.id(),effect,refs,
-                    List.of("jobs:"+step.preparedRevision()+":"+checkpoint.attempt()),SettlementKind.ACCEPTED_EFFECT,
-                    job.revision(),attempt.generation(),confirmed));
+            var tokens=job.activity().production().coveredActions().getOrDefault(step.proposal(),List.of(step.token()));
+            for(var token:tokens)progress.add(new SettledProgress(job.id(),token,step.id().toString(),attempt.id(),effect,refs,
+                        List.of("jobs:"+step.preparedRevision()+":"+checkpoint.attempt()),SettlementKind.ACCEPTED_EFFECT,
+                        job.revision(),attempt.generation(),confirmed));
         }
         return List.copyOf(progress);
     }

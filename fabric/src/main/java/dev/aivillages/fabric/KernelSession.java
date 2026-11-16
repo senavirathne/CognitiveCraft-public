@@ -335,16 +335,21 @@ public final class KernelSession implements AutoCloseable {
                 retention.register(new RetentionFileOwner("retrieval", world.resolve(CapabilityRetrievalIndex.WORLD_RELATIVE_PATH), WorldRetentionManager.Category.CACHE,
                         () -> 0, () -> 0, 16));
                 if(history!=null)retention.register(history.retentionOwner());
-                if(exactRecipes!=null)retention.register(RecipeEvidenceRetention.bind(deposits,exactRecipes));
-                else if(deposits!=null) {
-                    retention.register(harvests==null?deposits.retentionOwner():deposits.retentionOwnerForCurrentWriter());
-                    deposits.capacity(amount->retention.assessReplacement("deposits",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
-                }
-                if(pickups!=null) {
-                    var family=HarvestPickupRetention.bind(harvests,pickups);retention.register(family);
-                } else if(harvests!=null) {
-                    retention.register(harvests.retentionOwnerForCurrentWriter());
-                    harvests.capacity(amount->retention.assessReplacement("harvests",WorldRetentionManager.Category.EVIDENCE,amount).status()==WorldRetentionManager.Capacity.AVAILABLE);
+                if(exactRecipes!=null) {
+                    retention.register(RecipeEvidenceRetention.bind(deposits,exactRecipes,harvests,pickups));
+                } else {
+                    if(deposits!=null) {
+                        retention.register(harvests==null?deposits.retentionOwner():deposits.retentionOwnerForCurrentWriter());
+                        deposits.capacity(amount->retention.assessReplacement("deposits",WorldRetentionManager.Category.EVIDENCE,amount)
+                                .status()==WorldRetentionManager.Capacity.AVAILABLE);
+                    }
+                    if(pickups!=null) {
+                        retention.register(HarvestPickupRetention.bind(harvests,pickups));
+                    } else if(harvests!=null) {
+                        retention.register(harvests.retentionOwnerForCurrentWriter());
+                        harvests.capacity(amount->retention.assessReplacement("harvests",WorldRetentionManager.Category.EVIDENCE,amount)
+                                .status()==WorldRetentionManager.Capacity.AVAILABLE);
+                    }
                 }
                 var accessMigration=access.migrateSharedAccess(()->false);
                 if(!access.readOnly()&&accessMigration.code()!=KnowledgeAccess.Code.APPLIED&&accessMigration.code()!=KnowledgeAccess.Code.DUPLICATE)

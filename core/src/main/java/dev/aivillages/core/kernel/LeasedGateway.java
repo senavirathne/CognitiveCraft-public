@@ -67,7 +67,10 @@ public final class LeasedGateway implements GatewayPort {
         this.duration=duration;this.waitingTicks=waitingTicks;this.maxRuns=maxRuns;this.maxHandles=maxHandles;
     }
     public static Binding workspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
-        if(CraftingTablePlacement.is(request.request().capability()))return new Binding(owners.byRun(request,run),placementDemands(request));
+        if(CraftingTablePlacement.is(request.request().capability())) {
+            var job=owners.execution(request,run);
+            return new Binding(new Owner(job.id(),job.generation()),placementDemands(request,durablePlacement(job,request)));
+        }
         if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
         UUID world=request.context().scope().worldId();
         Cuboid source=ResourceDelivery.sourceArea(request.request());
@@ -118,6 +121,11 @@ public final class LeasedGateway implements GatewayPort {
             throw new SecurityException("Original exact recipe source and authority required");
         return step.choice().recipe();
     }
+    private static boolean durablePlacement(Jobs.Job job,ValidatedRequest request) {
+        var step=job.activity()==null?null:job.activity().current();
+        return step!=null && step.integrated() && step.invocation().equals(request.request())
+                && job.origin().equals(request.context());
+    }
     private static List<Demand> exactRecipeDemands(ValidatedRequest request,RecipeChoice choice) {
         UUID world=request.context().scope().worldId();
         var destination=((ContainerValue)request.request().arguments().get("destination")).value();
@@ -139,7 +147,7 @@ public final class LeasedGateway implements GatewayPort {
         Cuboid source=ResourceDelivery.sourceArea(request.request());
         ContainerRef destination=ResourceDelivery.destinationAddress(request.request());
         var exact=RecipeProduction.is(request.request().capability())?exactRecipe(job,request):null;
-        var demands=exact!=null?exactRecipeDemands(request,exact):CraftingTablePlacement.is(request.request().capability()) ? placementDemands(request) : RecipeProduction.is(request.request().capability())
+        var demands=exact!=null?exactRecipeDemands(request,exact):CraftingTablePlacement.is(request.request().capability()) ? placementDemands(request,durablePlacement(job,request)) : RecipeProduction.is(request.request().capability())
                 ? recipeDemands(world,request) : List.of(new Demand(sourceResource(world,request),((IntValue)request.request().arguments().get("amount")).value()),
                 new Demand(Resource.space(world,source),1),new Demand(Resource.facility(world,destination),1));
         int inspected=0;
@@ -274,13 +282,14 @@ public final class LeasedGateway implements GatewayPort {
                 || operation==GatewayPrimitives.Operation.WITHDRAW_OAK_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_AXE_INPUTS
                 || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_PLANKS || operation==GatewayPrimitives.Operation.WITHDRAW_TABLE_ITEM)) {
             for(var receipt:answer.resourceReceipts())if(receipt.stage()==ResourceDelivery.Stage.WITHDRAW) {
+                boolean exclusive=run.binding.demands().stream().anyMatch(d->d.resource().recipeSource());
                 if(receipt.choice()!=null) {
-                    if(!receipt.choice().root().equals(run.binding.owner().job())
-                            || receipt.choice().generation()!=run.binding.owner().generation()
-                            || run.binding.demands().stream().noneMatch(d->d.resource().recipeSource()))
+                    if(!exclusive || !receipt.choice().root().equals(run.binding.owner().job())
+                            || receipt.choice().generation()!=run.binding.owner().generation())
                         return fail(action,Reason.STALE_OBSERVATION);
                     continue;
                 }
+                if(exclusive && receipt.placement()!=null)continue;
                 Ref matching=null;
                 for(Ref ref:granted.leases()) {
                     Lease claim=leases.snapshot().leases().stream().filter(l->l.id().equals(ref.id())).findFirst().orElseThrow();
@@ -429,8 +438,10 @@ public final class LeasedGateway implements GatewayPort {
         if(!RecipeProduction.of(request.request().capability()).axe())result.add(new Demand(Resource.facility(world,source),1));
         if(RecipeProduction.of(request.request().capability()).axe() || !source.equals(target))result.add(new Demand(Resource.facility(world,target),1));return List.copyOf(result);
     }
-    private static List<Demand> placementDemands(ValidatedRequest request) {
+    private static List<Demand> placementDemands(ValidatedRequest request,boolean durable) {
         var source=((ContainerValue)request.request().arguments().get("source")).value();var world=request.context().scope().worldId();
+        if(durable)return List.of(new Demand(Resource.recipeSource(world,source),1),
+                new Demand(Resource.space(world,CraftingTablePlacement.workspace(request.request())),1));
         return List.of(new Demand(sourceResource(world,request),1),new Demand(Resource.facility(world,source),1),
                 new Demand(Resource.space(world,CraftingTablePlacement.workspace(request.request())),1));
     }

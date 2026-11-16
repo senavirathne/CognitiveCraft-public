@@ -26,6 +26,7 @@ public final class SurvivalGateway implements GatewayPort {
     public interface ExactRecipeEffects {
         boolean owns(UUID run);
         Reason observe(ValidatedRequest request,RunCorrelation run,Budgets.Ledger usage);
+        Reason observePlacement(ValidatedRequest request,RunCorrelation run,PlacementTransaction.Preflight captured);
         ExactRecipeResult poll(ValidatedRequest request,RunCorrelation run,ActionHandle operation,
                                ResourceDelivery.Stage phase,Budgets.Ledger usage,long deadline);
         boolean possibleEffect(ActionHandle operation);
@@ -646,11 +647,19 @@ public final class SurvivalGateway implements GatewayPort {
             if(captured.availableItems()<1){finish(action,Reason.RESOURCE_MISSING,null,null);return;}
             // This is structural observation, not placement permission. MOVE must
             // be able to leave an actor-occupied site; every mutation rechecks clearance.
+            if(exactRecipes!=null && exactRecipes.owns(run.id)) {
+                var observed=exactRecipes.observePlacement(run.request,run.correlation,captured);
+                if(observed!=null){finish(action,observed,null,null);return;}
+            }
             run.placement=captured;run.placementCustody=captured.custodyFingerprint();run.placementSource=captured.sourceFingerprint();
             finish(action,null,new BoolValue(true),null);return;
         }
         if(run.placement==null){finish(action,Reason.REQUEST_INVALID,null,null);return;}
         if(op==Operation.MOVE_TO_INPUT || op==Operation.MOVE_TO_PLACEMENT){move(action,target);return;}
+        if(exactRecipes!=null && exactRecipes.owns(run.id)) {
+            stepExactRecipe(action,effect,target);
+            return;
+        }
         if(!effectAllowance(action))return;
         action.usage.debit(Kind.OBSERVATIONS,2*run.placement.sourceSlots()+30);
         PlacementTransaction.Mutation result;ResourceDelivery.Stage stage;
@@ -798,6 +807,7 @@ public final class SurvivalGateway implements GatewayPort {
             case WITHDRAW -> ResourceDelivery.Stage.WITHDRAW;
             case CRAFT -> ResourceDelivery.Stage.CRAFT;
             case TRANSFER -> ResourceDelivery.Stage.DEPOSIT;
+            case PLACE -> ResourceDelivery.Stage.PLACE;
             default -> null;
         };
         if(phase==null) {finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}

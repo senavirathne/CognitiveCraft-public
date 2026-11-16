@@ -151,10 +151,24 @@ public final class JobArchive {
     public static boolean learningAcknowledged(Job job,KnowledgeAccess.Snapshot learning) {
         if(!learning.migrated() || !learning.world().equals(job.origin().scope().worldId()) || !job.state().terminal())return false;
         if(job.state()!=State.SUCCEEDED || job.current()==null)return true;
-        Attempt attempt=job.current();var enrolled=new KnowledgeAccess.Enrollment(attempt.worker(),job.origin());
+        if(job.activity()!=null && job.activity().production()!=null
+                && job.activity().steps().stream().anyMatch(step->step.exactChoice())) {
+            return job.attempts().stream().allMatch(attempt->{
+                var step=job.activity().forAttempt(attempt.id());
+                return step!=null && step.exactChoice() && !attempt.uncertain() && attempt.credited()==step.quantity()
+                        && job.activity().checkpoints().stream().anyMatch(checkpoint->checkpoint.attempt().equals(attempt.id()))
+                        && attempt.executions().stream().anyMatch(e->e.artifact().equals(step.artifact())
+                                && methodAcknowledged(job,attempt,e.artifact(),learning));
+            });
+        }
+        Attempt attempt=job.current();
         return attempt.executions().stream().anyMatch(e->ResourceDelivery.completed(attempt.bound(),e.runId(),attempt.receipts(),attempt.resourceReceipts())
-                && (!learning.personalCitizens().contains(enrolled) && learning.legacyMethods().contains(e.artifact())
-                    || learning.grants().stream().anyMatch(g->g.learner().equals(enrolled) && g.method().equals(e.artifact()))));
+                && methodAcknowledged(job,attempt,e.artifact(),learning));
+    }
+    private static boolean methodAcknowledged(Job job,Attempt attempt,Contracts.ArtifactRef artifact,KnowledgeAccess.Snapshot learning) {
+        var enrolled=new KnowledgeAccess.Enrollment(attempt.worker(),job.origin());
+        return !learning.personalCitizens().contains(enrolled) && learning.legacyMethods().contains(artifact)
+                || learning.grants().stream().anyMatch(g->g.learner().equals(enrolled) && g.method().equals(artifact));
     }
     public boolean readOnly(){return history.failed();}
     public boolean readReady(){return history.ready();}

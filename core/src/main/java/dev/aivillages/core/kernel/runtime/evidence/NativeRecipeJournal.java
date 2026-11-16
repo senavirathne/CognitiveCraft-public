@@ -59,7 +59,7 @@ public final class NativeRecipeJournal implements AutoCloseable {
             Objects.requireNonNull(attempt); Objects.requireNonNull(operation);
             before = List.copyOf(before);
             if (generation < 1 || !hash(method) || !hash(choice) || batch < 0 || batch > 15 || deadline < 1
-                    || !List.of(Stage.WITHDRAW, Stage.CRAFT, Stage.DEPOSIT).contains(phase)
+                    || !List.of(Stage.WITHDRAW, Stage.CRAFT, Stage.DEPOSIT, Stage.PLACE).contains(phase)
                     || before.isEmpty() || before.size() > 4 || !before.getFirst().address().startsWith("actor:")
                     || before.stream().map(Participant::address).distinct().count() != before.size())
                 throw new IllegalArgumentException("Invalid original recipe effect");
@@ -76,20 +76,46 @@ public final class NativeRecipeJournal implements AutoCloseable {
 
     public enum Status { APPLIED, NO_EFFECT, UNCERTAIN }
 
-    public record Result(UUID token, String intent, Status status, List<Participant> after,Map<Kind,Long> usage) {
+    public record Placement(String sourceIdentity,String siteFingerprint,String custodyBefore,String custodyAfter,
+                            String blockState,String facilityIdentity) {
+        public Placement {
+            if(sourceIdentity==null || sourceIdentity.isBlank() || sourceIdentity.length()>128
+                    || !hash(siteFingerprint) || !hash(custodyBefore) || !hash(custodyAfter)
+                    || facilityIdentity==null || facilityIdentity.length()>128
+                    || !Set.of("minecraft:air","minecraft:crafting_table").contains(blockState)
+                    || blockState.equals("minecraft:air")!=facilityIdentity.isEmpty())
+                throw new IllegalArgumentException("Invalid exact placement evidence");
+        }
+        private Map<String,Object> value() {
+            return Map.of("sourceIdentity",sourceIdentity,"siteFingerprint",siteFingerprint,"custodyBefore",custodyBefore,
+                    "custodyAfter",custodyAfter,"blockState",blockState,"facilityIdentity",facilityIdentity);
+        }
+        private static Placement read(Map<?,?> row) {
+            return new Placement((String)row.get("sourceIdentity"),(String)row.get("siteFingerprint"),
+                    (String)row.get("custodyBefore"),(String)row.get("custodyAfter"),(String)row.get("blockState"),
+                    (String)row.get("facilityIdentity"));
+        }
+    }
+    public record Result(UUID token, String intent, Status status, List<Participant> after,Map<Kind,Long> usage,
+                         Placement placement) {
+        public Result(UUID token,String intent,Status status,List<Participant> after,Map<Kind,Long> usage) {
+            this(token,intent,status,after,usage,null);
+        }
         public Result {
             Objects.requireNonNull(token); Objects.requireNonNull(status);
             after = List.copyOf(after);
             usage=Map.copyOf(usage);
             if (!hash(intent) || after.size() > 4 || status != Status.UNCERTAIN && after.isEmpty()
-                    || usage.values().stream().anyMatch(quantity->quantity<0))
+                    || usage.values().stream().anyMatch(quantity->quantity<0) || placement!=null && status!=Status.APPLIED)
                 throw new IllegalArgumentException("Invalid exact-choice result");
         }
         private Map<String,Object> value() {
             var charges=new HashMap<String,Long>();
             usage.forEach((kind,quantity)->charges.put(kind.name(),quantity));
-            return Map.of("kind","result","token",token.toString(),"intent",intent,"status",status.name(),
-                    "after",after.stream().map(Participant::value).toList(),"usage",charges);
+            var records=new LinkedHashMap<String,Object>(Map.of("kind","result","token",token.toString(),"intent",intent,
+                    "status",status.name(),"after",after.stream().map(Participant::value).toList(),"usage",charges));
+            if(placement!=null)records.put("placement",placement.value());
+            return records;
         }
         public String digest() { return fingerprint(StrictJson.canonical(value())); }
     }
@@ -99,6 +125,10 @@ public final class NativeRecipeJournal implements AutoCloseable {
             Objects.requireNonNull(intent);
             if (result != null && (!result.token().equals(intent.token()) || !result.intent().equals(intent.digest())))
                 throw new IllegalArgumentException("Result does not match prepared recipe effect");
+            if(result!=null && result.status()==Status.APPLIED && (intent.phase()==Stage.PLACE && result.placement()==null
+                    || result.placement()!=null && (intent.phase()!=Stage.PLACE && intent.phase()!=Stage.WITHDRAW
+                    || result.placement().blockState().equals("minecraft:air")!=(intent.phase()==Stage.WITHDRAW))))
+                throw new IllegalArgumentException("Wrong placement phase evidence");
             if (result != null && result.status() != Status.UNCERTAIN) {
                 if (result.after().size() != intent.before().size()) throw new IllegalArgumentException("Missing native participant");
                 for (int index=0; index<result.after().size(); index++) {
@@ -281,7 +311,8 @@ public final class NativeRecipeJournal implements AutoCloseable {
         } else if("result".equals(row.get("kind"))) {
             var usage=new java.util.EnumMap<Kind,Long>(Kind.class);
             ((Map<?,?>)row.get("usage")).forEach((kind,quantity)->usage.put(Kind.valueOf((String)kind),(Long)quantity));
-            var result=new Result(uuid(row,"token"),(String)row.get("intent"),Status.valueOf((String)row.get("status")),participants(row.get("after")),usage);
+            var result=new Result(uuid(row,"token"),(String)row.get("intent"),Status.valueOf((String)row.get("status")),
+                    participants(row.get("after")),usage,row.containsKey("placement")?Placement.read((Map<?,?>)row.get("placement")):null);
             var old=rows.get(result.token());
             if(!line.equals(frame(result.value(),head)) || old==null || old.result()!=null)throw new IllegalArgumentException("Missing or repeated recipe result");
             rows.put(old.intent().token(),new Entry(old.intent(),result)); pending--;

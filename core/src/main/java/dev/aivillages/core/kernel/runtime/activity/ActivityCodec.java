@@ -93,6 +93,12 @@ public final class ActivityCodec {
             row.put("acquisition",Map.of("dimension",a.dimension(),"minX",a.minX(),"minY",a.minY(),"minZ",a.minZ(),
                     "maxX",a.maxX(),"maxY",a.maxY(),"maxZ",a.maxZ()));
         }
+        if(p.plan()!=null) {
+            var covered=new TreeMap<String,List<String>>();
+            p.coveredActions().forEach((id,actions)->covered.put(id.toString(),actions));
+            row.put("plan",p.plan().encode());
+            row.put("covered",covered);
+        }
         if(!p.memory().equals(PlanningModel.Memory.empty())) {
             var m=p.memory();var counters=new TreeMap<String,Long>();m.observedUsage().forEach((k,n)->counters.put(k.name(),n));
             var memory=new LinkedHashMap<String,Object>();
@@ -107,7 +113,7 @@ public final class ActivityCodec {
         return row;
     }
     private static ProductionControl production(Map<String,Object> row)throws StrictJson.Invalid {
-        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory"));
+        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered"));
         Cuboid area=null;
         if(row.containsKey("acquisition")) {
             var a=object(row.get("acquisition"));exact(a,"dimension","minX","minY","minZ","maxX","maxY","maxZ");
@@ -124,7 +130,17 @@ public final class ActivityCodec {
                     string(m,"goal","$"),string(m,"signature","$"),string(m,"last","$"),integer(m,"unchanged"),
                     number(m,"checkAt","$"),string(m,"budget","$"),number(m,"deadline","$"),counters,number(m,"returns","$"));
         }
-        return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"));
+        if(row.containsKey("plan")!=row.containsKey("covered"))throw new IllegalArgumentException("Pinned plan coverage missing");
+        ActivityPlan plan=row.containsKey("plan")?ActivityPlan.decode(object(row.get("plan"))):null;
+        var covered=new HashMap<UUID,List<String>>();
+        if(plan!=null) {
+            object(row.get("covered")).forEach((id,value)->{
+                if(!(value instanceof List<?> tokens) || tokens.size()>PlanningModel.MAX_ACTIONS)
+                    throw new IllegalArgumentException("Pinned action coverage");
+                covered.put(UUID.fromString(id),tokens.stream().map(String.class::cast).toList());
+            });
+        }
+        return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"),plan,covered);
     }
     private static int integer(Map<String,Object> row,String name){return Math.toIntExact(number(row,name,"$"));}
     private static List<String> chunks(String text) {
