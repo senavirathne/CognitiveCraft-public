@@ -38,7 +38,14 @@ public final class JoinedDepositStoppedSource implements TrustedStoppedSource {
         if(attempt.resourceReceipts().size()>receipts.size() || !receipts.subList(0,attempt.resourceReceipts().size()).equals(attempt.resourceReceipts()))return unknown("original deposit receipt prefix changed");
         boolean continuing=job.cancellationOutcome()==null && result!=null && result.live()==NativeDeposit.Live.COMPLETE
                 && ((IntValue)request.arguments().get("amount")).value()==2 && job.attempts().size()==1 && resume.test(intent.key());
-        if(job.cancellationOutcome()!=State.CANCELLED && !continuing)return unknown("saved deposit awaits original cancellation or explicit bounded resume");
+        var step=job.activity()==null?null:job.activity().forAttempt(attempt.id());
+        boolean integratedCompletion=job.state()==State.INTERRUPTED && job.cancellationOutcome()==null
+                && step!=null && step.integrated() && step.choice()==null && step.goalCredit()==0
+                && step.invocation().equals(request) && step.quantity()==1 && attempt.open() && effects==3
+                && receipts.size()==3 && receipts.stream().allMatch(r->r.quantity()==1)
+                && ResourceDelivery.completed(attempt.bound(),intent.run(),List.of(),receipts);
+        if(job.cancellationOutcome()!=State.CANCELLED && !continuing && !integratedCompletion)
+            return unknown("saved deposit awaits original cancellation or certified continuation");
         var proof=store.reconcile(intent.key());var expected=result==null?NativeDeposit.Reconciliation.PREPARED_NO_EFFECT:result.live()==NativeDeposit.Live.COMPLETE?NativeDeposit.Reconciliation.SAVED_COMPLETE:NativeDeposit.Reconciliation.SAVED_NO_EFFECT;
         if(proof==null || proof.result()!=expected)return proof!=null&&proof.result()==NativeDeposit.Reconciliation.WAIT_WORLD
                 ?new StoppedObservation(StoppedKind.WAIT_WORLD,null,"joined native cohort unavailable"):unknown("joined native cohort unproven");
@@ -46,9 +53,12 @@ public final class JoinedDepositStoppedSource implements TrustedStoppedSource {
         var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);usage.putAll(attempt.usage());(result==null?intent.conditions().usage():result.usage()).forEach((kind,count)->usage.merge(kind,count,Math::max));
         if(usage.entrySet().stream().anyMatch(e->e.getValue()>attempt.allowance().maximum(e.getKey())))return unknown("original deposit allowance exceeded");
         boolean expired=clock.millis()>Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis());
-        var terminal=continuing?new Execution(expired?ExecutionStatus.BLOCKED:ExecutionStatus.INTERRUPTED,expired?Reason.BUDGET_EXHAUSTED:Reason.INTERRUPTED,effects,null)
+        var terminal=integratedCompletion?new Execution(ExecutionStatus.SUCCEEDED,null,effects,null)
+                :continuing?new Execution(expired?ExecutionStatus.BLOCKED:ExecutionStatus.INTERRUPTED,
+                        expired?Reason.BUDGET_EXHAUSTED:Reason.INTERRUPTED,effects,null)
                 :new Execution(ExecutionStatus.CANCELLED,Reason.CANCELLED,effects,null);
-        return new StoppedObservation(continuing?StoppedKind.DELIVERED_UNIT:StoppedKind.PARTIAL,new Report(original.attempt(),original.generation(),effects,usage,List.of(),
+        var kind=integratedCompletion?StoppedKind.EFFECT_COMPLETE:continuing?StoppedKind.DELIVERED_UNIT:StoppedKind.PARTIAL;
+        return new StoppedObservation(kind,new Report(original.attempt(),original.generation(),effects,usage,List.of(),
                 terminal,receipts),"saved original H/P/D; exact delivery credit and original remaining allowance");
     }
     private static StoppedObservation unknown(String why){return StoppedObservation.ambiguous(why);}

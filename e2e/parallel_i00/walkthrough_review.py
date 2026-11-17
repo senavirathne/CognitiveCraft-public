@@ -21,7 +21,7 @@ from runtime import digest
 from suite import atomic, read, require
 
 sys.path.insert(0, str(ROOT / "e2e/parallel_a"))
-from review_receipt_prefix import block_name, entity_uuid, journal, regions
+from review_receipt_prefix import block_name, chunk, dimension_root, entity_uuid, journal, regions
 
 
 def world_hashes(world):
@@ -66,6 +66,44 @@ def certify_recipe_cut(world, world_id, row, actor_nbt, chest_rows):
             "resultSha256": markers[0]["result"], "usage": result["usage"]}
 
 
+def certify_placement_cut(world, world_id, row, actor_nbt, chest_rows):
+    job = row["killObservation"]["job"]
+    completed = [(attempt, receipt) for attempt in job["attempts"] for receipt in attempt["resourceReceipts"]
+                 if receipt["stage"] == "PLACE" and receipt["item"]["id"] == "minecraft:crafting_table"]
+    require(len(completed) == 1, "Cut lacks one attributable table placement")
+    attempt, receipt = completed[0]
+    evidence = recipe_journal.read(world, expected_world=world_id)
+    trace = [phase for phase in recipe_journal.phases(evidence, job["id"])
+             if phase["prepare"]["attempt"] == attempt["id"]]
+    require([phase["prepare"]["phase"] for phase in trace] == ["WITHDRAW", "PLACE"]
+            and all(map(recipe_journal.positive, trace)), "Incomplete original placement journal")
+    withdrawal, placement = trace
+    prepare, result = placement["prepare"], placement["result"]
+    step = next(s for s in job["activity"]["steps"] if s["attempt"] == attempt["id"])
+    require(prepare["step"] == step["id"] and prepare["method"] == step["artifact"]["sha256"]
+            and prepare["generation"] == attempt["generation"] and prepare["operation"] == receipt["operationId"]
+            and all(receipt["placement"][key] == result["placement"][key] for key in recipe_journal.PLACEMENT_FIELDS),
+            "The stopped native placement differs from its original Job")
+    site = tuple(receipt["placement"]["target"][axis] for axis in ("x", "y", "z"))
+    actor = "actor:minecraft:overworld/" + row["actor"]
+    source = "chest:minecraft:overworld/" + ",".join(map(str, SOURCE))
+    block = "block:minecraft:overworld/" + ",".join(map(str, site))
+    withdrawn = {p["address"]: p for p in withdrawal["result"]["after"]}
+    placed = {p["address"]: p for p in result["after"]}
+    require(set(withdrawn) == {actor, source, block} and set(placed) == {actor, block}
+            and all(withdrawn[p["address"]] == p for p in prepare["before"])
+            and placed[block]["revision"] == withdrawn[block]["revision"] + 1,
+            "Original placement participants or effect order changed")
+    x, _, z = site
+    region = dimension_root(world) / "region" / f"r.{x // 512}.{z // 512}.mca"
+    native = chunk(region, x // 16, z // 16)
+    require(block_name(world, site) == "minecraft:crafting_table", "Original native placement cell is absent")
+    recipe_journal.saved_marker(actor_nbt, placement, placed[actor])
+    recipe_journal.saved_marker(chest_rows[tuple(SOURCE)], withdrawal, withdrawn[source])
+    recipe_journal.saved_block_marker(native, placement, placed[block], site)
+    return {"journalToken": prepare["token"], "site": list(site), "savedParticipants": list(placed) + [source]}
+
+
 def independently_saved(world, row):
     cut, actor = row["killObservation"]["state"], row["actor"]
     header, records = journal(world / "data/cognitivecraft/jobs/v1/state.jsonl")
@@ -86,7 +124,9 @@ def independently_saved(world, row):
     for site in tables(cut):
         require(block_name(world, tuple(map(int, site.split(",")))) == "minecraft:crafting_table", "Witnessed table is absent from actual saved terrain")
     return {"world": header["world"], "jobRevision": roots[0]["revision"], "nativeActorAndChestsReconciled": True,
-            "certifiedExactRecipeCut": certify_recipe_cut(world, header["world"], row, actor_rows[0], chest_rows)}
+            "certifiedExactRecipeCut": certify_recipe_cut(world, header["world"], row, actor_rows[0], chest_rows),
+            "certifiedPlacementCut": certify_placement_cut(world, header["world"], row, actor_rows[0], chest_rows)
+            if row["requiredCut"] == "after-table-placement" else None}
 
 
 def original_lineage(row, *, resumed):

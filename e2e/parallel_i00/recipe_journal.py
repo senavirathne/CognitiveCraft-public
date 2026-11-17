@@ -2,12 +2,14 @@
 
 import hashlib
 import json
+import re
 from uuid import UUID
 
 
 MAX_JOURNAL_BYTES = 8 * 1024 * 1024
 PARTICIPANT = "cognitivecraft_deposit_evidence"
-PHASES = ("WITHDRAW", "CRAFT", "DEPOSIT")
+PHASES = ("WITHDRAW", "CRAFT", "DEPOSIT", "PLACE")
+PLACEMENT_FIELDS = {"sourceIdentity", "siteFingerprint", "custodyBefore", "custodyAfter", "blockState", "facilityIdentity"}
 USAGE_KINDS = {"CALLS", "REPAIRS", "INPUT_BYTES", "OUTPUT_BYTES", "CANDIDATES", "TRIALS", "INSTRUCTIONS",
                "OBSERVATIONS", "TRAVEL_BLOCKS", "ATTEMPTED_EFFECTS", "COMMITTED_EFFECTS", "ELAPSED_TICKS"}
 
@@ -28,6 +30,25 @@ def bounded(path, size):
     if len(raw) > size:
         raise ValueError("Oversized recipe evidence")
     return raw
+
+
+def require_placement(result, phase, participants):
+    evidence = result.get("placement")
+    placed = phase == "PLACE"
+    block = any(p["address"].startswith("block:") for p in participants)
+    if evidence is None:
+        if "placement" in result or result["status"] == "APPLIED" and (placed or block):
+            raise ValueError("Missing exact placement result")
+        return
+    if (result["status"] != "APPLIED" or not block or phase not in {"WITHDRAW", "PLACE"}
+            or not isinstance(evidence, dict) or set(evidence) != PLACEMENT_FIELDS
+            or evidence["blockState"] != ("minecraft:crafting_table" if placed else "minecraft:air")
+            or not isinstance(evidence["sourceIdentity"], str) or not 0 < len(evidence["sourceIdentity"]) <= 128
+            or not isinstance(evidence["facilityIdentity"], str)
+            or bool(evidence["facilityIdentity"]) != placed or len(evidence["facilityIdentity"]) > 128
+            or any(not isinstance(evidence[key], str) or re.fullmatch("[0-9a-f]{64}", evidence[key]) is None
+                   for key in ("siteFingerprint", "custodyBefore", "custodyAfter"))):
+        raise ValueError("Malformed exact placement result")
 
 
 def read(world, *, expected_world=None):
@@ -59,7 +80,7 @@ def read(world, *, expected_world=None):
             evidence[token] = {"prepare": value, "result": None}
         elif value["kind"] == "result":
             existing = evidence.get(token)
-            if (set(value) != {"kind", "token", "intent", "status", "after", "usage"}
+            if (set(value) - {"placement"} != {"kind", "token", "intent", "status", "after", "usage"}
                     or not existing or existing["result"] is not None or value["intent"] != digest(canonical(existing["prepare"]))
                     or value["status"] not in ("APPLIED", "NO_EFFECT", "UNCERTAIN")):
                 raise ValueError("Recipe result lacks the original exact preparation")
@@ -69,6 +90,7 @@ def read(world, *, expected_world=None):
                 raise ValueError("Invalid exact recipe phase cumulative usage")
             before = existing["prepare"]["before"]
             after = value["after"]
+            require_placement(value, existing["prepare"]["phase"], before)
             if value["status"] != "UNCERTAIN" and (len(before) != len(after) or any(
                     (a["address"], a["incarnation"]) != (b["address"], b["incarnation"]) or a["revision"] > b["revision"]
                     for a, b in zip(before, after))):
@@ -102,16 +124,33 @@ def prepared_craft(evidence, root):
     return prefix[-1]
 
 
-def saved_marker(entity, phase, participant):
-    """Read the actual native NBT marker; a result journal alone never suffices."""
-    marker = json.loads(entity[PARTICIPANT])
+def require_saved_marker(marker, phase, participant):
     prepare, result = phase["prepare"], phase["result"]
     expected_effect = {"schema": 1, "effect": digest(prepare["token"].encode()),
                        "intent": digest(canonical(prepare)), "phase": "RESULT",
                        "result": digest(canonical(result))}
-    if (marker.get("schema"), marker.get("incarnation"), marker.get("revision"), json.loads(marker["marker"])) != (
-            1, participant["incarnation"], participant["revision"], expected_effect):
-        raise ValueError("Actual saved participant does not acknowledge the exact craft result")
-    if PARTICIPANT + "_original" in entity:
-        raise ValueError("Quarantined participant marker cannot prove a supported save")
+    if (marker.get("incarnation"), marker.get("revision"), json.loads(marker["marker"])) != (
+            participant["incarnation"], participant["revision"], expected_effect):
+        raise ValueError("Actual saved participant does not acknowledge the exact native result")
     return expected_effect
+
+
+def saved_marker(entity, phase, participant):
+    """Read the actual native NBT marker; a result journal alone never suffices."""
+    marker = json.loads(entity[PARTICIPANT])
+    if marker.get("schema") != 1 or PARTICIPANT + "_original" in entity:
+        raise ValueError("Unsupported or quarantined inventory marker")
+    return require_saved_marker(marker, phase, participant)
+
+
+def saved_block_marker(chunk, phase, participant, coordinates):
+    key = "cognitivecraft_harvest_sources"
+    value = json.loads(chunk[key])
+    x, y, z = coordinates
+    if (key + "_original" in chunk or (value["schema"], value["dimension"], value["chunkX"], value["chunkZ"])
+            != (1, "minecraft:overworld", x // 16, z // 16)):
+        raise ValueError("Quarantined or foreign placement chunk evidence")
+    saved = [row for row in value["sources"] if (row["x"], row["y"], row["z"]) == (x, y, z)]
+    if len(saved) != 1 or participant["address"] != "block:minecraft:overworld/" + ",".join(map(str, coordinates)):
+        raise ValueError("Original placement cell missing from native chunk")
+    return require_saved_marker(saved[0], phase, participant)

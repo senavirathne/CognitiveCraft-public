@@ -11,6 +11,7 @@ import runpy
 from .frozen_campaign import ORIGINAL_SHA256, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
 from .native_evidence import exact_withdrawals, raw_slices, require_command, verify_installation
+from campaigns.crafting.harness import CraftingHarness
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
 from campaigns.crafting.run import needed_artifacts, require_case_fence, run_case
@@ -27,6 +28,29 @@ def schedule_file(root, index, count):
     return cases
 
 
+DIRECT_INGREDIENTS = {
+    "minecraft:oak_planks": {"minecraft:oak_log"},
+    "minecraft:birch_planks": {"minecraft:birch_log"},
+    "minecraft:stick": {"minecraft:oak_planks"},
+    "minecraft:crafting_table": {"minecraft:oak_planks"},
+    "minecraft:wooden_axe": {"minecraft:oak_planks", "minecraft:stick"},
+}
+
+
+def requires_exact_choice(case):
+    if case["mode"] != "recipe":
+        return False
+    ingredients = {item for item in case["grid"] if item}
+    return ingredients != DIRECT_INGREDIENTS.get(case["output"]) or bool(case.get("missingAdapter"))
+
+
+class OriginalCampaign(NativeGameplay):
+    def command_text(self, case):
+        if not requires_exact_choice(case):
+            return CraftingHarness.command_text(self, case)
+        return super().command_text(case)
+
+
 def run(root, index, count):
     root.mkdir(parents=True, exist_ok=False)
     cases = schedule_file(root, index, count)
@@ -34,10 +58,10 @@ def run(root, index, count):
     result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": statuses}
     h = None
     try:
-        h = NativeGameplay(root, profile=PROFILE)
+        h = OriginalCampaign(root, profile=PROFILE)
         h.bootstrap({output for case in cases for output in needed_artifacts(case)})
         for case in cases:
-            row = run_case(h, case, integrated_recipe=case["mode"] == "recipe")
+            row = run_case(h, case, integrated_recipe=requires_exact_choice(case))
             statuses[case["id"]] = row["status"]
             atomic(root / "campaign.json", result)
             print("I00_ORIGINAL_CASE " + json.dumps({"id": case["id"], "status": row["status"],
@@ -74,7 +98,7 @@ def review_case(case, row, root, pins, recipes, validate):
     require(row["case"] == case, "Native case deviates from the frozen definition")
     require(row["status"] in PASS_STATUSES and row["attempted"] is True and row["terminalObserved"] is True,
             "No passing connected native execution")
-    integrated = case["mode"] == "recipe"
+    integrated = requires_exact_choice(case)
     problems = validate(row, root, integrated_recipe=integrated)
     require(not problems, "; ".join(problems))
     if integrated:

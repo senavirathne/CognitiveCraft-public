@@ -67,7 +67,10 @@ public final class ActivityCheckpoints {
         if(job.activity()==null)return true;
         var entries=deposits.snapshot().entries();
         // The qualified native predecessor is within this original root, never an unrelated old activity.
-        if(job.activity().checkpoints().isEmpty())return entries.stream().noneMatch(e->e.intent().actor().address().equals(job.responsible().entityId().toString())&&!e.intent().key().root().equals(job.id()));
+        if(job.activity().checkpoints().isEmpty())return entries.stream().noneMatch(e->
+                e.intent().actor().address().equals(job.responsible().entityId().toString())
+                && !e.intent().key().root().equals(job.id())
+                && (job.activity().production()==null || !deposits.settled(e)));
         for(var c:job.activity().checkpoints()) {
             if(job.activity().production()!=null) {
                 var step=job.activity().forAttempt(c.attempt());
