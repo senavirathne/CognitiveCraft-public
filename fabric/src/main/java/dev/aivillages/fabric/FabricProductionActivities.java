@@ -14,6 +14,7 @@ import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
 
 /** Read-only native projection and bounded coordination of existing Jobs-owned activities. */
 final class FabricProductionActivities {
+    private static final System.Logger LOGGER=System.getLogger(FabricProductionActivities.class.getName());
     private final ServerLevel level;
     private final FabricGatewayWorld world;
     private final JobLifecycleStore jobs;
@@ -30,6 +31,26 @@ final class FabricProductionActivities {
                                KnowledgeAccessStore access,AuthorityPolicy authority,Clock clock) {
         this.level=level;this.world=world;this.jobs=jobs;this.leases=leases;this.repository=repository;
         this.access=access;this.authority=authority;this.clock=clock;
+    }
+
+    /** Reject known unsupported component inputs before admitting a new simple plank goal. */
+    Outcomes.Reason intakeFailure(CapabilityRequest request,boolean gather) {
+        var definition=RecipeProduction.of(request.capability());
+        var family=RecipeProduction.PlankMaterial.forOutput(definition.output().id());
+        if(gather || family.isEmpty())return null;
+        var source=((ContainerValue)request.arguments().get("source")).value();
+        var container=world.recipeContainer(source);
+        if(container==null)return null;
+        long plain=0,components=0;
+        for(int slot=0;slot<container.getContainerSize();slot++) {
+            var stack=container.getItem(slot);
+            if(stack.isEmpty() || !family.get().inputs().contains(
+                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()))continue;
+            if(FabricRecipeTransactions.plain(stack,stack.getItem()))plain+=stack.getCount();
+            else components+=stack.getCount();
+        }
+        return components>0 && plain<definition.inputs(((IntValue)request.arguments().get("amount")).value())
+                ?Outcomes.Reason.TARGET_INVALID:null;
     }
 
     void step(java.util.function.Predicate<Jobs.Job> previousCheckpointSettled) {
@@ -63,6 +84,8 @@ final class FabricProductionActivities {
                     }
                 }
             } catch(IllegalArgumentException | IllegalStateException unavailable) {
+                if(control.decisions()==0)LOGGER.log(System.Logger.Level.WARNING,
+                        "I00 planning projection unavailable for root "+job.id(),unavailable);
                 var next=control.next(control.memory(),"CURRENT_NATIVE_PLAN_UNAVAILABLE",
                         Math.min(job.allowance().deadlineEpochMillis(),clock.millis()+1000));
                 jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),next);
@@ -179,7 +202,8 @@ final class FabricProductionActivities {
         var totals=new HashMap<String,Long>();
         for(int slot=0;slot<box.getContainerSize();slot++) {
             var stack=box.getItem(slot);
-            if(!stack.isEmpty())totals.merge(FabricConcreteRecipeChoices.itemKey(level,stack).id(),(long)stack.getCount(),Math::addExact);
+            if(!stack.isEmpty() && ResourceLeases.supportedStockItem(FabricConcreteRecipeChoices.itemKey(level,stack).id()))
+                totals.merge(FabricConcreteRecipeChoices.itemKey(level,stack).id(),(long)stack.getCount(),Math::addExact);
         }
         var free=new HashMap<String,Long>();
         for(var entry:totals.entrySet()) {
@@ -194,6 +218,7 @@ final class FabricProductionActivities {
             var stack=box.getItem(slot);
             if(stack.isEmpty())continue;
             var item=FabricConcreteRecipeChoices.itemKey(level,stack);
+            if(!ResourceLeases.supportedStockItem(item.id()))continue;
             long available=Math.min(stack.getCount(),free.get(item.id()));
             free.compute(item.id(),(id,count)->count-available);
             projected.add(new Stock("source:"+slot,new Location(source,null,slot),item,available,stack.getCount(),0,

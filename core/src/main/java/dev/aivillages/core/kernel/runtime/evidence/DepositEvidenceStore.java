@@ -150,9 +150,9 @@ public final class DepositEvidenceStore {
     }
     public boolean conflicts(Kind kind,String dimension,String address,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
-            if(settled(entry) || entry.token().equals(allowedEffect))continue;
             for(Participant participant:List.of(entry.intent().actor(),entry.intent().chest()))
-                if(participant.kind()==kind && participant.dimension().equals(dimension) && participant.address().equals(address))return true;
+                if(participant.kind()==kind && participant.dimension().equals(dimension) && participant.address().equals(address)
+                        && !settled(entry) && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect)))return true;
         }
         return false;
     }

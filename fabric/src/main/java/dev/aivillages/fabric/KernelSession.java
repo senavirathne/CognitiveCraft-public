@@ -1693,6 +1693,8 @@ public final class KernelSession implements AutoCloseable {
         var denied=worldAccess.permit(bound,Effect.WITHDRAW,new SurvivalGateway.Cell(source.dimension(),source.x(),source.y(),source.z()));
         if(denied==null)denied=worldAccess.permit(bound,Effect.TRANSFER,new SurvivalGateway.Cell(destination.dimension(),destination.x(),destination.y(),destination.z()));
         if(denied!=null)return new BootstrapController.Submission(id,false,denied);
+        denied=productionActivities.intakeFailure(request,gather);
+        if(denied!=null)return new BootstrapController.Submission(id,false,denied);
         Cuboid acquisition=null;
         if(gather && activityCheckpoints!=null)acquisition=new Cuboid(source.dimension(),source.x()-4,source.y()-1,source.z()-4,
                 source.x()+4,source.y()+1,source.z()+4);

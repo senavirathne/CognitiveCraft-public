@@ -33,6 +33,27 @@ class ResourceLeaseJournalTest {
         try(var j=ResourceLeaseJournal.open(world,WORLD)){assertEquals(first,j.snapshot());assertFalse(j.readOnly());}
         assertTrue(Files.size(current())<ResourceLeaseJournal.MAX_BYTES);
     }
+    @ParameterizedTest @EnumSource(RecipeProduction.PlankMaterial.class)
+    void supportedRecipeStockRetainsExactMaterialAcrossJournalRestart(RecipeProduction.PlankMaterial material)throws Exception{
+        var original=fixture();var lease=original.leases().getFirst();
+        var items=new TreeSet<>(material.inputs());items.add(material.output());
+        int ordinal=0;
+        for(var item:items) {
+            var resource=new Resource(WORLD,Kind.STOCK,lease.resource().area(),item,-1);
+            var changed=new Lease(lease.id(),lease.group(),lease.epoch(),lease.generation(),lease.owner(),lease.origin(),
+                    resource,lease.quantity(),lease.remaining(),lease.identity(),lease.granted(),lease.renewed(),lease.expires(),
+                    lease.renewals(),lease.state(),lease.reason(),lease.consumed());
+            var snapshot=new Snapshot(WORLD,original.epoch(),1,original.generation(),List.of(changed));
+            var directory=world.resolve(material.material()+ordinal++);
+            try(var journal=ResourceLeaseJournal.open(directory,WORLD)){journal.replace(journal.snapshot(),snapshot);}
+            try(var reopened=ResourceLeaseJournal.open(directory,WORLD)){
+                assertFalse(reopened.readOnly());assertEquals(snapshot,reopened.snapshot());
+                assertEquals(item,reopened.snapshot().leases().getFirst().resource().item());
+            }
+        }
+        if(material!=RecipeProduction.PlankMaterial.OAK && material!=RecipeProduction.PlankMaterial.BIRCH)
+            assertThrows(IllegalArgumentException.class,()->new Resource(WORLD,Kind.STOCK,lease.resource().area(),material.canonicalInput(),-2));
+    }
     @ParameterizedTest @EnumSource(ResourceLeaseJournal.Point.class)
     void everyPublicationBoundaryProducesWholeOldOrNewAndPreservesBackup(ResourceLeaseJournal.Point point)throws Exception{
         Snapshot old=fixture();seed(old);Lease ended=retired(old.leases().getFirst());

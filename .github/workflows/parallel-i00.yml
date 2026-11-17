@@ -255,6 +255,17 @@ jobs:
             build/e2e/i00/variant-admission/
             build/e2e/i00/integrated-controls/
 
+      - name: Preserve compact failure diagnostics alongside the complete raw archive
+        if: ${{ always() }}
+        run: python3 -m e2e.parallel_i00.diagnostics --root "build/e2e/i00" --out "build/i00-diagnostics/b"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: i00-diagnostics-b-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/i00-diagnostics/b/
+
   regression-ci:
     uses: ./.github/workflows/ci.yml
 
@@ -361,6 +372,17 @@ jobs:
           if-no-files-found: warn
           path: build/e2e/i00/recovery/${{ matrix.profile }}/review.json
 
+      - name: Preserve compact failure diagnostics alongside the complete raw archive
+        if: ${{ always() }}
+        run: python3 -m e2e.parallel_i00.diagnostics --root "build/e2e/i00/recovery/${{ matrix.profile }}" --out "build/i00-diagnostics/a-${{ matrix.profile }}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: i00-diagnostics-a-${{ matrix.profile }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/i00-diagnostics/a-${{ matrix.profile }}/
+
   walkthrough:
     name: Decisive player goal ${{ matrix.cohort }}
     needs: [build, smoke]
@@ -419,6 +441,17 @@ jobs:
           name: i00-review-walkthrough-${{ matrix.cohort }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: build/e2e/i00/walkthrough/${{ matrix.cohort }}/review.json
+
+      - name: Preserve compact failure diagnostics alongside the complete raw archive
+        if: ${{ always() }}
+        run: python3 -m e2e.parallel_i00.diagnostics --root "build/e2e/i00/walkthrough/${{ matrix.cohort }}" --out "build/i00-diagnostics/walkthrough-${{ matrix.cohort }}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: i00-diagnostics-walkthrough-${{ matrix.cohort }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/i00-diagnostics/walkthrough-${{ matrix.cohort }}/
 
   coverage:
     name: Native I00 coverage ${{ matrix.track }}
@@ -505,6 +538,17 @@ jobs:
           name: i00-review-${{ matrix.track }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: ${{ steps.prepare.outputs.root }}/review.json
+
+      - name: Preserve compact failure diagnostics alongside the complete raw archive
+        if: ${{ always() && steps.prepare.outputs.root != '' }}
+        run: python3 -m e2e.parallel_i00.diagnostics --root "${{ steps.prepare.outputs.root }}" --out "build/i00-diagnostics/coverage-${{ matrix.track }}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && steps.prepare.outputs.root != '' }}
+        with:
+          name: i00-diagnostics-coverage-${{ matrix.track }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/i00-diagnostics/coverage-${{ matrix.track }}/
 
   qualify:
     name: Reconcile all mandatory native evidence for this exact candidate

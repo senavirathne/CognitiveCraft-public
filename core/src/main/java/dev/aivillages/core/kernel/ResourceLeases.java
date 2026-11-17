@@ -12,6 +12,16 @@ public final class ResourceLeases {
     public enum Kind { STOCK, EQUIPMENT, FACILITY, SPACE }
     public enum State { ACTIVE, RELEASED, EXPIRED, REVOKED, INTERRUPTED }
     public enum Code { PENDING, GRANTED, VALID, RELEASED, CONFLICT, EXPIRED, STALE, REJECTED }
+    private static final Set<String> CONTAINER_ITEMS=containerItems();
+    private static Set<String> containerItems() {
+        var items=new HashSet<>(List.of("minecraft:wheat","minecraft:stick","minecraft:crafting_table","minecraft:wooden_axe"));
+        for(var material:RecipeProduction.PlankMaterial.values()) {
+            items.add(material.output());items.addAll(material.inputs());
+        }
+        return Set.copyOf(items);
+    }
+    /** Finite item vocabulary for supported container recipes; never block-harvest authority. */
+    public static boolean supportedStockItem(String item){return CONTAINER_ITEMS.contains(item);}
     public record Settings(int active, int retained, int perJob, int group, long duration,
                            long renewalInterval, int renewals, int reconcile, int cells,
                            int axis, long observationAge, long acknowledgementMillis) {
@@ -36,7 +46,7 @@ public final class ResourceLeases {
             boolean point = area.minX()==area.maxX() && area.minY()==area.maxY() && area.minZ()==area.maxZ();
             boolean valid = switch (kind) {
                 case STOCK -> slot == -1 && (item.equals("minecraft:mature_wheat")
-                        || point && (item.equals("minecraft:wheat") || item.equals("minecraft:oak_log") || item.equals("minecraft:birch_log") || item.equals("minecraft:birch_planks") || item.equals("minecraft:oak_planks") || item.equals("minecraft:stick") || item.equals("minecraft:crafting_table")))
+                        || point && supportedStockItem(item))
                         || slot == -2 && (item.equals("minecraft:oak_log") || item.equals("minecraft:birch_log"));
                 case EQUIPMENT -> point && slot >= 0 && slot < 128 && item.equals("minecraft:iron_hoe");
                 case FACILITY -> point && slot == -1 && (item.equals("minecraft:storage")

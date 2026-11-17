@@ -70,6 +70,11 @@ final class ActivityCheckpointsTest {
     @Test void completedCheckpointMatchingDoesNotAuthorizeAForeignEntry(){
         var s=new Scene(true,false);var foreign=NativeJoinedDepositTest.entry();assertFalse(s.deposits.settled(foreign));s.checkpoints.step();assertFalse(s.deposits.settled(foreign));
     }
+    @Test void originalKeyAloneCannotSettleAnEntryWithDifferentEffectEvidence(){
+        var s=new Scene(true,false);s.checkpoints.step();
+        assertFalse(s.deposits.settled(new Entry(s.entry.intent(),null)));
+        assertTrue(s.deposits.settled(s.entry));
+    }
     @Test void settlementDoesNotAlterOriginalJobCreditBudgetAttemptOrHistory(){
         var s=new Scene(true,false);var original=s.job();s.checkpoints.step();assertEquals(original,s.job());assertEquals(1,s.job().fulfilled());
     }

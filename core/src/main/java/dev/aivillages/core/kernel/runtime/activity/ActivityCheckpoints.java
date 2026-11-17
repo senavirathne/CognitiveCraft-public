@@ -13,7 +13,7 @@ public final class ActivityCheckpoints {
     private final JobLifecycleStore jobs;
     private final DepositEvidenceStore deposits;
     private final Predicate<Entry> currentProcessAcknowledgement;
-    private final Map<String,Entry> live=new HashMap<>();
+    private final Map<Key,Entry> live=new HashMap<>();
     private final Thread thread=Thread.currentThread();private int cursor;
     public ActivityCheckpoints(JobLifecycleStore jobs,DepositEvidenceStore deposits,Predicate<Entry> currentProcessAcknowledgement) {
         this.jobs=Objects.requireNonNull(jobs);this.deposits=Objects.requireNonNull(deposits);
@@ -22,7 +22,7 @@ public final class ActivityCheckpoints {
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Checkpoint owner thread");}
     private boolean liveSettled(Entry entry) {
-        check();Entry original=live.get(entry.token());
+        check();Entry original=live.get(entry.intent().key());
         return original!=null && original.intent().equals(entry.intent()) && Objects.equals(original.result(),entry.result());
     }
     /** At most four original entries; one existing native-writer publication in a slice. */
@@ -33,7 +33,7 @@ public final class ActivityCheckpoints {
             cursor%=entries.size();Entry entry=entries.get(cursor++);
             if(entry.verification()!=null || liveSettled(entry) || !matches(entry))continue;
             if(currentProcessAcknowledgement.test(entry)) {
-                if(live.size()<MAX_ENTRIES)live.put(entry.token(),entry);
+                if(live.size()<MAX_ENTRIES)live.put(entry.intent().key(),entry);
                 continue;
             }
             // There is no current-process acknowledgement after restart. Counts alone cannot close it.
