@@ -376,6 +376,8 @@ public final class WorkerDispatcher {
             if(l.phase==Phase.RECONCILING){if(!attempt.open())live.remove(l.job);return;}
             if(attempt.terminal()==null)return;
             if(job.state()==Jobs.State.INTERRUPTED && attempt.uncertain()) {
+                var step=job.activity()==null?null:job.activity().forAttempt(attempt.id());
+                if(step!=null && step.journaledProduction()){live.remove(l.job);return;}
                 var change=jobs.reconcile(job.id(),job.guard(),l.report,true,l.origin);
                 if(change.accepted())l.phase=Phase.RECONCILING;
             }else live.remove(l.job);
@@ -423,8 +425,7 @@ public final class WorkerDispatcher {
                         try {
                             var limits=new Budgets.ExecutionLimits(attempt.allowance(),settings.actionMillis());
                             var step=job.activity()==null?null:job.activity().current();
-                            started=step!=null && (step.exactChoice() || step.integrated()
-                                    && CraftingTablePlacement.is(step.invocation().capability()))
+                            started=step!=null && step.journaledProduction()
                                     ?execution.startActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
                                     :execution.start(l.bound,l.artifact,l.run,limits,l.usage);
                         }

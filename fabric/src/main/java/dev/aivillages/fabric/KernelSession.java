@@ -875,7 +875,7 @@ public final class KernelSession implements AutoCloseable {
                     }
                 }, original -> {
                     var root=jobs.query(original.job(),original.origin());
-                    if(root.activity()!=null && root.activity().current()!=null && root.activity().current().exactChoice()
+                    if(root.activity()!=null && root.activity().current()!=null && root.activity().current().journaledProduction()
                             && exactRecipeEffects!=null)return exactRecipeEffects.observeStopped(original,root.activity().current().choice());
                     if(depositProtocol!=null && pickupProtocol!=null && depositProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
                             && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
@@ -1708,7 +1708,7 @@ public final class KernelSession implements AutoCloseable {
         if(activityCheckpoints!=null && !activityCheckpoints.ready(job))return false;
         if(latest==null)return true;
         var step=job.activity().forAttempt(latest.attempt());
-        return !step.exactChoice() || exactRecipeEffects!=null && exactRecipeEffects.settled(job,step);
+        return !step.journaledProduction() || exactRecipeEffects!=null && exactRecipeEffects.settled(job,step);
     }
     /** Read-only and private. Enabled explicitly for initial qualification, off by default. */
     /** Public opt-in A integration boundary. No model entry point is connected. */

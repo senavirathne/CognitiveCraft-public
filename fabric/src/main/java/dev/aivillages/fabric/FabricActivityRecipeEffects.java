@@ -398,7 +398,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                 && intent.method().equals(step.artifact().sha256()) && intent.deadline()==job.allowance().deadlineEpochMillis();
     }
     private static boolean durable(ActivityPayload.Step step) {
-        return step!=null && (step.exactChoice() || step.integrated() && CraftingTablePlacement.is(step.invocation().capability()));
+        return step!=null && step.journaledProduction();
     }
 
     private record LastSaved(NativeRecipeJournal.Entry row,NativeRecipeJournal.Participant participant) {}

@@ -96,6 +96,16 @@ final class FabricProductionActivities {
                 || !authority.currentlyAllows(root.responsible(),Effect.OBSERVE,root.origin()))return ActivityRuntime.Validation.INVALID;
         if(choice==null) {
             var op=request.request().capability();
+            if(CraftingTablePlacement.is(op)) {
+                var source=((ContainerValue)request.request().arguments().get("source")).value();
+                var site=CraftingTablePlacement.address(request.request());
+                if(!allowed(request,Effect.WITHDRAW,source) || !allowed(request,Effect.PLACE,site))
+                    return ActivityRuntime.Validation.INVALID;
+                var prepared=world.placementPreflight(request);
+                return prepared.status()==ObservationStatus.PRESENT && prepared.reason()==null
+                        && !prepared.pending() && prepared.availableItems()>=1 && quantities.equals(ActivityPayload.Quantities.exact(1))
+                        ?ActivityRuntime.Validation.VALID:ActivityRuntime.Validation.INVALID;
+            }
             if(LogAcquisition.is(op)) {
                 var available=acquisition(root);
                 if(!available.isEmpty() && available.getFirst().method()!=null
@@ -158,7 +168,7 @@ final class FabricProductionActivities {
         return new Snapshot(SCHEMA,job.origin().scope().worldId(),job.id(),job.revision(),job.origin(),
                 new Owner(job.origin().principal().id(),actor,job.generation(),writable,false,false,false),
                 goal,destination,job.fulfilled(),ProductionActivityPlanner.budget(job),clock.millis(),revision,
-                stock,acquisition,profiles,facility,List.of(),Set.of(Kind.PRODUCE,Kind.ACQUIRE),
+                stock,acquisition,profiles,facility,List.of(),Set.of(Kind.PRODUCE,Kind.ACQUIRE,Kind.PLACE_TABLE),
                 progress(job),true,false,0);
     }
 

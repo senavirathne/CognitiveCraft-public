@@ -99,10 +99,10 @@ public final class RecoveredJobOwners implements AutoCloseable {
             StoppedObservation observation = null;
             if (route(job) == Route.RECOVERY && presence(job) == Presence.AVAILABLE) {
                 try {
-                    // A09 qualifies idle settled-checkpoint restart only. An interrupted new segment has
-                    // no automatic stopped-proof adapter yet, even if a live result looks complete.
-                    if(job.activity()!=null && (!jobs.productionPlanningReady() || job.activity().current()==null
-                            || !job.activity().current().exactChoice())) {
+                    var step=job.activity()==null?null:job.activity().current();
+                    if(job.activity()!=null && (!jobs.productionPlanningReady() || step==null
+                            || !step.journaledProduction()
+                                && !(step.integrated() && LogAcquisition.is(step.invocation().capability())))) {
                         observation=StoppedObservation.ambiguous("Interrupted activity segment requires a separately qualified stop/save adapter");
                         projections.put(job.id(),projection(job,observation));continue;
                     }

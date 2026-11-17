@@ -1103,6 +1103,8 @@ public final class JobLifecycleStore {
                     && a.generation() == report.generation()).findFirst().orElse(null);
             if (old == null) return reject(Reason.STALE_OBSERVATION, work);
             var integrated=job.activity()==null?null:job.activity().forAttempt(old.id());
+            boolean journaled=integrated!=null && integrated.journaledProduction();
+            if(journaled && reconciliation && !typedStopped)return reject(Reason.STALE_OBSERVATION,work);
             if(integrated!=null && !integrated.exactChoice())integrated=null;
             boolean current = old.generation() == job.generation();
             if (reconciliation && (!current || job.state() != State.INTERRUPTED
@@ -1127,8 +1129,9 @@ public final class JobLifecycleStore {
                 if(history!=null && history.receiptOwner(receipt.receiptId())!=null
                         && !history.receiptOwner(receipt.receiptId()).equals(id))return reject(Reason.REQUEST_INVALID,work);
                 if(integrated==null)validateReceipt(old,receipt);
-                else if(!ActivityRecipeEvidence.matches(job,old,integrated,receipt)
-                        || !resources.containsKey(receipt.receiptId()) && !activityAdapter.acknowledged(job,old,receipt))
+                else if(!ActivityRecipeEvidence.matches(job,old,integrated,receipt))
+                    return reject(Reason.STALE_OBSERVATION,work);
+                if(journaled && !resources.containsKey(receipt.receiptId()) && !activityAdapter.acknowledged(job,old,receipt))
                     return reject(Reason.STALE_OBSERVATION,work);
                 var previous = resources.putIfAbsent(receipt.receiptId(),receipt);
                 if (previous != null && !previous.equals(receipt) || receipts.containsKey(receipt.receiptId()))

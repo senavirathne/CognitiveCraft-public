@@ -110,6 +110,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         }
         public boolean integrated(){return invocation!=null;}
         public boolean exactChoice(){return choice!=null && choice.exactRecipe();}
+        public boolean journaledProduction(){return exactChoice() || integrated() && CraftingTablePlacement.is(invocation.capability());}
         public long creditedToGoal(Attempt a){return Math.min(a.credited(),goalCredit);}
         public Step assigned(UUID original){return new Step(id,proposal,token,bodyDigest,signature,creditBefore,quantity,
                 artifact,choice,quantities,allowance,preparedRevision,Objects.requireNonNull(original),invocation,goalCredit);}

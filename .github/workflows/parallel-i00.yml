@@ -181,6 +181,7 @@ jobs:
           python3 e2e/parallel_b/run_hosts.py --root "$B_ROOT/hosts" --built \
             --entrypoint dev.aivillages.fabric.GeneralizedRecipeChoiceGameTests \
             --entrypoint dev.aivillages.fabric.ConcretePlankChoiceGameTests \
+            --entrypoint dev.aivillages.fabric.PlankVariantGameTests \
             --entrypoint dev.aivillages.fabric.PlanningChoiceHostGameTests \
             --entrypoint dev.aivillages.fabric.BirchPlankEffectGameTests \
             --entrypoint dev.aivillages.fabric.OakPlankEffectGameTests \
