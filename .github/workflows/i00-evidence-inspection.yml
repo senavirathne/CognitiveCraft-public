@@ -1,0 +1,28 @@
+name: I00 preserved failure archive inspection
+on:
+  push:
+    branches: [integration/activity-runtime-production]
+    paths: [.github/workflows/i00-evidence-inspection.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify and inspect both preserved failure archives together
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 e2e/parallel_i00/inspect_archives.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i00-preserved-failure-details-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: error
+          path: build/i00-failure-inspection/
