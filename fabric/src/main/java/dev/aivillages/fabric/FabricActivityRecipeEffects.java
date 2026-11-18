@@ -5,6 +5,7 @@ import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.CraftingTablePlacement;
 import dev.aivillages.core.kernel.JobLeaseOwners;
 import dev.aivillages.core.kernel.JobLifecycleStore;
+import dev.aivillages.core.kernel.JobHistory;
 import dev.aivillages.core.kernel.Jobs;
 import dev.aivillages.core.kernel.Outcomes.Execution;
 import dev.aivillages.core.kernel.Outcomes.ExecutionStatus;
@@ -52,6 +53,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private static final int MAX_LIVE=8;
     private final FabricGatewayWorld world;
     private final JobLifecycleStore jobs;
+    private final JobHistory history;
     private final ResourceLeaseService leases;
     private final NativeRecipeJournal journal;
     private final AuthorityPolicy authority;
@@ -114,9 +116,10 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         }
     }
 
-    FabricActivityRecipeEffects(FabricGatewayWorld world,JobLifecycleStore jobs,ResourceLeaseService leases,
+    FabricActivityRecipeEffects(FabricGatewayWorld world,JobLifecycleStore jobs,JobHistory history,ResourceLeaseService leases,
                                 NativeRecipeJournal journal,AuthorityPolicy authority,Clock clock,Executor writer) {
-        this.world=Objects.requireNonNull(world); this.jobs=Objects.requireNonNull(jobs); this.leases=Objects.requireNonNull(leases);
+        this.world=Objects.requireNonNull(world); this.jobs=Objects.requireNonNull(jobs); this.history=history;
+        this.leases=Objects.requireNonNull(leases);
         this.journal=Objects.requireNonNull(journal); this.authority=Objects.requireNonNull(authority);
         this.clock=Objects.requireNonNull(clock); this.writer=Objects.requireNonNull(writer);
         participants=new FabricRecipeParticipants(world);
@@ -363,7 +366,18 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                         new Jobs.Report(old.id(),old.generation(),0,old.usage(),List.of(),result,List.of()),"Intact write-ahead journal has no native intent");
             }
             var receipts=complete(job,old,step,rows);
-            if(receipts==null || !restored(step,rows))return Jobs.StoppedObservation.ambiguous("Required native participant saves are incomplete");
+            boolean cancelledPartial=false;
+            if(receipts==null && step.exactChoice() && job.cancellationOutcome()==Jobs.State.CANCELLED) {
+                receipts=partial(job,old,step,rows);
+                cancelledPartial=receipts!=null;
+            }
+            // A private acknowledgement plus exact current native participants may
+            // settle cancellation in this process. It never certifies a save or
+            // starts another execution. A new process must use restored provenance.
+            boolean liveCancellation=cancelledPartial && rows.stream().allMatch(row->appliedHere.contains(row.intent().token()))
+                    && participantAgreement(step,rows,false);
+            if(receipts==null || !liveCancellation && !restored(step,rows))
+                return Jobs.StoppedObservation.ambiguous("Required native participant saves are incomplete");
             int saved=receipts.size();
             if(old.effects()>saved || old.resourceReceipts().size()>saved
                     || !old.resourceReceipts().equals(receipts.subList(0,old.resourceReceipts().size())))
@@ -374,12 +388,29 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             if(usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=saved
                     || usage.entrySet().stream().anyMatch(charge->charge.getValue()>old.allowance().maximum(charge.getKey())))
                 return Jobs.StoppedObservation.ambiguous("Stopped effect accounting exceeds the original allowance");
-            var result=new Execution(ExecutionStatus.SUCCEEDED,null,saved,
+            var result=cancelledPartial?new Execution(ExecutionStatus.CANCELLED,Reason.CANCELLED,saved,null):
+                    new Execution(ExecutionStatus.SUCCEEDED,null,saved,
                     new EvidenceRef(rows.getLast().intent().token().toString(),"native-recipe:1",
                             context.origin().scope().domainId().toString()));
-            return new Jobs.StoppedObservation(Jobs.StoppedKind.EFFECT_COMPLETE,
-                    new Jobs.Report(old.id(),old.generation(),saved,usage,List.of(),result,receipts),"Exact journal and native saved participants agree");
+            return new Jobs.StoppedObservation(cancelledPartial?Jobs.StoppedKind.PARTIAL:Jobs.StoppedKind.EFFECT_COMPLETE,
+                    new Jobs.Report(old.id(),old.generation(),saved,usage,List.of(),result,receipts),
+                    liveCancellation?"Original cancelled native prefix acknowledged here; exact current custody; no saved proof":
+                            "Exact journal and native saved participants agree");
         }catch(RuntimeException unavailable){return Jobs.StoppedObservation.ambiguous("Exact recipe recovery evidence unavailable");}
+    }
+
+    private List<ResourceDelivery.Receipt> partial(Jobs.Job job,Jobs.Attempt attempt,ActivityPayload.Step step,
+                                                  List<NativeRecipeJournal.Entry> rows) {
+        var choice=step.choice().recipe();
+        if(rows.isEmpty() || rows.size()>=choice.batches().size()*PHASES.size())return null;
+        var receipts=new ArrayList<ResourceDelivery.Receipt>();
+        for(var row:rows) {
+            if(!matching(job,attempt,step,row.intent()) || row.result()==null
+                    || row.result().status()!=NativeRecipeJournal.Status.APPLIED)return null;
+            receipts.add(receipt(attempt.bound(),choice,row));
+        }
+        ActivityRecipeEvidence.quantity(job,attempt,step,receipts);
+        return List.copyOf(receipts);
     }
 
     private List<ResourceDelivery.Receipt> complete(Jobs.Job job,Jobs.Attempt attempt,ActivityPayload.Step step,List<NativeRecipeJournal.Entry> rows) {
@@ -405,6 +436,9 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
 
     private record LastSaved(NativeRecipeJournal.Entry row,NativeRecipeJournal.Participant participant) {}
     private boolean restored(ActivityPayload.Step step,List<NativeRecipeJournal.Entry> rows) {
+        return participantAgreement(step,rows,true);
+    }
+    private boolean participantAgreement(ActivityPayload.Step step,List<NativeRecipeJournal.Entry> rows,boolean savedOnly) {
         Map<String,LastSaved> latest=new HashMap<>();
         for(var row:rows) {
             for(var before:row.intent().before()) {
@@ -417,7 +451,8 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         return !latest.isEmpty() && latest.values().stream().allMatch(witness->
                 site!=null && witness.participant().address().equals(FabricPlacementParticipant.address(site))
                         ? blocks.restored(site,witness.row(),witness.participant())
-                        : participants.restored(witness.row(),witness.participant()));
+                        : savedOnly?participants.restored(witness.row(),witness.participant()):
+                                participants.liveCurrent(witness.row(),witness.participant()));
     }
 
     @Override public boolean possibleEffect(ActionHandle operation) {
@@ -456,14 +491,18 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
 
     private boolean accepted(NativeRecipeJournal.Entry entry) {
         var intent=entry.intent();
-        for(var job:jobs.snapshot().jobs())if(job.id().equals(intent.root())) {
-            for(var attempt:job.attempts())if(attempt.id().equals(intent.attempt()))
-                return attempt.resourceReceipts().stream().anyMatch(r->r.operationId().equals(intent.operation())
-                        && (r.choice()!=null && r.choice().journalToken().equals(intent.token())
-                        || r.placement()!=null && entry.result().placement()!=null));
-            return false;
-        }
-        return false;
+        try {
+            var job=jobs.snapshot().jobs().stream().filter(row->row.id().equals(intent.root())).findFirst().orElse(null);
+            // An acknowledged Job archive is a read model, never a new owner or
+            // proof from current inventory counts. Missing/unknown history fences.
+            if(job==null && history!=null && history.ready())job=history.archived(intent.root());
+            if(job==null || job.activity()==null)return false;
+            var attempt=job.attempts().stream().filter(row->row.id().equals(intent.attempt())).findFirst().orElse(null);
+            var step=attempt==null?null:job.activity().forAttempt(attempt.id());
+            if(!durable(step) || !matching(job,attempt,step,intent))return false;
+            var expected=receipt(attempt.bound(),step.exactChoice()?step.choice().recipe():null,entry);
+            return attempt.resourceReceipts().contains(expected);
+        }catch(RuntimeException unavailable){return false;}
     }
 
     private Jobs.Job current(Run run) {

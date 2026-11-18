@@ -157,12 +157,19 @@ final class FabricRecipeParticipants {
 
     /** Trusts only restored native provenance and matching saved markers/slots. */
     boolean restored(NativeRecipeJournal.Entry entry,NativeRecipeJournal.Participant saved) {
+        return matches(entry,saved,true);
+    }
+    /** Requires a separate private acknowledgement from the actual native writer. This is never saved proof. */
+    boolean liveCurrent(NativeRecipeJournal.Entry entry,NativeRecipeJournal.Participant expected) {
+        return matches(entry,expected,false);
+    }
+    private boolean matches(NativeRecipeJournal.Entry entry,NativeRecipeJournal.Participant saved,boolean requireSaved) {
         var result=entry.result();
         if(result==null || result.status()!=NativeRecipeJournal.Status.APPLIED || !result.after().contains(saved))return false;
         var expected=new Marker(fingerprint(entry.intent().token().toString()),entry.intent().digest(),MarkerPhase.RESULT,result.digest());
         try {
             var current=reopen(saved.address());
-            return current!=null && current.marker().restored() && expected.equals(current.marker().marker())
+            return current!=null && (!requireSaved || current.marker().restored()) && expected.equals(current.marker().marker())
                     && saved.equals(current.evidence());
         }catch(RuntimeException unavailable){return false;}
     }

@@ -15,7 +15,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public static final int SCHEMA=1, MAX_STEPS=8, CHOICE_BYTES=768, EXACT_CHOICE_BYTES=24_576;
     public enum GoalMode { ACQUIRE_NEW, MAKE_NEW, SUPPLY }
     public enum Policy { ORIGINAL_ACTOR_SETTLED_EFFECTS }
-    public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION }
+    public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION, SETTLED_CANCELLED_CUSTODY }
     public enum Evidence { LIVE_RECEIPTS }
     public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
                                     String blocker, long nextCheckMillis,ActivityPlan plan,
@@ -145,6 +145,10 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public ActivityPayload planning(ProductionControl control){
         return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps,checkpoints,blocker,Objects.requireNonNull(control));
     }
+    /** Typed stopped-owner accounting only; this disposition grants no completion or future execution. */
+    public ActivityPayload cancelledCustody() {
+        return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps,checkpoints,Blocker.SETTLED_CANCELLED_CUSTODY,production);
+    }
     public ActivityPayload prepared(Step step,int planned,boolean executable) {
         if(currentStep!=null)throw new IllegalArgumentException("One prepared writer");
         var next=new ArrayList<>(steps);next.add(step);
@@ -189,7 +193,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                         || Arrays.stream(PlanningModel.Counter.values()).anyMatch(k->m.observedUsage().get(k)>budget.used().get(k))))
                 throw new IllegalArgumentException("Foreign production memory or decision history");
         }
-        var assigned=new HashSet<UUID>();long priorCredit=0,priorRevision=0;int index=0;
+        var assigned=new HashSet<UUID>();long priorCredit=0,priorRevision=0;int index=0,cancelledCustody=0;
         for(Step s:steps) {
             if(s.creditBefore()!=priorCredit || s.preparedRevision()<=priorRevision || s.attempt()==null&&!s.id().equals(currentStep))
                 throw new IllegalArgumentException("Ordered historical preparation");
@@ -209,13 +213,21 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                 priorCredit=Math.addExact(priorCredit,s.creditedToGoal(a));
                 if(s.integrated()&&!a.bound().request().equals(s.invocation()))
                     throw new IllegalArgumentException("Changed integrated invocation");
-                if(!a.open() && a.effects()>0 && !ActivityRecipeEvidence.completed(job,a,s,a.receipts(),a.resourceReceipts()))
-                    throw new IllegalArgumentException("Unclassified activity effects");
+                if(!a.open() && a.effects()>0 && !ActivityRecipeEvidence.completed(job,a,s,a.receipts(),a.resourceReceipts())) {
+                    if(blocker!=Blocker.SETTLED_CANCELLED_CUSTODY || !s.id().equals(currentStep)
+                            || job.state()!=State.CANCELLED || job.cancellationOutcome()!=State.CANCELLED
+                            || a.terminal()==null || a.terminal().status()!=Outcomes.ExecutionStatus.CANCELLED
+                            || a.receiptCount()==0)
+                        throw new IllegalArgumentException("Unclassified activity effects");
+                    cancelledCustody++;
+                }
                 if(((IntValue)a.bound().request().arguments().get("amount")).value()!=s.quantity()
                         || !a.worker().equals(job.responsible()) || a.executions().stream().anyMatch(e->!e.artifact().equals(s.artifact())))
                     throw new IllegalArgumentException("Prepared original attempt");
             }
         }
+        if((blocker==Blocker.SETTLED_CANCELLED_CUSTODY)!=(cancelledCustody==1))
+            throw new IllegalArgumentException("Cancelled custody disposition without its original partial owner");
         if(checkpoints.size()!=job.attempts().stream().filter(a->!a.open() && a.terminal()!=null && a.terminal().status()==Outcomes.ExecutionStatus.SUCCEEDED).count())
             throw new IllegalArgumentException("Verified history cannot be erased");
         if(currentStep!=null && !steps.getLast().id().equals(currentStep) || currentStep==null && job.current()!=null && job.current().open())

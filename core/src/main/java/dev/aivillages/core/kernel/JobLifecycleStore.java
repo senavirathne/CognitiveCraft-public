@@ -1066,10 +1066,12 @@ public final class JobLifecycleStore {
                 && Objects.equals(current.terminal(), report.terminal())) return duplicate(job, work);
         if (cancelledPartial && job.state() != State.CANCELLING && job.cancellationOutcome() == null)
             return reject(Reason.INTERRUPTED, work);
+        if(cancelledPartial && job.activity()!=null && job.cancellationOutcome()!=State.CANCELLED)
+            return reject(Reason.INTERRUPTED,work);
         if (!job.guard().equals(guard) || !context.original().equals(current)
                 || observation.kind() == StoppedKind.NO_EFFECT && (current.effects() != 0 || current.receiptCount() != 0))
             return reject(Reason.STALE_OBSERVATION, work);
-        return observe(id, guard, report, caller, true, true, true);
+        return observe(id, guard, report, caller, true, true, true, cancelledPartial);
     }
     private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
                            boolean reconciliation, boolean certain) {
@@ -1077,6 +1079,10 @@ public final class JobLifecycleStore {
     }
     private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
                            boolean reconciliation, boolean certain, boolean typedStopped) {
+        return observe(id,guard,report,caller,reconciliation,certain,typedStopped,false);
+    }
+    private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
+                           boolean reconciliation, boolean certain, boolean typedStopped,boolean cancelledPartial) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if(job==null && history!=null && history.ready() && sameWorld(caller)) {
             Job archived=history.archived(id);
@@ -1170,7 +1176,7 @@ public final class JobLifecycleStore {
             boolean uncertain = reconciliation ? false : old.uncertain()
                     || !obsolete && terminal != null && terminal.status() == ExecutionStatus.INTERRUPTED;
             if(job.activity()!=null && terminal!=null && terminal.status()!=ExecutionStatus.SUCCEEDED && effects>0
-                    && !completed(job,old,merged,mergedResources))uncertain=true;
+                    && !completed(job,old,merged,mergedResources) && !cancelledPartial)uncertain=true;
             Attempt updated = attempt(old, old.executions(), usage, merged, effects, credit,
                     terminal, uncertain, old.cancellationDeliveries(), mergedResources);
             if (updated.equals(old)) return duplicate(job, work);
@@ -1185,6 +1191,7 @@ public final class JobLifecycleStore {
                         return reject(Reason.BUDGET_EXHAUSTED, work);
             var edit = new Edit(job);
             edit.attempts = job.attempts().stream().map(a -> a.id().equals(old.id()) ? updated : a).toList();
+            if(cancelledPartial && job.activity()!=null)edit.activity=job.activity().cancelledCustody();
             if ((!obsolete && terminal != null && job.state() != State.INTERRUPTED) || reconciliation) {
                 if (!reconciliation && terminal.status() == ExecutionStatus.INTERRUPTED) {
                     edit.state = State.INTERRUPTED; edit.reason = Reason.INTERRUPTED;

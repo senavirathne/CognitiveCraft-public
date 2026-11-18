@@ -800,7 +800,7 @@ public final class KernelSession implements AutoCloseable {
                 dispatchGateway::releaseRun,clock,()->server.overworld().getGameTime(),
                 new BoundedSkillExecutor.Settings(8,16,32,64));
         if(loaded.exactRecipes()!=null) {
-            exactRecipeEffects=new FabricActivityRecipeEffects(worldAccess,jobs,leases,loaded.exactRecipes(),authority,clock,worker);
+            exactRecipeEffects=new FabricActivityRecipeEffects(worldAccess,jobs,loaded.jobHistory(),leases,loaded.exactRecipes(),authority,clock,worker);
             if(exactProductionEnabled && !loaded.exactRecipes().fenced()) {
                 gateway.exactRecipeEffects(exactRecipeEffects);
                 productionActivities=new FabricProductionActivities(server.overworld(),worldAccess,jobs,leases,repository,access,authority,clock);

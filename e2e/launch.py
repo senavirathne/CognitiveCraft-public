@@ -61,6 +61,12 @@ def main() -> None:
         os.environ["COGNITIVECRAFT_E2E_PLAYER"] = args.player
         os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
         os.environ.setdefault("SDL_VIDEO_DRIVER", "offscreen")
+        # Real reconnects briefly retain two renderer contexts. Keep native
+        # rasterizer workers/allocator arenas finite inside the unchanged 2 GiB
+        # client cap. These are client support settings, never server budgets.
+        # https://docs.mesa3d.org/envvars.html#envvar-LP_NUM_THREADS
+        os.environ.setdefault("LP_NUM_THREADS", "2")
+        os.environ.setdefault("MALLOC_ARENA_MAX", "2")
         os.environ.setdefault("XDG_CACHE_HOME", str(directory / "cache"))
         Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
         if os.environ["SDL_VIDEO_DRIVER"] == "x11" and not os.environ.get("DISPLAY"):
@@ -102,7 +108,8 @@ def main() -> None:
                 "javaVersion":subprocess.run([java("java"),"-version"],capture_output=True,text=True,check=True).stderr,
                 "retiredControls":retired_controls,
                 "mods":[{"name":p.name,"sha256":digest(p),"bytes":p.stat().st_size} for p in sorted((directory/"mods").glob("*.jar"))],
-                "renderEnvironment":{key:os.environ[key] for key in ("LIBGL_ALWAYS_SOFTWARE","SDL_VIDEO_DRIVER","DISPLAY")
+                "renderEnvironment":{key:os.environ[key] for key in ("LIBGL_ALWAYS_SOFTWARE","SDL_VIDEO_DRIVER","DISPLAY",
+                        "LP_NUM_THREADS","MALLOC_ARENA_MAX")
                                      if key in os.environ}}))
         stopping = False
 

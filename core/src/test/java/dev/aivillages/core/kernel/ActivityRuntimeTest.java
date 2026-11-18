@@ -36,6 +36,48 @@ final class ActivityRuntimeTest {
         assertEquals(2,last.attempts().stream().map(Attempt::id).distinct().count());
         JobLifecycleStore.validateSnapshot(f.s.store.snapshot(),Settings.defaults());
     }
+    @Test void onlyTypedConfirmedCancellationCanCloseAnOriginalPartialActivity(@TempDir Path world) throws Exception {
+        var f=new Fixture();f.prepare("partial");var assigned=f.assign();var attempt=assigned.current();
+        var prefix=receipts(attempt,1).subList(0,1);
+        var usage=Map.of(Budgets.Kind.CALLS,1L);
+        var interrupted=new Execution(ExecutionStatus.INTERRUPTED,Reason.INTERRUPTED,1,null);
+        commit(f.s,f.s.store.recordExecutionResult(f.root,assigned.guard(),
+                new Report(attempt.id(),attempt.generation(),1,usage,prefix,interrupted),f.s.owner));
+        var original=f.job();assertTrue(original.current().open());assertEquals(0,original.fulfilled());
+        var cancelled=new Report(attempt.id(),attempt.generation(),1,usage,prefix,
+                new Execution(ExecutionStatus.CANCELLED,Reason.CANCELLED,1,null));
+        var authority=f.s.store.attachRecovery(c->new StoppedObservation(StoppedKind.PARTIAL,cancelled,
+                "Synthetic typed owner contract; no native qualification claim"));
+        assertFalse(f.s.store.reconcileStopped(f.root,original.guard(),authority.capture(StoppedContext.of(original)),f.s.owner).accepted(),
+                "Known partial custody is not permission to stop an uncancelled activity");
+        commit(f.s,f.s.store.cancel(f.root,f.job().guard(),f.s.owner));original=f.job();
+        assertTrue(original.current().open());
+        assertFalse(f.s.store.reconcile(f.root,original.guard(),cancelled,true,f.s.owner).accepted());
+        assertTrue(f.job().current().open(),"The legacy Boolean reconciliation cannot settle partial activity custody");
+        original=f.job();
+        commit(f.s,f.s.store.reconcileStopped(f.root,original.guard(),authority.capture(StoppedContext.of(original)),f.s.owner));
+        var settled=f.job();assertEquals(State.CANCELLED,settled.state());assertFalse(settled.current().open());
+        assertFalse(settled.current().uncertain());assertEquals(0,settled.fulfilled());
+        assertEquals(assigned.request(),settled.request());assertEquals(assigned.allowance(),settled.allowance());
+        assertEquals(attempt.id(),settled.current().id());assertEquals(attempt.generation(),settled.generation());
+        assertEquals(prefix,settled.current().receipts());assertTrue(settled.activity().checkpoints().isEmpty());
+        assertEquals(ActivityPayload.Blocker.SETTLED_CANCELLED_CUSTODY,settled.activity().blocker());
+        assertDoesNotThrow(()->JobLifecycleStore.validateSnapshot(f.s.store.snapshot(),Settings.defaults()));
+        var marked=settled.activity();var unclassified=new ActivityPayload(marked.mode(),marked.policy(),marked.plannedSteps(),
+                marked.currentStep(),marked.steps(),marked.checkpoints(),ActivityPayload.Blocker.NONE,marked.production());
+        assertThrows(IllegalArgumentException.class,()->unclassified.validate(settled),
+                "The explicit cancelled-custody disposition must survive persistence");
+        assertFalse(f.s.store.assign(f.root,settled.guard(),UUID.randomUUID(),f.s.actor,REF,List.of(REF),
+                settled.allowance(),f.s.owner).accepted(),"Cancellation grants no new attempt");
+        try(var journal=JobJournal.open(world,f.s.world)) {
+            journal.replace(journal.snapshot(),new Snapshot(f.s.world,1,List.of(settled),List.of()));
+        }
+        try(var journal=JobJournal.open(world,f.s.world)) {
+            assertFalse(journal.readOnly());assertEquals(settled,journal.snapshot().jobs().getFirst());
+        }
+        var before=f.s.store.snapshot();assertEquals(Code.DUPLICATE,f.s.store.reconcileStopped(f.root,settled.guard(),
+                authority.capture(StoppedContext.of(settled)),f.s.owner).code());assertEquals(before,f.s.store.snapshot());
+    }
     @Test void preparationMustBeAcknowledgedBeforeAssignment(){
         var f=new Fixture();f.s.memory.hold=true;var before=f.job();var p=f.proposal("held");
         assertEquals(Code.PENDING,f.runtime.prepare(p,f.s.owner).code());assertNull(f.job().activity().current());

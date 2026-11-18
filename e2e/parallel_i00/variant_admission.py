@@ -91,7 +91,7 @@ def run(root):
         settle(h)
         result["stage"] = "stopped-world-restart"
         result.update(admissionComplete=len(h.artifacts), beforeStopCalls=h.model_calls(),
-                      checkpoint=h.save_checkpoint(), firstServer=read(root / "server/process.json"))
+                      beforeStopObservation=h.snapshot(), checkpoint=h.save_checkpoint(), firstServer=read(root / "server/process.json"))
         h.stop("server")
         stopped_method_copies(root, h.artifacts)
         # Recreate only the acknowledged stopped container. Its world and
@@ -266,6 +266,7 @@ def review(root, source, jar):
                         and event["data"]["client"]["play"] is False for event in events),
                 "No owned container exit or real client disconnection")
         restart = collection["restartObservation"]
+        stop = collection["beforeStopObservation"]
         verify_cold_backend(restart, second)
         require(sum(event["kind"] == "crafting-backend-unavailable" for event in events) >= 2
                 and collection["afterRestartCalls"]["generationCalls"] == restart["generationCalls"]
@@ -276,7 +277,9 @@ def review(root, source, jar):
         client = completed_jsonl(root / "clients/PlayerA/events.jsonl")
         client_commands = {event["data"]["text"] for event in client if event["kind"] == "action"
                            and event["data"]["action"] == "command"}
-        physical = [restart]
+        require(stop["pid"] == first["pid"] and first["start"] * 1000 <= stop["time"] < second["start"] * 1000
+                and stop["brokerStats"]["calls"] >= len(NEW_PLANKS), "Missing original warm-session measured calls")
+        physical = [stop, restart]
         stopped, current = root / "stopped-skills", root / REPOSITORY
         saved = read(stopped / "manifest.json")
         content = {key: saved[key] for key in ("schema", "revision", "entries")}
@@ -307,6 +310,8 @@ def review(root, source, jar):
             result["cases"].append({"item": output, "method": pin, "live": live_balance, "cold": cold_balance,
                                     "bodySha256": body_review(stopped, current, saved, output, pin, live_owner)})
         verify_server_frames(root / "server/observations.jsonl", physical)
+        result["modelCallsAcrossJvms"] = {"admissionSession": stop["brokerStats"]["calls"], "coldSession": 0,
+                                        "cumulative": stop["brokerStats"]["calls"], "freshColdCalls": 0}
         result["status"] = "PASS_INDEPENDENT_NATIVE_REVIEW"
     except Exception as error:
         result.update(reason=str(error), trace=traceback.format_exc())

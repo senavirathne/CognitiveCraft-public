@@ -36,6 +36,8 @@ REMOVAL = "player-removes-checkpoint-stock"
 RESTOCK = "unchanged-planning-then-player-restock"
 NO_METHOD = "installed-recipe-without-admitted-method"
 CONTEND = "contending-production-actors"
+PARTIAL_CANCEL = "cancelled-original-partial-craft"
+CANCEL_DESTINATION = [12, 201, 11]
 PEER_DESTINATION = [7, 201, 9]
 PENDING = ("birch-q3-child", "birch-q3-crash-before-allocation",
            "ambiguous-withdrawal-isolates-unrelated-actor",
@@ -221,6 +223,51 @@ def dormant(h, root):
     return job if (job and job["state"] == "WAITING" and control
                    and control["memory"]["unchangedChecks"] == 4
                    and control["nextCheckMillis"] == 2**63 - 1) else None
+
+
+def cancel_partial(h):
+    h.console(["setblock " + coord(CANCEL_DESTINATION) + " minecraft:chest",
+               "tp " + h.entities["PlayerA"] + " 5.5 201 7.5"])
+    fixture_slots(h, SOURCE, {26: (LOG, 1), 0: (OTHER, 2)})
+    fixture_slots(h, CANCEL_DESTINATION, {})
+    h.wait(lambda: h.container(SOURCE, LOG) == 1 and h.container(CANCEL_DESTINATION, PLANK) == 0,
+           "Original one-log partial-cancellation start")
+    before = h.snapshot()
+    actor = h.entities["PlayerA"]
+    held = next(a["inventory"].get(PLANK, 0) for a in before["actors"] if a["uuid"] == actor)
+    save_world(h, PARTIAL_CANCEL, "starting-world")
+    command = production_command(h, CANCEL_DESTINATION)
+    h.actions_active = True
+    verified_clock(h, "tick rate 2")
+    root, feedback = submit_root(h, command)
+    def crafted():
+        frame = h.snapshot()
+        job = frame["knownPlayers"]["PlayerA"]["jobs"].get(root)
+        receipts = job["attempts"][-1]["resourceReceipts"] if job and job["attempts"] else []
+        return frame if (job and job["state"] == "ACTIVE" and [r["stage"] for r in receipts] == ["WITHDRAW", "CRAFT"]
+                         and next(a["inventory"].get(PLANK, 0) for a in frame["actors"] if a["uuid"] == actor) == held + 4
+                         and h.container(CANCEL_DESTINATION, PLANK) == 0) else None
+    h.wait(crafted, "Actual original withdrawal/craft prefix before any delivery", 110)
+    verified_clock(h, "tick freeze")
+    cut = crafted()
+    require(cut, "INCONCLUSIVE: original partial-craft boundary passed before native freeze")
+    cancellation = h.cancel_job("PlayerA", root)
+    require("cancellation=true" in cancellation, "Original public cancellation was not acknowledged")
+    verified_clock(h, "tick unfreeze")
+    verified_clock(h, "tick rate 20")
+    after = h.wait(lambda: (frame if (frame := h.snapshot()) and
+                   (job := frame["knownPlayers"]["PlayerA"]["jobs"].get(root)) and job["state"] == "CANCELLED"
+                   and clean_owners(frame["knownPlayers"]["PlayerA"]) else None),
+                   "Original partial-custody owner settles its accepted cancellation", 60)
+    h.quiet(60)
+    fence = h.snapshot()
+    view = h.command("PlayerA", "/aivillage kernel activity-view " + root, "state=CANCELLED")
+    h.actions_active = False
+    screenshot = h.screenshot("PlayerA", PARTIAL_CANCEL, chat=True)
+    save_world(h, PARTIAL_CANCEL)
+    return {"id": PARTIAL_CANCEL, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
+            "feedback": feedback, "before": before, "cut": cut, "after": after, "afterFence": fence,
+            "cancellation": cancellation, "activityView": view, "screenshot": screenshot}
 
 
 def restock(h):
@@ -454,6 +501,7 @@ def run(args, identity):
             if name == "birch-q3-root":
                 atomic(h.root / "cases" / REMOVAL / "result.json", remove_checkpoint(h, case))
         atomic(h.root / "cases" / LOOKALIKE / "result.json", lookalike(h))
+        atomic(h.root / "cases" / PARTIAL_CANCEL / "result.json", cancel_partial(h))
         atomic(h.root / "cases" / RESTOCK / "result.json", restock(h))
         atomic(h.root / "cases" / NO_METHOD / "result.json", missing_method(h))
         atomic(h.root / "cases" / CONTEND / "result.json", contention(h))
@@ -612,6 +660,66 @@ def verify_lookalike(raw, row, seed, events, frames):
     frame_png(raw, row)
     return {"id": LOOKALIKE, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE", "reason": reason,
             "realComponentBearingInput": True, "effectCount": 0}
+
+
+def verify_cancel_partial(raw, row, seed, events, frames):
+    root, actor = row["root"], seed["actor"]["entityId"]
+    before, cut, after, fence = (row[key] for key in ("before", "cut", "after", "afterFence"))
+    first = cut["knownPlayers"]["PlayerA"]["jobs"][root]
+    final = after["knownPlayers"]["PlayerA"]["jobs"][root]
+    require(root not in before["knownPlayers"]["PlayerA"]["jobs"] and first["state"] == "ACTIVE"
+            and final["state"] == "CANCELLED" and final["cancellationOutcome"] == "CANCELLED"
+            and final["fulfilled"] == 0 and len(final["attempts"]) == len(final["activity"]["steps"]) == 1
+            and not final["activity"]["checkpoints"]
+            and final["activity"]["blocker"] == "SETTLED_CANCELLED_CUSTODY",
+            "Partial cancellation was replaced, credited as a goal, or left without an explicit custody disposition")
+    original_attempt, attempt = first["attempts"][0], final["attempts"][0]
+    require(final["request"] == first["request"] and final["allowance"] == first["allowance"]
+            and final["generation"] == first["generation"] == attempt["generation"]
+            and attempt["id"] == original_attempt["id"]
+            and attempt["terminal"]["status"] == "CANCELLED" and attempt["uncertain"] is False
+            and attempt["effects"] == 2 and attempt["credited"] == 0,
+            "Original authorizer, request, allowance or native attempt changed")
+    receipts = attempt["resourceReceipts"]
+    require(receipts == original_attempt["resourceReceipts"]
+            and [r["stage"] for r in receipts] == ["WITHDRAW", "CRAFT"]
+            and [r["quantity"] for r in receipts] == [1, 4]
+            and exact_withdrawals(final, receipts) == Counter({LOG: 1}), "Partial native lineage differs")
+    for frame in (after, fence):
+        require(clean_owners(frame["knownPlayers"]["PlayerA"])
+                and frame["knownPlayers"]["PlayerA"]["jobs"][root] == final
+                and stock(frame, SOURCE).get(LOG, 0) == stock(frame, CANCEL_DESTINATION).get(PLANK, 0) == 0
+                and stock(frame, SOURCE).get(OTHER) == 2
+                and all(frame[key] == before[key] for key in ("generationCalls", "needleCalls")),
+                "Cancelled owner emitted a late mutation, kept an owner open, or used inference")
+    prior = next(a["inventory"].get(PLANK, 0) for a in before["actors"] if a["uuid"] == actor)
+    prior_inventory = Counter(next(a["inventory"] for a in before["actors"] if a["uuid"] == actor))
+    require(all(next(a["inventory"].get(PLANK, 0) for a in frame["actors"] if a["uuid"] == actor) == prior + 4
+                for frame in (cut, after, fence)), "Actual retained output disappeared or was crafted twice")
+    require(all(Counter(next(a["inventory"] for a in frame["actors"] if a["uuid"] == actor))
+                == prior_inventory + Counter({PLANK: 4}) and frame["drops"] == before["drops"]
+                for frame in (cut, after, fence)), "Partial craft changed unrelated custody")
+    phase = raw / "cases" / PARTIAL_CANCEL
+    saved = original(phase / "saved-world", root)
+    require(saved["state"] == "CANCELLED" and allowance(saved["allowance"], final["allowance"])
+            and saved["activity"]["blocker"] == "SETTLED_CANCELLED_CUSTODY"
+            and not saved["attempts"][0]["uncertain"]
+            and chest(phase / "starting-world", SOURCE)[LOG] == 1
+            and chest(phase / "saved-world", SOURCE).get(LOG, 0) == 0
+            and chest(phase / "saved-world", CANCEL_DESTINATION).get(PLANK, 0) == 0,
+            "Saved native custody or original cancelled Job differs")
+    saved_inventory = Counter()
+    for stack in entities(phase / "saved-world")[actor].get("Inventory", []):
+        _, key, quantity, _ = item(stack)
+        saved_inventory[key] += quantity
+    require(saved_inventory == prior_inventory + Counter({PLANK: 4}), "Native saved actor lost cancelled custody")
+    require(all(feedback_in(events, row[key]) for key in ("feedback", "cancellation", "activityView")),
+            "No original connected-client request/cancellation/activity feedback")
+    frame_link(frames, before, cut, after, fence)
+    frame_png(raw, row)
+    return {"id": PARTIAL_CANCEL, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE",
+            "root": root, "attempt": attempt["id"], "generation": attempt["generation"],
+            "retainedPlanks": 4, "goalCredit": 0, "lateEffects": 0, "savedProofFromLiveConversion": False}
 
 
 def verify_restock(raw, row, seed, events, frames):
@@ -781,6 +889,7 @@ def review(raw, identity):
     clocks = [event["data"] for event in completed_jsonl(raw / "supervisor.jsonl")
               if event["kind"] == "verified-native-clock-transition"]
     require([row["request"]["commands"] for row in clocks] == [[command] for command in (
+            "tick rate 2", "tick freeze", "tick unfreeze", "tick rate 20",
             "tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze")],
             "Missing exact native clock transitions for restock and contention")
     clock_frames = {}
@@ -804,7 +913,7 @@ def review(raw, identity):
         if key in clock_frames:
             require(frame == clock_frames.pop(key), "Native clock evidence differs from the original read-only query")
     require(not clock_frames, "Missing original native clock queries")
-    for name in (*LIVE, REMOVAL, LOOKALIKE, RESTOCK, NO_METHOD, CONTEND, *PENDING):
+    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, NO_METHOD, CONTEND, *PENDING):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
             cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})
@@ -816,6 +925,8 @@ def review(raw, identity):
             cases.append(verify_lookalike(raw, row, seed, events, frames))
         elif name == RESTOCK:
             cases.append(verify_restock(raw, row, seed, events, frames))
+        elif name == PARTIAL_CANCEL:
+            cases.append(verify_cancel_partial(raw, row, seed, events, frames))
         elif name == NO_METHOD:
             cases.append(verify_missing_method(raw, row, recipe, events, frames))
         elif name == CONTEND:

@@ -385,7 +385,7 @@ jobs:
 
   walkthrough:
     name: Decisive player goal ${{ matrix.cohort }}
-    needs: [build, smoke]
+    needs: build
     if: needs.build.outputs.full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 100
