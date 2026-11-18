@@ -90,6 +90,12 @@ def runtime_case(h,seed,name):
                     allowance=before['remaining'],revision=before['revision'],generation=before['generation'],artifact=h.hashes['cognitivecraft:deliver_oak_logs'])
             require(denied_prepare['change']['code']=='REJECTED' and denied_prepare['change']['reason']=='AUTHORITY_DENIED','Foreign writer was not refused by actual Jobs boundary')
             result.update(denied=denied,deniedPrepare=denied_prepare,after=h.view(root));require(all(result['after'][k]==before[k] for k in ('revision','generation','confirmedCredit','checkpoints','currentStep','cumulativeUsage','originalDeadline') if k in before),'Denied writer changed authoritative progress')
+            if read(h.root/'metadata.json')['sourceBranch']=='integration/activity-runtime-production':
+                result['invalidProposals']={kind:h.runtime_rpc('invalid-prepare',root,kind=kind,
+                        artifact=h.hashes['cognitivecraft:deliver_oak_logs']) for kind in ('primitive','allowance','deadline')}
+                require(all(v['change']['code']=='REJECTED' and v['snapshotUnchanged']
+                            and v['before']==v['after'] for v in result['invalidProposals'].values()),
+                        'An invalid proposal changed the original native activity')
         elif name=='expired-original-deadline':
             h.wait(lambda:time.time()*1000>created['originalDeadline']+50,'Original absolute deadline actually expired',15)
             before,refused=h.prepare_segment(root,'expired');after=h.view(root)

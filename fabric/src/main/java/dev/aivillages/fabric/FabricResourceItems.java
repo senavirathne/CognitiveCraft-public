@@ -26,9 +26,9 @@ final class FabricResourceItems {
         };
     }
     private static Item additionalPlankItem(ResourceDelivery.ItemIdentity identity) {
-        // This lookup is restricted to the canonical input/output pair of the finite recipe catalogue.
+        // This lookup is restricted to exact input/output identities of the finite recipe catalogue.
         if (Arrays.stream(RecipeProduction.PlankMaterial.values())
-                .noneMatch(material -> material.canonicalInput().equals(identity.id()) || material.output().equals(identity.id())))
+                .noneMatch(material -> material.inputs().contains(identity.id()) || material.output().equals(identity.id())))
             throw new IllegalArgumentException("Unregistered resource item");
         var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(identity.id()));
         if (item == Items.AIR) throw new IllegalArgumentException("Missing installed resource item");

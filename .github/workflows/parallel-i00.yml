@@ -336,7 +336,7 @@ jobs:
           python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer a
           python3 e2e/runtime.py prepare
           mkdir -p build/i00-fixtures
-          gh api repos/"$GITHUB_REPOSITORY"/actions/artifacts/13311090608/zip > build/i00-fixtures/three-admissions.zip
+          python3 -m e2e.parallel_i00.pinned_fixture --out build/i00-fixtures/three-admissions.zip
           echo '8e3a030c078d0e1423b4342eae5105eed27c2e848619390a2f40e231a22d8ae8  build/i00-fixtures/three-admissions.zip' | sha256sum --check
       - name: Run the original native profile on this candidate
         id: native

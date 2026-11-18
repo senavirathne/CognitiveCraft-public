@@ -75,6 +75,60 @@ def review(args):
                                     verify_bundle=verify_bundle, stage="I00")
     value["ci"] = read(args.root / "a10-frozen-runtime.json")["ci"]
     value["scope"] = "Original A gates on the I00 candidate, no integrated recipe recovery claim."
+    if args.profile == "A07":
+        row = read(args.root / "controls/handoff-positive/result.json")
+        reply = row["lateOriginalReport"]
+        witness = reply["evidence"]
+        before, after = witness["jobBefore"], witness["jobAfter"]
+        original, report = witness["originalAttempt"], witness["report"]
+        if not (reply["status"] == "PASS" and witness["snapshotUnchanged"] is True
+                and before == after == row["originalJob"] and before["state"] == "SUCCEEDED"
+                and original == before["attempts"][0] and original["generation"] < before["generation"]
+                and original["worker"] != before["attempts"][-1]["worker"]
+                and report["attemptId"] == original["id"] and report["generation"] == original["generation"]
+                and report["effects"] == original["effects"] == 3 and report["usage"] == original["usage"]
+                and report["resourceReceipts"] == original["resourceReceipts"]
+                and report["terminal"]["status"] == "SUCCEEDED" and witness["reply"]["code"] == "DUPLICATE"
+                and witness["guard"]["generation"] == original["generation"]
+                and witness["guard"]["revision"] == row["originalAtCut"]["revision"]
+                and sum(a["credited"] for a in after["attempts"]) == 2):
+            raise AssertionError("Original-generation native callback changed successor authority or credit")
+        value["nativeAdversarial"] = {"A15": {"status": "PASS_INDEPENDENT_NATIVE_BOUNDARY",
+                "scope": "ORIGINAL_NATIVE_REPORT_AFTER_PHYSICAL_HANDOFF", "oldGenerationCallback": True,
+                "successorUnchanged": True, "extraCredit": 0, "resultSha256": sha256(
+                    args.root / "controls/handoff-positive/result.json")}}
+    if args.profile == "A09":
+        row = read(args.root / "cases/private-runtime-boundary/result.json")
+        controls = row["invalidProposals"]
+        conserved = all(row["initialPhysical"][key] == row["finalPhysical"][key]
+                        for key in ("destination", "inventory", "blocks", "drops"))
+        if set(controls) != {"primitive", "allowance", "deadline"} or not conserved:
+            raise AssertionError("Missing exact invalid-proposal controls or native no-effect witness")
+        rpc = [read(path) for path in (args.root / "a09-rpc").glob("*.json")]
+        for kind, control in controls.items():
+            before, after, proposal = control["before"], control["after"], control["proposal"]
+            matches = [r for r in rpc if r["request"].get("op") == "invalid-prepare"
+                       and r["request"].get("kind") == kind and r["request"].get("root") == row["root"]]
+            if not (len(matches) == 1 and matches[0]["response"]["value"] == control
+                    and matches[0]["request"]["principal"] == row["fixture"]["principal"]
+                    and matches[0]["request"]["process"] == matches[0]["response"]["process"]
+                    and before == after and before["root"] == row["root"] and before["generation"] == 0
+                    and not before["acceptedEffects"] and not before["checkpoints"]
+                    and control["snapshotUnchanged"] is True and control["change"]["code"] == "REJECTED"
+                    and control["change"]["reason"] == ("REQUEST_INVALID" if kind == "primitive" else "BUDGET_EXHAUSTED")):
+                raise AssertionError("Invalid native proposal gained authority: " + kind)
+            if kind == "primitive":
+                if proposal["request"]["capability"]["name"] != "cognitivecraft:invented_integration_capability":
+                    raise AssertionError("No invented primitive was actually submitted")
+            elif kind == "allowance":
+                if proposal["allowance"]["maxima"]["TRAVEL_BLOCKS"] != before["remaining"]["maxima"]["TRAVEL_BLOCKS"] + 1:
+                    raise AssertionError("No unauthorized larger allowance was actually submitted")
+            elif proposal["allowance"]["deadlineEpochMillis"] != before["originalDeadline"] + 1:
+                raise AssertionError("No unauthorized later deadline was actually submitted")
+        value["nativeAdversarial"] = {"A22": {"status": "PASS_INDEPENDENT_NATIVE_BOUNDARY",
+                "scope": "CONNECTED_ORIGINAL_RUNTIME_ADMISSION", "inventedPrimitiveRefused": True,
+                "largerAllowanceRefused": True, "laterDeadlineRefused": True, "nativeEffects": 0,
+                "resultSha256": sha256(args.root / "cases/private-runtime-boundary/result.json")}}
     if args.profile == "A06":
         details = value["details"]
         if (details.get("requiredOriginalCases"), details.get("originalOwnerSettlements")) != (12, 12):

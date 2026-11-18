@@ -15,7 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.villager.Villager;
 
-/** A07 test-only native reads, clock cuts and bounded fixture ticket release. No inventory or lifecycle-fact injection. */
+/** A07 native reads/cuts and historical-report replay through the actual Jobs API. No inventory or receipt injection. */
 public final class RuntimeA07Probe implements ModInitializer {
     private final Path root=Path.of(System.getenv("COGNITIVECRAFT_E2E_DIR"),"server");
     private final Gson json=new Gson();private final UUID process=UUID.randomUUID();
@@ -87,6 +87,30 @@ public final class RuntimeA07Probe implements ModInitializer {
                         for(var packed:chunks)level.getChunkSource().removeTicketWithRadius(net.minecraft.server.level.TicketType.UNKNOWN,net.minecraft.world.level.ChunkPos.unpack(packed),0);
                         write("a07-fixture-ticket-release.json",Map.of("token",lastCutToken,"time",System.currentTimeMillis(),"tick",level.getGameTime(),
                                 "requestedUnknownFullChunkTicketReleases",List.copyOf(chunks),"claim","Test fixture residency control only; native ChunkMap and entity callbacks must independently establish actual unload. W04 never uses this operation."));
+                    }else if(op.equals("late-original-report")) {
+                        var player=server.getPlayerList().getPlayer(UUID.fromString(command.get("principal").getAsString()));
+                        if(player==null)throw new SecurityException("Connected authorizer required");
+                        var jobs=kernel.jobLifecycleOwner();var context=kernel.stagingContext(player);
+                        if(!jobs.ready())throw new IllegalStateException("Acknowledged current Job required");
+                        var job=jobs.query(UUID.fromString(command.get("root").getAsString()),context);
+                        if(job.attempts().size()!=2 || job.state()!=Jobs.State.SUCCEEDED)
+                            throw new IllegalStateException("Completed native handoff required");
+                        var old=job.attempts().getFirst();
+                        if(old.open() || old.generation()>=job.generation() || old.resourceReceipts().size()!=3)
+                            throw new IllegalStateException("Settled old native report required");
+                        var stale=new Jobs.Guard(command.get("revision").getAsLong(),old.generation());
+                        var report=new Jobs.Report(old.id(),old.generation(),old.effects(),old.usage(),old.receipts(),
+                                new dev.aivillages.core.kernel.Outcomes.Execution(
+                                        dev.aivillages.core.kernel.Outcomes.ExecutionStatus.SUCCEEDED,null,old.effects(),null),old.resourceReceipts());
+                        var before=jobs.snapshot();var reply=jobs.recordExecutionResult(job.id(),stale,report,context);
+                        var after=jobs.snapshot();
+                        if(reply.code()!=Jobs.Code.DUPLICATE || !before.equals(after))
+                            throw new IllegalStateException("Late old generation changed the current native owner");
+                        write("a07-response.json",Map.of("id",id,"status","PASS","process",process,
+                                "evidence",Map.of("time",System.currentTimeMillis(),"tick",server.overworld().getGameTime(),
+                                        "jobBefore",job,"originalAttempt",old,"guard",stale,"report",report,
+                                        "reply",reply,"jobAfter",jobs.query(job.id(),context),"snapshotUnchanged",before.equals(after))));
+                        return;
                     }else if(op.equals("clear")){mode=null;token=null;actor=null;lastCutToken=null;}
                     else throw new IllegalArgumentException("A07 observation operation");
                     write("a07-response.json",Map.of("id",id,"status","PASS","process",process));

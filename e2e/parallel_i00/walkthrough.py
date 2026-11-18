@@ -125,6 +125,9 @@ def boot_trial(root, seed):
         backend(h)
         h.start("server")
         h.start("PlayerA")
+        # Operator configuration is external to the copied world. Restore it
+        # only for this pre-trial setting; prepare() removes it before the ask.
+        h.console(["op PlayerA"])
         h.command("PlayerA", "/aivillage kernel inference true", "admission=true")
         return h
     except Exception:

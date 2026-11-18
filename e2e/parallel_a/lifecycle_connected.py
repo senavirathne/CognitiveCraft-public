@@ -433,6 +433,11 @@ def handoff_case(h,seed,template,kind):
             h.save_checkpoint();value['restart']=h.restart(hard=True);h.quiet(60)
             require(job(h,value['run'])==final,'Restart replayed or changed the completed handoff')
             denied['obsoleteGeneration']=h.command('PlayerA',command,'handoff=false')
+            if read(h.root/'metadata.json')['sourceBranch']=='integration/activity-runtime-production':
+                value['lateOriginalReport']=h.observation('late-original-report',root=final['id'],
+                        principal=h.players['PlayerA'],revision=value['originalAtCut']['revision'])
+                h.quiet(40)
+                require(job(h,value['run'])==final,'Late original report changed the current handoff')
     require(h.model_calls()==value['modelCallsBefore'],'Handoff required a model or inherited knowledge without existing eligibility')
     require(final['request']==current['request']==value['originalAtCut']['request'],'Handoff changed the original immutable request or destination')
     value.update(status=status,denied=denied,beforeHandoff=current,successor=successor,originalJob=final,modelCallsAfter=h.model_calls(),

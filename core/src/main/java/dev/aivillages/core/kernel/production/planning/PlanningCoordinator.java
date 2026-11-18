@@ -9,6 +9,15 @@ import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
 /** Pure useful-checkpoint selection. A must admit, publish, execute and settle every proposed action. */
 public final class PlanningCoordinator {
     private final StaticProductionPlanner planner=new StaticProductionPlanner();
+    /** Disposable host polling key. It grants no proposal authority and preserves durable Memory semantics. */
+    public static String observationStamp(Snapshot s) {
+        return digest(Map.of("projection",signature(s,""),"world",s.world().toString(),"root",s.root().toString(),
+                "budget",s.budget().initialDigest(),"usage",named(s.budget().used()),
+                "deadline",s.budget().absoluteDeadlineMillis(),"progress",s.progress().stream().map(Object::toString).sorted().toList(),
+                "returns",s.returnsUsed(),"catalogueComplete",s.catalogueComplete(),
+                "costs",Map.of("stock",s.stock().stream().map(x->x.key()+":"+x.travelCost()).sorted().toList(),
+                        "recipes",s.recipes().stream().map(x->x.recipe()+":"+x.allowance()).sorted().toList())));
+    }
     private static String signature(Snapshot s,String segment){var value=new TreeMap<String,Object>();value.put("goal",s.goal().digest());value.put("credit",s.confirmedCredit());value.put("worldRevision",s.relevantWorldRevision());value.put("owner",s.owner().toString());value.put("facility",String.valueOf(s.facility()));value.put("segmentOrBlocker",segment);
         value.put("stock",s.stock().stream().sorted(Comparator.comparing(Stock::key)).map(x->Map.of("key",x.key(),"location",x.location().toString(),"item",x.item().value(),"units",x.units(),"observed",x.observedUnits(),"eligible",x.rootEligibleUnits(),"origin",x.eligibility().name(),"availability",x.availability().name(),"permitted",x.permitted(),"reachable",x.reachable())).toList());
         value.put("methods",s.recipes().stream().map(r->r.recipe()+":"+r.semanticFingerprint()+":"+r.method()).sorted().toList());value.put("acquisition",s.acquisition().stream().map(Object::toString).sorted().toList());value.put("kinds",s.supportedKinds().stream().map(Enum::name).sorted().toList());

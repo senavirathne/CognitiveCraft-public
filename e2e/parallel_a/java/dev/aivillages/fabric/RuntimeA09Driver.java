@@ -77,6 +77,24 @@ public final class RuntimeA09Driver implements ModInitializer {
                             new CapabilityRequest(snapshot.goal().capability(),args),new ArtifactRef(snapshot.goal().capability(),command.get("artifact").getAsString()),null,
                             ActivityPayload.Quantities.exact(1),snapshot.remaining(),2);
                     result.put("change",kernel.prepareActivity(player,proposal));
+                } else if(op.equals("invalid-prepare")) {
+                    var snapshot=kernel.planningSnapshot(player,job);var args=new HashMap<>(snapshot.goal().arguments());args.put("amount",new IntValue(1));
+                    var kind=command.get("kind").getAsString();
+                    if(!Set.of("primitive","allowance","deadline").contains(kind))throw new IllegalArgumentException("Known negative proposal required");
+                    var cap=kind.equals("primitive")?new CapabilityId("cognitivecraft:invented_integration_capability",1):snapshot.goal().capability();
+                    var maxima=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);maxima.putAll(snapshot.remaining().maxima());
+                    if(kind.equals("allowance"))maxima.merge(Budgets.Kind.TRAVEL_BLOCKS,1L,Math::addExact);
+                    long deadline=snapshot.originalDeadline()+(kind.equals("deadline")?1:0);
+                    var proposal=new ActivityRuntime.Proposal(1,UUID.randomUUID(),job,
+                            new Jobs.Guard(snapshot.revision(),snapshot.generation()),"invalid-"+kind,
+                            new CapabilityRequest(cap,args),new ArtifactRef(cap,command.get("artifact").getAsString()),null,
+                            ActivityPayload.Quantities.exact(1),new Budgets.Limits(maxima,deadline),2);
+                    var before=jobs.snapshot();var change=kernel.prepareActivity(player,proposal);
+                    result.put("kind",kind);result.put("proposal",proposal);result.put("before",snapshot);
+                    result.put("change",change);result.put("after",kernel.planningSnapshot(player,job));
+                    result.put("snapshotUnchanged",before.equals(jobs.snapshot()));
+                    if(change.code()!=Jobs.Code.REJECTED || !before.equals(jobs.snapshot()))
+                        throw new IllegalStateException("Invalid proposal acquired native authority");
                 } else if(op.equals("denied-prepare")) {
                     var a=command.getAsJsonObject("actor");var actor=new ActorRef(UUID.fromString(a.get("citizenId").getAsString()),UUID.fromString(a.get("entityId").getAsString()),a.get("dimension").getAsString());
                     var min=command.getAsJsonArray("minimum");var max=command.getAsJsonArray("maximum");var d=command.getAsJsonArray("destination");

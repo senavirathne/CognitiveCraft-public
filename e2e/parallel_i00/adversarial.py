@@ -65,6 +65,11 @@ MATCHING = {
     "A16": {"A05": ("saved-positive-repeated-adoption",), "A06": ("W6-003",)},
     "A17": {"A03": ("native-cut-after_segment_ack", "native-cut-after_directory_ack"),
             "A04": ("native-job-cut-after_segment_ack", "native-job-cut-after_directory_ack")},
+    # The original independent A04 reader compares the archived original body,
+    # invokes same/changed receipt and stale-submission calls in the live JVM,
+    # and repeats the lookup after genuine archive publication kill cuts.
+    "A19": {"A04": ("continuous-native-over-64-terminal-jobs",
+                      "native-job-cut-after_directory_ack", "native-job-cut-after_hot_acknowledgement")},
     "A20": {"A08": ("older-feasible-small-arrivals",)},
     "A21": {"A08": ("complementary-inputs-atomic", "complementary-private-custody-residence-bound")},
 }
@@ -78,7 +83,6 @@ PARTIAL = {
     "A14": {"A07": ("handoff-revoked",), "A08": ("revoked-return-retains-custody",)},
     "A15": {"A07": ("handoff-positive", "handoff-stale-successor")},
     "A18": {"A02": ("real-world-compatibility-and-acknowledged-history",), "A04": ("native-required-segment-missing",)},
-    "A19": {"A04": ("continuous-native-over-64-terminal-jobs",)},
     "A23": {"A08": ("external-mutation-replan-bound",)},
     "A24": {"A05": ("native-storage-full-quota",)},
     "A25": {"A05": ("native-storage-corrupt-current",)},
@@ -92,6 +96,17 @@ INTEGRATED = {
                                                "playerRemoved": 3, "availableAfter": 0}),
     "A08": ("birch-q3-same-container-old-stock", {"oldOutput": 11, "withdrawn": 1, "crafted": 4,
                                                  "delivered": 3, "surplus": 1}),
+    "A23": ("unchanged-planning-then-player-restock", {"stoppedUnchangedChecks": 4, "playerSupplied": 1,
+                                                     "delivered": 3, "originalAllowancePreserved": True,
+                                                     "newModelCalls": 0}),
+    "A28": ("installed-recipe-without-admitted-method", {"installedRecipe": True, "admittedWitnessMissing": True,
+                                                        "nativeEffects": 0, "newModelCalls": 0}),
+}
+
+DIRECT_PROFILES = {
+    "A15": ("A07", {"oldGenerationCallback": True, "successorUnchanged": True, "extraCredit": 0}),
+    "A22": ("A09", {"inventedPrimitiveRefused": True, "largerAllowanceRefused": True,
+                      "laterDeadlineRefused": True, "nativeEffects": 0}),
 }
 
 
@@ -112,7 +127,8 @@ def reread(path, identity):
 
 def profiles(root, identity):
     available = {}
-    for name in {p for item in (MATCHING, PARTIAL) for groups in item.values() for p in groups}:
+    for name in ({p for item in (MATCHING, PARTIAL) for groups in item.values() for p in groups}
+                 | {p for p, _ in DIRECT_PROFILES.values()}):
         path = root / "recovery" / name / "review.json"
         if not path.is_file():
             continue
@@ -126,7 +142,7 @@ def profiles(root, identity):
                 or len(ids) != len(rows) or len(ids) != review["requiredCases"]
                 or any(row["status"] != "PASS_ORIGINAL_CLASSIFICATION_RETAINED" for row in rows)):
             raise ValueError("Invalid independent profile denominator: " + name)
-        available[name] = (ids, sha256(path))
+        available[name] = (ids, sha256(path), review.get("nativeAdversarial", {}))
     return available
 
 
@@ -236,6 +252,15 @@ def ledger(root, identity):
                 status = "PASS_NATIVE_CHALLENGE"
                 claims.append({"scope": row["scope"], "cases": [row["id"]],
                                "reviewSha256": sha256(controls_path), "path": controls_path.relative_to(root).as_posix()})
+        if case_id in DIRECT_PROFILES:
+            profile, assertions = DIRECT_PROFILES[case_id]
+            direct = available.get(profile, (None, None, {}))[2].get(case_id, {})
+            if (direct.get("status") == "PASS_INDEPENDENT_NATIVE_BOUNDARY"
+                    and all(direct.get(k) == v for k, v in assertions.items())):
+                status = "PASS_NATIVE_CHALLENGE"
+                claims.append({"scope": direct["scope"], "cases": [case_id], "profile": profile,
+                               "reviewSha256": available[profile][1],
+                               "path": f"recovery/{profile}/review.json", "resultSha256": direct["resultSha256"]})
         if case_id == "A30" and observer:
             copies = observer.get("corruptCopies", {})
             if ((observer.get("stage"), observer.get("id"), observer.get("status")) !=

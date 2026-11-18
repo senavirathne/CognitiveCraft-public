@@ -366,13 +366,25 @@ class CraftingHarness(Harness):
             self.compose("up", "-d", "ollama")
             self.compose("exec", "-T", "ollama", "ollama", "pull", self.env["COGNITIVECRAFT_OLLAMA_MODEL"])
         self.fresh(two=False)
+        enrollment = {"before": self.snapshot(), "subjects": []}
+        subjects = sorted(enrollment["before"]["actors"], key=lambda actor: actor["uuid"])
+        require(len(subjects) == 2 and all(actor["alive"] and not actor["baby"] and not actor["noAI"] for actor in subjects),
+                "Two actual normal adult subjects required before enrollment")
         for i in range(2):
             spawn = [66.5 + i*14, 208, 69.5]
-            self.console(["tp PlayerA " + coord(spawn)])
-            self.wait(lambda: math.dist(self.client_snapshot("PlayerA")["pos"], spawn) < .7,
-                      "Connected player reached the distinct enrollment position", 30)
+            subject = subjects[i]
+            pose = [spawn[0], 208, 66.5]
+            self.console(["tp " + subject["uuid"] + " " + coord(pose), "tp PlayerA " + coord(spawn)])
+            witness = self.wait(lambda: (state if (state := self.snapshot()) and any(
+                actor["uuid"] == subject["uuid"] and math.dist(actor["pos"], pose) < 1 for actor in state["actors"])
+                and math.dist(self.client_snapshot("PlayerA")["pos"], spawn) < .7 else None),
+                "Native subject and connected player acknowledged the enrollment pose", 30)
             self.enroll(name=["Ada", "Mira"][i])
+            require(self.entities["PlayerA"] == subject["uuid"], "Public enrollment selected a different subject")
             self.subjects.append((self.citizens["PlayerA"], self.entities["PlayerA"]))
+            enrollment["subjects"].append({"entity": subject["uuid"], "citizen": self.citizens["PlayerA"],
+                                           "nativeWitness": witness, "playerPose": spawn, "subjectPose": pose})
+            atomic(self.root / "enrollment-fixture.json", enrollment)
         self.recipes = self.wait(lambda: read(self.root / "oracle-recipes.json"), "Live vanilla recipe catalogue", 30)["recipes"]
         if selected:
             self.command("PlayerA", "/aivillage kernel inference true", "admission=true")

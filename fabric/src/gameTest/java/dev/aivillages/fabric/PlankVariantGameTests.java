@@ -2,6 +2,7 @@ package dev.aivillages.fabric;
 
 import dev.aivillages.core.kernel.RecipeProduction;
 import dev.aivillages.core.kernel.RecipeTransaction;
+import dev.aivillages.core.kernel.ResourceLeases;
 import dev.aivillages.core.kernel.production.RecipeChoice;
 import dev.aivillages.core.kernel.production.planning.PlanningModel;
 import java.util.List;
@@ -47,6 +48,8 @@ public final class PlankVariantGameTests {
         var owner = new TrustedContext(new PrincipalRef(principal), new ScopeRef(UUID.randomUUID(), principal));
         var world = new FabricGatewayWorld(level);
         var transactions = new FabricRecipeTransactions(level, world);
+        var leases = new FabricResourceLeaseWorld(level.getServer());
+        var ownerFacts = new ResourceLeases.OwnerFacts(owner, actor, run, true, null);
         RecipeTransaction.ChoiceAuthority authority = (caller, worker, target, phase) -> owner.equals(caller)
                 && actor.equals(worker) && (target.equals(source) || target.equals(destination));
         test.succeedWhen(() -> {
@@ -93,6 +96,23 @@ public final class PlankVariantGameTests {
                         from.setItem(26, new ItemStack(ingredient, 2));
                         from.setItem(0, new ItemStack(Items.COBBLESTONE, 7));
                         to.setItem(5, new ItemStack(output, 2));
+                        var inputStock = new ResourceLeases.Resource(owner.scope().worldId(), ResourceLeases.Kind.STOCK,
+                                ResourceLeases.point(source), inputId, -1);
+                        var outputStock = new ResourceLeases.Resource(owner.scope().worldId(), ResourceLeases.Kind.STOCK,
+                                ResourceLeases.point(destination), outputId, -1);
+                        test.assertTrue(leases.observe(inputStock, ownerFacts).quantity() == 2
+                                && leases.observe(outputStock, ownerFacts).quantity() == 2,
+                                "Actual lease observer lost installed input/output " + inputId);
+                        var named = new ItemStack(ingredient, 3);
+                        named.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
+                                net.minecraft.network.chat.Component.literal("Unclaimable component lookalike"));
+                        from.setItem(25, named);
+                        test.assertTrue(leases.observe(inputStock, ownerFacts).quantity() == 2,
+                                "Lease observer counted component-bearing input " + inputId);
+                        from.setItem(25, new ItemStack(Items.WHEAT, 5));
+                        test.assertTrue(leases.observe(inputStock, ownerFacts).quantity() == 2,
+                                "Different requested material fell back to wheat " + inputId);
+                        from.setItem(25, ItemStack.EMPTY);
                         var choice = transactions.selectChoice(request, run, authority);
                         test.assertTrue(choice.resultCount() == yield && choice.exactInputs().size() == 1
                                 && choice.exactInputs().keySet().iterator().next().id().equals(inputId)
@@ -113,6 +133,9 @@ public final class PlankVariantGameTests {
                         int surplus = villager.getInventory().countItem(output);
                         test.assertTrue(from.countItem(ingredient) == 0 && from.countItem(Items.COBBLESTONE) == 7
                                 && delivered == demand && surplus == yield - 1, "Native stock conservation differs " + inputId);
+                        test.assertTrue(leases.observe(inputStock, ownerFacts).quantity() == 0
+                                && leases.observe(outputStock, ownerFacts).quantity() == demand + 2,
+                                "Lease observations differ from actual remaining stock " + inputId);
                         executed++;
                         System.out.printf("I00_VARIANT_NATIVE_HOST material=%s output=%s consumed=2 produced=%d delivered=%d surplus=%d%n",
                                 inputId, outputId, 2 * yield, delivered, surplus);

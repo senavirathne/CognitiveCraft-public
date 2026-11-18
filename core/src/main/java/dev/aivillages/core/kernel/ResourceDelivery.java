@@ -6,12 +6,13 @@ import static dev.aivillages.core.kernel.Contracts.*;
 /** Additive item-delivery evidence. CropDelivery v1 keeps its original wheat semantics. */
 public final class ResourceDelivery {
     public static final int RECEIPT_SCHEMA = 1, MAX_RECEIPTS = 64;
+    private static final java.util.regex.Pattern IDENTIFIER=java.util.regex.Pattern.compile("[a-z0-9_.-]+:[a-z0-9_/.-]{1,96}");
     private ResourceDelivery() { }
 
     /** A bounded data identity, never an executable selector. Only default components are supported. */
     public record ItemIdentity(String id, String components) {
         public ItemIdentity {
-            if (id == null || id.length() > 128 || !id.matches("[a-z0-9_.-]+:[a-z0-9_/.-]{1,96}")
+            if (id == null || id.length() > 128 || !IDENTIFIER.matcher(id).matches()
                     || !"default".equals(components)) throw new IllegalArgumentException("Item identity/components");
         }
     }

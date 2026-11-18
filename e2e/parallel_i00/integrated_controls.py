@@ -17,11 +17,11 @@ from .gameplay import QUALIFICATION_COMPOSE
 
 sys.path.insert(0, str(ROOT / "e2e/parallel_a"))
 from native_nbt import read_nbt
-from review_lifecycle_connected import chest, chest_row, entities, original
+from review_lifecycle_connected import allowance, chest, chest_row, entities, original
 from review_receipt_prefix import item
 from campaigns.crafting.oracle import candidates
 from parallel_b.baseline import DESTINATION, LOG, OTHER, PLANK, SOURCE, coord
-from parallel_b.guards import clean_owners, instruments, observer_inputs, stopped_process
+from parallel_b.guards import clean_owners, instruments, observer_inputs, stopped_process, verified_clock
 from parallel_b.qualification import safe
 from runtime import SDK
 from suite import Harness, UUID_PATTERN, atomic, completed_jsonl, read, require
@@ -30,6 +30,8 @@ from suite import Harness, UUID_PATTERN, atomic, completed_jsonl, read, require
 LIVE = {"birch-q3-root": (DESTINATION, 0), "birch-q3-same-container-old-stock": (SOURCE, 11)}
 LOOKALIKE = "component-bearing-lookalike"
 REMOVAL = "player-removes-checkpoint-stock"
+RESTOCK = "unchanged-planning-then-player-restock"
+NO_METHOD = "installed-recipe-without-admitted-method"
 PENDING = ("birch-q3-child", "birch-q3-crash-before-allocation", "contending-production-actors")
 QUANTITIES = {"demand": 3, "yield": 4, "batches": 1, "produced": 4, "allocation": 3,
               "surplus": 1, "remainders": 0}
@@ -157,6 +159,104 @@ def menu_stock(menu):
                  for player in (False, True))
 
 
+def submit_root(h, command):
+    feedback = h.command("PlayerA", command, r"activity=|accepted=false", 45)
+    match = re.search(r"activity=(" + UUID_PATTERN + ")", feedback)
+    require(match and "accepted=true" in feedback, "Original public activity was not admitted: " + feedback)
+    return match.group(1), feedback
+
+
+def original_job(h, root):
+    return h.snapshot()["players"]["PlayerA"]["jobs"].get(root)
+
+
+def dormant(h, root):
+    job = original_job(h, root)
+    control = (job.get("activity") or {}).get("production") if job else None
+    return job if (job and job["state"] == "WAITING" and control
+                   and control["memory"]["unchangedChecks"] == 4
+                   and control["nextCheckMillis"] == 2**63 - 1) else None
+
+
+def restock(h):
+    h.console(["data merge block " + coord(SOURCE) + " {Items:[]}",
+               "data merge block " + coord(DESTINATION) + " {Items:[]}",
+               "clear PlayerA", "give PlayerA " + LOG + " 1"])
+    h.wait(lambda: h.container(SOURCE, LOG) == h.container(DESTINATION, PLANK) == 0,
+           "Original empty source and destination")
+    before = h.snapshot()
+    command = production_command(h, DESTINATION)
+    h.actions_active = True
+    root, feedback = submit_root(h, command)
+    waiting = h.wait(lambda: dormant(h, root), "Finite unchanged planning checks reached their original stop", 40)
+    h.quiet(80)
+    still = h.snapshot()
+    require(still["players"]["PlayerA"]["jobs"][root] == waiting, "Unchanged planning kept publishing")
+    h.walk("PlayerA", SOURCE)
+    h.action("PlayerA", "open", pos=SOURCE)
+    def supply_slot():
+        menu = h.client_snapshot("PlayerA")
+        return (menu, next((s for s in menu["slots"] if s["playerInventory"] and s["item"] == LOG
+                           and s["count"] == 1), None)) if menu and menu["menu"] else None
+    menu, slot = h.wait(lambda: (value if (value := supply_slot()) and value[1] else None),
+                        "Actual player holds the sole independently supplied log")
+    verified_clock(h, "tick freeze")
+    action = h.action("PlayerA", "menu-click", slot=slot["slot"], quick=True)
+    def supplied():
+        view = h.client_snapshot("PlayerA")
+        return view if (view and view["menu"] and any(not s["playerInventory"] and s["item"] == LOG
+                                                    and s["count"] == 1 for s in view["slots"])) else None
+    transfer = h.wait(supplied, "Connected player put the new log in the originally empty source", 10)
+    h.action("PlayerA", "close-menu")
+    verified_clock(h, "tick unfreeze")
+    after = h.wait(lambda: (frame if (frame := h.snapshot()) and
+                   (job := frame["players"]["PlayerA"]["jobs"].get(root)) and job["state"] in
+                   ("SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED") else None),
+                   "Original dormant root responds to actual changed stock", 180)
+    require(after["players"]["PlayerA"]["jobs"][root]["state"] == "SUCCEEDED", "Restocked original root failed")
+    h.wait(lambda: clean_owners(h.snapshot()["knownPlayers"]["PlayerA"]), "Restocked original owners settled", 45)
+    view = h.command("PlayerA", "/aivillage kernel activity " + root, "activity=" + root)
+    h.actions_active = False
+    screenshot = h.screenshot("PlayerA", RESTOCK, chat=True)
+    save_world(h, RESTOCK)
+    return {"id": RESTOCK, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
+            "feedback": feedback, "before": before, "waiting": waiting, "still": still, "after": after,
+            "beforeMenu": menu, "clientAction": action, "afterMenu": transfer, "activityView": view,
+            "screenshot": screenshot}
+
+
+def missing_method(h):
+    h.console(['data merge block ' + coord(SOURCE) + ' {Items:[{Slot:26b,id:"minecraft:acacia_log",count:1}]}',
+               "data merge block " + coord(DESTINATION) + " {Items:[]}"])
+    h.wait(lambda: h.container(SOURCE, "minecraft:acacia_log") == 1, "Real installed alternative input")
+    require(h.menu_count("PlayerA", SOURCE, "minecraft:acacia_log") == 1, "Actual client did not see input")
+    before = h.snapshot()
+    command = ("/aivillage kernel production-activity " + h.citizens["PlayerA"] + " acacia-planks 3 "
+               + coord(SOURCE + DESTINATION))
+    h.actions_active = True
+    root, feedback = submit_root(h, command)
+    first = h.wait(lambda: (job if (job := original_job(h, root)) and
+                   job["activity"]["production"]["blocker"] == "PINNED_METHOD_UNAVAILABLE_OFFLINE" else None),
+                   "Current native planner reports the missing admitted witness", 20)
+    waiting = h.wait(lambda: dormant(h, root), "Installed recipe cannot substitute for an admitted method", 40)
+    require(waiting["activity"]["production"]["memory"]["lastProposalId"] == ""
+            and not waiting["attempts"] and not waiting["activity"]["steps"], "Unadmitted native method executed")
+    h.quiet(80)
+    dormant_frame = h.snapshot()
+    require(dormant_frame["players"]["PlayerA"]["jobs"][root] == waiting, "Missing witness caused an endless replan")
+    h.cancel_job("PlayerA", root)
+    after = h.wait(lambda: (frame if (frame := h.snapshot()) and
+                   frame["players"]["PlayerA"]["jobs"][root]["state"] == "CANCELLED" else None),
+                   "Original unsupported activity cancellation settled", 40)
+    h.wait(lambda: clean_owners(h.snapshot()["knownPlayers"]["PlayerA"]), "No unsupported owner left open", 40)
+    h.actions_active = False
+    screenshot = h.screenshot("PlayerA", NO_METHOD, chat=True)
+    save_world(h, NO_METHOD)
+    return {"id": NO_METHOD, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
+            "feedback": feedback, "before": before, "firstBlocked": first, "waiting": waiting, "dormant": dormant_frame,
+            "after": after, "screenshot": screenshot}
+
+
 def lookalike(h):
     h.console(['data merge block ' + coord(SOURCE) + ' {Items:[{Slot:26b,id:"minecraft:birch_log",count:1,'
                'components:{"minecraft:custom_name":{text:"I00 lookalike"}}},'
@@ -214,6 +314,8 @@ def run(args, identity):
             if name == "birch-q3-root":
                 atomic(h.root / "cases" / REMOVAL / "result.json", remove_checkpoint(h, case))
         atomic(h.root / "cases" / LOOKALIKE / "result.json", lookalike(h))
+        atomic(h.root / "cases" / RESTOCK / "result.json", restock(h))
+        atomic(h.root / "cases" / NO_METHOD / "result.json", missing_method(h))
     finally:
         h.finish()
 
@@ -371,6 +473,72 @@ def verify_lookalike(raw, row, seed, events, frames):
             "realComponentBearingInput": True, "effectCount": 0}
 
 
+def verify_restock(raw, row, seed, events, frames):
+    root, waiting = row["root"], row["waiting"]
+    before, still, after = row["before"], row["still"], row["after"]
+    final = after["players"]["PlayerA"]["jobs"][root]
+    control = waiting["activity"]["production"]
+    require(root not in before["players"]["PlayerA"]["jobs"] and waiting["id"] == root
+            and waiting["state"] == "WAITING" and not waiting["attempts"] and not waiting["activity"]["steps"]
+            and control["memory"]["unchangedChecks"] == 4 and control["nextCheckMillis"] == 2**63 - 1,
+            "Native planner never reached the exact finite unchanged boundary")
+    require(still["players"]["PlayerA"]["jobs"][root] == waiting and still["tick"] >= before["tick"] + 80,
+            "Original no-progress decisions did not stop")
+    require(final["allowance"] == waiting["allowance"]
+            and all(final["usage"].get(k, 0) >= n for k, n in waiting["usage"].items())
+            and final["activity"]["production"]["memory"]["originalBudgetDigest"] == control["memory"]["originalBudgetDigest"]
+            and final["activity"]["production"]["memory"]["originalDeadlineMillis"] == control["memory"]["originalDeadlineMillis"],
+            "Relevant world change reset the original allowance or deadline")
+    lineage = proof(final, root, seed["method"])
+    a, b = row["beforeMenu"], row["afterMenu"]
+    quantities = lambda menu, player: sum(s["count"] for s in menu["slots"]
+                                        if s["playerInventory"] is player and s["item"] == LOG)
+    require((quantities(a, False), quantities(a, True), quantities(b, False), quantities(b, True)) == (0, 1, 1, 0)
+            and any(e["kind"] == "action" and e["data"].get("action") == "menu-click"
+                    and e["data"].get("quick") is True for e in events), "No actual independent player resupply")
+    require(all(stock(frame, SOURCE).get(LOG, 0) == stock(frame, DESTINATION).get(PLANK, 0) == 0
+                for frame in (before, still)) and stock(after, SOURCE).get(LOG, 0) == 0
+            and stock(after, DESTINATION).get(PLANK) == 3
+            and all(frame[k] == before[k] for frame in (still, after) for k in ("needleCalls", "generationCalls")),
+            "Unchanged work made an effect, missed resupply, or invoked inference")
+    persisted = original(raw / "cases" / RESTOCK / "saved-world", root)
+    require(persisted["state"] == "SUCCEEDED" and allowance(persisted["allowance"], final["allowance"]),
+            "Original restocked goal was not durably retained")
+    require(feedback_in(events, row["feedback"]) and feedback_in(events, row["activityView"]), "No public feedback")
+    frame_link(frames, before, still, after)
+    frame_png(raw, row)
+    return {"id": RESTOCK, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE", "root": root,
+            "stoppedUnchangedChecks": 4, "playerSupplied": 1, "delivered": 3,
+            "originalAllowancePreserved": True, "newModelCalls": 0, "proof": lineage}
+
+
+def verify_missing_method(raw, row, recipe, events, frames):
+    root, before, waiting, after = row["root"], row["before"], row["waiting"], row["after"]
+    final = after["players"]["PlayerA"]["jobs"][root]
+    control = waiting["activity"]["production"]
+    installed = recipe["recipes"]["minecraft:acacia_planks"]
+    require(installed["count"] == 4 and installed["remainderCount"] == 0
+            and any("minecraft:acacia_log" in options for options in installed["ingredients"]),
+            "No actual supported installed recipe was present")
+    require(row["firstBlocked"]["id"] == root
+            and row["firstBlocked"]["activity"]["production"]["blocker"] == "PINNED_METHOD_UNAVAILABLE_OFFLINE"
+            and control["nextCheckMillis"] == 2**63 - 1 and control["memory"]["unchangedChecks"] == 4
+            and row["dormant"]["players"]["PlayerA"]["jobs"][root] == waiting
+            and not final["attempts"] and not final["activity"]["steps"] and not final["fulfilled"]
+            and final["state"] == "CANCELLED", "Static recipe supplied false execution authority")
+    require(all(stock(frame, SOURCE) == stock(before, SOURCE) and stock(frame, DESTINATION) == stock(before, DESTINATION)
+                and frame["drops"] == before["drops"] and all(frame[k] == before[k] for k in ("needleCalls", "generationCalls"))
+                for frame in (row["dormant"], after)), "Unadmitted method changed custody or called the model")
+    world = raw / "cases" / NO_METHOD / "saved-world"
+    require(original(world, root)["state"] == "CANCELLED" and chest(world, SOURCE).get("minecraft:acacia_log") == 1,
+            "Settled unsupported root or original input is missing from the save")
+    require(feedback_in(events, row["feedback"]), "No actual public submission")
+    frame_link(frames, before, row["dormant"], after)
+    frame_png(raw, row)
+    return {"id": NO_METHOD, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE", "root": root,
+            "installedRecipe": True, "admittedWitnessMissing": True, "nativeEffects": 0, "newModelCalls": 0}
+
+
 def review(raw, identity):
     metadata = read(raw / "metadata.json")
     verify_metadata(metadata, identity)
@@ -390,7 +558,7 @@ def review(raw, identity):
     require(any(event["kind"] == "play" for event in events), "No live Minecraft client connected")
     recipe = read(raw / "oracle-recipes.json")
     frames, cases = {}, []
-    for name in (*LIVE, REMOVAL, LOOKALIKE, *PENDING):
+    for name in (*LIVE, REMOVAL, LOOKALIKE, RESTOCK, NO_METHOD, *PENDING):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
             cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})
@@ -400,6 +568,10 @@ def review(raw, identity):
             cases.append(verify_removal(raw, row, seed, events, frames, cases))
         elif name == LOOKALIKE:
             cases.append(verify_lookalike(raw, row, seed, events, frames))
+        elif name == RESTOCK:
+            cases.append(verify_restock(raw, row, seed, events, frames))
+        elif name == NO_METHOD:
+            cases.append(verify_missing_method(raw, row, recipe, events, frames))
         else:
             raise ValueError("No independent reviewer for the claimed case " + name)
     with (raw / "server/observations.jsonl").open() as stream:

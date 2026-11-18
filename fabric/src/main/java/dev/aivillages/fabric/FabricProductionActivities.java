@@ -24,6 +24,7 @@ final class FabricProductionActivities {
     private final AuthorityPolicy authority;
     private final Clock clock;
     private final ProductionActivityPlanner planner=new ProductionActivityPlanner();
+    private final Map<UUID,String> waitingObservations=new HashMap<>();
     private int cursor;
 
     FabricProductionActivities(ServerLevel level,FabricGatewayWorld world,JobLifecycleStore jobs,
@@ -56,6 +57,7 @@ final class FabricProductionActivities {
     void step(java.util.function.Predicate<Jobs.Job> previousCheckpointSettled) {
         if(!jobs.ready() || !leases.ready() || level.getGameTime()%4!=0)return;
         var rows=jobs.snapshot().jobs();
+        waitingObservations.keySet().removeIf(id->rows.stream().noneMatch(j->j.id().equals(id)&&!j.state().terminal()));
         for(int visited=0;visited<Math.min(4,rows.size());visited++) {
             cursor%=rows.size();
             Jobs.Job job=rows.get(cursor++);
@@ -63,18 +65,29 @@ final class FabricProductionActivities {
             if(activity==null || activity.production()==null || activity.current()!=null || job.state().terminal()
                     || job.current()!=null && job.current().open() || job.cancellationOutcome()!=null)continue;
             var control=activity.production();
-            if(control.decisions()==ActivityPayload.ProductionControl.MAX_DECISIONS || clock.millis()<control.nextCheckMillis()
+            if(control.decisions()==ActivityPayload.ProductionControl.MAX_DECISIONS
+                    || clock.millis()<control.nextCheckMillis() && control.nextCheckMillis()!=Long.MAX_VALUE
                     || clock.millis()>=job.allowance().deadlineEpochMillis() || !previousCheckpointSettled.test(job)
                     || !authority.currentlyAllows(job.responsible(),Effect.OBSERVE,job.origin()))continue;
             try {
                 var frame=observe(job);
+                var observed=dev.aivillages.core.kernel.production.planning.PlanningCoordinator.observationStamp(frame);
+                if(control.nextCheckMillis()==Long.MAX_VALUE && observed.equals(waitingObservations.get(job.id())))continue;
                 var decision=planner.propose(job,frame,control.memory(),jobs.remainingAllowance(job.id(),job.origin()),
                         offer->world.validateActivityChoice(offer.request(),offer.choice(),
                                 choiceAuthority(job,offer.request()),offer.sources())==null);
                 var model=decision.model();
-                if(decision.proposal()==null)jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),
-                        control.next(model.memory(),model.blocker(),model.nextCheckMillis()));
+                if(decision.proposal()==null) {
+                    if(model.nextCheckMillis()==Long.MAX_VALUE && (waitingObservations.containsKey(job.id()) || waitingObservations.size()<32))
+                        waitingObservations.put(job.id(),observed);
+                    else waitingObservations.remove(job.id());
+                    if(!model.memory().equals(control.memory()) || !model.blocker().equals(control.blocker())
+                            || model.nextCheckMillis()!=control.nextCheckMillis())
+                        jobs.recordActivityPlanning(job.id(),job.guard(),job.origin(),
+                                control.next(model.memory(),model.blocker(),model.nextCheckMillis()));
+                }
                 else {
+                    waitingObservations.remove(job.id());
                     var next=control.prepared(model.memory(),decision.plan(),decision.proposal().id(),decision.coveredActions());
                     var prepared=jobs.prepareActivity(decision.proposal(),job.origin(),next);
                     if(!prepared.accepted() && jobs.ready()) {
@@ -276,7 +289,7 @@ final class FabricProductionActivities {
     }
 
     private MethodPin pin(Jobs.Job job,CapabilityId id,String semantics,int version) {
-        var page=repository.page(id,null,16);
+        var page=repository.page(id,"",16);
         if(!page.complete())return null;
         var capability=new CapabilityId(id.name(),version);
         return page.candidates().stream().filter(c->c.admission()==AdmissionStatus.ADMITTED

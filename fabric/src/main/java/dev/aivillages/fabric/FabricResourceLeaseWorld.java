@@ -86,21 +86,14 @@ public final class FabricResourceLeaseWorld implements ResourceLeaseService.Obse
             return observation(resource,present?ObservationStatus.PRESENT:ObservationStatus.ABSENT,
                     present?1:0,identity+":"+stack.getDamageValue(),tick,scanned+1,null);
         }
+        var requested=resource.item().equals("minecraft:wheat")?Items.WHEAT:
+                FabricResourceItems.item(new dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity(resource.item(),"default"));
+        var plain=new net.minecraft.world.item.ItemStack(requested);
         for(int slot=0;slot<container.getContainerSize();slot++) {
             var stack=container.getItem(slot);
-            if(resource.item().equals("minecraft:birch_log") || resource.item().equals("minecraft:birch_planks")) {
-                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(FabricResourceItems.item(new dev.aivillages.core.kernel.ResourceDelivery.ItemIdentity(resource.item(),"default")))))quantity=Math.addExact(quantity,stack.getCount());
-            } else if(resource.item().equals("minecraft:oak_log")) {
-                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.OAK_LOG)))
-                    quantity=Math.addExact(quantity,stack.getCount());
-            } else if(resource.item().equals("minecraft:oak_planks")) {
-                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.OAK_PLANKS)))
-                    quantity=Math.addExact(quantity,stack.getCount());
-            } else if(resource.item().equals("minecraft:stick")) {
-                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.STICK)))quantity=Math.addExact(quantity,stack.getCount());
-            } else if(resource.item().equals("minecraft:crafting_table")) {
-                if(net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,new net.minecraft.world.item.ItemStack(Items.CRAFTING_TABLE)))quantity=Math.addExact(quantity,stack.getCount());
-            } else if(stack.is(Items.WHEAT)) quantity+=stack.getCount();
+            if(resource.item().equals("minecraft:wheat")?stack.is(Items.WHEAT):
+                    net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,plain))
+                quantity=Math.addExact(quantity,stack.getCount());
         }
         return observation(resource,quantity==0?ObservationStatus.ABSENT:ObservationStatus.PRESENT,quantity,
                 identity,tick,scanned+container.getContainerSize(),null);

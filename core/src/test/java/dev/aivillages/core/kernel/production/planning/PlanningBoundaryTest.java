@@ -12,6 +12,40 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Synthetic adversarial/projection fixtures. No trusted receipt or Minecraft outcome is manufactured. */
 final class PlanningBoundaryTest {
     final StaticProductionPlanner planner=new StaticProductionPlanner();final PlanningCoordinator coordinator=new PlanningCoordinator();
+    @Test void pollingStampIgnoresTimeAndPublicationRevisionButDetectsSupplyAndBudgetChanges(){
+        var f=new PlannerFixtures().goal(Mode.MAKE_NEW,PLANK,3);
+        var initial=PlanningCoordinator.observationStamp(f.snapshot());
+        f.now+=5000;f.revision++;
+        assertEquals(initial,PlanningCoordinator.observationStamp(f.snapshot()));
+        f.logs(1);var supplied=PlanningCoordinator.observationStamp(f.snapshot());assertNotEquals(initial,supplied);
+        var used=new EnumMap<Counter,Long>(Counter.class);used.putAll(zeroCounts());used.put(Counter.TRAVEL,1L);
+        f.budget=new Budget(f.budget.original(),used,f.budget.absoluteDeadlineMillis());
+        assertNotEquals(supplied,PlanningCoordinator.observationStamp(f.snapshot()));
+        var charged=PlanningCoordinator.observationStamp(f.snapshot());
+        var recipe=f.recipes.removeFirst();
+        f.recipes.add(new RecipeProfile(recipe.recipe(),recipe.capability(),recipe.cells(),recipe.result(),
+                recipe.semanticFingerprint(),recipe.method(),new Cost(80,3,200),recipe.reloadEpoch()));
+        assertNotEquals(charged,PlanningCoordinator.observationStamp(f.snapshot()));
+    }
+    @Test void suppliedStockWakesAStoppedDecisionWithoutRenewingOriginalMemoryOrAllowance(){
+        var f=new PlannerFixtures().goal(Mode.MAKE_NEW,PLANK,3);
+        var used=new EnumMap<Counter,Long>(Counter.class);used.putAll(zeroCounts());used.put(Counter.TRAVEL,5L);
+        f.budget=new Budget(f.budget.original(),used,f.budget.absoluteDeadlineMillis());
+        var memory=Memory.empty();
+        for(int n=0;n<6;n++){var d=coordinator.next(f.snapshot(),null,memory);memory=d.memory();f.now+=2500;}
+        assertEquals(Long.MAX_VALUE,memory.nextCheckMillis());assertEquals(4,memory.unchangedChecks());
+        var stopped=memory;f.logs(1);
+        var wanted=coordinator.next(f.snapshot(),null,stopped);assertNotNull(wanted.neededChoice());
+        var built=PlanningChoiceBuilder.build(f.snapshot(),wanted.neededChoice());
+        f.choices.add(new ChoiceOffer(new ValidatedRequest(built.invocation(),f.context,
+                new ObservationRef(id("supply"),f.revision,DIM)),built.choice(),built.sources()));
+        var resumed=coordinator.next(f.snapshot(),null,stopped);
+        assertEquals(DecisionKind.PROPOSE,resumed.kind());
+        assertEquals(stopped.originalBudgetDigest(),resumed.memory().originalBudgetDigest());
+        assertEquals(stopped.originalDeadlineMillis(),resumed.memory().originalDeadlineMillis());
+        assertEquals(5,resumed.memory().observedUsage().get(Counter.TRAVEL));
+        assertEquals(0,resumed.memory().observedUsage().get(Counter.MODEL_CALLS));
+    }
     @Test void persistedPlanReusesOriginalMethodsAndRevalidatesActualIntermediateStock() throws Exception {
         var fixture=new PlannerFixtures().logs(3);
         var original=planner.analyse(fixture.snapshot()).plan();

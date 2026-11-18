@@ -11,6 +11,9 @@ import java.util.UUID;
 public final class Contracts {
     public static final int CONTRACT_VERSION = 1;
     public static final int IR_VERSION = 1;
+    private static final java.util.regex.Pattern IDENTIFIER=java.util.regex.Pattern.compile("[a-z0-9_.-]+:[a-z0-9_/.-]{1,96}");
+    private static final java.util.regex.Pattern PARAMETER=java.util.regex.Pattern.compile("[a-z][a-zA-Z0-9_]{0,63}");
+    private static final java.util.regex.Pattern SHA256=java.util.regex.Pattern.compile("[0-9a-f]{64}");
     private Contracts() { }
 
     public enum Type { INT, BOOL, ACTOR, AREA, CONTAINER, UNIT, FACILITY, BLUEPRINT }
@@ -20,14 +23,14 @@ public final class Contracts {
     public record CapabilityId(String name, int version) {
         public CapabilityId {
             if (name == null || name.length() > 128
-                    || !name.matches("[a-z0-9_.-]+:[a-z0-9_/.-]{1,96}")
+                    || !IDENTIFIER.matcher(name).matches()
                     || version < 1 || version > 1_000_000) throw new IllegalArgumentException("Capability ID");
         }
     }
 
     public record Parameter(String name, Type type, long minimum, long maximum) {
         public Parameter {
-            if (name == null || !name.matches("[a-z][a-zA-Z0-9_]{0,63}"))
+            if (name == null || !PARAMETER.matcher(name).matches())
                 throw new IllegalArgumentException("Parameter name");
             Objects.requireNonNull(type);
             if (minimum > maximum || (type != Type.INT && (minimum != 0 || maximum != 0))
@@ -108,7 +111,7 @@ public final class Contracts {
     }
     private static void requireDimension(String dimension) {
         if (dimension == null || dimension.length() > 128
-                || !dimension.matches("[a-z0-9_.-]+:[a-z0-9_/.-]{1,96}"))
+                || !IDENTIFIER.matcher(dimension).matches())
             throw new IllegalArgumentException("Dimension");
     }
 
@@ -259,7 +262,7 @@ public final class Contracts {
     }
 
     private static void digest(String hex) {
-        if (hex == null || !hex.matches("[0-9a-f]{64}")) throw new IllegalArgumentException("SHA-256");
+        if (hex == null || !SHA256.matcher(hex).matches()) throw new IllegalArgumentException("SHA-256");
     }
 
     public interface CapabilityCatalog { Optional<CapabilitySpec> find(CapabilityId id); }
