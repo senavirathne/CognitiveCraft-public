@@ -13,8 +13,13 @@ class AxeBindingTest {
         final ActorRef actor=identity.add(1,10,0,"Ada",true,true);
         final Map<ContainerRef,InputContainerSample> inputs=new HashMap<>();
         final Map<FacilityRef,FacilitySample> tables=new HashMap<>();
+        final Map<FacilityRef,ProvisioningSiteSample> sites=new HashMap<>();
+        int siteReads;
         final Observation world=new Observation() {
             public FacilitySample facility(ActorRef a,FacilityRef t) {return tables.getOrDefault(t,new FacilitySample(ObservationStatus.ABSENT,"not-table"));}
+            public ProvisioningSiteSample tableSite(ActorRef a,ContainerRef source,ContainerRef destination,FacilityRef site) {
+                siteReads++;return sites.getOrDefault(site,new ProvisioningSiteSample(ObservationStatus.ABSENT,"ineligible",SITE_WORK));
+            }
             public ItemContainerSample itemContainer(ActorRef a,ContainerRef c,ResourceDelivery.ItemIdentity item,ObjectType type) {
                 if(type==ObjectType.BARREL)return new ItemContainerSample(item,ObservationStatus.ABSENT,0,0,"not-barrel");
                 return itemContainer(a,c,item);
@@ -42,6 +47,12 @@ class AxeBindingTest {
                     new LanguageRequests.HarvestIntent(a,4,source,Reference.omitted(),WoodenAxeProduction.ID),identity.clock,()->identity.current);
         }
         WorldReferenceBinding bind(){return bind(Reference.concrete(actor,"Ada"),Reference.nearest("available oak planks"));}
+        WorldReferenceBinding provision(){return provision(Reference.omitted());}
+        WorldReferenceBinding provision(Reference<LanguageRequests.Coordinates> table){
+            return new WorldReferenceBinding(world,identity.registry,identity.caller,new Point(actor.dimension(),0,64,0),
+                    new LanguageRequests.HarvestIntent(Reference.concrete(actor,"Ada"),4,Reference.nearest("available oak planks"),
+                            Reference.omitted(),WoodenAxeProduction.ID,table),identity.clock,()->identity.current,true,true);
+        }
         LanguageRequests.Resolution finish(WorldReferenceBinding b){return identity.finish(b);}
     }
     @Test void actorAnchoredInputsAndSourceAnchoredOutputsBecomeTypedContainers(){
@@ -66,6 +77,40 @@ class AxeBindingTest {
         assertEquals(f.table(8),((FacilityValue)r.request().arguments().get("table")).value());assertEquals(Type.FACILITY,r.request().arguments().get("table").type());
     }
     @Test void missingTableNeverCreatesAProvisioningRequest() {var f=new Fixture();f.tables.clear();var r=f.finish(f.bind());assertEquals(Outcomes.Reason.FACILITY_MISSING,r.reason());assertNull(r.request());}
+    @Test void integrationBindsAnObservedEmptyWorkspaceWithoutClaimingAnExistingTable() {
+        var f=new Fixture();f.tables.clear();
+        f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"empty-workspace",SITE_WORK));
+        var r=f.finish(f.provision());assertEquals(LanguageRequests.ResolutionKind.REQUEST,r.kind());
+        assertEquals(f.table(12),((FacilityValue)r.request().arguments().get("table")).value());
+        assertTrue(f.tables.isEmpty());assertEquals(9,f.siteReads);
+    }
+    @Test void explicitTableAndIncompleteExistingTableEvidenceCannotFallBackToConstruction() {
+        var f=new Fixture();f.tables.clear();
+        f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"empty-workspace",SITE_WORK));
+        var explicit=f.finish(f.provision(Reference.nearest("nearest table")));
+        assertEquals(Outcomes.Reason.FACILITY_MISSING,explicit.reason());assertEquals(0,f.siteReads);
+        f.tables.put(f.table(12),new FacilitySample(ObservationStatus.UNKNOWN,"unloaded"));
+        var unknown=f.finish(f.provision());assertEquals(Outcomes.Reason.STALE_OBSERVATION,unknown.reason());assertEquals(0,f.siteReads);
+    }
+    @Test void emptyWorkspaceSelectionRechecksItsActualFootprintBeforeDispatch() {
+        var f=new Fixture();f.tables.clear();
+        f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"original-empty-workspace",SITE_WORK));
+        var binding=f.provision();LanguageRequests.Resolution observed;
+        do{observed=binding.poll();}while(!observed.message().contains("Approved empty workspace selected"));
+        f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"replaced-workspace",SITE_WORK));
+        var changed=f.finish(binding);assertEquals(Outcomes.Reason.STALE_OBSERVATION,changed.reason());assertNull(changed.request());
+    }
+    @Test void unknownWorkspaceEvidenceDoesNotProveAMissingOrUsableSite() {
+        var f=new Fixture();f.tables.clear();
+        f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"empty-workspace",SITE_WORK));
+        f.sites.put(new FacilityRef(f.actor.dimension(),10,64,1),new ProvisioningSiteSample(ObservationStatus.UNKNOWN,"unknown",SITE_WORK));
+        var r=f.finish(f.provision());assertEquals(Outcomes.Reason.STALE_OBSERVATION,r.reason());assertNull(r.request());
+    }
+    @Test void integrationPrefersTheObservedExistingTableBeforeConsideringConstruction() {
+        var f=new Fixture();var r=f.finish(f.provision());
+        assertEquals(LanguageRequests.ResolutionKind.REQUEST,r.kind());assertEquals(f.table(12),((FacilityValue)r.request().arguments().get("table")).value());
+        assertEquals(0,f.siteReads);
+    }
     @Test void incompleteFacilityEvidenceIsNotMissingStock() {var f=new Fixture();f.tables.put(f.table(9),new FacilitySample(ObservationStatus.UNKNOWN,"unloaded"));var r=f.finish(f.bind());assertEquals(Outcomes.Reason.STALE_OBSERVATION,r.reason());assertNull(r.request());}
     @Test void replacementAfterSelectionFencesDispatch() {
         var f=new Fixture();var b=f.bind();LanguageRequests.Resolution r;do{r=b.poll();}while(!r.message().contains("Table selected"));

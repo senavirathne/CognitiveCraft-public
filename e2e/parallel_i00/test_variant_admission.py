@@ -4,10 +4,27 @@ import tempfile
 import unittest
 
 from e2e.parallel_i00.gameplay import NEW_PLANKS, NativeGameplay, variant_input
-from e2e.parallel_i00.variant_admission import verify_server_frames, yield_size
+from e2e.parallel_i00.variant_admission import verify_cold_backend, verify_server_frames, yield_size
 
 
 class VariantAdmissionTest(unittest.TestCase):
+    def test_durable_historical_calls_are_distinct_from_new_native_session_dispatches(self):
+        # Reader schema regression only; these dictionaries are not native evidence.
+        server = {"pid": 8, "start": 10}
+        frame = {"pid": 8, "time": 10001, "generationCalls": 5,
+                 "brokerStats": {"calls": 0, "dispatched": 0}}
+        verify_cold_backend(frame, server)
+        import copy
+        for key in ("calls", "dispatched"):
+            changed = copy.deepcopy(frame)
+            changed["brokerStats"][key] = 1
+            with self.assertRaises(AssertionError):
+                verify_cold_backend(changed, server)
+        with self.assertRaises(AssertionError):
+            verify_cold_backend({**frame, "pid": 9}, server)
+        with self.assertRaises(AssertionError):
+            verify_cold_backend({**frame, "time": 9999}, server)
+
     def test_installed_family_uses_canonical_admission_ingredient(self):
         expected = {
             "acacia": "acacia_log", "bamboo": "bamboo_block", "cherry": "cherry_log",

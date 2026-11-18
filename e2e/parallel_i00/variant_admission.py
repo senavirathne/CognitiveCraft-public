@@ -101,7 +101,9 @@ def run(root):
         reconnect_players(h, ["PlayerA"])
         h.assert_backend_stopped()
         h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
-        result.update(secondServer=read(root / "server/process.json"), afterRestartCalls=h.model_calls())
+        restart = h.snapshot()
+        result.update(secondServer=read(root / "server/process.json"), afterRestartCalls=h.model_calls(),
+                      restartObservation=restart)
         result["stage"] = "offline-reuse"
         for output in NEW_PLANKS:
             try:
@@ -208,6 +210,8 @@ def review_observation(row, output, pin, *, cold):
     if cold:
         require(row["callsBefore"] == row["callsAfter"] and row["destinationClientCount"] == quantity,
                 "Cold method called a model or the actual client received a different quantity")
+        require(all(row[column]["brokerStats"]["calls"] == row[column]["brokerStats"]["dispatched"] == 0
+                    for column in ("before", "after")), "Cold JVM dispatched generation work")
         observed = after["actors"]
         entities = {receipt["actor"]["entityId"] for receipt in receipts}
         require(len(entities) == 1 and sum(a["inventory"].get(output, 0) for a in observed
@@ -231,6 +235,15 @@ def verify_server_frames(path, records):
     require(not expected, "Missing original native physical frames")
 
 
+def verify_cold_backend(frame, server):
+    # generationCalls describes retained durable run history. It survives a JVM
+    # restart and can shrink when bounded history retires old entries. The
+    # session broker observes actual new dispatches and measured backend calls.
+    require(frame["pid"] == server["pid"] and frame["time"] >= server["start"] * 1000
+            and frame["brokerStats"]["calls"] == frame["brokerStats"]["dispatched"] == 0,
+            "Missing current-JVM evidence of zero new generation calls")
+
+
 def review(root, source, jar):
     result = {"profile": PROFILE, "status": "FAIL_REQUIRED_VARIANTS", "cases": []}
     try:
@@ -252,8 +265,10 @@ def review(root, source, jar):
                 and any(event["kind"] == "server-disconnection-witness" and event["data"]["server"] == first
                         and event["data"]["client"]["play"] is False for event in events),
                 "No owned container exit or real client disconnection")
+        restart = collection["restartObservation"]
+        verify_cold_backend(restart, second)
         require(sum(event["kind"] == "crafting-backend-unavailable" for event in events) >= 2
-                and collection["afterRestartCalls"]["generationCalls"] == 0
+                and collection["afterRestartCalls"]["generationCalls"] == restart["generationCalls"]
                 and collection["beforeStopCalls"]["generationCalls"] >= len(NEW_PLANKS),
                 "Missing verified unavailable inference after restart")
         frames = read(root / "screenshots.json")["captures"]
@@ -261,7 +276,7 @@ def review(root, source, jar):
         client = completed_jsonl(root / "clients/PlayerA/events.jsonl")
         client_commands = {event["data"]["text"] for event in client if event["kind"] == "action"
                            and event["data"]["action"] == "command"}
-        physical = []
+        physical = [restart]
         stopped, current = root / "stopped-skills", root / REPOSITORY
         saved = read(stopped / "manifest.json")
         content = {key: saved[key] for key in ("schema", "revision", "entries")}

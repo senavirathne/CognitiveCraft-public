@@ -11,7 +11,23 @@ public final class StaticProductionPlanner {
     public StaticProductionPlanner(){this(MAX_EXPANSIONS);}
     public StaticProductionPlanner(int maximumExpansions){if(maximumExpansions<1 || maximumExpansions>MAX_EXPANSIONS)throw new IllegalArgumentException("Finite planning work bound required");this.maximumExpansions=maximumExpansions;}
     private static final String STICK="minecraft:stick",TABLE="minecraft:crafting_table",AXE="minecraft:wooden_axe";
-    private record State(Map<RecipeChoice.ItemKey,Long> pool,Map<String,Long> acquired,long eligible,boolean table,Cost cost,List<Action> actions){}
+    private record NativeRun(Action last,int segments,int tail,String key) {
+        static NativeRun next(Snapshot snapshot,NativeRun prior,Action action,int acquisition) {
+            int limit=PlanningCoordinator.groupLimit(snapshot,action,acquisition);
+            if(limit<1)throw new IllegalArgumentException("Native carrying envelope unavailable");
+            boolean joined=prior!=null && prior.tail()<limit && PlanningCoordinator.group(prior.last(),action);
+            int count=prior==null?1:prior.segments()+(joined?0:1),tail=joined?prior.tail()+1:1;
+            return new NativeRun(action,count,tail,count+":"+tail+":"+PlanningModel.digest(action.value()));
+        }
+    }
+    private record State(Map<RecipeChoice.ItemKey,Long> pool,Map<String,Long> acquired,long eligible,boolean table,Cost cost,List<Action> actions,NativeRun nativeRun){
+        State(Map<RecipeChoice.ItemKey,Long> pool,Map<String,Long> acquired,long eligible,boolean table,Cost cost,List<Action> actions){
+            this(pool,acquired,eligible,table,cost,actions,null);
+        }
+        State grouped(Snapshot snapshot,NativeRun prior,Action action,int acquisition){
+            return new State(pool,acquired,eligible,table,cost,actions,NativeRun.next(snapshot,prior,action,acquisition));
+        }
+    }
     private static String stateKey(State s){return StrictJson.canonical(Map.of("pool",s.pool.entrySet().stream().filter(e->e.getValue()>0).sorted(Comparator.comparing(e->itemOrder(e.getKey()))).map(e->Map.of("item",e.getKey().value(),"n",e.getValue())).toList(),"acquired",new TreeMap<>(s.acquired),"eligible",s.eligible,"table",s.table));}
     private static long total(Map<RecipeChoice.ItemKey,Long> pool,String id){long n=0;for(var e:pool.entrySet())if(e.getKey().id().equals(id))n=Math.addExact(n,e.getValue());return n;}
     public static boolean usable(Snapshot s,Stock x){return x.availability()==Availability.PRESENT && x.permitted() && x.reachable() && (x.location().container()!=null?s.goal().policy().allowedSources().contains(x.location().container()) && x.location().container().dimension().equals(s.owner().executor().dimension()):x.location().actor().equals(s.owner().executor()));}
@@ -86,19 +102,28 @@ public final class StaticProductionPlanner {
     }
     // Conservative in-flight units per checkpoint; this ranks exposure, not crash durability.
     private static long exposure(State s){return s.actions.stream().mapToLong(a->Math.max(Math.max(a.yield(),a.inputs().values().stream().mapToLong(Long::longValue).sum()),a.kind()==Kind.RETURN_CUSTODY?a.requestedDemand():0)).max().orElse(0);}
-    public Analysis analyse(Snapshot s){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(blocked.equals("ORIGINAL_OWNER_NOT_SETTLED") || blocked.equals("AUTHORITY_OR_ACTOR_UNAVAILABLE")?Feasibility.UNKNOWN:Feasibility.INFEASIBLE,blocked,null,Cost.ZERO,Map.of(),0);
+    public Analysis analyse(Snapshot s){return analyse(s,1,MAX_ACTIONS,false);}
+    public Analysis analyse(Snapshot s,int maximumAcquisition,int maximumSegments){
+        if(maximumAcquisition<1 || maximumAcquisition>64 || maximumSegments<1 || maximumSegments>MAX_ACTIONS)
+            throw new IllegalArgumentException("Finite native planning limits required");
+        return analyse(s,maximumAcquisition,maximumSegments,true);
+    }
+    private Analysis analyse(Snapshot s,int maximumAcquisition,int maximumSegments,boolean grouped){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(blocked.equals("ORIGINAL_OWNER_NOT_SETTLED") || blocked.equals("AUTHORITY_OR_ACTOR_UNAVAILABLE")?Feasibility.UNKNOWN:Feasibility.INFEASIBLE,blocked,null,Cost.ZERO,Map.of(),0);
         var initial=new State(Map.copyOf(pool(s)),Map.of(),eligible(s),facilityReady(s),Cost.ZERO,List.of());
-        var order=Comparator.<State>comparingInt(x->x.actions.size()).thenComparing(Comparator.comparingLong((State x)->x.eligible).reversed()).thenComparingLong(StaticProductionPlanner::exposure).thenComparingLong(x->x.cost.travel()).thenComparingLong(x->x.cost.effects()).thenComparingLong(x->x.cost.ticks()).thenComparing(StaticProductionPlanner::stateKey).thenComparing(x->StrictJson.canonical(x.actions.stream().map(Action::value).toList()));
-        var queue=new PriorityQueue<>(order);queue.add(initial);var visited=new HashMap<String,Cost>();var relevant=relevant(s);int expansions=0;boolean limited=false,budgetPruned=false;boolean[] truncated={false};
-        while(!queue.isEmpty() && expansions<maximumExpansions){var state=queue.remove();String key=stateKey(state);var old=visited.get(key);if(old!=null && old.travel()<=state.cost.travel() && old.effects()<=state.cost.effects() && old.ticks()<=state.cost.ticks())continue;visited.put(key,state.cost);expansions++;
+        var order=Comparator.<State>comparingInt(x->x.actions.size()).thenComparing(Comparator.comparingLong((State x)->x.eligible).reversed());
+        if(grouped)order=order.thenComparingInt(x->x.nativeRun==null?0:x.nativeRun.segments());
+        order=order.thenComparingLong(StaticProductionPlanner::exposure).thenComparingLong(x->x.cost.travel()).thenComparingLong(x->x.cost.effects()).thenComparingLong(x->x.cost.ticks()).thenComparing(StaticProductionPlanner::stateKey).thenComparing(x->StrictJson.canonical(x.actions.stream().map(Action::value).toList()));
+        var queue=new PriorityQueue<>(order);queue.add(initial);var visited=new HashMap<String,Cost>();var relevant=relevant(s);int expansions=0;boolean limited=false,budgetPruned=false,nativePruned=false;boolean[] truncated={false};
+        while(!queue.isEmpty() && expansions<maximumExpansions){var state=queue.remove();String key=stateKey(state)+(state.nativeRun==null?"":":"+state.nativeRun.key());var old=visited.get(key);if(old!=null && old.travel()<=state.cost.travel() && old.effects()<=state.cost.effects() && old.ticks()<=state.cost.ticks())continue;visited.put(key,state.cost);expansions++;
             if(state.eligible>=s.remainingDemand())return new Analysis(Feasibility.FEASIBLE,"FEASIBLE_CURRENT_SNAPSHOT",pin(s,state.actions),state.cost,residual(s,state),expansions);
             if(state.actions.size()>=MAX_ACTIONS){limited=true;continue;}
             for(var action:candidates(s,state,relevant,truncated)){State next;try{next=apply(state,action);}catch(ArithmeticException overflow){limited=true;continue;}
+                if(next!=null && grouped){next=next.grouped(s,state.nativeRun,action,maximumAcquisition);if(next.nativeRun.segments()>maximumSegments){nativePruned=true;continue;}}
                 if(next!=null && s.budget().fits(next.cost)){if(queue.size()<4096)queue.add(next);else limited=true;}else if(next!=null)budgetPruned=true;}
         }
         if(!queue.isEmpty() || limited || truncated[0])return new Analysis(Feasibility.UNKNOWN,"BOUNDED_SEARCH_EXHAUSTED",null,Cost.ZERO,initial.pool,expansions);
         if(unknown(s))return new Analysis(Feasibility.UNKNOWN,"CURRENT_EVIDENCE_OR_METHOD_INCOMPLETE",null,Cost.ZERO,initial.pool,expansions);
-        return new Analysis(Feasibility.INFEASIBLE,budgetPruned?"CUMULATIVE_WHOLE_GOAL_BUDGET_INSUFFICIENT":"NO_SUPPORTED_WHOLE_GOAL_PATH",null,Cost.ZERO,initial.pool,expansions);
+        return new Analysis(Feasibility.INFEASIBLE,nativePruned?"NATIVE_SEGMENT_LIMIT_EXCEEDED":budgetPruned?"CUMULATIVE_WHOLE_GOAL_BUDGET_INSUFFICIENT":"NO_SUPPORTED_WHOLE_GOAL_PATH",null,Cost.ZERO,initial.pool,expansions);
     }
     /** Simulates the remaining pinned sequence against a fresh projection. It applies no physical effects. */
     public Analysis revalidate(Snapshot s,ValidatedPlan plan){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(Feasibility.UNKNOWN,blocked,null,Cost.ZERO,Map.of(),0);

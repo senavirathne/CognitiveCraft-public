@@ -28,7 +28,14 @@ public final class PlanningCoordinator {
     private static long checkAt(Snapshot s,int checks){if(checks>=4)return Long.MAX_VALUE;long delay=250L<<Math.min(checks,3);return Math.min(s.budget().absoluteDeadlineMillis(),s.nowMillis()>Long.MAX_VALUE-delay?Long.MAX_VALUE:s.nowMillis()+delay);}
     private static Decision stop(Snapshot s,Memory old,Analysis analysis,String blocker,ChoiceRequest request){String sig=signature(s,blocker);boolean unchanged=sig.equals(old.signature());int checks=unchanged?Math.min(4,old.unchangedChecks()+1):0;long next=checkAt(s,checks);return new Decision(unchanged?DecisionKind.WAIT:DecisionKind.BLOCKED,checks>=4?"NO_PROGRESS_UNTIL_RELEVANT_CHANGE":blocker,analysis,null,request,remember(s,sig,old.lastProposalId(),checks,next),next);}
     private static Map<Counter,Long> allowance(Cost cost,Snapshot s,Memory memory,boolean newPlan){var out=new EnumMap<Counter,Long>(Counter.class);out.putAll(zeroCounts());out.put(Counter.TRAVEL,cost.travel());out.put(Counter.EFFECTS,cost.effects());out.put(Counter.ELAPSED_TICKS,cost.ticks());out.put(Counter.RETRIES,s.owner().retryRequired()?1L:0L);out.put(Counter.REPLANS,newPlan && !memory.lastProposalId().isEmpty()?1L:0L);for(var c:Counter.values())if(out.get(c)>s.budget().remaining(c))return null;return Map.copyOf(out);}
-    private static boolean group(Action a,Action b){return a.kind()==b.kind() && a.recipe().equals(b.recipe()) && a.capability().equals(b.capability()) && a.inputs().equals(b.inputs()) && a.result().equals(b.result()) && a.rootOutput()==b.rootOutput() && a.sourceKey().equals(b.sourceKey());}
+    static boolean group(Action a,Action b){return a.kind()==b.kind() && a.recipe().equals(b.recipe()) && a.capability().equals(b.capability()) && a.inputs().equals(b.inputs()) && a.result().equals(b.result()) && a.rootOutput()==b.rootOutput() && a.sourceKey().equals(b.sourceKey());}
+    static int groupLimit(Snapshot s,Action action,int maximumAcquisition) {
+        long inputs=action.inputs().values().stream().mapToLong(Long::longValue).sum();
+        long carry=s.goal().policy().carryingUnits()/Math.max(1,Math.max(inputs,action.yield()));
+        int maximum=action.kind()==Kind.PRODUCE?definition(action.capability()).maximumBatches():
+                action.kind()==Kind.ACQUIRE?maximumAcquisition:1;
+        return Math.toIntExact(Math.min(carry,maximum));
+    }
     static MethodPin outputMethod(Snapshot s,RecipeChoice.ItemKey item){return java.util.stream.Stream.concat(s.recipes().stream().filter(p->p.result().equals(item)).map(RecipeProfile::method),s.acquisition().stream().filter(a->a.result().equals(item)).map(Acquisition::method)).filter(Objects::nonNull).filter(MethodPin::usable).sorted(Comparator.comparing((MethodPin p)->p.capability().toString()).thenComparing(MethodPin::artifactHash).thenComparing(MethodPin::semanticFingerprint)).findFirst().orElse(null);}
     private static MethodPin method(Snapshot s,Action a){if(a.kind()==Kind.PRODUCE)return s.recipe(a.recipe()).orElseThrow().method();if(a.kind()==Kind.ACQUIRE)return s.acquisition().stream().filter(x->x.key().equals(a.sourceKey())).findFirst().orElseThrow().method();if(a.kind()==Kind.RETURN_CUSTODY)return outputMethod(s,a.result());return s.facility()==null?null:s.facility().placement();}
     private static boolean matches(Snapshot s,Action a,int batches,long amount,ContainerRef destination,ChoiceOffer offer){var c=offer.choice();var p=s.recipe(a.recipe()).orElseThrow();
@@ -62,12 +69,39 @@ public final class PlanningCoordinator {
         return new CapabilityRequest(action.capability(),args);}
     private static Decision offered(Snapshot s,Memory memory,Analysis analysis,SegmentProposal proposal){String sig=signature(s,proposal.stepToken());if(sig.equals(memory.signature()) && !memory.lastProposalId().isEmpty()){int checks=Math.min(4,memory.unchangedChecks()+1);long next=checkAt(s,checks);return new Decision(DecisionKind.WAIT,checks>=4?"NO_PROGRESS_UNTIL_RELEVANT_CHANGE":"AWAITING_AUTHORITATIVE_PROGRESS",analysis,null,null,remember(s,sig,memory.lastProposalId(),checks,next),next);}return new Decision(DecisionKind.PROPOSE,"",analysis,proposal,null,remember(s,sig,proposal.proposalId(),0,0),0);}
     public Decision next(Snapshot s,ValidatedPlan saved,Memory memory){return next(s,saved,memory,64);}
+    /** Declaration only: count the same bounded native groups selected by next(), without settling any action. */
+    public static int remainingSegments(Snapshot s,ValidatedPlan plan,int maximumAcquisition) {
+        if(maximumAcquisition<1 || maximumAcquisition>64)throw new IllegalArgumentException("Bounded native acquisition envelope");
+        var settled=s.settledActionTokens();int segments=0;
+        for(int i=0;i<plan.actions().size();) {
+            var action=plan.actions().get(i);
+            if(settled.contains(action.token(i))){i++;continue;}
+            int maximum=groupLimit(s,action,maximumAcquisition);
+            if(maximum<1)throw new IllegalArgumentException("Native carrying envelope unavailable");
+            int count=1;
+            while(i+count<plan.actions().size() && count<maximum) {
+                var next=plan.actions().get(i+count);
+                if(!group(action,next) || settled.contains(next.token(i+count)))break;
+                count++;
+            }
+            segments++;i+=count;
+        }
+        return segments;
+    }
     /** Execution hosts may select a smaller native acquisition envelope without changing the goal. */
     public Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition){
+        return next(s,saved,memory,maximumAcquisition,MAX_ACTIONS,false);
+    }
+    /** A host may constrain native segment count while the original pure planning route stays unchanged. */
+    public Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments) {
+        return next(s,saved,memory,maximumAcquisition,maximumSegments,true);
+    }
+    private Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean grouped) {
         if(maximumAcquisition<1 || maximumAcquisition>64)throw new IllegalArgumentException("Bounded native acquisition envelope");
+        if(maximumSegments<1 || maximumSegments>MAX_ACTIONS)throw new IllegalArgumentException("Bounded native segment envelope");
         Objects.requireNonNull(memory);String boundary=StaticProductionPlanner.boundaryProblem(s);if(!boundary.isEmpty())return stop(s,memory,null,boundary,null);String budget=budgetProblem(s,memory);if(!budget.isEmpty())return stop(s,memory,null,budget,null);
         if(s.remainingDemand()==0)return new Decision(DecisionKind.GOAL_ALREADY_CREDITED,"AUTHORITATIVE_CREDIT_ALREADY_COVERS_DEMAND",null,null,null,remember(s,signature(s,"credited"),memory.lastProposalId(),0,Long.MAX_VALUE),Long.MAX_VALUE);
-        var analysis=saved==null?planner.analyse(s):planner.revalidate(s,saved);if(analysis.feasibility()!=Feasibility.FEASIBLE)return stop(s,memory,analysis,analysis.reason(),null);var plan=analysis.plan();boolean newPlan=saved==null;
+        var analysis=saved==null?(grouped?planner.analyse(s,maximumAcquisition,maximumSegments):planner.analyse(s)):planner.revalidate(s,saved);if(analysis.feasibility()!=Feasibility.FEASIBLE)return stop(s,memory,analysis,analysis.reason(),null);var plan=analysis.plan();boolean newPlan=saved==null;
         var current=s.stock().stream().filter(x->StaticProductionPlanner.eligibleIn(s,x)>0).sorted(Comparator.comparingLong(Stock::travelCost).thenComparing(Stock::key)).toList();
         if(!current.isEmpty()){var stock=current.getFirst();long amount=Math.min(Math.min(StaticProductionPlanner.eligibleIn(s,stock),s.remainingDemand()),s.goal().policy().carryingUnits());boolean atDestination=s.activeDestination().equals(stock.location().container());Kind kind=atDestination?Kind.ALLOCATE_CURRENT:Kind.DELIVER_CURRENT;
             if(!s.supportedKinds().contains(kind))return stop(s,memory,analysis,"CURRENT_DELIVERY_OR_ALLOCATION_ADAPTER_UNSUPPORTED",null);var pin=atDestination?null:outputMethod(s,stock.item());if(!atDestination && pin==null)return stop(s,memory,analysis,"PINNED_DELIVERY_METHOD_UNAVAILABLE",null);

@@ -189,7 +189,9 @@ final class FabricProductionActivities {
                 CraftingTableProduction.ID,WoodenAxeProduction.ID):List.of(capability);
         for(var id:capabilities) {
             var target=id.equals(capability)?destination:source;
-            long travel=travel(nativeActor,source,target,id.equals(WoodenAxeProduction.ID)?facility:null);
+            long travel=FabricProductionTravel.recipe(position(nativeActor),source,target,
+                    id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
+                    facility==null?null:facility.reference());
             var profile=world.describeChoice(new CapabilityId(id.name(),2),new Cost(travel,4,100+6*travel));
             var method=pin(job,id,profile.semanticFingerprint(),2);
             profiles.add(new RecipeProfile(profile.recipe(),profile.capability(),profile.cells(),profile.result(),
@@ -251,7 +253,7 @@ final class FabricProductionActivities {
         var preflight=present?null:world.placementPreflight(marked);
         boolean free=preflight!=null && preflight.reason()==null && !preflight.pending() && allowed(marked,Effect.PLACE,cell);
         var id=present?FabricFacilityIdentity.capture(level,p):null;
-        long travel=travel(actor,staging,cell,null);
+        long travel=FabricProductionTravel.recipe(position(actor),staging,cell,null,reference);
         return new Facility(reference,id!=null?Availability.PRESENT:free?Availability.ABSENT:Availability.UNKNOWN,
                 allowed(job.request(),Effect.CRAFT,cell),true,id==null?"":id,free,job.generation(),
                 pin(job,CraftingTablePlacement.ID,ActivityPayload.digest("crafting-table-placement:v1"),1),
@@ -263,22 +265,21 @@ final class FabricProductionActivities {
         var actor=world.recipeActor(job.responsible());
         if(area==null || actor==null)return List.of();
         long oak=0,birch=0;
+        var targets=new ArrayList<ContainerRef>();
         boolean complete=true;
         for(int x=area.minX();x<=area.maxX();x++)for(int y=area.minY();y<=area.maxY();y++)for(int z=area.minZ();z<=area.maxZ();z++) {
             var position=new ContainerRef(area.dimension(),x,y,z);
             if(!world.loadedForDiscovery(pos(position)) || !allowed(job.request(),Effect.HARVEST,position)) {complete=false;continue;}
             var target=new SurvivalGateway.Cell(area.dimension(),x,y,z);
-            if(world.resourceBlock(target,ResourceDelivery.OAK_LOG).eligible())oak++;
-            if(world.resourceBlock(target,ResourceDelivery.BIRCH_LOG).eligible())birch++;
+            if(world.resourceBlock(target,ResourceDelivery.OAK_LOG).eligible()){oak++;targets.add(position);}
+            if(world.resourceBlock(target,ResourceDelivery.BIRCH_LOG).eligible()){birch++;targets.add(position);}
         }
         // Overlapping acquisition options are forbidden by the original B contract.
         if(oak>0 && birch>0 || !complete || oak==0 && birch==0)return List.of();
         var capability=oak>0?OakLogDelivery.ID:BirchLogDelivery.ID;
         var item=oak>0?ResourceDelivery.OAK_LOG:ResourceDelivery.BIRCH_LOG;
         var staging=((ContainerValue)job.request().request().arguments().get("source")).value();
-        var corner=new ContainerRef(area.dimension(),area.minX(),area.minY(),area.minZ());
-        long travel=travel(actor,corner,staging,null)+Math.abs((long)area.maxX()-area.minX())
-                +Math.abs((long)area.maxY()-area.minY())+Math.abs((long)area.maxZ()-area.minZ());
+        long travel=FabricProductionTravel.acquisition(position(actor),staging,targets);
         return List.of(new Acquisition("original-authorized-logs",area,defaultKey(item),Math.min(64,oak+birch),
                 Availability.PRESENT,true,true,pin(job,capability,ActivityPayload.digest(capability.toString()),1),
                 new Cost(travel,4,120+6*travel)));
@@ -321,16 +322,9 @@ final class FabricProductionActivities {
                 && world.permit(request,effect,new SurvivalGateway.Cell(address.dimension(),address.x(),address.y(),address.z()))==null;
     }
     private static BlockPos pos(ContainerRef address){return new BlockPos(address.x(),address.y(),address.z());}
+    private static ContainerRef position(Villager actor){var p=actor.blockPosition();return new ContainerRef(
+            actor.level().dimension().identifier().toString(),p.getX(),p.getY(),p.getZ());}
     private static long travel(Villager actor,ContainerRef source,ContainerRef destination,Facility facility) {
-        var start=actor.blockPosition();
-        var from=pos(source);
-        var end=pos(destination);
-        long path=start.distManhattan(from)+from.distManhattan(end);
-        if(facility!=null) {
-            var f=facility.reference();
-            var at=new BlockPos(f.x(),f.y(),f.z());
-            path=Math.max(path,(long)start.distManhattan(from)+from.distManhattan(at)+at.distManhattan(end));
-        }
-        return 2*path+4;
+        return FabricProductionTravel.recipe(position(actor),source,destination,facility==null?null:facility.reference(),null);
     }
 }

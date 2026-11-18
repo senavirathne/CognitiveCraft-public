@@ -319,7 +319,14 @@ def w04_case(h,seed,frozen):
     require(any(e['event']=='ENTITY_UNLOAD' and e['entity']==entity for e in native['nativeEvents']),'Native unload event was not recorded')
     require(native['watchId']==watch['watchId'],'W04 unload belongs to another native watch request')
     atomic(directory/'unload-observation.json',{'boundary':boundary,'nativeAtUnload':native,'unloadSeconds':duration,'originalTimeoutSeconds':110})
-    reload_started=time.monotonic();h.vanilla('PlayerA','/tp 66.5 208 69.5');h.console(['forceload remove 10000 10000'])
+    # The old return could start three one-tick unload/load pairs while vanilla
+    # transferred player tickets. A LOAD during pending loss acknowledgement is
+    # correctly deferred by the unchanged authority owner. Stabilize only this
+    # reload window, after the actual complete unload has already been proved.
+    reload_started=time.monotonic()
+    reload_ticket=[c['actor'][0],c['actor'][2]]
+    h.console(['forceload add '+coord(reload_ticket)])
+    h.vanilla('PlayerA','/tp 66.5 208 69.5');h.console(['forceload remove 10000 10000'])
     h.quiet(20)
     reload_remaining=80-(time.monotonic()-reload_started)
     if reload_remaining<=0:raise TimeoutError('Original W04 reload deadline expired')
@@ -329,6 +336,7 @@ def w04_case(h,seed,frozen):
     require(reload_native['watchId']==watch['watchId'],'W04 reload belongs to another native watch request')
     from lifecycle_cycles import review as cycle_review
     native_cycles=cycle_review(initial_native,reload_native,entity,before['identity']['lifecycle']['generation'],after['identity']['lifecycle']['generation'])
+    h.console(['forceload remove '+coord(reload_ticket)])
     require(after['identity']['actor']==before['identity']['actor'] and after['identity']['owner']==before['identity']['owner']
             and after['identity']['displayName']==c['citizenName'],
             'W04 native identity or generation changed incorrectly')
@@ -336,7 +344,7 @@ def w04_case(h,seed,frozen):
     reconnect_players(h,['PlayerB'])
     value={'id':name,'status':'PASS_REPRODUCED_NATIVE_UNLOAD_RELOAD','originalCase':c,'before':before,'startingWorldHashes':starting,'startingFixtureReview':setup_review,
            'initialNative':initial_native,'landingFloor':{'native':landing,'feedback':landing_feedback,'verificationLimitSeconds':30},'boundary':boundary,'nativeAtUnload':native,
-           'after':after,'reloadNative':reload_native,'nativeCycleReview':native_cycles,
+           'after':after,'reloadNative':reload_native,'nativeCycleReview':native_cycles,'temporaryReloadTicket':reload_ticket,
            'coherentObservations':{'mode':'SAME_END_SERVER_TICK_NATIVE_AND_LIFECYCLE','beforeTick':initial_native['tick'],
                                    'afterTick':reload_native['tick'],'setupLimitSeconds':40,'reloadLimitSeconds':80},
            'unloadSeconds':duration,'originalTimeoutSeconds':110,'clock':'ordinary 20 TPS; no freeze or accelerated ticks',

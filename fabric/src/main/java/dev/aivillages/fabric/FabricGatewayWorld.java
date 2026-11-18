@@ -121,6 +121,13 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 ? oakBox(new BlockPos(ref.x(),ref.y(),ref.z())) : null;
     }
     boolean recipeReach(Villager v,BlockPos p) {return canReach(v,p) && level.mayInteract(v,p);}
+    dev.aivillages.core.kernel.WorldReferenceDiscovery.ProvisioningSiteSample tableSite(ActorRef actor,ContainerRef source,
+            ContainerRef destination,FacilityRef site) {
+        var cell=new ContainerRef(site.dimension(),site.x(),site.y(),site.z());
+        if(cell.equals(source) || cell.equals(destination))return new dev.aivillages.core.kernel.WorldReferenceDiscovery.ProvisioningSiteSample(
+                ObservationStatus.ABSENT,"storage-cell",dev.aivillages.core.kernel.WorldReferenceDiscovery.SITE_WORK);
+        return tablePlacement.observeSite(actor,site);
+    }
     ServerLevel level() { return level; }
     String recipeContainerFingerprint(ContainerRef ref) {
         Container c=recipeContainer(ref);return c==null ? "" : FabricRecipeTransactions.fingerprint(c);

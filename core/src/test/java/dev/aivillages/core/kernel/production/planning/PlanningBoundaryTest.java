@@ -12,6 +12,26 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Synthetic adversarial/projection fixtures. No trusted receipt or Minecraft outcome is manufactured. */
 final class PlanningBoundaryTest {
     final StaticProductionPlanner planner=new StaticProductionPlanner();final PlanningCoordinator coordinator=new PlanningCoordinator();
+    @Test void declaredNativeSegmentsFollowAcquisitionAndActualBatchGrouping() {
+        var root=new PlannerFixtures().goal(Mode.MAKE_NEW,PLANK,3).logs(1);
+        var plan=planner.analyse(root.snapshot()).plan();
+        assertEquals(1,PlanningCoordinator.remainingSegments(root.snapshot(),plan,1));
+        var stocked=new PlannerFixtures().logs(3);plan=planner.analyse(stocked.snapshot()).plan();
+        assertEquals(7,plan.actions().size());
+        assertEquals(6,PlanningCoordinator.remainingSegments(stocked.snapshot(),plan,1));
+        plan=planner.analyse(stocked.snapshot(),1,5).plan();assertNotNull(plan);
+        assertEquals(5,PlanningCoordinator.remainingSegments(stocked.snapshot(),plan,1));
+        var shortage=new PlannerFixtures().logSource(3);plan=planner.analyse(shortage.snapshot()).plan();
+        assertNotNull(plan);
+        assertEquals(9,PlanningCoordinator.remainingSegments(shortage.snapshot(),plan,1));
+        plan=planner.analyse(shortage.snapshot(),1,8).plan();assertNotNull(plan);
+        assertEquals(8,PlanningCoordinator.remainingSegments(shortage.snapshot(),plan,1));
+        assertTrue(plan.actions().subList(0,3).stream().allMatch(a->a.kind()==Kind.ACQUIRE));
+        shortage.settle(plan,0,3,0);
+        assertEquals(5,PlanningCoordinator.remainingSegments(shortage.snapshot(),plan,1));
+        assertThrows(IllegalArgumentException.class,()->PlanningCoordinator.remainingSegments(root.snapshot(),
+                planner.analyse(root.snapshot()).plan(),0));
+    }
     @Test void pollingStampIgnoresTimeAndPublicationRevisionButDetectsSupplyAndBudgetChanges(){
         var f=new PlannerFixtures().goal(Mode.MAKE_NEW,PLANK,3);
         var initial=PlanningCoordinator.observationStamp(f.snapshot());

@@ -136,9 +136,10 @@ def boot_trial(root, seed):
 
 
 def prepare(h, shortage):
+    h.start("PlayerB")
     h.console(["fill 63 208 63 84 211 78 minecraft:air", "fill 62 207 62 85 207 80 minecraft:stone",
                "kill @e[type=minecraft:item,x=63,y=207,z=63,dx=21,dy=5,dz=15]", "clear PlayerA",
-               "tp " + h.entities["PlayerA"] + " 70.5 208 68.5", "tp PlayerA 77.5 208 74.5"])
+               "tp PlayerA 77.5 208 74.5"])
     for _, entity in h.subjects:
         h.actor_stock({}, entity)
     h.stock(SOURCE, {} if shortage else {LOG: 3})
@@ -146,12 +147,15 @@ def prepare(h, shortage):
     expected = {",".join(map(str, pos)): LOG for pos in LOGS} if shortage else {}
     if expected:
         h.console(["setblock " + coord(pos) + " " + LOG for pos in LOGS])
-    h.start("PlayerB")
-    h.console(["gamemode survival PlayerB", "tp PlayerB 80.5 208 73.5", "deop PlayerA", "deop PlayerB"])
+    h.console(["tp " + h.entities["PlayerA"] + " 70.5 208 68.5", "gamemode survival PlayerB",
+               "tp PlayerB 80.5 208 73.5", "deop PlayerA", "deop PlayerB"])
     h.action("PlayerA", "look", pos=DESTINATION)
     before, client = fixture_observation(h, expected_tables=set(), expected_blocks=expected)
     require(h.players["PlayerA"] != h.players["PlayerB"] and before["knownPlayers"]["PlayerB"]["online"],
             "Distinct connected principal required for private activity view")
+    actor = next(a for a in before["actors"] if a["uuid"] == h.entities["PlayerA"])
+    require(sum((a-b)**2 for a, b in zip(actor["pos"], [70.5, 208, 68.5])) <= 1,
+            "Original request must start at the declared pre-request actor pose")
     return before, client
 
 

@@ -11,7 +11,8 @@ import shutil
 import subprocess
 import sys
 import traceback
-from uuid import UUID
+import time
+from uuid import UUID, uuid4
 
 from .identity import PRODUCTION, ROOT, candidate, sha256, verify_metadata
 from .gameplay import QUALIFICATION_COMPOSE
@@ -23,7 +24,7 @@ from review_lifecycle_connected import allowance, chest, chest_row, entities, or
 from review_receipt_prefix import item
 from campaigns.crafting.oracle import candidates
 from parallel_b.baseline import DESTINATION, LOG, OTHER, PLANK, SOURCE, coord
-from parallel_b.guards import clean_owners, instruments, observer_inputs, stopped_process, verified_clock
+from parallel_b.guards import clean_owners, instruments, observer_inputs, stopped_process
 from parallel_b.qualification import safe
 from runtime import SDK
 from suite import DENIED_PATTERN, Harness, UUID_PATTERN, atomic, completed_jsonl, read, require
@@ -96,6 +97,29 @@ def fixture_slots(h, position, slots):
     h.console(["item replace block " + coord(position) + " container." + str(slot) + " with " +
                (slots[slot][0] + " " + str(slots[slot][1]) if slot in slots else "minecraft:air")
                for slot in range(27)])
+
+
+def verified_clock(h, command):
+    require(command in ("tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20"),
+            "Original bounded native clock command required")
+    before = h.snapshot()
+    deadline = time.monotonic() + 30
+    expected = dict(before["nativeClock"])
+    if command.startswith("tick rate "):
+        expected["rate"] = int(command.split()[-1])
+    else:
+        expected["frozen"] = command == "tick freeze"
+    require(expected != before["nativeClock"], "Native clock must actually change from its preceding state")
+    request = {"id": str(uuid4()), "commands": [command]}
+    atomic(h.root / "server/control.json", request)
+    h.wait(lambda: (ack if (ack := read(h.root / "server/control-ack.json")) and ack["id"] == request["id"] else None),
+           "Only console delivery; native clock observation is still required", 30)
+    after = h.wait(lambda: (frame if (frame := h.snapshot()) and frame["pid"] == before["pid"]
+                   and frame["time"] > before["time"] and frame["tick"] > before["tick"]
+                   and frame["nativeClock"] == expected else None),
+                   "Observed native clock transition with both ordinary clients deopped", max(0, deadline - time.monotonic()))
+    h.event("verified-native-clock-transition", {"request": request, "before": before, "after": after})
+    return after
 
 
 def exercise(h, name, destination, old):
@@ -748,6 +772,23 @@ def review(raw, identity):
     require(any(event["kind"] == "play" for event in events), "No live Minecraft client connected")
     recipe = read(raw / "oracle-recipes.json")
     frames, cases = {}, []
+    clocks = [event["data"] for event in completed_jsonl(raw / "supervisor.jsonl")
+              if event["kind"] == "verified-native-clock-transition"]
+    require([row["request"]["commands"] for row in clocks] == [[command] for command in (
+            "tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze")],
+            "Missing exact native clock transitions for restock and contention")
+    for row in clocks:
+        before, after = row["before"], row["after"]
+        expected = dict(before["nativeClock"])
+        command, = row["request"]["commands"]
+        if command.startswith("tick rate "):
+            expected["rate"] = int(command.split()[-1])
+        else:
+            expected["frozen"] = command == "tick freeze"
+        require(before["pid"] == after["pid"] and before["time"] < after["time"]
+                and before["tick"] < after["tick"] and before["nativeClock"] != expected == after["nativeClock"],
+                "Clock delivery did not prove the actual native state transition")
+        frame_link(frames, before, after)
     for name in (*LIVE, REMOVAL, LOOKALIKE, RESTOCK, NO_METHOD, CONTEND, *PENDING):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":

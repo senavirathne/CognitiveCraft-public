@@ -14,7 +14,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private static final Criteria WHEAT_REGION = new Criteria("cognitivecraft:mature_wheat_region");
     private static final Criteria WHEAT_CONTAINER = new Criteria("cognitivecraft:wheat_container");
 
-    private enum Stage { ACTOR, SOURCE, DESTINATION, TABLE, VALIDATING, NAMING, COMPLETE }
+    private enum Stage { ACTOR, SOURCE, DESTINATION, TABLE, SITE, VALIDATING, NAMING, COMPLETE }
 
     private final WorldReferenceDiscovery.Observation world;
     private final CitizenRegistry citizens;
@@ -25,6 +25,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private final Point callerAnchor;
     private final long deadlineMillis;
     private final boolean composition;
+    private final boolean provisioning;
 
     private Stage stage;
     private Attempt<WorldReferenceDiscovery.CitizenTarget> actorAttempt;
@@ -33,8 +34,10 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
     private WorldReferenceDiscovery.InputContainerSample inputEvidence;
     private Attempt<WorldReferenceDiscovery.ItemContainerTarget> destinationAttempt;
     private Attempt<FacilityTarget> tableAttempt;
+    private Attempt<ProvisioningSiteTarget> siteAttempt;
     private FacilityRef table;
     private FacilitySample tableEvidence;
+    private ProvisioningSiteSample siteEvidence;
     private ActorRef actor;
     private Cuboid source;
     private ContainerRef destination;
@@ -60,7 +63,11 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
                                  LanguageRequests.Intent intent, Clock clock,
                                  java.util.function.BooleanSupplier callerCurrent) {this(world,citizens,caller,callerAnchor,intent,clock,callerCurrent,false);}
     public WorldReferenceBinding(WorldReferenceDiscovery.Observation world,CitizenRegistry citizens,TrustedContext caller,Point callerAnchor,LanguageRequests.Intent intent,Clock clock,java.util.function.BooleanSupplier callerCurrent,boolean composition) {
+        this(world,citizens,caller,callerAnchor,intent,clock,callerCurrent,composition,false);
+    }
+    public WorldReferenceBinding(WorldReferenceDiscovery.Observation world,CitizenRegistry citizens,TrustedContext caller,Point callerAnchor,LanguageRequests.Intent intent,Clock clock,java.util.function.BooleanSupplier callerCurrent,boolean composition,boolean provisioning) {
         this.composition=composition;this.world = Objects.requireNonNull(world);
+        this.provisioning=provisioning;
         this.citizens = Objects.requireNonNull(citizens);
         this.caller = Objects.requireNonNull(caller);
         this.callerCurrent = Objects.requireNonNull(callerCurrent);
@@ -95,6 +102,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             case SOURCE -> pollSource();
             case DESTINATION -> pollDestination();
             case TABLE -> pollTable();
+            case SITE -> pollSite();
             case VALIDATING -> finalizeHarvest();
             case NAMING -> pollNaming();
             case COMPLETE -> terminal;
@@ -114,6 +122,7 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         if (inputAttempt != null) inputAttempt.cancel();
         if (destinationAttempt != null) destinationAttempt.cancel();
         if(tableAttempt!=null)tableAttempt.cancel();
+        if(siteAttempt!=null)siteAttempt.cancel();
         return true;
     }
 
@@ -296,11 +305,29 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         if(tableAttempt!=null) {
             var result=tableAttempt.poll(clock.millis(),pollAllowance);
             if(result.phase()==Phase.RESOLVING)return LanguageRequests.Resolution.pending("Scanning complete bounded table evidence");
-            if(result.phase()!=Phase.RESOLVED)return fail(result.reason()==null ? Reason.FACILITY_MISSING : result.reason(),"No authorized loaded table found");
+            if(result.phase()!=Phase.RESOLVED) {
+                var harvest=(LanguageRequests.HarvestIntent)intent;
+                if(provisioning && result.reason()==Reason.FACILITY_MISSING && harvest.table().state()==ReferenceState.OMITTED) {
+                    var registry=new Registry();var criterion=new Criteria("cognitivecraft:approved_table_site");
+                    registry.register(Kind.FACILITY,criterion,search->WorldReferenceDiscovery.tableSites(actor,inputBox(),destination,world));
+                    siteAttempt=registry.start(search(Kind.FACILITY,actorAnchor,criterion),clock.millis(),allowance);
+                    stage=Stage.SITE;return LanguageRequests.Resolution.pending("Resolving an authorized empty table workspace");
+                }
+                return fail(result.reason()==null ? Reason.FACILITY_MISSING : result.reason(),"No authorized loaded table found");
+            }
             table=result.value().facility();tableEvidence=result.value().evidence();
         } else {allowance.debit(1);tableEvidence=world.facility(actor,table);
             if(tableEvidence.status()!=ObservationStatus.PRESENT)return fail(tableEvidence.status()==ObservationStatus.UNKNOWN ? Reason.STALE_OBSERVATION : Reason.FACILITY_MISSING,"Explicit crafting table unavailable");}
         stage=Stage.VALIDATING;return LanguageRequests.Resolution.pending("Table selected; validating invocation");
+    }
+    private ContainerRef inputBox(){return new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ());}
+    private LanguageRequests.Resolution pollSite() {
+        var result=siteAttempt.poll(clock.millis(),pollAllowance);
+        if(result.phase()==Phase.RESOLVING)return LanguageRequests.Resolution.pending("Scanning bounded empty workspace evidence");
+        if(result.phase()!=Phase.RESOLVED)return fail(result.reason()==null?Reason.FACILITY_MISSING:result.reason(),
+                "No authorized empty table workspace found");
+        table=result.value().site();siteEvidence=result.value().evidence();stage=Stage.VALIDATING;
+        return LanguageRequests.Resolution.pending("Approved empty workspace selected; validating original goal");
     }
     private LanguageRequests.Resolution finalizeHarvest() {
         LanguageRequests.HarvestIntent harvest = (LanguageRequests.HarvestIntent)intent;
@@ -343,8 +370,14 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
                 "source", RecipeProduction.is(harvest.capability()) ? new ContainerValue(new ContainerRef(source.dimension(),source.minX(),source.minY(),source.minZ()))
                         : new AreaValue(source), "destination", new ContainerValue(destination)));
         if(harvest.capability().equals(WoodenAxeProduction.ID)) {
-            allowance.debit(1);var current=world.facility(actor,table);
-            if(current.status()!=ObservationStatus.PRESENT || !current.equals(tableEvidence))return fail(Reason.STALE_OBSERVATION,"Selected table changed");
+            if(siteEvidence!=null) {
+                if(allowance.remaining()<SITE_WORK)return fail(Reason.BUDGET_EXHAUSTED,"Workspace revalidation work exhausted");
+                allowance.debit(SITE_WORK);var current=world.tableSite(actor,inputBox(),destination,table);
+                if(current.status()!=ObservationStatus.PRESENT || !current.equals(siteEvidence))return fail(Reason.STALE_OBSERVATION,"Selected empty workspace changed");
+            }else {
+                allowance.debit(1);var current=world.facility(actor,table);
+                if(current.status()!=ObservationStatus.PRESENT || !current.equals(tableEvidence))return fail(Reason.STALE_OBSERVATION,"Selected table changed");
+            }
             var args=new HashMap<>(request.arguments());args.put("table",new FacilityValue(table));request=new CapabilityRequest(request.capability(),args);
         }
         terminal = LanguageRequests.Resolution.request(request); stage = Stage.COMPLETE;

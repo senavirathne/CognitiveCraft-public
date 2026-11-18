@@ -933,7 +933,7 @@ public final class KernelSession implements AutoCloseable {
                 return new FabricWorldReferenceResolver(worldAccess,citizens,caller,player,intent,clock,
                         (source,quantity)->leases.availableStock(intent instanceof LanguageRequests.HarvestIntent h && RecipeProduction.is(h.capability())
                                 ? RecipeProduction.of(h.capability()).stock(caller.scope().worldId(),source) : ResourceLeases.Resource.oakStock(caller.scope().worldId(),source),quantity,caller),
-                        (source,quantity)->leases.availableStock(new ResourceLeases.Resource(caller.scope().worldId(),ResourceLeases.Kind.STOCK,ResourceLeases.point(source),ResourceDelivery.STICK.id(),-1),quantity,caller));
+                        (source,quantity)->leases.availableStock(new ResourceLeases.Resource(caller.scope().worldId(),ResourceLeases.Kind.STOCK,ResourceLeases.point(source),ResourceDelivery.STICK.id(),-1),quantity,caller),productionActivities!=null);
             }
             @Override public BootstrapController.Submission submit(CapabilityRequest request, TrustedContext caller) {
                 return submitRequest(request, caller, interpretingPlayer,true);

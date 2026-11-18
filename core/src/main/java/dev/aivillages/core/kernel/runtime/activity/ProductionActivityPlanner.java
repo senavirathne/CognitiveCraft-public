@@ -25,17 +25,23 @@ public final class ProductionActivityPlanner {
         requireOriginal(root,frame,remaining);
         var previous=root.activity().production().plan();
         var saved=previous==null?null:previous.bind(frame);
-        var selected=planner.next(frame,saved,memory,1);
+        int maximum=ActivityPayload.MAX_STEPS-root.activity().steps().size();
+        if(maximum<1)return new Decision(new PlanningModelDecision(memory,"NATIVE_SEGMENT_LIMIT_EXCEEDED",false,
+                Long.MAX_VALUE),null,previous,List.of());
+        var selected=planner.next(frame,saved,memory,1,maximum);
         if(selected.neededChoice()!=null) {
             var candidate=PlanningChoiceBuilder.build(frame,selected.neededChoice());
             var offer=new ChoiceOffer(new ValidatedRequest(candidate.invocation(),root.origin(),root.request().observation()),
                     candidate.choice(),candidate.sources());
-            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),saved,memory,1);
+            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),saved,memory,1,maximum);
         }
         var state=new PlanningModelDecision(selected.memory(),selected.blocker(),
                 selected.analysis()!=null && selected.analysis().feasibility()==Feasibility.FEASIBLE,selected.nextCheckMillis());
         if(selected.kind()!=DecisionKind.PROPOSE)return new Decision(state,null,previous,List.of());
-        return new Decision(state,authoritative(root,frame,remaining,selected.proposal()),ActivityPlan.of(selected.analysis().plan()),
+        int planned=Math.addExact(root.activity().steps().size(),PlanningCoordinator.remainingSegments(frame,selected.analysis().plan(),1));
+        if(planned>ActivityPayload.MAX_STEPS)return new Decision(new PlanningModelDecision(selected.memory(),
+                "NATIVE_SEGMENT_LIMIT_EXCEEDED",false,Long.MAX_VALUE),null,previous,List.of());
+        return new Decision(state,authoritative(root,frame,remaining,selected.proposal(),planned),ActivityPlan.of(selected.analysis().plan()),
                 selected.proposal().coveredActionTokens());
     }
 
@@ -74,7 +80,7 @@ public final class ProductionActivityPlanner {
                 s.facility(),List.of(offer),s.supportedKinds(),s.progress(),s.catalogueComplete(),s.modelAvailable(),s.returnsUsed());
     }
 
-    private static ActivityRuntime.Proposal authoritative(Jobs.Job root,Snapshot frame,Budgets.Limits remaining,SegmentProposal proposed) {
+    private static ActivityRuntime.Proposal authoritative(Jobs.Job root,Snapshot frame,Budgets.Limits remaining,SegmentProposal proposed,int planned) {
         if(proposed.requestedInvocation()==null || proposed.method()==null || !proposed.world().equals(frame.world())
                 || !proposed.root().equals(root.id()) || proposed.revision()!=root.revision() || !proposed.context().equals(root.origin())
                 || !proposed.owner().equals(frame.owner().originalOwner()) || !proposed.executor().equals(root.responsible())
@@ -101,7 +107,7 @@ public final class ProductionActivityPlanner {
         return new ActivityRuntime.Proposal(1,proposalId,root.id(),root.guard(),token,invocation,
                 new ArtifactRef(id,proposed.method().artifactHash()),choice,quantities,
                 new Budgets.Limits(budget,remaining.deadlineEpochMillis()),
-                root.activity().plannedSteps(),true,proposed.quantities().goalAllocationUpperBound());
+                planned,true,proposed.quantities().goalAllocationUpperBound());
     }
 
     private static void cap(EnumMap<Budgets.Kind,Long> limits,Budgets.Kind counter,long bound) {

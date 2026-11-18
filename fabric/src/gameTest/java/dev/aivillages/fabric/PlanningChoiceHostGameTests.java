@@ -35,7 +35,18 @@ public final class PlanningChoiceHostGameTests {
             if(!v.onGround() || !world.loadedForDiscovery(a)){h.assertTrue(false,"Waiting for actual grounded planning host fixture");return;}
             if(phase[0]!=0){h.assertTrue(false,"Native fixture cannot retry a failed effect");return;}phase[0]=1;
             try{
-                h.assertTrue(world.acquire(actor,run),"Actual native control unavailable");var box=(Container)h.getLevel().getBlockEntity(a);box.clearContent();box.setItem(0,new ItemStack(Items.OAK_PLANKS,4));box.setItem(1,new ItemStack(Items.BIRCH_PLANKS,5));v.getInventory().clearContent();
+                h.assertTrue(world.acquire(actor,run),"Actual native control unavailable");
+                var emptyWorkspace=world.tableSite(actor,source,destination,tableSite);
+                h.assertTrue(emptyWorkspace.status()==ObservationStatus.PRESENT && h.getLevel().getBlockState(site).isAir(),
+                        "Observed empty workspace must not invent an existing table");
+                h.getLevel().setBlockAndUpdate(site,Blocks.STONE.defaultBlockState());
+                h.assertTrue(world.tableSite(actor,source,destination,tableSite).status()==ObservationStatus.ABSENT,
+                        "Occupied workspace was eligible for provisioning");
+                h.getLevel().setBlockAndUpdate(site,Blocks.AIR.defaultBlockState());
+                var replacedWorkspace=world.tableSite(actor,source,destination,tableSite);
+                h.assertTrue(replacedWorkspace.status()==ObservationStatus.PRESENT && !replacedWorkspace.equals(emptyWorkspace),
+                        "Replacement must invalidate the original empty-workspace witness");
+                var box=(Container)h.getLevel().getBlockEntity(a);box.clearContent();box.setItem(0,new ItemStack(Items.OAK_PLANKS,4));box.setItem(1,new ItemStack(Items.BIRCH_PLANKS,5));v.getInventory().clearContent();
                 var profiles=new ArrayList<RecipeProfile>();for(var legacy:List.of(OakPlankProduction.ID,StickProduction.ID,CraftingTableProduction.ID,WoodenAxeProduction.ID)){
                     var data=host.describeChoice(new CapabilityId(legacy.name(),2),new Cost(2,3,10));var pin=new MethodPin(data.capability(),RecipeTransaction.fingerprint("fixture:unadmitted-host-method:"+data.capability()),data.semanticFingerprint(),true);
                     var cells=data.cells();if(legacy.equals(StickProduction.ID)){var oak=data.cells().getFirst().stream().filter(k->k.id().equals("minecraft:oak_planks")).findFirst().orElseThrow();cells=List.of(List.of(oak),List.of(oak));}

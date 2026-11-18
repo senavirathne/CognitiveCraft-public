@@ -21,6 +21,9 @@ public final class WorldReferenceDiscovery {
         CropState crop(ActorRef actor, Point point);
         ContainerSample container(ActorRef actor, ContainerRef container);
         default FacilitySample facility(ActorRef actor,FacilityRef table) {return new FacilitySample(ObservationStatus.UNKNOWN,"unsupported");}
+        default ProvisioningSiteSample tableSite(ActorRef actor,ContainerRef source,ContainerRef destination,FacilityRef site) {
+            return new ProvisioningSiteSample(ObservationStatus.UNKNOWN,"unsupported-site",SITE_WORK);
+        }
         default ItemBlock itemBlock(ActorRef actor,Point point,ResourceDelivery.ItemIdentity item) {
             if(item.equals(ResourceDelivery.WHEAT)) {
                 CropState c=crop(actor,point); return new ItemBlock(c.status(),c.matureWheat(),c.identity(),0);
@@ -57,6 +60,37 @@ public final class WorldReferenceDiscovery {
         public FacilitySample {Objects.requireNonNull(status);if(identity==null || identity.length()>128)throw new IllegalArgumentException("Facility sample");}
     }
     public record FacilityTarget(FacilityRef facility,FacilitySample evidence) { }
+    public static final int SITE_WORK=64;
+    /** An observed empty placement workspace; never an observation that a table already exists. */
+    public record ProvisioningSiteSample(ObservationStatus status,String fingerprint,int work) {
+        public ProvisioningSiteSample {
+            Objects.requireNonNull(status);
+            if(fingerprint==null || fingerprint.isBlank() || fingerprint.length()>128 || work<1 || work>SITE_WORK)
+                throw new IllegalArgumentException("Bounded observed provisioning site required");
+        }
+    }
+    public record ProvisioningSiteTarget(FacilityRef site,ProvisioningSiteSample evidence) { }
+    public static Discovery<ProvisioningSiteTarget> tableSites(ActorRef actor,ContainerRef source,ContainerRef destination,
+                                                               Observation world) {
+        return new Discovery<>() {
+            final List<Candidate<ProvisioningSiteTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;
+            public Scan<ProvisioningSiteTarget> poll(int maximum) {
+                int work=0;
+                while(cursor<9 && maximum-work>=SITE_WORK) {
+                    int at=cursor++;if(at==4)continue;
+                    var site=new FacilityRef(source.dimension(),source.x()-1+at%3,source.y(),source.z()-1+at/3);
+                    var sample=world.tableSite(actor,source,destination,site);work+=sample.work();
+                    if(sample.status()==ObservationStatus.UNKNOWN)unknown=true;
+                    else if(sample.status()==ObservationStatus.PRESENT)candidates.add(new Candidate<>(
+                            new ProvisioningSiteTarget(site,sample),new Point(site.dimension(),site.x(),site.y(),site.z()),sample.fingerprint()));
+                }
+                if(cursor<9)return Scan.progress(List.of(),work,List.of());
+                return unknown?Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-workspace-envelope")):
+                        Scan.complete(List.copyOf(candidates),work,Reason.FACILITY_MISSING,List.of());
+            }
+            public void cancel(){cursor=9;candidates.clear();}
+        };
+    }
     public static Discovery<FacilityTarget> tables(ActorRef actor,Point anchor,Observation world) {
         return new Discovery<>() {
             List<Candidate<FacilityTarget>> candidates=new ArrayList<>();int cursor;boolean unknown;

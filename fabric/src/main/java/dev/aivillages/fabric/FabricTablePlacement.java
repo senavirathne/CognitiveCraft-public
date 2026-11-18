@@ -89,6 +89,15 @@ final class FabricTablePlacement {
         if(!collisions.isEmpty())return new Site(fingerprint,Reason.TARGET_UNAVAILABLE,"site-collision:"+collisions.stream().limit(8).map(e->e.getUUID()+"@"+e.position()).toList(),true);
         return new Site(fingerprint,null,"ready",false);
     }
+    dev.aivillages.core.kernel.WorldReferenceDiscovery.ProvisioningSiteSample observeSite(ActorRef actor,FacilityRef target) {
+        var checked=site(actor,target);
+        var status=checked.reason()==null && !checked.pending()?ObservationStatus.PRESENT:
+                !checked.pending() && (checked.reason()==Reason.TARGET_UNAVAILABLE || checked.reason()==Reason.ACTOR_UNAVAILABLE
+                        || checked.reason()==Reason.BUDGET_EXHAUSTED)?ObservationStatus.UNKNOWN:ObservationStatus.ABSENT;
+        return new dev.aivillages.core.kernel.WorldReferenceDiscovery.ProvisioningSiteSample(status,
+                status==ObservationStatus.PRESENT?checked.fingerprint():status==ObservationStatus.UNKNOWN?"unknown-site":"ineligible-site",
+                dev.aivillages.core.kernel.WorldReferenceDiscovery.SITE_WORK);
+    }
     PlacementTransaction.Preflight preflight(ValidatedRequest bound){
         if(!CraftingTablePlacement.valid(bound.request()))return PlacementTransaction.Preflight.blocked(Reason.REQUEST_INVALID);
         var actor=((ActorValue)bound.request().arguments().get("actor")).value();var source=((ContainerValue)bound.request().arguments().get("source")).value();

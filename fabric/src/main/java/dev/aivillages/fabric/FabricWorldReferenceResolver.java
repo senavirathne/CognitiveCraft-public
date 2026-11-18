@@ -31,6 +31,13 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
             LanguageRequests.Intent intent,Clock clock,
             java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> inputAvailability,
             java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> secondaryAvailability) {
+        this(world,citizens,caller,player,intent,clock,inputAvailability,secondaryAvailability,false);
+    }
+    FabricWorldReferenceResolver(FabricGatewayWorld world,CitizenRegistry citizens,TrustedContext caller,ServerPlayer player,
+            LanguageRequests.Intent intent,Clock clock,
+            java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> inputAvailability,
+            java.util.function.BiFunction<ContainerRef,Long,dev.aivillages.core.kernel.ResourceLeases.Result> secondaryAvailability,
+            boolean provisioning) {
         Objects.requireNonNull(world); Objects.requireNonNull(player);
         if (!player.getUUID().equals(caller.principal().id()))
             throw new SecurityException("Language caller mismatch");
@@ -68,6 +75,11 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
                         : new WorldReferenceDiscovery.InputContainerSample(status,0,0,"container-type-unavailable");
             }
             @Override public SurvivalGateway.ActorState actor(ActorRef actor) { return world.actor(actor); }
+            @Override public WorldReferenceDiscovery.ProvisioningSiteSample tableSite(ActorRef actor,ContainerRef source,
+                    ContainerRef destination,FacilityRef site) {
+                return provisioning?world.tableSite(actor,source,destination,site):
+                        WorldReferenceDiscovery.Observation.super.tableSite(actor,source,destination,site);
+            }
             @Override public WorldReferenceDiscovery.FacilitySample facility(ActorRef actor,FacilityRef table) {
                 var pos=new BlockPos(table.x(),table.y(),table.z());
                 if(!table.dimension().equals(anchor.dimension()))
@@ -153,7 +165,7 @@ final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionH
         binding = new WorldReferenceBinding(observations,citizens,caller,anchor,intent,clock,
                 () -> !player.hasDisconnected() && !player.isRemoved()
                         && player.getUUID().equals(caller.principal().id())
-                        && player.level().dimension().identifier().toString().equals(anchor.dimension()),true);
+                        && player.level().dimension().identifier().toString().equals(anchor.dimension()),true,provisioning);
     }
     @Override public LanguageRequests.Resolution poll() { return binding.poll(); }
     @Override public boolean cancellable() { return binding.cancellable(); }
