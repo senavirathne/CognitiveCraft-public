@@ -150,17 +150,24 @@ class CraftingHarness(Harness):
                 rows.append((item, take)); quantity -= take
         require(len(rows) <= 27, "Generated fixture exceeds native container capacity")
         slots = list(range(27)) if layout != "last" else list(reversed(range(27)))
-        stacks = [f'{{Slot:{slot}b,id:"{item}",count:{n}}}' for slot, (item, n) in zip(slots, rows)]
-        self.console(["setblock " + coord(position) + " minecraft:" + kind,
-                      "data merge block " + coord(position) + " {Items:[" + ",".join(stacks) + "]}"])
+        selected = dict(zip(slots, rows))
+        # Slot mutations preserve a tracked native participant's incarnation.
+        # NBT import of an already tracked inventory correctly quarantines it.
+        self.console(["setblock " + coord(position) + " minecraft:" + kind] +
+                     ["item replace block " + coord(position) + " container." + str(slot) + " with " +
+                      (selected[slot][0] + " " + str(selected[slot][1]) if slot in selected else "minecraft:air")
+                      for slot in range(27)])
         self.wait(lambda: self.snapshot()["containers"].get(",".join(map(str, position))) ==
                   {k: v for k, v in contents.items() if v},
                   "Measured physical fixture stock", 20)
 
     def actor_stock(self, contents, entity=None):
         entity = entity or self.entities["PlayerA"]
-        stacks = [f'{{id:"{item}",count:{count}}}' for item, count in contents.items() if count]
-        self.console(["data modify entity " + entity + " Inventory set value [" + ",".join(stacks) + "]"])
+        rows = [(item, count) for item, count in contents.items() if count]
+        require(len(rows) <= 8 and all(1 <= count <= 64 for _, count in rows), "Bounded native actor fixture")
+        self.console(["item replace entity " + entity + " mob.inventory." + str(slot) + " with " +
+                      (rows[slot][0] + " " + str(rows[slot][1]) if slot < len(rows) else "minecraft:air")
+                      for slot in range(8)])
         self.wait(lambda: next(a["inventory"] for a in self.snapshot()["actors"] if a["uuid"] == entity) ==
                   {k: v for k, v in contents.items() if v}, "Measured actor input custody", 20)
 
@@ -374,11 +381,14 @@ class CraftingHarness(Harness):
             spawn = [66.5 + i*14, 208, 69.5]
             subject = subjects[i]
             pose = [spawn[0], 208, 66.5]
-            self.console(["tp " + subject["uuid"] + " " + coord(pose), "tp PlayerA " + coord(spawn)])
-            witness = self.wait(lambda: (state if (state := self.snapshot()) and any(
-                actor["uuid"] == subject["uuid"] and math.dist(actor["pos"], pose) < 1 for actor in state["actors"])
+            poses = {actor["uuid"]: [66.5 + n*14, 208, 66.5] for n, actor in enumerate(subjects)}
+            self.console(["tp " + entity + " " + coord(point) for entity, point in poses.items()]
+                         + ["tp PlayerA " + coord(spawn)])
+            witness = self.wait(lambda: (state if (state := self.snapshot()) and all(any(
+                actor["uuid"] == entity and math.dist(actor["pos"], point) < 1 for actor in state["actors"])
+                for entity, point in poses.items())
                 and math.dist(self.client_snapshot("PlayerA")["pos"], spawn) < .7 else None),
-                "Native subject and connected player acknowledged the enrollment pose", 30)
+                "Both native subjects and connected player acknowledged separated enrollment poses", 30)
             self.enroll(name=["Ada", "Mira"][i])
             require(self.entities["PlayerA"] == subject["uuid"], "Public enrollment selected a different subject")
             self.subjects.append((self.citizens["PlayerA"], self.entities["PlayerA"]))

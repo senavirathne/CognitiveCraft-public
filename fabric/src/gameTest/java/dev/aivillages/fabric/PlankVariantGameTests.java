@@ -58,6 +58,21 @@ public final class PlankVariantGameTests {
             try {
                 var from = (Container)level.getBlockEntity(sourcePos);
                 var to = (Container)level.getBlockEntity(destinationPos);
+                var actorState = ((dev.aivillages.fabric.runtime.evidence.DepositParticipant)villager).cognitivecraft$depositParticipant();
+                var sourceState = ((dev.aivillages.fabric.runtime.evidence.DepositParticipant)from).cognitivecraft$depositParticipant();
+                actorState.activate();sourceState.activate();
+                var actorIncarnation = actorState.incarnation();
+                var sourceIncarnation = sourceState.incarnation();
+                var commandSource = level.getServer().createCommandSourceStack().withLevel(level);
+                level.getServer().getCommands().performPrefixedCommand(commandSource,
+                        "item replace entity " + villager.getUUID() + " mob.inventory.0 with minecraft:oak_log 1");
+                level.getServer().getCommands().performPrefixedCommand(commandSource,
+                        "item replace block " + sourcePos.getX() + " " + sourcePos.getY() + " " + sourcePos.getZ()
+                                + " container.26 with minecraft:oak_log 2");
+                test.assertTrue(villager.getInventory().countItem(Items.OAK_LOG) == 1 && from.countItem(Items.OAK_LOG) == 2
+                        && actorState.valid() && sourceState.valid() && !actorState.restored() && !sourceState.restored()
+                        && actorIncarnation.equals(actorState.incarnation()) && sourceIncarnation.equals(sourceState.incarnation()),
+                        "Vanilla fixture slot mutations must preserve live native participant provenance");
                 int executed = 0;
                 for (String family : new TreeSet<>(FAMILIES)) {
                     String outputId = "minecraft:" + family + "_planks";

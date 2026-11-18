@@ -53,7 +53,8 @@ public final class JoinedDepositStoppedSource implements TrustedStoppedSource {
         var usage=new EnumMap<Budgets.Kind,Long>(Budgets.Kind.class);usage.putAll(attempt.usage());(result==null?intent.conditions().usage():result.usage()).forEach((kind,count)->usage.merge(kind,count,Math::max));
         if(usage.entrySet().stream().anyMatch(e->e.getValue()>attempt.allowance().maximum(e.getKey())))return unknown("original deposit allowance exceeded");
         boolean expired=clock.millis()>Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis());
-        var terminal=integratedCompletion?new Execution(ExecutionStatus.SUCCEEDED,null,effects,null)
+        var terminal=integratedCompletion?new Execution(ExecutionStatus.SUCCEEDED,null,effects,
+                    new EvidenceRef(entry.token(),"native-hpd:1",original.origin().scope().domainId().toString()))
                 :continuing?new Execution(expired?ExecutionStatus.BLOCKED:ExecutionStatus.INTERRUPTED,
                         expired?Reason.BUDGET_EXHAUSTED:Reason.INTERRUPTED,effects,null)
                 :new Execution(ExecutionStatus.CANCELLED,Reason.CANCELLED,effects,null);

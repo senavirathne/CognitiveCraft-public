@@ -303,6 +303,7 @@ public final class WorkerDispatcher {
     }
     private boolean dispatchable(Jobs.Job j) {
         return (j.state()==Jobs.State.READY || j.state()==Jobs.State.WAITING && j.dependencies().isEmpty())
+                && (j.activity()==null || j.activity().current()!=null && j.activity().current().attempt()==null)
                 && (j.current()==null || !j.current().open()) && clock.millis()<=j.allowance().deadlineEpochMillis()
                 && j.attempts().size()<jobs.settings().attempts();
     }

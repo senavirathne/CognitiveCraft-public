@@ -81,14 +81,18 @@ public final class ActivityRuntime {
         boolean cancelling=job.cancellationOutcome()!=null||job.state()==State.CANCELLING;
         long goal=((IntValue)job.request().request().arguments().get("amount")).value();
         long credit=job.fulfilled();var checkpoints=p==null?List.<ActivityPayload.Checkpoint>of():p.checkpoints();
+        boolean stoppedPreparation=!job.state().terminal() && p!=null && p.current()!=null && a!=null && !a.open()
+                && a.id().equals(p.current().attempt());
         Availability available;
         try{available=Objects.requireNonNull(observation.observe(job));}catch(RuntimeException unavailable){available=Availability.unavailable();}
-        Next next=p==null?Next.LEGACY:!job.state().terminal()&&cancelling?Next.CANCEL_OR_SETTLE:uncertain?Next.RECOVER_OR_SETTLE:
+        Next next=p==null?Next.LEGACY:!job.state().terminal()&&cancelling?Next.CANCEL_OR_SETTLE:
+                !job.state().terminal()&&(uncertain || stoppedPreparation)?Next.RECOVER_OR_SETTLE:
                 job.state()==State.ACTIVE?Next.EXECUTING:!checkpoints.isEmpty()&&!available.previousEffectsSettled()?Next.WAIT_NATIVE_SETTLEMENT:
                 job.state().terminal()?Next.TERMINAL:jobs.deadlineExpired(root,caller)?Next.EXPIRED:p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?Next.INTEGRATION_PENDING:
                 !supported.contains(job.request().request().capability()) && (p.production()==null || !jobs.productionPlanningReady())?
                     Next.INTEGRATION_PENDING:p.current()!=null?Next.PREPARED_FOR_DISPATCH:Next.PREPARE;
-        String blocker=next==Next.WAIT_NATIVE_SETTLEMENT?"original checkpoint native settlement pending":next==Next.EXPIRED?"original absolute deadline expired":uncertain?"uncertain original effect; no replay":p!=null&&p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?
+        String blocker=next==Next.WAIT_NATIVE_SETTLEMENT?"original checkpoint native settlement pending":next==Next.EXPIRED?"original absolute deadline expired":uncertain?"uncertain original effect; no replay":stoppedPreparation?
+                "original prepared segment stopped; no retry authority":p!=null&&p.blocker()==ActivityPayload.Blocker.INTEGRATION_PENDING?
                 "exact-choice semantic/host adapter unavailable":p!=null && p.production()!=null && !p.production().blocker().isBlank()?
                 p.production().blocker():job.reason()==null?"":job.reason().name();
         Budgets.Limits limits;

@@ -89,6 +89,9 @@ def review(args):
                 and report["effects"] == original["effects"] == 3 and report["usage"] == original["usage"]
                 and report["resourceReceipts"] == original["resourceReceipts"]
                 and report["terminal"]["status"] == "SUCCEEDED" and witness["reply"]["code"] == "DUPLICATE"
+                and report["terminal"]["completion"]["id"] == original["executions"][0]["runId"]
+                and report["terminal"]["completion"]["validatorVersion"] == "resource-delivery:1"
+                and report["terminal"]["completion"]["scope"] == before["request"]["context"]["scope"]["domainId"]
                 and witness["guard"]["generation"] == original["generation"]
                 and witness["guard"]["revision"] == row["originalAtCut"]["revision"]
                 and sum(a["credited"] for a in after["attempts"]) == 2):

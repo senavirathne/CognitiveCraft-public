@@ -374,7 +374,9 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             if(usage.getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=saved
                     || usage.entrySet().stream().anyMatch(charge->charge.getValue()>old.allowance().maximum(charge.getKey())))
                 return Jobs.StoppedObservation.ambiguous("Stopped effect accounting exceeds the original allowance");
-            var result=new Execution(ExecutionStatus.SUCCEEDED,null,saved,null);
+            var result=new Execution(ExecutionStatus.SUCCEEDED,null,saved,
+                    new EvidenceRef(rows.getLast().intent().token().toString(),"native-recipe:1",
+                            context.origin().scope().domainId().toString()));
             return new Jobs.StoppedObservation(Jobs.StoppedKind.EFFECT_COMPLETE,
                     new Jobs.Report(old.id(),old.generation(),saved,usage,List.of(),result,receipts),"Exact journal and native saved participants agree");
         }catch(RuntimeException unavailable){return Jobs.StoppedObservation.ambiguous("Exact recipe recovery evidence unavailable");}

@@ -101,7 +101,9 @@ public final class RuntimeA07Probe implements ModInitializer {
                         var stale=new Jobs.Guard(command.get("revision").getAsLong(),old.generation());
                         var report=new Jobs.Report(old.id(),old.generation(),old.effects(),old.usage(),old.receipts(),
                                 new dev.aivillages.core.kernel.Outcomes.Execution(
-                                        dev.aivillages.core.kernel.Outcomes.ExecutionStatus.SUCCEEDED,null,old.effects(),null),old.resourceReceipts());
+                                        dev.aivillages.core.kernel.Outcomes.ExecutionStatus.SUCCEEDED,null,old.effects(),
+                                        new Contracts.EvidenceRef(old.executions().getFirst().runId().toString(),"resource-delivery:1",
+                                                old.bound().context().scope().domainId().toString())),old.resourceReceipts());
                         var before=jobs.snapshot();var reply=jobs.recordExecutionResult(job.id(),stale,report,context);
                         var after=jobs.snapshot();
                         if(reply.code()!=Jobs.Code.DUPLICATE || !before.equals(after))

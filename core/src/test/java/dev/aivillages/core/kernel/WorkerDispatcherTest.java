@@ -152,6 +152,35 @@ class WorkerDispatcherTest {
     @Test void pendingLeaseAndCancellationNeverResurrectADeferredStart(){var s=new Scene(1);s.deferClaims=true;var j=s.add(1,1);s.until(()->s.current(j).state()==State.ACTIVE);var current=s.current(j);assertTrue(s.jobs.cancel(current.id(),current.guard(),OWNER).accepted());s.jobs.tick();s.deferClaims=false;for(int n=0;n<20;n++)s.step();assertTrue(s.starts.isEmpty());assertTrue(s.claims.isEmpty());assertEquals(State.CANCELLED,s.current(j).state());}
     @Test void leaseConflictClosesAttemptAndReconsiderationConsumesOriginalBudget(){var s=new Scene(1);s.leaseFailure=Reason.TARGET_UNAVAILABLE;var j=s.add(1,1);for(int n=0;n<120;n++)s.step();assertTrue(s.starts.isEmpty());assertTrue(s.claims.isEmpty());assertTrue(s.current(j).attempts().size()<=8);assertTrue(s.current(j).usage().getOrDefault(Budgets.Kind.INSTRUCTIONS,0L)>0);}
     @Test void rejectedExecutorStartLeavesNoOpenAttemptOrClaims(){var s=new Scene(1);s.startFailure=Reason.ARTIFACT_INCOMPATIBLE;var j=s.add(1,1);for(int n=0;n<50;n++)s.step();assertTrue(s.starts.isEmpty());assertTrue(s.claims.isEmpty());assertFalse(s.current(j).current().open());}
+    @Test void activityWithoutANewPreparedWriterDoesNotSpendReconsiderationAllowance() {
+        var s=new Scene(1);
+        var runtime=new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(s.jobs,
+                job->dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable());
+        UUID id=UUID.randomUUID();
+        var request=JobLifecycleStoreTest.request(s.workers.getFirst(),1);
+        assertTrue(runtime.create(id,request,OWNER,JobLifecycleStoreTest.observation(),
+                JobLifecycleStoreTest.limits(s.clock.now+10_000),2).accepted());s.jobs.tick();
+        var waiting=s.jobs.snapshot();
+        for(int n=0;n<60;n++)s.step();
+        assertEquals(waiting,s.jobs.snapshot());assertTrue(s.handles.isEmpty());assertEquals(0,s.prepares);
+        var job=s.jobs.query(id,OWNER);
+        var proposal=new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Proposal(1,UUID.randomUUID(),id,
+                job.guard(),"one-original-step",request,REF,null,
+                dev.aivillages.core.kernel.runtime.activity.ActivityPayload.Quantities.exact(1),
+                s.jobs.remainingAllowance(id,OWNER),2);
+        assertTrue(runtime.prepare(proposal,OWNER).accepted());s.jobs.tick();
+        s.startFailure=Reason.TARGET_UNAVAILABLE;
+        s.until(()->{var j=s.jobs.query(id,OWNER);return j.current()!=null && !j.current().open()
+                && !s.dispatcher.ownsAttempt(j);});
+        var stopped=s.jobs.snapshot();
+        for(int n=0;n<60;n++)s.step();
+        assertEquals(stopped,s.jobs.snapshot());assertTrue(s.claims.isEmpty());assertTrue(s.handles.isEmpty());
+        var view=runtime.snapshot(id,OWNER);
+        assertEquals(dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Next.RECOVER_OR_SETTLE,view.next());
+        assertTrue(view.blocker().contains("no retry authority"));
+        job=s.jobs.query(id,OWNER);assertTrue(runtime.cancel(id,job.guard(),OWNER).accepted());s.jobs.tick();
+        assertEquals(State.CANCELLED,s.jobs.query(id,OWNER).state());
+    }
     @Test void disappearanceRetainsTwoOfFiveAndReassignsOnlyThreeAfterConfirmedStop(){var s=new Scene(2);s.automatic=false;var j=s.add(1,5);s.until(()->!s.handles.isEmpty());var old=s.handles.values().iterator().next();old.delivered=2;old.set(null);s.stopConfirmed=false;s.citizens.observeAvailability(old.job.current().worker().citizenId(),CitizenRegistry.Availability.UNLOADED);s.citizens.tick();for(int n=0;n<25;n++)s.step();assertEquals(1,s.starts.size());assertEquals(6,s.current(j).current().effects());assertEquals(3,s.disk.state.jobs().getFirst().current().receipts().size());s.stopConfirmed=true;s.automatic=true;s.until(()->s.current(j).state()==State.SUCCEEDED);assertEquals(5,s.current(j).fulfilled());assertEquals(3,((IntValue)s.current(j).current().bound().request().arguments().get("amount")).value());var current=s.current(j);var report=new Report(old.job.current().id(),old.job.generation(),old.progress.summary().committedEffects(),old.usage.snapshot(),old.progress.summary().receipts(),old.progress.summary().outcome());assertEquals(Code.DUPLICATE,s.jobs.recordExecutionResult(current.id(),current.guard(),report,OWNER).code());assertEquals(current,s.current(j));}
     @Test void assignmentTimeoutDoesNotResetDeadlineOrOverlapUnconfirmedStop(){var s=new Scene(1);s.automatic=false;s.stopConfirmed=false;var j=s.add(1,1);s.until(()->!s.starts.isEmpty());for(int n=0;n<50;n++)s.step();assertEquals(1,s.starts.size());assertTrue(s.current(j).current().open());}
     @Test void disposablePolicyCacheDoesNotEraseJobsClaimsOrLiveAttempts(){var s=new Scene(2);s.automatic=false;var a=s.add(1,1);s.until(()->!s.starts.isEmpty());var before=s.jobs.snapshot();s.dispatcher.clearPolicyCache();assertEquals(before,s.jobs.snapshot());for(int n=0;n<3;n++)s.step();assertEquals(1,s.starts.size());}

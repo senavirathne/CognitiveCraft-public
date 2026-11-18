@@ -137,6 +137,7 @@ public final class CitizenIdentityGameTests {
             // Normal 20 TPS for asynchronous world/chunk setup; work keeps the existing tick budgets.
             java.util.concurrent.locks.LockSupport.parkNanos(
                     phase == 0 && fixture.stage <= 2 || phase == 20 || waitingBindings
+                            || session != null && !session.identityReady()
                             ? 50_000_000 : 1_000_000);
             if (phase != lastReported) {
                 System.out.println("IMP-008 identity phase=" + phase + " warm=" + warm

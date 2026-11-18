@@ -41,7 +41,11 @@ class LifecycleHarness(RecoveryHarness):
     def observation(self,op,**values):
         ready=self.wait(self.a07,'Actual A07 native observer',45)
         request={'id':str(uuid.uuid4()),'process':ready['process'],'op':op,**values};atomic(self.root/'server/a07-request.json',request)
-        reply=self.wait(lambda:(v if (v:=read(self.root/'server/a07-response.json')) and v['id']==request['id'] else None),'A07 '+op,25)
+        def response():
+            self.a07()
+            value=read(self.root/'server/a07-response.json')
+            return value if value and value['id']==request['id'] else None
+        reply=self.wait(response,'A07 '+op,25)
         require(reply['status']=='PASS','A07 observer request failed');return reply
     def watch(self,points,entities,coherent_lifecycle=False):
         reply=self.observation('watch',positions=points,entities=entities,coherentLifecycle=coherent_lifecycle)

@@ -19,7 +19,8 @@ final class ActivityCheckpointsTest {
         final CompletableFuture<DepositJournal.Snapshot> held=new CompletableFuture<>();
         DepositJournal.Snapshot next;boolean liveAcknowledged,savedAvailable,hold;int writes,mutations;
         Scene(){this(false,false);}
-        Scene(boolean live,boolean saved) {
+        Scene(boolean live,boolean saved) {this(live,saved,false);}
+        Scene(boolean live,boolean saved,boolean interruptedProduction) {
             liveAcknowledged=live;savedAvailable=saved;var intent=entry.intent();var key=intent.key();var receipt=entry.result().receipt();
             var args=new HashMap<String,Value>();args.put("actor",new ActorValue(receipt.actor()));args.put("amount",new IntValue(2));
             args.put("source",new AreaValue(receipt.source()));args.put("destination",new ContainerValue(receipt.destination()));
@@ -33,7 +34,21 @@ final class ActivityCheckpointsTest {
             var attempt=new Attempt(key.attempt(),key.generation(),receipt.actor(),bound,limits,List.of(new ExecutionReference(intent.run(),artifact,List.of(artifact))),entry.result().usage(),List.of(),3,1,terminal,false,0,receipts);
             var step=new ActivityPayload.Step(UUID.randomUUID(),UUID.randomUUID(),"one","b".repeat(64),"c".repeat(64),0,1,artifact,null,ActivityPayload.Quantities.exact(1),limits,2,null);
             var activity=ActivityPayload.initial(OakLogDelivery.ID,2).prepared(step,2,true).assigned(attempt.id()).completed(attempt);
-            var job=new Job(key.root(),key.root(),10,request,null,List.of(),List.of(),State.WAITING,null,null,limits,attempt.usage(),attempt.generation(),List.of(attempt),List.of(),null,activity);
+            if(interruptedProduction) {
+                var rootArgs=Map.<String,Value>of("actor",new ActorValue(receipt.actor()),"amount",new IntValue(1),
+                        "source",new ContainerValue(receipt.destination()),"destination",new ContainerValue(
+                                new ContainerRef(receipt.actor().dimension(),12,64,10)));
+                request=new ValidatedRequest(new CapabilityRequest(OakPlankProduction.ID,rootArgs),intent.origin(),observation);
+                attempt=new Attempt(key.attempt(),key.generation(),receipt.actor(),bound,limits,attempt.executions(),Map.of(),List.of(),0,0,
+                        new Outcomes.Execution(Outcomes.ExecutionStatus.INTERRUPTED,Outcomes.Reason.INTERRUPTED,0,null),true,0,List.of());
+                step=new ActivityPayload.Step(step.id(),step.proposal(),step.token(),step.bodyDigest(),step.signature(),0,1,artifact,null,
+                        ActivityPayload.Quantities.exact(1),limits,2,null,bound.request(),0);
+                var control=new ActivityPayload.ProductionControl(receipt.source(),1,
+                        dev.aivillages.core.kernel.production.planning.PlanningModel.Memory.empty(),"",0);
+                activity=ActivityPayload.initial(OakPlankProduction.ID,8).prepared(step,8,true).assigned(attempt.id()).planning(control);
+            }
+            var job=new Job(key.root(),key.root(),10,request,null,List.of(),List.of(),interruptedProduction?State.INTERRUPTED:State.WAITING,
+                    interruptedProduction?Outcomes.Reason.INTERRUPTED:null,null,limits,attempt.usage(),attempt.generation(),List.of(attempt),List.of(),null,activity);
             var snapshot=new Snapshot(key.world(),1,List.of(job),List.of());var clock=Clock.fixed(Instant.ofEpochMilli(100),ZoneOffset.UTC);
             jobs=new JobLifecycleStore(snapshot,(a,b)->CompletableFuture.completedFuture(b),JobLifecycleStore.privateJobs((a,c)->true),c->{},PlanningGoals.catalog(),
                     new RequestEnvironment(){public boolean enrolled(ActorRef a,TrustedContext c){return true;}public boolean loaded(Cuboid a,ObservationRef o){return true;}public boolean available(ContainerRef c,ObservationRef o){return true;}},clock,Settings.defaults(),false);

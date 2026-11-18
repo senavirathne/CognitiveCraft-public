@@ -323,11 +323,13 @@ def run_case(root, case, seed, cohort):
         row.update(before=before, clientBefore=client, actor=h.entities["PlayerA"], citizen=h.citizens["PlayerA"],
                    principal=h.players["PlayerA"], foreignPrincipal=h.players["PlayerB"], knownPins=h.artifacts,
                    modelCallsBefore=h.model_calls(), initialCheckpoint=h.save_checkpoint())
-        if cut:
-            h.clock("tick rate 2")
         row["request"] = request(h)
         root_id = row["request"]["root"]
         require(root_id, "The ordinary player goal did not resolve to an activity owner")
+        if cut:
+            # Reference discovery keeps its real, bounded wall-clock deadline.
+            # Slow only the admitted activity whose physical cut is measured.
+            h.clock("tick rate 2")
         row["firstJob"] = h.wait(lambda: h.job_view("PlayerA", root_id), "Published original activity Job", 60)
         atomic(root / "result.json", row)
         if cut:

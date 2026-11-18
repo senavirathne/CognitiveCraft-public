@@ -4,6 +4,7 @@ import argparse
 from collections import Counter
 import json
 import gzip
+import math
 from pathlib import Path
 import re
 import shutil
@@ -14,6 +15,7 @@ from uuid import UUID
 
 from .identity import PRODUCTION, ROOT, candidate, sha256, verify_metadata
 from .gameplay import QUALIFICATION_COMPOSE
+from .native_evidence import exact_withdrawals, verify_frames
 
 sys.path.insert(0, str(ROOT / "e2e/parallel_a"))
 from native_nbt import read_nbt
@@ -24,7 +26,7 @@ from parallel_b.baseline import DESTINATION, LOG, OTHER, PLANK, SOURCE, coord
 from parallel_b.guards import clean_owners, instruments, observer_inputs, stopped_process, verified_clock
 from parallel_b.qualification import safe
 from runtime import SDK
-from suite import Harness, UUID_PATTERN, atomic, completed_jsonl, read, require
+from suite import DENIED_PATTERN, Harness, UUID_PATTERN, atomic, completed_jsonl, read, require
 
 
 LIVE = {"birch-q3-root": (DESTINATION, 0), "birch-q3-same-container-old-stock": (SOURCE, 11)}
@@ -32,7 +34,11 @@ LOOKALIKE = "component-bearing-lookalike"
 REMOVAL = "player-removes-checkpoint-stock"
 RESTOCK = "unchanged-planning-then-player-restock"
 NO_METHOD = "installed-recipe-without-admitted-method"
-PENDING = ("birch-q3-child", "birch-q3-crash-before-allocation", "contending-production-actors")
+CONTEND = "contending-production-actors"
+PEER_DESTINATION = [7, 201, 9]
+PENDING = ("birch-q3-child", "birch-q3-crash-before-allocation",
+           "ambiguous-withdrawal-isolates-unrelated-actor",
+           "identical-table-ambiguity-fences", "removed-replaced-table-invalidates-facility")
 QUANTITIES = {"demand": 3, "yield": 4, "batches": 1, "produced": 4, "allocation": 3,
               "surplus": 1, "remainders": 0}
 STAGES = ["WITHDRAW", "CRAFT", "DEPOSIT"]
@@ -84,12 +90,21 @@ def production_command(h, destination):
             + " birch-planks 3 " + coord(SOURCE + destination))
 
 
+def fixture_slots(h, position, slots):
+    require(not h.actions_active and all(0 <= slot < 27 and 1 <= count <= 64
+                                        for slot, (_, count) in slots.items()), "Bounded pre-request inventory setup")
+    h.console(["item replace block " + coord(position) + " container." + str(slot) + " with " +
+               (slots[slot][0] + " " + str(slots[slot][1]) if slot in slots else "minecraft:air")
+               for slot in range(27)])
+
+
 def exercise(h, name, destination, old):
-    slots = ['{Slot:26b,id:"minecraft:birch_log",count:1}', '{Slot:0b,id:"minecraft:cobblestone",count:2}']
+    slots = {26: (LOG, 1), 0: ("minecraft:cobblestone", 2)}
     if old:
-        slots.append('{Slot:1b,id:"minecraft:birch_planks",count:11}')
-    h.console(["data merge block " + coord(SOURCE) + " {Items:[" + ",".join(slots) + "]}"]
-              + ([] if old else ["data merge block " + coord(destination) + " {Items:[]}"]))
+        slots[1] = (PLANK, 11)
+    fixture_slots(h, SOURCE, slots)
+    if not old:
+        fixture_slots(h, destination, {})
     h.wait(lambda: h.container(SOURCE, LOG) == 1 and h.container(destination, PLANK) == old,
            "Actual installed original q3 inventory")
     require(h.menu_count("PlayerA", SOURCE, LOG) == 1 and h.menu_count("PlayerA", destination, PLANK) == old,
@@ -159,15 +174,15 @@ def menu_stock(menu):
                  for player in (False, True))
 
 
-def submit_root(h, command):
-    feedback = h.command("PlayerA", command, r"activity=|accepted=false", 45)
+def submit_root(h, command, player="PlayerA"):
+    feedback = h.command(player, command, r"activity=|accepted=false", 45)
     match = re.search(r"activity=(" + UUID_PATTERN + ")", feedback)
     require(match and "accepted=true" in feedback, "Original public activity was not admitted: " + feedback)
     return match.group(1), feedback
 
 
-def original_job(h, root):
-    return h.snapshot()["players"]["PlayerA"]["jobs"].get(root)
+def original_job(h, root, player="PlayerA"):
+    return h.snapshot()["players"][player]["jobs"].get(root)
 
 
 def dormant(h, root):
@@ -179,9 +194,9 @@ def dormant(h, root):
 
 
 def restock(h):
-    h.console(["data merge block " + coord(SOURCE) + " {Items:[]}",
-               "data merge block " + coord(DESTINATION) + " {Items:[]}",
-               "clear PlayerA", "give PlayerA " + LOG + " 1"])
+    fixture_slots(h, SOURCE, {})
+    fixture_slots(h, DESTINATION, {})
+    h.console(["clear PlayerA", "give PlayerA " + LOG + " 1"])
     h.wait(lambda: h.container(SOURCE, LOG) == h.container(DESTINATION, PLANK) == 0,
            "Original empty source and destination")
     before = h.snapshot()
@@ -226,8 +241,8 @@ def restock(h):
 
 
 def missing_method(h):
-    h.console(['data merge block ' + coord(SOURCE) + ' {Items:[{Slot:26b,id:"minecraft:acacia_log",count:1}]}',
-               "data merge block " + coord(DESTINATION) + " {Items:[]}"])
+    fixture_slots(h, SOURCE, {26: ("minecraft:acacia_log", 1)})
+    fixture_slots(h, DESTINATION, {})
     h.wait(lambda: h.container(SOURCE, "minecraft:acacia_log") == 1, "Real installed alternative input")
     require(h.menu_count("PlayerA", SOURCE, "minecraft:acacia_log") == 1, "Actual client did not see input")
     before = h.snapshot()
@@ -257,11 +272,105 @@ def missing_method(h):
             "after": after, "screenshot": screenshot}
 
 
+def contention(h):
+    h.start("PlayerB")
+    old_actors = {actor["uuid"] for actor in h.snapshot()["actors"]}
+    h.console(["op PlayerB", "gamemode survival PlayerB", "tp PlayerB 15.5 201 7.5",
+               'summon minecraft:villager 15.5 201 5.5 {PersistenceRequired:1b}',
+               "clear PlayerB", "give PlayerB " + LOG + " 2"])
+    def native_subject():
+        frame = h.snapshot()
+        actors = [a for a in frame["actors"] if a["uuid"] not in old_actors]
+        client = h.client_snapshot("PlayerB")
+        return actors[0] if (len(actors) == 1 and actors[0]["alive"] and not actors[0]["baby"]
+                             and not actors[0]["noAI"] and client and client["play"]
+                             and math.dist(client["pos"], [15.5, 201, 7.5]) < 1) else None
+    peer = h.wait(native_subject, "Distinct connected principal and normal adult subject for contention", 35)
+    h.enroll("PlayerB", "Lina")
+    require(h.entities["PlayerB"] == peer["uuid"] and h.players["PlayerB"] != h.players["PlayerA"],
+            "Contention did not use independent authorized actors")
+    h.console(["deop PlayerB", "tp " + h.entities["PlayerA"] + " 5.5 201 7.5",
+               "tp " + h.entities["PlayerB"] + " 6.5 201 6.5",
+               "setblock " + coord(PEER_DESTINATION) + " minecraft:chest"])
+    fixture_slots(h, SOURCE, {26: (LOG, 5)})
+    fixture_slots(h, DESTINATION, {})
+    fixture_slots(h, PEER_DESTINATION, {})
+    h.wait(lambda: h.container(SOURCE, LOG) == 5 and all(any(a["uuid"] == h.entities[player]
+                   and math.dist(a["pos"], pose) < 1 for a in h.snapshot()["actors"])
+                   for player, pose in (("PlayerA", [5.5, 201, 7.5]), ("PlayerB", [6.5, 201, 6.5]))),
+           "Five native logs and original bounded pre-request poses", 30)
+    require(h.menu_count("PlayerB", SOURCE, LOG) == 5, "Second client did not observe the five-log start")
+    h.walk("PlayerB", SOURCE)
+    before = h.snapshot()
+    commands = {player: ("/aivillage kernel production-activity " + h.citizens[player] + " birch-planks "
+                        + str(amount) + " " + coord(SOURCE + destination))
+                for player, amount, destination in (("PlayerA", 12, DESTINATION), ("PlayerB", 16, PEER_DESTINATION))}
+    h.actions_active = True
+    verified_clock(h, "tick rate 2")
+    a, af = submit_root(h, commands["PlayerA"])
+    claimed = h.wait(lambda: (frame if (frame := h.snapshot()) and any(
+                    lease["owner"]["job"] == a and lease["state"] == "ACTIVE"
+                    and lease["resource"]["item"] == "cognitivecraft:recipe_source"
+                    for lease in frame["knownPlayers"]["PlayerA"]["leases"]) else None),
+                    "A holds its actual imminent source claim before B is considered", 70)
+    b, bf = submit_root(h, commands["PlayerB"], "PlayerB")
+    overlapping = h.wait(lambda: (frame if (frame := h.snapshot()) and
+                         frame["knownPlayers"]["PlayerA"]["jobs"][a]["state"] == "ACTIVE"
+                         and b in frame["knownPlayers"]["PlayerB"]["jobs"]
+                         and frame["knownPlayers"]["PlayerB"]["jobs"][b]["state"] == "WAITING" else None),
+                         "Original A and waiting B overlap in one native world", 40)
+    verified_clock(h, "tick rate 20")
+    h.wait(lambda: (job if (job := original_job(h, a)) and job["state"] == "SUCCEEDED" else None),
+           "Original A consumes three logs and settles twelve attributable planks", 180)
+    def needs_two():
+        frame = h.snapshot()
+        job = frame["knownPlayers"]["PlayerB"]["jobs"].get(b)
+        return frame if (h.container(SOURCE, LOG) == 2 and job and job["state"] == "WAITING"
+                         and not job["attempts"] and not job["activity"]["steps"]
+                         and clean_owners(frame["knownPlayers"]["PlayerA"])) else None
+    waiting = h.wait(needs_two, "B cannot manufacture four-log demand from the two remaining logs", 45)
+    h.quiet(60)
+    h.action("PlayerB", "open", pos=SOURCE)
+    def open_supply():
+        menu = h.client_snapshot("PlayerB")
+        slot = next((s for s in menu.get("slots", []) if s["playerInventory"] and s["item"] == LOG
+                     and s["count"] == 2), None) if menu else None
+        return (menu, slot) if menu and menu["menu"] and slot else None
+    menu, slot = h.wait(open_supply, "B's client holds the independently recorded two-log addition", 25)
+    verified_clock(h, "tick freeze")
+    transfer_action = h.action("PlayerB", "menu-click", slot=slot["slot"], quick=True)
+    transferred = h.wait(lambda: (menu if (menu := h.client_snapshot("PlayerB")) and menu["menu"]
+                         and sum(s["count"] for s in menu["slots"] if not s["playerInventory"] and s["item"] == LOG) == 4
+                         and not any(s["playerInventory"] and s["item"] == LOG for s in menu["slots"]) else None),
+                         "Actual source increases from two to four through a real client transfer", 15)
+    h.action("PlayerB", "close-menu")
+    supplied = h.snapshot()
+    verified_clock(h, "tick unfreeze")
+    h.wait(lambda: (job if (job := original_job(h, b, "PlayerB")) and job["state"] in
+           ("SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED") else None), "Original B responds to the supply change", 180)
+    h.wait(lambda: all(clean_owners(frame) for frame in h.snapshot()["knownPlayers"].values()),
+           "Both original contention owners and claims settled", 45)
+    after = h.snapshot()
+    require(after["knownPlayers"]["PlayerB"]["jobs"][b]["state"] == "SUCCEEDED", "Restocked B failed")
+    h.actions_active = False
+    screens = [h.screenshot(player, CONTEND + "-" + player, chat=True) for player in ("PlayerA", "PlayerB")]
+    views = {player: h.command(player, "/aivillage kernel activity " + root, "activity=" + root)
+             for player, root in (("PlayerA", a), ("PlayerB", b))}
+    denied = {player: h.command(player, "/aivillage kernel activity " + root, DENIED_PATTERN)
+              for player, root in (("PlayerA", b), ("PlayerB", a))}
+    save_world(h, CONTEND)
+    return {"id": CONTEND, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "before": before, "claimed": claimed,
+            "overlapping": overlapping, "waiting": waiting, "supplied": supplied, "after": after,
+            "roots": {"PlayerA": a, "PlayerB": b}, "commands": commands,
+            "feedback": {"PlayerA": af, "PlayerB": bf}, "beforeMenu": menu, "afterMenu": transferred,
+            "clientAction": transfer_action, "views": views, "denied": denied, "screenshots": screens,
+            "actors": {player: h.entities[player] for player in ("PlayerA", "PlayerB")}}
+
+
 def lookalike(h):
-    h.console(['data merge block ' + coord(SOURCE) + ' {Items:[{Slot:26b,id:"minecraft:birch_log",count:1,'
-               'components:{"minecraft:custom_name":{text:"I00 lookalike"}}},'
-               '{Slot:0b,id:"minecraft:cobblestone",count:2}]}',
-               "data merge block " + coord(DESTINATION) + " {Items:[]}"])
+    fixture_slots(h, SOURCE, {26: (LOG + '[minecraft:custom_name={text:"I00 lookalike"}]', 1),
+                              0: ("minecraft:cobblestone", 2)})
+    fixture_slots(h, DESTINATION, {})
     h.wait(lambda: h.container(SOURCE, LOG) == 1 and h.container(DESTINATION, PLANK) == 0,
            "Named native item has the same ID and quantity as the valid input")
     require(h.menu_count("PlayerA", SOURCE, LOG) == 1, "Real client sees same item ID/quantity")
@@ -303,6 +412,7 @@ def run(args, identity):
         h.start("PlayerA")
         h.wait(lambda: clean_owners(h.snapshot()["knownPlayers"]["PlayerA"]), "Initial legacy owners closed", 45)
         h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
+        h.console(["deop PlayerA"])
         for name, (destination, old) in LIVE.items():
             path = h.root / "cases" / name / "result.json"
             try:
@@ -316,6 +426,7 @@ def run(args, identity):
         atomic(h.root / "cases" / LOOKALIKE / "result.json", lookalike(h))
         atomic(h.root / "cases" / RESTOCK / "result.json", restock(h))
         atomic(h.root / "cases" / NO_METHOD / "result.json", missing_method(h))
+        atomic(h.root / "cases" / CONTEND / "result.json", contention(h))
     finally:
         h.finish()
 
@@ -539,6 +650,85 @@ def verify_missing_method(raw, row, recipe, events, frames):
             "installedRecipe": True, "admittedWitnessMissing": True, "nativeEffects": 0, "newModelCalls": 0}
 
 
+def verify_contention(raw, row, seed, frames):
+    selected = [row[key] for key in ("before", "claimed", "overlapping", "waiting", "supplied", "after")]
+    before, _, overlap, waiting, supplied, after = selected
+    events = {player: completed_jsonl(raw / "clients" / player / "events.jsonl") for player in ("PlayerA", "PlayerB")}
+    a, b = row["roots"]["PlayerA"], row["roots"]["PlayerB"]
+    require(a != b and before["knownPlayers"]["PlayerA"]["uuid"] != before["knownPlayers"]["PlayerB"]["uuid"]
+            and row["actors"]["PlayerA"] != row["actors"]["PlayerB"], "Contention collapsed original principals or workers")
+    require(stock(before, SOURCE).get(LOG) == 5 and stock(waiting, SOURCE).get(LOG) == 2
+            and stock(supplied, SOURCE).get(LOG) == 4 and stock(after, SOURCE).get(LOG, 0) == 0,
+            "Five original logs and independent two-log addition do not reconcile")
+    require(overlap["knownPlayers"]["PlayerA"]["jobs"][a]["state"] == "ACTIVE"
+            and overlap["knownPlayers"]["PlayerB"]["jobs"][b]["state"] == "WAITING"
+            and waiting["knownPlayers"]["PlayerA"]["jobs"][a]["state"] == "SUCCEEDED"
+            and waiting["knownPlayers"]["PlayerB"]["jobs"][b]["state"] == "WAITING"
+            and not waiting["knownPlayers"]["PlayerB"]["jobs"][b]["attempts"],
+            "B did not wait for infeasible original stock while A made useful progress")
+    claimed = [lease for lease in row["claimed"]["knownPlayers"]["PlayerA"]["leases"]
+               if lease["owner"]["job"] == a and lease["state"] == "ACTIVE"]
+    require(claimed and any(lease["resource"]["item"] == "cognitivecraft:recipe_source" for lease in claimed)
+            and all(lease["granted"] < lease["expires"] <= lease["granted"] + 1200
+                    and lease["renewals"] <= 8 for lease in claimed), "No finite actual imminent A claim")
+    client_amount = lambda menu, player: sum(slot["count"] for slot in menu["slots"]
+                                            if slot["item"] == LOG and slot["playerInventory"] is player)
+    require((client_amount(row["beforeMenu"], False), client_amount(row["beforeMenu"], True),
+             client_amount(row["afterMenu"], False), client_amount(row["afterMenu"], True)) == (2, 2, 4, 0)
+            and any(event["kind"] == "action" and event["data"].get("action") == "menu-click"
+                    and event["data"].get("quick") is True for event in events["PlayerB"]),
+            "The independent two-log addition lacks actual client evidence")
+    seen_receipts, summaries = set(), []
+    for player, root, amount, inputs, destination in (("PlayerA", a, 12, 3, DESTINATION),
+                                                     ("PlayerB", b, 16, 4, PEER_DESTINATION)):
+        job = after["knownPlayers"][player]["jobs"][root]
+        principal, actor = before["knownPlayers"][player]["uuid"], row["actors"][player]
+        args = job["request"]["request"]["arguments"]
+        require(job["state"] == "SUCCEEDED" and job["fulfilled"] == amount and not job.get("parent")
+                and args["amount"]["value"] == amount and args["actor"]["value"]["entityId"] == actor
+                and job["request"]["context"]["principal"]["id"] == principal
+                and job["allowance"] == overlap["knownPlayers"][player]["jobs"][root]["allowance"],
+                "Original contender authority, goal or completion changed")
+        require([args["source"]["value"][axis] for axis in ("x", "y", "z")] == SOURCE
+                and [args["destination"]["value"][axis] for axis in ("x", "y", "z")] == destination,
+                "Original contention source/destination changed")
+        receipts = [receipt for attempt in job["attempts"] for receipt in attempt["resourceReceipts"]]
+        require(len(job["attempts"]) == len(job["activity"]["steps"]) == len(job["activity"]["checkpoints"]) == 1
+                and all(not attempt["uncertain"] and attempt["terminal"]["status"] == "SUCCEEDED" for attempt in job["attempts"])
+                and job["activity"]["steps"][0]["artifact"]["sha256"] == seed["method"]
+                and exact_withdrawals(job, receipts) == {LOG: inputs}
+                and [r["stage"] for r in receipts] == STAGES * inputs
+                and sum(r["quantity"] for r in receipts if r["stage"] == "CRAFT") == amount
+                and sum(r["quantity"] for r in receipts if r["stage"] == "DEPOSIT") == amount,
+                "Contender repeated native work or lost exact recipe/attempt lineage")
+        for receipt in receipts:
+            require(receipt["receiptId"] not in seen_receipts and receipt["origin"]["principal"]["id"] == principal
+                    and receipt["actor"]["entityId"] == actor and receipt["choice"]["root"] == root,
+                    "Receipt authority crossed contenders or duplicated")
+            seen_receipts.add(receipt["receiptId"])
+        require(stock(before, destination).get(PLANK, 0) == 0 and stock(after, destination).get(PLANK) == amount
+                and next(a["inventory"] for a in before["actors"] if a["uuid"] == actor)
+                    == next(a["inventory"] for a in after["actors"] if a["uuid"] == actor)
+                and feedback_in(events[player], row["feedback"][player]) and feedback_in(events[player], row["views"][player])
+                and "remaining=0" in row["views"][player] and root not in row["denied"]["PlayerB" if player == "PlayerA" else "PlayerA"],
+                "Actual contender delivery, residual custody or private view differs")
+        saved = original(raw / "cases" / CONTEND / "saved-world", root)
+        require(saved["state"] == "SUCCEEDED" and allowance(saved["allowance"], job["allowance"])
+                and chest(raw / "cases" / CONTEND / "saved-world", destination).get(PLANK) == amount,
+                "Actual saved contender is missing its original allowance or delivery")
+        summaries.append({"root": root, "principal": principal, "actor": actor, "consumedLogs": inputs, "delivered": amount})
+    require(all(frame[k] == before[k] for frame in selected for k in ("needleCalls", "generationCalls"))
+            and all(clean_owners(frame) for frame in after["knownPlayers"].values())
+            and not any(drop["item"] in (LOG, PLANK) for frame in (before, after) for drop in frame["drops"]),
+            "Contention regenerated known methods or left original owners open")
+    verify_frames(raw, row["screenshots"], minimum=2)
+    require({screen["player"] for screen in row["screenshots"]} == {"PlayerA", "PlayerB"}, "Both real clients require frames")
+    frame_link(frames, *selected)
+    return {"id": CONTEND, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE", "originalLogs": 5,
+            "independentlyAddedLogs": 2, "consumedLogs": 7, "deliveredPlanks": 28,
+            "originalOwnersSettled": 2, "newModelCalls": 0, "contenders": summaries}
+
+
 def review(raw, identity):
     metadata = read(raw / "metadata.json")
     verify_metadata(metadata, identity)
@@ -558,7 +748,7 @@ def review(raw, identity):
     require(any(event["kind"] == "play" for event in events), "No live Minecraft client connected")
     recipe = read(raw / "oracle-recipes.json")
     frames, cases = {}, []
-    for name in (*LIVE, REMOVAL, LOOKALIKE, RESTOCK, NO_METHOD, *PENDING):
+    for name in (*LIVE, REMOVAL, LOOKALIKE, RESTOCK, NO_METHOD, CONTEND, *PENDING):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
             cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})
@@ -572,6 +762,8 @@ def review(raw, identity):
             cases.append(verify_restock(raw, row, seed, events, frames))
         elif name == NO_METHOD:
             cases.append(verify_missing_method(raw, row, recipe, events, frames))
+        elif name == CONTEND:
+            cases.append(verify_contention(raw, row, seed, frames))
         else:
             raise ValueError("No independent reviewer for the claimed case " + name)
     with (raw / "server/observations.jsonl").open() as stream:
