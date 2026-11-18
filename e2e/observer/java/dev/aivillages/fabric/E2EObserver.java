@@ -57,8 +57,6 @@ public final class E2EObserver implements ModInitializer {
         out.addProperty("java", System.getProperty("java.version"));
         var level = server.overworld();
         out.addProperty("gameTick", level.getGameTime());
-        out.add("nativeClock", JSON.toJsonTree(Map.of("rate",server.tickRateManager().tickrate(),
-                "frozen",server.tickRateManager().isFrozen())));
         if (assessment) {
             if (vanillaRecipeEvidence == null) vanillaRecipeEvidence = vanillaRecipes(server);
             out.add("assessmentVanillaRecipes",vanillaRecipeEvidence);

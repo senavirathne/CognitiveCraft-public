@@ -102,8 +102,14 @@ def fixture_slots(h, position, slots):
 def verified_clock(h, command):
     require(command in ("tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20"),
             "Original bounded native clock command required")
-    before = h.snapshot()
     deadline = time.monotonic() + 30
+    def observed():
+        query = {"id": str(uuid4()), "positions": []}
+        atomic(h.root / "server/b-probe.json", query)
+        return h.wait(lambda: (frame if (frame := read(h.root / "server/b-probe-response.json"))
+                      and frame["id"] == query["id"] and frame["worldEffects"] == 0 else None),
+                      "Actual read-only native clock query", max(0, deadline - time.monotonic()))
+    before = observed()
     expected = dict(before["nativeClock"])
     if command.startswith("tick rate "):
         expected["rate"] = int(command.split()[-1])
@@ -113,9 +119,9 @@ def verified_clock(h, command):
     request = {"id": str(uuid4()), "commands": [command]}
     atomic(h.root / "server/control.json", request)
     h.wait(lambda: (ack if (ack := read(h.root / "server/control-ack.json")) and ack["id"] == request["id"] else None),
-           "Only console delivery; native clock observation is still required", 30)
-    after = h.wait(lambda: (frame if (frame := h.snapshot()) and frame["pid"] == before["pid"]
-                   and frame["time"] > before["time"] and frame["tick"] > before["tick"]
+           "Only console delivery; native clock observation is still required", max(0, deadline - time.monotonic()))
+    after = h.wait(lambda: (frame if (frame := observed()) and frame["pid"] == before["pid"]
+                   and frame["time"] > before["time"] and frame["sequence"] > before["sequence"]
                    and frame["nativeClock"] == expected else None),
                    "Observed native clock transition with both ordinary clients deopped", max(0, deadline - time.monotonic()))
     h.event("verified-native-clock-transition", {"request": request, "before": before, "after": after})
@@ -777,6 +783,7 @@ def review(raw, identity):
     require([row["request"]["commands"] for row in clocks] == [[command] for command in (
             "tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze")],
             "Missing exact native clock transitions for restock and contention")
+    clock_frames = {}
     for row in clocks:
         before, after = row["before"], row["after"]
         expected = dict(before["nativeClock"])
@@ -786,9 +793,17 @@ def review(raw, identity):
         else:
             expected["frozen"] = command == "tick freeze"
         require(before["pid"] == after["pid"] and before["time"] < after["time"]
-                and before["tick"] < after["tick"] and before["nativeClock"] != expected == after["nativeClock"],
+                and before["sequence"] < after["sequence"] and before["nativeClock"] != expected == after["nativeClock"]
+                and all(frame["worldEffects"] == 0 and frame["positions"] == [] for frame in (before, after)),
                 "Clock delivery did not prove the actual native state transition")
-        frame_link(frames, before, after)
+        for frame in (before, after):
+            clock_frames[frame["id"], frame["sequence"]] = frame
+    for line in (raw / "server/i00-native-clock.jsonl").read_text().splitlines():
+        frame = json.loads(line)
+        key = frame["id"], frame["sequence"]
+        if key in clock_frames:
+            require(frame == clock_frames.pop(key), "Native clock evidence differs from the original read-only query")
+    require(not clock_frames, "Missing original native clock queries")
     for name in (*LIVE, REMOVAL, LOOKALIKE, RESTOCK, NO_METHOD, CONTEND, *PENDING):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
