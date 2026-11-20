@@ -146,6 +146,20 @@ def original_lineage(row, *, resumed):
                 "Saved original attempts were replaced instead of reconciled")
         require(all(warm["usage"].get(k, 0) >= quantity and final["usage"].get(k, 0) >= warm["usage"].get(k, 0)
                     for k, quantity in at_cut["usage"].items()), "Original cumulative allowance refilled across restart")
+        final_steps = {s.get("attempt"): s for s in final["activity"]["steps"] if s.get("attempt")}
+        for prior, current in zip(at_cut["attempts"], final["attempts"]):
+            require(prior["bound"] == current["bound"] and prior["worker"] == current["worker"]
+                    and prior["allowance"] == current["allowance"] and prior["executions"] == current["executions"]
+                    and current["resourceReceipts"][:len(prior["resourceReceipts"])] == prior["resourceReceipts"]
+                    and all(current["usage"].get(k, 0) >= n for k, n in prior["usage"].items()),
+                    "Saved attempt changed its method, authority, receipts or allowance")
+            before = next(s for s in at_cut["activity"]["steps"] if s.get("attempt") == prior["id"])
+            after = final_steps[prior["id"]]
+            require({k: v for k, v in after.items() if k != "savedPrefixEffects"} ==
+                    {k: v for k, v in before.items() if k != "savedPrefixEffects"}, "Saved assignment window or exact choice changed")
+            if row["requiredCut"] in {"after-wood-collection", "after-craft"} and prior is at_cut["attempts"][-1]:
+                require(after.get("savedPrefixEffects") == prior["effects"] and len(current["resourceReceipts"]) == prior["effects"] + 1,
+                        "Only the original pending delivery can complete a saved partial attempt")
 
 
 def restart_review(folder, row, paths, cohort, jar):
@@ -163,6 +177,13 @@ def restart_review(folder, row, paths, cohort, jar):
     native_freezes = [event for event in events if event["kind"] == "verified-native-clock" and event["data"]["command"] == "tick freeze"]
     require(len(native_freezes) == 1 and clock_response("tick freeze", native_freezes[0]["data"]["feedback"])
             and native_freezes[0]["time"] < stops[0]["time"], "No acknowledged native freeze preceding the actual stop")
+    rates = [event for event in events if event["kind"] == "verified-native-clock"
+             and event["data"]["command"].startswith("tick rate ")]
+    require([event["data"]["command"] for event in rates] == ["tick rate 4", "tick rate 20"]
+            and all(clock_response(event["data"]["command"], event["data"]["feedback"]) for event in rates)
+            and rates[0]["time"] <= native_freezes[0]["time"] < stops[0]["time"] < rates[1]["time"]
+            and row["nativeCutArmedAt"]["tick"] <= row["cut"]["state"]["tick"],
+            "The native rate change did not bracket the actual interrupted phase")
     saves = [event["data"] for event in events if event["kind"] == "acknowledged-world-checkpoint" and event["time"] < stops[0]["time"]]
     if cohort == "unsaved":
         require(saves == [row["initialCheckpoint"]] and "afterCutSave" not in row, "Unsaved cut forced a checkpoint")

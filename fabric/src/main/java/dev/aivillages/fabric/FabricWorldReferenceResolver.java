@@ -5,10 +5,16 @@ import dev.aivillages.core.kernel.LanguageRequests;
 import dev.aivillages.core.kernel.SurvivalGateway;
 import dev.aivillages.core.kernel.WorldReferenceBinding;
 import dev.aivillages.core.kernel.WorldReferenceDiscovery;
+import dev.aivillages.core.kernel.WorldReferenceResolver.Reference;
+import dev.aivillages.core.kernel.WorldReferenceResolver.ReferenceState;
 import dev.aivillages.core.kernel.WorldReferenceResolver.Point;
 import dev.aivillages.core.kernel.WorldReferenceResolver.ObjectType;
+import dev.aivillages.core.kernel.WoodenAxeProduction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import java.time.Clock;
 import java.util.Objects;
 import static dev.aivillages.core.kernel.Contracts.*;
@@ -16,6 +22,29 @@ import static dev.aivillages.core.kernel.Contracts.*;
 /** Game-thread loaded-only observation adapter for the reusable core binding policy. */
 final class FabricWorldReferenceResolver implements LanguageRequests.ResolutionHandle {
     private final WorldReferenceBinding binding;
+
+    /** A progressive axe request can name the chest the authorized caller is pointing at. */
+    static LanguageRequests.Intent pointedProductionDestination(FabricGatewayWorld world, ServerPlayer player,
+                                                                  LanguageRequests.Intent intent) {
+        if (!(intent instanceof LanguageRequests.HarvestIntent harvest)
+                || !WoodenAxeProduction.ID.equals(harvest.capability())) return intent;
+        var destination = harvest.destination();
+        if (destination.state() != ReferenceState.EXPLICIT_NEAREST || destination.objectType() != ObjectType.CHEST
+                || destination.evidence() == null
+                || !destination.evidence().replaceAll("\\s+", " ").equalsIgnoreCase("this chest")) return intent;
+
+        // Coordinates come from the server's current view of the player and still go through
+        // normal typed container, capacity, scope and authority validation in the binding.
+        if (!(player.pick(Math.min(player.blockInteractionRange(), 5.0), 1.0F, false) instanceof BlockHitResult hit)
+                || hit.getType() != HitResult.Type.BLOCK || !world.loadedForDiscovery(hit.getBlockPos())) return intent;
+        var pos = hit.getBlockPos();
+        var state = player.level().getBlockState(pos);
+        if (!state.is(Blocks.CHEST) && !state.is(Blocks.TRAPPED_CHEST)) return intent;
+        var selected = Reference.concrete(new LanguageRequests.Coordinates(pos.getX(), pos.getY(), pos.getZ()),
+                destination.evidence(), ObjectType.CHEST);
+        return new LanguageRequests.HarvestIntent(harvest.actor(), harvest.amount(), harvest.source(), selected,
+                harvest.capability(), harvest.table());
+    }
 
     FabricWorldReferenceResolver(FabricGatewayWorld world, CitizenRegistry citizens,
                                  TrustedContext caller, ServerPlayer player,

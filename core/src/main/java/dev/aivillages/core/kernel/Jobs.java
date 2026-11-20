@@ -253,7 +253,7 @@ public final class Jobs {
     public record Cancellation(UUID jobId, UUID attemptId, long generation, TrustedContext origin) { }
 
     /** A-owned runtime boundary. Observations are supplied by a registered native host, never JSON. */
-    public enum StoppedKind { WAIT_WORLD, AMBIGUOUS, STOPPED, NO_EFFECT, EFFECT_COMPLETE, PARTIAL, DELIVERED_UNIT }
+    public enum StoppedKind { WAIT_WORLD, AMBIGUOUS, STOPPED, NO_EFFECT, EFFECT_COMPLETE, PARTIAL, DELIVERED_UNIT, CONTINUABLE }
     public record StoppedContext(UUID world, UUID job, Guard guard, UUID attempt, long generation,
                                  TrustedContext origin, Attempt original) {
         public StoppedContext {
@@ -278,6 +278,10 @@ public final class Jobs {
             if ((kind == StoppedKind.NO_EFFECT || kind == StoppedKind.EFFECT_COMPLETE || kind == StoppedKind.PARTIAL || kind == StoppedKind.DELIVERED_UNIT)
                     && (report == null || report.terminal() == null))
                 throw new IllegalArgumentException("Complete native report required");
+            if (kind == StoppedKind.CONTINUABLE && (report == null || report.terminal() != null
+                    || report.effects() < 2 || !report.receipts().isEmpty()
+                    || report.resourceReceipts().size() != report.effects()))
+                throw new IllegalArgumentException("Saved native prefix required for continuation");
             if (kind == StoppedKind.NO_EFFECT && (report.effects() != 0 || !report.receipts().isEmpty()
                     || !report.resourceReceipts().isEmpty() || report.terminal().status() == ExecutionStatus.SUCCEEDED))
                 throw new IllegalArgumentException("No-effect evidence contradicts physical work");

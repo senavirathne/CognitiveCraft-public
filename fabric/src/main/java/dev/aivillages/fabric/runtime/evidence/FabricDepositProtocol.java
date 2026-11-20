@@ -126,8 +126,8 @@ public final class FabricDepositProtocol implements DepositProtocol {
             boolean permitted=pickups==null?preflight.getAsBoolean():lineage!=null;
             if(!permitted)throw new Refused(Reason.INTERRUPTED);
             phases[0]=System.nanoTime();
-            var owner=new JobLeaseOwners(jobs,clock).byRun(request.bound(),request.correlation());
-            var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
+            var job=new JobLeaseOwners(jobs,clock).execution(request.bound(),request.correlation());
+            var owner=new ResourceLeases.Owner(job.id(),job.generation());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new Refused(Reason.INTERRUPTED);
             phases[1]=System.nanoTime();
             Participant capturedActor=lineage==null?null:lineage.prefix().pickup().result().actor();
@@ -258,6 +258,15 @@ public final class FabricDepositProtocol implements DepositProtocol {
     /** Bounded, explicitly requested historical classification; never invokes a gateway action. */
     public DepositEvidenceStore.Reconciled reconcile(Key key){check();return store.reconcile(key);}
     public DepositEvidenceStore.Code verify(DepositEvidenceStore.Reconciled proof){check();var code=store.verify(proof);if(code==DepositEvidenceStore.Code.RESOLVED)observer.accept(Point.VERIFICATION_ACKNOWLEDGED);return code;}
+    /** The unmoved recipient of an earlier joined unit, examined independently of the successor's actor state. */
+    public boolean restoredRecipient(Entry entry) {
+        check();
+        if (store.fenced() || store.pending() || entry.result() == null || entry.result().live() != Live.COMPLETE) return false;
+        var chest = witness(entry.result().chest());
+        var expected = new Marker(entry.token(), entry.intent().digest(), MarkerPhase.RESULT, entry.result().digest());
+        return chest != null && chest.restoredFromNativeSave() && chest.participant().equals(entry.result().chest())
+                && expected.equals(chest.marker());
+    }
     public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;
         if(store.fenced())return true;

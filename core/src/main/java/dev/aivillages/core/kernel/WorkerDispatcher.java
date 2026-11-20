@@ -41,6 +41,10 @@ public final class WorkerDispatcher {
                                     Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
             return new Start(null,Reason.UNSUPPORTED_PRIMITIVE);
         }
+        default Start continueActivity(Jobs.Job job, ValidatedRequest bound, ArtifactRef artifact, UUID run,
+                                       Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
+            return new Start(null, Reason.UNSUPPORTED_PRIMITIVE);
+        }
     }
     @FunctionalInterface public interface ActivityBinding {
         Reason bind(Jobs.Job job,ValidatedRequest bound,ArtifactRef artifact,UUID run);
@@ -89,8 +93,12 @@ public final class WorkerDispatcher {
         return executorPort(executor,catalog,(job,bound,artifact,run)->Reason.UNSUPPORTED_PRIMITIVE);
     }
     public static ExecutionPort executorPort(BoundedSkillExecutor executor, ArtifactCatalog catalog,ActivityBinding activity) {
+        return executorPort(executor, catalog, activity, (job, bound, artifact, run) -> Reason.UNSUPPORTED_PRIMITIVE);
+    }
+    public static ExecutionPort executorPort(BoundedSkillExecutor executor, ArtifactCatalog catalog,
+                                             ActivityBinding activity, ActivityBinding continuation) {
         Objects.requireNonNull(executor);Objects.requireNonNull(catalog);
-        Objects.requireNonNull(activity);
+        Objects.requireNonNull(activity); Objects.requireNonNull(continuation);
         return new ExecutionPort() {
             public List<ArtifactRef> pinned(ArtifactRef ref){return JobArtifactPins.closure(catalog.find(ref).orElseThrow(),catalog);}
             public Start start(ValidatedRequest bound,ArtifactRef ref,UUID id,Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
@@ -103,6 +111,12 @@ public final class WorkerDispatcher {
                 if(job.activity().current().exactChoice())
                     return handle(executor.startAdmittedActivity(bound,ref,new RunCorrelation(id,ref,null),limits,usage,job));
                 return start(bound,ref,id,limits,usage);
+            }
+            public Start continueActivity(Jobs.Job job, ValidatedRequest bound, ArtifactRef ref, UUID id,
+                                          Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
+                Reason refused = continuation.bind(job, bound, ref, id);
+                if (refused != null) return new Start(null, refused);
+                return handle(executor.continueAdmittedActivity(bound, ref, new RunCorrelation(id, ref, null), limits, usage, job));
             }
             private Start handle(BoundedSkillExecutor.Start started) {
                 if(started instanceof BoundedSkillExecutor.Rejected rejected)return new Start(null,rejected.reason());
@@ -140,6 +154,7 @@ public final class WorkerDispatcher {
         final ArtifactRef artifact;
         final List<ArtifactRef> pinned;
         final CapabilityResolver.Decision resolution;
+        final boolean continuation;
         Jobs.Guard expected;
         Phase phase=Phase.CHARGED;
         long generation;
@@ -155,6 +170,16 @@ public final class WorkerDispatcher {
             this.expires=expires;this.resolution=resolution;artifact=resolution.routing().artifact();
             this.pinned=List.copyOf(pinned);this.expected=expected;
             run=UUID.nameUUIDFromBytes((job.id()+":"+(job.generation()+1)+":"+worker.citizenId()).getBytes(StandardCharsets.UTF_8));
+            continuation = false;
+        }
+        Live(Jobs.Job job, long citizenRevision, long expires) {
+            var attempt = job.current();
+            var execution = attempt.executions().getFirst();
+            this.job = job.id(); origin = job.origin(); worker = attempt.worker();
+            this.citizenRevision = citizenRevision; this.expires = expires;
+            artifact = execution.artifact(); pinned = execution.pinned(); run = execution.runId();
+            resolution = null; continuation = true; generation = attempt.generation();
+            bound = attempt.bound(); expected = job.guard(); phase = Phase.ASSIGNING;
         }
         RunCorrelation correlation(){return new RunCorrelation(run,artifact,null);}
     }
@@ -172,6 +197,8 @@ public final class WorkerDispatcher {
     private final Thread thread=Thread.currentThread();
     private final Map<TrustedContext,Cursor> cursors=new LinkedHashMap<>();
     private final Map<UUID,Live> live=new LinkedHashMap<>();
+    private record ResumedPrefix(UUID attempt, long effects) { }
+    private final Map<UUID, ResumedPrefix> resumed = new HashMap<>();
     private final Map<UUID,List<Decision>> diagnostics=new LinkedHashMap<>();
     private long lastTick=-1;
     private boolean closing;
@@ -212,6 +239,30 @@ public final class WorkerDispatcher {
     public boolean ownsAttempt(Jobs.Job job) {
         checkThread();
         return job.current() != null && ownsAttempt(job.id(),job.current().id(),job.generation());
+    }
+    /** Called by the recovery owner with the original, registered native saved-prefix proof. */
+    public boolean continueActivity(Jobs.Job job, Jobs.StoppedEvidence evidence) {
+        checkThread();
+        var step = job.activity() == null ? null : job.activity().current();
+        var attempt = job.current();
+        var previous = resumed.get(job.id());
+        var report = evidence.observation().report();
+        if (closing || !accepts.test(job) || step == null || !step.integrated() || step.assignmentExpiresTick() == null
+                || attempt == null || attempt.executions().size() != 1 || !attempt.executions().getFirst().runId().equals(attempt.id())
+                || evidence.observation().kind() != Jobs.StoppedKind.CONTINUABLE || live.containsKey(job.id())
+                || live.size() >= settings.live() || !jobs.ready() || !workerAccess.ready()
+                || !workerAccess.controls(attempt.worker(), job.origin())
+                || previous != null && previous.attempt().equals(attempt.id()) && previous.effects() >= report.effects()) return false;
+        if (workerAccess.availability(attempt.worker(), job.origin()) != CitizenRegistry.Availability.LOADED
+                || !execution.pinned(step.artifact()).equals(attempt.executions().getFirst().pinned())) return false;
+        resumed.keySet().removeIf(id -> jobs.snapshot().jobs().stream().noneMatch(row -> id.equals(row.id())
+                && row.current() != null && row.current().open()));
+        var holder = new Live(job, workerAccess.revision(), step.assignmentExpiresTick());
+        var change = jobs.continueStopped(job.id(), job.guard(), evidence, ticks.getAsLong(), job.origin());
+        if (!change.accepted()) return false;
+        resumed.put(job.id(), new ResumedPrefix(attempt.id(), report.effects()));
+        live.put(job.id(), holder);
+        return true;
     }
     /** Shutdown stops executor-owned work; durable unfinished records remain interrupted on reload. */
     public void close() {
@@ -357,7 +408,8 @@ public final class WorkerDispatcher {
                     for(var kind:Budgets.Kind.values())maxima.put(kind,Math.min(cap.maximum(kind),allowance.maximum(kind)));
                     allowance=new Budgets.Limits(maxima,Math.min(cap.deadlineEpochMillis(),allowance.deadlineEpochMillis()));
                 }
-                var change=jobs.assign(job.id(),job.guard(),l.run,l.worker,l.artifact,l.pinned,allowance,l.origin);
+                Long expires=job.activity()!=null && job.activity().production()!=null && job.activity().current().integrated()?l.expires:null;
+                var change=jobs.assign(job.id(),job.guard(),l.run,l.worker,l.artifact,l.pinned,allowance,expires,l.origin);
                 if(!change.accepted()){remember(decision(job,l.worker,Code.BLOCKED,l.resolution,change.reason()),work);live.remove(l.job);return;}
                 l.generation=change.job().generation();l.phase=Phase.ASSIGNING;
             }catch(RuntimeException invalid){remember(decision(job,l.worker,Code.BLOCKED,l.resolution,Reason.BUDGET_EXHAUSTED),work);live.remove(l.job);}
@@ -421,12 +473,14 @@ public final class WorkerDispatcher {
                     // Current worker/control and lease state have just been rechecked after both acknowledgements.
                     if(!workerCurrent(l,true))stop(l,Reason.STALE_OBSERVATION,false);
                     else {
-                        l.usage=new Budgets.Ledger(attempt.allowance(),clock);
                         Start started;
                         try {
+                            l.usage=new Budgets.Ledger(attempt.allowance(),clock);
+                            if (l.continuation) l.usage.debit(attempt.usage());
                             var limits=new Budgets.ExecutionLimits(attempt.allowance(),settings.actionMillis());
                             var step=job.activity()==null?null:job.activity().current();
-                            started=step!=null && step.journaledProduction()
+                            started=l.continuation ? execution.continueActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
+                                    : step!=null && step.journaledProduction()
                                     ?execution.startActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
                                     :execution.start(l.bound,l.artifact,l.run,limits,l.usage);
                         }
@@ -468,7 +522,11 @@ public final class WorkerDispatcher {
                     l.failure==Reason.INTERRUPTED || l.failure==Reason.ACTOR_UNAVAILABLE || l.failure==Reason.ACTION_TIMEOUT || l.failure==Reason.STALE_OBSERVATION
                             ?ExecutionStatus.INTERRUPTED:ExecutionStatus.BLOCKED;
             Reason reason=status==ExecutionStatus.INTERRUPTED?Reason.INTERRUPTED:status==ExecutionStatus.CANCELLED?Reason.CANCELLED:l.failure;
-            l.report=new Jobs.Report(l.run,l.generation,0,Map.of(),List.of(),new Outcomes.Execution(status,reason,0,null));
+            if (l.continuation) {
+                if (!l.cancel) { status = ExecutionStatus.INTERRUPTED; reason = Reason.INTERRUPTED; }
+                l.report = new Jobs.Report(l.run, l.generation, attempt.effects(), attempt.usage(), attempt.receipts(),
+                        new Outcomes.Execution(status, reason, attempt.effects(), null), attempt.resourceReceipts());
+            } else l.report=new Jobs.Report(l.run,l.generation,0,Map.of(),List.of(),new Outcomes.Execution(status,reason,0,null));
         }
         var change=jobs.recordExecutionResult(job.id(),job.guard(),l.report,l.origin);
         if(change.accepted()){l.phase=Phase.PUBLISHING;remember(decision(job,l.worker,Code.OBSERVED,l.resolution,l.failure),work);}
@@ -487,6 +545,7 @@ public final class WorkerDispatcher {
         l.failure=reason;l.cancel|=cancel;l.phase=Phase.STOPPING;
     }
     private Decision decision(Jobs.Job j,ActorRef a,Code code,CapabilityResolver.Decision d,Reason reason) {
+        if (d == null) return new Decision(j.id(), a, code, null, reason, List.of(), "Original saved assignment");
         return new Decision(j.id(),a,code,d.routing(),reason,d.candidates(),"UUID circular order; artifact="+(d.routing().artifact()==null?"none":d.routing().artifact().sha256()));
     }
     private void remember(Decision d,Work work) {

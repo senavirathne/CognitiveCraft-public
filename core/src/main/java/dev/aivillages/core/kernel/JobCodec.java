@@ -34,7 +34,7 @@ final class JobCodec {
             row.put("preparation",prepared);
         }
         if(job.activity()!=null)row.put("activity",ActivityCodec.encode(job.activity()));
-        row.put("attempts", job.attempts().stream().map(a->attempt(a,a.bound().equals(job.request())?request:null)).toList());
+        row.put("attempts",job.attempts().stream().map(a->attempt(a,job,request)).toList());
         row.put("events", job.events().stream().map(e -> {
             var event = new LinkedHashMap<String,Object>();
             event.put("revision", e.revision()); event.put("kind", e.kind().name());
@@ -71,7 +71,7 @@ final class JobCodec {
         } else if(schema==3)throw new StrictJson.Invalid("$","PREPARATION_REQUIRED");
         var requestRow=object(row,"request","$");var request=bound(requestRow);
         var attempts = new ArrayList<Attempt>();
-        for (Object value : list(row,"attempts",8)) attempts.add(attempt(map(value), schema,requestRow,request));
+        for (Object value : list(row,"attempts",8)) attempts.add(attempt(map(value),schema,requestRow,request,activity));
         var events = new ArrayList<Event>();
         for (Object value : list(row,"events",16)) {
             var event = map(value);
@@ -94,10 +94,15 @@ final class JobCodec {
         return new Allocation(id(row,"id"),id(row,"producer"),id(row,"attempt"),id(row,"receipt"),
                 id(row,"demand"),number(row,"quantity","$"),row.containsKey("item")?string(row,"item","$"):"");
     }
-    private static Map<String,Object> attempt(Attempt attempt,Map<String,Object> sharedRequest) {
+    private static Map<String,Object> attempt(Attempt attempt,Job job,Map<String,Object> rootRequest) {
         var row = new LinkedHashMap<String,Object>();
         row.put("id",attempt.id().toString()); row.put("generation",attempt.generation());
-        row.put("worker",actor(attempt.worker())); row.put("request",sharedRequest==null?bound(attempt.bound()):sharedRequest);
+        row.put("worker",actor(attempt.worker()));
+        var step=job.activity()==null?null:job.activity().forAttempt(attempt.id());
+        if(step!=null && step.integrated() && attempt.bound().request().equals(step.invocation())
+                && attempt.bound().context().equals(job.origin()) && attempt.bound().observation().equals(job.request().observation()))
+            row.put("requestFromActivity",step.id().toString());
+        else row.put("request",attempt.bound().equals(job.request())?rootRequest:bound(attempt.bound()));
         row.put("allowance",limits(attempt.allowance())); row.put("usage",usageMap(attempt.usage()));
         row.put("effects",attempt.effects()); row.put("credited",attempt.credited());
         row.put("uncertain",attempt.uncertain()); row.put("cancellationDeliveries",(long)attempt.cancellationDeliveries());
@@ -109,10 +114,12 @@ final class JobCodec {
         if (attempt.terminal() != null) row.put("terminal",strict(Outcomes.encode(attempt.terminal())));
         return row;
     }
-    private static Attempt attempt(Map<String,Object> row,long schema,Map<String,Object> requestRow,ValidatedRequest request) throws StrictJson.Invalid {
-        fields(row,Set.of("id","generation","worker","request","allowance","usage","effects","credited",
+    private static Attempt attempt(Map<String,Object> row,long schema,Map<String,Object> requestRow,ValidatedRequest request,
+                                   ActivityPayload activity) throws StrictJson.Invalid {
+        fields(row,Set.of("id","generation","worker","allowance","usage","effects","credited",
                 "uncertain","cancellationDeliveries","executions","receipts"),
-                schema >= 2 ? Set.of("terminal","resourceReceipts") : Set.of("terminal"));
+                schema==4?Set.of("terminal","resourceReceipts","request","requestFromActivity"):
+                        schema>=2?Set.of("terminal","resourceReceipts","request"):Set.of("terminal","request"));
         var references = new ArrayList<ExecutionReference>();
         for (Object value : list(row,"executions",8)) {
             var ref = map(value); exact(ref,"run","artifact","pinned");
@@ -123,13 +130,24 @@ final class JobCodec {
         var receipts = new ArrayList<CropDelivery.CropReceipt>();
         for (Object value : list(row,"receipts",64)) receipts.add(receipt(map(value)));
         var resources = new ArrayList<ResourceDelivery.Receipt>();
-        var candidate=object(row,"request","$");
-        var bound=candidate.equals(requestRow)?request:bound(candidate);
+        UUID attemptId=id(row,"id");
+        if(row.containsKey("request")==row.containsKey("requestFromActivity"))
+            throw new StrictJson.Invalid("$.request","ATTEMPT_REQUEST_REQUIRED");
+        ValidatedRequest bound;
+        if(row.containsKey("request")) {
+            var candidate=object(row,"request","$");
+            bound=candidate.equals(requestRow)?request:bound(candidate);
+        } else {
+            var step=activity==null?null:activity.forAttempt(attemptId);
+            if(step==null || !step.integrated() || !step.id().equals(id(row,"requestFromActivity")))
+                throw new StrictJson.Invalid("$.requestFromActivity","ACTIVITY_INVOCATION_REQUIRED");
+            bound=new ValidatedRequest(step.invocation(),request.context(),request.observation());
+        }
         if(ResourceDelivery.resource(bound.request().capability()) && !row.containsKey("resourceReceipts"))
             throw new StrictJson.Invalid("$","RESOURCE_RECEIPTS_REQUIRED");
         if (row.containsKey("resourceReceipts"))
             for (Object value : list(row,"resourceReceipts",64)) resources.add(resourceReceipt(map(value),bound));
-        return new Attempt(id(row,"id"),number(row,"generation","$"),actor(object(row,"worker","$")),
+        return new Attempt(attemptId,number(row,"generation","$"),actor(object(row,"worker","$")),
                 bound,limits(object(row,"allowance","$")),references,
                 usage(object(row,"usage","$")),receipts,number(row,"effects","$"),number(row,"credited","$"),
                 row.containsKey("terminal") ? (Execution)Outcomes.decode(StrictJson.canonical(row.get("terminal"))) : null,

@@ -38,7 +38,7 @@ class MissedCut(Exception):
 
 class WalkthroughHarness(NativeGameplay):
     def clock(self, command):
-        require(command in {"tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze"}, "Unsafe native clock operation")
+        require(command in {"tick rate 4", "tick rate 20", "tick freeze", "tick unfreeze"}, "Unsafe native clock operation")
         # The gameplay principal remains an ordinary player. Only the harness's
         # established server console sends the bounded vanilla clock command.
         log = self.root / "server/stdout.log"
@@ -177,7 +177,7 @@ def prepare(h, shortage):
     expected = {",".join(map(str, pos)): LOG for pos in LOGS} if shortage else {}
     if expected:
         h.console(["setblock " + coord(pos) + " " + LOG for pos in LOGS])
-    h.console(["gamemode survival PlayerB",
+    h.console(["gamemode survival PlayerA", "gamemode survival PlayerB",
                "tp PlayerB 80.5 208 73.5", "deop PlayerA", "deop PlayerB"])
     h.action("PlayerA", "look", pos=DESTINATION)
     _, client = fixture_observation(h, expected_tables=set(), expected_blocks=expected)
@@ -247,15 +247,36 @@ def witnessed(cut, job, state, actor):
     stages = resource_stages(job)
     placed, crafted, delivered = len(tables(state)), stages["CRAFT", AXE], item_at(state, DESTINATION, AXE)
     if cut == "after-wood-collection":
-        return stages["HARVEST", LOG] == stages["PICKUP", LOG] == 3 and not placed and not crafted
+        return (stages["HARVEST", LOG] == stages["PICKUP", LOG] == 3 and stages["DEPOSIT", LOG] == 2
+                and stock_at(state, actor).get(LOG) == 1 and not placed and not crafted)
     if cut == "after-material-deposit":
         return stages["DEPOSIT", LOG] >= 3 and not placed and not crafted
     if cut == "after-table-placement":
-        return tables(state) == {table_binding(job)} and stages["PLACE", TABLE] == 1 and not crafted
+        attempt = next((a for a in job["attempts"] if any(r["stage"] == "PLACE" for r in a["resourceReceipts"])), None)
+        return (tables(state) == {table_binding(job)} and stages["PLACE", TABLE] == 1 and not crafted and attempt
+                and all(c["attempt"] != attempt["id"] for c in job["activity"]["checkpoints"]))
     if cut == "after-craft":
         return crafted == stock_at(state, actor).get(AXE, 0) == 1 and delivered == 0
     if cut == "at-final-delivery":
         return stages["DEPOSIT", AXE] == delivered == 1 and job["fulfilled"] == 0
+    raise ValueError("Unknown native boundary")
+
+
+def approaching_cut(cut, job, state, actor):
+    if not job or not job.get("activity") or job["state"] in TERMINAL:
+        return False
+    stages = resource_stages(job)
+    if cut in ("after-wood-collection", "after-material-deposit"):
+        return stages["HARVEST", LOG] == 3 and stages["DEPOSIT", LOG] == 2
+    if cut == "after-table-placement":
+        return stages["CRAFT", TABLE] == 1 and not tables(state)
+    if cut == "after-craft":
+        return any(a["bound"]["request"]["capability"]["name"] == "cognitivecraft:produce_wooden_axes"
+                   and not a.get("terminal") for a in job["attempts"])
+    if cut == "at-final-delivery":
+        worker = next((entry for entry in state["actors"] if entry["uuid"] == actor), None)
+        return (stages["CRAFT", AXE] == 1 and stages["DEPOSIT", AXE] == 0 and worker
+                and sum((x - (y + .5))**2 for x, y in zip(worker["pos"], DESTINATION, strict=True)) <= 36)
     raise ValueError("Unknown native boundary")
 
 
@@ -265,6 +286,16 @@ def stop_at_cut(h, cut, row, root_id, cohort):
         job = job_at(state, "PlayerA", root_id)
         return (job, state) if witnessed(cut, job, state, row["actor"]) else None
     try:
+        def approach():
+            state = h.snapshot()
+            job = job_at(state, "PlayerA", root_id)
+            return state if approaching_cut(cut, job, state, row["actor"]) else None
+
+        # Keep ordinary movement at 20 TPS. Slowing a full route would exceed an
+        # unchanged action wall-clock limit before it reached the physical cut.
+        arm = h.wait(approach, "Native physical predecessor to " + cut, 150)
+        h.clock("tick rate 4")
+        row["nativeCutArmedAt"] = {"tick": arm["tick"], "gameTick": arm["gameTick"]}
         h.wait(at_cut, "Actual reachable activity cut " + cut, 190)
     except TimeoutError as error:
         raise MissedCut(str(error)) from error
@@ -370,10 +401,6 @@ def run_case(root, case, seed, cohort):
         row["request"] = request(h)
         root_id = row["request"]["root"]
         require(root_id, "The ordinary player goal did not resolve to an activity owner")
-        if cut:
-            # Reference discovery keeps its real, bounded wall-clock deadline.
-            # Slow only the admitted activity whose physical cut is measured.
-            h.clock("tick rate 2")
         row["firstJob"] = h.wait(lambda: h.job_view("PlayerA", root_id), "Published original activity Job", 60)
         atomic(root / "result.json", row)
         if cut:

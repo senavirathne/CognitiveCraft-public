@@ -31,15 +31,18 @@ final class FabricConcreteRecipeChoices {
     static final class Context {
         final String token;final RecipeChoice choice;final int batch;final ValidatedRequest request;final UUID run;
         final ChoiceAuthority authority;final View recipe;final String custody;final String destinationIdentity;final ChoicePhase next;
+        final RecipeChoice.FacilityBinding currentFacility;
         final RecipeSources sources;final Map<ContainerRef,String> sourceFingerprints;
         final Villager nativeActor;final Map<ContainerRef,Container> nativeSources;final Container nativeDestination;
         final AtomicBoolean used=new AtomicBoolean();
         Context(String token,RecipeChoice choice,int batch,ValidatedRequest request,UUID run,ChoiceAuthority authority,
                 View recipe,String custody,RecipeSources sources,Map<ContainerRef,String> sourceFingerprints,String destinationIdentity,ChoicePhase next,
-                Villager nativeActor,Map<ContainerRef,Container> nativeSources,Container nativeDestination) {
+                Villager nativeActor,Map<ContainerRef,Container> nativeSources,Container nativeDestination,
+                RecipeChoice.FacilityBinding currentFacility) {
             this.token=token;this.choice=choice;this.batch=batch;this.request=request;this.run=run;this.authority=authority;
             this.recipe=recipe;this.custody=custody;this.sources=sources;this.sourceFingerprints=Map.copyOf(sourceFingerprints);this.destinationIdentity=destinationIdentity;this.next=next;
             this.nativeActor=nativeActor;this.nativeSources=Map.copyOf(nativeSources);this.nativeDestination=nativeDestination;
+            this.currentFacility=currentFacility;
         }
     }
     record Result(Context continuation,ChoiceObservation observation){}
@@ -277,7 +280,26 @@ final class FabricConcreteRecipeChoices {
         if(FabricRecipeTransactions.insert(destinationCopy,to,output.copyWithCount(Math.toIntExact(choice.deliveryForBatch(batch))))==null)throw refuse(Reason.TARGET_UNAVAILABLE);
         return new Context(UUID.randomUUID().toString(),choice,batch,request,run,authority,recipe,
                 fingerprint(v.getInventory()),sources,fingerprints(boxes),
-                FabricRecipeTransactions.identity(target,to),ChoicePhase.WITHDRAW,v,boxes,to);
+                FabricRecipeTransactions.identity(target,to),ChoicePhase.WITHDRAW,v,boxes,to,choice.facility());
+    }
+    /** Only the native saved-prefix owner can request this binding. The original craft is never called here. */
+    Context continueDeposit(ValidatedRequest request, RecipeChoice choice, int batch, UUID run, ChoiceAuthority authority,
+                            RecipeSources sources, RecipeChoice.FacilityBinding restoredFacility) {
+        thread();
+        var actor = nativeActor(request, run);
+        checkRequest(request, choice);
+        if ((choice.facility() == null) != (restoredFacility == null)
+                || choice.facility() != null && !choice.facility().reference().equals(restoredFacility.reference()))
+            throw refuse(Reason.STALE_OBSERVATION);
+        var recipe = view(choice.capability());
+        nativeMatch(choice, batch, recipe);
+        facility(request, authority, ChoicePhase.DEPOSIT, restoredFacility, false);
+        var target = container(request, "destination");
+        var boxes = sourceContainers(request, authority, sources, ChoicePhase.DEPOSIT, false);
+        var destination = permitted(request, authority, target, ChoicePhase.DEPOSIT, true);
+        return new Context(UUID.randomUUID().toString(), choice, batch, request, run, authority, recipe,
+                fingerprint(actor.getInventory()), sources, fingerprints(boxes), FabricRecipeTransactions.identity(target, destination),
+                ChoicePhase.DEPOSIT, actor, boxes, destination, restoredFacility);
     }
     private void checkRequest(ValidatedRequest request,RecipeChoice choice) {
         if(!request.request().capability().equals(choice.capability()) || !(request.request().arguments().get("amount") instanceof IntValue amount)
@@ -330,7 +352,7 @@ final class FabricConcreteRecipeChoices {
             if(v!=c.nativeActor)throw refuse(Reason.STALE_OBSERVATION);
             before=state(c);
             var current=view(c.choice.capability());nativeMatch(c.choice,c.batch,current);
-            facility(c.request,c.authority,phase,c.choice.facility(),phase==ChoicePhase.CRAFT);
+            facility(c.request,c.authority,phase,c.currentFacility,phase==ChoicePhase.CRAFT);
             if(current.manager()!=c.recipe.manager() || current.recipe()!=c.recipe.recipe())throw refuse(Reason.ARTIFACT_INCOMPATIBLE);
             if(!fingerprint(v.getInventory()).equals(c.custody))throw refuse(Reason.STALE_OBSERVATION);
             var target=container(c.request,"destination");
@@ -372,7 +394,8 @@ final class FabricConcreteRecipeChoices {
                     Reason.STALE_OBSERVATION,"Participant state diverged during the actual native call; no continuation or replay permission"));
             var next=phase==ChoicePhase.WITHDRAW?ChoicePhase.CRAFT:phase==ChoicePhase.CRAFT?ChoicePhase.DEPOSIT:null;
             var continuation=next==null?null:new Context(c.token,c.choice,c.batch,c.request,c.run,c.authority,c.recipe,
-                    fingerprint(v.getInventory()),c.sources,fingerprints(boxes),c.destinationIdentity,next,c.nativeActor,c.nativeSources,c.nativeDestination);
+                    fingerprint(v.getInventory()),c.sources,fingerprints(boxes),c.destinationIdentity,next,
+                    c.nativeActor,c.nativeSources,c.nativeDestination,c.currentFacility);
             return new Result(continuation,observation(c,phase,ChoiceObservationKind.APPLIED,before,after,null,"Actual native before/after slots; participant saves not certified"));
         } catch(Refused denied) {
             if(denied.reason==Reason.AUTHORITY_DENIED)return new Result(null,observation(c,phase,

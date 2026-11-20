@@ -41,6 +41,11 @@ final class FabricRecipeTransactions {
     FabricConcreteRecipeChoices.Result executeChoice(FabricConcreteRecipeChoices.Context context,RecipeTransaction.ChoicePhase phase) {
         return concrete.execute(context,phase);
     }
+    FabricConcreteRecipeChoices.Context continueRecipeDeposit(ValidatedRequest request, dev.aivillages.core.kernel.production.RecipeChoice choice,
+            int batch, UUID run, RecipeTransaction.ChoiceAuthority authority, dev.aivillages.core.kernel.production.RecipeSources sources,
+            dev.aivillages.core.kernel.production.RecipeChoice.FacilityBinding currentFacility) {
+        return concrete.continueDeposit(request, choice, batch, run, authority, sources, currentFacility);
+    }
     dev.aivillages.core.kernel.production.planning.PlanningModel.RecipeProfile describeChoice(CapabilityId capability,
             dev.aivillages.core.kernel.production.planning.PlanningModel.Cost allowance) {return concrete.describe(capability,allowance);}
     void validateChoice(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,UUID run,

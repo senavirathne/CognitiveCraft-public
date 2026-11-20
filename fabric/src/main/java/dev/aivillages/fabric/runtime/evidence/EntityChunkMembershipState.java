@@ -25,9 +25,11 @@ public final class EntityChunkMembershipState {
     static final class Pending {
         private static final int MAX_STAGES=4;
         private final List<Row> stages;
-        Pending(Row row){stages=List.of(row);}
-        private Pending(List<Row> stages){this.stages=List.copyOf(stages);}
+        private final Row compactedFrom;
+        Pending(Row row){this(List.of(row),null);}
+        private Pending(List<Row> stages,Row compactedFrom){this.stages=List.copyOf(stages);this.compactedFrom=compactedFrom;}
         Row latest(){return stages.getLast();}
+        boolean hasRoom(int transitions){return transitions>0 && stages.size()+transitions<=MAX_STAGES;}
         Pending stage(Row row) {
             Row previous=latest();
             Row next=successor(previous,row);
@@ -38,12 +40,22 @@ public final class EntityChunkMembershipState {
                 if(updates.size()==MAX_STAGES)throw new IllegalArgumentException("Pending membership transition quota");
                 updates.add(next);
             }
-            return new Pending(updates);
+            return new Pending(updates,compactedFrom);
         }
         Pending acknowledged(Marker marker) {
             for(int n=1;n<stages.size();n++)if(stages.get(n).marker().equals(marker))
-                return new Pending(stages.subList(n,stages.size()));
+                return new Pending(stages.subList(n,stages.size()),null);
             return this;
+        }
+        /** Older live transitions still exist in their effect journals. Compress only the pending native write. */
+        Pending compact(Row saved) {
+            if(saved!=null) {
+                if(!saved.equals(compactedFrom) && !saved.marker().equals(stages.getFirst().predecessor())
+                        && stages.stream().noneMatch(row->saved.marker().equals(row.marker())))
+                    throw new IllegalArgumentException("Native membership frame is not a predecessor");
+                requireSameLifetime(saved,latest());
+            } else if(compactedFrom!=null) throw new IllegalArgumentException("Saved native membership disappeared");
+            return new Pending(List.of(latest()),saved);
         }
         void apply(EntityChunkMembershipState state) {
             Row saved=state.rows.get(latest().key());
@@ -51,7 +63,7 @@ public final class EntityChunkMembershipState {
             if(saved!=null)for(int n=0;n<stages.size();n++) {
                 if(saved.marker().equals(stages.get(n).marker())){start=n;break;}
             }
-            for(int n=start;n<stages.size();n++)state.record(stages.get(n));
+            for(int n=start;n<stages.size();n++) state.record(stages.get(n),n==0?compactedFrom:null);
         }
     }
     private final String dimension;private final ChunkPos chunk;
@@ -69,8 +81,14 @@ public final class EntityChunkMembershipState {
     }
     /** Called only with detached declarations made by the native producer's live lifetime. */
     public void record(Row row) {
+        record(row,null);
+    }
+    private void record(Row row,Row linkedBase) {
         if(!valid)throw new IllegalStateException("Unsupported membership metadata");check(row);Row before=rows.get(row.key());
-        if(before!=null)row=successor(before,row);
+        if(before!=null) {
+            if(before.equals(linkedBase) && !before.marker().equals(row.marker())) requireSameLifetime(before,row);
+            else row=successor(before,row);
+        }
         if(before==null && rows.size()==MAX_ROWS)throw new IllegalStateException("Native membership quota");
         rows.put(row.key(),row);
     }
@@ -78,12 +96,17 @@ public final class EntityChunkMembershipState {
         if(row.marker().equals(before.marker()) && row.predecessor()==null && before.predecessor()!=null)
             row=new Row(row.role(),row.trail(),row.revision(),row.marker(),row.present(),before.predecessor());
         if(!before.equals(row)) {
-            if(!row.trail().incarnation().equals(before.trail().incarnation()) || row.role()!=before.role()
-                    || !row.trail().chunks().containsAll(before.trail().chunks()) || row.revision()<before.revision()
-                    || !(row.marker().equals(before.marker()) || before.marker().equals(row.predecessor())))
+            requireSameLifetime(before,row);
+            if(!(row.marker().equals(before.marker()) || before.marker().equals(row.predecessor())))
                 throw new IllegalArgumentException("Unproved membership successor");
         }
         return row;
+    }
+    private static void requireSameLifetime(Row before,Row after) {
+        if(!after.trail().entity().equals(before.trail().entity())
+                || !after.trail().incarnation().equals(before.trail().incarnation()) || after.role()!=before.role()
+                || !after.trail().chunks().containsAll(before.trail().chunks()) || after.revision()<before.revision())
+            throw new IllegalArgumentException("Unproved membership successor");
     }
     public CompoundTag capture(Set<UUID> members) {
         var out=new CompoundTag();

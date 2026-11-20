@@ -53,7 +53,11 @@ public final class NativeRecipeJournal implements AutoCloseable {
 
     public record Intent(UUID token, UUID root, UUID step, UUID attempt, long generation, UUID operation,
                          String method, String choice, int batch, Stage phase, long deadline,
-                         List<Participant> before) {
+                         List<Participant> before, Participant deliveryTarget) {
+        public Intent(UUID token, UUID root, UUID step, UUID attempt, long generation, UUID operation,
+                      String method, String choice, int batch, Stage phase, long deadline, List<Participant> before) {
+            this(token, root, step, attempt, generation, operation, method, choice, batch, phase, deadline, before, null);
+        }
         public Intent {
             Objects.requireNonNull(token); Objects.requireNonNull(root); Objects.requireNonNull(step);
             Objects.requireNonNull(attempt); Objects.requireNonNull(operation);
@@ -61,15 +65,18 @@ public final class NativeRecipeJournal implements AutoCloseable {
             if (generation < 1 || !hash(method) || !hash(choice) || batch < 0 || batch > 15 || deadline < 1
                     || !List.of(Stage.WITHDRAW, Stage.CRAFT, Stage.DEPOSIT, Stage.PLACE).contains(phase)
                     || before.isEmpty() || before.size() > 4 || !before.getFirst().address().startsWith("actor:")
-                    || before.stream().map(Participant::address).distinct().count() != before.size())
+                    || before.stream().map(Participant::address).distinct().count() != before.size()
+                    || deliveryTarget != null && (phase != Stage.CRAFT || !deliveryTarget.address().startsWith("chest:")))
                 throw new IllegalArgumentException("Invalid original recipe effect");
         }
         private Map<String,Object> value() {
-            return Map.ofEntries(Map.entry("kind","prepare"),Map.entry("token",token.toString()),
+            var row = new LinkedHashMap<String,Object>(Map.ofEntries(Map.entry("kind","prepare"),Map.entry("token",token.toString()),
                     Map.entry("root",root.toString()),Map.entry("step",step.toString()),Map.entry("attempt",attempt.toString()),
                     Map.entry("generation",generation),Map.entry("operation",operation.toString()),Map.entry("method",method),
                     Map.entry("choice",choice),Map.entry("batch",batch),Map.entry("phase",phase.name()),Map.entry("deadline",deadline),
-                    Map.entry("before",before.stream().map(Participant::value).toList()));
+                    Map.entry("before",before.stream().map(Participant::value).toList())));
+            if (deliveryTarget != null) row.put("deliveryTarget", deliveryTarget.value());
+            return row;
         }
         public String digest() { return fingerprint(StrictJson.canonical(value())); }
     }
@@ -304,7 +311,8 @@ public final class NativeRecipeJournal implements AutoCloseable {
         if("prepare".equals(row.get("kind"))) {
             var intent=new Intent(uuid(row,"token"),uuid(row,"root"),uuid(row,"step"),uuid(row,"attempt"),
                     (Long)row.get("generation"),uuid(row,"operation"),(String)row.get("method"),(String)row.get("choice"),
-                    Math.toIntExact((Long)row.get("batch")),Stage.valueOf((String)row.get("phase")),(Long)row.get("deadline"),participants(row.get("before")));
+                    Math.toIntExact((Long)row.get("batch")),Stage.valueOf((String)row.get("phase")),(Long)row.get("deadline"),
+                    participants(row.get("before")), row.containsKey("deliveryTarget") ? participants(List.of(row.get("deliveryTarget"))).getFirst() : null);
             if(!line.equals(frame(intent.value(),head)) || rows.size()>=MAX_EFFECTS || !operations.add(intent.operation())
                     || rows.putIfAbsent(intent.token(),new Entry(intent,null))!=null)throw new IllegalArgumentException("Repeated recipe intent");
             pending++;

@@ -824,7 +824,13 @@ public final class KernelSession implements AutoCloseable {
         }
         dispatcher=new WorkerDispatcher(jobs,new MandateWorkers(citizens,mandates),this::observe,resolver::resolve,
                 WorkerDispatcher.executorPort(dispatchExecutor,repository,(job,bound,method,run)->
-                        productionActivities==null?Reason.UNSUPPORTED_PRIMITIVE:exactRecipeEffects.bind(job,bound,method,run)),
+                        productionActivities==null?Reason.UNSUPPORTED_PRIMITIVE:exactRecipeEffects.bind(job,bound,method,run),
+                        (job, bound, method, run) -> {
+                            if (productionActivities == null) return Reason.UNSUPPORTED_PRIMITIVE;
+                            if (LogAcquisition.is(bound.request().capability()))
+                                return gateway.restorePickedLog(bound, new RunCorrelation(run, method, null));
+                            return exactRecipeEffects.bindContinuation(job, bound, method, run);
+                        }),
                 WorkerDispatcher.leasedClaims(dispatchGateway),
                 job->ResourceDelivery.isDelivery(job.request().request().capability()) && dispatchableSubmission(job),clock,()->server.overworld().getGameTime(),
                 WorkerDispatcher.Settings.production());
@@ -842,9 +848,12 @@ public final class KernelSession implements AutoCloseable {
                 dev.aivillages.core.kernel.runtime.claims.StagedTransfers.Settings.defaults());
         leases.fairLimits(new ResourceLeaseService.FairLimits(16,1200,40,2,20));
         jobs.activityOperations((cap,quantity)->LogAcquisition.is(cap)&&quantity==1);
-        if(activityRuntimeEnabled && depositProtocol!=null && pickupProtocol!=null && harvestProtocol!=null)
+        if(activityRuntimeEnabled && depositProtocol!=null && pickupProtocol!=null && harvestProtocol!=null) {
+            var savedAcquisitions = productionActivities == null ? null : new SavedActivityAcquisitions(jobs, depositProtocol, pickupProtocol, exactRecipeEffects);
             activityCheckpoints=new dev.aivillages.core.kernel.runtime.activity.ActivityCheckpoints(jobs,depositProtocol.evidence(),
-                    depositProtocol::liveAcknowledged,productionActivities!=null);
+                    depositProtocol::liveAcknowledged,productionActivities!=null,
+                    entry -> savedAcquisitions != null && savedAcquisitions.recognizes(entry));
+        }
 
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {
@@ -877,7 +886,10 @@ public final class KernelSession implements AutoCloseable {
                 }, original -> {
                     var root=jobs.query(original.job(),original.origin());
                     if(root.activity()!=null && root.activity().current()!=null && root.activity().current().journaledProduction()
-                            && exactRecipeEffects!=null)return exactRecipeEffects.observeStopped(original,root.activity().current().choice());
+                            && exactRecipeEffects!=null) {
+                        var observation = exactRecipeEffects.observeStopped(original, root.activity().current().choice());
+                        return requireSettledActivityPrefix(root, observation);
+                    }
                     if(depositProtocol!=null && pickupProtocol!=null && depositProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
                             && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
                         return new JoinedDepositStoppedSource(jobs,new JoinedDepositStoppedSource.Evidence() {
@@ -886,6 +898,10 @@ public final class KernelSession implements AutoCloseable {
                             public dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore deposit(){return depositProtocol.evidence();}
                             public dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.DepositEvidenceStore.Reconciled proof){return depositProtocol.verify(proof);}
                         },key->joinedResumeRequests.contains(key.token()),clock).observe(original);
+                    if (productionActivities != null && pickupProtocol != null && root.activity() != null) {
+                        var continuation = pickupProtocol.savedContinuation(original);
+                        if (continuation != null) return requireSettledActivityPrefix(root, continuation);
+                    }
                     if(pickupProtocol!=null && pickupProtocol.evidence().snapshot().entries().stream().anyMatch(e->e.intent().key().step().equals(original.job())
                             && e.intent().key().attempt().equals(original.attempt()) && e.intent().key().generation()==original.generation()))
                         return new PickupStoppedSource(jobs,new PickupStoppedSource.Evidence() {
@@ -897,6 +913,7 @@ public final class KernelSession implements AutoCloseable {
                             public dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore store(){return harvestProtocol.evidence();}
                             public dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore.Reconciled proof){return harvestProtocol.verify(proof);}
                         }).observe(original);}, 4);
+        if (productionActivities != null) recoveredOwners.continuation(dispatcher);
         worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
                 || leaseArchive!=null && !leaseArchive.readReady() || jobArchive!=null && !jobArchive.readReady())
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target)
@@ -928,11 +945,18 @@ public final class KernelSession implements AutoCloseable {
             }
             @Override public LanguageRequests.ResolutionHandle resolve(LanguageRequests.Intent intent,
                                                                        TrustedContext caller) {
+                return resolve(intent, caller, null);
+            }
+            @Override public LanguageRequests.ResolutionHandle resolve(LanguageRequests.Intent intent,
+                                                                       TrustedContext caller, LanguageRequests.Input authorizedInput) {
                 ServerPlayer player = interpretingPlayer;
                 if (player == null || !player.getUUID().equals(caller.principal().id()))
                     throw new SecurityException("No trusted player is attached to this interpretation");
+                if (productionActivities != null && authorizedInput != null && authorizedGathering(authorizedInput.text()))
+                    intent = FabricWorldReferenceResolver.pointedProductionDestination(worldAccess, player, intent);
+                var resolvedIntent = intent;
                 return new FabricWorldReferenceResolver(worldAccess,citizens,caller,player,intent,clock,
-                        (source,quantity)->leases.availableStock(intent instanceof LanguageRequests.HarvestIntent h && RecipeProduction.is(h.capability())
+                        (source,quantity)->leases.availableStock(resolvedIntent instanceof LanguageRequests.HarvestIntent h && RecipeProduction.is(h.capability())
                                 ? RecipeProduction.of(h.capability()).stock(caller.scope().worldId(),source) : ResourceLeases.Resource.oakStock(caller.scope().worldId(),source),quantity,caller),
                         (source,quantity)->leases.availableStock(new ResourceLeases.Resource(caller.scope().worldId(),ResourceLeases.Kind.STOCK,ResourceLeases.point(source),ResourceDelivery.STICK.id(),-1),quantity,caller),productionActivities!=null);
             }
@@ -1712,6 +1736,11 @@ public final class KernelSession implements AutoCloseable {
         if(latest==null)return true;
         var step=job.activity().forAttempt(latest.attempt());
         return !step.journaledProduction() || exactRecipeEffects!=null && exactRecipeEffects.settled(job,step);
+    }
+    private Jobs.StoppedObservation requireSettledActivityPrefix(Jobs.Job job, Jobs.StoppedObservation observation) {
+        if (observation.kind() == Jobs.StoppedKind.CONTINUABLE && activityCheckpoints != null && !activityCheckpoints.ready(job))
+            return Jobs.StoppedObservation.ambiguous("Earlier native acquisition custody awaits saved verification");
+        return observation;
     }
     /** Read-only and private. Enabled explicitly for initial qualification, off by default. */
     /** Public opt-in A integration boundary. No model entry point is connected. */

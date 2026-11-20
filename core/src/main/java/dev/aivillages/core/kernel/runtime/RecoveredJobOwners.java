@@ -29,8 +29,14 @@ public final class RecoveredJobOwners implements AutoCloseable {
     private final JobLifecycleStore jobs;
     private final LiveOwners live;
     private dev.aivillages.core.kernel.runtime.activity.ActivityRuntime activities;
+    private WorkerDispatcher continuation;
     /** Optional fresh scoped observation provider. It owns no lifecycle state. */
     public void activityRuntime(dev.aivillages.core.kernel.runtime.activity.ActivityRuntime runtime){check();activities=Objects.requireNonNull(runtime);}
+    public void continuation(WorkerDispatcher dispatcher) {
+        check();
+        if (continuation != null) throw new IllegalStateException("Continuation dispatcher already attached");
+        continuation = Objects.requireNonNull(dispatcher);
+    }
     private final RecoveryEvidenceAuthority authority;
     private final int perTick;
     private final Thread thread = Thread.currentThread();
@@ -72,7 +78,8 @@ public final class RecoveredJobOwners implements AutoCloseable {
             Presence present = presence(job);
             blocker = present == Presence.WAIT_WORLD ? Blocker.WAIT_WORLD : Blocker.NEEDS_ATTENTION;
             physical = "ambiguous; no save-confirmed effect proof";
-            if (observed != null && observed.kind() == StoppedKind.PARTIAL) blocker = Blocker.PARTIAL_CUSTODY;
+            if (observed != null && (observed.kind() == StoppedKind.PARTIAL || observed.kind() == StoppedKind.CONTINUABLE))
+                blocker = Blocker.PARTIAL_CUSTODY;
             if (observed != null && observed.kind() == StoppedKind.WAIT_WORLD) blocker = Blocker.WAIT_WORLD;
             if (jobs.unavailableReason() == Outcomes.Reason.STORAGE_UNAVAILABLE) blocker = Blocker.STORAGE_UNAVAILABLE;
         }
@@ -107,6 +114,8 @@ public final class RecoveredJobOwners implements AutoCloseable {
                         projections.put(job.id(),projection(job,observation));continue;
                     }
                     var evidence = authority.capture(StoppedContext.of(job)); observation = evidence.observation();
+                    if (continuation != null && observation.kind() == StoppedKind.CONTINUABLE
+                            && continuation.continueActivity(job, evidence)) return;
                     if (jobs.ready() && (observation.kind() == StoppedKind.NO_EFFECT || observation.kind() == StoppedKind.EFFECT_COMPLETE
                             || observation.kind() == StoppedKind.PARTIAL || observation.kind()==StoppedKind.DELIVERED_UNIT)) {
                         var changed = jobs.reconcileStopped(job.id(), job.guard(), evidence, job.origin());

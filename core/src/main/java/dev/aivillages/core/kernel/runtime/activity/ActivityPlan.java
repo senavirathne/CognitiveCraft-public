@@ -2,12 +2,15 @@ package dev.aivillages.core.kernel.runtime.activity;
 
 import dev.aivillages.core.kernel.StrictJson;
 import dev.aivillages.core.kernel.production.RecipeChoice;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
 
 /** Persisted immutable B plan body. Rebinding still requires the current authoritative A frame. */
 public record ActivityPlan(String planDigest,List<Action> actions,Map<String,MethodPin> methods) {
+    private static final int INLINE_PLAN_CHARS = 4_096;
+
     public ActivityPlan {
         if(!dev.aivillages.core.kernel.RecipeTransaction.hash(planDigest) || actions.isEmpty()
                 || actions.size()>MAX_ACTIONS || methods.isEmpty() || methods.size()>MAX_ACTIONS)
@@ -39,11 +42,26 @@ public record ActivityPlan(String planDigest,List<Action> actions,Map<String,Met
             actionRows.add(row);
         }
         var body=Map.<String,Object>of("planDigest",planDigest,"actions",actionRows,"methods",pinRows);
-        return Map.of("body",body,"sha256",ActivityPayload.digest(StrictJson.canonical(body)));
+        String text=StrictJson.canonical(body);
+        String digest=ActivityPayload.digest(text);
+        if(text.length()<=INLINE_PLAN_CHARS && actions.stream().noneMatch(action->
+                longComponents(action.result()) || action.inputs().keySet().stream().anyMatch(ActivityPlan::longComponents)))
+            return Map.of("body",body,"sha256",digest);
+        return Map.of("deflatedBody",ActivityEncoding.deflate(text.getBytes(StandardCharsets.UTF_8),StrictJson.MAX_BYTES),
+                "sha256",digest);
     }
     public static ActivityPlan decode(Map<String,Object> envelope) {
-        keys(envelope,"body","sha256");
-        var body=object(envelope.get("body"));
+        Map<String,Object> body;
+        if(envelope.containsKey("deflatedBody")) {
+            keys(envelope,"deflatedBody","sha256");
+            String text=ActivityEncoding.utf8(ActivityEncoding.inflate(envelope.get("deflatedBody"),StrictJson.MAX_BYTES));
+            try { body=StrictJson.transportObject(text); }
+            catch(StrictJson.Invalid invalid) { throw new IllegalArgumentException("Invalid pinned plan body",invalid); }
+            if(!StrictJson.canonical(body).equals(text)) throw new IllegalArgumentException("Noncanonical pinned plan body");
+        } else {
+            keys(envelope,"body","sha256");
+            body=object(envelope.get("body"));
+        }
         keys(body,"planDigest","actions","methods");
         if(!ActivityPayload.digest(StrictJson.canonical(body)).equals(string(envelope,"sha256")))
             throw new IllegalArgumentException("Pinned plan body digest differs");
@@ -71,6 +89,7 @@ public record ActivityPlan(String planDigest,List<Action> actions,Map<String,Met
     }
     private static Map<String,Object> capability(CapabilityId id){return Map.of("name",id.name(),"version",id.version());}
     private static CapabilityId capability(Object value){var row=object(value);keys(row,"name","version");return new CapabilityId(string(row,"name"),integer(row,"version"));}
+    private static boolean longComponents(RecipeChoice.ItemKey key){return key.components().length()>StrictJson.MAX_STRING;}
     private static RecipeChoice.ItemKey item(Object value){var row=object(value);keys(row,"id","components");return new RecipeChoice.ItemKey(string(row,"id"),string(row,"components"));}
     private static void keys(Map<String,Object> row,String... names){if(!row.keySet().equals(Set.of(names)))throw new IllegalArgumentException("Pinned plan fields");}
     private static long number(Map<String,Object> row,String key){if(!(row.get(key) instanceof Long n))throw new IllegalArgumentException("Pinned plan number");return n;}

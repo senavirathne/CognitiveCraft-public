@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel.production.planning;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import dev.aivillages.core.kernel.*;
+import dev.aivillages.core.kernel.production.RecipeChoice;
 import dev.aivillages.core.kernel.runtime.activity.ActivityPlan;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
@@ -86,6 +87,24 @@ final class PlanningBoundaryTest {
         fixture.destination=new ContainerRef(DIM,81,64,0);
         fixture.context=new TrustedContext(new PrincipalRef(id("changed-caller")),fixture.context.scope());
         assertThrows(IllegalArgumentException.class,()->decoded.bind(fixture.snapshot()));
+    }
+    @Test void persistedPlanPreservesNativeComponentsBeyondTheJobStringLimit() throws Exception {
+        var fixture=new PlannerFixtures().logs(3);
+        var profile=fixture.recipes.getLast();
+        var components="{\"minecraft:custom_data\":{\"text\":\""+"a".repeat(1_500)+"\"}}";
+        var axe=new RecipeChoice.ItemKey(AXE.id(),components);
+        fixture.output=axe;
+        fixture.recipes.set(fixture.recipes.size()-1,new RecipeProfile(profile.recipe(),profile.capability(),
+                profile.cells(),axe,profile.semanticFingerprint(),profile.method(),profile.allowance()));
+        var frame=fixture.snapshot();
+        var original=planner.analyse(frame).plan();
+        var packed=ActivityPlan.of(original);
+        String bytes=StrictJson.canonical(packed.encode());
+        assertTrue(bytes.contains("\"deflatedBody\""));
+        var restored=ActivityPlan.decode(StrictJson.object(bytes));
+        assertEquals(packed,restored);
+        assertEquals(original,restored.bind(frame));
+        assertEquals(packed.tokens(),restored.tokens());
     }
     @Test void exhaustedComputeBoundReturnsUnknownRatherThanAnInventedImpossibility(){var f=new PlannerFixtures().logs(3);var bounded=new StaticProductionPlanner(1).analyse(f.snapshot());assertEquals(1,bounded.expansions());assertEquals(Feasibility.UNKNOWN,bounded.feasibility());assertNull(bounded.plan());assertEquals(Feasibility.FEASIBLE,planner.analyse(f.snapshot()).feasibility());}
     @Test void onePhysicalSlotOrAcquisitionRegionCannotBeCountedTwice(){var f=new PlannerFixtures().logs(1);f.stock.add(f.stock("duplicate-physical-slot",0,LOG,1));assertThrows(IllegalArgumentException.class,f::snapshot);var trees=new PlannerFixtures().logSource(7);var a=trees.acquisition.getFirst();trees.acquisition.add(new Acquisition("fixture:overlapping-tree-query",a.source(),a.result(),7,a.availability(),true,true,a.method(),a.allowance()));assertThrows(IllegalArgumentException.class,trees::snapshot);}

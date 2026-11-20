@@ -41,7 +41,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         final Request request;final Action action;final FabricHarvestProtocol.PickupLineage lineage;final NativePickup.Intent intent;final Reason failure;
         final Jobs.Job authority;
         final List<NativePickup.Chunk> chunks;
-        boolean acknowledged,forgotten;Marker actorPredecessor;
+        boolean acknowledged,forgotten,joinedRoomChecked;Marker actorPredecessor;
         NativeTicket(Request r,Action a,FabricHarvestProtocol.PickupLineage l,NativePickup.Intent i,Reason f,Jobs.Job authority,List<NativePickup.Chunk> chunks){
             request=r;action=a;lineage=l;intent=i;failure=f;this.authority=authority;this.chunks=chunks;
         }
@@ -77,7 +77,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public List<String> capturePhaseNames(){return CAPTURE_PHASES;}
     public List<List<Long>> capturePhaseNanos(){check();return captureThreadTime.phaseNanos();}
     public void tick(){check();store.tick();}
-    public void close(){check();closed=true;tickets.clear();frames.clear();live.clear();}
+    public void close(){check();closed=true;tickets.clear();frames.clear();live.clear();restoredPickups.clear();}
     @Override public Ticket begin(Request request,Action action) {
         return begin(request,action,action::current);
     }
@@ -143,7 +143,20 @@ public final class FabricPickupProtocol implements PickupProtocol {
             else if(!frame.supported())return failed();
         }
         if(loading)return new Progress(Code.PENDING,null);
-        try{ticket.actorPredecessor=actorPredecessor(ticket);}catch(RuntimeException unprovedSuccessor){return failed();}
+        try {
+            ticket.actorPredecessor=actorPredecessor(ticket);
+            if(!ticket.joinedRoomChecked && ticket.authority.activity()!=null && ticket.authority.activity().production()!=null) {
+                var actorTrail=ticket.intent.actorTrail();
+                var port=Objects.requireNonNull(nativeStorage());
+                for(var chunk:actorTrail.chunks()) {
+                    var pos=new ChunkPos(chunk.x(),chunk.z());
+                    var saved=frame(chunk);
+                    if(saved==null || !port.roomForJoinedEffects(pos,actorTrail.entity(),saved,frameRevisions.get(pos)))
+                        return new Progress(Code.PENDING,null);
+                }
+                ticket.joinedRoomChecked=true;
+            }
+        } catch(RuntimeException unprovedSuccessor){return failed();}
         store.tick();PickupEvidenceStore.Status status;
         try {
             status=store.prepare(ticket.intent,ticket.lineage.acknowledged());
@@ -238,13 +251,33 @@ public final class FabricPickupProtocol implements PickupProtocol {
             if(deposits==null || deposits.fenced() || deposits.pending())throw new IllegalStateException("Unproved prior actor custody");
             var match=deposits.snapshot().entries().stream().filter(e->e.intent().pickupPrefix()!=null && deposits.settled(e)
                     && (e.verification()==null || e.verification().outcome()==Reconciliation.SAVED_COMPLETE) && e.result()!=null && e.result().live()==NativeDeposit.Live.COMPLETE
-                    && e.intent().key().step().equals(intent.key().step()) && e.intent().key().generation()+1==intent.key().generation()
-                    && e.result().actor().equals(before) && row.role()==NativePickup.Role.ACTOR && row.revision()==before.revision()
+                    && (e.intent().key().step().equals(intent.key().step()) && e.intent().key().generation()+1==intent.key().generation()
+                        && e.result().actor().equals(before) || closedSavedPredecessor(e,intent,before))
+                    && row.role()==NativePickup.Role.ACTOR && row.revision()==e.result().actor().revision()
                     && row.trail().incarnation().equals(before.incarnation()) && intent.actorTrail().chunks().containsAll(row.trail().chunks())
                     && row.marker().equals(new Marker(e.token(),e.intent().digest(),MarkerPhase.RESULT,e.result().digest()))).findFirst();
             if(match.isEmpty() || predecessor!=null && !predecessor.equals(row.marker()))throw new IllegalStateException("Unproved prior actor delivery");predecessor=row.marker();
         }
         return predecessor;
+    }
+    private boolean closedSavedPredecessor(NativeDeposit.Entry prior, NativePickup.Intent next, Participant before) {
+        if (!jobs.productionPlanningReady() || prior.verification() == null
+                || prior.verification().outcome() != Reconciliation.SAVED_COMPLETE
+                || !prior.intent().origin().equals(next.harvest().intent().origin())
+                || !prior.result().actor().incarnation().equals(before.incarnation())
+                || prior.result().actor().revision() > before.revision()) return false;
+        try {
+            var current = jobs.query(next.key().root(), prior.intent().origin());
+            if (current.activity() == null || current.activity().production() == null) return false;
+            var job = jobs.query(prior.intent().key().root(), prior.intent().origin());
+            var attempt = job.attempts().stream().filter(a -> a.id().equals(prior.intent().key().attempt())
+                    && a.generation() == prior.intent().key().generation()).findFirst().orElse(null);
+            return job.state() == Jobs.State.SUCCEEDED && attempt != null && !attempt.open() && !attempt.uncertain()
+                    && attempt.resourceReceipts().equals(List.of(prior.intent().pickupPrefix().pickup().intent().harvest().result().receipt(),
+                            prior.intent().pickupPrefix().pickup().result().receipt(), prior.result().receipt()));
+        } catch (RuntimeException unavailable) {
+            return false;
+        }
     }
     private boolean present(UUID id,NativePickup.Chunk chunk) {
         var e=level.getEntity(id);return e!=null && !e.isRemoved() && e.chunkPosition().x()==chunk.x() && e.chunkPosition().z()==chunk.z();
@@ -283,11 +316,107 @@ public final class FabricPickupProtocol implements PickupProtocol {
     public static final class DepositLineage {
         private final FabricPickupProtocol owner;private final PickupEvidenceStore.Acknowledged pickup;
         private final FabricHarvestProtocol.PickupLineage harvest;private final NativeJoinedDeposit.Prefix prefix;
+        private final PickupEvidenceStore.SavedPickup saved;
         private DepositLineage(FabricPickupProtocol owner,PickupEvidenceStore.Acknowledged pickup,FabricHarvestProtocol.PickupLineage harvest,NativeJoinedDeposit.Prefix prefix) {
-            this.owner=owner;this.pickup=pickup;this.harvest=harvest;this.prefix=prefix;
+            this.owner=owner;this.pickup=pickup;this.harvest=harvest;this.prefix=prefix;this.saved=null;
+        }
+        private DepositLineage(FabricPickupProtocol owner, PickupEvidenceStore.SavedPickup saved, NativeJoinedDeposit.Prefix prefix) {
+            this.owner=owner;this.saved=saved;this.prefix=prefix;this.pickup=null;this.harvest=null;
         }
         NativeJoinedDeposit.Prefix prefix(){return prefix;}
     }
+    private final Map<UUID, PickupEvidenceStore.SavedPickup> restoredPickups = new HashMap<>();
+
+    private Key originalPickupKey(Jobs.Job job) {
+        var attempt = job.current();
+        var step = job.activity() == null ? null : job.activity().current();
+        if (!jobs.productionPlanningReady() || attempt == null || !attempt.open() || step == null || !step.integrated()
+                || !LogAcquisition.is(attempt.bound().request().capability()) || step.quantity() != 1
+                || step.assignmentExpiresTick() == null || level.getGameTime() >= step.assignmentExpiresTick()
+                || clock.millis() >= attempt.allowance().deadlineEpochMillis() || job.cancellationOutcome() != null
+                || attempt.executions().size() != 1 || !attempt.executions().getFirst().runId().equals(attempt.id())) return null;
+        return new Key(job.origin().scope().worldId(), job.id(), job.id(), attempt.id(), job.generation(), 2);
+    }
+
+    /** Classify the original H/P save before offering the existing Jobs owner a way to deliver its unit. */
+    public Jobs.StoppedObservation savedContinuation(Jobs.StoppedContext original) {
+        check();
+        var job = jobs.query(original.job(), original.origin());
+        var key = originalPickupKey(job);
+        if (key == null || job.state() != Jobs.State.INTERRUPTED || !original.equals(Jobs.StoppedContext.of(job))) return null;
+        var view = store.reconcile(key);
+        if (view == null) return null;
+        if (view.result() != NativePickup.Reconciliation.SAVED_COMPLETE)
+            return Jobs.StoppedObservation.ambiguous("Original pickup has no complete saved actor, source and membership cohort");
+        if (view.entry().verification() == null && verify(view) != PickupEvidenceStore.Code.RESOLVED)
+            return Jobs.StoppedObservation.ambiguous("Waiting for the original saved pickup acknowledgement");
+        var saved = store.savedPickup(key);
+        if (saved == null) return Jobs.StoppedObservation.ambiguous("Original saved pickup is no longer current");
+        var prefix = prefixReceipts(saved.entry());
+        var usage = new EnumMap<Budgets.Kind, Long>(Budgets.Kind.class);
+        usage.putAll(original.original().usage());
+        saved.entry().result().usage().forEach((kind, count) -> usage.merge(kind, count, Math::max));
+        return new Jobs.StoppedObservation(Jobs.StoppedKind.CONTINUABLE,
+                new Jobs.Report(original.attempt(), original.generation(), 2, usage, List.of(), null, prefix),
+                "Original saved harvest and pickup agree. Only their original delivery may continue.");
+    }
+
+    private static List<ResourceDelivery.Receipt> prefixReceipts(NativePickup.Entry entry) {
+        return List.of(entry.intent().harvest().result().receipt(), entry.result().receipt());
+    }
+
+    /** Retained terrain and drop tombstones of an earlier delivery in the same original activity. */
+    public boolean restoredDeliveryRemainders(NativeDeposit.Entry delivery) {
+        check();
+        var prefix = delivery.intent().pickupPrefix();
+        if (prefix == null || delivery.result() == null || delivery.result().live() != NativeDeposit.Live.COMPLETE
+                || store.fenced() || store.pending() || harvest.evidence().fenced() || harvest.evidence().pending()) return false;
+        var pickup = prefix.pickup();
+        if (!store.snapshot().entries().contains(pickup) || !harvest.evidence().snapshot().entries().contains(pickup.intent().harvest())) return false;
+        var expected = new Marker(delivery.token(), delivery.intent().digest(), MarkerPhase.RESULT, delivery.result().digest());
+        var source = harvest.sourceWitness(pickup.result().source());
+        var trail = pickup.intent().dropTrail();
+        if (source == null || !source.restoredFromNativeSave() || !source.source().equals(pickup.result().source())
+                || !expected.equals(source.marker()) || level.getEntity(trail.entity()) != null) return false;
+        var drop = pickup.intent().harvest().result().drops().getFirst();
+        for (var section : trail.chunks()) {
+            if (level.getChunkSource().getChunkNow(section.x(), section.z()) == null) return false;
+            var frame = frame(section);
+            if (frame == null || !frame.supported() || frame.members().contains(trail.entity())) return false;
+            var row = frame.membership(trail.entity());
+            if (row == null || row.role() != NativePickup.Role.DROP || row.present() || !row.trail().equals(trail)
+                    || row.revision() != drop.revision() || !expected.equals(row.marker())) return false;
+        }
+        return true;
+    }
+
+    public boolean savedPickupFollows(Jobs.Job job, NativeDeposit.Entry predecessor) {
+        check();
+        var key = originalPickupKey(job);
+        if (key == null) return false;
+        var proof = store.savedPickup(key);
+        return proof != null && proof.entry().intent().harvest().intent().actorBefore().equals(predecessor.result().actor())
+                && key.generation() == predecessor.intent().key().generation() + 1;
+    }
+
+    @Override public List<ResourceDelivery.Receipt> restoreForDeposit(ValidatedRequest bound, RunCorrelation correlation) {
+        check();
+        try {
+            if (closed || !enabled || restoredPickups.size() >= 8 || restoredPickups.containsKey(correlation.runId())) return List.of();
+            var job = new JobLeaseOwners(jobs, clock).execution(bound, correlation);
+            var key = originalPickupKey(job);
+            if (key == null || job.state() != Jobs.State.ACTIVE || job.current().uncertain()
+                    || !Integer.valueOf(2).equals(job.activity().current().savedPrefixEffects())) return List.of();
+            var saved = store.savedPickup(key);
+            if (saved == null) return List.of();
+            var prefix = prefixReceipts(saved.entry());
+            if (!job.current().resourceReceipts().equals(prefix)) return List.of();
+            restoredPickups.put(correlation.runId(), saved);
+            return prefix;
+        } catch (RuntimeException unavailable) { return List.of(); }
+    }
+    @Override public void releaseRestoredPickup(UUID run) { check(); restoredPickups.remove(run); }
+
     DepositLineage prepareDeposit(DepositProtocol.Request request,BooleanSupplier preflight) {
         check();if(closed || !enabled || store.fenced() || store.pending() || !descendant.isEmpty())return null;
         NativePickup.Entry p=null;
@@ -298,6 +427,18 @@ public final class FabricPickupProtocol implements PickupProtocol {
         }
         if(p==null)return null;
         String token=p.token();
+        var saved = restoredPickups.get(request.correlation().runId());
+        if (saved != null) {
+            if (!saved.entry().equals(p) || !store.ownsSavedPickup(saved) || !request.receiptPrefix().equals(prefixReceipts(p))) return null;
+            var trail = p.verification().observation().actorTrail().trail();
+            var actor = actor(request.actor());
+            var source = harvest.sourceWitness(p.result().source());
+            if (actor == null || !present(actor.getUUID(), trail.current()) || source == null || !source.source().equals(p.result().source())
+                    || !FabricHarvestProtocol.matchesResultMarker(source.marker(), token, p.intent().digest(), p.result().digest())
+                    || level.getEntity(p.intent().dropTrail().entity()) != null
+                    || !harvest.actorMatches(actor, p.result().actor(), source.marker(), true) || !preflight.getAsBoolean()) return null;
+            return new DepositLineage(this, saved, new NativeJoinedDeposit.Prefix(p, trail));
+        }
         var link=live.get(token);var acknowledged=store.acknowledged(p.intent().key());
         if(link==null || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
@@ -313,20 +454,32 @@ public final class FabricPickupProtocol implements PickupProtocol {
         }finally{descendant="";}
     }
     boolean currentDeposit(DepositLineage lineage) {
-        check();return !closed && lineage!=null && lineage.owner==this && store.owns(lineage.pickup)
-                && NativePickup.extendsTrail(harvest.actorTrail(lineage.harvest),lineage.prefix.actorTrail());
+        check();
+        if (closed || lineage == null || lineage.owner != this) return false;
+        if (lineage.saved != null) {
+            var entry = lineage.saved.entry();
+            var source = harvest.sourceWitness(entry.result().source());
+            return restoredPickups.get(entry.intent().harvest().intent().run()) == lineage.saved && store.ownsSavedPickup(lineage.saved)
+                    && present(lineage.prefix.actorTrail().entity(), lineage.prefix.actorTrail().current())
+                    && source != null && source.source().equals(entry.result().source())
+                    && FabricHarvestProtocol.matchesResultMarker(source.marker(), entry.token(), entry.intent().digest(), entry.result().digest())
+                    && level.getEntity(entry.intent().dropTrail().entity()) == null;
+        }
+        return store.owns(lineage.pickup) && NativePickup.extendsTrail(harvest.actorTrail(lineage.harvest),lineage.prefix.actorTrail());
     }
     <T> T depositScope(DepositLineage lineage,java.util.function.Supplier<T> action) {
         check();if(!currentDeposit(lineage) || !descendant.isEmpty())throw new IllegalStateException("Original P/D scope");
+        if (lineage.saved != null) return action.get();
         descendant=lineage.pickup.entry().token();try{return harvest.descendantScope(lineage.harvest,action);}finally{descendant="";}
     }
     void deposited(DepositLineage lineage,NativeDeposit.Intent intent,NativeDeposit.Result result) {
         check();if(!currentDeposit(lineage) || !lineage.prefix.equals(intent.pickupPrefix()))throw new IllegalStateException("Original P/D lineage changed");
-        var p=lineage.pickup.entry();var actor=Objects.requireNonNull(actor(p.intent().harvest().intent().actor()));
+        var p=lineage.prefix.pickup();var actor=Objects.requireNonNull(actor(p.intent().harvest().intent().actor()));
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());
         var previous=new Marker(p.token(),p.intent().digest(),MarkerPhase.RESULT,p.result().digest());
         mark(p.intent(),actor,null,marker);
-        stage(harvest.actorTrail(lineage.harvest),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous);
+        var trail = lineage.saved == null ? harvest.actorTrail(lineage.harvest) : lineage.prefix.actorTrail();
+        stage(trail,NativePickup.Role.ACTOR,result.actor().revision(),marker,true,previous);
         stage(p.intent().dropTrail(),NativePickup.Role.DROP,p.intent().harvest().result().drops().getFirst().revision(),marker,false,previous);
         ((EntityMembershipParticipant)actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),true);frames.clear();
     }

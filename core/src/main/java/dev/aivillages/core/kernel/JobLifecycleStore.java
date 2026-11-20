@@ -529,7 +529,14 @@ public final class JobLifecycleStore {
             var validation=RequestValidator.validate(proposal.request(),job.origin(),job.request().observation(),capabilities,environment);
             if(validation instanceof RequestValidator.Rejected rejected)return reject(rejected.reason(),work);
             envelope(proposal.allowance(),remainingAllowance(job.id(),caller));
-            for(var step:payload.steps())if(step.signature().equals(proposal.signature()) && step.creditBefore()==job.fulfilled())return reject(Reason.STALE_OBSERVATION,work);
+            // The pinned plan can require several separate one-log segments with the same
+            // program and region. Their disjoint action tokens and settled checkpoints
+            // distinguish them; movement or an unchanged wait alone cannot do so.
+            boolean nextAcquisition=production!=null && LogAcquisition.is(proposal.request().capability())
+                    && payload.checkpoints().size()==payload.steps().size();
+            if(!nextAcquisition) for(var step:payload.steps())
+                if(step.signature().equals(proposal.signature()) && step.creditBefore()==job.fulfilled())
+                    return reject(Reason.STALE_OBSERVATION,work);
             boolean executable;
             if(proposal.integrated()) {
                 var bound=((RequestValidator.Accepted)validation).value();
@@ -929,6 +936,11 @@ public final class JobLifecycleStore {
     /** Explicit worker input; null artifact reserves preparation, not executable authority. */
     public Change assign(UUID id, Guard guard, UUID attemptId, ActorRef worker, ArtifactRef artifact,
                          List<ArtifactRef> pinned, Budgets.Limits allowance, TrustedContext caller) {
+        return assign(id,guard,attemptId,worker,artifact,pinned,allowance,null,caller);
+    }
+    /** The trusted dispatcher captures its original tick window before acknowledging an integrated assignment. */
+    public Change assign(UUID id, Guard guard, UUID attemptId, ActorRef worker, ArtifactRef artifact,
+                         List<ArtifactRef> pinned, Budgets.Limits allowance,Long assignmentExpiresTick, TrustedContext caller) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if (job == null) return reject(Reason.AUTHORITY_DENIED, work);
         Change denied = guard(job, guard, work); if (denied != null) return denied;
@@ -958,6 +970,9 @@ public final class JobLifecycleStore {
                         || job.activity().blocker()!=ActivityPayload.Blocker.NONE)return reject(Reason.REQUEST_INVALID,work);
                 envelope(allowance,step.allowance());
             }
+            if(assignmentExpiresTick!=null && (assignmentExpiresTick<1 || job.activity()==null
+                    || job.activity().production()==null || !job.activity().current().integrated()))
+                return reject(Reason.REQUEST_INVALID,work);
             ValidatedRequest bound = remainingRequest(job, worker);
             var validated = RequestValidator.validate(bound.request(), job.origin(), bound.observation(), capabilities, environment);
             if (validated instanceof RequestValidator.Rejected rejected) return reject(rejected.reason(), work);
@@ -976,7 +991,7 @@ public final class JobLifecycleStore {
                     Map.of(), List.of(), 0, 0, null, false, 0);
             var edit = new Edit(job); edit.generation = generation; edit.state = State.ACTIVE; edit.reason = null;
             var attempts = new ArrayList<>(job.attempts()); attempts.add(attempt); edit.attempts = attempts;
-            if(job.activity()!=null)edit.activity=job.activity().assigned(attemptId);
+            if(job.activity()!=null)edit.activity=job.activity().assigned(attemptId,assignmentExpiresTick);
             Job changed = edit.finish(EventKind.ASSIGNED, settings.events()); var rows = rows(); rows.put(id, changed);
             return publish(rows, state.allocations(), changed, null, work.edges);
         } catch (Limited limited) { return reject(limited.reason, work); }
@@ -1073,6 +1088,33 @@ public final class JobLifecycleStore {
             return reject(Reason.STALE_OBSERVATION, work);
         return observe(id, guard, report, caller, true, true, true, cancelledPartial);
     }
+    /** Reopen the same assignment only from registered native evidence. No new attempt or allowance. */
+    Change continueStopped(UUID id, Guard guard, StoppedEvidence evidence, long tick, TrustedContext caller) {
+        thread(); var work = new Work();
+        Job job = controlled(id, caller);
+        if (job == null || !policy.controls(job.responsible(), job.origin())) return reject(Reason.AUTHORITY_DENIED, work);
+        if (!ready()) return reject(unavailableReason(), work);
+        if (recoveryAuthority == null || !recoveryAuthority.authentic(evidence)
+                || evidence.observation().kind() != StoppedKind.CONTINUABLE || job.current() == null
+                || !job.guard().equals(guard) || !evidence.context().equals(StoppedContext.of(job)))
+            return reject(Reason.STALE_OBSERVATION, work);
+        var attempt = job.current();
+        var step = job.activity() == null ? null : job.activity().current();
+        if (job.state() != State.INTERRUPTED || job.cancellationOutcome() != null || !attempt.open() || !attempt.uncertain()
+                || step == null || !step.integrated() || step.assignmentExpiresTick() == null || !attempt.id().equals(step.attempt())
+                || !attempt.worker().equals(job.responsible()) || attempt.executions().size() != 1
+                || !attempt.executions().getFirst().runId().equals(attempt.id())
+                || !attempt.executions().getFirst().artifact().equals(step.artifact())) return reject(Reason.INTERRUPTED, work);
+        if (tick >= step.assignmentExpiresTick() || clock.millis() >= attempt.allowance().deadlineEpochMillis())
+            return reject(Reason.BUDGET_EXHAUSTED, work);
+        var report = evidence.observation().report();
+        var prefix = report.resourceReceipts();
+        if (attempt.effects() > report.effects() || attempt.receiptCount() > prefix.size()
+                || !attempt.resourceReceipts().equals(prefix.subList(0, attempt.resourceReceipts().size()))
+                || report.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS, 0L) != report.effects())
+            return reject(Reason.STALE_OBSERVATION, work);
+        return observe(id, guard, report, caller, true, true, true, false, true);
+    }
     private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
                            boolean reconciliation, boolean certain) {
         return observe(id, guard, report, caller, reconciliation, certain, false);
@@ -1083,6 +1125,11 @@ public final class JobLifecycleStore {
     }
     private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
                            boolean reconciliation, boolean certain, boolean typedStopped,boolean cancelledPartial) {
+        return observe(id, guard, report, caller, reconciliation, certain, typedStopped, cancelledPartial, false);
+    }
+    private Change observe(UUID id, Guard guard, Report report, TrustedContext caller,
+                           boolean reconciliation, boolean certain, boolean typedStopped, boolean cancelledPartial,
+                           boolean continuing) {
         thread(); var work = new Work(); Job job = controlled(id, caller);
         if(job==null && history!=null && history.ready() && sameWorld(caller)) {
             Job archived=history.archived(id);
@@ -1114,7 +1161,7 @@ public final class JobLifecycleStore {
             if(integrated!=null && !integrated.exactChoice())integrated=null;
             boolean current = old.generation() == job.generation();
             if (reconciliation && (!current || job.state() != State.INTERRUPTED
-                    && !(typedStopped && job.state() == State.CANCELLING) || !certain || report.terminal() == null))
+                    && !(typedStopped && job.state() == State.CANCELLING) || !certain || !continuing && report.terminal() == null))
                 return reject(Reason.STALE_OBSERVATION, work);
             Map<UUID, CropDelivery.CropReceipt> receipts = new LinkedHashMap<>();
             old.receipts().forEach(r -> receipts.put(r.receiptId(), r));
@@ -1192,7 +1239,11 @@ public final class JobLifecycleStore {
             var edit = new Edit(job);
             edit.attempts = job.attempts().stream().map(a -> a.id().equals(old.id()) ? updated : a).toList();
             if(cancelledPartial && job.activity()!=null)edit.activity=job.activity().cancelledCustody();
-            if ((!obsolete && terminal != null && job.state() != State.INTERRUPTED) || reconciliation) {
+            if (continuing) {
+                edit.activity = job.activity().continued(updated);
+                edit.state = State.ACTIVE;
+                edit.reason = null;
+            } else if ((!obsolete && terminal != null && job.state() != State.INTERRUPTED) || reconciliation) {
                 if (!reconciliation && terminal.status() == ExecutionStatus.INTERRUPTED) {
                     edit.state = State.INTERRUPTED; edit.reason = Reason.INTERRUPTED;
                 } else if (job.cancellationOutcome() != null || job.state() == State.CANCELLING) {

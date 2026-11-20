@@ -215,16 +215,7 @@ jobs:
         run: |
           python3 e2e/parallel_b/interference_native.py --root "$B_ROOT/interference"
           python3 e2e/parallel_b/native_audit.py --root "$B_ROOT/interference"
-      - name: Exercise genuine all-family admission and cold reuse
-        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
-        run: |
-          result=0
-          root=build/e2e/i00/variant-admission
-          python3 -m e2e.parallel_i00.variant_admission run --root "$root" || result=$?
-          python3 -m e2e.parallel_i00.variant_admission review --root "$root" \
-            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
-          exit "$result"
-      - name: Exercise and independently review integrated custody controls
+      - name: Exercise and independently review integrated custody and saved continuation
         if: ${{ !cancelled() && needs.build.outputs.full == 'true' && steps.quantities.outcome == 'success' }}
         run: |
           result=0
@@ -232,6 +223,15 @@ jobs:
           python3 -m e2e.parallel_i00.integrated_controls run --root "$root" --seed-root "$B_ROOT/quantity" \
             --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=$?
           python3 -m e2e.parallel_i00.integrated_controls review --root "$root" --out "$root/review.json" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
+          exit "$result"
+      - name: Exercise genuine all-family admission and cold reuse
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        run: |
+          result=0
+          root=build/e2e/i00/variant-admission
+          python3 -m e2e.parallel_i00.variant_admission run --root "$root" || result=$?
+          python3 -m e2e.parallel_i00.variant_admission review --root "$root" \
             --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
           exit "$result"
       - name: Preserve independent compatibility reviews

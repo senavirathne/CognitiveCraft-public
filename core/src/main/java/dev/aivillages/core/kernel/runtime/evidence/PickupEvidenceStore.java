@@ -35,6 +35,13 @@ public final class PickupEvidenceStore {
         private Acknowledged(PickupEvidenceStore owner,Entry entry){this.owner=owner;process=owner.process;this.entry=entry;}
         public Entry entry(){return entry;}
     }
+    /** Distinct from a private live acknowledgement. Issued only from the original saved native cohort. */
+    public static final class SavedPickup {
+        private final PickupEvidenceStore owner;
+        private final Entry entry;
+        private SavedPickup(PickupEvidenceStore owner, Entry entry) { this.owner = owner; this.entry = entry; }
+        public Entry entry() { return entry; }
+    }
     public static final class Reconciled {
         private final PickupEvidenceStore owner;private final Entry entry;private final Observation observation;private final Reconciliation result;
         private Reconciled(PickupEvidenceStore owner,Entry entry,Observation observation,Reconciliation result){this.owner=owner;this.entry=entry;this.observation=observation;this.result=result;}
@@ -144,6 +151,20 @@ public final class PickupEvidenceStore {
     public boolean owns(Acknowledged proof) {
         thread();return proof!=null&&proof.owner==this&&proof.process.equals(process)&&!fenced&&pending==null
                 &&find(state,proof.entry.token())==proof.entry&&proof.entry.verification()==null&&created.containsKey(proof.entry.token())&&ancestry(proof.entry);
+    }
+    public SavedPickup savedPickup(Key key) {
+        thread();
+        if (fenced || pending != null) return null;
+        var entry = find(state, key.token());
+        if (entry == null || !entry.intent().key().equals(key) || entry.verification() == null
+                || entry.verification().outcome() != Reconciliation.SAVED_COMPLETE || !ancestry(entry)
+                || NativePickup.classify(entry, port.restored(entry)) != Reconciliation.SAVED_COMPLETE) return null;
+        return new SavedPickup(this, entry);
+    }
+    public boolean ownsSavedPickup(SavedPickup proof) {
+        thread();
+        return proof != null && proof.owner == this && !fenced && pending == null
+                && find(state, proof.entry.token()) == proof.entry && ancestry(proof.entry);
     }
     public Reconciled reconcile(Key key) {
         thread();Objects.requireNonNull(key);Entry entry=find(state,key.token());if(entry==null&&pending!=null)entry=find(pending,key.token());

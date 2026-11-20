@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 from .identity import PRODUCTION, ROOT, candidate, sha256, verify_metadata
 from .gameplay import QUALIFICATION_COMPOSE
+from . import recipe_journal
 from .native_evidence import exact_withdrawals, verify_frames
 
 sys.path.insert(0, str(ROOT / "e2e/parallel_a"))
@@ -27,7 +28,7 @@ from parallel_b.baseline import DESTINATION, LOG, OTHER, PLANK, SOURCE, coord
 from parallel_b.guards import clean_owners, instruments, observer_inputs, stopped_process
 from parallel_b.qualification import safe
 from runtime import SDK
-from suite import DENIED_PATTERN, Harness, UUID_PATTERN, atomic, completed_jsonl, read, require
+from suite import DENIED_PATTERN, Harness, UUID_PATTERN, atomic, completed_jsonl, read, reconnect_players, require
 
 
 LIVE = {"birch-q3-root": (DESTINATION, 0), "birch-q3-same-container-old-stock": (SOURCE, 11)}
@@ -37,6 +38,7 @@ RESTOCK = "unchanged-planning-then-player-restock"
 NO_METHOD = "installed-recipe-without-admitted-method"
 CONTEND = "contending-production-actors"
 PARTIAL_CANCEL = "cancelled-original-partial-craft"
+SAVED_CRAFT = "birch-q3-saved-craft-continuation"
 CANCEL_DESTINATION = [12, 201, 11]
 PEER_DESTINATION = [7, 201, 9]
 PENDING = ("birch-q3-child", "birch-q3-crash-before-allocation",
@@ -268,6 +270,56 @@ def cancel_partial(h):
     return {"id": PARTIAL_CANCEL, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
             "feedback": feedback, "before": before, "cut": cut, "after": after, "afterFence": fence,
             "cancellation": cancellation, "activityView": view, "screenshot": screenshot}
+
+
+def continue_saved_craft(h):
+    h.console(["setblock " + coord(CANCEL_DESTINATION) + " minecraft:chest",
+               "tp " + h.entities["PlayerA"] + " 5.5 201 7.5"])
+    fixture_slots(h, SOURCE, {26: (LOG, 1), 0: (OTHER, 2)})
+    fixture_slots(h, CANCEL_DESTINATION, {})
+    h.wait(lambda: h.container(SOURCE, LOG) == 1 and h.container(CANCEL_DESTINATION, PLANK) == 0,
+           "Original one-log saved continuation fixture")
+    save_world(h, SAVED_CRAFT, "starting-world")
+    before = h.snapshot()
+    command = production_command(h, CANCEL_DESTINATION)
+    h.actions_active = True
+    verified_clock(h, "tick rate 2")
+    root, feedback = submit_root(h, command)
+
+    def crafted():
+        frame = h.snapshot()
+        job = frame["knownPlayers"]["PlayerA"]["jobs"].get(root)
+        receipts = job["attempts"][-1]["resourceReceipts"] if job and job["attempts"] else []
+        if job and job["state"] == "ACTIVE" and [r["stage"] for r in receipts] == ["WITHDRAW", "CRAFT"]:
+            return frame
+        return None
+
+    h.wait(crafted, "Actual original craft committed before delivery", 110)
+    verified_clock(h, "tick freeze")
+    cut = crafted()
+    require(cut, "INCONCLUSIVE: native craft window elapsed before the freeze")
+    cut_image = h.screenshot("PlayerA", SAVED_CRAFT + "-cut", chat=True)
+    save = h.save_checkpoint()
+    cold = read(h.root / "server/process.json")
+    h.stop("server", hard=True)
+    stopped = h.root / "cases" / SAVED_CRAFT / "stopped-world"
+    shutil.copytree(h.root / "server/game/world", stopped, ignore=shutil.ignore_patterns("session.lock"))
+    h.start("server")
+    warm = read(h.root / "server/process.json")
+    reconnect_players(h, ["PlayerA"])
+    after = h.wait(lambda: (frame if (frame := h.snapshot()) and
+                   (job := frame["knownPlayers"]["PlayerA"]["jobs"].get(root)) and job["state"] == "SUCCEEDED"
+                   and clean_owners(frame["knownPlayers"]["PlayerA"]) else None),
+                   "Original saved recipe attempt delivers the remaining output", 100)
+    view = h.command("PlayerA", "/aivillage kernel activity " + root, "state=SUCCEEDED")
+    received = h.menu_count("PlayerA", CANCEL_DESTINATION, PLANK)
+    h.actions_active = False
+    screenshot = h.screenshot("PlayerA", SAVED_CRAFT, chat=True)
+    save_world(h, SAVED_CRAFT)
+    return {"id": SAVED_CRAFT, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
+            "feedback": feedback, "before": before, "cut": cut, "after": after, "cutSave": save,
+            "cold": cold, "warm": warm, "activityView": view, "received": received,
+            "screenshot": screenshot, "cutScreenshot": cut_image}
 
 
 def restock(h):
@@ -505,6 +557,7 @@ def run(args, identity):
         atomic(h.root / "cases" / RESTOCK / "result.json", restock(h))
         atomic(h.root / "cases" / NO_METHOD / "result.json", missing_method(h))
         atomic(h.root / "cases" / CONTEND / "result.json", contention(h))
+        atomic(h.root / "cases" / SAVED_CRAFT / "result.json", continue_saved_craft(h))
     finally:
         h.finish()
 
@@ -722,6 +775,71 @@ def verify_cancel_partial(raw, row, seed, events, frames):
             "retainedPlanks": 4, "goalCredit": 0, "lateEffects": 0, "savedProofFromLiveConversion": False}
 
 
+def verify_continue_saved_craft(raw, row, seed, events, frames, supervisor, jar):
+    root, actor = row["root"], seed["actor"]["entityId"]
+    before, cut, after = (row[k] for k in ("before", "cut", "after"))
+    first = cut["knownPlayers"]["PlayerA"]["jobs"][root]
+    final = after["knownPlayers"]["PlayerA"]["jobs"][root]
+    proof(final, root, seed["method"])
+    cold, warm = row["cold"], row["warm"]
+    require(cold["releaseSha256"] == warm["releaseSha256"] == jar and warm["start"] > cold["start"]
+            and cut["pid"] == cold["pid"] and cut["time"] < warm["start"] * 1000
+            and after["pid"] == warm["pid"] and after["time"] >= warm["start"] * 1000,
+            "Saved prefix and completed delivery do not belong to the required original and restarted JVMs")
+    stop, = [e for e in supervisor if e["kind"] == "process-stop-witness" and e["data"]["process"] == cold]
+    require(stop["data"]["hard"] and stopped_process(stop["data"]["state"], hard=True),
+            "No real original server process kill at the craft boundary")
+    require(any(e["kind"] == "acknowledged-world-checkpoint" and e["data"] == row["cutSave"] and e["time"] < stop["time"]
+                for e in supervisor) and any(e["kind"] == "server-disconnection-witness" and e["data"]["server"] == cold
+                and e["data"]["player"] == "PlayerA" and not e["data"]["client"]["play"] for e in supervisor),
+            "No matching checkpoint acknowledgement and client disconnection")
+    old, current = first["attempts"][0], final["attempts"][0]
+    step = first["activity"]["steps"][0]
+    require(first["state"] == "ACTIVE" and first["fulfilled"] == 0 and len(first["attempts"]) == 1
+            and final["request"] == first["request"] and final["allowance"] == first["allowance"]
+            and final["generation"] == first["generation"] == current["generation"]
+            and current["id"] == old["id"] and current["executions"] == old["executions"]
+            and current["allowance"] == old["allowance"] and final["activity"]["steps"] == [{**step, "savedPrefixEffects": 2}]
+            and after["gameTick"] < step["assignmentExpiresTick"]
+            and old["resourceReceipts"] == current["resourceReceipts"][:2]
+            and all(current["usage"].get(k, 0) >= n for k, n in old["usage"].items()),
+            "The resumed delivery replaced or refilled the original attempt or replayed a committed phase")
+    actor_items = lambda frame: Counter(next(a["inventory"] for a in frame["actors"] if a["uuid"] == actor))
+    require(actor_items(cut) == actor_items(before) + Counter({PLANK: 4})
+            and actor_items(after) == actor_items(before) + Counter({PLANK: 1})
+            and stock(before, SOURCE) == {LOG: 1, OTHER: 2} and stock(cut, SOURCE) == stock(after, SOURCE) == {OTHER: 2}
+            and stock(before, CANCEL_DESTINATION) == stock(cut, CANCEL_DESTINATION) == {}
+            and stock(after, CANCEL_DESTINATION) == {PLANK: 3} and row["received"] == 3
+            and after["brokerStats"]["calls"] == after["brokerStats"]["dispatched"] == after["needleCalls"] == 0,
+            "Native saved continuation failed custody, client delivery, surplus or offline reuse")
+    world = raw / "cases" / SAVED_CRAFT / "stopped-world"
+    require(all(sha256(world / r["path"]) == r["sha256"] for r in row["cutSave"]["files"]),
+            "Actual stopped world differs from the acknowledged native save")
+    saved = original(world, root)
+    require(saved["attempts"][0]["id"] == old["id"] and saved["activity"]["steps"][0]["assignmentExpiresTick"] == step["assignmentExpiresTick"],
+            "Original native stopped Job has no matching assignment window")
+    world_id = first["request"]["context"]["scope"]["worldId"]
+    phases = recipe_journal.phases(recipe_journal.read(world, expected_world=world_id), root)
+    require([p["prepare"]["phase"] for p in phases] == ["WITHDRAW", "CRAFT"] and all(map(recipe_journal.positive, phases)),
+            "Stopped world lacks the original applied craft prefix")
+    withdraw, craft = phases
+    recipe_journal.saved_marker(entities(world)[actor], craft, craft["result"]["after"][0])
+    recipe_journal.saved_marker(chest_row(world, SOURCE), withdraw, withdraw["result"]["after"][1])
+    intended = craft["prepare"]["deliveryTarget"]
+    target = json.loads(chest_row(world, CANCEL_DESTINATION)[recipe_journal.PARTICIPANT])
+    require(intended["address"] == "chest:minecraft:overworld/" + ",".join(map(str, CANCEL_DESTINATION))
+            and (intended["incarnation"], intended["revision"]) == (target["incarnation"], target["revision"])
+            and chest(world, SOURCE) == {OTHER: 2} and chest(world, CANCEL_DESTINATION) == {},
+            "Original saved delivery target or source differs")
+    require(all(feedback_in(events, row[k]) for k in ("feedback", "activityView")), "Missing original connected client command and result")
+    frame_link(frames, before, cut, after)
+    frame_png(raw, row)
+    frame_png(raw, {"screenshot": row["cutScreenshot"]})
+    return {"id": SAVED_CRAFT, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE",
+            "root": root, "attempt": current["id"], "generation": current["generation"], "originalEffects": 2,
+            "newEffects": 1, "delivered": 3, "retained": 1, "freshModelCalls": 0}
+
+
 def verify_restock(raw, row, seed, events, frames):
     root, waiting = row["root"], row["waiting"]
     before, still, after = row["before"], row["still"], row["after"]
@@ -877,8 +995,9 @@ def review(raw, identity):
     require(sha256(mods / PRODUCTION.name) == identity["productionSha256"]
             and sha256(mods / "observer.jar") == metadata["binaries"]["observer"]["sha256"],
             "Different real native server binary or observer")
-    stops = [e["data"] for e in completed_jsonl(raw / "supervisor.jsonl")
-             if e["kind"] == "process-stop-witness" and e["data"]["component"] == "server"]
+    supervisor = completed_jsonl(raw / "supervisor.jsonl")
+    stops = [e["data"] for e in supervisor if e["kind"] == "process-stop-witness"
+             and e["data"]["component"] == "server" and not e["data"]["hard"]]
     stop, = stops
     stopped_process(stop["state"], hard=False)
     require(stop["state"]["ExitCode"] == 0, "Exact native JVM did not stop cleanly")
@@ -886,11 +1005,11 @@ def review(raw, identity):
     require(any(event["kind"] == "play" for event in events), "No live Minecraft client connected")
     recipe = read(raw / "oracle-recipes.json")
     frames, cases = {}, []
-    clocks = [event["data"] for event in completed_jsonl(raw / "supervisor.jsonl")
-              if event["kind"] == "verified-native-clock-transition"]
+    clocks = [event["data"] for event in supervisor if event["kind"] == "verified-native-clock-transition"]
     require([row["request"]["commands"] for row in clocks] == [[command] for command in (
             "tick rate 2", "tick freeze", "tick unfreeze", "tick rate 20",
-            "tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze")],
+            "tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze",
+            "tick rate 2", "tick freeze")],
             "Missing exact native clock transitions for restock and contention")
     clock_frames = {}
     for row in clocks:
@@ -913,7 +1032,7 @@ def review(raw, identity):
         if key in clock_frames:
             require(frame == clock_frames.pop(key), "Native clock evidence differs from the original read-only query")
     require(not clock_frames, "Missing original native clock queries")
-    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, NO_METHOD, CONTEND, *PENDING):
+    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, NO_METHOD, CONTEND, SAVED_CRAFT, *PENDING):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
             cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})
@@ -927,6 +1046,8 @@ def review(raw, identity):
             cases.append(verify_restock(raw, row, seed, events, frames))
         elif name == PARTIAL_CANCEL:
             cases.append(verify_cancel_partial(raw, row, seed, events, frames))
+        elif name == SAVED_CRAFT:
+            cases.append(verify_continue_saved_craft(raw, row, seed, events, frames, supervisor, identity["productionSha256"]))
         elif name == NO_METHOD:
             cases.append(verify_missing_method(raw, row, recipe, events, frames))
         elif name == CONTEND:

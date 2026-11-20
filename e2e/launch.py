@@ -75,14 +75,15 @@ def main() -> None:
                                         "-nolisten", "unix", "-listen", "tcp", "+extension", "GLX", "+render", "-noreset"])
             os.environ["DISPLAY"] = "127.0.0.1:" + number
         (directory / "options.txt").write_text("renderDistance:3\nsimulationDistance:5\nmaxFps:30\nguiScale:2\n"
-                                                "graphicsMode:0\nenableVsync:false\nfullscreen:false\n"
+                                                "graphicsMode:0\nmipmapLevels:0\nenableVsync:false\nfullscreen:false\n"
                                                 "soundCategory_master:0.0\nautoJump:false\npauseOnLostFocus:false\n"
                                                 "onboardAccessibility:false\n")
         identity = uuid.UUID(bytes=__import__("hashlib").md5(("OfflinePlayer:" + args.player).encode()).digest(), version=3)
         classpath = [SDK / "minecraft-client.jar", *sorted((SDK / "libraries").rglob("*.jar")), *common]
         # The real renderer and reconnect buffers share the existing 2 GiB
         # container with the heap. Preserve room for their native allocations.
-        command = [java("java"), "-Xms256M", "-Xmx768M", "-Djava.library.path=" + str(SDK / "natives"),
+        command = [java("java"), "-Xms256M", "-Xmx640M", "-XX:ActiveProcessorCount=2",
+                   "-Djava.library.path=" + str(SDK / "natives"),
                    "-Dorg.lwjgl.librarypath=" + str(SDK / "natives"), "-cp", os.pathsep.join(map(str, classpath)),
                    "net.fabricmc.loader.impl.launch.knot.KnotClient", "--username", args.player,
                    "--uuid", identity.hex, "--accessToken", "0", "--version", "26.3",

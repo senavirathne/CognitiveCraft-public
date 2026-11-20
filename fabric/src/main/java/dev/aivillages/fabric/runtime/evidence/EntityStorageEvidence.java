@@ -66,6 +66,28 @@ public final class EntityStorageEvidence {
                     .filter(row->row.trail().entity().equals(entity)).findFirst().orElse(null);
         }
     }
+    /** Preserve the four-transition limit using the current detached native frame and no pending older write. */
+    boolean roomForJoinedEffects(ChunkPos pos,UUID actor,EntityChunkRecord.Frame saved,long savedRevision) {
+        thread();
+        if(saved==null || !saved.supported() || !pos.equals(saved.position())) return false;
+        var queued=preceding(pos);
+        synchronized(desired) {
+            if(!available())return false;
+            var rows=membership.getOrDefault(pos,List.of());
+            for(int index=0;index<rows.size();index++) {
+                var pending=rows.get(index);
+                if(!pending.latest().trail().entity().equals(actor))continue;
+                if(pending.hasRoom(2))return true;
+                if(!queued.isDone() || queued.isCompletedExceptionally() || revision(pos)!=savedRevision)return false;
+                var compacted=pending.compact(saved.membership(actor));
+                var updated=new ArrayList<>(rows);
+                updated.set(index,compacted);
+                membership.put(pos,List.copyOf(updated));
+                return compacted.hasRoom(2);
+            }
+            return true;
+        }
+    }
     private void acknowledgeMembership(ChunkPos pos,List<EntityChunkMembershipState.Pending> written) {
         var markers=new HashMap<String,Marker>();
         for(var update:written)markers.put(update.latest().key(),update.latest().marker());

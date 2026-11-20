@@ -5,13 +5,16 @@ import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.*;
 import net.minecraft.world.level.ChunkPos;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class EntityChunkMembershipStateTest {
+    @BeforeAll static void version(){SharedConstants.tryDetectVersion();}
     final String dim="minecraft:overworld";final ChunkPos a=new ChunkPos(4,4),b=new ChunkPos(5,4);
     final UUID entity=UUID.randomUUID(),incarnation=UUID.randomUUID();
     final Marker marker=new Marker("a".repeat(64),"b".repeat(64),MarkerPhase.RESULT,"c".repeat(64));
@@ -110,6 +113,32 @@ final class EntityChunkMembershipStateTest {
             var finalFrame=port.readFrame(a).join();assertTrue(finalFrame.supported());
             assertEquals(row(a,true,deposit2,pickup2),finalFrame.membership(entity));
         }
+    }
+    @Test void aThirdJoinedPairFitsOnlyByCompactingFromTheActualSavedFrame(){
+        var files=new AtomicReference<>(EntityChunkRecord.merge(null,nativeFrame(a,true),dim,a,List.of(),List.of(row(a,true,marker,null))));
+        var port=new EntityStorageEvidence(new EntityStorageEvidence.Access(){
+            public CompletableFuture<Optional<CompoundTag>> read(ChunkPos pos){return CompletableFuture.completedFuture(Optional.of(files.get().copy()));}
+            public CompletableFuture<Void> write(ChunkPos pos,CompoundTag root){files.set(root.copy());return CompletableFuture.completedFuture(null);}
+        },dim,Runnable::run);
+        var before=port.readFrame(a).join();
+        var last=marker;
+        for(int index=0;index<6;index++) {
+            var following=new Marker(String.valueOf(index+1).repeat(64),"b".repeat(64),MarkerPhase.RESULT,"c".repeat(64));
+            var next=row(a,true,following,last);
+            if(index==4) {
+                assertFalse(port.stageMembership(a,next));
+                assertFalse(port.roomForJoinedEffects(a,entity,before,port.revision(a)+1));
+                assertTrue(port.roomForJoinedEffects(a,entity,before,port.revision(a)));
+                assertEquals(marker,port.readFrame(a).join().membership(entity).marker());
+            }
+            assertTrue(port.stageMembership(a,next));
+            last=following;
+        }
+        var latest=port.stagedMembership(a,entity);
+        var dropped=new Marker("5".repeat(64),"b".repeat(64),MarkerPhase.RESULT,"c".repeat(64));
+        assertEquals(dropped,latest.predecessor());
+        port.write(a,nativeFrame(a,true)).join();
+        assertEquals(latest,port.readFrame(a).join().membership(entity));
     }
     @Test void wrongChunkAndReplacementIncarnationCannotAdoptTheOldTrail(){
         var initial=EntityChunkRecord.merge(null,nativeFrame(a,true),dim,a,List.of(),List.of(row(a,true,marker,null)));

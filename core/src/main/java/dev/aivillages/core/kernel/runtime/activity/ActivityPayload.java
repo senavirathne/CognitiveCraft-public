@@ -73,7 +73,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         }
         public RecipeChoice recipe() {
             if(!exactRecipe)throw new IllegalArgumentException("Opaque activity choice has no exact recipe authority");
-            return RecipeChoice.fromCanonical(new String(Base64.getDecoder().decode(base64),StandardCharsets.UTF_8));
+            return RecipeChoice.fromCanonical(ActivityEncoding.utf8(Base64.getDecoder().decode(base64)));
         }
         @Override public String toString(){return "Choice[base64="+base64+", sha256="+sha256+"]";}
     }
@@ -90,7 +90,20 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     }
     public record Step(UUID id,UUID proposal,String token,String bodyDigest,String signature,long creditBefore,
                        long quantity,ArtifactRef artifact,Choice choice,Quantities quantities,Budgets.Limits allowance,
-                       long preparedRevision,UUID attempt,CapabilityRequest invocation,long goalCredit) {
+                       long preparedRevision,UUID attempt,CapabilityRequest invocation,long goalCredit,Long assignmentExpiresTick,
+                       Integer savedPrefixEffects) {
+        public Step(UUID id,UUID proposal,String token,String bodyDigest,String signature,long creditBefore,
+                    long quantity,ArtifactRef artifact,Choice choice,Quantities quantities,Budgets.Limits allowance,
+                    long preparedRevision,UUID attempt,CapabilityRequest invocation,long goalCredit,Long assignmentExpiresTick) {
+            this(id,proposal,token,bodyDigest,signature,creditBefore,quantity,artifact,choice,quantities,allowance,
+                    preparedRevision,attempt,invocation,goalCredit,assignmentExpiresTick,null);
+        }
+        public Step(UUID id,UUID proposal,String token,String bodyDigest,String signature,long creditBefore,
+                    long quantity,ArtifactRef artifact,Choice choice,Quantities quantities,Budgets.Limits allowance,
+                    long preparedRevision,UUID attempt,CapabilityRequest invocation,long goalCredit) {
+            this(id,proposal,token,bodyDigest,signature,creditBefore,quantity,artifact,choice,quantities,allowance,
+                    preparedRevision,attempt,invocation,goalCredit,null);
+        }
         public Step(UUID id,UUID proposal,String token,String bodyDigest,String signature,long creditBefore,
                     long quantity,ArtifactRef artifact,Choice choice,Quantities quantities,Budgets.Limits allowance,
                     long preparedRevision,UUID attempt) {
@@ -105,15 +118,24 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                     || (goalCredit!=0 && goalCredit!=quantity) || invocation==null && goalCredit!=quantity
                     || invocation!=null && (!artifact.capability().equals(invocation.capability())
                         || !(invocation.arguments().get("amount") instanceof IntValue amount) || amount.value()!=quantity)
-                    || (choice!=null && choice.exactRecipe())!=(invocation!=null && RecipeProduction.is(artifact.capability())))
+                    || (choice!=null && choice.exactRecipe())!=(invocation!=null && RecipeProduction.is(artifact.capability()))
+                    || assignmentExpiresTick!=null && (assignmentExpiresTick<1 || attempt==null || invocation==null)
+                    || savedPrefixEffects!=null && (assignmentExpiresTick==null || savedPrefixEffects<2 || savedPrefixEffects>=64
+                        || !RecipeProduction.is(artifact.capability()) && !(LogAcquisition.is(artifact.capability()) && savedPrefixEffects==2 && quantity==1)))
                 throw new IllegalArgumentException("Bounded activity preparation");
         }
         public boolean integrated(){return invocation!=null;}
         public boolean exactChoice(){return choice!=null && choice.exactRecipe();}
         public boolean journaledProduction(){return exactChoice() || integrated() && CraftingTablePlacement.is(invocation.capability());}
         public long creditedToGoal(Attempt a){return Math.min(a.credited(),goalCredit);}
-        public Step assigned(UUID original){return new Step(id,proposal,token,bodyDigest,signature,creditBefore,quantity,
-                artifact,choice,quantities,allowance,preparedRevision,Objects.requireNonNull(original),invocation,goalCredit);}
+        public Step assigned(UUID original){return assigned(original,null);}
+        public Step assigned(UUID original,Long expiresTick){return new Step(id,proposal,token,bodyDigest,signature,creditBefore,quantity,
+                artifact,choice,quantities,allowance,preparedRevision,Objects.requireNonNull(original),invocation,goalCredit,expiresTick);}
+        private Step continued(int effects) {
+            if (savedPrefixEffects != null && savedPrefixEffects != effects) throw new IllegalArgumentException("Original saved cut changed");
+            return new Step(id,proposal,token,bodyDigest,signature,creditBefore,quantity,artifact,choice,quantities,allowance,
+                    preparedRevision,attempt,invocation,goalCredit,assignmentExpiresTick,effects);
+        }
     }
     /** References to actual original receipts. Never a new receipt or stock allocation. */
     public record Checkpoint(UUID step,UUID attempt,long generation,long quantity,List<UUID> receipts,Evidence evidence) {
@@ -155,9 +177,22 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         return new ActivityPayload(mode,policy,planned,step.id(),next,checkpoints,executable?Blocker.NONE:Blocker.INTEGRATION_PENDING,production);
     }
     public ActivityPayload assigned(UUID attempt) {
+        return assigned(attempt,null);
+    }
+    public ActivityPayload assigned(UUID attempt,Long expiresTick) {
         Step selected=Objects.requireNonNull(current());
         if(selected.attempt()!=null)throw new IllegalArgumentException("Preparation already assigned");
-        return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps.stream().map(s->s.id().equals(currentStep)?s.assigned(attempt):s).toList(),checkpoints,blocker,production);
+        if(expiresTick!=null && (production==null || !selected.integrated()))throw new IllegalArgumentException("Integrated assignment window required");
+        return new ActivityPayload(mode,policy,plannedSteps,currentStep,steps.stream().map(s->s.id().equals(currentStep)?s.assigned(attempt,expiresTick):s).toList(),checkpoints,blocker,production);
+    }
+    /** Describes where the same stopped attempt was reactivated by the authoritative Jobs owner. */
+    public ActivityPayload continued(Attempt attempt) {
+        var step = Objects.requireNonNull(current());
+        if (production == null || !attempt.id().equals(step.attempt()) || attempt.uncertain() || !attempt.open())
+            throw new IllegalArgumentException("Original integrated attempt required");
+        return new ActivityPayload(mode, policy, plannedSteps, currentStep,
+                steps.stream().map(s -> s.id().equals(currentStep) ? s.continued(attempt.resourceReceipts().size()) : s).toList(),
+                checkpoints, blocker, production);
     }
     public ActivityPayload completed(Attempt attempt) {
         Step selected=Objects.requireNonNull(current());
@@ -201,7 +236,8 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             if(s.preparedRevision()>job.revision() || (s.integrated() ?
                     !ActivityRecipeEvidence.permittedInvocation(job,s.invocation(),s.goalCredit()) :
                     !s.artifact().capability().equals(job.request().request().capability()))
-                    || Math.addExact(s.creditBefore(),s.goalCredit())>goal || s.allowance().deadlineEpochMillis()>job.allowance().deadlineEpochMillis())
+                    || Math.addExact(s.creditBefore(),s.goalCredit())>goal || s.allowance().deadlineEpochMillis()>job.allowance().deadlineEpochMillis()
+                    || s.assignmentExpiresTick()!=null && production==null)
                 throw new IllegalArgumentException("Original activity envelope");
             if(s.exactChoice())ActivityRecipeEvidence.exactInvocation(job,
                     new ValidatedRequest(s.invocation(),job.origin(),job.request().observation()),s.choice(),s.quantities());
@@ -210,6 +246,8 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                 if(!assigned.add(s.attempt()))throw new IllegalArgumentException("Duplicate step writer");
                 Attempt a=job.attempts().get(index++);
                 if(!a.id().equals(s.attempt()))throw new IllegalArgumentException("Original attempt order");
+                if (s.savedPrefixEffects() != null && (a.effects() < s.savedPrefixEffects()
+                        || a.resourceReceipts().size() < s.savedPrefixEffects())) throw new IllegalArgumentException("Original saved receipt prefix");
                 priorCredit=Math.addExact(priorCredit,s.creditedToGoal(a));
                 if(s.integrated()&&!a.bound().request().equals(s.invocation()))
                     throw new IllegalArgumentException("Changed integrated invocation");

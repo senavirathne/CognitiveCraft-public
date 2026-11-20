@@ -422,6 +422,53 @@ public final class SurvivalGateway implements GatewayPort {
     public int activeRuns() { thread(); return runs.size(); }
     public int trackedHandles() { thread(); return handles.size(); }
 
+    /** Rehydrate only the carried original unit. The registered native source owns the saved-pickup proof. */
+    public Reason restorePickedLog(ValidatedRequest request, RunCorrelation correlation) {
+        thread();
+        if (pickupProtocol == null || depositProtocol == null || !LogAcquisition.is(request.request().capability())
+                || !new IntValue(1).equals(request.request().arguments().get("amount")) || runs.containsKey(correlation.runId()))
+            return Reason.REQUEST_INVALID;
+        if (runs.size() >= limits.maxRuns()) return Reason.BUDGET_EXHAUSTED;
+        var actor = actor(request);
+        if (actor == null || !authority.currentlyAllows(actor, Effect.MOVE, request.context())) return Reason.AUTHORITY_DENIED;
+        var state = world.actor(actor);
+        if (state == null || !state.loaded() || !state.alive() || !state.dimension().equals(actor.dimension()))
+            return Reason.ACTOR_UNAVAILABLE;
+        var prefix = pickupProtocol.restoreForDeposit(request, correlation);
+        if (prefix.size() != 2) return Reason.STALE_OBSERVATION;
+        var harvest = prefix.getFirst();
+        var pickup = prefix.getLast();
+        boolean acquired = false;
+        try {
+            if (harvest.stage() != ResourceDelivery.Stage.HARVEST || pickup.stage() != ResourceDelivery.Stage.PICKUP
+                    || harvest.quantity() != 1 || pickup.quantity() != 1 || harvest.dropIds().size() != 1
+                    || !harvest.dropIds().equals(pickup.dropIds()) || !harvest.batchId().equals(pickup.batchId())
+                    || !prefix.stream().allMatch(receipt -> ResourceDelivery.matches(request, correlation.runId(), receipt)))
+                return Reason.STALE_OBSERVATION;
+            var stock = world.resourceInventory(actor, pickup.item());
+            if (stock.status() != ObservationStatus.PRESENT || stock.quantity() < 1 || stock.reason() != null)
+                return Reason.STALE_OBSERVATION;
+            acquired = world.acquire(actor, correlation.runId());
+            if (!acquired) return Reason.ACTOR_UNAVAILABLE;
+            var run = new Run(actor, request, correlation, stock.quantity(), world.tick());
+            run.inventoryFingerprint = stock.fingerprint();
+            var source = harvest.sourceBlock();
+            var batch = new Batch(harvest.batchId(), new Cell(source.dimension(), source.x(), source.y(), source.z()));
+            batch.originalDrops = harvest.dropIds();
+            batch.picked = 1;
+            run.batches.put(batch.id, batch);
+            run.harvested = 1;
+            run.resourceReceipts.addAll(prefix);
+            runs.put(run.id, run);
+            return null;
+        } finally {
+            if (!runs.containsKey(correlation.runId())) {
+                pickupProtocol.releaseRestoredPickup(correlation.runId());
+                if (acquired) world.release(actor, correlation.runId());
+            }
+        }
+    }
+
     @Override public ActionHandle start(ValidatedRequest request, RunCorrelation correlation,
                                         PrimitiveRequirement primitive, Map<String, Value> arguments,
                                         Budgets.Ledger usage) {
@@ -551,10 +598,12 @@ public final class SurvivalGateway implements GatewayPort {
         world.release(run.actor, runId);
         runs.remove(runId);
         if(exactRecipes!=null)exactRecipes.release(runId);
+        if (pickupProtocol != null) pickupProtocol.releaseRestoredPickup(runId);
     }
     /** Executor/controller must call this after terminal execution; no crash replay exists. */
     public void releaseRun(UUID runId) {
         thread();
+        if (pickupProtocol != null) pickupProtocol.releaseRestoredPickup(runId);
         Run run = runs.remove(runId);
         if (run == null) {
             if(exactRecipes!=null)exactRecipes.release(runId);

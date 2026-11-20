@@ -59,6 +59,14 @@ final class FabricRecipeParticipants {
         }
         return List.copyOf(result);
     }
+    /** Read the original delivery address and persist its incarnation with the native chunk on save. */
+    Capture deliveryTarget(ContainerRef ref, boolean track) {
+        var current = container(ref);
+        if (current == null || world.recipeContainer(ref) != current) throw new IllegalStateException("Native delivery target unavailable");
+        var snapshot = capture(chestAddress(ref), ref, (DepositParticipant) current, current, track);
+        if (track) level.getChunkSource().getChunkNow(ref.x() >> 4, ref.z() >> 4).markUnsaved();
+        return snapshot;
+    }
     private BaseContainerBlockEntity container(ContainerRef ref) {
         if(!level.dimension().identifier().toString().equals(ref.dimension()))return null;
         var pos=new BlockPos(ref.x(),ref.y(),ref.z());
@@ -92,6 +100,22 @@ final class FabricRecipeParticipants {
         return new Capture(address,ref,state,inventory,slots,new NativeRecipeJournal.Participant(address,state.incarnation(),state.revision(),digest));
     }
     static List<NativeRecipeJournal.Participant> evidence(List<Capture> participants){return participants.stream().map(Capture::evidence).toList();}
+
+    /** Convert an earlier plain, native H/P/D snapshot to this journal's full slot representation. */
+    NativeRecipeJournal.Participant acquisitionSnapshot(dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Participant earlier,
+                                                       String address) {
+        var slots = new ArrayList<Slot>();
+        for (var slot : earlier.slots()) {
+            if (slot.count() == 0) slots.add(Slot.EMPTY);
+            else {
+                var type = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(slot.item()));
+                if (type == net.minecraft.world.item.Items.AIR) throw new IllegalArgumentException("Unknown original item");
+                slots.add(new Slot(FabricConcreteRecipeChoices.itemKey(level, new ItemStack(type)), slot.count()));
+            }
+        }
+        return new NativeRecipeJournal.Participant(address, earlier.incarnation(), earlier.revision(),
+                fingerprint(StrictJson.canonical(slots.stream().map(Slot::value).toList())));
+    }
 
     /** Exact source slots and per-item conservation across actor and recipient. */
     static boolean applied(RecipeChoice choice,int batch,Stage phase,List<Capture> before,List<Capture> after) {

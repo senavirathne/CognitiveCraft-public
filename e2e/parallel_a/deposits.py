@@ -290,7 +290,6 @@ def main():
             require(len(values)==3 and all(len(row)==1 for row in values),'All three actual preliminary preparation samples must be retained')
             diagnostic['preparation']=percentiles([row[0] for row in values]);diagnostic['status']='PASS_DIAGNOSTIC_SCOPE_ONLY' if diagnostic['preparation']['p99']<=LIMITS['captureP99Ms'] else 'FAIL'
             atomic(h.root/'a05-preparation-diagnostic.json',diagnostic)
-            require(diagnostic['status']=='PASS_DIAGNOSTIC_SCOPE_ONLY','Frozen A05 preliminary actual preparation target failed: '+json.dumps(diagnostic['preparation']))
             h.restore(seed,'full-qualification-after-profile')
         saved,verified_seed,entry,token=positive(h,result)
         for mode in ('equal-count-swap','components','replacement','unloaded'):
@@ -306,6 +305,8 @@ def main():
         ):cut(h,seed,result,name,point,expected,**options)
         storage_controls(h,verified_seed,entry,result)
         cost_windows(h,verified_seed,result)
+        if args.profile_first:
+            require(diagnostic['status']=='PASS_DIAGNOSTIC_SCOPE_ONLY','Frozen A05 preliminary actual preparation target failed: '+json.dumps(diagnostic['preparation']))
         result['status']='PASS_NATIVE_GATES_PENDING_INDEPENDENT_REVIEW';result['remaining']=['independent full artifact, physical saved-participant and raw cost review']
     except Exception as error:
         result.update(status='FAIL',reason=str(error),trace=traceback.format_exc())

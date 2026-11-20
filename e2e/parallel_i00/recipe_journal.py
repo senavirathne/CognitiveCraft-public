@@ -71,9 +71,17 @@ def read(world, *, expected_world=None):
         if value["kind"] == "prepare":
             fields = {"kind", "token", "root", "step", "attempt", "generation", "operation",
                       "method", "choice", "batch", "phase", "deadline", "before"}
-            if (set(value) != fields or token in evidence or value["operation"] in operations
+            if (set(value) - {"deliveryTarget"} != fields or token in evidence or value["operation"] in operations
                     or value["phase"] not in PHASES or not value["before"] or len(value["before"]) > 4):
                 raise ValueError("Duplicate or malformed recipe preparation")
+            if "deliveryTarget" in value:
+                target = value["deliveryTarget"]
+                if (value["phase"] != "CRAFT" or set(target) != {"address", "incarnation", "revision", "slots"}
+                        or not target["address"].startswith("chest:") or len(target["address"]) > 192
+                        or type(target["revision"]) is not int or target["revision"] < 0
+                        or not re.fullmatch(r"[a-f0-9]{64}", target["slots"])):
+                    raise ValueError("Malformed original delivery target witness")
+                UUID(target["incarnation"])
             for field in ("root", "step", "attempt", "operation"):
                 UUID(value[field])
             operations.add(value["operation"])

@@ -21,7 +21,7 @@ public final class ActivityCodec {
             v.put("artifact",Map.of("name",s.artifact().capability().name(),"version",(long)s.artifact().capability().version(),"sha256",s.artifact().sha256()));
             if(s.choice()!=null) {
                 var c=s.choice();
-                v.put("choice",c.exactRecipe()?Map.of("chunks",chunks(c.base64()),"sha256",c.sha256())
+                v.put("choice",c.exactRecipe()?Map.of("deflated",ActivityEncoding.deflate(Base64.getDecoder().decode(c.base64()),EXACT_CHOICE_BYTES),"sha256",c.sha256())
                         :Map.of("base64",c.base64(),"sha256",c.sha256()));
             }
             if(s.integrated()) {
@@ -30,7 +30,9 @@ public final class ActivityCodec {
             }
             var q=s.quantities();v.put("quantities",Map.of("demand",q.demand(),"yield",q.yield(),"batches",q.batches(),"produced",q.produced(),"allocation",q.allocation(),"surplus",q.surplus(),"remainders",q.remainders()));
             var maxima=new TreeMap<String,Long>();s.allowance().maxima().forEach((k,n)->maxima.put(k.name(),n));v.put("allowance",Map.of("maxima",maxima,"deadline",s.allowance().deadlineEpochMillis()));
-            v.put("preparedRevision",s.preparedRevision());if(s.attempt()!=null)v.put("attempt",s.attempt().toString());return v;
+            v.put("preparedRevision",s.preparedRevision());if(s.attempt()!=null)v.put("attempt",s.attempt().toString());
+            if(s.assignmentExpiresTick()!=null)v.put("assignmentExpiresTick",s.assignmentExpiresTick());
+            if(s.savedPrefixEffects()!=null)v.put("savedPrefixEffects",s.savedPrefixEffects());return v;
         }).toList());
         row.put("checkpoints",p.checkpoints().stream().map(c->Map.of("step",c.step().toString(),"attempt",c.attempt().toString(),"generation",c.generation(),"quantity",c.quantity(),"receipts",c.receipts().stream().map(UUID::toString).toList(),"evidence",c.evidence().name())).toList());
         return row;
@@ -39,12 +41,17 @@ public final class ActivityCodec {
         fields(row,Set.of("schema","mode","policy","plannedSteps","blocker","steps","checkpoints"),Set.of("currentStep","production"));
         if(number(row,"schema","$")!=1)throw new IllegalArgumentException("Activity schema");
         var steps=new ArrayList<Step>();for(Object raw:list(row,"steps",8)) {
-            var s=object(raw);fields(s,Set.of("id","proposal","token","bodyDigest","signature","creditBefore","quantity","artifact","quantities","allowance","preparedRevision"),Set.of("choice","attempt","invocation","goalCredit"));
+            var s=object(raw);fields(s,Set.of("id","proposal","token","bodyDigest","signature","creditBefore","quantity","artifact","quantities","allowance","preparedRevision"),Set.of("choice","attempt","invocation","goalCredit","assignmentExpiresTick","savedPrefixEffects"));
             var a=object(s.get("artifact"));exact(a,"name","version","sha256");var q=object(s.get("quantities"));exact(q,"demand","yield","batches","produced","allocation","surplus","remainders");
             Choice choice=null;
             if(s.containsKey("choice")) {
                 var c=object(s.get("choice"));
-                if(c.containsKey("chunks")) {
+                if(c.containsKey("deflated")) {
+                    exact(c,"deflated","sha256");
+                    var bytes=ActivityEncoding.inflate(c.get("deflated"),EXACT_CHOICE_BYTES);
+                    choice=new Choice(Base64.getEncoder().encodeToString(bytes),string(c,"sha256","$"),true);
+                    choice.recipe();
+                } else if(c.containsKey("chunks")) {
                     exact(c,"chunks","sha256");
                     var parts=list(c,"chunks",MAX_CHUNKS);
                     var joined=new StringBuilder();
@@ -76,7 +83,9 @@ public final class ActivityCodec {
                     new ArtifactRef(new CapabilityId(string(a,"name","$"),Math.toIntExact(number(a,"version","$"))),string(a,"sha256","$")),choice,
                     new Quantities(number(q,"demand","$"),number(q,"yield","$"),number(q,"batches","$"),number(q,"produced","$"),number(q,"allocation","$"),number(q,"surplus","$"),number(q,"remainders","$")),
                     new Budgets.Limits(maxima,number(limits,"deadline","$")),number(s,"preparedRevision","$"),s.containsKey("attempt")?id(s,"attempt"):null,
-                    invocation,integrated?number(s,"goalCredit","$"):number(s,"quantity","$")));
+                    invocation,integrated?number(s,"goalCredit","$"):number(s,"quantity","$"),
+                    s.containsKey("assignmentExpiresTick")?number(s,"assignmentExpiresTick","$"):null,
+                    s.containsKey("savedPrefixEffects")?Math.toIntExact(number(s,"savedPrefixEffects","$")):null));
         }
         var checkpoints=new ArrayList<Checkpoint>();for(Object raw:list(row,"checkpoints",8)) {
             var c=object(raw);exact(c,"step","attempt","generation","quantity","receipts","evidence");var refs=new ArrayList<UUID>();for(Object id:list(c,"receipts",64))refs.add(UUID.fromString((String)id));

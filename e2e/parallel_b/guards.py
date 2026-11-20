@@ -42,7 +42,7 @@ def clean_owners(data):
 
 
 def clock_response(command, response):
-    if not re.fullmatch(r"tick (?:freeze|unfreeze|step 1|rate (?:1|2|20))", command):
+    if not re.fullmatch(r"tick (?:freeze|unfreeze|step 1|rate (?:1|2|4|20))", command):
         raise ValueError("Unsupported test clock request")
     text = response.lower()
     if any(word in text for word in ("unknown", "incorrect", "incomplete", "permission", "failed", "error")):
@@ -52,7 +52,8 @@ def clock_response(command, response):
     elif command == "tick unfreeze":
         accepted = text in {"the game is running normally", "the game is now unfrozen", "the game is unfrozen"}
     elif command.startswith("tick rate "):
-        accepted = "tick rate" in text and "per second" in text
+        reply = re.fullmatch(r"set the target tick rate to (\d+(?:\.\d+)?) per second", text)
+        accepted = reply is not None and float(reply[1]) == int(command.rsplit(" ", 1)[1])
     else:
         accepted = "step" in text and "tick" in text
     if not accepted:

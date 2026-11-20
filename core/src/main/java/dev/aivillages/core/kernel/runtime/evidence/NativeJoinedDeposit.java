@@ -12,7 +12,8 @@ public final class NativeJoinedDeposit {
         public Prefix {
             Objects.requireNonNull(pickup);Objects.requireNonNull(actorTrail);
             var p=pickup.result();var old=pickup.intent().actorTrail();
-            if(p==null || p.live()!=NativePickup.Live.COMPLETE || p.receipt()==null || p.remaining()!=null || pickup.verification()!=null
+            if(p==null || p.live()!=NativePickup.Live.COMPLETE || p.receipt()==null || p.remaining()!=null
+                    || pickup.verification()!=null && pickup.verification().outcome()!=NativePickup.Reconciliation.SAVED_COMPLETE
                     || !old.entity().equals(actorTrail.entity()) || !old.incarnation().equals(actorTrail.incarnation()) || !actorTrail.chunks().containsAll(old.chunks()))
                 throw new IllegalArgumentException("Complete original first pickup required");
         }
@@ -27,6 +28,10 @@ public final class NativeJoinedDeposit {
                     || d.conditions().usage().getOrDefault(Budgets.Kind.ATTEMPTED_EFFECTS,0L)!=2 || d.conditions().usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L)!=2)
                 throw new IllegalArgumentException("Original cumulative H/P/D binding");
             for(var u:pickup.result().usage().entrySet())if(d.conditions().usage().getOrDefault(u.getKey(),0L)<u.getValue())throw new IllegalArgumentException("Deposit usage decreased");
+            // A recovered original pickup carries its separately acknowledged native verification.
+            // Its new process must obtain valid conditional claims for this same Job and generation.
+            // The current native writer checks that authority before preparing and applying D.
+            if (pickup.verification() != null) return;
             var prior=new HashMap<UUID,Claim>();p.conditions().claims().forEach(c->prior.put(c.id(),c));
             if(prior.size()!=d.conditions().claims().size())throw new IllegalArgumentException("Original deposit claims changed");
             for(var claim:d.conditions().claims()) {

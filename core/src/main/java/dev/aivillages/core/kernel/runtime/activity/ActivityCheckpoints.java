@@ -14,21 +14,28 @@ public final class ActivityCheckpoints {
     private final DepositEvidenceStore deposits;
     private final Predicate<Entry> currentProcessAcknowledgement;
     private final boolean verifyClosedLogAdmissions;
-    private final Map<Key,Entry> live=new HashMap<>();
+    private final Predicate<Entry> savedSuccessor;
+    private final Map<Key,Entry> settledHere=new HashMap<>();
     private final Thread thread=Thread.currentThread();private int cursor;
     public ActivityCheckpoints(JobLifecycleStore jobs,DepositEvidenceStore deposits,Predicate<Entry> currentProcessAcknowledgement) {
         this(jobs, deposits, currentProcessAcknowledgement, false);
     }
     public ActivityCheckpoints(JobLifecycleStore jobs, DepositEvidenceStore deposits,
                                Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogAdmissions) {
+        this(jobs, deposits, currentProcessAcknowledgement, verifyClosedLogAdmissions, entry -> false);
+    }
+    public ActivityCheckpoints(JobLifecycleStore jobs, DepositEvidenceStore deposits,
+                               Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogAdmissions,
+                               Predicate<Entry> savedSuccessor) {
         this.jobs=Objects.requireNonNull(jobs);this.deposits=Objects.requireNonNull(deposits);
         this.currentProcessAcknowledgement=Objects.requireNonNull(currentProcessAcknowledgement);
         this.verifyClosedLogAdmissions = verifyClosedLogAdmissions;
-        deposits.attachLiveSettlements(this::liveSettled);
+        this.savedSuccessor = Objects.requireNonNull(savedSuccessor);
+        deposits.attachLiveSettlements(this::settledHere);
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Checkpoint owner thread");}
-    private boolean liveSettled(Entry entry) {
-        check();Entry original=live.get(entry.intent().key());
+    private boolean settledHere(Entry entry) {
+        check();Entry original=settledHere.get(entry.intent().key());
         return original!=null && original.intent().equals(entry.intent()) && Objects.equals(original.result(),entry.result());
     }
     /** At most four original entries; one existing native-writer publication in a slice. */
@@ -37,11 +44,11 @@ public final class ActivityCheckpoints {
         var entries=deposits.snapshot().entries();
         for(int n=0;n<Math.min(4,entries.size());n++) {
             cursor%=entries.size();Entry entry=entries.get(cursor++);
-            if(entry.verification()!=null || liveSettled(entry))continue;
+            if(entry.verification()!=null || settledHere(entry))continue;
             boolean activityCheckpoint = matches(entry);
             if (!activityCheckpoint && (!verifyClosedLogAdmissions || !closedLogAdmission(entry))) continue;
             if(currentProcessAcknowledgement.test(entry)) {
-                if(activityCheckpoint && live.size()<MAX_ENTRIES)live.put(entry.intent().key(),entry);
+                if(activityCheckpoint && settledHere.size()<MAX_ENTRIES)settledHere.put(entry.intent().key(),entry);
                 continue;
             }
             // There is no current-process acknowledgement after restart. Counts alone cannot close it.
@@ -49,6 +56,8 @@ public final class ActivityCheckpoints {
             if(proof!=null && proof.result()==Reconciliation.SAVED_COMPLETE) {
                 deposits.verify(proof);return;
             }
+            if (activityCheckpoint && verifyClosedLogAdmissions && settledHere.size() < MAX_ENTRIES && savedSuccessor.test(entry))
+                settledHere.put(entry.intent().key(), entry);
         }
     }
     /** I00 can reuse a legacy admission's participants after the original saved cohort verifies. */

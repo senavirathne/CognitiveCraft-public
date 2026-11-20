@@ -117,19 +117,32 @@ public final class BoundedSkillExecutor {
     public Start startAdmitted(ValidatedRequest request, ArtifactRef artifact,
                                RunCorrelation correlation, Budgets.ExecutionLimits limits,
                                Budgets.Ledger usage) {
-        return start(request, artifact, correlation, limits, usage, null, null);
+        return start(request, artifact, correlation, limits, usage, null, null, false);
     }
     /** The existing interpreter can use exact-choice receipts only for its original active Jobs attempt. */
     Start startAdmittedActivity(ValidatedRequest request,ArtifactRef artifact,RunCorrelation correlation,
                                 Budgets.ExecutionLimits limits,Budgets.Ledger usage,Jobs.Job root) {
+        return startActivity(request, artifact, correlation, limits, usage, root, false);
+    }
+    Start continueAdmittedActivity(ValidatedRequest request, ArtifactRef artifact, RunCorrelation correlation,
+                                   Budgets.ExecutionLimits limits, Budgets.Ledger usage, Jobs.Job root) {
+        return startActivity(request, artifact, correlation, limits, usage, root, true);
+    }
+    private Start startActivity(ValidatedRequest request, ArtifactRef artifact, RunCorrelation correlation,
+                                Budgets.ExecutionLimits limits, Budgets.Ledger usage, Jobs.Job root, boolean continuing) {
         var attempt=root.current();
         var step=root.activity()==null?null:root.activity().current();
-        if(root.state()!=Jobs.State.ACTIVE || attempt==null || !attempt.open() || step==null || !step.exactChoice()
+        if(root.state()!=Jobs.State.ACTIVE || attempt==null || !attempt.open() || step==null
+                || !step.exactChoice() && !(continuing && LogAcquisition.is(request.request().capability()))
                 || !attempt.id().equals(correlation.runId()) || !attempt.id().equals(step.attempt())
                 || !step.artifact().equals(artifact) || !attempt.bound().request().equals(request.request())
                 || !attempt.bound().context().equals(request.context()) || !attempt.allowance().equals(limits.total()))
             return new Rejected(Reason.STALE_OBSERVATION);
-        return start(request,artifact,correlation,limits,usage,null,root);
+        if (continuing && (attempt.uncertain() || attempt.effects() != attempt.resourceReceipts().size()
+                || !attempt.usage().equals(usage.snapshot()) || step.assignmentExpiresTick() == null
+                || step.savedPrefixEffects() == null || step.savedPrefixEffects() != attempt.effects()
+                || tickClock.getAsLong() >= step.assignmentExpiresTick())) return new Rejected(Reason.STALE_OBSERVATION);
+        return start(request,artifact,correlation,limits,usage,null,root,continuing);
     }
     public Start startTrial(ValidatedRequest request, ArtifactRef artifact,
                             RunCorrelation correlation, Budgets.ExecutionLimits limits,
@@ -139,10 +152,11 @@ public final class BoundedSkillExecutor {
                 || clock.millis() > permit.expiresAtMillis()
                 || !trials.authorized(permit, request, limits))
             return new Rejected(Reason.AUTHORITY_DENIED);
-        return start(request, artifact, correlation, limits, usage, permit, null);
+        return start(request, artifact, correlation, limits, usage, permit, null, false);
     }
     private Start start(ValidatedRequest request, ArtifactRef artifact, RunCorrelation correlation,
-                        Budgets.ExecutionLimits limits, Budgets.Ledger usage, TrialPermit permit, Jobs.Job activity) {
+                        Budgets.ExecutionLimits limits, Budgets.Ledger usage, TrialPermit permit, Jobs.Job activity,
+                        boolean continuing) {
         thread();
         Objects.requireNonNull(request); Objects.requireNonNull(artifact);
         Objects.requireNonNull(correlation); Objects.requireNonNull(limits);
@@ -162,7 +176,16 @@ public final class BoundedSkillExecutor {
         SkillCompiler.CompiledSkill root = pinned.get(artifact);
         if (!arguments(root.artifact().descriptor().parameters(), request.request().arguments()))
             return new Rejected(Reason.REQUEST_INVALID);
-        return new Started(new Run(request, correlation, limits, usage, pinned, permit != null,activity));
+        RecipeActivityContinuation.Point resume = null;
+        if (continuing) try {
+            int prefix = activity.current().resourceReceipts().size();
+            resume = activity.activity().current().exactChoice()
+                    ? RecipeActivityContinuation.afterCraft(root.program(), request.request(), prefix)
+                    : RecipeActivityContinuation.afterPickup(root.program(), request.request(), prefix);
+        } catch (IllegalArgumentException | ArithmeticException unsupported) {
+            return new Rejected(Reason.ARTIFACT_INCOMPATIBLE);
+        }
+        return new Started(new Run(request, correlation, limits, usage, pinned, permit != null, activity, resume));
     }
 
     private Reason pin(ArtifactRef ref, boolean trialRoot, ActorRef actor, TrustedContext context,
@@ -269,16 +292,30 @@ public final class BoundedSkillExecutor {
 
         private Run(ValidatedRequest request, RunCorrelation correlation,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage,
-                    Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, boolean trial, Jobs.Job activity) {
+                    Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, boolean trial, Jobs.Job activity,
+                    RecipeActivityContinuation.Point resume) {
             this.request = request; this.correlation = correlation;
             this.limits = limits; this.usage = usage;
             this.pinned = Collections.unmodifiableMap(new LinkedHashMap<>(pinned));
             this.trial = trial;
             this.activity=activity;
             lastTick = tickClock.getAsLong();
-            stack.push(new Frame(correlation.artifact(), pinned.get(correlation.artifact()).program(),
-                    request.request().arguments(), null));
-            record("start", correlation.artifact());
+            Program program = pinned.get(correlation.artifact()).program();
+            Frame frame = new Frame(correlation.artifact(), program, request.request().arguments(), null);
+            stack.push(frame);
+            if (resume != null) {
+                var loop = (Repeat) program.body().get(resume.rootPosition() - 1);
+                frame.cursors.peek().position = resume.rootPosition();
+                var suffix = new Cursor(loop.body(), Map.of(), resume.batchesRemaining());
+                suffix.position = resume.batchPosition();
+                frame.cursors.push(suffix);
+                effects = activity.current().effects();
+                for (var receipt : activity.current().resourceReceipts()) {
+                    resourceReceipts.add(receipt);
+                    resourceReceiptsById.put(receipt.receiptId(), receipt);
+                }
+            }
+            record(resume == null ? "start" : "continue", correlation.artifact());
         }
         public Progress progress(TrustedContext caller) {
             thread(); inspect(caller);
@@ -474,7 +511,7 @@ public final class BoundedSkillExecutor {
                 }
             }
             for (ResourceDelivery.Receipt receipt : answer.resourceReceipts()) {
-                boolean matches=activity==null?ResourceDelivery.matches(request,correlation.runId(),receipt)
+                boolean matches=activity==null || !activity.activity().current().exactChoice()?ResourceDelivery.matches(request,correlation.runId(),receipt)
                         :ActivityRecipeEvidence.matches(activity,activity.current(),activity.activity().current(),receipt);
                 if (!matches) throw new InvalidRun();
                 ResourceDelivery.Receipt prior = resourceReceiptsById.get(receipt.receiptId());

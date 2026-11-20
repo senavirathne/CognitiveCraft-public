@@ -10,9 +10,11 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
 
 /** Bounded coordination decorator; the existing gateway remains the only physical effect owner. */
 public final class LeasedGateway implements GatewayPort {
-    public record Binding(Owner owner,List<Demand> demands) {
+    public record Binding(Owner owner, List<Demand> demands, Long assignmentExpiresTick) {
+        public Binding(Owner owner, List<Demand> demands) { this(owner, demands, null); }
         public Binding { Objects.requireNonNull(owner);demands=List.copyOf(demands);
-            if(demands.isEmpty()||demands.size()>4)throw new IllegalArgumentException("Lease binding"); }
+            if(demands.isEmpty() || demands.size()>4 || assignmentExpiresTick!=null && assignmentExpiresTick<1)
+                throw new IllegalArgumentException("Lease binding"); }
     }
     @FunctionalInterface public interface Bindings { Binding bind(ValidatedRequest request,RunCorrelation run); }
     @FunctionalInterface public interface Admission { Result prepare(ValidatedRequest request,RunCorrelation run); }
@@ -72,11 +74,14 @@ public final class LeasedGateway implements GatewayPort {
             return new Binding(new Owner(job.id(),job.generation()),placementDemands(request,durablePlacement(job,request)));
         }
         if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
+        return acquisitionWorkspaces(owners.byRun(request,run),request,null);
+    }
+    private static Binding acquisitionWorkspaces(Owner owner, ValidatedRequest request, Long assignmentExpiresTick) {
         UUID world=request.context().scope().worldId();
         Cuboid source=ResourceDelivery.sourceArea(request.request());
         ContainerRef destination=((ContainerValue)request.request().arguments().get("destination")).value();
-        return new Binding(owners.byRun(request,run),List.of(new Demand(Resource.space(world,source),1),
-                new Demand(Resource.facility(world,destination),1)));
+        return new Binding(owner,List.of(new Demand(Resource.space(world,source),1),
+                new Demand(Resource.facility(world,destination),1)),assignmentExpiresTick);
     }
     /** Trusted authority preparation; existing coordination remains the sole lease owner. */
     public void admission(Admission admission) { checkThread();this.admission=Objects.requireNonNull(admission); }
@@ -94,7 +99,14 @@ public final class LeasedGateway implements GatewayPort {
     public static Binding cropWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
         if(CraftingTablePlacement.is(request.request().capability()))return workspaces(owners,request,run);
         if(RecipeProduction.is(request.request().capability()))return recipeWorkspaces(owners,request,run);
-        Binding spaces=workspaces(owners,request,run);
+        Binding spaces;
+        if (LogAcquisition.is(request.request().capability())) {
+            var job = owners.execution(request, run);
+            var step = job.activity() == null ? null : job.activity().current();
+            if (step != null && step.integrated() && step.savedPrefixEffects() != null)
+                return acquisitionWorkspaces(new Owner(job.id(),job.generation()),request,step.assignmentExpiresTick());
+            spaces = acquisitionWorkspaces(new Owner(job.id(),job.generation()),request,null);
+        } else spaces = workspaces(owners,request,run);
         var demands=new ArrayList<>(spaces.demands());
         demands.add(new Demand(sourceResource(request.context().scope().worldId(),request),
                 ((IntValue)request.request().arguments().get("amount")).value()));
@@ -103,7 +115,8 @@ public final class LeasedGateway implements GatewayPort {
     private static Binding recipeWorkspaces(JobLeaseOwners owners,ValidatedRequest request,RunCorrelation run) {
         var job=owners.execution(request,run);
         var exact=exactRecipe(job,request);
-        if(exact!=null)return new Binding(new Owner(job.id(),job.generation()),exactRecipeDemands(request,exact));
+        if(exact!=null)return new Binding(new Owner(job.id(),job.generation()),exactRecipeDemands(request,exact),
+                job.activity().current().assignmentExpiresTick());
         UUID world=request.context().scope().worldId();
         var source=((ContainerValue)request.request().arguments().get("source")).value();
         var target=((ContainerValue)request.request().arguments().get("destination")).value();
@@ -177,7 +190,10 @@ public final class LeasedGateway implements GatewayPort {
         return leases.group(run.acquisition.group(),run.binding.owner(),request.context());
     }
     private Result acquire(Run run) {
-        var result=leases.acquire(run.binding.owner(),run.binding.demands(),duration,run.request.context());
+        long ttl = run.binding.assignmentExpiresTick() == null ? duration
+                : Math.min(duration, run.binding.assignmentExpiresTick() - ticks.getAsLong());
+        if (ttl < 1) return new Result(Code.REJECTED, Reason.BUDGET_EXHAUSTED, null, List.of(), 0, 0);
+        var result=leases.acquire(run.binding.owner(),run.binding.demands(),ttl,run.request.context());
         // An initial unavailable native observation creates no claims or effects. Keep
         // this same action pending within its existing waiting budget and reobserve.
         if(result.group()==null && (result.code()==Code.PENDING || result.code()==Code.REJECTED && result.reason()==Reason.TARGET_UNAVAILABLE))
