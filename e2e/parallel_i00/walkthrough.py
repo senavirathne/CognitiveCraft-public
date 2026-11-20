@@ -188,7 +188,10 @@ def prepare(h, shortage):
                "kill @e[type=minecraft:item,x=63,y=207,z=63,dx=21,dy=5,dz=15]", "clear PlayerA",
                "tp PlayerA 77.5 208 73.5"])
     for _, entity in h.subjects:
-        h.actor_stock({}, entity)
+        # The real admission already left its worker empty. Rewriting eight
+        # empty slots would advance the native participant revision before the
+        # first measured action and could invalidate its saved movement trail.
+        require(not stock_at(h.snapshot(), entity), "The genuine saved prelude left unexpected actor custody")
         if entity != h.entities["PlayerA"]:
             h.console(["fill 81 208 68 84 210 68 minecraft:stone", "fill 81 208 72 84 210 72 minecraft:stone",
                        "fill 81 208 69 81 210 71 minecraft:stone", "fill 84 208 69 84 210 71 minecraft:stone",

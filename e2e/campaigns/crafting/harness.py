@@ -165,6 +165,8 @@ class CraftingHarness(Harness):
         entity = entity or self.entities["PlayerA"]
         rows = [(item, count) for item, count in contents.items() if count]
         require(len(rows) <= 8 and all(1 <= count <= 64 for _, count in rows), "Bounded native actor fixture")
+        if not rows and any(a["uuid"] == entity and not a["inventory"] for a in (self.snapshot() or {}).get("actors", ())):
+            return
         self.console(["item replace entity " + entity + " mob.inventory." + str(slot) + " with " +
                       (rows[slot][0] + " " + str(rows[slot][1]) if slot < len(rows) else "minecraft:air")
                       for slot in range(8)])

@@ -3,12 +3,16 @@ package dev.aivillages.core.kernel.runtime.evidence;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.*;
-import static dev.aivillages.core.kernel.runtime.evidence.NativeHarvest.*;
+import dev.aivillages.core.kernel.CropDelivery;
 import dev.aivillages.core.kernel.Contracts.ActorRef;
+import dev.aivillages.core.kernel.Contracts.AreaValue;
+import dev.aivillages.core.kernel.Contracts.ContainerValue;
+import dev.aivillages.core.kernel.Contracts.ValidatedRequest;
 import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Key;
 import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Participant;
 import dev.aivillages.core.kernel.runtime.evidence.NativeDeposit.Witness;
 import static dev.aivillages.core.kernel.runtime.evidence.HarvestJournal.Snapshot;
+import static dev.aivillages.core.kernel.runtime.evidence.NativeHarvest.*;
 
 /** Main-thread intent owner; the registered native port is the only effect caller. */
 public final class HarvestEvidenceStore {
@@ -19,6 +23,7 @@ public final class HarvestEvidenceStore {
         Witness restoredActor(Participant actor);
         SourceWitness restoredSource(Source source);
         List<DropWitness> restoredDrops(List<Drop> drops);
+        default boolean closedCropBatch(Entry entry){return false;}
     }
     public enum Code { PENDING, PREPARED, RESULT_ACKNOWLEDGED, RESOLVED, RECOVERY_REQUIRED, STALE, FULL, FENCED }
     public record Status(Code code,Prepared prepared) { }
@@ -51,7 +56,26 @@ public final class HarvestEvidenceStore {
     private Snapshot state,pending;private long deadline;private boolean fenced;
     private PickupEvidenceStore successor;
     public void attachPickup(PickupEvidenceStore successor){thread();if(this.successor!=null)throw new IllegalStateException("Harvest successor already attached");this.successor=Objects.requireNonNull(successor);}
-    private boolean unresolved(Entry entry){return entry.verification()==null && (successor==null || !successor.settledHarvest(entry));}
+    private boolean unresolved(Entry entry){
+        return entry.verification()==null && (successor==null || !successor.settledHarvest(entry))
+                && (!completeCrop(entry) || !nativePort.closedCropBatch(entry));
+    }
+    private static boolean completeCrop(Entry entry){
+        return entry.result()!=null && entry.result().live()==Live.COMPLETE && entry.result().cropReceipt()!=null
+                && entry.result().failure().isEmpty();
+    }
+    private boolean liveCrop(Entry entry,UUID run){
+        return run!=null && entry.intent().run().equals(run) && completeCrop(entry) && created.containsKey(entry.token())
+                && find(state,entry.token())==entry;
+    }
+    private boolean nextCropHarvest(Entry previous,Intent next){
+        if(!next.item().equals("minecraft:wheat") || !liveCrop(previous,next.run()))return false;
+        Intent prior=previous.intent();Key a=prior.key(),b=next.key();
+        return !sameSource(prior.source(),next.source()) && a.root().equals(b.root()) && a.step().equals(b.step())
+                && a.attempt().equals(b.attempt()) && a.generation()==b.generation() && a.ordinal()<b.ordinal()
+                && prior.origin().equals(next.origin()) && prior.actor().equals(next.actor())
+                && prior.area().equals(next.area()) && prior.destination().equals(next.destination());
+    }
     public HarvestEvidenceStore(Snapshot initial,Storage storage,NativePort nativePort,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.storage=Objects.requireNonNull(storage);this.nativePort=Objects.requireNonNull(nativePort);this.clock=Objects.requireNonNull(clock);
         if(timeoutMillis<1 || timeoutMillis>30_000)throw new IllegalArgumentException("Harvest acknowledgement deadline");
@@ -100,7 +124,8 @@ public final class HarvestEvidenceStore {
         }
         if(pending!=null)return status(Code.PENDING,null);
         if(clock.millis()>intent.conditions().actionDeadlineEpochMillis())return status(Code.STALE,null);
-        for(Entry prior:state.entries())if(unresolved(prior) && (sameActor(prior.intent().actor(),intent.actor()) || sameSource(prior.intent().source(),intent.source())))
+        for(Entry prior:state.entries())if((sameActor(prior.intent().actor(),intent.actor()) || sameSource(prior.intent().source(),intent.source()))
+                && !nextCropHarvest(prior,intent) && unresolved(prior))
             return status(Code.RECOVERY_REQUIRED,null);
         if(state.entries().size()==MAX_ENTRIES)return status(Code.FULL,null);
         // Validate the complete bounded record before reserving its worst-case result.
@@ -165,14 +190,27 @@ public final class HarvestEvidenceStore {
             snapshot.entries().stream().filter(this::unresolved).forEach(e->{ids.add(e.intent().key().root());ids.add(e.intent().key().step());});return Set.copyOf(ids);
     }
     public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect) {
+        return conflicts(actor,dimension,x,y,z,allowedEffect,null,null,false);
+    }
+    /** The native gateway supplies its currently held run for an ordinary crop effect. */
+    public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect,
+                             ValidatedRequest request,UUID nativeRun,boolean harvesting) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
             Source source=entry.intent().source();
-            boolean overlaps=sameActor(entry.intent().actor(),actor)
-                    || source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z;
+            boolean atSource=source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z;
+            boolean overlaps=sameActor(entry.intent().actor(),actor) || atSource;
             if(overlaps && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect))
+                    && !(request!=null && (!harvesting || !atSource) && cropRequest(entry,actor,request,nativeRun))
                     && unresolved(entry))return true;
         }
         return false;
+    }
+    private boolean cropRequest(Entry entry,ActorRef actor,ValidatedRequest request,UUID nativeRun){
+        if(!request.request().capability().equals(CropDelivery.ID) || !liveCrop(entry,nativeRun))return false;
+        var intent=entry.intent();var arguments=request.request().arguments();
+        return intent.origin().equals(request.context()) && intent.actor().equals(actor)
+                && arguments.get("source") instanceof AreaValue source && source.value().equals(intent.area())
+                && arguments.get("destination") instanceof ContainerValue destination && destination.value().equals(intent.destination());
     }
     private static boolean sameActor(ActorRef a,ActorRef b){return a.entityId().equals(b.entityId()) && a.dimension().equals(b.dimension());}
     private static boolean sameSource(Source a,Source b){return a.dimension().equals(b.dimension()) && a.x()==b.x() && a.y()==b.y() && a.z()==b.z();}

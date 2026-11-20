@@ -914,11 +914,11 @@ public final class KernelSession implements AutoCloseable {
                             public dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore.Code verify(dev.aivillages.core.kernel.runtime.evidence.HarvestEvidenceStore.Reconciled proof){return harvestProtocol.verify(proof);}
                         }).observe(original);}, 4);
         if (productionActivities != null) recoveredOwners.continuation(dispatcher);
-        worldAccess.effectFence((request,effect,target)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
+        worldAccess.effectFence((request,effect,target,controlledRun)->loaded.history()!=null && (loaded.history().readOnly() || historyGenerationUnavailable
                 || leaseArchive!=null && !leaseArchive.readReady() || jobArchive!=null && !jobArchive.readReady())
                 && effect!=Effect.OBSERVE && effect!=Effect.MOVE || recoveredOwners.fenced(request,effect,target)
                 || depositProtocol!=null && depositProtocol.blocked(request,effect,target)
-                || harvestProtocol!=null && harvestProtocol.blocked(request,effect,target)
+                || harvestProtocol!=null && harvestProtocol.blocked(request,effect,target,controlledRun)
                 || pickupProtocol!=null && pickupProtocol.blocked(request,effect,target)
                 || exactRecipeEffects!=null && exactRecipeEffects.blocked(request,effect,target));
 

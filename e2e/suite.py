@@ -795,7 +795,7 @@ def delivery(h: Harness, player="PlayerA", amount=4, source=None, destination=No
     h.event("physical-terminal", {"run": run, "view": view})
     h.command(player, "/aivillage kernel status " + run, "phase=TERMINAL")
     wanted = "ADMITTED" if acquisition else "SUCCEEDED"
-    require(wanted in view["description"], "Requested physical outcome failed: " + view["description"] +
+    require((view.get("marker") or {}).get("outcome") == wanted, "Requested physical outcome failed: " + view["description"] +
             " usage=" + str(view.get("responsibility", {}).get("usage")))
     quantities = {stage: h.receipts(view, stage) for stage in ("HARVEST", "PICKUP", "DEPOSIT")}
     require(all(v >= amount for v in quantities.values()), "Missing trusted physical stage receipts")

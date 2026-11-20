@@ -37,6 +37,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     private boolean closed;
     private String descendant="";
     private final Map<String,NativeBirth> membershipBirths=new HashMap<>();
+    private final Set<String> closedCropBatches=new HashSet<>();
     private static final List<String> CAPTURE_PHASES=List.of("authority","owner","participants","claims","allowance","intent","exclusion");
     private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
     private final ArrayDeque<Long> preparationNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
@@ -78,7 +79,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         HarvestEvidenceStore.Acknowledged acknowledged(){return original;}
     }
     private NativeBirth beginMembershipBirth(NativeHarvest.Intent intent,Villager actor) {
-        if(intent.key().ordinal()!=1||!intent.key().root().equals(intent.key().step())||intent.actorBefore().slots().stream().anyMatch(slot->slot.count()!=0))return null;
+        if(!intent.item().equals("minecraft:wheat") && (intent.key().ordinal()!=1 || !intent.key().root().equals(intent.key().step())
+                || intent.actorBefore().slots().stream().anyMatch(slot->slot.count()!=0)))return null;
         if(membershipBirths.size()==NativeHarvest.MAX_ENTRIES||membershipBirths.containsKey(intent.key().token()))throw new IllegalStateException("Original H membership quota/identity");
         var birth=new NativeBirth(intent,actor);membershipBirths.put(intent.key().token(),birth);return birth;
     }
@@ -194,6 +196,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             public Witness restoredActor(Participant expected){return actorWitness(expected);}
             public SourceWitness restoredSource(Source expected){return sourceWitness(expected);}
             public List<DropWitness> restoredDrops(List<Drop> expected){return dropWitnesses(expected);}
+            public boolean closedCropBatch(NativeHarvest.Entry entry){return originalCropBatchClosed(entry);}
         },clock,30_000,readOnly);
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Native harvest game-thread owner");}
@@ -266,7 +269,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
                     request.actor(),request.area(),request.destination(),request.item().id(),pair.source,conditions,pair.actorSnapshot);
             phases[5]=System.nanoTime();
             phase="exclusion";
-            if(store.conflicts(request.actor(),request.source().dimension(),request.source().x(),request.source().y(),request.source().z(),""))throw new Refused(Reason.INTERRUPTED);
+            if(store.conflicts(request.actor(),request.source().dimension(),request.source().x(),request.source().y(),request.source().z(),"",
+                    request.bound(),request.correlation().runId(),true))throw new Refused(Reason.INTERRUPTED);
             var ticket=new NativeTicket(request,original,intent,null);ticket.authority=job;tickets.add(ticket);
             phases[6]=System.nanoTime();
             return ticket;
@@ -368,13 +372,43 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public HarvestEvidenceStore.Code verify(HarvestEvidenceStore.Reconciled proof){
         check();var code=store.verify(proof);if(code==HarvestEvidenceStore.Code.RESOLVED)observer.accept(Point.VERIFICATION_ACKNOWLEDGED);return code;
     }
-    public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target) {
+    public boolean blocked(ValidatedRequest incoming,Effect effect,SurvivalGateway.Cell target,UUID controlledRun) {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
         if(!store.pending() && store.snapshot().entries().isEmpty())return false;
         String allowed=descendant;
         for(var ticket:tickets)if(ticket.intent!=null && !ticket.forgotten && ticket.request.bound().equals(incoming) && (effect==Effect.HARVEST && target.equals(ticket.request.source()) || preflight.destination(ticket.request,incoming,effect,target))){allowed=ticket.intent.key().token();break;}
         var value=incoming.request().arguments().get("actor");
-        return value instanceof ActorValue actor && store.conflicts(actor.value(),target.dimension(),target.x(),target.y(),target.z(),allowed);
+        UUID cropRun=effect==Effect.HARVEST || effect==Effect.PICKUP || effect==Effect.TRANSFER ? controlledRun : null;
+        return value instanceof ActorValue actor && store.conflicts(actor.value(),target.dimension(),target.x(),target.y(),target.z(),allowed,
+                incoming,cropRun,effect==Effect.HARVEST);
+    }
+    /** Closed legacy crop custody is accounting by the Jobs owner. It creates no saved H/P/D proof. */
+    private boolean originalCropBatchClosed(NativeHarvest.Entry entry) {
+        if(closedCropBatches.contains(entry.token()))return true;
+        var intent=entry.intent();var key=intent.key();var harvest=entry.result().cropReceipt();
+        Jobs.Job job;
+        try{job=jobs.query(key.step(),intent.origin());}catch(SecurityException unavailable){return false;}
+        if(job.state()!=Jobs.State.SUCCEEDED || !job.origin().equals(intent.origin()))return false;
+        var attempt=job.attempts().stream().filter(a->a.id().equals(key.attempt()) && a.generation()==key.generation()).findFirst().orElse(null);
+        if(attempt==null || attempt.open() || attempt.terminal().status()!=Outcomes.ExecutionStatus.SUCCEEDED
+                || !attempt.worker().equals(intent.actor()) || !attempt.receipts().contains(harvest)
+                || attempt.executions().stream().noneMatch(execution->execution.runId().equals(intent.run())))return false;
+        long picked=0,deposited=0;
+        for(var receipt:attempt.receipts()) {
+            if(!receipt.runId().equals(harvest.runId()) || !receipt.batchId().equals(harvest.batchId()))continue;
+            if(!receipt.actor().equals(harvest.actor()) || !receipt.source().equals(harvest.source())
+                    || !receipt.destination().equals(harvest.destination()) || receipt.wheat()>harvest.wheat())return false;
+            if(receipt.stage()==CropDelivery.Stage.PICKUP) {
+                if(picked>harvest.wheat()-receipt.wheat())return false;
+                picked+=receipt.wheat();
+            }
+            if(receipt.stage()==CropDelivery.Stage.DEPOSIT) {
+                if(deposited>harvest.wheat()-receipt.wheat())return false;
+                deposited+=receipt.wheat();
+            }
+        }
+        if(picked!=harvest.wheat() || deposited!=picked || !CropDelivery.completed(attempt.bound(),intent.run(),attempt.receipts()))return false;
+        closedCropBatches.add(entry.token());return true;
     }
     private static BlockPos pos(SurvivalGateway.Cell source){return new BlockPos(source.x(),source.y(),source.z());}
     private static BlockPos pos(Source source){return new BlockPos(source.x(),source.y(),source.z());}

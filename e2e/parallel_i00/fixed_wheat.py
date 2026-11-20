@@ -15,7 +15,7 @@ from suite import Harness, acquire_real_skill, atomic, read, require
 
 sys.path.insert(0, str(ROOT / "e2e/parallel_a"))
 from review_lifecycle_connected import chest, entities, original, properties
-from review_receipt_prefix import block_name
+from review_receipt_prefix import block_name, journal
 
 
 PROFILE = "I00_FIXED_WHEAT_TRAVEL32"
@@ -134,6 +134,14 @@ def review(root, identity):
             and [r["id"] for r in durable["receipts"]] == [r["receiptId"] for r in attempt["receipts"]]
             and [ref["artifact"]["sha256"] for ref in durable["executions"]] == [row["admission"]["artifact"]]
             and row["admission"]["artifact"] == row["offlineReuse"]["artifact"], "Saved original owner, receipts or method differs")
+    _, harvests = journal(world / "data/cognitivecraft/harvest-evidence/v1/state.jsonl")
+    harvests = [entry for entry in harvests if entry["intent"]["key"]["step"] == row["root"]]
+    live_harvest = {receipt["receiptId"] for receipt in attempt["receipts"] if receipt["stage"] == "HARVEST"}
+    require(len(harvests) == len(live_harvest) == len(PLANTS)
+            and {tuple(entry["intent"]["source"][k] for k in ("x", "y", "z")) for entry in harvests} == set(PLANTS)
+            and {entry["result"]["cropReceipt"]["receipt"] for entry in harvests} == live_harvest
+            and all(entry["intent"]["key"]["attempt"] == attempt["id"] and entry["result"]["live"] == "COMPLETE"
+                    for entry in harvests), "The native harvest journal differs from the original three receipts")
     require(chest(world, DESTINATION) == {ITEM: 3} and not any(s["id"] == ITEM for s in entities(world)[row["actor"]].get("Inventory", []))
             and all(block_name(world, pos) != ITEM or properties(world, list(pos)).get("age") != "7" for pos in PLANTS),
             "Saved Minecraft terrain, villager or chest differs from the connected witness")

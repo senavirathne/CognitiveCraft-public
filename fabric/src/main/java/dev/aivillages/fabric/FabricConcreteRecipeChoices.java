@@ -155,12 +155,12 @@ final class FabricConcreteRecipeChoices {
     private ContainerRef container(ValidatedRequest request,String key){if(!(request.request().arguments().get(key) instanceof ContainerValue v))throw refuse(Reason.REQUEST_INVALID);return v.value();}
     private Villager presentActor(ValidatedRequest request) {
         var villager=world.recipeActor(actor(request));
-        if(villager==null || !villager.isAlive() || !villager.onGround())throw refuse(Reason.ACTOR_UNAVAILABLE);
+        if(villager==null || !villager.isAlive())throw refuse(Reason.ACTOR_UNAVAILABLE);
         return villager;
     }
     private Villager nativeActor(ValidatedRequest request,UUID run) {
         var villager=presentActor(request);
-        if(!world.holds(actor(request),run))throw refuse(Reason.ACTOR_UNAVAILABLE);
+        if(!villager.onGround() || !world.holds(actor(request),run))throw refuse(Reason.ACTOR_UNAVAILABLE);
         return villager;
     }
     private Container permitted(ValidatedRequest request,ChoiceAuthority authority,ContainerRef ref,ChoicePhase phase,boolean reach) {

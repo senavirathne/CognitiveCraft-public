@@ -1,9 +1,11 @@
 package dev.aivillages.core.kernel.runtime.evidence;
 
+import dev.aivillages.core.kernel.CropDelivery;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.Test;
+import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.runtime.evidence.NativeHarvest.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -14,7 +16,8 @@ final class HarvestEvidenceStoreTest {
     }
     static final class Port implements HarvestEvidenceStore.NativePort {
         Entry completed;int calls;boolean current=true,restored,changed;
-        Port(Intent i){completed=NativeHarvestTest.completed(i);}
+        Port(Intent i){this(NativeHarvestTest.completed(i));}
+        Port(Entry entry){completed=entry;}
         public boolean current(Intent i){return current;}
         public Result execute(Intent i){calls++;return completed.result();}
         public NativeDeposit.Witness restoredActor(NativeDeposit.Participant expected){return NativeHarvestTest.actor(completed,restored);}
@@ -61,5 +64,25 @@ final class HarvestEvidenceStoreTest {
         s.writes.getFirst().complete(wrong);s.store.tick();
         assertTrue(s.store.fenced());assertSame(original,s.store.snapshot());assertEquals(0,s.port.calls);
         assertEquals(HarvestEvidenceStore.Code.FENCED,s.store.prepare(s.intent).code());assertFalse(s.store.protectedJobs().isEmpty());
+    }
+    @Test void onlyTheAcknowledgedOriginalLiveCropCanContinueThroughItsHarvestFence() {
+        var crop=NativeCropHarvestTest.entry();var intent=crop.intent();var actor=intent.actor();
+        var request=new ValidatedRequest(new CapabilityRequest(CropDelivery.ID,Map.of("actor",new ActorValue(actor),
+                "source",new AreaValue(intent.area()),"destination",new ContainerValue(intent.destination()),"amount",new IntValue(1))),
+                intent.origin(),new ObservationRef(UUID.randomUUID(),1,actor.dimension()));
+        var empty=new HarvestJournal.Snapshot(intent.key().world(),UUID.randomUUID(),0,List.of());
+        var port=new Port(crop);var clock=new Time();
+        HarvestEvidenceStore.Storage storage=(before,after)->CompletableFuture.completedFuture(after);
+        var store=new HarvestEvidenceStore(empty,storage,port,clock,100,false);
+        store.prepare(intent);store.tick();store.perform(store.prepare(intent).prepared());
+        var cell=intent.source();
+        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),false));
+        store.tick();
+        assertFalse(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),false));
+        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),true));
+        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,UUID.randomUUID(),false));
+        var reopened=new HarvestEvidenceStore(store.snapshot(),storage,port,clock,100,false);
+        assertTrue(reopened.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),false));
+        assertTrue(reopened.protectedJobs().contains(intent.key().step()));
     }
 }

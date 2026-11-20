@@ -1509,6 +1509,11 @@ public final class SurvivalGateway implements GatewayPort {
                     +" actor="+action.run.actor.entityId()+" reason="+reason+" effects="+action.effects
                     +" expectedActorStock="+action.run.expectedItems+" tick="+world.tick()
                     +" ledger="+action.usage.snapshot());
+        if(reason!=null && action.run!=null && Boolean.getBoolean("cognitivecraft.navigation.trace")
+                && (RecipeProduction.is(action.run.request.request().capability())
+                || CraftingTablePlacement.is(action.run.request.request().capability())))
+            System.out.println("CognitiveCraft recipe stopped run="+action.run.id+" operation="+action.operation
+                    +" reason="+reason+" effects="+action.effects+" tick="+world.tick());
         if ((action.operation == Operation.MOVE || action.operation == Operation.MOVE_TO_SOURCE
                 || action.operation == Operation.APPROACH_OAK_LOG
                 || action.operation == Operation.MOVE_TO_DESTINATION || action.operation==Operation.MOVE_TO_INPUT || action.operation==Operation.MOVE_TO_TABLE || action.operation==Operation.MOVE_TO_PLACEMENT)
