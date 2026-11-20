@@ -5,6 +5,7 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
+import re
 import sys
 import traceback
 
@@ -44,17 +45,34 @@ def certify_recipe_cut(world, world_id, row, actor_nbt, chest_rows):
     job = row["killObservation"]["job"]
     records = [receipt for attempt in job["attempts"] for receipt in attempt["resourceReceipts"]
                if receipt["stage"] == stage and receipt["item"]["id"] == AXE]
-    require(len(records) == 1, "Expected exactly one original axe phase at this cut")
-    receipt = records[0]
-    witness = receipt["choice"]
-    token = witness["journalToken"]
-    effect = raw[token]
+    if stage == "DEPOSIT":
+        effect = row["nativeDeliveryBeforeJobCredit"]
+        token = effect["prepare"]["token"]
+        require(effect == raw[token] and len(records) <= 1, "Original native final deposit acknowledgement changed")
+        attempt = job["attempts"][-1]
+        original = next(step for step in job["activity"]["steps"] if step.get("attempt") == attempt["id"])
+        native_prefix = [entry for entry in recipe_journal.phases(raw, job["id"])
+                         if entry["prepare"]["attempt"] == attempt["id"]]
+        require([entry["prepare"]["phase"] for entry in native_prefix] == ["WITHDRAW", "CRAFT", "DEPOSIT"]
+                and all(map(recipe_journal.positive, native_prefix)) and native_prefix[-1] == effect
+                and all(effect["prepare"][key] == value for key, value in
+                        {"root": job["id"], "step": original["id"], "attempt": attempt["id"],
+                         "generation": attempt["generation"], "choice": original["choice"]["sha256"],
+                         "method": original["artifact"]["sha256"], "deadline": job["allowance"]["deadlineEpochMillis"]}.items()),
+                "Saved original final deposit differs from its authoritative Job and native prefix")
+    else:
+        require(len(records) == 1, "Expected exactly one original axe craft at this cut")
+        token = records[0]["choice"]["journalToken"]
+        effect = raw[token]
     intent, result = effect["prepare"], effect["result"]
-    require(recipe_journal.positive(effect) and intent["phase"] == stage and intent["root"] == witness["root"] == job["id"]
-            and intent["step"] == witness["step"] and intent["attempt"] == witness["attempt"]
-            and intent["generation"] == witness["generation"] and intent["operation"] == receipt["operationId"]
-            and intent["choice"] == witness["choiceDigest"] and intent["batch"] == witness["batch"],
-            "Original axe effect does not bind the acknowledged native recipe frames")
+    if records:
+        receipt, = records
+        witness = receipt["choice"]
+        require(recipe_journal.positive(effect) and intent["phase"] == stage and intent["root"] == witness["root"] == job["id"]
+                and intent["step"] == witness["step"] and intent["attempt"] == witness["attempt"]
+                and intent["generation"] == witness["generation"] and intent["operation"] == receipt["operationId"]
+                and intent["choice"] == witness["choiceDigest"] and intent["batch"] == witness["batch"],
+                "Original axe effect does not bind the acknowledged native recipe frames")
     actor_address = "actor:minecraft:overworld/" + row["actor"]
     chest_address = "chest:minecraft:overworld/" + ",".join(map(str, DESTINATION))
     native = {actor_address: actor_nbt, chest_address: chest_rows[tuple(DESTINATION)]}
@@ -184,7 +202,8 @@ def restart_review(folder, row, paths, cohort, jar):
             and freeze["jobRevision"] <= row["killObservation"]["job"]["revision"]
             and armed["time"] <= freeze["time"] / 1000 <= stopped["time"] < stops[0]["time"],
             "The exact original physical boundary was not frozen by the native clock before SIGKILL")
-    require(any(clock_response("tick freeze", line) for line in paths["server/stdout.log"].read_text().splitlines()),
+    require(re.search(r"^\[[^\n]*\]: System chat: The game is frozen\s*$",
+                      paths["server/stdout.log"].read_text(), re.MULTILINE) is not None,
             "The native server did not acknowledge the actual clock freeze")
     rates = [event for event in events if event["kind"] == "verified-native-clock"
              and event["data"]["command"].startswith("tick rate ")]

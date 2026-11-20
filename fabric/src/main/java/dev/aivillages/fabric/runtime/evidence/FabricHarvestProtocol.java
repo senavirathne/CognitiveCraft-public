@@ -95,22 +95,31 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public PickupLineage capturePickupLineage(HarvestEvidenceStore.Acknowledged original) {
         check();if(closed||!enabled||!store.owns(original))return null;var e=original.entry();var birth=membershipBirths.get(e.token());
         if(birth==null||!birth.complete||!birth.finished||!birth.intent.equals(e.intent())||e.result()==null||e.result().live()!=NativeHarvest.Live.COMPLETE
-                ||e.result().drops().size()!=1||birth.drops.size()!=1)return null;
-        var ref=e.result().drops().getFirst();var born=birth.drops.get(ref.entity());if(born==null||!born.incarnation().equals(ref.incarnation())||!born.beforeNativeAdd())return null;
+                ||e.result().drops().size()!=1||birth.drops.size()!=1)return unlinked(e,"original native births incomplete");
+        var ref=e.result().drops().getFirst();var born=birth.drops.get(ref.entity());
+        if(born==null||!born.incarnation().equals(ref.incarnation())||!born.beforeNativeAdd())return unlinked(e,"original drop birth changed");
         var source=sourceWitness(e.result().source());
-        if(source==null || !source.source().equals(e.result().source()))return null;
+        if(source==null || !source.source().equals(e.result().source()))return unlinked(e,"original source revision changed");
         var marker=source.marker();
-        if(!matchesResultMarker(marker,e.token(),e.intent().digest(),e.result().digest()))return null;
+        if(!matchesResultMarker(marker,e.token(),e.intent().digest(),e.result().digest()))return unlinked(e,"original source marker changed");
         var nativeActor=level.getEntity(e.intent().actor().entityId());
         var nativeDrop=level.getEntity(ref.entity());
-        if(!(nativeActor instanceof Villager actor) || !actorMatches(actor,e.result().actor(),marker,false)
-                || !(nativeDrop instanceof ItemEntity drop) || !dropMatches(drop,ref,marker))return null;
+        if(!(nativeActor instanceof Villager actor) || !actorMatches(actor,e.result().actor(),marker,false))
+            return unlinked(e,"original actor or inventory revision changed");
+        if(!(nativeDrop instanceof ItemEntity drop) || !dropMatches(drop,ref,marker))
+            return unlinked(e,"original native drop or its stack changed");
         try {
             var actorTrail=birth.actor.capture();var dropTrail=born.trail().capture();
-            if(!actorTrail.current().equals(membershipChunk(actor)) || !dropTrail.current().equals(membershipChunk(drop)))return null;
+            if(!actorTrail.current().equals(membershipChunk(actor)) || !dropTrail.current().equals(membershipChunk(drop)))
+                return unlinked(e,"current native chunk membership changed");
             int reach=(int)Math.ceil(Math.sqrt(actor.distanceToSqr(drop))*1000);
             return new PickupLineage(this,birth,original,actorTrail,dropTrail,reach);
-        }catch(RuntimeException incomplete){return null;}
+        }catch(RuntimeException incomplete){return unlinked(e,"original membership trail incomplete");}
+    }
+    private PickupLineage unlinked(NativeHarvest.Entry original,String reason) {
+        if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
+            System.out.println("CognitiveCraft PICKUP lineage run="+original.intent().run()+" reason="+reason);
+        return null;
     }
     public boolean currentPickupLineage(PickupLineage lineage) {
         check();if(lineage==null||lineage.owner!=this||membershipBirths.get(lineage.birth.intent.key().token())!=lineage.birth)return false;
@@ -121,7 +130,8 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         if(lineage==null || !descendant.isEmpty())return null;
         // The capture above already verified the loaded participants and both trails.
         descendant=lineage.harvest().token();
-        try{return preflight.getAsBoolean()?lineage:null;}finally{descendant="";}
+        try{return preflight.getAsBoolean()?lineage:unlinked(lineage.harvest(),"original gateway preflight refused");}
+        finally{descendant="";}
     }
     boolean pickupTrailsCurrent(PickupLineage lineage) {
         check();if(closed || lineage==null || lineage.owner!=this || !store.owns(lineage.original))return false;

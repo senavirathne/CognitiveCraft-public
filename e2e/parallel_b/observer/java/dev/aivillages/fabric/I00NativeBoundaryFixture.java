@@ -98,7 +98,7 @@ public final class I00NativeBoundaryFixture implements ModInitializer {
                         && job.activity().checkpoints().stream().noneMatch(c->c.attempt().equals(attempt.get().id()));
             }
             case "after-craft" -> crafted==1 && villager.getInventory().countItem(Items.WOODEN_AXE)==1 && chest.countItem(Items.WOODEN_AXE)==0;
-            case "at-final-delivery" -> quantity(job,Stage.DEPOSIT,AXE)==1 && chest.countItem(Items.WOODEN_AXE)==1 && job.fulfilled()==0;
+            case "at-final-delivery" -> crafted==1 && chest.countItem(Items.WOODEN_AXE)==1 && job.fulfilled()==0;
             default -> false;
         };
     }

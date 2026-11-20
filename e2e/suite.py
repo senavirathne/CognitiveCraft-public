@@ -1366,7 +1366,7 @@ def certify(h: Harness, acquisition, reuse):
     return str(seed)
 
 
-def acquire_real_skill(h: Harness):
+def acquire_real_skill(h: Harness, *, after_offline_reuse=None):
     if h.topology != "compose":
         raise InfrastructureBlocked("Actual AI profile requires the owned Docker Ollama service")
     needle_assets = ROOT / "build/needle"
@@ -1423,6 +1423,8 @@ def acquire_real_skill(h: Harness):
     reuse = delivery(h, amount=6, source=ARENA["reuseSource"], destination=ARENA["reuseDestination"])
     require(reuse["artifact"] == acquisition["artifact"], "Changed bindings did not reuse exact admitted artifact")
     require(h.model_calls() == offline_calls, "Model-free reuse called AI")
+    if after_offline_reuse is not None:
+        return after_offline_reuse(h, acquisition, reuse)
     seed = certify(h, acquisition, reuse)
     return {"acquisition": acquisition, "modelFreeReuse": reuse, "seed": seed, "models": descriptor}
 

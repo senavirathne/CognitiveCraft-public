@@ -61,6 +61,9 @@ def collect(artifacts, out, exact, jobs, shards):
            "joint-controls/review.json", "PASS_REQUIRED_JOINT_CONTROLS",
            lambda row: row.get("requiredCases") == list(JOINT_CASES)
            and [case["id"] for case in row["cases"] if case["status"] == "PASS"] == list(JOINT_CASES))
+    accept("fixed-wheat", f"i00-review-fixed-wheat-{suffix}/review.json", "fixed-wheat/review.json",
+           "PASS_INDEPENDENT_FIXED_WHEAT", lambda r: r.get("sourcePlants") == r.get("wheatDelivered") == 3
+           and r.get("travelBudget") == 32 and r.get("budgetRenewals") == 0)
     for index in range(shards):
         accept(f"original-{index}", f"i00-review-original-{index}-{suffix}/review.json", f"campaign/{index}/review.json",
                "PASS_INDEPENDENT_NATIVE_REVIEW")

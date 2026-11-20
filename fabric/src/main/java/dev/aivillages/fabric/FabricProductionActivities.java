@@ -196,7 +196,15 @@ final class FabricProductionActivities {
             long travel=FabricProductionTravel.recipe(position(nativeActor),source,target,
                     id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
                     facility==null?null:facility.reference());
-            var profile=world.describeChoice(new CapabilityId(id.name(),2),new Cost(travel,4,100+6*travel));
+            RecipeProfile profile;
+            try {
+                profile=world.describeChoice(new CapabilityId(id.name(),2),new Cost(travel,4,100+6*travel));
+            } catch(FabricConcreteRecipeChoices.Refused unsupported) {
+                if(unsupported.reason!=Outcomes.Reason.UNSUPPORTED_PRIMITIVE)throw unsupported;
+                // The installed recipe is outside this host's current native envelope.
+                // Keep the other legal recipes and let the planner publish its scoped blocker.
+                continue;
+            }
             var method=pin(job,id,profile.semanticFingerprint(),2);
             profiles.add(new RecipeProfile(profile.recipe(),profile.capability(),profile.cells(),profile.result(),
                     profile.semanticFingerprint(),method,profile.allowance(),profile.reloadEpoch()));

@@ -1,6 +1,7 @@
 """An isolated native tmpfs exhaustion after an acknowledged exact recipe preparation."""
 
 import json
+import os
 import shutil
 import subprocess
 from uuid import uuid4
@@ -31,7 +32,8 @@ class JournalVolume:
                 "Expected an isolated stopped journal directory")
         self.target.rename(self.original)
         self.target.mkdir()
-        subprocess.run(["sudo", "mount", "-t", "tmpfs", "-o", f"size={VOLUME_BYTES},mode=0777", "tmpfs",
+        options = f"size={VOLUME_BYTES},mode=0755,uid={os.getuid()},gid={os.getgid()}"
+        subprocess.run(["sudo", "mount", "-t", "tmpfs", "-o", options, "tmpfs",
                         str(self.target.resolve())], check=True, timeout=20)
         self.mounted = True
         shutil.copytree(self.original, self.target, dirs_exist_ok=True)

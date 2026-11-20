@@ -114,7 +114,8 @@ def review(root):
     positive, negative = row["positive"], row["negative"]
     require(positive["lookup"]["status"] == row["restored"]["status"] == "PASS"
             and positive["lookup"]["job"] == row["restored"]["job"]
-            and all(positive["lookup"]["job"][key] == exact[key] for key in ("id", "submissionId", "generation", "state"))
+            and positive["lookup"]["job"]["submissionId"] == exact["submission"]
+            and all(positive["lookup"]["job"][key] == exact[key] for key in ("id", "generation", "state"))
             and positive["lookup"]["hot"] is row["restored"]["hot"] is False
             and negative["lookup"]["status"] == "UNAVAILABLE" and negative["state"]["storage"]["readOnly"],
             "Native cold archive classification changed original ownership")

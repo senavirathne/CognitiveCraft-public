@@ -75,7 +75,7 @@ def set_table(h, requested=True):
 
 
 def fixture(h, case):
-    from .walkthrough import ACTOR_START, DESTINATION, SOURCE
+    from .walkthrough import DESTINATION, SOURCE, fixed_start
     h.start("PlayerB")
     h.console(["fill 63 208 63 84 211 78 minecraft:air", "fill 62 207 62 85 207 80 minecraft:stone",
                "kill @e[type=minecraft:item,x=63,y=207,z=63,dx=21,dy=5,dz=15]",
@@ -111,14 +111,7 @@ def fixture(h, case):
     input_item = ACACIA if case == MIXED else BIRCH_LOG if case in (CHILD, CRASH, AMBIGUOUS) else OAK
     require(h.menu_count("PlayerA", SOURCE, input_item) == source[input_item],
             "Original connected client did not see the real input stock")
-    initial = h.save_checkpoint()
-    old = h.snapshot()
-    h.console(["tp " + h.entities["PlayerA"] + " " + coord(ACTOR_START)])
-    start = h.wait(lambda: (state if (state := h.snapshot()) and state["tick"] > old["tick"] and
-                    any(a["uuid"] == h.entities["PlayerA"] and a["alive"] and not a["noAI"]
-                        and sum((a - b)**2 for a, b in zip(a["pos"], ACTOR_START, strict=True)) < 1
-                        for a in state["actors"]) else None), "Fresh actual original actor start", 25)
-    return start, initial
+    return fixed_start(h)
 
 
 def ask(h, actor, output, amount, source, destination):
@@ -504,9 +497,14 @@ def review_mixed_sources(folder, row):
     world = folder / "server/game/world"
     world_id = final["request"]["context"]["scope"]["worldId"]
     journal = recipe_journal.phases(recipe_journal.read(world, expected_world=world_id), final["id"])
+    stored = original(world, final["id"])
+    durable_step, = stored["activity"]["steps"]
+    durable_attempt, = stored["attempts"]
     require([entry["prepare"]["phase"] for entry in journal] == ["WITHDRAW", "CRAFT", "DEPOSIT"]
             and all(recipe_journal.positive(entry) and entry["prepare"]["attempt"] == step["attempt"] for entry in journal)
-            and original(world, final["id"])["fulfilled"] == 3 and chest(world, DESTINATION) == {STICK: 3},
+            and stored["state"] == "SUCCEEDED" and durable_attempt["id"] == durable_step["attempt"] == step["attempt"]
+            and min(durable_attempt["credited"], durable_step["goalCredit"]) == 3
+            and chest(world, DESTINATION) == {STICK: 3},
             "Native saved world did not retain one original mixed recipe attempt")
     by_address = {participant["address"]: participant for participant in journal[0]["result"]["after"]}
     for point_value in (SOURCE, SECOND_SOURCE):

@@ -12,6 +12,7 @@ import urllib.request
 import uuid
 
 from .gameplay import NativeGameplay, ROOT, point
+from . import recipe_journal
 from .native_evidence import TERMINAL, closed_job, item_at, job_at, stock_at, terminal_job, trace_offsets, uuid_field
 from campaigns.crafting.generator import AXE, LOG, OAK, STICK, TABLE
 from campaigns.crafting.harness import coord, fixture_observation
@@ -25,7 +26,7 @@ ASK = "/aivillage kernel ask Ada, make one wooden axe. Use the available resourc
 SOURCE, DESTINATION = [70, 208, 69], [77, 208, 71]
 ACTOR_START = [70.5, 208, 68.5]
 DEPOSIT_JOURNAL = "server/game/world/data/cognitivecraft/deposit-evidence/v1/state.jsonl"
-LOGS = [[68, 208, 65], [69, 208, 65], [70, 208, 65]]
+LOGS = [[68, 208, 67], [69, 208, 67], [70, 208, 66]]
 CUTS = ("after-wood-collection", "after-material-deposit", "after-table-placement", "after-craft", "at-final-delivery")
 COHORTS = ("live", "saved-online", "saved-offline", "unsaved")
 METHODS = {OAK, STICK, AXE, TABLE, "placement", "oak-acquisition"}
@@ -175,14 +176,16 @@ def boot_trial(root, seed, profile=PROFILE, journal_volume=None):
 def prepare(h, shortage):
     h.start("PlayerB")
     h.console(["fill 63 208 63 84 211 78 minecraft:air", "fill 62 207 62 85 207 80 minecraft:stone",
-               "fill 65 208 64 79 209 64 minecraft:stone", "fill 65 208 75 79 209 75 minecraft:stone",
-               "fill 65 208 65 65 209 74 minecraft:stone", "fill 79 208 65 79 209 74 minecraft:stone",
+               "fill 66 208 64 78 210 64 minecraft:stone", "fill 66 208 74 78 210 74 minecraft:stone",
+               "fill 66 208 65 66 210 73 minecraft:stone", "fill 78 208 65 78 210 73 minecraft:stone",
                "kill @e[type=minecraft:item,x=63,y=207,z=63,dx=21,dy=5,dz=15]", "clear PlayerA",
-               "tp PlayerA 77.5 208 74.5"])
+               "tp PlayerA 77.5 208 73.5"])
     for _, entity in h.subjects:
         h.actor_stock({}, entity)
         if entity != h.entities["PlayerA"]:
-            h.console(["tp " + entity + " 82.5 208 74.5"])
+            h.console(["fill 81 208 68 84 210 68 minecraft:stone", "fill 81 208 72 84 210 72 minecraft:stone",
+                       "fill 81 208 69 81 210 71 minecraft:stone", "fill 84 208 69 84 210 71 minecraft:stone",
+                       "tp " + entity + " 82.5 208 70.5"])
     h.stock(SOURCE, {} if shortage else {LOG: 3})
     h.stock(DESTINATION, {})
     expected = {",".join(map(str, pos)): LOG for pos in LOGS} if shortage else {}
@@ -192,7 +195,16 @@ def prepare(h, shortage):
                "tp PlayerB 80.5 208 73.5", "deop PlayerA", "deop PlayerB"])
     h.action("PlayerA", "look", pos=DESTINATION)
     _, client = fixture_observation(h, expected_tables=set(), expected_blocks=expected)
-    initial = h.save_checkpoint()
+    before, initial = fixed_start(h)
+    require(h.players["PlayerA"] != h.players["PlayerB"] and before["knownPlayers"]["PlayerB"]["online"],
+            "Distinct connected principal required for private activity view")
+    return before, client, initial
+
+
+def fixed_start(h):
+    # The initial saved fixture and first frame use the same native starting pose.
+    # Release the vanilla clock before any measured player request.
+    h.clock("tick freeze")
     old_frame = h.snapshot()
     h.console(["tp " + h.entities["PlayerA"] + " " + coord(ACTOR_START)])
 
@@ -205,9 +217,9 @@ def prepare(h, shortage):
                          and sum((a-b)**2 for a, b in zip(actor["pos"], ACTOR_START, strict=True)) <= 1) else None
 
     before = h.wait(posed, "Fresh native observation at the declared pre-request actor pose", 20)
-    require(h.players["PlayerA"] != h.players["PlayerB"] and before["knownPlayers"]["PlayerB"]["online"],
-            "Distinct connected principal required for private activity view")
-    return before, client, initial
+    initial = h.save_checkpoint()
+    h.clock("tick unfreeze")
+    return before, initial
 
 
 def request(h):
@@ -269,7 +281,7 @@ def witnessed(cut, job, state, actor):
     if cut == "after-craft":
         return crafted == stock_at(state, actor).get(AXE, 0) == 1 and delivered == 0
     if cut == "at-final-delivery":
-        return stages["DEPOSIT", AXE] == delivered == 1 and job["fulfilled"] == 0
+        return crafted == delivered == 1 and job["fulfilled"] == 0
     raise ValueError("Unknown native boundary")
 
 
@@ -293,6 +305,18 @@ def stop_at_cut(h, cut, row, root_id, cohort):
         raise MissedCut(str(error)) from error
     row["cut"] = {"name": cut, "job": first[0], "state": first[1], "client": h.client_snapshot("PlayerA")}
     h.screenshot("PlayerA", "native-cut-" + cut, chat=True)
+    if cut == "at-final-delivery":
+        def durable_native_delivery():
+            try:
+                world = h.root / "server/game/world"
+                frame = recipe_journal.read(world, expected_world=first[0]["request"]["context"]["scope"]["worldId"])
+            except (OSError, ValueError):
+                return None  # The native writer can still be acknowledging the frame.
+            attempt = first[0]["attempts"][-1]["id"]
+            return next((entry for entry in recipe_journal.phases(frame, root_id) if recipe_journal.positive(entry)
+                         and entry["prepare"]["attempt"] == attempt and entry["prepare"]["phase"] == "DEPOSIT"), None)
+
+        row["nativeDeliveryBeforeJobCredit"] = h.wait(durable_native_delivery, "Acknowledged original native final deposit", 25)
     if cohort != "unsaved":
         row["afterCutSave"] = h.save_checkpoint()
     actual = at_cut()

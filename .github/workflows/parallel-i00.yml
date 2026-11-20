@@ -145,6 +145,61 @@ jobs:
           retention-days: 30
           path: build/e2e/i00/bootstrap/
 
+  fixed-wheat:
+    name: Native fixed-stock wheat with original 32-block allowance
+    needs: build
+    if: needs.build.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      I00_JAR_SHA256: ${{ needs.build.outputs.production_sha256 }}
+      WHEAT_ROOT: build/e2e/i00/fixed-wheat
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/e2e-sdk
+            build/server-sdk
+          key: minecraft-client-26.3-702fe591-fabric-0195-linux-v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Verify the exact candidate and prepare Minecraft and its connected client
+        run: |
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer b
+          python3 e2e/runtime.py prepare
+      - name: Admit a real wheat method and replay three units under the original travel allowance
+        id: native-wheat
+        run: python3 -m e2e.parallel_i00.fixed_wheat run --root "$WHEAT_ROOT"
+      - name: Independently verify the original request, native custody and allowance
+        if: ${{ !cancelled() && steps.native-wheat.outcome != 'skipped' }}
+        run: |
+          python3 -m e2e.parallel_i00.fixed_wheat review --root "$WHEAT_ROOT" \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i00-review-fixed-wheat-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: build/e2e/i00/fixed-wheat/review.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: i00-fixed-wheat-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
+          path: build/e2e/i00/fixed-wheat/
+
   b-compatibility:
     name: Native B recipe, saved reuse and interference regressions
     needs: build
@@ -580,6 +635,7 @@ jobs:
     needs:
       - build
       - smoke
+      - fixed-wheat
       - a-recovery
       - b-compatibility
       - walkthrough

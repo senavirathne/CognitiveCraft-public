@@ -64,6 +64,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private final FabricPlacementParticipant blocks;
     private final Map<UUID,Run> live=new HashMap<>();
     private final HashSet<UUID> appliedHere=new HashSet<>();
+    private final Map<UUID,List<NativeRecipeJournal.Entry>> resumedPrefixes=new HashMap<>();
 
     private static final class Run {
         final UUID root,step,attempt;
@@ -79,6 +80,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         int observedPhases;
         boolean observed;
         NativeRecipeJournal.Entry savedCraft;
+        List<NativeRecipeJournal.Entry> savedPrefix=List.of();
         FabricConcreteRecipeChoices.Context context;
         PlacementTransaction.Preflight placement;
         String placementCustody,placementSource;
@@ -152,6 +154,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                 if (!continuable(job, job.current(), step, rows) || !job.current().resourceReceipts().equals(partial(job, job.current(), step, rows)))
                     return Reason.STALE_OBSERVATION;
                 run.savedCraft = rows.getLast();
+                run.savedPrefix = List.copyOf(rows);
                 run.observedPhases = rows.size();
                 run.observed = true;
             }
@@ -263,6 +266,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             }
             var receipt=receipt(run.bound,run.choice,entry);
             appliedHere.add(entry.intent().token());
+            if(run.savedCraft!=null)resumedPrefixes.put(run.attempt,run.savedPrefix);
             run.pending=null; run.observedPhases++;
             return new ExactRecipeResult(false,true,receipt,null);
         }catch(RuntimeException missing){return refusal(Reason.INTERRUPTED,pending.possibleEffect);}
@@ -390,8 +394,16 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         try {
             var receipts=complete(job,attempt,step,rows);
             return receipts!=null && receipts.equals(attempt.resourceReceipts())
-                    && (rows.stream().allMatch(row->appliedHere.contains(row.intent().token())) || restored(step,rows));
+                    && (rows.stream().allMatch(row->appliedHere.contains(row.intent().token()))
+                        || resumedHere(step,rows) || restored(step,rows));
         }catch(RuntimeException unavailable){return false;}
+    }
+
+    private boolean resumedHere(ActivityPayload.Step step,List<NativeRecipeJournal.Entry> rows) {
+        var prefix=resumedPrefixes.get(step.attempt());
+        return prefix!=null && Integer.valueOf(prefix.size()).equals(step.savedPrefixEffects())
+                && rows.size()==prefix.size()+1 && rows.subList(0,prefix.size()).equals(prefix)
+                && appliedHere.contains(rows.getLast().intent().token());
     }
 
     Jobs.StoppedObservation observeStopped(Jobs.StoppedContext context,ActivityPayload.Choice choice) {
