@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .adversarial import ledger
 from .campaign_review import aggregate
+from .choice_cuts import OPERATIONS, SAVED, definitions as choice_definitions
 from .identity import candidate
 from .joint_controls import REQUIRED as JOINT_CASES
 from .walkthrough import COHORTS, cases
@@ -70,6 +71,14 @@ def collect(artifacts, out, exact, jobs, shards):
     accept("held-out", f"i00-review-held-out-{suffix}/review.json", "held-out/review.json", "PASS_INDEPENDENT_NATIVE_REVIEW")
     accept("endurance", f"i00-review-endurance-{suffix}/review.json", "endurance/review.json",
            "PASS_INDEPENDENT_NATIVE_ENDURANCE", lambda r: r.get("terminalActivities") == 1_000)
+    cuts = choice_definitions()
+    for operation in OPERATIONS:
+        wanted = [(row["id"], "PASS_NATIVE_SAVED_CONTINUATION" if row["requestedBoundary"] == SAVED
+                   and operation in ("recipe-craft", "recipe-deposit", "table-place") else "PASS_NATIVE_CONTAINMENT")
+                  for row in cuts if row["operation"] == operation]
+        accept(operation, f"i00-review-{operation}-{suffix}/review.json", f"choice-cuts/{operation}/review.json",
+               "PASS_INDEPENDENT_CHOICE_CUTS", lambda row: row.get("operation") == operation
+               and [(r["id"], r["status"]) for r in row["cases"]] == wanted)
     campaign = aggregate(evidence / "campaign", shards, evidence / "held-out/review.json",
                          {**expected, "run": ci["GITHUB_RUN_ID"], "attempt": ci["GITHUB_RUN_ATTEMPT"]})
     adverse = ledger(evidence, exact)

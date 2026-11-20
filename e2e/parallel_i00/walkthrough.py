@@ -37,10 +37,17 @@ class MissedCut(Exception):
     pass
 
 
+def process_model_calls(frame):
+    return {"needleCalls": frame["needleCalls"], "generationCalls": frame["brokerStats"]["calls"]}
+
+
 class WalkthroughHarness(NativeGameplay):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.env["I00_NATIVE_JAVA_TOOL_OPTIONS"] = "-Dcognitivecraft.navigation.trace=true"
+
+    def model_calls(self):
+        return process_model_calls(self.snapshot())
 
     def clock(self, command):
         require(command in {"tick rate 4", "tick rate 20", "tick freeze", "tick unfreeze"}, "Unsafe native clock operation")
@@ -409,7 +416,7 @@ def run_case(root, case, seed, cohort):
         before, client, initial = prepare(h, case != "sufficient-stock")
         row.update(before=before, clientBefore=client, actor=h.entities["PlayerA"], citizen=h.citizens["PlayerA"],
                    principal=h.players["PlayerA"], foreignPrincipal=h.players["PlayerB"], knownPins=h.artifacts,
-                   modelCallsBefore={key: before[key] for key in ("needleCalls", "generationCalls")}, initialCheckpoint=initial)
+                   modelCallsBefore=process_model_calls(before), initialCheckpoint=initial)
         row["request"] = request(h)
         root_id = row["request"]["root"]
         require(root_id, "The ordinary player goal did not resolve to an activity owner")

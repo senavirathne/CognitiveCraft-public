@@ -520,7 +520,8 @@ public final class FabricPickupProtocol implements PickupProtocol {
         check();if(effect==Effect.MOVE || effect==Effect.OBSERVE)return false;if(store.fenced())return true;
         var value=request.request().arguments().get("actor");if(!(value instanceof ActorValue actor))return false;
         for(var e:store.snapshot().entries()) {
-            if(e.token().equals(descendant) || !e.intent().harvest().intent().actor().equals(actor.value()) || store.settled(e))continue;
+            if(!e.intent().harvest().intent().actor().equals(actor.value())
+                    || !descendant.isEmpty() && e.token().equals(descendant) || store.settled(e))continue;
             boolean own=false;
             if(effect==Effect.PICKUP)for(var ticket:tickets) {
                 if(ticket.intent==e.intent() && !ticket.forgotten && ticket.request.bound().equals(request) && ticket.request.target().equals(target)){

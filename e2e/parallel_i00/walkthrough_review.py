@@ -15,7 +15,7 @@ from . import recipe_journal
 from .native_evidence import (item_at, jsonl, raw_slices, require_command,
                               require_native_primitive, stock_at, verify_frames, verify_installation)
 from .walkthrough import (ACTOR_START, ASK, AXE, COLLECTED, COHORTS, CUTS, DESTINATION, PROFILE, SOURCE,
-                          assert_goal, cases, tables, witnessed)
+                          assert_goal, cases, process_model_calls, tables, witnessed)
 from campaigns.crafting.invariants import physical_custody
 from parallel_b.guards import clock_response, stopped_process
 from runtime import digest
@@ -239,7 +239,7 @@ def restart_review(folder, row, paths, cohort, jar):
     require(before.keys() == boundary.keys() == after.keys() and all(boundary[k] >= v and after[k] == 0 for k, v in before.items()),
             "A known certified sequence called the model after restart or lost cold work")
     for observed, counts in ((row["before"], before), (row["killObservation"]["state"], boundary), (row["after"], after)):
-        require(all(observed[key] == value for key, value in counts.items()),
+        require(process_model_calls(observed) == counts,
                 "Claimed per-process model counters differ from the linked native observations")
     return {"originalRoot": root_id, "resumedCompletion": resumed, "cut": cut, "coldProcess": cold, "warmProcess": warm,
             "modelCallsBefore": before, "modelCallsAtCut": boundary, "modelCallsAfter": after,

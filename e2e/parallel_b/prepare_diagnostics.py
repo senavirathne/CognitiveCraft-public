@@ -27,7 +27,8 @@ def main():
     entrypoints=['dev.aivillages.fabric.BReadOnlyProbe']
     if fixtures:
         mixins.extend(('I00RecipePreparationMixin','I00KernelFreezeMixin'))
-        entrypoints.extend(('dev.aivillages.fabric.I00RecipeReloadFixture','dev.aivillages.fabric.I00NativeBoundaryFixture'))
+        entrypoints.extend(('dev.aivillages.fabric.I00RecipeReloadFixture','dev.aivillages.fabric.I00NativeBoundaryFixture',
+                            'dev.aivillages.fabric.I00ChoiceCutFixture'))
     libs=[SDK/'minecraft-client.jar',release,*sorted((SDK/'libraries').rglob('*.jar')),*sorted((ROOT/'build/server-sdk/libs').glob('*.jar'))]
     subprocess.run([java('javac'),'--release','25','-proc:none','-cp',os.pathsep.join(map(str,libs)),'-d',str(out),*map(str,sources)],check=True)
     replacement={str(p.relative_to(out)) for p in out.rglob('*.class')}; config='parallel-b-diagnostics.mixins.json'; temporary=observer.with_suffix('.b.jar')
@@ -42,7 +43,7 @@ def main():
         new.writestr(config,json.dumps({'required':True,'package':'dev.aivillages.e2e.parallelb.mixin','compatibilityLevel':'JAVA_25','mixins':mixins,'injectors':{'defaultRequire':1}}))
     temporary.replace(observer)
     assert digest(release)==before
-    with ZipFile(release) as z:assert not any(any(instrument in n for instrument in mixins+['I00RecipeReloadFixture','I00NativeBoundaryFixture']) for n in z.namelist())
+    with ZipFile(release) as z:assert not any(any(instrument in n for instrument in mixins+['I00RecipeReloadFixture','I00NativeBoundaryFixture','I00ChoiceCutFixture']) for n in z.namelist())
     integrity={'productionSha256':before,'observerSha256':digest(observer),'sources':{str(p.relative_to(ROOT)):digest(p) for p in sources},'readOnly':not fixtures,'productionUnchanged':True}
     (out/'integrity.json').write_text(json.dumps(integrity,indent=2)+'\n');print(json.dumps(integrity))
 

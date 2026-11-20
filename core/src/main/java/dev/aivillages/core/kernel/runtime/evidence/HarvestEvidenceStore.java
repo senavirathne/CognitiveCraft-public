@@ -166,11 +166,11 @@ public final class HarvestEvidenceStore {
     }
     public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
-            if(entry.token().equals(allowedEffect))continue;
             Source source=entry.intent().source();
             boolean overlaps=sameActor(entry.intent().actor(),actor)
                     || source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z;
-            if(overlaps && unresolved(entry))return true;
+            if(overlaps && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect))
+                    && unresolved(entry))return true;
         }
         return false;
     }

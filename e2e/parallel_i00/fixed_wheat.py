@@ -85,11 +85,12 @@ def measure(h, admission, reuse):
 def review(root, identity):
     metadata = read(root / "metadata.json")
     exact = witness_identity(metadata, identity.source, identity.jar_sha256, PROFILE)
-    verify_installation(root, metadata, ("PlayerA", "PlayerB"))
     path = root / "fixed-wheat.json"
     row = read(path)
-    require(row["status"] == "COLLECTED_PENDING_INDEPENDENT_REVIEW" and row["id"] == CASE,
-            "Missing complete native fixed wheat trial")
+    failure = read(root / "fixed-wheat-failure.json")
+    require(row and row["status"] == "COLLECTED_PENDING_INDEPENDENT_REVIEW" and row["id"] == CASE,
+            "Missing complete native fixed wheat trial. " + (failure or {}).get("reason", ""))
+    verify_installation(root, metadata, ("PlayerA", "PlayerB"))
     spec = read(ROOT / "e2e/parallel_b/qualification-specs.json")
     contract = next(c["expected"] for c in spec["boundaries"] if c["id"] == CASE)
     before, after, first, final = (row[key] for key in ("before", "after", "first", "final"))
@@ -163,6 +164,9 @@ def main():
         h = WheatHarness(args.root)
         try:
             acquire_real_skill(h, after_offline_reuse=measure)
+        except Exception as error:
+            atomic(h.root / "fixed-wheat-failure.json", {"reason": str(error), "trace": traceback.format_exc()})
+            raise
         finally:
             h.finish()
         return

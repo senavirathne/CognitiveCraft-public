@@ -175,7 +175,7 @@ jobs:
           name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Verify the exact candidate and prepare Minecraft and its connected client
         run: |
-          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer b
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer a
           python3 e2e/runtime.py prepare
       - name: Admit a real wheat method and replay three units under the original travel allowance
         id: native-wheat
@@ -541,7 +541,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        track: [original-0, original-1, original-2, original-3, original-4, original-5, held-out, endurance]
+        track: [original-0, original-1, original-2, original-3, original-4, original-5, held-out, endurance,
+                recipe-withdraw, recipe-craft, recipe-deposit, table-withdraw, table-place]
     env:
       I00_JAR_SHA256: ${{ needs.build.outputs.production_sha256 }}
       I00_TRACK: ${{ matrix.track }}
@@ -569,7 +570,10 @@ jobs:
         id: prepare
         run: |
           observer=b
-          if [[ "$I00_TRACK" == endurance ]]; then observer=endurance; fi
+          case "$I00_TRACK" in
+            endurance) observer=endurance ;;
+            recipe-*|table-*) observer=joint ;;
+          esac
           python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer "$observer"
           python3 e2e/runtime.py prepare
           case "$I00_TRACK" in
@@ -599,6 +603,12 @@ jobs:
                 --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=$?
               python3 -m e2e.parallel_i00.endurance_review --root "$I00_ROOT" \
                 --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" --out "$I00_ROOT/review.json" || result=1
+              ;;
+            recipe-*|table-*)
+              python3 -m e2e.parallel_i00.choice_cuts run --root "$I00_ROOT" \
+                --operation "$I00_TRACK" || result=$?
+              python3 -m e2e.parallel_i00.choice_cuts review --root "$I00_ROOT" \
+                --operation "$I00_TRACK" --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
               ;;
             *) exit 2 ;;
           esac
