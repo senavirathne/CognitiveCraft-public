@@ -35,6 +35,7 @@ LIVE = {"birch-q3-root": (DESTINATION, 0), "birch-q3-same-container-old-stock": 
 LOOKALIKE = "component-bearing-lookalike"
 REMOVAL = "player-removes-checkpoint-stock"
 RESTOCK = "unchanged-planning-then-player-restock"
+WHOLE_GOAL = "legal-batch-insufficient-for-original-goal"
 NO_METHOD = "installed-recipe-without-admitted-method"
 CONTEND = "contending-production-actors"
 PARTIAL_CANCEL = "cancelled-original-partial-craft"
@@ -87,9 +88,9 @@ def save_world(h, name, phase="saved-world"):
                     ignore=shutil.ignore_patterns("session.lock"))
 
 
-def production_command(h, destination):
+def production_command(h, destination, demand=3):
     return ("/aivillage kernel production-activity " + h.citizens["PlayerA"]
-            + " birch-planks 3 " + coord(SOURCE + destination))
+            + " birch-planks " + str(demand) + " " + coord(SOURCE + destination))
 
 
 def fixture_slots(h, position, slots):
@@ -299,6 +300,7 @@ def continue_saved_craft(h):
     save = h.save_checkpoint()
     cold = read(h.root / "server/process.json")
     h.stop("server", hard=True)
+    h.wait(lambda: not h.action("PlayerA", "snapshot")["play"], "Connected owner observes the original JVM stop", 45)
     stopped = h.root / "cases" / SAVED_CRAFT / "stopped-world"
     shutil.copytree(h.root / "server/game/world", stopped, ignore=shutil.ignore_patterns("session.lock"))
     h.start("server")
@@ -319,16 +321,22 @@ def continue_saved_craft(h):
             "screenshot": screenshot, "cutScreenshot": cut_image}
 
 
-def restock(h):
-    fixture_slots(h, SOURCE, {})
+def restock(h, name, demand, initial_logs):
+    fixture_slots(h, SOURCE, {26: (LOG, initial_logs)} if initial_logs else {})
     fixture_slots(h, DESTINATION, {})
     h.console(["clear PlayerA", "give PlayerA " + LOG + " 1"])
-    h.wait(lambda: h.container(SOURCE, LOG) == h.container(DESTINATION, PLANK) == 0,
-           "Original empty source and destination")
+    h.wait(lambda: h.container(SOURCE, LOG) == initial_logs and h.container(DESTINATION, PLANK) == 0,
+           "Original stock is insufficient for all requested units")
     before = h.snapshot()
-    command = production_command(h, DESTINATION)
+    command = production_command(h, DESTINATION, demand)
     h.actions_active = True
     root, feedback = submit_root(h, command)
+    first = None
+    if name == WHOLE_GOAL:
+        first = h.wait(lambda: (frame if (frame := h.snapshot()) and
+                       (job := frame["players"]["PlayerA"]["jobs"].get(root)) and
+                       job["activity"]["production"]["blocker"] == "NO_SUPPORTED_WHOLE_GOAL_PATH" else None),
+                       "One legal batch cannot satisfy the original seven-unit goal", 20)
     waiting = h.wait(lambda: dormant(h, root), "Finite unchanged planning checks reached their original stop", 40)
     h.quiet(80)
     still = h.snapshot()
@@ -345,9 +353,9 @@ def restock(h):
     action = h.action("PlayerA", "menu-click", slot=slot["slot"], quick=True)
     def supplied():
         view = h.client_snapshot("PlayerA")
-        return view if (view and view["menu"] and any(not s["playerInventory"] and s["item"] == LOG
-                                                    and s["count"] == 1 for s in view["slots"])) else None
-    transfer = h.wait(supplied, "Connected player put the new log in the originally empty source", 10)
+        return view if (view and view["menu"] and menu_quantity(view, LOG, False) == initial_logs + 1
+                        and menu_quantity(view, LOG, True) == 0) else None
+    transfer = h.wait(supplied, "Connected player adds the one missing log to the original source", 10)
     h.action("PlayerA", "close-menu")
     verified_clock(h, "tick unfreeze")
     after = h.wait(lambda: (frame if (frame := h.snapshot()) and
@@ -358,12 +366,17 @@ def restock(h):
     h.wait(lambda: clean_owners(h.snapshot()["knownPlayers"]["PlayerA"]), "Restocked original owners settled", 45)
     view = h.command("PlayerA", "/aivillage kernel activity " + root, "activity=" + root)
     h.actions_active = False
-    screenshot = h.screenshot("PlayerA", RESTOCK, chat=True)
-    save_world(h, RESTOCK)
-    return {"id": RESTOCK, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
-            "feedback": feedback, "before": before, "waiting": waiting, "still": still, "after": after,
+    screenshot = h.screenshot("PlayerA", name, chat=True)
+    save_world(h, name)
+    return {"id": name, "status": "PASS_PENDING_INDEPENDENT_REVIEW", "root": root, "command": command,
+            "feedback": feedback, "before": before, "firstBlocked": first, "waiting": waiting, "still": still, "after": after,
             "beforeMenu": menu, "clientAction": action, "afterMenu": transfer, "activityView": view,
             "screenshot": screenshot}
+
+
+def menu_quantity(menu, item_id, player):
+    return sum(slot["count"] for slot in menu["slots"]
+               if slot["playerInventory"] is player and slot["item"] == item_id)
 
 
 def missing_method(h):
@@ -537,6 +550,10 @@ def run(args, identity):
         h.start("server")
         h.start("PlayerA")
         h.wait(lambda: clean_owners(h.snapshot()["knownPlayers"]["PlayerA"]), "Initial legacy owners closed", 45)
+        cold = read(h.root / "server/process.json")
+        catalogue = h.wait(lambda: (value if (value := read(h.root / "oracle-recipes.json"))
+                           and value["serverPid"] == cold["pid"] else None), "Installed cold recipe catalogue", 30)
+        atomic(h.root / "cold-recipe-catalogue.json", catalogue)
         h.command("PlayerA", "/aivillage kernel inference false", "admission=false")
         h.console(["deop PlayerA"])
         for name, (destination, old) in LIVE.items():
@@ -551,7 +568,8 @@ def run(args, identity):
                 atomic(h.root / "cases" / REMOVAL / "result.json", remove_checkpoint(h, case))
         atomic(h.root / "cases" / LOOKALIKE / "result.json", lookalike(h))
         atomic(h.root / "cases" / PARTIAL_CANCEL / "result.json", cancel_partial(h))
-        atomic(h.root / "cases" / RESTOCK / "result.json", restock(h))
+        atomic(h.root / "cases" / RESTOCK / "result.json", restock(h, RESTOCK, 3, 0))
+        atomic(h.root / "cases" / WHOLE_GOAL / "result.json", restock(h, WHOLE_GOAL, 7, 1))
         atomic(h.root / "cases" / NO_METHOD / "result.json", missing_method(h))
         atomic(h.root / "cases" / CONTEND / "result.json", contention(h))
         atomic(h.root / "cases" / SAVED_CRAFT / "result.json", continue_saved_craft(h))
@@ -876,6 +894,59 @@ def verify_restock(raw, row, seed, events, frames):
             "originalAllowancePreserved": True, "newModelCalls": 0, "proof": lineage}
 
 
+def verify_whole_goal(raw, row, seed, recipe, events, frames):
+    root, waiting = row["root"], row["waiting"]
+    before, blocked, still, after = (row[k] for k in ("before", "firstBlocked", "still", "after"))
+    first = blocked["players"]["PlayerA"]["jobs"][root]
+    final = after["players"]["PlayerA"]["jobs"][root]
+    definition = recipe["recipes"][PLANK]
+    require(recipe["serverPid"] == before["pid"] == after["pid"] and recipe["worldEffects"] == 0
+            and definition["output"] == PLANK and definition["count"] == 4
+            and definition["remainderCount"] == 0 and len(definition["ingredients"]) == 1
+            and LOG in definition["ingredients"][0] and definition["slots"] == [0],
+            "Installed recipe does not independently establish the one-log legal batch")
+    require(root not in before["players"]["PlayerA"]["jobs"] and first["id"] == waiting["id"] == root
+            and first["activity"]["production"]["blocker"] == "NO_SUPPORTED_WHOLE_GOAL_PATH"
+            and waiting["activity"]["production"]["memory"]["unchangedChecks"] == 4
+            and still["players"]["PlayerA"]["jobs"][root] == waiting
+            and all(job["state"] == "WAITING" and not job["attempts"] and not job["activity"]["steps"]
+                    and job["fulfilled"] == 0 for job in (first, waiting)),
+            "The partial feasible prefix was not kept separate from whole-goal authorization")
+    a, b = row["beforeMenu"], row["afterMenu"]
+    require(tuple(menu_quantity(menu, LOG, player) for menu in (a, b) for player in (False, True)) == (1, 1, 2, 0)
+            and any(e["kind"] == "action" and e["data"].get("action") == "menu-click"
+                    and e["data"].get("quick") is True for e in events), "The legal whole-goal start lacks real player resupply")
+    actor_id = seed["actor"]["entityId"]
+    inventory = lambda frame: Counter(next(a["inventory"] for a in frame["actors"] if a["uuid"] == actor_id))
+    require(all(stock(frame, SOURCE) == {LOG: 1} and not stock(frame, DESTINATION)
+                and inventory(frame) == inventory(before) for frame in (blocked, still))
+            and stock(before, SOURCE) == {LOG: 1} and not stock(before, DESTINATION)
+            and not stock(after, SOURCE) and stock(after, DESTINATION) == {PLANK: 7}
+            and inventory(after) == inventory(before) + Counter({PLANK: 1})
+            and all(frame[k] == before[k] for frame in (still, after) for k in ("needleCalls", "generationCalls")),
+            "Observed custody failed the whole-goal refusal or resupplied success")
+    receipts = [receipt for attempt in final["attempts"] for receipt in attempt["resourceReceipts"]]
+    totals = Counter()
+    for receipt in receipts:
+        totals[receipt["stage"]] += receipt["quantity"]
+    require(final["state"] == "SUCCEEDED" and final["fulfilled"] == 7
+            and waiting["request"] == final["request"] and waiting["allowance"] == final["allowance"]
+            and final["request"]["request"]["arguments"]["amount"]["value"] == 7
+            and totals == {"WITHDRAW": 2, "CRAFT": 8, "DEPOSIT": 7}
+            and exact_withdrawals(final, receipts) == {LOG: 2}
+            and {step["artifact"]["sha256"] for step in final["activity"]["steps"]} == {seed["method"]},
+            "The original demand or certified recipe conservation changed")
+    saved = raw / "cases" / WHOLE_GOAL / "saved-world"
+    require(original(saved, root)["state"] == "SUCCEEDED" and chest(saved, DESTINATION) == {PLANK: 7}
+            and feedback_in(events, row["feedback"]) and feedback_in(events, row["activityView"]),
+            "Original seven-unit goal, connected feedback or saved delivery missing")
+    frame_link(frames, before, blocked, still, after)
+    frame_png(raw, row)
+    return {"id": WHOLE_GOAL, "status": "PASS", "scope": "I00_CONNECTED_EXACT_CHOICE", "root": root,
+            "legalBatchYield": 4, "originalDemand": 7, "effectsWhileInfeasible": 0,
+            "playerSupplied": 1, "delivered": 7, "originalAllowancePreserved": True, "newModelCalls": 0}
+
+
 def verify_missing_method(raw, row, recipe, events, frames):
     root, before, waiting, after = row["root"], row["before"], row["waiting"], row["after"]
     final = after["players"]["PlayerA"]["jobs"][root]
@@ -1000,12 +1071,16 @@ def review(raw, identity):
     require(stop["state"]["ExitCode"] == 0, "Exact native JVM did not stop cleanly")
     events = completed_jsonl(raw / "clients/PlayerA/events.jsonl")
     require(any(event["kind"] == "play" for event in events), "No live Minecraft client connected")
-    recipe = read(raw / "oracle-recipes.json")
+    recipe = read(raw / "cold-recipe-catalogue.json")
+    latest_recipe = read(raw / "oracle-recipes.json")
+    require(recipe["recipes"] == latest_recipe["recipes"] and recipe["worldEffects"] == latest_recipe["worldEffects"] == 0,
+            "Installed vanilla recipes changed across the original saved continuation")
     frames, cases = {}, []
     clocks = [event["data"] for event in supervisor if event["kind"] == "verified-native-clock-transition"]
     require([row["request"]["commands"] for row in clocks] == [[command] for command in (
             "tick rate 2", "tick freeze", "tick unfreeze", "tick rate 20",
-            "tick freeze", "tick unfreeze", "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze",
+            "tick freeze", "tick unfreeze", "tick freeze", "tick unfreeze",
+            "tick rate 2", "tick rate 20", "tick freeze", "tick unfreeze",
             "tick rate 2", "tick freeze")],
             "Missing exact native clock transitions for restock and contention")
     clock_frames = {}
@@ -1029,7 +1104,7 @@ def review(raw, identity):
         if key in clock_frames:
             require(frame == clock_frames.pop(key), "Native clock evidence differs from the original read-only query")
     require(not clock_frames, "Missing original native clock queries")
-    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, NO_METHOD, CONTEND, SAVED_CRAFT):
+    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, WHOLE_GOAL, NO_METHOD, CONTEND, SAVED_CRAFT):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
             cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})
@@ -1041,6 +1116,8 @@ def review(raw, identity):
             cases.append(verify_lookalike(raw, row, seed, events, frames))
         elif name == RESTOCK:
             cases.append(verify_restock(raw, row, seed, events, frames))
+        elif name == WHOLE_GOAL:
+            cases.append(verify_whole_goal(raw, row, seed, recipe, events, frames))
         elif name == PARTIAL_CANCEL:
             cases.append(verify_cancel_partial(raw, row, seed, events, frames))
         elif name == SAVED_CRAFT:

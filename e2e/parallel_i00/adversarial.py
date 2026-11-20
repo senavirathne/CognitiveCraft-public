@@ -99,14 +99,35 @@ INTEGRATED = {
     "A23": ("unchanged-planning-then-player-restock", {"stoppedUnchangedChecks": 4, "playerSupplied": 1,
                                                      "delivered": 3, "originalAllowancePreserved": True,
                                                      "newModelCalls": 0}),
+    "A27": ("legal-batch-insufficient-for-original-goal", {"legalBatchYield": 4, "originalDemand": 7,
+                                                         "effectsWhileInfeasible": 0, "delivered": 7,
+                                                         "originalAllowancePreserved": True, "newModelCalls": 0}),
     "A28": ("installed-recipe-without-admitted-method", {"installedRecipe": True, "admittedWitnessMissing": True,
                                                         "nativeEffects": 0, "newModelCalls": 0}),
 }
 
 DIRECT_PROFILES = {
+    "A14": ("A05", {"revokedAfterPreparation": True, "actorCustodyRetained": True, "depositEffects": 0}),
     "A15": ("A07", {"oldGenerationCallback": True, "successorUnchanged": True, "extraCredit": 0}),
+    "A18": ("A04", {"previousOnlySegment": True, "immutableRowsPreserved": True,
+                      "missingReferenceFenced": True, "nativeEffects": 0}),
     "A22": ("A09", {"inventedPrimitiveRefused": True, "largerAllowanceRefused": True,
                       "laterDeadlineRefused": True, "nativeEffects": 0}),
+    "A25": ("A05", {"olderBackupValid": True, "currentCorrupt": True, "writerRequested": True, "nativeEffects": 0}),
+    "A26": ("A05", {"partialRefused": True, "coordinatedSavedReceipt": True, "nativeEffectsAfterRestore": 0}),
+}
+
+JOINT = {
+    "A02": ("native-remainders", "I00_NATIVE_RECIPE_CHALLENGE", {"resultUnitsFit": 4, "nativeRemainderSlotsNeeded": 1,
+                                                                  "nativeRemainderSlotsAvailable": 0, "nativeEffects": 0}),
+    "A03": ("mixed-recipe-grid-from-two-authorized-sources", "I00_NATIVE_MIXED_GRID", {"separatelyAuthorizedSources": 2,
+                    "exactMixedSlots": 2, "unlistedSourceEffects": 0, "delivered": 3, "retained": 1}),
+    "A10": ("same-catalogue-reload", "I00_NATIVE_RECIPE_CHALLENGE", {"durablePreparationBeforeReload": True, "sameRecipeId": True,
+                                                                     "componentChange": False, "nativeEffects": 0}),
+    "A11": ("changed-result-components", "I00_NATIVE_RECIPE_CHALLENGE", {"durablePreparationBeforeReload": True, "sameRecipeId": True,
+                                                                          "componentChange": True, "nativeEffects": 0}),
+    "A24": ("storage-pressure", "I00_NATIVE_DURABLE_STORAGE_PRESSURE", {"preparedBeforeExhaustion": True, "nativeFilesystemFull": True,
+                                                                       "deliveryCredit": 0, "replayEffects": 0}),
 }
 
 
@@ -223,12 +244,40 @@ def observer_audit(raw, identity):
             "gameplayExecutedByReviewer": False}
 
 
+def offline_resume_claim(root, identity):
+    path = root / "walkthrough/saved-offline/review.json"
+    review = reread(path, identity)
+    if not review or review.get("cohort") != "saved-offline":
+        return None
+    matches = []
+    expected = {"needleCalls", "generationCalls"}
+    for row in review["cases"]:
+        if (row.get("status") != "PASS_NATIVE_RESUMED" or row.get("resumedCompletion") is not True
+                or row.get("modelUnavailableAfterRestart") is not True):
+            continue
+        cold, warm = row["coldProcess"], row["warmProcess"]
+        before, cut, after = (row[key] for key in ("modelCallsBefore", "modelCallsAtCut", "modelCallsAfter"))
+        if (warm["start"] <= cold["start"] or not cold["releaseSha256"] == warm["releaseSha256"] == identity["productionSha256"]
+                or set(before) != expected or set(cut) != expected or set(after) != expected
+                or any(cut[key] < before[key] or before[key] < 0 or after[key] != 0 for key in expected)
+                or row["cumulativeProcessModelCalls"] != {key: cut[key] + after[key] for key in expected}
+                or row["cumulativeMeasuredModelCalls"] != {key: cut[key] - before[key] + after[key] for key in expected}
+                or not row.get("independentSavedParticipants")):
+            raise ValueError("Invalid native offline recovery or cumulative model counter witness")
+        matches.append(row["id"])
+    return {"scope": "I00_NATIVE_OFFLINE_CONTINUATION", "cases": matches, "reviewSha256": sha256(path),
+            "path": path.relative_to(root).as_posix()} if matches else None
+
+
 def ledger(root, identity):
     available = profiles(root, identity)
     observer_path = root / "b-compatibility/harness/adversarial-review.json"
     observer = reread(observer_path, identity)
+    offline = offline_resume_claim(root, identity)
     controls_path = root / "integrated-controls/review.json"
     controls = reread(controls_path, identity)
+    joint_path = root / "joint-controls/review.json"
+    joint = reread(joint_path, identity)
     exact_choice = {}
     if controls and controls.get("stage") == "I00":
         for row in controls.get("cases", []):
@@ -261,6 +310,19 @@ def ledger(root, identity):
                 claims.append({"scope": direct["scope"], "cases": [case_id], "profile": profile,
                                "reviewSha256": available[profile][1],
                                "path": f"recovery/{profile}/review.json", "resultSha256": direct["resultSha256"]})
+        if case_id in JOINT and joint:
+            name, scope, assertions = JOINT[case_id]
+            selected = [row for row in joint["cases"] if row["id"] == name]
+            if len(selected) == 1:
+                row = selected[0]
+                if ((row.get("status"), row.get("scope")) == ("PASS", scope)
+                        and all(row.get(key) == value for key, value in assertions.items())):
+                    status = "PASS_NATIVE_CHALLENGE"
+                    claims.append({"scope": row["scope"], "cases": [row["id"]], "reviewSha256": sha256(joint_path),
+                                   "path": joint_path.relative_to(root).as_posix(), "resultSha256": row["evidenceSha256"]})
+        if case_id == "A29" and offline:
+            status = "PASS_NATIVE_CHALLENGE"
+            claims.append(offline)
         if case_id == "A30" and observer:
             copies = observer.get("corruptCopies", {})
             if ((observer.get("stage"), observer.get("id"), observer.get("status")) !=

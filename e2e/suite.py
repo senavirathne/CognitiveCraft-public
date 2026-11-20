@@ -1116,11 +1116,14 @@ def queued_competition(h: Harness):
     return {"competition": competition, "multipleJobs": records}
 
 
-def reconnect_players(h: Harness, players):
+def reconnect_players(h: Harness, players, *, unbound=()):
     for player in players:
         h.action(player, "connect", address=f"127.0.0.1:{h.port}")
         state = h.wait(lambda: h.client_snapshot(player), "Post-restart real play " + player, 100)
         require(state["uuid"] == h.players[player], "Restart changed controlling principal")
+        if player in unbound:
+            require(player not in h.citizens, "Unbound reconnect cannot skip a controlled citizen check")
+            continue
         require(h.citizens[player] in h.command(player, "/aivillage kernel citizens", "citizens="), "Restart lost citizen identity")
 
 

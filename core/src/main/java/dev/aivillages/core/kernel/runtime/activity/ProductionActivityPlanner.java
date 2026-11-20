@@ -31,7 +31,7 @@ public final class ProductionActivityPlanner {
                 Long.MAX_VALUE),null,previous,List.of());
         var selected=planner.nextActivity(frame,saved,memory,1,maximum,exactChildren);
         if(selected.neededChoice()!=null) {
-            var candidate=PlanningChoiceBuilder.build(frame,selected.neededChoice());
+            var candidate=PlanningChoiceBuilder.build(frame,selected.neededChoice(),frame.goal().policy().staging());
             var offer=new ChoiceOffer(new ValidatedRequest(candidate.invocation(),root.origin(),root.request().observation()),
                     candidate.choice(),candidate.sources());
             if(nativeChoice.validate(offer))selected=planner.nextActivity(withOffer(frame,offer),saved,memory,1,maximum,exactChildren);
@@ -57,6 +57,7 @@ public final class ProductionActivityPlanner {
                 || !RecipeProduction.of(request.capability()).output().id().equals(frame.goal().item().id())
                 || frame.goal().demand()!=((IntValue)request.arguments().get("amount")).value()
                 || !frame.goal().destination().equals(ResourceDelivery.destinationAddress(request))
+                || !frame.goal().policy().allowedSources().equals(Set.copyOf(ActivityRecipeEvidence.authorizedSources(root)))
                 || frame.budget().absoluteDeadlineMillis()!=root.allowance().deadlineEpochMillis()
                 || remaining.deadlineEpochMillis()!=root.allowance().deadlineEpochMillis()
                 || !frame.budget().equals(budget(root)))

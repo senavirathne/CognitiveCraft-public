@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 import traceback
@@ -70,11 +71,103 @@ def verify_bundle(root, source, jar, metadata):
     return recorded
 
 
+def review_previous_deposit_journal(root):
+    from generalization_support import LOG
+    from review_receipt_prefix import journal
+    from suite import require
+
+    folder = root / "storage-corrupt-current"
+    result = folder / "older-valid-backup.json"
+    row = read(result)
+    current = folder / "actual-corrupt-current.jsonl"
+    previous = folder / "actual-previous.jsonl"
+    head, _ = journal(folder / "original-current.jsonl")
+    old, entries = journal(previous)
+    require(sha256(current) == row["currentSha256"] and sha256(previous) == row["previousSha256"]
+            and head["world"] == old["world"] and head["epoch"] == old["epoch"]
+            and head["revision"] == row["revisionBeforeDamage"] == old["revision"] + 1
+            and len(entries) > 0, "Native previous deposit journal is missing, invalid, or not older")
+    corrupted = False
+    try:
+        journal(current)
+    except (AssertionError, ValueError):
+        corrupted = True
+    before, after, restart = row["before"], row["after"], row["restart"]
+    require(corrupted and row["writerRequested"] is True and restart["sameClients"] is True
+            and restart["reader"]["fenced"] and row["reader"]["fenced"]
+            and restart["reader"]["journal"]["revision"] == row["reader"]["journal"]["revision"] == old["revision"]
+            and restart["reader"]["journal"]["world"] == old["world"]
+            and restart["before"]["startTicks"] != restart["after"]["startTicks"],
+            "Corrupt current journal did not expose just the read-only earlier snapshot in the new JVM")
+    response = row["response"]
+    refused = (response.get("marker", {}).get("outcome") != "SUCCEEDED" and not response.get("resourceReceipts")) if row["intake"]["accepted"] else (
+            any("reason=" + reason in response["feedback"] for reason in ("STORAGE_UNAVAILABLE", "INTERRUPTED")))
+    require(refused and row["modelCallsBefore"] == row["modelCallsAfter"]
+            and before["destination"] == after["destination"] == 1
+            and before["actor"]["inventory"] == after["actor"]["inventory"] == {}
+            and LOG in before["candidateSource"] == after["candidateSource"],
+            "Older backup authorized an effect or rewrote current custody")
+    return {"status": "PASS_INDEPENDENT_NATIVE_BOUNDARY", "scope": "NATIVE_PREVIOUS_DEPOSIT_JOURNAL_READ_ONLY",
+            "olderBackupValid": True, "currentCorrupt": True, "writerRequested": True, "nativeEffects": 0,
+            "resultSha256": sha256(result)}
+
+
+def review_prepared_revocation(root):
+    from freeze_storage_review import process_replaced, totals
+    from generalization_support import DST, LOG
+    from recovery_fixture import participant
+    from review_lifecycle_connected import chest_row, entities, original
+    from review_receipt_prefix import canonical, journal, sha
+    from suite import require
+
+    folder = root / "prepared-authority-revoked"
+    result = folder / "result.json"
+    row = read(result)
+    observed, reader = row["nativeRevocation"], row["reader"]
+    world = folder / "saved-world"
+    head, entries = journal(world / "data/cognitivecraft/deposit-evidence/v1/state.jsonl")
+    recorded, = entries
+    native, = reader["journal"]["entries"]
+    key = recorded["intent"]["key"]
+    job = original(world, key["root"])
+    require(observed["point"] == "PREPARED_MARKED" and observed["beforeAllowed"] is True
+            and observed["afterAllowed"] is False and row["armed"]["token"] == observed["token"]
+            and observed["originalIntent"] == native["intent"]
+            and observed["revision"] == head["revision"] and observed["epoch"] == head["epoch"]
+            and observed["pid"] == row["restart"]["before"]["namespaceProcess"]["pid"]
+            and not recorded.get("result") and not native.get("result") and job["attempts"][-1]["id"] == key["attempt"],
+            "No actual authority revocation at an acknowledged original preparation")
+    original_effects = totals(row["original"]["resourceReceipts"])
+    require(original_effects == {"HARVEST": 1, "PICKUP": 1, "DEPOSIT": 0}
+            and row["original"]["responsibility"]["id"] == job["id"]
+            and set(reader["reconciliation"].values()) == {"PREPARED_NO_EFFECT"}
+            and row["held"]["destination"] == row["after"]["destination"] == 0
+            and row["held"]["actor"]["inventory"] == row["after"]["actor"]["inventory"] == {LOG: 1}
+            and row["beforeCalls"] == row["afterCalls"], "Revocation lost original custody or allowed a late effect")
+    intent = recorded["intent"]
+    marker = {"schema": 1, "phase": "PREPARED", "effect": sha(canonical(key)), "intent": sha(canonical(intent)), "result": ""}
+    participant(entities(world)[intent["actor"]["address"]], intent["actor"], marker, "Inventory")
+    participant(chest_row(world, DST), intent["chest"], marker, "Items")
+    process_replaced(row["restart"]["before"], row["restart"]["after"])
+    return {"status": "PASS_INDEPENDENT_NATIVE_BOUNDARY", "scope": "NATIVE_AUTHORITY_RECHECK_AFTER_DEPOSIT_PREPARE",
+            "revokedAfterPreparation": True, "actorCustodyRetained": True, "depositEffects": 0,
+            "resultSha256": sha256(result)}
+
+
 def review(args):
     value = review_original_profile(args.root, args.profile, args.source, args.jar_sha256,
                                     verify_bundle=verify_bundle, stage="I00")
     value["ci"] = read(args.root / "a10-frozen-runtime.json")["ci"]
     value["scope"] = "Original A gates on the I00 candidate, no integrated recipe recovery claim."
+    if args.profile == "A04":
+        from .archive_cut import review as previous_archive
+
+        value["nativeAdversarial"] = {"A18": previous_archive(args.root)}
+    if args.profile == "A05":
+        from .save_restore import review as save_restore
+
+        value["nativeAdversarial"] = {"A14": review_prepared_revocation(args.root),
+                                      "A25": review_previous_deposit_journal(args.root), "A26": save_restore(args.root)}
     if args.profile == "A07":
         row = read(args.root / "controls/handoff-positive/result.json")
         reply = row["lateOriginalReport"]
@@ -164,6 +257,7 @@ def main():
             raise ValueError("Recovery requires a fresh isolated profile root")
         if sha256(args.seed_archive) != ARCHIVE_SHA:
             raise ValueError("The original stopped admission seed bytes changed")
+        os.environ["COGNITIVECRAFT_I00_ADVERSARIAL"] = args.profile
         run_original_profile(args, verify_bundle=bundle, stage="I00")
         return
     args.out.mkdir(parents=True, exist_ok=True)

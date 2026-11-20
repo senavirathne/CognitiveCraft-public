@@ -19,10 +19,14 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public enum Evidence { LIVE_RECEIPTS }
     public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
                                     String blocker, long nextCheckMillis,ActivityPlan plan,
-                                    Map<UUID,List<String>> coveredActions) {
+                                    Map<UUID,List<String>> coveredActions,ContainerRef additionalSource) {
         public static final int MAX_DECISIONS=32;
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of());
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null);
+        }
+        public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
+                                 ActivityPlan plan,Map<UUID,List<String>> coveredActions) {
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null);
         }
         public ProductionControl {
             Objects.requireNonNull(memory);Objects.requireNonNull(blocker);
@@ -41,15 +45,18 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                     (long)acquisition.maxY()-acquisition.minY()+1),(long)acquisition.maxZ()-acquisition.minZ()+1)>256)
                 throw new IllegalArgumentException("Bounded original acquisition area");
         }
-        public static ProductionControl initial(Cuboid source){return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0);}
+        public static ProductionControl initial(Cuboid source){return initial(source,null);}
+        public static ProductionControl initial(Cuboid source,ContainerRef additionalSource){
+            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource);
+        }
         public ProductionControl next(PlanningModel.Memory next,String reason,long checkAt){
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource);
         }
         public ProductionControl prepared(PlanningModel.Memory next,ActivityPlan pinned,UUID proposal,List<String> tokens) {
             if(plan!=null && !plan.equals(pinned))throw new IllegalArgumentException("Original pinned production plan changed");
             var actions=new HashMap<>(coveredActions);
             if(actions.putIfAbsent(proposal,List.copyOf(tokens))!=null)throw new IllegalArgumentException("Duplicate authoritative proposal");
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource);
         }
     }
     public ActivityPayload(GoalMode mode,Policy policy,int plannedSteps,UUID currentStep,List<Step> steps,
@@ -217,6 +224,13 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         if(production!=null) {
             var m=production.memory();
             var budget=ProductionActivityPlanner.budget(job);
+            var additional=production.additionalSource();
+            if(additional!=null && (production.acquisition()!=null
+                    || !RecipeProduction.is(job.request().request().capability())
+                    || RecipeProduction.of(job.request().request().capability()).axe()
+                    || !(job.request().request().arguments().get("source") instanceof ContainerValue source)
+                    || !source.value().dimension().equals(additional.dimension()) || source.value().equals(additional)))
+                throw new IllegalArgumentException("Invalid original supplemental recipe source");
             if(steps.size()>production.decisions() || production.acquisition()!=null
                     && !production.acquisition().dimension().equals(job.responsible().dimension())
                     || !steps.stream().map(Step::proposal).collect(java.util.stream.Collectors.toSet()).containsAll(production.coveredActions().keySet())

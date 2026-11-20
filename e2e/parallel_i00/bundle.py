@@ -19,6 +19,7 @@ FIXED = (
     "build/i00-instruments/a/observer.jar", "build/i00-instruments/b/observer.jar",
     "build/e2e-sdk/integrity.json", "build/i00-instruments/endurance/observer.jar",
     "build/parallel-i00/endurance-observer/integrity.json",
+    "build/i00-instruments/joint/observer.jar", "build/i00-recipe-fixtures/integrity.json",
 )
 MODULES = ("core", "providers", "fabric")
 
@@ -98,7 +99,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=("export", "verify"))
     parser.add_argument("--jar-sha256")
-    parser.add_argument("--observer", choices=("a", "b", "endurance"))
+    parser.add_argument("--observer", choices=("a", "b", "endurance", "joint"))
     args = parser.parse_args()
     if args.operation == "verify" and (args.jar_sha256 is None or args.observer is None):
         parser.error("verify requires --jar-sha256 and --observer")

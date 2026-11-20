@@ -87,7 +87,11 @@ public final class FabricDepositProtocol implements DepositProtocol {
         participantInitializationNanos=System.nanoTime()-initialized;
         store=new DepositEvidenceStore(initial,(expected,next)->CompletableFuture.supplyAsync(()->{
             if(Thread.currentThread()==thread)throw new IllegalStateException("Deposit I/O executor ran on the game thread");
-            try{return journal.replace(expected,next);}catch(java.io.IOException error){throw new CompletionException(error);}
+            try{return journal.replace(expected,next);}catch(java.io.IOException error){
+                if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
+                    System.out.println("CognitiveCraft DEPOSIT publication refused revision="+next.revision()+" reason="+error.getMessage());
+                throw new CompletionException(error);
+            }
         },worker),new DepositEvidenceStore.NativePort() {
             public boolean current(Intent intent){return nativeCurrent(intent);}
             public Result execute(Intent intent){return nativeExecute(intent);}

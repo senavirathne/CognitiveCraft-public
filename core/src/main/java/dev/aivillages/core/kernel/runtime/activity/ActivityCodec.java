@@ -102,6 +102,10 @@ public final class ActivityCodec {
             row.put("acquisition",Map.of("dimension",a.dimension(),"minX",a.minX(),"minY",a.minY(),"minZ",a.minZ(),
                     "maxX",a.maxX(),"maxY",a.maxY(),"maxZ",a.maxZ()));
         }
+        if(p.additionalSource()!=null) {
+            var source=p.additionalSource();
+            row.put("additionalSource",Map.of("dimension",source.dimension(),"x",source.x(),"y",source.y(),"z",source.z()));
+        }
         if(p.plan()!=null) {
             var covered=new TreeMap<String,List<String>>();
             p.coveredActions().forEach((id,actions)->covered.put(id.toString(),actions));
@@ -122,7 +126,7 @@ public final class ActivityCodec {
         return row;
     }
     private static ProductionControl production(Map<String,Object> row)throws StrictJson.Invalid {
-        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered"));
+        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered","additionalSource"));
         Cuboid area=null;
         if(row.containsKey("acquisition")) {
             var a=object(row.get("acquisition"));exact(a,"dimension","minX","minY","minZ","maxX","maxY","maxZ");
@@ -149,7 +153,12 @@ public final class ActivityCodec {
                 covered.put(UUID.fromString(id),tokens.stream().map(String.class::cast).toList());
             });
         }
-        return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"),plan,covered);
+        ContainerRef additional=null;
+        if(row.containsKey("additionalSource")) {
+            var source=object(row.get("additionalSource"));exact(source,"dimension","x","y","z");
+            additional=new ContainerRef(string(source,"dimension","$"),integer(source,"x"),integer(source,"y"),integer(source,"z"));
+        }
+        return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"),plan,covered,additional);
     }
     private static int integer(Map<String,Object> row,String name){return Math.toIntExact(number(row,name,"$"));}
     private static List<String> chunks(String text) {

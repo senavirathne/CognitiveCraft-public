@@ -174,16 +174,23 @@ def restart_review(folder, row, paths, cohort, jar):
     disconnected = [event["data"]["player"] for event in events if event["kind"] == "server-disconnection-witness"
                     and event["data"]["server"] == cold and event["data"]["client"]["play"] is False]
     require(set(disconnected) == {"PlayerA", "PlayerB"}, "Native clients did not observe server disconnection")
-    native_freezes = [event for event in events if event["kind"] == "verified-native-clock" and event["data"]["command"] == "tick freeze"]
-    require(len(native_freezes) == 1 and clock_response("tick freeze", native_freezes[0]["data"]["feedback"])
-            and native_freezes[0]["time"] < stops[0]["time"], "No acknowledged native freeze preceding the actual stop")
+    armed, = [event for event in events if event["kind"] == "i00-native-boundary-armed"]
+    stopped, = [event for event in events if event["kind"] == "i00-native-boundary-frozen"]
+    freeze = read(folder / "server/i00-native-boundary-reached.json")
+    require(freeze == stopped["data"] == row["nativeCutFreeze"] and freeze["frozen"] is True and freeze["rate"] == 20
+            and {key: freeze[key] for key in ("token", "root", "boundary", "principal")} == armed["data"]
+            and freeze["root"] == root_id and freeze["pid"] == cold["pid"]
+            and freeze["tick"] == row["cut"]["state"]["gameTick"] == row["killObservation"]["state"]["gameTick"]
+            and freeze["jobRevision"] <= row["killObservation"]["job"]["revision"]
+            and armed["time"] <= freeze["time"] / 1000 <= stopped["time"] < stops[0]["time"],
+            "The exact original physical boundary was not frozen by the native clock before SIGKILL")
+    require(any(clock_response("tick freeze", line) for line in paths["server/stdout.log"].read_text().splitlines()),
+            "The native server did not acknowledge the actual clock freeze")
     rates = [event for event in events if event["kind"] == "verified-native-clock"
              and event["data"]["command"].startswith("tick rate ")]
-    require([event["data"]["command"] for event in rates] == ["tick rate 4", "tick rate 20"]
+    require([event["data"]["command"] for event in rates] == ["tick rate 20"]
             and all(clock_response(event["data"]["command"], event["data"]["feedback"]) for event in rates)
-            and rates[0]["time"] <= native_freezes[0]["time"] < stops[0]["time"] < rates[1]["time"]
-            and row["nativeCutArmedAt"]["tick"] <= row["cut"]["state"]["tick"],
-            "The native rate change did not bracket the actual interrupted phase")
+            and stops[0]["time"] < rates[0]["time"], "Normal native rate was not verified in the replacement JVM")
     saves = [event["data"] for event in events if event["kind"] == "acknowledged-world-checkpoint" and event["time"] < stops[0]["time"]]
     if cohort == "unsaved":
         require(saves == [row["initialCheckpoint"]] and "afterCutSave" not in row, "Unsaved cut forced a checkpoint")
@@ -212,9 +219,14 @@ def restart_review(folder, row, paths, cohort, jar):
     before, boundary, after = (row[key] for key in ("modelCallsBefore", "modelCallsAtCut", "modelCallsAfter"))
     require(before.keys() == boundary.keys() == after.keys() and all(boundary[k] >= v and after[k] == 0 for k, v in before.items()),
             "A known certified sequence called the model after restart or lost cold work")
+    for observed, counts in ((row["before"], before), (row["killObservation"]["state"], boundary), (row["after"], after)):
+        require(all(observed[key] == value for key, value in counts.items()),
+                "Claimed per-process model counters differ from the linked native observations")
     return {"originalRoot": root_id, "resumedCompletion": resumed, "cut": cut, "coldProcess": cold, "warmProcess": warm,
-            "modelCallsBefore": before, "modelCallsAfter": after,
+            "modelCallsBefore": before, "modelCallsAtCut": boundary, "modelCallsAfter": after,
+            "modelUnavailableAfterRestart": cohort != "saved-online",
             "cumulativeMeasuredModelCalls": {key: boundary[key] - before[key] + after[key] for key in before},
+            "cumulativeProcessModelCalls": {key: boundary[key] + after[key] for key in before},
             "independentSavedParticipants": independently_saved(world, row) if cohort != "unsaved" else None}
 
 

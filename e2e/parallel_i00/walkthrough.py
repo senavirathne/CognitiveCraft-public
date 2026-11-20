@@ -37,6 +37,10 @@ class MissedCut(Exception):
 
 
 class WalkthroughHarness(NativeGameplay):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.env["I00_NATIVE_JAVA_TOOL_OPTIONS"] = "-Dcognitivecraft.navigation.trace=true"
+
     def clock(self, command):
         require(command in {"tick rate 4", "tick rate 20", "tick freeze", "tick unfreeze"}, "Unsafe native clock operation")
         # The gameplay principal remains an ordinary player. Only the harness's
@@ -124,7 +128,7 @@ def backend(h):
     return evidence
 
 
-def boot_trial(root, seed, profile=PROFILE):
+def boot_trial(root, seed, profile=PROFILE, journal_volume=None):
     h = WalkthroughHarness(root, profile=profile)
     # Each trial copies the admitted stopped world, then preserves that same
     # world's bytes across the measured cut. Only Docker and model cache reuse.
@@ -140,6 +144,9 @@ def boot_trial(root, seed, profile=PROFILE):
         require(h.world_hashes() == frozen, "Genuine stopped seed world changed during copy")
         atomic(root / "seed-continuation.json", {"worldHashes": frozen, "source": read(seed.root / "metadata.json"),
                "admissionsImportedAsI00": 0})
+        if journal_volume is not None:
+            journal_volume.mount()
+            require(h.world_hashes() == frozen, "Dedicated storage volume changed the original native seed bytes")
         h.subjects, h.artifacts = seed.subjects.copy(), seed.artifacts.copy()
         h.use_actor(0)
         h.compose("up", "-d", "ollama")
@@ -168,10 +175,14 @@ def boot_trial(root, seed, profile=PROFILE):
 def prepare(h, shortage):
     h.start("PlayerB")
     h.console(["fill 63 208 63 84 211 78 minecraft:air", "fill 62 207 62 85 207 80 minecraft:stone",
+               "fill 65 208 64 79 209 64 minecraft:stone", "fill 65 208 75 79 209 75 minecraft:stone",
+               "fill 65 208 65 65 209 74 minecraft:stone", "fill 79 208 65 79 209 74 minecraft:stone",
                "kill @e[type=minecraft:item,x=63,y=207,z=63,dx=21,dy=5,dz=15]", "clear PlayerA",
                "tp PlayerA 77.5 208 74.5"])
     for _, entity in h.subjects:
         h.actor_stock({}, entity)
+        if entity != h.entities["PlayerA"]:
+            h.console(["tp " + entity + " 82.5 208 74.5"])
     h.stock(SOURCE, {} if shortage else {LOG: 3})
     h.stock(DESTINATION, {})
     expected = {",".join(map(str, pos)): LOG for pos in LOGS} if shortage else {}
@@ -262,47 +273,24 @@ def witnessed(cut, job, state, actor):
     raise ValueError("Unknown native boundary")
 
 
-def approaching_cut(cut, job, state, actor):
-    if not job or not job.get("activity") or job["state"] in TERMINAL:
-        return False
-    stages = resource_stages(job)
-    if cut in ("after-wood-collection", "after-material-deposit"):
-        return stages["HARVEST", LOG] == 3 and stages["DEPOSIT", LOG] == 2
-    if cut == "after-table-placement":
-        return stages["CRAFT", TABLE] == 1 and not tables(state)
-    if cut == "after-craft":
-        return any(a["bound"]["request"]["capability"]["name"] == "cognitivecraft:produce_wooden_axes"
-                   and not a.get("terminal") for a in job["attempts"])
-    if cut == "at-final-delivery":
-        worker = next((entry for entry in state["actors"] if entry["uuid"] == actor), None)
-        return (stages["CRAFT", AXE] == 1 and stages["DEPOSIT", AXE] == 0 and worker
-                and sum((x - (y + .5))**2 for x, y in zip(worker["pos"], DESTINATION, strict=True)) <= 36)
-    raise ValueError("Unknown native boundary")
-
-
 def stop_at_cut(h, cut, row, root_id, cohort):
     def at_cut():
         state = h.snapshot()
         job = job_at(state, "PlayerA", root_id)
         return (job, state) if witnessed(cut, job, state, row["actor"]) else None
     try:
-        def approach():
-            state = h.snapshot()
-            job = job_at(state, "PlayerA", root_id)
-            return state if approaching_cut(cut, job, state, row["actor"]) else None
-
-        # Keep ordinary movement at 20 TPS. Slowing a full route would exceed an
-        # unchanged action wall-clock limit before it reached the physical cut.
-        arm = h.wait(approach, "Native physical predecessor to " + cut, 150)
-        h.clock("tick rate 4")
-        row["nativeCutArmedAt"] = {"tick": arm["tick"], "gameTick": arm["gameTick"]}
-        h.wait(at_cut, "Actual reachable activity cut " + cut, 190)
+        control = {"token": str(uuid.uuid4()), "root": root_id, "boundary": cut, "principal": row["principal"]}
+        atomic(h.root / "server/i00-native-boundary.json", control)
+        h.event("i00-native-boundary-armed", control)
+        native = h.wait(lambda: (frame if (frame := read(h.root / "server/i00-native-boundary-reached.json"))
+                                 and frame["token"] == control["token"] else None), "Actual reachable activity cut " + cut, 155)
+        require(native["root"] == root_id and native["boundary"] == cut and native["frozen"] and native["rate"] == 20,
+                "Native clock failed to freeze on the original job at its normal rate")
+        row["nativeCutFreeze"] = native
+        h.event("i00-native-boundary-frozen", native)
+        first = h.wait(at_cut, "Independent native and client observations after clock freeze", 10)
     except TimeoutError as error:
         raise MissedCut(str(error)) from error
-    h.clock("tick freeze")
-    first = at_cut()
-    if not first:
-        raise MissedCut("Activity advanced before the acknowledged freeze")
     row["cut"] = {"name": cut, "job": first[0], "state": first[1], "client": h.client_snapshot("PlayerA")}
     h.screenshot("PlayerA", "native-cut-" + cut, chat=True)
     if cohort != "unsaved":
@@ -326,7 +314,7 @@ def stop_at_cut(h, cut, row, root_id, cohort):
     row["warmProcess"] = read(h.root / "server/process.json")
     require(row["warmProcess"]["start"] > row["coldProcess"]["start"] and
             row["warmProcess"]["releaseSha256"] == row["coldProcess"]["releaseSha256"], "Wrong restart JVM or release")
-    reconnect_players(h, ["PlayerA", "PlayerB"])
+    reconnect_players(h, ["PlayerA", "PlayerB"], unbound=("PlayerB",))
     row["warmFirstJob"] = h.wait(lambda: h.job_view("PlayerA", root_id), "Original root visible after restart", 50)
     h.clock("tick unfreeze")
     h.clock("tick rate 20")

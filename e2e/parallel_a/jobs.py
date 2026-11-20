@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -299,6 +300,9 @@ def main():
             result['cases'].append({'id':'native-job-cut-'+point.lower(),'status':'PASS','evidence':crash_cut(h,backup,point,old_job,pinned)})
         for kind in ('segment-missing','segment-corrupt','version-missing'):
             result['cases'].append({'id':'native-required-'+kind,'status':'PASS','evidence':corrupt_required(h,backup,kind,old_job,pinned)})
+        if os.environ.get('COGNITIVECRAFT_I00_ADVERSARIAL')=='A04':
+            from e2e.parallel_i00.archive_cut import exercise
+            exercise(h,world,backup,old_job,pinned)
         result['status']='PASS'
     except Exception as error:
         result.update(status='INCONCLUSIVE' if isinstance(error,Inconclusive) else 'FAIL',reason=str(error),trace=traceback.format_exc())

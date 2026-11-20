@@ -489,9 +489,18 @@ public final class JobLifecycleStore {
     /** Production admission adds planning data to the same original Job. */
     public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
                                            Budgets.Limits allowance,int plannedSteps,Cuboid acquisition) {
+        return createProductionActivity(id,goal,caller,observation,allowance,plannedSteps,acquisition,null);
+    }
+    public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
+                                           Budgets.Limits allowance,int plannedSteps,Cuboid acquisition,ContainerRef additionalSource) {
         if(goal==null || !RecipeProduction.is(goal.capability()))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         try {
-            var payload=ActivityPayload.initial(goal.capability(),plannedSteps).planning(ActivityPayload.ProductionControl.initial(acquisition));
+            if(additionalSource!=null && (acquisition!=null || RecipeProduction.of(goal.capability()).axe()
+                    || !(goal.arguments().get("source") instanceof ContainerValue source)
+                    || !source.value().dimension().equals(additionalSource.dimension()) || source.value().equals(additionalSource)))
+                return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+            var payload=ActivityPayload.initial(goal.capability(),plannedSteps)
+                    .planning(ActivityPayload.ProductionControl.initial(acquisition,additionalSource));
             return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,payload);
         } catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
     }
@@ -584,6 +593,7 @@ public final class JobLifecycleStore {
     private static boolean productionAdvance(ActivityPayload.ProductionControl previous,ActivityPayload.ProductionControl next) {
         return previous!=null && next!=null && next.decisions()==previous.decisions()+1
                 && Objects.equals(previous.acquisition(),next.acquisition())
+                && Objects.equals(previous.additionalSource(),next.additionalSource())
                 && (previous.plan()==null || previous.plan().equals(next.plan()))
                 && next.coveredActions().entrySet().containsAll(previous.coveredActions().entrySet());
     }

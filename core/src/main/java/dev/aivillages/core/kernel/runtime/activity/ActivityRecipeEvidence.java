@@ -26,8 +26,17 @@ public final class ActivityRecipeEvidence {
             throw new IllegalArgumentException("Exact choice and authoritative quantity disagree");
         var request=new ValidatedRequest(new CapabilityRequest(choice.capability(),operation.arguments()),
                 invocation.context(),invocation.observation());
-        RecipeChoicePlan.propose(root.id(),root.revision(),request,choice,sources(request,choice));
+        var sources=sources(request,choice);
+        if(!authorizedSources(root).containsAll(sources.containers()))
+            throw new IllegalArgumentException("Exact choice source outside the original authority");
+        RecipeChoicePlan.propose(root.id(),root.revision(),request,choice,sources);
         return request;
+    }
+
+    public static List<ContainerRef> authorizedSources(Job root) {
+        var primary=((ContainerValue)root.request().request().arguments().get("source")).value();
+        var control=root.activity()==null?null:root.activity().production();
+        return control==null || control.additionalSource()==null?List.of(primary):List.of(primary,control.additionalSource());
     }
 
     public static RecipeSources sources(ValidatedRequest invocation,RecipeChoice choice) {

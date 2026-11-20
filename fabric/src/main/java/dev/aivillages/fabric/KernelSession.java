@@ -1689,20 +1689,28 @@ public final class KernelSession implements AutoCloseable {
             default->RecipeProduction.PlankMaterial.forOutput("minecraft:"+recipe.replace('-','_'))
                     .map(m->m.capability(1)).orElse(null);
         };
-        if(cap==null || at.length!=(cap.equals(WoodenAxeProduction.ID)?9:6))
+        if(cap==null || (at.length!=6 && at.length!=9) || cap.equals(WoodenAxeProduction.ID) && at.length!=9)
             return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
         var dim=actor.dimension();
         var args=new java.util.HashMap<String,Value>();
         args.put("actor",new ActorValue(actor));args.put("amount",new IntValue(quantity));
         args.put("source",new ContainerValue(new ContainerRef(dim,at[0],at[1],at[2])));
         args.put("destination",new ContainerValue(new ContainerRef(dim,at[3],at[4],at[5])));
-        if(at.length==9)args.put("table",new FacilityValue(new FacilityRef(dim,at[6],at[7],at[8])));
-        return submitProduction(new CapabilityRequest(cap,args),owner,player,false);
+        ContainerRef additionalSource=null;
+        if(at.length==9) {
+            if(cap.equals(WoodenAxeProduction.ID))args.put("table",new FacilityValue(new FacilityRef(dim,at[6],at[7],at[8])));
+            else additionalSource=new ContainerRef(dim,at[6],at[7],at[8]);
+        }
+        return submitProduction(new CapabilityRequest(cap,args),owner,player,false,additionalSource);
     }
     private static boolean authorizedGathering(String original) {
         return ProductionLanguage.progressiveAxe(original).isPresent();
     }
     private BootstrapController.Submission submitProduction(CapabilityRequest request,TrustedContext owner,ServerPlayer player,boolean gather) {
+        return submitProduction(request,owner,player,gather,null);
+    }
+    private BootstrapController.Submission submitProduction(CapabilityRequest request,TrustedContext owner,ServerPlayer player,
+                                                            boolean gather,ContainerRef additionalSource) {
         UUID id=UUID.randomUUID();
         if(productionActivities==null)return new BootstrapController.Submission(id,false,Reason.UNSUPPORTED_PRIMITIVE);
         if(player==null || player.hasDisconnected() || !player.getUUID().equals(owner.principal().id())
@@ -1717,15 +1725,17 @@ public final class KernelSession implements AutoCloseable {
         var bound=new ValidatedRequest(request,owner,observation);
         var denied=worldAccess.permit(bound,Effect.WITHDRAW,new SurvivalGateway.Cell(source.dimension(),source.x(),source.y(),source.z()));
         if(denied==null)denied=worldAccess.permit(bound,Effect.TRANSFER,new SurvivalGateway.Cell(destination.dimension(),destination.x(),destination.y(),destination.z()));
+        if(denied==null && additionalSource!=null)denied=worldAccess.permit(bound,Effect.WITHDRAW,
+                new SurvivalGateway.Cell(additionalSource.dimension(),additionalSource.x(),additionalSource.y(),additionalSource.z()));
         if(denied!=null)return new BootstrapController.Submission(id,false,denied);
-        denied=productionActivities.intakeFailure(request,gather);
+        denied=productionActivities.intakeFailure(request,gather,additionalSource);
         if(denied!=null)return new BootstrapController.Submission(id,false,denied);
         Cuboid acquisition=null;
         if(gather && activityCheckpoints!=null)acquisition=new Cuboid(source.dimension(),source.x()-4,source.y()-1,source.z()-4,
                 source.x()+4,source.y()+1,source.z()+4);
         jobs.tick();
         var change=jobs.createProductionActivity(id,request,owner,observation,OakPlankProduction.executionLimits(clock.millis()).total(),
-                ActivityPayload.MAX_STEPS,acquisition);
+                ActivityPayload.MAX_STEPS,acquisition,additionalSource);
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
     private boolean activitySettled(Jobs.Job job) {

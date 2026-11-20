@@ -35,20 +35,22 @@ final class FabricProductionActivities {
     }
 
     /** Reject known unsupported component inputs before admitting a new simple plank goal. */
-    Outcomes.Reason intakeFailure(CapabilityRequest request,boolean gather) {
+    Outcomes.Reason intakeFailure(CapabilityRequest request,boolean gather,ContainerRef additionalSource) {
         var definition=RecipeProduction.of(request.capability());
         var family=RecipeProduction.PlankMaterial.forOutput(definition.output().id());
         if(gather || family.isEmpty())return null;
         var source=((ContainerValue)request.arguments().get("source")).value();
-        var container=world.recipeContainer(source);
-        if(container==null)return null;
         long plain=0,components=0;
-        for(int slot=0;slot<container.getContainerSize();slot++) {
-            var stack=container.getItem(slot);
-            if(stack.isEmpty() || !family.get().inputs().contains(
-                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()))continue;
-            if(FabricRecipeTransactions.plain(stack,stack.getItem()))plain+=stack.getCount();
-            else components+=stack.getCount();
+        for(var address:additionalSource==null || additionalSource.equals(source)?List.of(source):List.of(source,additionalSource)) {
+            var container=world.recipeContainer(address);
+            if(container==null)continue;
+            for(int slot=0;slot<container.getContainerSize();slot++) {
+                var stack=container.getItem(slot);
+                if(stack.isEmpty() || !family.get().inputs().contains(
+                        net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()))continue;
+                if(FabricRecipeTransactions.plain(stack,stack.getItem()))plain+=stack.getCount();
+                else components+=stack.getCount();
+            }
         }
         return components>0 && plain<definition.inputs(((IntValue)request.arguments().get("amount")).value())
                 ?Outcomes.Reason.TARGET_INVALID:null;
@@ -109,13 +111,14 @@ final class FabricProductionActivities {
 
     RecipeTransaction.ChoiceAuthority choiceAuthority(Jobs.Job root,ValidatedRequest request) {
         var actor=root.responsible();
-        var originalSource=((ContainerValue)root.request().request().arguments().get("source")).value();
+        var sources=ActivityRecipeEvidence.authorizedSources(root);
         var destination=((ContainerValue)request.request().arguments().get("destination")).value();
         return new RecipeTransaction.ChoiceAuthority() {
             public boolean permits(TrustedContext caller,ActorRef worker,ContainerRef target,RecipeTransaction.ChoicePhase phase) {
                 if(!root.origin().equals(caller) || !actor.equals(worker))return false;
-                return (target.equals(originalSource) || target.equals(destination))
-                        && (!target.equals(originalSource) || allowed(request,Effect.WITHDRAW,target))
+                boolean source=sources.contains(target);
+                return (source || target.equals(destination))
+                        && (!source || allowed(request,Effect.WITHDRAW,target))
                         && (!target.equals(destination) || allowed(request,Effect.TRANSFER,target));
             }
             public boolean permitsFacility(TrustedContext caller,ActorRef worker,FacilityRef table,RecipeTransaction.ChoicePhase phase) {
@@ -179,7 +182,8 @@ final class FabricProductionActivities {
         var destination=ResourceDelivery.destinationAddress(request);
         var facility=production.axe()?facility(job,source,nativeActor):null;
         var allowedArea=job.activity().production().acquisition();
-        var policy=new Policy(actor,Set.of(actor),Set.of(source),Set.of(destination),
+        var authorizedSources=ActivityRecipeEvidence.authorizedSources(job);
+        var policy=new Policy(actor,Set.of(actor),Set.copyOf(authorizedSources),Set.of(destination),
                 allowedArea==null?Set.of():Set.of(allowedArea),source,facility==null?null:facility.reference(),
                 facility!=null,false,0,16);
         var goal=new Goal(Mode.MAKE_NEW,defaultKey(production.output()),((IntValue)request.arguments().get("amount")).value(),
@@ -200,7 +204,8 @@ final class FabricProductionActivities {
         var box=world.inspectRecipeContainer(destination,production.output());
         boolean writable=allowed(bound,Effect.TRANSFER,destination) && box.status()==ObservationStatus.PRESENT
                 && box.capacity()>=goal.demand()-job.fulfilled();
-        var stock=stock(job,source,nativeActor);
+        var stock=new ArrayList<>(stock(job,source,nativeActor,"source:"));
+        if(authorizedSources.size()>1)stock.addAll(stock(job,authorizedSources.getLast(),nativeActor,"additional-source:"));
         var acquisition=acquisition(job);
         long revision=job.generation(); // Native values below carry their own current observation data.
         return new Snapshot(SCHEMA,job.origin().scope().worldId(),job.id(),job.revision(),job.origin(),
@@ -210,7 +215,7 @@ final class FabricProductionActivities {
                 progress(job),true,false,0);
     }
 
-    private List<Stock> stock(Jobs.Job job,ContainerRef source,Villager actor) {
+    private List<Stock> stock(Jobs.Job job,ContainerRef source,Villager actor,String slotPrefix) {
         var box=world.recipeContainer(source);
         if(box==null || !allowed(job.request(),Effect.WITHDRAW,source))
             throw new IllegalStateException("Current authorized stock unavailable");
@@ -236,7 +241,7 @@ final class FabricProductionActivities {
             if(!ResourceLeases.supportedStockItem(item.id()))continue;
             long available=Math.min(stack.getCount(),free.get(item.id()));
             free.compute(item.id(),(id,count)->count-available);
-            projected.add(new Stock("source:"+slot,new Location(source,null,slot),item,available,stack.getCount(),0,
+            projected.add(new Stock(slotPrefix+slot,new Location(source,null,slot),item,available,stack.getCount(),0,
                     null,List.of(),Eligibility.NONE,Availability.PRESENT,true,true,travel,job.generation()));
         }
         return List.copyOf(projected);

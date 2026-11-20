@@ -5,6 +5,7 @@ import dev.aivillages.core.kernel.runtime.evidence.*;
 import dev.aivillages.fabric.runtime.evidence.FabricDepositProtocol;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.*;
+import net.minecraft.world.level.gamerules.GameRules;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
@@ -49,6 +50,23 @@ public final class RuntimeADepositProbe implements ModInitializer {
                     var old=stack.get(type);stack.set(type,net.minecraft.network.chat.Component.literal("A05 external component mutation"));
                     if(old==null)stack.remove(type);else stack.set(type,old);chest.setChanged();
                     reply(id,Map.of("status","PASS","count",stack.getCount(),"componentsRestored",old==null?stack.get(type)==null:old.equals(stack.get(type))),null);return;
+                }
+                if(op.equals("arm-native-revocation")) {
+                    String token=UUID.fromString(command.get("token").getAsString()).toString();
+                    protocol.observe(point->{
+                        if(point!=FabricDepositProtocol.Point.PREPARED_MARKED)return;
+                        var entry=evidence.snapshot().entries().getLast();
+                        var rules=server.overworld().getGameRules();
+                        if(entry.result()!=null || !rules.get(GameRules.MOB_GRIEFING))
+                            throw new IllegalStateException("Revocation did not reach an acknowledged original preparation");
+                        rules.set(GameRules.MOB_GRIEFING,false,server);
+                        // The production host repeats its actual authority check after this boundary.
+                        write("deposit-authority-revoked.json",Map.of("process",process,"token",token,"point",point,
+                                "epoch",evidence.snapshot().epoch(),"revision",evidence.snapshot().revision(),
+                                "originalIntent",entry.intent(),"beforeAllowed",true,"afterAllowed",rules.get(GameRules.MOB_GRIEFING),
+                                "pid",ProcessHandle.current().pid(),"time",System.currentTimeMillis()));
+                    });
+                    reply(id,Map.of("status","PASS","token",token),null);return;
                 }
                 if(op.equals("arm")) {
                     var point=FabricDepositProtocol.Point.valueOf(command.get("point").getAsString());String token=UUID.fromString(command.get("token").getAsString()).toString();

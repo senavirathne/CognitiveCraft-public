@@ -1,6 +1,6 @@
 """A05 connected native deposit and independently witnessed participant-save cuts."""
 from __future__ import annotations
-import argparse,hashlib,json,shutil,subprocess,sys,time,traceback,uuid
+import argparse,hashlib,json,os,shutil,subprocess,sys,time,traceback,uuid
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from activity import ActivityHarness
@@ -222,7 +222,44 @@ def storage_controls(h,verified_seed,original_entry,result):
         record={'id':'native-storage-'+mode,'status':'PASS','fixture':declaration,'reader':native,'afterEvidence':h.evidence(),'beforeStock':before_stock,'afterStock':after,'run':run,'view':view,
                 'journalBytesUnchanged':True,'nativeProcess':native_process(h),'activationFlag':h.env['A05_DEPOSIT_ENABLED']}
         atomic(folder/'result.json',record);result['cases'].append(record);atomic(h.root/'a05-results.json',result)
+        if mode=='corrupt-current' and os.environ.get('COGNITIVECRAFT_I00_ADVERSARIAL')=='A05':
+            require(previous.is_file() and previous.read_bytes()!=before,'A distinct native previous journal is required')
+            backup=previous.read_bytes();(folder/'actual-previous.jsonl').write_bytes(backup)
+            (folder/'actual-corrupt-current.jsonl').write_bytes(changed)
+            h.actions_active=False;h.env['A05_DEPOSIT_ENABLED']='true'
+            restarted=h.restart();fallback=restarted['reader'];require(fallback['fenced'],'Writer activation accepted the old backup')
+            before_effect=actual_stock(h);before_effect['candidateSource']=h.block(at(7,2));model_calls=h.model_calls()
+            intake=h.request_run(LOG,1,minimum=at(7,2),maximum=at(7,2));h.actions_active=intake['accepted']
+            response=h.finish_run(intake['run'],success=False) if intake['accepted'] else intake
+            h.quiet(20);after_effect=actual_stock(h);after_effect['candidateSource']=h.block(at(7,2));h.actions_active=False
+            require(current.read_bytes()==changed and previous.read_bytes()==backup,'Fenced backup reader rewrote an original journal')
+            atomic(folder/'older-valid-backup.json',{'before':before_effect,'after':after_effect,'intake':intake,
+                   'response':response,'modelCallsBefore':model_calls,'modelCallsAfter':h.model_calls(),
+                   'restart':restarted,'reader':h.evidence(),'revisionBeforeDamage':json.loads(before.splitlines()[0])['revision'],
+                   'currentSha256':frozen_hash,'previousSha256':hashlib.sha256(backup).hexdigest(),
+                   'writerRequested':True})
     h.env['A05_DEPOSIT_ENABLED']='true'
+
+
+def revoke_prepared_deposit(h,seed):
+    h.restore(seed,'before-prepared-authority-revocation');h.family='I00-PREPARED-AUTHORITY-REVOKED'
+    folder=h.root/'prepared-authority-revoked';folder.mkdir()
+    marker=str(uuid.uuid4());armed=h.rpc('arm-native-revocation',token=marker)
+    initial=actual_stock(h);calls=h.model_calls()
+    run=h.submit(LOG,1,minimum=at(6,2),maximum=at(6,2))
+    path=h.root/'server/deposit-authority-revoked.json'
+    reached=h.wait(lambda:(v if (v:=read(path)) and v['token']==marker else None),
+                   'Actual native authority changes after the original prepared marker',150)
+    view=h.finish_run(run,success=False);held=actual_stock(h)
+    require(receipts(view,'HARVEST',LOG)==receipts(view,'PICKUP',LOG)==1 and receipts(view,'DEPOSIT',LOG)==0
+            and held['destination']==initial['destination']==0 and held['actor']['inventory'].get(LOG,0)==1,
+            'Post-preparation revocation performed a deposit or discarded the original custody')
+    save=h.save_checkpoint();shutil.copytree(h.root/'server/game/world',folder/'saved-world',ignore=shutil.ignore_patterns('session.lock'))
+    restart=h.restart(hard=True);reader=h.wait(h.stable_entry,'Original prepared refusal reader in replacement JVM',45)
+    token=next(iter(reader['reconciliation']));require(reader['reconciliation'][token]=='PREPARED_NO_EFFECT','Saved refusal did not retain original no-effect custody')
+    h.quiet(40);after=actual_stock(h)
+    atomic(folder/'result.json',{'armed':armed,'nativeRevocation':reached,'initial':initial,'held':held,'after':after,
+           'original':view,'run':run,'beforeCalls':calls,'afterCalls':h.model_calls(),'restart':restart,'save':save,'reader':reader})
 
 
 def cost_windows(h,verified_seed,result):
@@ -305,6 +342,10 @@ def main():
         ):cut(h,seed,result,name,point,expected,**options)
         storage_controls(h,verified_seed,entry,result)
         cost_windows(h,verified_seed,result)
+        if os.environ.get('COGNITIVECRAFT_I00_ADVERSARIAL')=='A05':
+            from e2e.parallel_i00.save_restore import exercise
+            revoke_prepared_deposit(h,seed)
+            exercise(h,seed,saved,token)
         if args.profile_first:
             require(diagnostic['status']=='PASS_DIAGNOSTIC_SCOPE_ONLY','Frozen A05 preliminary actual preparation target failed: '+json.dumps(diagnostic['preparation']))
         result['status']='PASS_NATIVE_GATES_PENDING_INDEPENDENT_REVIEW';result['remaining']=['independent full artifact, physical saved-participant and raw cost review']

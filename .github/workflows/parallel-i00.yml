@@ -65,7 +65,7 @@ jobs:
         run: |
           python3 e2e/runtime.py prepare
           python3 e2e/runtime.py compile
-          mkdir -p build/i00-instruments/{a,b,endurance}
+          mkdir -p build/i00-instruments/{a,b,endurance,joint}
           python3 e2e/parallel_a/prepare.py
           cp build/e2e-driver/observer.jar build/i00-instruments/a/observer.jar
           python3 -m e2e.parallel_i00.endurance_prepare
@@ -74,6 +74,8 @@ jobs:
           python3 scripts/campaign-crafting/prepare.py
           python3 e2e/parallel_b/prepare_diagnostics.py
           cp build/e2e-driver/observer.jar build/i00-instruments/b/observer.jar
+          python3 e2e/parallel_b/prepare_diagnostics.py --i00-fixtures
+          cp build/e2e-driver/observer.jar build/i00-instruments/joint/observer.jar
           python3 tools/needle/install.py build/needle
       - name: Bind all binary, instrument and module evidence to this event
         id: bundle
@@ -92,6 +94,7 @@ jobs:
             build/parallel-i00/endurance-observer/integrity.json
             build/parallel-a/observer-adaptation.json
             build/b-diagnostics/integrity.json
+            build/i00-recipe-fixtures/integrity.json
             build/campaign-crafting-oracle/integrity.json
             build/needle/
             fabric/build/libs/ai-villages-0.1.0.jar
@@ -417,7 +420,7 @@ jobs:
           name: i00-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Verify the matching binary and prepare the real Minecraft SDK
         run: |
-          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer b
+          python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer joint
           python3 e2e/runtime.py prepare
       - name: Exercise the ordinary player goal in Minecraft Docker
         id: native-walkthrough
@@ -461,6 +464,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           path: build/i00-diagnostics/walkthrough-${{ matrix.cohort }}/
+      - name: Preserve the stopped admission world for exact failure reproduction
+        if: ${{ !cancelled() && matrix.cohort == 'live' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i00-walkthrough-seed-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            build/e2e/i00/walkthrough/live/seed/metadata.json
+            build/e2e/i00/walkthrough/live/seed/walkthrough-seed.json
+            build/e2e/i00/walkthrough/live/seed/admissions.json
+            build/e2e/i00/walkthrough/live/seed/server/game/world/
 
   coverage:
     name: Native I00 coverage ${{ matrix.track }}

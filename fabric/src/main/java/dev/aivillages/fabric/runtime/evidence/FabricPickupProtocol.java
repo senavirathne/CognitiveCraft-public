@@ -133,7 +133,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);
             phases[5]=System.nanoTime();
             return ticket;
-        }catch(RuntimeException refused){return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null,List.of());}
+        }catch(RuntimeException refused){
+            traceRefusal(request,"capture",refused.getMessage());
+            return new NativeTicket(request,action,null,null,Reason.INTERRUPTED,null,List.of());
+        }
         finally{
             if(captureNanos.size()==128)captureNanos.removeFirst();
             captureNanos.addLast(System.nanoTime()-began);
@@ -148,7 +151,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
         for(var chunk:ticket.chunks) {
             var frame=frame(chunk);
             if(frame==null)loading=true;
-            else if(!frame.supported())return failed();
+            else if(!frame.supported()){
+                traceRefusal(ticket.request,"membership", "Actual native chunk frame is unsupported");
+                return failed();
+            }
         }
         if(loading)return new Progress(Code.PENDING,null);
         try {
@@ -164,7 +170,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
                 }
                 ticket.joinedRoomChecked=true;
             }
-        } catch(RuntimeException unprovedSuccessor){return failed();}
+        } catch(RuntimeException unprovedSuccessor){
+            traceRefusal(ticket.request,"predecessor",unprovedSuccessor.getMessage());
+            return failed();
+        }
         store.tick();PickupEvidenceStore.Status status;
         try {
             status=store.prepare(ticket.intent,ticket.lineage.acknowledged());
@@ -172,7 +181,10 @@ public final class FabricPickupProtocol implements PickupProtocol {
                 if(!jobs.ready() || !leases.ready())return new Progress(Code.PENDING,null);
                 status=store.perform(status.prepared());
             }
-        }catch(RuntimeException unknown){return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);}
+        }catch(RuntimeException unknown){
+            traceRefusal(ticket.request,"publication",unknown.getMessage());
+            return new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);
+        }
         return switch(status.code()) {
             case PENDING,PREPARED->new Progress(Code.PENDING,null);
             case RESULT_ACKNOWLEDGED->{
@@ -180,8 +192,12 @@ public final class FabricPickupProtocol implements PickupProtocol {
                 if(entry.result().live()!=NativePickup.Live.COMPLETE && entry.result().live()!=NativePickup.Live.NO_EFFECT)yield new Progress(Code.UNRESOLVED,Reason.INTERRUPTED);
                 if(!ticket.acknowledged){ticket.acknowledged=true;observer.accept(Point.RESULT_ACKNOWLEDGED);}yield new Progress(Code.ACKNOWLEDGED,null);
             }
-            default->failed();
+            default->{traceRefusal(ticket.request,"journal",status.code().name());yield failed();}
         };
+    }
+    private static void traceRefusal(Request request,String phase,String reason) {
+        if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
+            System.out.println("CognitiveCraft PICKUP refusal run="+request.correlation().runId()+" stage="+phase+" reason="+reason);
     }
     private Progress failed(){return new Progress(Code.FAILED,Reason.INTERRUPTED);}
     public void forget(Ticket value){check();if(value instanceof NativeTicket t){tickets.remove(t);t.forgotten=true;}}

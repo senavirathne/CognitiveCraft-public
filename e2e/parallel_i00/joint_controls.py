@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from collections import Counter
 import argparse
+import base64
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -10,8 +12,8 @@ import traceback
 
 from .gameplay import point, witness_identity
 from .native_evidence import (exact_withdrawals, item_at, job_at, jsonl, require_command, stock_at,
-                              terminal_job, verify_frames, verify_installation)
-from . import recipe_journal
+                              request_job, terminal_job, verify_frames, verify_installation)
+from . import recipe_challenges, recipe_journal, storage_pressure
 from campaigns.crafting.generator import AXE, BIRCH, OAK, STICK, TABLE
 from campaigns.crafting.harness import coord
 from parallel_b.guards import stopped_process
@@ -24,12 +26,15 @@ CRASH = "birch-q3-crash-before-allocation"
 AMBIGUOUS = "ambiguous-withdrawal-isolates-unrelated-actor"
 IDENTICAL = "identical-table-ambiguity-fences"
 REPLACED = "removed-replaced-table-invalidates-facility"
-REQUIRED = (CHILD, CRASH, AMBIGUOUS, IDENTICAL, REPLACED)
+MIXED = "mixed-recipe-grid-from-two-authorized-sources"
+REQUIRED = (CHILD, CRASH, AMBIGUOUS, IDENTICAL, REPLACED, MIXED, *recipe_challenges.CASES, storage_pressure.CASE)
 PROFILE = "I00_JOINT_CUSTODY_CONTROLS"
 BIRCH_LOG = "minecraft:birch_log"
 OTHER = "minecraft:cobblestone"
 SITE = [71, 208, 69]
 C_SOURCE, C_DESTINATION = [81, 208, 75], [82, 208, 72]
+SECOND_SOURCE = [71, 208, 68]
+ACACIA, BAMBOO = "minecraft:acacia_planks", "minecraft:bamboo_planks"
 CHILD_CAPABILITY = "cognitivecraft:produce_birch_planks"
 AXE_CAPABILITY = "cognitivecraft:produce_wooden_axes"
 EXPECTED_CHILD = {"demand": 3, "yield": 4, "batches": 1, "produced": 4,
@@ -78,7 +83,16 @@ def fixture(h, case):
                "tp PlayerA 67.5 208 69.5", "tp PlayerB 72.5 208 71.5"])
     for _, entity in h.subjects:
         h.actor_stock({}, entity)
-    if case in (CHILD, CRASH):
+    if case == MIXED:
+        source = {ACACIA: 1, OTHER: 2}
+        h.stock(SECOND_SOURCE, {BAMBOO: 1, OTHER: 3}, layout="last")
+        require(h.menu_count("PlayerA", SECOND_SOURCE, BAMBOO) == 1, "Connected client did not see the second source")
+    elif case in (*recipe_challenges.CASES, storage_pressure.CASE):
+        source = {OAK: 2}
+        if case == recipe_challenges.REMAINDERS:
+            source = {OAK: 1, recipe_challenges.HONEY: 1}
+            h.actor_stock(recipe_challenges.FILLED_ACTOR, h.entities["PlayerA"])
+    elif case in (CHILD, CRASH):
         source = {BIRCH_LOG: 1, STICK: 2, OTHER: 2}
     elif case == AMBIGUOUS:
         source = {BIRCH_LOG: 2, OTHER: 2}
@@ -94,7 +108,7 @@ def fixture(h, case):
     set_table(h, case not in (IDENTICAL, AMBIGUOUS))
     h.console(["deop PlayerA", "deop PlayerB",
                "tp " + h.subjects[-1][1] + " 81.5 208 73.5"])
-    input_item = BIRCH_LOG if case in (CHILD, CRASH, AMBIGUOUS) else OAK
+    input_item = ACACIA if case == MIXED else BIRCH_LOG if case in (CHILD, CRASH, AMBIGUOUS) else OAK
     require(h.menu_count("PlayerA", SOURCE, input_item) == source[input_item],
             "Original connected client did not see the real input stock")
     initial = h.save_checkpoint()
@@ -162,7 +176,7 @@ def stop_world(h):
     warm = read(h.root / "server/process.json")
     require(cold["start"] < warm["start"] and cold["releaseSha256"] == warm["releaseSha256"],
             "Production evidence did not survive the exact process replacement")
-    reconnect_players(h, ["PlayerA", "PlayerB"])
+    reconnect_players(h, ["PlayerA", "PlayerB"], unbound=("PlayerB",))
     return {"saved": saved, "cold": cold, "warm": warm, "hashes": stopped_hashes}
 
 
@@ -171,12 +185,46 @@ def unfreeze(h):
     h.clock("tick rate 20")
 
 
+def mixed_sources(h, row, source, destination):
+    from .walkthrough import public_views
+
+    primary = h.recipe_command(h.citizens["PlayerA"], STICK, 3, source, destination)
+    row["unlisted"] = request_job(h, "PlayerA", primary)
+    unlisted = row["unlisted"]["root"]
+    require(row["unlisted"]["accepted"], "Original demand did not enter the planner")
+    row["cut"] = live_frame(h, unlisted, lambda job, _: job["state"] == "WAITING" and not job["attempts"]
+                            and job["activity"]["production"]["memory"]["unchangedChecks"] == 4,
+                            "Original one-source request waits with the second source outside its authority", 40)
+    row["cancelled"] = h.cancel_job("PlayerA", unlisted)
+    terminal_job(h, "PlayerA", unlisted, 45)
+    row["request"] = request_job(h, "PlayerA", primary + " " + coord(SECOND_SOURCE))
+    root = row["request"]["root"]
+    require(row["request"]["accepted"], "Explicitly authorized two-source recipe was refused")
+    final = terminal_job(h, "PlayerA", root, 140)
+    require(final["state"] == "SUCCEEDED", "Actual two-source demand did not deliver")
+    row["after"] = live_frame(h, root, lambda job, _: job == final, "Final two-source physical evidence")
+    row["view"] = public_views(h, root)
+    row["clientDelivery"] = h.menu_count("PlayerA", destination, STICK)
+    row["finishedSave"] = h.save_checkpoint()
+    h.screenshot("PlayerA", MIXED + "-outcome", chat=True)
+    h.screenshot("PlayerB", MIXED + "-independent-player", chat=True)
+
+
 def exercise(h, case, row):
     from .walkthrough import DESTINATION, SOURCE, public_views
     row["start"], row["initialSave"] = fixture(h, case)
     row["actor"] = h.entities["PlayerA"]
     row["principal"] = h.players["PlayerA"]
     row["methodPins"] = h.artifacts
+    if case == MIXED:
+        mixed_sources(h, row, SOURCE, DESTINATION)
+        return
+    if case in recipe_challenges.CASES:
+        recipe_challenges.exercise(h, row, SOURCE, DESTINATION)
+        return
+    if case == storage_pressure.CASE:
+        storage_pressure.exercise(h, row, SOURCE, DESTINATION)
+        return
     h.clock("tick rate 4")
     is_axe = case != AMBIGUOUS
     row["request"] = ask(h, h.citizens["PlayerA"], AXE if is_axe else BIRCH, 1 if is_axe else 3, SOURCE, DESTINATION)
@@ -234,19 +282,24 @@ def run(root, seed):
         folder = root / case
         folder.mkdir(parents=True, exist_ok=False)
         h = None
+        journal_volume = storage_pressure.JournalVolume(folder) if case == storage_pressure.CASE else None
         row = {"id": case, "status": "FAIL_NATIVE"}
         try:
-            h = boot_trial(folder, seed, profile=PROFILE)
+            h = boot_trial(folder, seed, profile=PROFILE, journal_volume=journal_volume)
             h.family = case
             exercise(h, case, row)
             row["status"] = "COLLECTED"
         except Exception as failure:
             row.update(reason=str(failure), trace=traceback.format_exc())
         finally:
-            if h is not None:
-                row["screenshots"] = h.screenshots
-                h.finish()
-            atomic(folder / "result.json", row)
+            try:
+                if h is not None:
+                    row["screenshots"] = h.screenshots
+                    h.finish()
+            finally:
+                if journal_volume is not None:
+                    journal_volume.close()
+                atomic(folder / "result.json", row)
 
 
 def source_frames(folder, row):
@@ -410,6 +463,64 @@ def conflicting_proof(folder, row, jar):
     return {"attempt": cut["attempts"][0]["id"], "goalCredit": 0, "originalEffects": len(prefix)}
 
 
+def review_mixed_sources(folder, row):
+    from .walkthrough import DESTINATION, SOURCE
+    from review_lifecycle_connected import chest, chest_row, original
+
+    start, cut, end = row["start"], row["cut"], row["after"]
+    blocked, final = cut["job"], end["job"]
+    require(blocked["id"] == row["unlisted"]["root"] != final["id"] == row["request"]["root"]
+            and not blocked["attempts"] and "cancellation=true" in row["cancelled"]
+            and not blocked["activity"]["production"].get("additionalSource")
+            and final["request"]["request"] == blocked["request"]["request"]
+            and final["request"]["context"] == blocked["request"]["context"]
+            and point(final["activity"]["production"]["additionalSource"]) == SECOND_SOURCE,
+            "Original primary binding or separately authorized secondary source changed")
+    state = end["state"]
+    require(final["state"] == "SUCCEEDED" and final["fulfilled"] == 3 and row["clientDelivery"] == 3
+            and final["id"] not in row["view"]["foreign"]
+            and final["request"]["context"]["principal"]["id"] == row["principal"]
+            and all(item_at(frame, SOURCE, ACACIA) == item_at(frame, SECOND_SOURCE, BAMBOO) == 1
+                    and not item_at(frame, DESTINATION, STICK) for frame in (start, cut["state"]))
+            and not item_at(state, SOURCE, ACACIA) and not item_at(state, SECOND_SOURCE, BAMBOO)
+            and item_at(state, SOURCE, OTHER) == 2 and item_at(state, SECOND_SOURCE, OTHER) == 3
+            and item_at(state, DESTINATION, STICK) == 3 and stock_at(state, row["actor"]) == {STICK: 1}
+            and all(frame["generationCalls"] == start["generationCalls"] for frame in (cut["state"], state)),
+            "Physical two-source withdrawal, surplus, privacy or authorization failed")
+    step, = final["activity"]["steps"]
+    choice = base64.b64decode(step["choice"]["base64"], validate=True)
+    bindings = json.loads(choice)["batches"][0]["bindings"]
+    installed = read(folder / "oracle-recipes.json")
+    recipe = installed["recipes"][STICK]
+    require(installed["worldEffects"] == 0 and installed["serverPid"] == state["pid"] and recipe["count"] == 4
+            and recipe["remainderCount"] == 0 and len(recipe["ingredients"]) == 2
+            and all({BAMBOO, ACACIA} <= set(options) for options in recipe["ingredients"])
+            and hashlib.sha256(choice).hexdigest() == step["choice"]["sha256"]
+            and step["artifact"]["sha256"] == row["methodPins"][STICK]
+            and {(item["item"]["id"], tuple(point(item["source"])), item["sourceSlot"], item["gridSlot"]) for item in bindings}
+                == {(ACACIA, tuple(SOURCE), 0, 0), (BAMBOO, tuple(SECOND_SOURCE), 26, 2)}
+            and exact_withdrawals(final, receipts(final)) == {ACACIA: 1, BAMBOO: 1},
+            "Exact mixed native slots or admitted method differ")
+    world = folder / "server/game/world"
+    world_id = final["request"]["context"]["scope"]["worldId"]
+    journal = recipe_journal.phases(recipe_journal.read(world, expected_world=world_id), final["id"])
+    require([entry["prepare"]["phase"] for entry in journal] == ["WITHDRAW", "CRAFT", "DEPOSIT"]
+            and all(recipe_journal.positive(entry) and entry["prepare"]["attempt"] == step["attempt"] for entry in journal)
+            and original(world, final["id"])["fulfilled"] == 3 and chest(world, DESTINATION) == {STICK: 3},
+            "Native saved world did not retain one original mixed recipe attempt")
+    by_address = {participant["address"]: participant for participant in journal[0]["result"]["after"]}
+    for point_value in (SOURCE, SECOND_SOURCE):
+        address = "chest:minecraft:overworld/" + position_key(point_value)
+        recipe_journal.saved_marker(chest_row(world, point_value), journal[0], by_address[address])
+    events = folder / "clients/PlayerA/events.jsonl"
+    require_command(events, row["unlisted"]["command"], row["unlisted"]["feedback"], "PlayerA")
+    require_command(events, row["request"]["command"], row["request"]["feedback"], "PlayerA")
+    source_frames(folder, row)
+    return {"id": MIXED, "root": final["id"], "status": "PASS", "scope": "I00_NATIVE_MIXED_GRID",
+            "separatelyAuthorizedSources": 2, "exactMixedSlots": 2, "unlistedSourceEffects": 0,
+            "delivered": 3, "retained": 1, "evidenceSha256": digest(folder / "result.json")}
+
+
 def review(root, source, jar):
     from .campaign import admissions
     from .identity import candidate
@@ -418,6 +529,8 @@ def review(root, source, jar):
     for case in REQUIRED:
         folder = root / case
         try:
+            from .walkthrough import DESTINATION, SOURCE
+
             row = read(folder / "result.json")
             require(row and row["status"] == "COLLECTED", (row or {}).get("reason", "Required case was not executed"))
             meta = read(folder / "metadata.json")
@@ -425,6 +538,15 @@ def review(root, source, jar):
             require(row["methodPins"] == admissions(root.parent / "seed"), "The exact admitted method pins differ")
             verify_installation(folder, meta, ("PlayerA", "PlayerB"))
             verify_frames(folder, row["screenshots"], minimum=2)
+            if case == MIXED:
+                result["cases"].append(review_mixed_sources(folder, row))
+                continue
+            if case in recipe_challenges.CASES:
+                result["cases"].append(recipe_challenges.review(folder, row, SOURCE, DESTINATION))
+                continue
+            if case == storage_pressure.CASE:
+                result["cases"].append(storage_pressure.review(folder, row, SOURCE, DESTINATION, jar))
+                continue
             state = row["after"]["state"]
             old, final = row["cut"]["job"], row["after"]["job"]
             require(old["id"] == final["id"] == row["request"]["root"] and final == job_at(state, "PlayerA", final["id"])
