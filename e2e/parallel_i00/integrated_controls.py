@@ -261,7 +261,7 @@ def cancel_partial(h):
                    "Original partial-custody owner settles its accepted cancellation", 60)
     h.quiet(60)
     fence = h.snapshot()
-    view = h.command("PlayerA", "/aivillage kernel activity-view " + root, "state=CANCELLED")
+    view = h.command("PlayerA", "/aivillage kernel activity " + root, "state=CANCELLED")
     h.actions_active = False
     screenshot = h.screenshot("PlayerA", PARTIAL_CANCEL, chat=True)
     save_world(h, PARTIAL_CANCEL)

@@ -13,11 +13,17 @@ public final class ActivityCheckpoints {
     private final JobLifecycleStore jobs;
     private final DepositEvidenceStore deposits;
     private final Predicate<Entry> currentProcessAcknowledgement;
+    private final boolean verifyClosedLogAdmissions;
     private final Map<Key,Entry> live=new HashMap<>();
     private final Thread thread=Thread.currentThread();private int cursor;
     public ActivityCheckpoints(JobLifecycleStore jobs,DepositEvidenceStore deposits,Predicate<Entry> currentProcessAcknowledgement) {
+        this(jobs, deposits, currentProcessAcknowledgement, false);
+    }
+    public ActivityCheckpoints(JobLifecycleStore jobs, DepositEvidenceStore deposits,
+                               Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogAdmissions) {
         this.jobs=Objects.requireNonNull(jobs);this.deposits=Objects.requireNonNull(deposits);
         this.currentProcessAcknowledgement=Objects.requireNonNull(currentProcessAcknowledgement);
+        this.verifyClosedLogAdmissions = verifyClosedLogAdmissions;
         deposits.attachLiveSettlements(this::liveSettled);
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Checkpoint owner thread");}
@@ -31,9 +37,11 @@ public final class ActivityCheckpoints {
         var entries=deposits.snapshot().entries();
         for(int n=0;n<Math.min(4,entries.size());n++) {
             cursor%=entries.size();Entry entry=entries.get(cursor++);
-            if(entry.verification()!=null || liveSettled(entry) || !matches(entry))continue;
+            if(entry.verification()!=null || liveSettled(entry))continue;
+            boolean activityCheckpoint = matches(entry);
+            if (!activityCheckpoint && (!verifyClosedLogAdmissions || !closedLogAdmission(entry))) continue;
             if(currentProcessAcknowledgement.test(entry)) {
-                if(live.size()<MAX_ENTRIES)live.put(entry.intent().key(),entry);
+                if(activityCheckpoint && live.size()<MAX_ENTRIES)live.put(entry.intent().key(),entry);
                 continue;
             }
             // There is no current-process acknowledgement after restart. Counts alone cannot close it.
@@ -41,6 +49,33 @@ public final class ActivityCheckpoints {
             if(proof!=null && proof.result()==Reconciliation.SAVED_COMPLETE) {
                 deposits.verify(proof);return;
             }
+        }
+    }
+    /** I00 can reuse a legacy admission's participants after the original saved cohort verifies. */
+    private boolean closedLogAdmission(Entry entry) {
+        try {
+            var intent = entry.intent();
+            var key = intent.key();
+            if (!key.root().equals(key.step()) || key.ordinal() != 3 || intent.pickupPrefix() == null
+                    || entry.result() == null || entry.result().live() != Live.COMPLETE) return false;
+            var job = jobs.query(key.root(), intent.origin());
+            if (job.activity() != null || job.parent() != null || job.state() != State.SUCCEEDED
+                    || !job.origin().equals(intent.origin()) || job.generation() != key.generation()
+                    || job.allowance().deadlineEpochMillis() != intent.conditions().deadlineEpochMillis()
+                    || !LogAcquisition.is(job.request().request().capability())
+                    || !(job.request().request().arguments().get("amount") instanceof Contracts.IntValue amount)
+                    || amount.value() != 1) return false;
+            var attempt = job.current();
+            if (attempt == null || !attempt.id().equals(key.attempt()) || attempt.open() || attempt.uncertain()
+                    || attempt.terminal().status() != Outcomes.ExecutionStatus.SUCCEEDED
+                    || attempt.effects() != 3 || attempt.credited() != 1) return false;
+            var pickup = intent.pickupPrefix().pickup();
+            var harvest = pickup.intent().harvest();
+            return attempt.resourceReceipts().equals(List.of(harvest.result().receipt(), pickup.result().receipt(), entry.result().receipt()))
+                    && attempt.executions().stream().anyMatch(execution -> execution.runId().equals(intent.run())
+                    && ResourceDelivery.completed(attempt.bound(), execution.runId(), attempt.receipts(), attempt.resourceReceipts()));
+        } catch (SecurityException | IllegalArgumentException | NullPointerException unavailable) {
+            return false;
         }
     }
     private boolean matches(Entry entry) {

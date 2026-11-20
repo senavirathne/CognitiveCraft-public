@@ -208,8 +208,9 @@ def review_observation(row, output, pin, *, cold):
             and len({receipt["operationId"] for receipt in receipts}) == len(receipts),
             "Missing or repeated actual transformation receipts")
     if cold:
-        require(row["callsBefore"] == row["callsAfter"] and row["destinationClientCount"] == quantity,
-                "Cold method called a model or the actual client received a different quantity")
+        require(row["destinationClientCount"] == quantity, "The actual cold client received a different quantity")
+        require(row["callsAfter"]["needleCalls"] == row["callsBefore"]["needleCalls"] == 0,
+                "Cold reuse invoked the assessment transport")
         require(all(row[column]["brokerStats"]["calls"] == row[column]["brokerStats"]["dispatched"] == 0
                     for column in ("before", "after")), "Cold JVM dispatched generation work")
         observed = after["actors"]
@@ -301,10 +302,10 @@ def review(root, source, jar):
                         and row["request"]["command"] in commands & client_commands,
                         "Missing original connected-client command/frame")
                 server = first if row is live else second
-                stop = second["start"] * 1000 if row is live else float("inf")
+                session_end = second["start"] * 1000 if row is live else float("inf")
                 for column in ("before", "after"):
                     snapshot = row[column]
-                    require(snapshot["pid"] == server["pid"] and server["start"] * 1000 <= snapshot["time"] < stop,
+                    require(snapshot["pid"] == server["pid"] and server["start"] * 1000 <= snapshot["time"] < session_end,
                             "Physical frame belongs to the wrong server process")
                     physical.append(snapshot)
             result["cases"].append({"item": output, "method": pin, "live": live_balance, "cold": cold_balance,

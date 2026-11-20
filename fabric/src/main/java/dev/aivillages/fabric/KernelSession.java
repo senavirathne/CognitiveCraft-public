@@ -843,7 +843,8 @@ public final class KernelSession implements AutoCloseable {
         leases.fairLimits(new ResourceLeaseService.FairLimits(16,1200,40,2,20));
         jobs.activityOperations((cap,quantity)->LogAcquisition.is(cap)&&quantity==1);
         if(activityRuntimeEnabled && depositProtocol!=null && pickupProtocol!=null && harvestProtocol!=null)
-            activityCheckpoints=new dev.aivillages.core.kernel.runtime.activity.ActivityCheckpoints(jobs,depositProtocol.evidence(),depositProtocol::liveAcknowledged);
+            activityCheckpoints=new dev.aivillages.core.kernel.runtime.activity.ActivityCheckpoints(jobs,depositProtocol.evidence(),
+                    depositProtocol::liveAcknowledged,productionActivities!=null);
 
         recoveredOwners = new dev.aivillages.core.kernel.runtime.RecoveredJobOwners(jobs,
                 new dev.aivillages.core.kernel.runtime.RecoveredJobOwners.LiveOwners() {

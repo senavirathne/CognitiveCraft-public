@@ -419,14 +419,15 @@ jobs:
         run: |
           python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer b
           python3 e2e/runtime.py prepare
-      - name: Run the connected player goal and independently check its witnesses
+      - name: Exercise the ordinary player goal in Minecraft Docker
+        id: native-walkthrough
+        run: python3 -m e2e.parallel_i00.walkthrough --root "build/e2e/i00/walkthrough/$I00_COHORT" --cohort "$I00_COHORT"
+      - name: Independently check the saved prelude and original player-goal witnesses
+        if: ${{ !cancelled() && steps.native-walkthrough.outcome != 'skipped' }}
         run: |
-          result=0
           root="build/e2e/i00/walkthrough/$I00_COHORT"
-          python3 -m e2e.parallel_i00.walkthrough --root "$root" --cohort "$I00_COHORT" || result=$?
           python3 -m e2e.parallel_i00.walkthrough_review --root "$root" --cohort "$I00_COHORT" \
-            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256" || result=1
-          exit "$result"
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

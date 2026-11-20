@@ -13,7 +13,7 @@ from .gameplay import witness_identity, ROOT
 from . import recipe_journal
 from .native_evidence import (item_at, jsonl, raw_slices, require_command,
                               require_native_primitive, stock_at, verify_frames, verify_installation)
-from .walkthrough import (ASK, AXE, COLLECTED, COHORTS, CUTS, DESTINATION, PROFILE, SOURCE,
+from .walkthrough import (ACTOR_START, ASK, AXE, COLLECTED, COHORTS, CUTS, DESTINATION, PROFILE, SOURCE,
                           assert_goal, cases, tables, witnessed)
 from campaigns.crafting.invariants import physical_custody
 from parallel_b.guards import clock_response, stopped_process
@@ -223,7 +223,7 @@ def appeared(path, items, key=None):
     return False
 
 
-def review_case(folder, case, row, cohort, pins, source, jar):
+def review_case(folder, case, row, cohort, pins, source, jar, prelude):
     metadata = read(folder / "metadata.json")
     witness_identity(metadata, source, jar, PROFILE)
     verify_installation(folder, metadata, ("PlayerA", "PlayerB"))
@@ -232,6 +232,10 @@ def review_case(folder, case, row, cohort, pins, source, jar):
     require(row["status"] == COLLECTED or cohort == "unsaved" and row["status"] == "CONTAINMENT_ONLY",
             "Missing required physical outcome: " + row.get("reason", row["status"]))
     require(row["knownPins"] == pins, "Known method pins differ from the actual prelude admissions")
+    saved = read(folder / "prelude-custody-verification.json")
+    require(saved and saved["intent"] == prelude["intent"] and saved["result"] == prelude["result"]
+            and saved["verification"]["outcome"] == "SAVED_COMPLETE"
+            and saved["verification"].get("lineage"), "Prelude did not settle the original saved participant chain")
     events_a, observations_a = "clients/PlayerA/events.jsonl", "clients/PlayerA/observations.jsonl"
     events_b, server, views = "clients/PlayerB/events.jsonl", "server/stdout.log", "server/observations.jsonl"
     paths = raw_slices(folder, row, {events_a, observations_a, events_b, server, views, "supervisor.jsonl"})
@@ -239,6 +243,10 @@ def review_case(folder, case, row, cohort, pins, source, jar):
             "Reported client state differs from original driver observations")
     raw_states = [row["before"], row["after"]] + ([row["killObservation"]["state"]] if case in CUTS else [])
     require(appeared(paths[views], raw_states), "Reported physical state is missing from the native observer")
+    actor = next(a for a in row["before"]["actors"] if a["uuid"] == row["actor"])
+    require(actor["alive"] and not actor["noAI"]
+            and sum((a-b)**2 for a, b in zip(actor["pos"], ACTOR_START, strict=True)) <= 1,
+            "Original activity did not start from the declared native actor pose")
     require_command(paths[events_a], ASK, row["request"]["feedback"], "PlayerA")
     events = list(jsonl(paths[events_a]))
     asks = [i for i, e in enumerate(events) if e["kind"] == "action" and e["data"].get("text") == ASK]
@@ -277,6 +285,9 @@ def review(root, cohort, source, jar):
         result["ci"] = {"GITHUB_RUN_ID": result["run"], "GITHUB_RUN_ATTEMPT": result["attempt"]}
         run_details = read(root / "walkthrough.json") or {}
         pins = admissions(root / "seed")
+        seed = read(root / "seed/walkthrough-seed.json")
+        _, deposits = journal(root / "seed/server/game/world/data/cognitivecraft/deposit-evidence/v1/state.jsonl")
+        require(seed["acquisitionDeposit"] in deposits, "Prelude deposit is absent from the original stopped world")
         for case in required:
             try:
                 folder = root / "cases" / case
@@ -290,7 +301,7 @@ def review(root, cohort, source, jar):
                                             "reason": record.get("reason", "Case did not produce the required observation"),
                                             "resultSha256": digest(folder / "result.json")})
                     continue
-                row, external = review_case(folder, case, record, cohort, pins, source, jar)
+                row, external = review_case(folder, case, record, cohort, pins, source, jar, seed["acquisitionDeposit"])
                 result["cases"].append(row)
                 if external:
                     result["checkpointStockRemoved"] = external

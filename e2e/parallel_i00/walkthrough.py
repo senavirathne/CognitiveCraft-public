@@ -23,6 +23,8 @@ from suite import atomic, read, reconnect_players, require
 PROFILE = "I00_PLAYER_AXE_WALKTHROUGH"
 ASK = "/aivillage kernel ask Ada, make one wooden axe. Use the available resources, gather what is missing, and store the finished axe in this chest."
 SOURCE, DESTINATION = [70, 208, 69], [77, 208, 71]
+ACTOR_START = [70.5, 208, 68.5]
+DEPOSIT_JOURNAL = "server/game/world/data/cognitivecraft/deposit-evidence/v1/state.jsonl"
 LOGS = [[68, 208, 65], [69, 208, 65], [70, 208, 65]]
 CUTS = ("after-wood-collection", "after-material-deposit", "after-table-placement", "after-craft", "at-final-delivery")
 COHORTS = ("live", "saved-online", "saved-offline", "unsaved")
@@ -69,6 +71,18 @@ def cases(cohort):
     return ("sufficient-stock", "supported-shortage") if cohort == "live" else CUTS
 
 
+def completed_admission_deposit(root, job):
+    path = root / DEPOSIT_JOURNAL
+    if not path.is_file():
+        return None
+    for line in path.read_text().splitlines()[1:]:
+        entry = json.loads(line)
+        key = entry["intent"]["key"]
+        if key["root"] == key["step"] == job and (entry.get("result") or {}).get("live") == "COMPLETE":
+            return entry
+    return None
+
+
 def launch_seed(root):
     seed = NativeGameplay(root, profile=PROFILE)
     try:
@@ -84,8 +98,14 @@ def launch_seed(root):
         seed.stop("server")
         world = seed.world_hashes()
         require(world, "Genuine saved prelude has no Minecraft world")
+        acquisition = next(row for row in seed.admissions if row["capability"] == "oak-acquisition")
+        original = acquisition["result"]["views"][0]["responsibility"]
+        deposit = completed_admission_deposit(root, original["id"])
+        require(deposit and original["state"] == "SUCCEEDED"
+                and deposit["intent"]["key"]["attempt"] == original["attempts"][-1]["id"],
+                "The original admission has no closed Job and native deposit")
         atomic(root / "walkthrough-seed.json", {"worldHashes": world, "save": save, "subjects": seed.subjects,
-               "artifacts": seed.artifacts, "admissionsCountedAsWalkthrough": 0})
+               "artifacts": seed.artifacts, "acquisitionDeposit": deposit, "admissionsCountedAsWalkthrough": 0})
         return seed
     finally:
         seed.finish()
@@ -115,7 +135,8 @@ def boot_trial(root, seed):
         if (seed.root / "needle").is_dir():
             shutil.copytree(seed.root / "needle", root / "needle")
         shutil.copytree(seed.root / "server/game/world", root / "server/game/world", ignore=shutil.ignore_patterns("session.lock"))
-        frozen = read(seed.root / "walkthrough-seed.json")["worldHashes"]
+        seed_witness = read(seed.root / "walkthrough-seed.json")
+        frozen = seed_witness["worldHashes"]
         require(h.world_hashes() == frozen, "Genuine stopped seed world changed during copy")
         atomic(root / "seed-continuation.json", {"worldHashes": frozen, "source": read(seed.root / "metadata.json"),
                "admissionsImportedAsI00": 0})
@@ -125,6 +146,15 @@ def boot_trial(root, seed):
         backend(h)
         h.start("server")
         h.start("PlayerA")
+        # Keep the saved villagers, storage and block untouched until the native
+        # evidence owner reconciles the actual previous admission's saved cohort.
+        original = seed_witness["acquisitionDeposit"]
+        def verified_prelude():
+            entry = completed_admission_deposit(root, original["intent"]["key"]["root"])
+            return entry if (entry and entry["intent"] == original["intent"] and entry["result"] == original["result"]
+                             and (entry.get("verification") or {}).get("outcome") == "SAVED_COMPLETE") else None
+        settled = h.wait(verified_prelude, "Native verification of the original closed admission before fixture setup", 40)
+        atomic(root / "prelude-custody-verification.json", settled)
         # Operator configuration is external to the copied world. Restore it
         # only for this pre-trial setting; prepare() removes it before the ask.
         h.console(["op PlayerA"])
@@ -147,16 +177,26 @@ def prepare(h, shortage):
     expected = {",".join(map(str, pos)): LOG for pos in LOGS} if shortage else {}
     if expected:
         h.console(["setblock " + coord(pos) + " " + LOG for pos in LOGS])
-    h.console(["tp " + h.entities["PlayerA"] + " 70.5 208 68.5", "gamemode survival PlayerB",
+    h.console(["gamemode survival PlayerB",
                "tp PlayerB 80.5 208 73.5", "deop PlayerA", "deop PlayerB"])
     h.action("PlayerA", "look", pos=DESTINATION)
-    before, client = fixture_observation(h, expected_tables=set(), expected_blocks=expected)
+    _, client = fixture_observation(h, expected_tables=set(), expected_blocks=expected)
+    initial = h.save_checkpoint()
+    old_frame = h.snapshot()
+    h.console(["tp " + h.entities["PlayerA"] + " " + coord(ACTOR_START)])
+
+    def posed():
+        frame = h.snapshot()
+        if not frame or frame["pid"] != old_frame["pid"] or frame["tick"] <= old_frame["tick"]:
+            return None
+        actor = next((a for a in frame["actors"] if a["uuid"] == h.entities["PlayerA"]), None)
+        return frame if (actor and actor["alive"] and not actor["noAI"]
+                         and sum((a-b)**2 for a, b in zip(actor["pos"], ACTOR_START, strict=True)) <= 1) else None
+
+    before = h.wait(posed, "Fresh native observation at the declared pre-request actor pose", 20)
     require(h.players["PlayerA"] != h.players["PlayerB"] and before["knownPlayers"]["PlayerB"]["online"],
             "Distinct connected principal required for private activity view")
-    actor = next(a for a in before["actors"] if a["uuid"] == h.entities["PlayerA"])
-    require(sum((a-b)**2 for a, b in zip(actor["pos"], [70.5, 208, 68.5])) <= 1,
-            "Original request must start at the declared pre-request actor pose")
-    return before, client
+    return before, client, initial
 
 
 def request(h):
@@ -323,10 +363,10 @@ def run_case(root, case, seed, cohort):
         h = boot_trial(root, seed)
         h.family = case
         original_offsets = trace_offsets(root)
-        before, client = prepare(h, case != "sufficient-stock")
+        before, client, initial = prepare(h, case != "sufficient-stock")
         row.update(before=before, clientBefore=client, actor=h.entities["PlayerA"], citizen=h.citizens["PlayerA"],
                    principal=h.players["PlayerA"], foreignPrincipal=h.players["PlayerB"], knownPins=h.artifacts,
-                   modelCallsBefore=h.model_calls(), initialCheckpoint=h.save_checkpoint())
+                   modelCallsBefore={key: before[key] for key in ("needleCalls", "generationCalls")}, initialCheckpoint=initial)
         row["request"] = request(h)
         root_id = row["request"]["root"]
         require(root_id, "The ordinary player goal did not resolve to an activity owner")
