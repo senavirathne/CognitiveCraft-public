@@ -577,7 +577,7 @@ jobs:
             *) root="build/e2e/i00/$I00_TRACK" ;;
           esac
           printf 'root=%s\n' "$root" >> "$GITHUB_OUTPUT"
-      - name: Exercise and independently review the frozen required cases
+      - name: Exercise and independently review the frozen cases and their separate material controls
         env:
           I00_ROOT: ${{ steps.prepare.outputs.root }}
         run: |

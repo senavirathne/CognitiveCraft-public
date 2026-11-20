@@ -8,7 +8,7 @@ from pathlib import Path
 import traceback
 import runpy
 
-from .frozen_campaign import ORIGINAL_SHA256, original, shard
+from .frozen_campaign import ORIGINAL_SHA256, controls_for, material_controls, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
 from .native_evidence import exact_withdrawals, raw_slices, require_command, verify_installation
 from campaigns.crafting.harness import CraftingHarness
@@ -23,9 +23,11 @@ PROFILE = "I00_ORIGINAL_334"
 
 def schedule_file(root, index, count):
     cases = shard(original(), index, count)
-    value = {"frozenScheduleSha256": ORIGINAL_SHA256, "shardIndex": index, "shardCount": count, "cases": cases}
+    controls = controls_for(cases, material_controls())
+    value = {"frozenScheduleSha256": ORIGINAL_SHA256, "shardIndex": index, "shardCount": count, "cases": cases,
+             "materialControls": controls}
     atomic(root / "schedule.json", value)
-    return cases
+    return cases, controls
 
 
 DIRECT_INGREDIENTS = {
@@ -53,21 +55,23 @@ class OriginalCampaign(NativeGameplay):
 
 def run(root, index, count):
     root.mkdir(parents=True, exist_ok=False)
-    cases = schedule_file(root, index, count)
+    cases, controls = schedule_file(root, index, count)
     statuses = {case["id"]: "NOT_EXECUTED_REQUIRED" for case in cases}
-    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": statuses}
+    supplemental = {row["id"]: "NOT_EXECUTED_REQUIRED" for row in controls}
+    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": statuses, "materialControls": supplemental}
+    scheduled = cases + [row["definition"] for row in controls]
     h = None
     try:
         h = OriginalCampaign(root, profile=PROFILE)
-        h.bootstrap({output for case in cases for output in needed_artifacts(case)})
-        for case in cases:
+        h.bootstrap({output for case in scheduled for output in needed_artifacts(case)})
+        for case in scheduled:
             row = run_case(h, case, integrated_recipe=requires_exact_choice(case))
-            statuses[case["id"]] = row["status"]
+            (supplemental if case["id"] in supplemental else statuses)[case["id"]] = row["status"]
             atomic(root / "campaign.json", result)
             print("I00_ORIGINAL_CASE " + json.dumps({"id": case["id"], "status": row["status"],
                                                       "reason": row.get("reason")}), flush=True)
             require_case_fence(row, case["id"])
-        if all(status in PASS_STATUSES for status in statuses.values()):
+        if all(status in PASS_STATUSES for status in statuses.values()) and all(status == "PASS" for status in supplemental.values()):
             result["status"] = "COLLECTED_PENDING_INDEPENDENT_REVIEW"
     except Exception as error:
         result.update(error=str(error), trace=traceback.format_exc())
@@ -135,13 +139,26 @@ def review_case(case, row, root, pins, recipes, validate):
     return {"id": case["id"], "status": row["status"], "resultSha256": digest(root / "cases" / case["id"] / "result.json")}
 
 
+def review_material(definition, row):
+    expected = definition["expected"]
+    receipts = row["receiptReconciliation"]
+    require(row["status"] == "PASS" and row["delivered"] == expected["requested"]
+            and row["physicalDelta"] == {expected["output"]: expected["physical"],
+                                         **{item: -n for item, n in expected["input"].items()}}
+            and receipts["exact"] and receipts["withdrawals"] == expected["input"],
+            "Material control differs from the frozen output, input or exact surplus contract")
+    return {"cohort": definition["cohort"], "originalId": definition["originalId"], "nativeQuantities": expected}
+
+
 def review(root, source, jar):
     output = root / "review.json"
-    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": []}
+    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": [], "materialControls": []}
     try:
         scheduled = read(root / "schedule.json")
         expected = shard(original(), scheduled["shardIndex"], scheduled["shardCount"])
-        require(scheduled["cases"] == expected and scheduled["frozenScheduleSha256"] == ORIGINAL_SHA256,
+        controls = controls_for(expected, material_controls())
+        require(scheduled["cases"] == expected and scheduled["frozenScheduleSha256"] == ORIGINAL_SHA256
+                and scheduled["materialControls"] == controls,
                 "Changed or incomplete frozen case schedule")
         manifest = read(root / "metadata.json")
         result.update(witness_identity(manifest, source, jar, PROFILE), shardIndex=scheduled["shardIndex"],
@@ -152,17 +169,22 @@ def review(root, source, jar):
                 "Missing native read-only recipe catalogue")
         pins = admissions(root)
         frozen_verifier = runpy.run_path(str(ROOT / "scripts/campaign-crafting/verify.py"))["validate_case"]
-        for case in expected:
+        for case, control in ([(case, None) for case in expected] + [(row["definition"], row) for row in controls]):
+            results = result["materialControls"] if control else result["cases"]
             try:
                 path = evidence_path(root, f"cases/{case['id']}/result.json")
                 require(path.is_file(), "Required case was not executed")
                 row = read(path)
                 require(row["metadata"] == manifest, "Case belongs to a different native producer")
-                result["cases"].append(review_case(case, row, root, pins, catalogue["recipes"], frozen_verifier))
+                verified = review_case(case, row, root, pins, catalogue["recipes"], frozen_verifier)
+                if control:
+                    verified.update(review_material(control, row))
+                results.append(verified)
             except Exception as error:
-                result["cases"].append({"id": case["id"], "status": "FAIL_REVIEW", "reason": str(error)})
+                results.append({"id": case["id"], "status": "FAIL_REVIEW", "reason": str(error)})
         result["counts"] = dict(Counter(row["status"] for row in result["cases"]))
-        if all(row["status"] in PASS_STATUSES for row in result["cases"]):
+        if (all(row["status"] in PASS_STATUSES for row in result["cases"])
+                and all(row["status"] == "PASS" for row in result["materialControls"])):
             result["status"] = "PASS_INDEPENDENT_NATIVE_REVIEW"
     except Exception as error:
         result.update(error=str(error), trace=traceback.format_exc())

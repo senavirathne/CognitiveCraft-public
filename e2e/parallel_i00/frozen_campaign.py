@@ -17,6 +17,7 @@ ORIGINAL_SHA256 = "6482ffa30529e5be2f7856657c695c468489f5ff237e15726c5cb23b08f9b
 HELD_OUT_SHA256 = "06e288de8ce1cb97617d672ba09cf22c9a734fef8443f3595eff5d00d626ec84"
 ORIGINAL_COUNT = 334
 HELD_OUT_COUNT = 20
+MATERIAL_CONTROL_COUNT = 12
 
 
 def checked_json(path, expected):
@@ -61,6 +62,21 @@ def held_out():
         if case.get("nativeBindings") != resolve(case["bindings"]):
             raise ValueError(f"Held-out native binding changed: {case['id']}")
     return plan
+
+
+def material_controls():
+    spec = json.loads((B / "qualification-specs.json").read_text())
+    campaign_contracts.validate(spec)
+    rows = spec["cohorts"]
+    if (len(rows) != MATERIAL_CONTROL_COUNT or len({case["id"] for case in rows}) != MATERIAL_CONTROL_COUNT
+            or any(not row["separateFromOriginal"] or row["id"] != row["definition"]["id"] for row in rows)):
+        raise ValueError("Frozen minimized, canonical and retry controls changed")
+    return rows
+
+
+def controls_for(cases, controls):
+    ids = {case["id"] for case in cases}
+    return [row for row in controls if row["originalId"] in ids]
 
 
 def shard(cases, index, count):

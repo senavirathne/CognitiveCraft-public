@@ -6,7 +6,7 @@ import unittest
 
 from e2e.parallel_i00.campaign import PROFILE
 from e2e.parallel_i00.campaign_review import HELD_OUT_PROFILE, aggregate, verify_review
-from e2e.parallel_i00.frozen_campaign import held_out, original, shard
+from e2e.parallel_i00.frozen_campaign import controls_for, held_out, material_controls, original, shard
 from e2e.parallel_i00.gameplay import ready_kernel, startup_failure
 
 
@@ -42,15 +42,26 @@ class NativeGameplayReviewTests(unittest.TestCase):
         campaign, extra = self.directory / "campaign", self.directory / "later/review.json"
         shards = [shard(frozen, index, 6) for index in range(6)]
         self.assertEqual([len(rows) for rows in shards], [62, 61, 57, 30, 62, 62])
+        controls = material_controls()
         for index, cases in enumerate(shards):
-            self.report(campaign / str(index) / "review.json", PROFILE, cases, shardIndex=index, shardCount=6)
+            witnesses = [{"id": c["id"], "status": "PASS", "cohort": c["cohort"], "originalId": c["originalId"],
+                          "nativeQuantities": c["expected"], "resultSha256": "6" * 64} for c in controls_for(cases, controls)]
+            self.report(campaign / str(index) / "review.json", PROFILE, cases, shardIndex=index, shardCount=6,
+                        materialControls=witnesses)
         self.report(extra, HELD_OUT_PROFILE, later)
         value = aggregate(campaign, 6, extra, self.identity)
         self.assertEqual(value["status"], "PASS_INDEPENDENT_CAMPAIGN_REVIEW")
+        self.assertEqual(value["materialControls"]["verifiedCases"], 12)
         self.assertEqual([value["original"][key] for key in ("verifiedDevelopment", "verifiedHeldOut", "verifiedHistoricalGaps")], [316, 18, 42])
         self.report(extra, HELD_OUT_PROFILE, later[:-1] + later[:1])
         self.assertEqual(aggregate(campaign, 6, extra, self.identity)["laterHeldOut"]["status"], "FAIL_REVIEW")
         self.report(extra, HELD_OUT_PROFILE, later, attempt="2")
+        self.assertEqual(aggregate(campaign, 6, extra, self.identity)["status"], "FAIL_REQUIRED_CAMPAIGN")
+        self.report(extra, HELD_OUT_PROFILE, later)
+        path = campaign / "0/review.json"
+        incomplete = json.loads(path.read_text())
+        incomplete["materialControls"].pop()
+        path.write_text(json.dumps(incomplete))
         self.assertEqual(aggregate(campaign, 6, extra, self.identity)["status"], "FAIL_REQUIRED_CAMPAIGN")
 
     def test_an_original_positive_recipe_refusal_cannot_pass(self):
