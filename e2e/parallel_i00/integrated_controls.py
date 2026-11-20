@@ -41,9 +41,6 @@ PARTIAL_CANCEL = "cancelled-original-partial-craft"
 SAVED_CRAFT = "birch-q3-saved-craft-continuation"
 CANCEL_DESTINATION = [12, 201, 11]
 PEER_DESTINATION = [7, 201, 9]
-PENDING = ("birch-q3-child", "birch-q3-crash-before-allocation",
-           "ambiguous-withdrawal-isolates-unrelated-actor",
-           "identical-table-ambiguity-fences", "removed-replaced-table-invalidates-facility")
 QUANTITIES = {"demand": 3, "yield": 4, "batches": 1, "produced": 4, "allocation": 3,
               "surplus": 1, "remainders": 0}
 STAGES = ["WITHDRAW", "CRAFT", "DEPOSIT"]
@@ -1032,7 +1029,7 @@ def review(raw, identity):
         if key in clock_frames:
             require(frame == clock_frames.pop(key), "Native clock evidence differs from the original read-only query")
     require(not clock_frames, "Missing original native clock queries")
-    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, NO_METHOD, CONTEND, SAVED_CRAFT, *PENDING):
+    for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, NO_METHOD, CONTEND, SAVED_CRAFT):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
             cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})

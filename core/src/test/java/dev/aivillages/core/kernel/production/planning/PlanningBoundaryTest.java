@@ -106,6 +106,38 @@ final class PlanningBoundaryTest {
         assertEquals(original,restored.bind(frame));
         assertEquals(packed.tokens(),restored.tokens());
     }
+    @Test void anExactBirchChildStagesThreeAndKeepsTheFourthAwayFromParentAllocation() throws Exception {
+        var fixture=new PlannerFixtures().existingTable();
+        var birchLog=item("birch_log");
+        fixture.recipes.add(fixture.profile(BirchPlankProduction.ID,List.of(List.of(birchLog)),BIRCH));
+        fixture.stock.add(fixture.stock("birch-input",0,birchLog,1));
+        fixture.stock.add(fixture.stock("ready-sticks",1,STICK,2));
+        var wanted=coordinator.nextActivity(fixture.snapshot(),null,Memory.empty(),1,8,true);
+        assertNotNull(wanted.neededChoice(),wanted.blocker());
+        assertEquals(3,wanted.neededChoice().nativeAmount());
+        assertEquals(1,wanted.analysis().residual().get(BIRCH));
+        var plan=ActivityPlan.of(wanted.analysis().plan(),true);
+        assertEquals(plan,ActivityPlan.decode(StrictJson.object(StrictJson.canonical(plan.encode()))));
+        var choice=PlanningChoiceBuilder.build(fixture.snapshot(),wanted.neededChoice());
+        fixture.choices.add(new ChoiceOffer(new ValidatedRequest(choice.invocation(),fixture.context,
+                new ObservationRef(id("birch-child-observation"),fixture.revision,DIM)),choice.choice(),choice.sources()));
+        var offered=coordinator.nextActivity(fixture.snapshot(),plan.bind(fixture.snapshot()),Memory.empty(),1,8,true);
+        assertEquals(DecisionKind.PROPOSE,offered.kind(),offered.blocker());
+        var quantities=offered.proposal().quantities();
+        assertEquals(4,quantities.newPhysicalOutput());
+        assertEquals(3,quantities.nativeDelivery());
+        assertEquals(3,quantities.parentAllocationUpperBound());
+        assertEquals(1,quantities.actorSurplus());
+        assertEquals(0,quantities.goalAllocationUpperBound());
+        fixture.choices.clear();
+        fixture.stock.removeFirst();
+        fixture.stock.add(fixture.stock("exact-child-delivery",2,BIRCH,3));
+        fixture.stock.add(fixture.actorStock("child-surplus-in-actor",0,BIRCH,1));
+        fixture.settle(wanted.analysis().plan(),0,1,0);
+        assertEquals(Feasibility.FEASIBLE,planner.revalidate(fixture.snapshot(),plan.bind(fixture.snapshot()),true).feasibility());
+        fixture.stock.removeIf(stock->stock.key().endsWith("exact-child-delivery"));
+        assertEquals(Feasibility.UNKNOWN,planner.revalidate(fixture.snapshot(),plan.bind(fixture.snapshot()),true).feasibility());
+    }
     @Test void exhaustedComputeBoundReturnsUnknownRatherThanAnInventedImpossibility(){var f=new PlannerFixtures().logs(3);var bounded=new StaticProductionPlanner(1).analyse(f.snapshot());assertEquals(1,bounded.expansions());assertEquals(Feasibility.UNKNOWN,bounded.feasibility());assertNull(bounded.plan());assertEquals(Feasibility.FEASIBLE,planner.analyse(f.snapshot()).feasibility());}
     @Test void onePhysicalSlotOrAcquisitionRegionCannotBeCountedTwice(){var f=new PlannerFixtures().logs(1);f.stock.add(f.stock("duplicate-physical-slot",0,LOG,1));assertThrows(IllegalArgumentException.class,f::snapshot);var trees=new PlannerFixtures().logSource(7);var a=trees.acquisition.getFirst();trees.acquisition.add(new Acquisition("fixture:overlapping-tree-query",a.source(),a.result(),7,a.availability(),true,true,a.method(),a.allowance()));assertThrows(IllegalArgumentException.class,trees::snapshot);}
     @Test void availableAndObservedCountsRemainDistinctInConcreteBindings(){var f=new PlannerFixtures().goal(Mode.MAKE_NEW,PLANK,3);f.stock.add(new Stock("fixture:reserved-neighbours",new Location(f.source,null,0),LOG,1,16,0,null,List.of(),Eligibility.NONE,Availability.PRESENT,true,true,0,0));var wanted=coordinator.next(f.snapshot(),null,Memory.empty());var prepared=f.withChoice(wanted);assertEquals(DecisionKind.PROPOSE,prepared.kind());assertEquals(16,prepared.proposal().nativeChoice().choice().batch(0).bindings().getFirst().expectedCount());assertEquals(1,prepared.proposal().bindings().getFirst().units());}

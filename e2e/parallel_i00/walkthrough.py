@@ -83,15 +83,15 @@ def completed_admission_deposit(root, job):
     return None
 
 
-def launch_seed(root):
+def launch_seed(root, required=METHODS):
     seed = NativeGameplay(root, profile=PROFILE)
     try:
         needle = ROOT / "build/needle"
         if (needle / "manifest.json").is_file():
             shutil.copytree(needle, root / "needle")
             seed.env["COGNITIVECRAFT_NEEDLE_DIR"] = "/evidence/needle"
-        seed.bootstrap(METHODS)
-        require(METHODS <= seed.artifacts.keys(), "Real method admission is incomplete")
+        seed.bootstrap(required)
+        require(required <= seed.artifacts.keys(), "Real method admission is incomplete")
         seed.wait(lambda: clean_owners(seed.snapshot().get("knownPlayers", {}).get("PlayerA", {})),
                   "Genuine prelude owners closed and certain", 35)
         save = seed.save_checkpoint()
@@ -124,8 +124,8 @@ def backend(h):
     return evidence
 
 
-def boot_trial(root, seed):
-    h = WalkthroughHarness(root, profile=PROFILE)
+def boot_trial(root, seed, profile=PROFILE):
+    h = WalkthroughHarness(root, profile=profile)
     # Each trial copies the admitted stopped world, then preserves that same
     # world's bytes across the measured cut. Only Docker and model cache reuse.
     h.project = seed.project
@@ -442,7 +442,8 @@ def run(root, cohort):
     result = {"profile": PROFILE, "cohort": cohort, "status": "FAIL_REQUIRED_CASES", "requiredCases": list(selected),
               "cases": {case: "NOT_EXECUTED_REQUIRED" for case in selected}}
     try:
-        seed = launch_seed(root / "seed")
+        from campaigns.crafting.generator import BIRCH
+        seed = launch_seed(root / "seed", METHODS | {BIRCH} if cohort == "live" else METHODS)
         for case in selected:
             row = run_case(root / "cases" / case, case, seed, cohort)
             result["cases"][case] = row["status"]
@@ -451,6 +452,9 @@ def run(root, cohort):
         allowed = {COLLECTED, "CONTAINMENT_ONLY"} if cohort == "unsaved" else {COLLECTED}
         if all(status in allowed for status in result["cases"].values()):
             result["status"] = COLLECTED
+        if cohort == "live":
+            from .joint_controls import run as run_joint_controls
+            run_joint_controls(root / "joint", seed)
     except Exception as error:
         result.update(error=str(error), trace=traceback.format_exc())
     finally:

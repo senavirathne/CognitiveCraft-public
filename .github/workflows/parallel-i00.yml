@@ -428,6 +428,12 @@ jobs:
           root="build/e2e/i00/walkthrough/$I00_COHORT"
           python3 -m e2e.parallel_i00.walkthrough_review --root "$root" --cohort "$I00_COHORT" \
             --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256"
+      - name: Independently check original child allocation and conflicting custody
+        if: ${{ !cancelled() && matrix.cohort == 'live' && steps.native-walkthrough.outcome != 'skipped' }}
+        continue-on-error: true
+        run: |
+          python3 -m e2e.parallel_i00.joint_controls --root build/e2e/i00/walkthrough/live/joint \
+            --source "$GITHUB_SHA" --jar-sha256 "$I00_JAR_SHA256"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -441,7 +447,9 @@ jobs:
         with:
           name: i00-review-walkthrough-${{ matrix.cohort }}-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
-          path: build/e2e/i00/walkthrough/${{ matrix.cohort }}/review.json
+          path: |
+            build/e2e/i00/walkthrough/${{ matrix.cohort }}/review.json
+            build/e2e/i00/walkthrough/${{ matrix.cohort }}/joint/joint-review.json
 
       - name: Preserve compact failure diagnostics alongside the complete raw archive
         if: ${{ always() }}

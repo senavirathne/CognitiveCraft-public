@@ -253,7 +253,7 @@ final class FabricProductionActivities {
         var preflight=present?null:world.placementPreflight(marked);
         boolean free=preflight!=null && preflight.reason()==null && !preflight.pending() && allowed(marked,Effect.PLACE,cell);
         var id=present?FabricFacilityIdentity.capture(level,p):null;
-        long travel=FabricProductionTravel.recipe(position(actor),staging,cell,null,reference);
+        long travel=FabricProductionTravel.placement(position(actor),staging,reference);
         return new Facility(reference,id!=null?Availability.PRESENT:free?Availability.ABSENT:Availability.UNKNOWN,
                 allowed(job.request(),Effect.CRAFT,cell),true,id==null?"":id,free,job.generation(),
                 pin(job,CraftingTablePlacement.ID,ActivityPayload.digest("crafting-table-placement:v1"),1),

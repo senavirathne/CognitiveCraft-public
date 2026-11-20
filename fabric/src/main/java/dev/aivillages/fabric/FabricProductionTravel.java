@@ -20,6 +20,12 @@ final class FabricProductionTravel {
         return facility==null?Math.addExact(approach,distance(source,destination)):
                 Math.addExact(approach,Math.addExact(distance(source,point(facility)),distance(point(facility),destination)));
     }
+    static long placement(ContainerRef start,ContainerRef source,FacilityRef site) {
+        var destination=point(site);
+        // Withdrawal can end at any reachable side of the chest. The next leg starts there,
+        // and cannot pass through the chest or stand inside the prospective table footprint.
+        return Math.addExact(recipe(start,source,destination,null,site),INTERACTION_CELLS);
+    }
     static long acquisition(ContainerRef start,ContainerRef staging,List<ContainerRef> eligible) {
         if(eligible.isEmpty() || eligible.size()>256)throw new IllegalArgumentException("Bounded actual acquisition targets required");
         long worst=0;

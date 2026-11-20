@@ -35,6 +35,8 @@ class OwnerAndClockTests(unittest.TestCase):
         self.assertTrue(clock_response("tick unfreeze", "The game is now unfrozen"))
         self.assertTrue(clock_response("tick unfreeze", "The game is running normally"))
         with self.assertRaises(ValueError):clock_response("tick unfreeze", "The game is frozen")
+        self.assertTrue(clock_response("tick rate 4", "System chat: Set the target tick rate to 4.0 per second"))
+        with self.assertRaises(ValueError):clock_response("tick rate 4", "Set the target tick rate to 20.0 per second")
 
     def test_kill_requires_native_process_finished_state_and_sigkill_exit(self):
         state = {"Running":False,"Pid":0,"ExitCode":137,"FinishedAt":"2026-10-26T00:00:00Z"}

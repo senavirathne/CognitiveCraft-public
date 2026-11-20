@@ -25,15 +25,16 @@ public final class ProductionActivityPlanner {
         requireOriginal(root,frame,remaining);
         var previous=root.activity().production().plan();
         var saved=previous==null?null:previous.bind(frame);
+        boolean exactChildren=previous==null || previous.exactChildren();
         int maximum=ActivityPayload.MAX_STEPS-root.activity().steps().size();
         if(maximum<1)return new Decision(new PlanningModelDecision(memory,"NATIVE_SEGMENT_LIMIT_EXCEEDED",false,
                 Long.MAX_VALUE),null,previous,List.of());
-        var selected=planner.next(frame,saved,memory,1,maximum);
+        var selected=planner.nextActivity(frame,saved,memory,1,maximum,exactChildren);
         if(selected.neededChoice()!=null) {
             var candidate=PlanningChoiceBuilder.build(frame,selected.neededChoice());
             var offer=new ChoiceOffer(new ValidatedRequest(candidate.invocation(),root.origin(),root.request().observation()),
                     candidate.choice(),candidate.sources());
-            if(nativeChoice.validate(offer))selected=planner.next(withOffer(frame,offer),saved,memory,1,maximum);
+            if(nativeChoice.validate(offer))selected=planner.nextActivity(withOffer(frame,offer),saved,memory,1,maximum,exactChildren);
         }
         var state=new PlanningModelDecision(selected.memory(),selected.blocker(),
                 selected.analysis()!=null && selected.analysis().feasibility()==Feasibility.FEASIBLE,selected.nextCheckMillis());
@@ -41,7 +42,7 @@ public final class ProductionActivityPlanner {
         int planned=Math.addExact(root.activity().steps().size(),PlanningCoordinator.remainingSegments(frame,selected.analysis().plan(),1));
         if(planned>ActivityPayload.MAX_STEPS)return new Decision(new PlanningModelDecision(selected.memory(),
                 "NATIVE_SEGMENT_LIMIT_EXCEEDED",false,Long.MAX_VALUE),null,previous,List.of());
-        return new Decision(state,authoritative(root,frame,remaining,selected.proposal(),planned),ActivityPlan.of(selected.analysis().plan()),
+        return new Decision(state,authoritative(root,frame,remaining,selected.proposal(),planned),ActivityPlan.of(selected.analysis().plan(),exactChildren),
                 selected.proposal().coveredActionTokens());
     }
 

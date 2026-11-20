@@ -18,6 +18,7 @@ class WorldReferenceDiscoveryTest {
         final Map<Point,Boolean> crops = new HashMap<>();
         final Set<Point> unknown = new HashSet<>();
         final Map<ContainerRef,ContainerSample> boxes = new HashMap<>();
+        final Map<ContainerRef,InputContainerSample> inputBoxes = new HashMap<>();
         final Map<ActorRef,ActorState> actors = new HashMap<>();
         int cells,entities,slots;
         public ActorState actor(ActorRef actor) {
@@ -34,6 +35,10 @@ class WorldReferenceDiscoveryTest {
             if (unknown.contains(p)) return new ContainerSample(ObservationStatus.UNKNOWN,0,0,"unknown");
             var sample = boxes.getOrDefault(box,new ContainerSample(ObservationStatus.ABSENT,0,0,"absent"));
             slots += sample.slotsInspected(); return sample;
+        }
+        public InputContainerSample inputContainer(ActorRef actor,ContainerRef box,ResourceDelivery.ItemIdentity item) {
+            if(inputBoxes.isEmpty())return Observation.super.inputContainer(actor,box,item);
+            return inputBoxes.getOrDefault(box,new InputContainerSample(ObservationStatus.ABSENT,0,0,"absent"));
         }
         void patch(int x,int z,int amount) { for (int i=0;i<amount;i++) crops.put(point(x+i,64,z),true); }
         void box(int x,int z,int capacity) {
@@ -100,6 +105,25 @@ class WorldReferenceDiscoveryTest {
         assertFalse(early.complete()); assertTrue(early.candidates().isEmpty());
         var selected = finish(Kind.AREA,ORIGIN,discovery);
         assertEquals(0,selected.value().area().minX()); assertEquals(SEARCH_CELLS,world.cells);
+    }
+    @Test void shortageStagingKeepsAnExplicitRecipientSeparateWhenAnotherContainerIsKnown() {
+        var world=new Fake();
+        var recipient=new ContainerRef(DIM,1,64,0);
+        var staging=new ContainerRef(DIM,5,64,0);
+        var emptyStaging=new InputContainerSample(ObservationStatus.PRESENT,0,27,"staging");
+        world.inputBoxes.put(recipient,new InputContainerSample(ObservationStatus.PRESENT,0,27,"recipient"));
+        world.inputBoxes.put(staging,emptyStaging);
+        assertEquals(staging,finish(Kind.CONTAINER,ORIGIN,inputContainers(ACTOR,3,ORIGIN,world,
+                ResourceDelivery.OAK_PLANKS,true,ObjectType.UNSPECIFIED,recipient)).value().container());
+        assertEquals(recipient,finish(Kind.CONTAINER,ORIGIN,inputContainers(ACTOR,3,ORIGIN,world,
+                ResourceDelivery.OAK_PLANKS,true,ObjectType.UNSPECIFIED)).value().container());
+        world.inputBoxes.remove(staging);
+        assertEquals(recipient,finish(Kind.CONTAINER,ORIGIN,inputContainers(ACTOR,3,ORIGIN,world,
+                ResourceDelivery.OAK_PLANKS,true,ObjectType.UNSPECIFIED,recipient)).value().container());
+        world.inputBoxes.put(staging,emptyStaging);
+        world.inputBoxes.put(recipient,new InputContainerSample(ObservationStatus.PRESENT,3,27,"stocked"));
+        assertEquals(recipient,finish(Kind.CONTAINER,ORIGIN,inputContainers(ACTOR,3,ORIGIN,world,
+                ResourceDelivery.OAK_PLANKS,true,ObjectType.UNSPECIFIED,recipient)).value().container());
     }
     @Test void searchBoundaryAndUnknownNeighboursExcludeAnIncompleteRegion() {
         var world = new Fake(); world.patch(15,0,2);

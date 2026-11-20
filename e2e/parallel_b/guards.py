@@ -44,7 +44,7 @@ def clean_owners(data):
 def clock_response(command, response):
     if not re.fullmatch(r"tick (?:freeze|unfreeze|step 1|rate (?:1|2|4|20))", command):
         raise ValueError("Unsupported test clock request")
-    text = response.lower()
+    text = response.lower().strip().removeprefix("system chat: ")
     if any(word in text for word in ("unknown", "incorrect", "incomplete", "permission", "failed", "error")):
         raise ValueError("Rejected vanilla clock command")
     if command == "tick freeze":

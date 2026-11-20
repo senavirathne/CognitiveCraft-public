@@ -1288,6 +1288,7 @@ public final class SurvivalGateway implements GatewayPort {
         finish(action,outcome.failure(),outcome.pickup().collected()>0?new IntValue(outcome.pickup().collected()):null,null);
     }
     private void durablePickup(Active action,Cell target,Batch batch,Map.Entry<UUID,Integer> selected) {
+        if(pickupProtocol.waitingOnPublication())return;
         if(!effectAllowance(action))return;
         Run run=action.run;var drop=Map.entry(selected.getKey(),selected.getValue());
         UUID operation=UUID.nameUUIDFromBytes((action.handle.id()+"/"+(action.effects+1)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -1379,6 +1380,7 @@ public final class SurvivalGateway implements GatewayPort {
     private void durableTransfer(Active action,Cell target) {
         var protocol=depositProtocol;Run run=action.run;
         if(action.depositTicket==null) {
+            if(pickupProtocol!=null && pickupProtocol.waitingOnPublication())return;
             if(!allows(action,Effect.TRANSFER,target)){finish(action,Reason.AUTHORITY_DENIED,null,null);return;}
             long amount=((IntValue)action.arguments.get("amount")).value();action.requested=amount>Integer.MAX_VALUE?Integer.MAX_VALUE:(int)amount;
             if(action.requested>((IntValue)run.request.request().arguments().get("amount")).value()-run.deposited){finish(action,Reason.REQUEST_INVALID,null,null);return;}

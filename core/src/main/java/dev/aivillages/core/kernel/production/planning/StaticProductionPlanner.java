@@ -56,11 +56,21 @@ public final class StaticProductionPlanner {
         while(changed){changed=false;for(var p:s.recipes())if(needed.contains(p.result()) && out.add(p.recipe())){for(var cell:p.cells())needed.addAll(cell);if(p.axe() && !facilityReady(s) && canPlace(s))for(var table:s.recipes())if(table.result().id().equals(TABLE))needed.add(table.result());changed=true;}}
         return Set.copyOf(out);}
     private static long ceil(long n,long y){return n/y+(n%y==0?0:1);}
-    private static long plankBound(Snapshot s){long n=s.remainingDemand();String id=s.goal().item().id();if(id.endsWith("_planks"))return n;if(id.equals(STICK))return Math.multiplyExact(ceil(n,4),2);if(id.equals(TABLE))return Math.multiplyExact(n,4);
-        if(id.equals(AXE))return Math.addExact(Math.addExact(Math.multiplyExact(n,3),Math.multiplyExact(ceil(Math.multiplyExact(n,2),4),2)),!facilityReady(s) && canPlace(s)?4:0);return 0;}
-    private static long useful(Snapshot s,State state,RecipeProfile p,Set<String> relevant){if(!relevant.contains(p.recipe()))return 0;long rootNeed=Math.max(0,s.remainingDemand()-state.eligible);
+    private static long plankBound(Snapshot s,boolean exactChildren){long n=s.remainingDemand();String id=s.goal().item().id();if(id.endsWith("_planks"))return n;if(id.equals(STICK))return Math.multiplyExact(ceil(n,4),2);if(id.equals(TABLE))return Math.multiplyExact(n,4);
+        if(!id.equals(AXE))return 0;
+        long sticks=Math.multiplyExact(n,2);
+        if(exactChildren) {
+            var compatible=s.recipes().stream().filter(p->p.axe() && p.result().equals(s.goal().item())).flatMap(p->p.cells().stream())
+                    .flatMap(Collection::stream).filter(item->item.id().equals(STICK)).collect(java.util.stream.Collectors.toSet());
+            long stocked=s.stock().stream().filter(lot->lot.location().container()!=null && usable(s,lot) && compatible.contains(lot.item()))
+                    .mapToLong(Stock::units).sum();
+            sticks=Math.max(0,sticks-stocked);
+        }
+        return Math.addExact(Math.addExact(Math.multiplyExact(n,3),Math.multiplyExact(ceil(sticks,4),2)),!facilityReady(s) && canPlace(s)?4:0);
+    }
+    private static long useful(Snapshot s,State state,RecipeProfile p,Set<String> relevant,long plankBound){if(!relevant.contains(p.recipe()))return 0;long rootNeed=Math.max(0,s.remainingDemand()-state.eligible);
         if(p.result().equals(s.goal().item()) && s.goal().mode()!=Mode.ACQUIRE_NEW)return Math.min(rootNeed,p.yield());
-        if(p.result().id().endsWith("_planks"))return Math.min(p.yield(),Math.max(0,plankBound(s)-state.pool.getOrDefault(p.result(),0L)));
+        if(p.result().id().endsWith("_planks"))return Math.min(p.yield(),Math.max(0,plankBound-state.pool.getOrDefault(p.result(),0L)));
         if(p.result().id().equals(STICK) && s.goal().item().id().equals(AXE))return Math.min(p.yield(),Math.max(0,Math.multiplyExact(s.remainingDemand(),2)-total(state.pool,STICK)));
         if(p.result().id().equals(TABLE) && s.goal().item().id().equals(AXE) && !state.table && canPlace(s))return Math.max(0,1-total(state.pool,TABLE));return 0;}
     private static List<Map<RecipeChoice.ItemKey,Long>> allocations(RecipeProfile recipe,Map<RecipeChoice.ItemKey,Long> pool){var out=new LinkedHashMap<String,Map<RecipeChoice.ItemKey,Long>>();allocate(recipe.cells(),0,pool,new HashMap<>(),out);return List.copyOf(out.values());}
@@ -68,17 +78,18 @@ public final class StaticProductionPlanner {
         if(out.size()>=64)return;if(cell==cells.size()){var rows=chosen.entrySet().stream().sorted(Comparator.comparing(e->itemOrder(e.getKey()))).map(e->Map.of("item",e.getKey().value(),"n",e.getValue())).toList();out.putIfAbsent(StrictJson.canonical(rows),Map.copyOf(chosen));return;}
         for(var key:cells.get(cell).stream().distinct().sorted(Comparator.comparing(PlanningModel::itemOrder)).toList())if(pool.getOrDefault(key,0L)>chosen.getOrDefault(key,0L)){chosen.merge(key,1L,Math::addExact);allocate(cells,cell+1,pool,chosen,out);long left=chosen.get(key)-1;if(left==0)chosen.remove(key);else chosen.put(key,left);}
     }
-    private static State apply(State state,Action a){var pool=new HashMap<>(state.pool);for(var input:a.inputs().entrySet()){long left=pool.getOrDefault(input.getKey(),0L)-input.getValue();if(left<0)return null;if(left==0)pool.remove(input.getKey());else pool.put(input.getKey(),left);}
-        if(a.yield()>0)pool.merge(a.result(),(long)a.yield(),Math::addExact);var acquired=new HashMap<>(state.acquired);if(a.kind()==Kind.ACQUIRE)acquired.merge(a.sourceKey(),1L,Math::addExact);
+    private static State apply(State state,Action a,boolean exactChildren){var pool=new HashMap<>(state.pool);for(var input:a.inputs().entrySet()){long left=pool.getOrDefault(input.getKey(),0L)-input.getValue();if(left<0)return null;if(left==0)pool.remove(input.getKey());else pool.put(input.getKey(),left);}
+        long staged=exactChildren && a.kind()==Kind.PRODUCE && !a.rootOutput()?a.requestedDemand():a.yield();
+        if(staged>0)pool.merge(a.result(),staged,Math::addExact);var acquired=new HashMap<>(state.acquired);if(a.kind()==Kind.ACQUIRE)acquired.merge(a.sourceKey(),1L,Math::addExact);
         if(a.kind()==Kind.RETURN_CUSTODY){acquired.merge("return:"+a.sourceKey(),a.requestedDemand(),Math::addExact);acquired.merge("return-count",1L,Math::addExact);}var actions=new ArrayList<>(state.actions);actions.add(a);
         return new State(Map.copyOf(pool),Map.copyOf(acquired),a.rootOutput()?Math.addExact(state.eligible,a.yield()):state.eligible,state.table || a.kind()==Kind.PLACE_TABLE,state.cost.plus(a.allowance()),List.copyOf(actions));}
-    private static List<Action> candidates(Snapshot s,State state,Set<String> relevant,boolean[] truncated){var out=new ArrayList<Action>();
+    private static List<Action> candidates(Snapshot s,State state,Set<String> relevant,long plankBound,boolean[] truncated){var out=new ArrayList<Action>();
         var ready=new HashMap<>(state.pool);for(var x:s.stock())if(usable(s,x) && x.location().actor()!=null){long held=Math.max(0,x.units()-state.acquired.getOrDefault("return:"+x.key(),0L));ready.merge(x.item(),-held,Math::addExact);}
         if(s.supportedKinds().contains(Kind.PRODUCE))for(var p:s.recipes().stream().sorted(Comparator.comparing(RecipeProfile::recipe)).toList()){
-            long demand=useful(s,state,p,relevant);if(demand==0 || p.method()==null || !p.method().usable() || p.axe() && !state.table || Math.max(p.cells().size(),p.yield())>s.goal().policy().carryingUnits())continue;
+            long demand=useful(s,state,p,relevant,plankBound);if(demand==0 || p.method()==null || !p.method().usable() || p.axe() && !state.table || Math.max(p.cells().size(),p.yield())>s.goal().policy().carryingUnits())continue;
             var choices=allocations(p,ready);if(choices.size()>=64)truncated[0]=true;for(var inputs:choices)out.add(new Action(Kind.PRODUCE,p.recipe(),p.capability(),inputs,p.result(),p.yield(),demand,p.result().equals(s.goal().item()),p.allowance(),""));}
         if(s.supportedKinds().contains(Kind.ACQUIRE))for(var a:s.acquisition().stream().sorted(Comparator.comparing(Acquisition::key)).toList()){
-            boolean root=a.result().equals(s.goal().item()) && s.goal().mode()!=Mode.MAKE_NEW;boolean material=s.recipes().stream().anyMatch(p->relevant.contains(p.recipe()) && p.cells().stream().anyMatch(c->c.contains(a.result()))) && state.pool.getOrDefault(a.result(),0L)<ceil(plankBound(s),4);
+            boolean root=a.result().equals(s.goal().item()) && s.goal().mode()!=Mode.MAKE_NEW;boolean material=s.recipes().stream().anyMatch(p->relevant.contains(p.recipe()) && p.cells().stream().anyMatch(c->c.contains(a.result()))) && state.pool.getOrDefault(a.result(),0L)<ceil(plankBound,4);
             if((root && state.eligible<s.remainingDemand() || material) && a.permitted() && a.reachable() && a.availability()==Availability.PRESENT && a.method()!=null && a.method().usable() && s.goal().policy().allowedAcquisition().contains(a.source()) && a.source().dimension().equals(s.owner().executor().dimension()) && state.acquired.getOrDefault(a.key(),0L)<a.availableUnits())out.add(new Action(Kind.ACQUIRE,"",a.method().capability(),Map.of(),a.result(),1,1,root,a.allowance(),a.key()));}
         if(!state.table && canPlace(s) && s.goal().item().id().equals(AXE))for(var e:ready.entrySet().stream().sorted(Comparator.comparing(e->itemOrder(e.getKey()))).toList())if(e.getKey().id().equals(TABLE) && e.getValue()>0){out.add(new Action(Kind.PLACE_TABLE,"",CraftingTablePlacement.ID,Map.of(e.getKey(),1L),e.getKey(),0,1,false,s.facility().placementAllowance(),""));break;}
         if(s.goal().policy().allowCustodyReturn() && s.supportedKinds().contains(Kind.RETURN_CUSTODY) && s.returnsUsed()+state.acquired.getOrDefault("return-count",0L)<s.goal().policy().maximumReturns())for(var x:s.stock().stream().sorted(Comparator.comparing(Stock::key)).toList())if(usable(s,x) && x.location().actor()!=null){long held=x.units()-state.acquired.getOrDefault("return:"+x.key(),0L);var method=PlanningCoordinator.outputMethod(s,x.item());boolean needed=s.recipes().stream().anyMatch(p->relevant.contains(p.recipe()) && p.cells().stream().anyMatch(c->c.contains(x.item())));
@@ -88,7 +99,10 @@ public final class StaticProductionPlanner {
     private static String methodKey(Action a){return a.kind()==Kind.PRODUCE?a.recipe():a.kind()==Kind.ACQUIRE?"acquire:"+a.sourceKey():a.kind()==Kind.RETURN_CUSTODY?"return:"+itemOrder(a.result()):"place";}
     private static ValidatedPlan pin(Snapshot s,List<Action> actions){var methods=new TreeMap<String,MethodPin>();for(var a:actions){if(a.kind()==Kind.PRODUCE)methods.put(a.recipe(),s.recipe(a.recipe()).orElseThrow().method());else if(a.kind()==Kind.ACQUIRE)methods.put("acquire:"+a.sourceKey(),s.acquisition().stream().filter(x->x.key().equals(a.sourceKey())).findFirst().orElseThrow().method());else if(a.kind()==Kind.PLACE_TABLE)methods.put("place",s.facility().placement());else if(a.kind()==Kind.RETURN_CUSTODY)methods.put(methodKey(a),PlanningCoordinator.outputMethod(s,a.result()));}
         return new ValidatedPlan(s.world(),s.root(),s.owner().originalOwner(),s.context(),s.goal(),s.budget().initialDigest(),s.budget().absoluteDeadlineMillis(),actions,methods);}
-    private static Map<RecipeChoice.ItemKey,Long> residual(Snapshot s,State state){var result=new HashMap<>(state.pool);long left=result.getOrDefault(s.goal().item(),0L)-s.remainingDemand();if(left<0)throw new IllegalArgumentException("Virtual goal allocation exceeds available units");if(left==0)result.remove(s.goal().item());else result.put(s.goal().item(),left);return Map.copyOf(result);}
+    private static Map<RecipeChoice.ItemKey,Long> residual(Snapshot s,State state,boolean exactChildren){var result=new HashMap<>(state.pool);long left=result.getOrDefault(s.goal().item(),0L)-s.remainingDemand();if(left<0)throw new IllegalArgumentException("Virtual goal allocation exceeds available units");if(left==0)result.remove(s.goal().item());else result.put(s.goal().item(),left);
+        if(exactChildren) for(var action:state.actions()) if(action.kind()==Kind.PRODUCE && !action.rootOutput() && action.yield()>action.requestedDemand())
+            result.merge(action.result(),action.yield()-action.requestedDemand(),Math::addExact);
+        return Map.copyOf(result);}
     private static boolean covers(Cost pinned,Cost fresh){return pinned.travel()>=fresh.travel() && pinned.effects()>=fresh.effects() && pinned.ticks()>=fresh.ticks();}
     private static boolean cellsMatch(List<List<RecipeChoice.ItemKey>> cells,int index,Map<RecipeChoice.ItemKey,Long> remaining){if(index==cells.size())return remaining.values().stream().allMatch(n->n==0);for(var key:cells.get(index))if(remaining.getOrDefault(key,0L)>0){remaining.put(key,remaining.get(key)-1);boolean matched=cellsMatch(cells,index+1,remaining);remaining.put(key,remaining.get(key)+1);if(matched)return true;}return false;}
     private static MethodPin currentMethod(Snapshot s,Action a){if(a.kind()==Kind.PRODUCE)return s.recipe(a.recipe()).map(RecipeProfile::method).orElse(null);if(a.kind()==Kind.ACQUIRE)return s.acquisition().stream().filter(x->x.key().equals(a.sourceKey())).findFirst().map(Acquisition::method).orElse(null);if(a.kind()==Kind.RETURN_CUSTODY)return PlanningCoordinator.outputMethod(s,a.result());return s.facility()==null?null:s.facility().placement();}
@@ -102,22 +116,25 @@ public final class StaticProductionPlanner {
     }
     // Conservative in-flight units per checkpoint; this ranks exposure, not crash durability.
     private static long exposure(State s){return s.actions.stream().mapToLong(a->Math.max(Math.max(a.yield(),a.inputs().values().stream().mapToLong(Long::longValue).sum()),a.kind()==Kind.RETURN_CUSTODY?a.requestedDemand():0)).max().orElse(0);}
-    public Analysis analyse(Snapshot s){return analyse(s,1,MAX_ACTIONS,false);}
+    public Analysis analyse(Snapshot s){return analyse(s,1,MAX_ACTIONS,false,false);}
     public Analysis analyse(Snapshot s,int maximumAcquisition,int maximumSegments){
+        return analyseGrouped(s,maximumAcquisition,maximumSegments,false);
+    }
+    Analysis analyseGrouped(Snapshot s,int maximumAcquisition,int maximumSegments,boolean exactChildren){
         if(maximumAcquisition<1 || maximumAcquisition>64 || maximumSegments<1 || maximumSegments>MAX_ACTIONS)
             throw new IllegalArgumentException("Finite native planning limits required");
-        return analyse(s,maximumAcquisition,maximumSegments,true);
+        return analyse(s,maximumAcquisition,maximumSegments,true,exactChildren);
     }
-    private Analysis analyse(Snapshot s,int maximumAcquisition,int maximumSegments,boolean grouped){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(blocked.equals("ORIGINAL_OWNER_NOT_SETTLED") || blocked.equals("AUTHORITY_OR_ACTOR_UNAVAILABLE")?Feasibility.UNKNOWN:Feasibility.INFEASIBLE,blocked,null,Cost.ZERO,Map.of(),0);
+    private Analysis analyse(Snapshot s,int maximumAcquisition,int maximumSegments,boolean grouped,boolean exactChildren){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(blocked.equals("ORIGINAL_OWNER_NOT_SETTLED") || blocked.equals("AUTHORITY_OR_ACTOR_UNAVAILABLE")?Feasibility.UNKNOWN:Feasibility.INFEASIBLE,blocked,null,Cost.ZERO,Map.of(),0);
         var initial=new State(Map.copyOf(pool(s)),Map.of(),eligible(s),facilityReady(s),Cost.ZERO,List.of());
         var order=Comparator.<State>comparingInt(x->x.actions.size()).thenComparing(Comparator.comparingLong((State x)->x.eligible).reversed());
         if(grouped)order=order.thenComparingInt(x->x.nativeRun==null?0:x.nativeRun.segments());
         order=order.thenComparingLong(StaticProductionPlanner::exposure).thenComparingLong(x->x.cost.travel()).thenComparingLong(x->x.cost.effects()).thenComparingLong(x->x.cost.ticks()).thenComparing(StaticProductionPlanner::stateKey).thenComparing(x->StrictJson.canonical(x.actions.stream().map(Action::value).toList()));
-        var queue=new PriorityQueue<>(order);queue.add(initial);var visited=new HashMap<String,Cost>();var relevant=relevant(s);int expansions=0;boolean limited=false,budgetPruned=false,nativePruned=false;boolean[] truncated={false};
+        var queue=new PriorityQueue<>(order);queue.add(initial);var visited=new HashMap<String,Cost>();var relevant=relevant(s);long plankBound=plankBound(s,exactChildren);int expansions=0;boolean limited=false,budgetPruned=false,nativePruned=false;boolean[] truncated={false};
         while(!queue.isEmpty() && expansions<maximumExpansions){var state=queue.remove();String key=stateKey(state)+(state.nativeRun==null?"":":"+state.nativeRun.key());var old=visited.get(key);if(old!=null && old.travel()<=state.cost.travel() && old.effects()<=state.cost.effects() && old.ticks()<=state.cost.ticks())continue;visited.put(key,state.cost);expansions++;
-            if(state.eligible>=s.remainingDemand())return new Analysis(Feasibility.FEASIBLE,"FEASIBLE_CURRENT_SNAPSHOT",pin(s,state.actions),state.cost,residual(s,state),expansions);
+            if(state.eligible>=s.remainingDemand())return new Analysis(Feasibility.FEASIBLE,"FEASIBLE_CURRENT_SNAPSHOT",pin(s,state.actions),state.cost,residual(s,state,exactChildren),expansions);
             if(state.actions.size()>=MAX_ACTIONS){limited=true;continue;}
-            for(var action:candidates(s,state,relevant,truncated)){State next;try{next=apply(state,action);}catch(ArithmeticException overflow){limited=true;continue;}
+            for(var action:candidates(s,state,relevant,plankBound,truncated)){State next;try{next=apply(state,action,exactChildren);}catch(ArithmeticException overflow){limited=true;continue;}
                 if(next!=null && grouped){next=next.grouped(s,state.nativeRun,action,maximumAcquisition);if(next.nativeRun.segments()>maximumSegments){nativePruned=true;continue;}}
                 if(next!=null && s.budget().fits(next.cost)){if(queue.size()<4096)queue.add(next);else limited=true;}else if(next!=null)budgetPruned=true;}
         }
@@ -126,7 +143,8 @@ public final class StaticProductionPlanner {
         return new Analysis(Feasibility.INFEASIBLE,nativePruned?"NATIVE_SEGMENT_LIMIT_EXCEEDED":budgetPruned?"CUMULATIVE_WHOLE_GOAL_BUDGET_INSUFFICIENT":"NO_SUPPORTED_WHOLE_GOAL_PATH",null,Cost.ZERO,initial.pool,expansions);
     }
     /** Simulates the remaining pinned sequence against a fresh projection. It applies no physical effects. */
-    public Analysis revalidate(Snapshot s,ValidatedPlan plan){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(Feasibility.UNKNOWN,blocked,null,Cost.ZERO,Map.of(),0);
+    public Analysis revalidate(Snapshot s,ValidatedPlan plan){return revalidate(s,plan,false);}
+    Analysis revalidate(Snapshot s,ValidatedPlan plan,boolean exactChildren){String blocked=boundaryProblem(s);if(!blocked.isEmpty())return new Analysis(Feasibility.UNKNOWN,blocked,null,Cost.ZERO,Map.of(),0);
         if(!plan.world().equals(s.world()) || !plan.root().equals(s.root()) || !plan.owner().equals(s.owner().originalOwner()) || !plan.context().equals(s.context()) || !plan.goal().equals(s.goal()))return new Analysis(Feasibility.INFEASIBLE,"PINNED_GOAL_OR_OWNER_CHANGED",null,Cost.ZERO,Map.of(),0);
         if(!plan.budgetInitialDigest().equals(s.budget().initialDigest()) || plan.originalDeadlineMillis()!=s.budget().absoluteDeadlineMillis())return new Analysis(Feasibility.INFEASIBLE,"ORIGINAL_BUDGET_OR_DEADLINE_CHANGED",null,Cost.ZERO,Map.of(),0);
         for(int i=0;i<plan.actions().size();i++){var a=plan.actions().get(i);if(s.settledActionTokens().contains(a.token(i)))continue;var pin=plan.methodPins().get(methodKey(a));var current=currentMethod(s,a);if(pin==null || !pin.equals(current) || !pin.usable())return new Analysis(Feasibility.UNKNOWN,"PINNED_METHOD_OR_RECIPE_UNAVAILABLE",null,Cost.ZERO,Map.of(),0);}
@@ -138,8 +156,8 @@ public final class StaticProductionPlanner {
             if(!legal(s,state,action))return new Analysis(Feasibility.UNKNOWN,"CURRENT_ACTION_BINDING_OR_COST_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
             if(action.kind()==Kind.ACQUIRE){var a=s.acquisition().stream().filter(x->x.key().equals(action.sourceKey())).findFirst().orElse(null);if(a==null || !a.permitted() || !a.reachable() || a.availability()!=Availability.PRESENT || !s.goal().policy().allowedAcquisition().contains(a.source()) || state.acquired.getOrDefault(a.key(),0L)>=a.availableUnits())return new Analysis(Feasibility.UNKNOWN,"CURRENT_ACQUISITION_SOURCE_UNAVAILABLE",null,Cost.ZERO,state.pool,index);}
             if(action.kind()==Kind.PRODUCE && s.recipe(action.recipe()).map(RecipeProfile::axe).orElse(false) && !state.table || action.kind()==Kind.PLACE_TABLE && !canPlace(s))return new Analysis(Feasibility.UNKNOWN,"CURRENT_FACILITY_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
-            state=apply(state,action);if(state==null)return new Analysis(Feasibility.UNKNOWN,"REMOVED_CHECKPOINT_MATERIAL_REQUIRES_REPLAN",null,Cost.ZERO,Map.of(),index);
+            state=apply(state,action,exactChildren);if(state==null)return new Analysis(Feasibility.UNKNOWN,"REMOVED_CHECKPOINT_MATERIAL_REQUIRES_REPLAN",null,Cost.ZERO,Map.of(),index);
             if(!s.budget().fits(state.cost))return new Analysis(Feasibility.INFEASIBLE,"CUMULATIVE_REMAINING_PLAN_BUDGET_INSUFFICIENT",null,Cost.ZERO,state.pool,index);}
-        return state.eligible>=s.remainingDemand()?new Analysis(Feasibility.FEASIBLE,"PINNED_SEQUENCE_REVALIDATED_WITHOUT_INFERENCE",plan,state.cost,residual(s,state),index):new Analysis(Feasibility.UNKNOWN,"AUTHORITATIVE_PROGRESS_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
+        return state.eligible>=s.remainingDemand()?new Analysis(Feasibility.FEASIBLE,"PINNED_SEQUENCE_REVALIDATED_WITHOUT_INFERENCE",plan,state.cost,residual(s,state,exactChildren),index):new Analysis(Feasibility.UNKNOWN,"AUTHORITATIVE_PROGRESS_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
     }
 }

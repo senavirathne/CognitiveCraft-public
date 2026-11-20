@@ -193,6 +193,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         int batch=run.observedPhases/phases.size();
         if(batch>=(run.choice==null?1:run.choice.batches().size()) || phase!=phases.get(run.observedPhases%phases.size()))
             return refusal(Reason.REQUEST_INVALID,false);
+        if(publicationPending())return waiting(false);
         var owner=current(run);
         if(owner==null)return refusal(Reason.INTERRUPTED,false);
         // A new physical write may follow only an acknowledged original Jobs receipt prefix.
@@ -249,7 +250,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         try { pending.prepared.join(); }
         catch(CompletionException failed){run.pending=null;return refusal(journal.fenced()?Reason.STORAGE_UNAVAILABLE:Reason.STORAGE_LIMIT_REACHED,false);}
         if(pending.result==null) {
-            if(jobs.unavailableReason()==Reason.BUDGET_EXHAUSTED || leases.failure()==null && !leases.ready())return waiting(false);
+            if(publicationPending())return waiting(false);
             apply(run,pending,usage);
             return waiting(pending.possibleEffect);
         }
@@ -265,6 +266,10 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             run.pending=null; run.observedPhases++;
             return new ExactRecipeResult(false,true,receipt,null);
         }catch(RuntimeException missing){return refusal(Reason.INTERRUPTED,pending.possibleEffect);}
+    }
+
+    private boolean publicationPending() {
+        return jobs.unavailableReason()==Reason.BUDGET_EXHAUSTED || leases.failure()==null && !leases.ready();
     }
 
     private void apply(Run run,Pending pending,Budgets.Ledger usage) {

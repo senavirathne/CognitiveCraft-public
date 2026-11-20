@@ -32,7 +32,9 @@ public final class FabricPickupProtocol implements PickupProtocol {
     private final Map<ChunkPos,CompletableFuture<EntityChunkRecord.Frame>> frames=new HashMap<>();
     private final Map<ChunkPos,Long> frameRevisions=new HashMap<>();
     private Consumer<Point> observer=p->{};
-    private final Map<String,FabricHarvestProtocol.PickupLineage> live=new HashMap<>();
+    private record LivePickup(FabricHarvestProtocol.PickupLineage lineage,NativePickup.Intent intent,
+                              NativePickup.Result result,Marker marker) { }
+    private final Map<String,LivePickup> live=new HashMap<>();
     private String descendant="";
     private static final List<String> CAPTURE_PHASES=List.of("owner","original-harvest","native-lineage","allowance","intent","storage-and-ticket");
     private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
@@ -65,6 +67,12 @@ public final class FabricPickupProtocol implements PickupProtocol {
         },clock,30_000,readOnly);
     }
     private void check(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Pickup game-thread owner");}
+    @Override public boolean waitingOnPublication() {
+        check();
+        return jobs.productionPlanningReady() && !store.fenced() && !harvest.evidence().fenced()
+                && (store.pending() || harvest.evidence().pending() || jobs.unavailableReason()==Reason.BUDGET_EXHAUSTED
+                    || leases.failure()==null && !leases.ready() || deposits!=null && !deposits.fenced() && deposits.pending());
+    }
     private EntityStorageEvidence nativeStorage(){
         // Preserve late registration/unavailability behavior without caching availability.
         if(nativeStorage==null)nativeStorage=NativeEntityStorage.get(level);
@@ -212,7 +220,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
         var marker=new Marker(intent.key().token(),intent.digest(),MarkerPhase.RESULT,result.digest());mark(intent,actor,remaining,marker);
         stage(intent.actorTrail(),NativePickup.Role.ACTOR,result.actor().revision(),marker,true,ticket.actorPredecessor);
         stage(intent.dropTrail(),NativePickup.Role.DROP,result.remaining()==null?h.result().drops().getFirst().revision():result.remaining().revision(),marker,result.remaining()!=null,null);
-        live.put(intent.key().token(),ticket.lineage);
+        live.put(intent.key().token(),new LivePickup(ticket.lineage,intent,result,marker));
         ((EntityMembershipParticipant)actor).cognitivecraft$membershipData().result(marker,result.actor().revision(),true);
         if(remaining!=null)((EntityMembershipParticipant)remaining).cognitivecraft$membershipData().result(marker,result.remaining().revision(),true);
         frames.clear();return result;
@@ -439,16 +447,18 @@ public final class FabricPickupProtocol implements PickupProtocol {
                     || !harvest.actorMatches(actor, p.result().actor(), source.marker(), true) || !preflight.getAsBoolean()) return null;
             return new DepositLineage(this, saved, new NativeJoinedDeposit.Prefix(p, trail));
         }
-        var link=live.get(token);var acknowledged=store.acknowledged(p.intent().key());
-        if(link==null || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
+        var committed=live.get(token);var acknowledged=store.acknowledged(p.intent().key());
+        if(committed==null || !committed.intent().equals(p.intent()) || !committed.result().equals(p.result())
+                || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
         var entity=level.getEntity(request.actor().entityId());var source=harvest.sourceWitness(p.result().source());
         if(!(entity instanceof Villager actor) || source==null || !source.source().equals(p.result().source())
-                || !FabricHarvestProtocol.matchesResultMarker(source.marker(),token,p.intent().digest(),p.result().digest())
+                || !committed.marker().equals(source.marker())
                 || level.getEntity(p.intent().dropTrail().entity())!=null
                 || !harvest.actorMatches(actor,p.result().actor(),source.marker(),true))return null;
         descendant=token;
         try {
+            var link=committed.lineage();
             var prefix=harvest.prepareDepositLineage(link,p,preflight);
             return prefix==null?null:new DepositLineage(this,acknowledged,link,prefix);
         }finally{descendant="";}

@@ -216,7 +216,8 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
         Registry registry = new Registry();
         if(RecipeProduction.is(harvest.capability())) {
             var criterion=new Criteria(harvest.capability().equals(BirchPlankProduction.ID) ? "cognitivecraft:available_birch_input_container" : !RecipeProduction.of(harvest.capability()).input().equals(ResourceDelivery.OAK_LOG) ? "cognitivecraft:available_oak_plank_input_container" : "cognitivecraft:available_oak_input_container");
-            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID) || harvest.capability().equals(BirchPlankProduction.ID)),harvest.source().objectType()));
+            var recipient=pointedRecipient(harvest);
+            registry.register(Kind.CONTAINER,criterion,search->WorldReferenceDiscovery.inputContainers(actor,RecipeProduction.of(harvest.capability()).inputs(harvest.amount()),actorAnchor,world,RecipeProduction.of(harvest.capability()).input(),composition && (harvest.capability().equals(WoodenAxeProduction.ID) || harvest.capability().equals(CraftingTableProduction.ID) || harvest.capability().equals(BirchPlankProduction.ID)),harvest.source().objectType(),recipient));
             inputAttempt=registry.start(search(Kind.CONTAINER,actorAnchor,criterion),clock.millis(),allowance);
             stage=Stage.SOURCE;return;
         }
@@ -225,6 +226,15 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
                 search -> WorldReferenceDiscovery.sources(harvest.capability(),actor,Math.toIntExact(harvest.amount()),actorAnchor,world));
         sourceAttempt = registry.start(search(Kind.AREA, actorAnchor, sourceCriteria), clock.millis(), allowance);
         stage = Stage.SOURCE;
+    }
+
+    private ContainerRef pointedRecipient(LanguageRequests.HarvestIntent harvest) {
+        var output=harvest.destination();
+        if(!provisioning || !harvest.capability().equals(WoodenAxeProduction.ID)
+                || harvest.source().state()!=ReferenceState.OMITTED || output.state()!=ReferenceState.EXPLICIT_CONCRETE
+                || output.evidence()==null || !output.evidence().replaceAll("\\s+"," ").equalsIgnoreCase("this chest"))return null;
+        var point=output.concrete();
+        return new ContainerRef(actor.dimension(),point.x(),point.y(),point.z());
     }
 
     private LanguageRequests.Resolution pollSource() {

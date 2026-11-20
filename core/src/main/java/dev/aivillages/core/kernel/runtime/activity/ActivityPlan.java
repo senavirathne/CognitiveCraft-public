@@ -8,16 +8,20 @@ import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.production.planning.PlanningModel.*;
 
 /** Persisted immutable B plan body. Rebinding still requires the current authoritative A frame. */
-public record ActivityPlan(String planDigest,List<Action> actions,Map<String,MethodPin> methods) {
+public record ActivityPlan(String planDigest,List<Action> actions,Map<String,MethodPin> methods,boolean exactChildren) {
     private static final int INLINE_PLAN_CHARS = 4_096;
 
+    public ActivityPlan(String planDigest,List<Action> actions,Map<String,MethodPin> methods) {
+        this(planDigest,actions,methods,false);
+    }
     public ActivityPlan {
         if(!dev.aivillages.core.kernel.RecipeTransaction.hash(planDigest) || actions.isEmpty()
                 || actions.size()>MAX_ACTIONS || methods.isEmpty() || methods.size()>MAX_ACTIONS)
             throw new IllegalArgumentException("Bounded pinned production plan");
         actions=List.copyOf(actions);methods=Map.copyOf(methods);
     }
-    public static ActivityPlan of(ValidatedPlan plan){return new ActivityPlan(plan.digest(),plan.actions(),plan.methodPins());}
+    public static ActivityPlan of(ValidatedPlan plan){return of(plan,false);}
+    public static ActivityPlan of(ValidatedPlan plan,boolean exactChildren){return new ActivityPlan(plan.digest(),plan.actions(),plan.methodPins(),exactChildren);}
     public ValidatedPlan bind(Snapshot current) {
         var plan=new ValidatedPlan(current.world(),current.root(),current.owner().originalOwner(),current.context(),
                 current.goal(),current.budget().initialDigest(),current.budget().absoluteDeadlineMillis(),actions,methods);
@@ -41,7 +45,8 @@ public record ActivityPlan(String planDigest,List<Action> actions,Map<String,Met
             row.put("allowance",Map.of("travel",cost.travel(),"effects",cost.effects(),"ticks",cost.ticks()));
             actionRows.add(row);
         }
-        var body=Map.<String,Object>of("planDigest",planDigest,"actions",actionRows,"methods",pinRows);
+        var body=new TreeMap<String,Object>(Map.of("planDigest",planDigest,"actions",actionRows,"methods",pinRows));
+        if(exactChildren)body.put("exactChildren",true);
         String text=StrictJson.canonical(body);
         String digest=ActivityPayload.digest(text);
         if(text.length()<=INLINE_PLAN_CHARS && actions.stream().noneMatch(action->
@@ -62,7 +67,11 @@ public record ActivityPlan(String planDigest,List<Action> actions,Map<String,Met
             keys(envelope,"body","sha256");
             body=object(envelope.get("body"));
         }
-        keys(body,"planDigest","actions","methods");
+        boolean exactChildren=body.containsKey("exactChildren");
+        if(exactChildren) {
+            keys(body,"planDigest","actions","methods","exactChildren");
+            if(!bool(body,"exactChildren"))throw new IllegalArgumentException("Pinned child transfer policy");
+        } else keys(body,"planDigest","actions","methods");
         if(!ActivityPayload.digest(StrictJson.canonical(body)).equals(string(envelope,"sha256")))
             throw new IllegalArgumentException("Pinned plan body digest differs");
         var decoded=new ArrayList<Action>();
@@ -85,7 +94,7 @@ public record ActivityPlan(String planDigest,List<Action> actions,Map<String,Met
             pins.put(role,new MethodPin(capability(pin.get("capability")),string(pin,"artifact"),string(pin,"semantic"),
                     bool(pin,"usable"),integer(pin,"artifactVersion"),integer(pin,"contractVersion")));
         });
-        return new ActivityPlan(string(body,"planDigest"),decoded,pins);
+        return new ActivityPlan(string(body,"planDigest"),decoded,pins,exactChildren);
     }
     private static Map<String,Object> capability(CapabilityId id){return Map.of("name",id.name(),"version",id.version());}
     private static CapabilityId capability(Object value){var row=object(value);keys(row,"name","version");return new CapabilityId(string(row,"name"),integer(row,"version"));}

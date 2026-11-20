@@ -7,6 +7,7 @@ from pathlib import Path
 from .adversarial import ledger
 from .campaign_review import aggregate
 from .identity import candidate
+from .joint_controls import REQUIRED as JOINT_CASES
 from .walkthrough import COHORTS, cases
 from suite import atomic
 
@@ -48,10 +49,18 @@ def collect(artifacts, out, exact, jobs, shards):
             original = f"{b}/{Path(path).name}"
         accept(key, original, path, status)
     for cohort in COHORTS:
-        accept(cohort, f"i00-review-walkthrough-{cohort}-{suffix}/review.json", f"walkthrough/{cohort}/review.json",
+        directory = f"i00-review-walkthrough-{cohort}-{suffix}"
+        review = f"{directory}/review.json"
+        if not (artifacts / review).is_file():
+            review = f"{directory}/walkthrough/{cohort}/review.json"
+        accept(cohort, review, f"walkthrough/{cohort}/review.json",
                "PASS_INDEPENDENT_NATIVE_REVIEW", lambda r: r.get("cohort") == cohort
                and r.get("requiredCases") == list(cases(cohort))
                and (cohort != "saved-offline" or r.get("offlineResumedCompletions", 0) > 0))
+    accept("joint-controls", f"i00-review-walkthrough-live-{suffix}/joint/joint-review.json",
+           "joint-controls/review.json", "PASS_REQUIRED_JOINT_CONTROLS",
+           lambda row: row.get("requiredCases") == list(JOINT_CASES)
+           and [case["id"] for case in row["cases"] if case["status"] == "PASS"] == list(JOINT_CASES))
     for index in range(shards):
         accept(f"original-{index}", f"i00-review-original-{index}-{suffix}/review.json", f"campaign/{index}/review.json",
                "PASS_INDEPENDENT_NATIVE_REVIEW")

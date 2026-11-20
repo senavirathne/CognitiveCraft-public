@@ -90,18 +90,29 @@ public final class PlanningCoordinator {
     }
     /** Execution hosts may select a smaller native acquisition envelope without changing the goal. */
     public Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition){
-        return next(s,saved,memory,maximumAcquisition,MAX_ACTIONS,false);
+        return next(s,saved,memory,maximumAcquisition,MAX_ACTIONS,false,false);
     }
     /** A host may constrain native segment count while the original pure planning route stays unchanged. */
     public Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments) {
-        return next(s,saved,memory,maximumAcquisition,maximumSegments,true);
+        return next(s,saved,memory,maximumAcquisition,maximumSegments,true,false);
     }
-    private Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean grouped) {
+    /** Joint runtime policy transfers only the child demand, preserving the remainder in actor custody. */
+    public Decision nextActivity(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean exactChildren) {
+        return next(s,saved,memory,maximumAcquisition,maximumSegments,true,exactChildren);
+    }
+    private Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean grouped,boolean exactChildren) {
         if(maximumAcquisition<1 || maximumAcquisition>64)throw new IllegalArgumentException("Bounded native acquisition envelope");
         if(maximumSegments<1 || maximumSegments>MAX_ACTIONS)throw new IllegalArgumentException("Bounded native segment envelope");
         Objects.requireNonNull(memory);String boundary=StaticProductionPlanner.boundaryProblem(s);if(!boundary.isEmpty())return stop(s,memory,null,boundary,null);String budget=budgetProblem(s,memory);if(!budget.isEmpty())return stop(s,memory,null,budget,null);
         if(s.remainingDemand()==0)return new Decision(DecisionKind.GOAL_ALREADY_CREDITED,"AUTHORITATIVE_CREDIT_ALREADY_COVERS_DEMAND",null,null,null,remember(s,signature(s,"credited"),memory.lastProposalId(),0,Long.MAX_VALUE),Long.MAX_VALUE);
-        var analysis=saved==null?(grouped?planner.analyse(s,maximumAcquisition,maximumSegments):planner.analyse(s)):planner.revalidate(s,saved);if(analysis.feasibility()!=Feasibility.FEASIBLE)return stop(s,memory,analysis,analysis.reason(),null);var plan=analysis.plan();boolean newPlan=saved==null;
+        var analysis=saved==null?(grouped?planner.analyseGrouped(s,maximumAcquisition,maximumSegments,exactChildren):planner.analyse(s)):
+                planner.revalidate(s,saved,exactChildren);
+        if(analysis.feasibility()!=Feasibility.FEASIBLE) {
+            boolean rootMethodMissing=grouped && !s.modelAvailable() && s.recipes().stream().anyMatch(profile->
+                    profile.result().equals(s.goal().item()) && (profile.method()==null || !profile.method().usable()));
+            return stop(s,memory,analysis,rootMethodMissing?"PINNED_METHOD_UNAVAILABLE_OFFLINE":analysis.reason(),null);
+        }
+        var plan=analysis.plan();boolean newPlan=saved==null;
         var current=s.stock().stream().filter(x->StaticProductionPlanner.eligibleIn(s,x)>0).sorted(Comparator.comparingLong(Stock::travelCost).thenComparing(Stock::key)).toList();
         if(!current.isEmpty()){var stock=current.getFirst();long amount=Math.min(Math.min(StaticProductionPlanner.eligibleIn(s,stock),s.remainingDemand()),s.goal().policy().carryingUnits());boolean atDestination=s.activeDestination().equals(stock.location().container());Kind kind=atDestination?Kind.ALLOCATE_CURRENT:Kind.DELIVER_CURRENT;
             if(!s.supportedKinds().contains(kind))return stop(s,memory,analysis,"CURRENT_DELIVERY_OR_ALLOCATION_ADAPTER_UNSUPPORTED",null);var pin=atDestination?null:outputMethod(s,stock.item());if(!atDestination && pin==null)return stop(s,memory,analysis,"PINNED_DELIVERY_METHOD_UNAVAILABLE",null);
@@ -113,7 +124,7 @@ public final class PlanningCoordinator {
         if(carryBatches<1)return stop(s,memory,analysis,"CURRENT_CARRYING_CAPACITY_INSUFFICIENT",null);int maximum=a.kind()==Kind.PRODUCE?definition(a.capability()).maximumBatches():a.kind()==Kind.ACQUIRE?maximumAcquisition:1;
         for(int i=first+1;i<plan.actions().size() && count<carryBatches && count<maximum;i++){var next=plan.actions().get(i);if(!group(a,next) || s.settledActionTokens().contains(next.token(i)))break;count++;demand=Math.addExact(demand,next.requestedDemand());}
         var tokens=new ArrayList<String>();for(int i=0;i<count;i++)tokens.add(plan.actions().get(first+i).token(first+i));var pin=method(s,a);if(pin==null || !pin.usable())return stop(s,memory,analysis,s.modelAvailable() && s.budget().remaining(Counter.MODEL_CALLS)>0?"EXISTING_AUTHORIZED_ADMISSION_REQUIRED":"PINNED_METHOD_UNAVAILABLE_OFFLINE",null);
-        long physical=Math.multiplyExact((long)a.yield(),count),nativeAmount=a.rootOutput()?demand:physical;ContainerRef destination=a.rootOutput()?s.activeDestination():s.goal().policy().staging();ChoiceOffer choice=null;List<StockBinding> selectedBindings=List.of();CapabilityRequest requestedInvocation=null;
+        long physical=Math.multiplyExact((long)a.yield(),count),nativeAmount=a.rootOutput() || exactChildren && a.kind()==Kind.PRODUCE ? demand : physical;ContainerRef destination=a.rootOutput()?s.activeDestination():s.goal().policy().staging();ChoiceOffer choice=null;List<StockBinding> selectedBindings=List.of();CapabilityRequest requestedInvocation=null;
         if(a.kind()==Kind.PRODUCE && a.capability().version()==2){final int n=count;final long amount=nativeAmount;choice=s.choices().stream().filter(o->matches(s,a,n,amount,destination,o)).sorted(Comparator.comparingLong((ChoiceOffer o)->offerTravel(s,o)).thenComparing(o->o.sources().containers().toString()).thenComparing(o->o.choice().batches().toString())).findFirst().orElse(null);
             if(choice==null)return stop(s,memory,analysis,"FRESH_EXACT_NATIVE_CHOICE_REQUIRED",new ChoiceRequest(a.capability(),nativeAmount,count,a.inputs(),destination,s.recipe(a.recipe()).orElseThrow().semanticFingerprint(),s.goal().policy().allowedSources().stream().sorted(Comparator.comparing(Object::toString)).toList()));
             requestedInvocation=choice.request().request();var bound=new ArrayList<StockBinding>();for(var lot:s.stock())if(choiceStock(choice,lot)){long unitsBound=0;for(var batch:choice.choice().batches())for(var b:batch.bindings())if(lot.location().container().equals(b.source()) && lot.location().slot()==b.sourceSlot() && lot.item().equals(b.item()))unitsBound++;bound.add(binding(lot,unitsBound));}selectedBindings=List.copyOf(bound);}

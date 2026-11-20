@@ -170,6 +170,10 @@ public final class WorldReferenceDiscovery {
         return inputContainers(actor,required,anchor,world,item,allowShortfall,ObjectType.UNSPECIFIED);
     }
     public static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,ResourceDelivery.ItemIdentity item,boolean allowShortfall,ObjectType type) {
+        return inputContainers(actor,required,anchor,world,item,allowShortfall,type,null);
+    }
+    static Discovery<InputContainerTarget> inputContainers(ActorRef actor,int required,Point anchor,Observation world,
+            ResourceDelivery.ItemIdentity item,boolean allowShortfall,ObjectType type,ContainerRef explicitRecipient) {
         if(required<1 || required>32 || !LogAcquisition.log(item) && !item.equals(ResourceDelivery.OAK_PLANKS))
             throw new IllegalArgumentException("Input batch envelope");
         return new Discovery<>() {
@@ -189,7 +193,10 @@ public final class WorldReferenceDiscovery {
                     }
                 }
                 if(cursor<SEARCH_CELLS)return Scan.progress(List.of(),work,List.of());
-                if(allowShortfall && candidates.stream().anyMatch(c->c.value().evidence().available()>=required))candidates=candidates.stream().filter(c->c.value().evidence().available()>=required).toList();
+                if(allowShortfall && candidates.stream().anyMatch(c->c.value().evidence().available()>=required))
+                    candidates=candidates.stream().filter(c->c.value().evidence().available()>=required).toList();
+                else if(explicitRecipient!=null && candidates.stream().anyMatch(c->!explicitRecipient.equals(c.value().container())))
+                    candidates=candidates.stream().filter(c->!explicitRecipient.equals(c.value().container())).toList();
                 return unknown ? Scan.complete(List.of(),work,Reason.STALE_OBSERVATION,List.of("incomplete-input-container-envelope"))
                         : Scan.complete(candidates,work,Reason.RESOURCE_MISSING,List.of());
             }

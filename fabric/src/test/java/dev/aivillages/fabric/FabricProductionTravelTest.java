@@ -47,7 +47,7 @@ class FabricProductionTravelTest {
         long travel=FabricProductionTravel.acquisition(start,source,logs);
         var acquisition=new Acquisition("observed-logs",area,log,3,Availability.PRESENT,true,true,method,new Cost(travel,4,120+6*travel));
         var placement=new MethodPin(CraftingTablePlacement.ID,RecipeTransaction.fingerprint("fixture:place"),RecipeTransaction.fingerprint("fixture:site"),true);
-        long placing=FabricProductionTravel.recipe(start,source,at(71,208,69),null,site);
+        long placing=FabricProductionTravel.placement(start,source,site);
         var facility=new Facility(site,Availability.ABSENT,true,true,"",true,0,placement,new Cost(placing,3,100+6*placing));
         var policy=new Policy(actor,Set.of(actor),Set.of(source),Set.of(destination),Set.of(area),source,site,true,false,0,16);
         var goal=new Goal(Mode.MAKE_NEW,axe,1,destination,policy);
@@ -75,6 +75,7 @@ class FabricProductionTravelTest {
         assertEquals(23,FabricProductionTravel.recipe(start,source,destination,site,site));
         assertEquals(23,FabricProductionTravel.recipe(at(77,208,73),source,destination,site,site));
         assertTrue(FabricProductionTravel.recipe(at(90,208,90),source,destination,site,site)>23);
+        assertEquals(12,FabricProductionTravel.placement(start,source,site));
     }
     @Test void missingTargetsAndCrossDimensionQuotesDoNotAdvertiseAUsableRoute() {
         assertThrows(IllegalArgumentException.class,()->FabricProductionTravel.acquisition(at(0,0,0),at(1,0,0),List.of()));

@@ -43,6 +43,8 @@ public interface PickupProtocol {
     }
     Progress poll(Ticket ticket);
     void forget(Ticket ticket);
+    /** A transient owner publication may finish while the original action is still within its bounds. */
+    default boolean waitingOnPublication() { return false; }
     /** A read of the registered native owner for an already reactivated original Jobs attempt. */
     default List<ResourceDelivery.Receipt> restoreForDeposit(ValidatedRequest bound, RunCorrelation correlation) { return List.of(); }
     default void releaseRestoredPickup(UUID run) { }

@@ -6,11 +6,17 @@ from pathlib import Path
 import shutil
 
 
+NATIVE_OWNERS = {"jobs", "leases", "harvest-evidence", "pickup-evidence", "deposit-evidence", "recipe-evidence"}
+
+
 def collect(root, out):
     rows=[]
     for source in sorted(root.rglob("*")):
         relative=source.relative_to(root)
-        if not source.is_file() or source.is_symlink() or ("game" in relative.parts and "logs" not in relative.parts):
+        native_journal = ("cognitivecraft" in relative.parts and any(part in NATIVE_OWNERS for part in relative.parts)
+                          and source.suffix == ".jsonl")
+        if not source.is_file() or source.is_symlink() or ("game" in relative.parts and "logs" not in relative.parts
+                                                          and not native_journal):
             continue
         if source.suffix not in (".json", ".log", ".xml", ".jsonl"):
             continue
