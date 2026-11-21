@@ -42,6 +42,60 @@ final class ArchiveWriterTest {
         }
         try(var reopened=writer()) {assertFalse(reopened.readOnly());assertFalse(reopened.authentic(old,Owner.JOBS,guard));assertEquals(row,reopened.lookup(new Key(Owner.JOBS,Kind.HISTORY,row.id())).orElseThrow());}
     }
+    @Test void packedHistoryFitsOriginalStorageBoundsAndReopensEveryExactRow()throws Exception {
+        var jobs=new ArrayList<Row>();
+        var leases=new ArrayList<Row>();
+        var legacy=row(UUID.randomUUID(),"exact older uncompressed owner history");
+        try(var writer=writer()) {
+            assertTrue(writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(legacy),fences).acknowledged());
+            writer.packClosedHistory();
+            for(int batch=0;batch<100;batch++) {
+                int start=jobs.size();
+                for(int index=0;index<10;index++) {
+                    jobs.add(row(UUID.randomUUID(),"authoritative job components and receipts ".repeat(285)+UUID.randomUUID()));
+                    for(int claim=0;claim<2;claim++)
+                        leases.add(row(UUID.randomUUID(),"original retired lease group and native resource identity ".repeat(10)+UUID.randomUUID()));
+                }
+                assertTrue(writer.append(writer.snapshot(),Owner.JOBS,guard,jobs.subList(start,start+10),fences).acknowledged());
+                for(int from=2*start;from<leases.size();from+=10)
+                    assertTrue(writer.append(writer.snapshot(),Owner.LEASES,guard,leases.subList(from,from+10),fences).acknowledged());
+            }
+            assertEquals(301,writer.historyView().records());
+            assertTrue(writer.historyView().protectedSegments().size()<policy.segments());
+            assertTrue(writer.historyView().bytes()<policy.ordinaryBytes());
+            assertTrue(writer.historyView().redundantSegments().isEmpty());
+        }
+        try(var reopened=writer()) {
+            assertFalse(reopened.readOnly());
+            assertEquals(legacy,reopened.lookup(new Key(Owner.JOBS,Kind.HISTORY,legacy.id())).orElseThrow());
+            for(var archived:jobs)assertEquals(archived,reopened.lookup(new Key(Owner.JOBS,Kind.HISTORY,archived.id())).orElseThrow());
+            for(var archived:leases)assertEquals(archived,reopened.lookup(new Key(Owner.LEASES,Kind.HISTORY,archived.id())).orElseThrow());
+            assertEquals(ArchiveWriter.Status.DUPLICATE,
+                    reopened.append(reopened.snapshot(),Owner.JOBS,guard,List.of(jobs.getFirst()),fences).status());
+            assertThrows(IOException.class,()->reopened.append(reopened.snapshot(),Owner.JOBS,guard,
+                    List.of(row(jobs.getFirst().id(),"different original bytes")),fences));
+        }
+    }
+    @ParameterizedTest @EnumSource(value=ArchiveWriter.Point.class,names={"BEFORE_CLEANUP","AFTER_CLEANUP"})
+    void packedCopyRotationKeepsBothDurableManifestsAndOriginalKeys(ArchiveWriter.Point fault)throws Exception {
+        var first=row(UUID.randomUUID(),"first retained value ".repeat(30));
+        var second=row(UUID.randomUUID(),"second retained value ".repeat(30));
+        var third=row(UUID.randomUUID(),"third retained value ".repeat(30));
+        try(var writer=ArchiveWriter.open(world,worldId,policy,point->{if(point==fault)throw new IOException("Rotation cut");},Clock.systemUTC())) {
+            writer.packClosedHistory();
+            assertTrue(writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(first),fences).acknowledged());
+            assertTrue(writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(second),fences).acknowledged());
+            assertEquals(2,writer.historyView().protectedSegments().size());
+            assertThrows(IOException.class,()->writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(third),fences));
+            assertTrue(writer.readOnly());
+        }
+        var actual=ArchiveHistory.read(world,worldId,policy);
+        assertEquals(ArchiveHistory.State.READY,actual.state());
+        assertEquals(2,actual.protectedSegments().size());
+        for(var value:List.of(first,second,third))
+            assertEquals(value,actual.lookup(new Key(Owner.JOBS,Kind.HISTORY,value.id())).orElseThrow());
+        assertEquals(fault==ArchiveWriter.Point.BEFORE_CLEANUP?1:0,actual.redundantSegments().size());
+    }
     @Test void conflictingReplayAndStaleOwnerNeverOverwriteOriginalHistory()throws Exception {
         UUID id=UUID.randomUUID();try(var writer=writer()) {
             assertTrue(writer.append(writer.snapshot(),Owner.JOBS,guard,List.of(row(id,"original")),fences).acknowledged());var before=writer.snapshot();

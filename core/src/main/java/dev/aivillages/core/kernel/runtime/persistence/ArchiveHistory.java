@@ -10,33 +10,43 @@ import static dev.aivillages.core.kernel.runtime.persistence.ArchiveFormat.*;
 public final class ArchiveHistory {
     public static final String RELATIVE_PATH="data/cognitivecraft/runtime-history/v1";
     public static final String CURRENT="manifest.jsonl", PREVIOUS="manifest.prev.jsonl", PENDING="manifest.next.jsonl";
+    private static final int MAX_EXPANDED_RECORDS=4_096;
+    private static final long MAX_EXPANDED_BYTES=24*PersistencePolicy.MIB;
     public enum State { READY, FENCED }
     private final State state;
     private final Manifest manifest;
-    private final Map<Key,Row> current;
+    private final Map<Key,Row> rows;
+    private final int records;
     private final Set<String> references, redundant;
     private final long bytes;
     private final List<String> diagnostics;
-    private ArchiveHistory(State state,Manifest manifest,Map<Key,Row> current,Set<String> references,
+    private ArchiveHistory(State state,Manifest manifest,Map<Key,Row> rows,int records,Set<String> references,
             Set<String> redundant,long bytes,List<String> diagnostics) {
-        this.state=state;this.manifest=manifest;this.current=Map.copyOf(current);
+        this.state=state;this.manifest=manifest;this.rows=Map.copyOf(rows);this.records=records;
         this.references=Set.copyOf(references);this.redundant=Set.copyOf(redundant);this.bytes=bytes;this.diagnostics=List.copyOf(diagnostics);
     }
     public State state(){return state;}
     public Manifest manifest(){return manifest;}
     public long bytes(){return bytes;}
-    public int records(){return current.size();}
+    public int records(){return records;}
     public Set<String> protectedSegments(){return references;}
     public Set<String> redundantSegments(){return redundant;}
     public List<String> diagnostics(){return diagnostics;}
+    ArchiveHistory withoutRedundantCopy(String digest,long removedBytes) {
+        if(state!=State.READY || references.contains(digest) || !redundant.contains(digest) || removedBytes<1 || removedBytes>bytes)
+            throw new IllegalArgumentException("Only a proved redundant copy may leave the inventory");
+        var remaining=new HashSet<>(redundant);
+        remaining.remove(digest);
+        return new ArchiveHistory(state,manifest,rows,records,references,remaining,bytes-removedBytes,diagnostics);
+    }
     public Optional<Row> lookup(Key key)throws IOException {
         if(state!=State.READY)throw new IOException("Fenced archive cannot prove presence or absence");
-        return Optional.ofNullable(current.get(Objects.requireNonNull(key)));
+        return Optional.ofNullable(rows.get(Objects.requireNonNull(key)));
     }
     /** Bounded immutable domain-reader input. Enumerate/decode on the storage worker. */
     public List<Row> rows(Owner owner,Kind kind)throws IOException {
         if(state!=State.READY)throw new IOException("Fenced archive cannot enumerate history");
-        return current.entrySet().stream().filter(e->e.getKey().owner()==owner && e.getKey().kind()==kind)
+        return rows.entrySet().stream().filter(e->e.getKey().owner()==owner && e.getKey().kind()==kind)
                 .map(Map.Entry::getValue).toList();
     }
     public static ArchiveHistory read(Path world,UUID worldId,PersistencePolicy policy)throws IOException {
@@ -44,7 +54,7 @@ public final class ArchiveHistory {
         var requirement=ArchiveRequirement.inspect(world,worldId);
         Path root=world.resolve(RELATIVE_PATH);safe(root);
         if(!Files.exists(root,LinkOption.NOFOLLOW_LINKS))
-            return new ArchiveHistory(requirement.required()?State.FENCED:State.READY,Manifest.empty(worldId),Map.of(),Set.of(),Set.of(),
+            return new ArchiveHistory(requirement.required()?State.FENCED:State.READY,Manifest.empty(worldId),Map.of(),0,Set.of(),Set.of(),
                     requirement.bytes(),requirement.required()?List.of("REQUIRED_HISTORY_MISSING"):List.of());
         if(!Files.isDirectory(root,LinkOption.NOFOLLOW_LINKS))throw new IOException("Archive directory required");
         var diagnostics=new ArrayList<String>();var inventory=new LinkedHashMap<String,Long>();long physical=requirement.bytes();int segmentFiles=0;
@@ -115,7 +125,27 @@ public final class ArchiveHistory {
         }
         for(var e:captured.entrySet())if(!Arrays.equals(e.getValue(),read(root.resolve(e.getKey()),PersistencePolicy.MANIFEST_BYTES)))
             diagnostic(diagnostics,"MANIFEST_CHANGED_DURING_READ");
-        return new ArchiveHistory(diagnostics.isEmpty()?State.READY:State.FENCED,chosen,rows,references,redundant,physical,diagnostics);
+        Map<Key,Row> expanded=Map.of();
+        try {expanded=expand(rows);}
+        catch(IOException invalid){diagnostic(diagnostics,"INVALID_PACKED_HISTORY");}
+        return new ArchiveHistory(diagnostics.isEmpty()?State.READY:State.FENCED,chosen,expanded,rows.size(),
+                references,redundant,physical,diagnostics);
+    }
+    private static Map<Key,Row> expand(Map<Key,Row> stored)throws IOException {
+        if(stored.keySet().stream().noneMatch(key->key.kind()==Kind.PACKED_HISTORY))return stored;
+        var expanded=new LinkedHashMap<Key,Row>();
+        long bytes=0;
+        for(var entry:stored.entrySet()) {
+            var key=entry.getKey();
+            var original=key.kind()==Kind.PACKED_HISTORY?PackedHistory.unpack(entry.getValue()):List.of(entry.getValue());
+            for(var row:original) {
+                merge(expanded,new Key(key.owner(),row.kind(),row.id()),row);
+                bytes+=row.size();
+                if(expanded.size()>MAX_EXPANDED_RECORDS || bytes>MAX_EXPANDED_BYTES)
+                    throw new IOException("Expanded archive history bound");
+            }
+        }
+        return expanded;
     }
     private static void merge(Map<Key,Row> rows,Key key,Row value)throws IOException {
         Row previous=rows.putIfAbsent(key,value);

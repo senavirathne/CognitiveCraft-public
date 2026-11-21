@@ -19,7 +19,7 @@ public final class ArchiveFormat {
         return Math.addExact(savedBase,processGeneration);
     }
     public enum Owner { JOBS, LEASES }
-    public enum Kind { HISTORY, INTENT, RESULT, CANCELLATION, SETTLEMENT }
+    public enum Kind { HISTORY, INTENT, RESULT, CANCELLATION, SETTLEMENT, PACKED_HISTORY }
     public enum Phase { RESERVED, RESULT, CANCELLING, SETTLED }
     public record Guard(long ownerRevision, long retentionGeneration) {
         public Guard { if(ownerRevision<0 || retentionGeneration<0)throw new IllegalArgumentException("Archive fence"); }
@@ -34,6 +34,7 @@ public final class ArchiveFormat {
             payload=payload.clone();
         }
         @Override public byte[] payload() { return payload.clone(); }
+        int size() { return payload.length; }
         @Override public boolean equals(Object value) {
             return value instanceof Row r && kind==r.kind && id.equals(r.id) && Arrays.equals(payload,r.payload);
         }

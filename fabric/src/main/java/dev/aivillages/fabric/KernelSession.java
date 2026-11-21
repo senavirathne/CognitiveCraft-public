@@ -261,6 +261,7 @@ public final class KernelSession implements AutoCloseable {
                         || dev.aivillages.core.kernel.runtime.persistence.ArchiveRequirement.shouldRead(world)) {
                     history=dev.aivillages.core.kernel.runtime.persistence.ArchiveWriter.open(world,journal.state().worldId(),
                             dev.aivillages.core.kernel.runtime.persistence.PersistencePolicy.defaults());
+                    if(exactProductionEnabled)history.packClosedHistory();
                     jobHistory=new JobHistory(jobs::snapshot,history);
                     try{jobHistory.refresh(jobs.snapshot());}
                     catch(java.io.IOException unavailable){AiVillages.LOG.error("Job history unavailable; world mutations remain fenced",unavailable);}

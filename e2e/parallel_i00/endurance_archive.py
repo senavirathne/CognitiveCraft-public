@@ -1,16 +1,17 @@
 """Read the preserved native history independently of the Java archive readers."""
 
 from collections import Counter
-from hashlib import sha256
+from hashlib import md5, sha256
 import json
 import re
 from struct import Struct
 from uuid import UUID
+import zlib
 
 
 ARCHIVE_PATH = "data/cognitivecraft/runtime-history/v1"
 OWNERS = ("JOBS", "LEASES")
-KINDS = ("HISTORY", "INTENT", "RESULT", "CANCELLATION", "SETTLEMENT")
+KINDS = ("HISTORY", "INTENT", "RESULT", "CANCELLATION", "SETTLEMENT", "PACKED_HISTORY")
 MAX_BYTES = 8 * 1024 * 1024
 MAX_SEGMENTS = 128
 MAX_SEGMENT_BYTES = 131_072
@@ -19,6 +20,8 @@ MAX_RECORD_BYTES = 65_536
 MAX_MANIFEST_BYTES = 65_536
 SEGMENT_HEADER = Struct(">8sI16sBQQI")
 ROW_HEADER = Struct(">B16sI")
+PACK_HEADER = Struct(">4sI")
+PACK_ROW_HEADER = Struct(">16sI")
 SEGMENT_NAME = re.compile(r"[a-f0-9]{64}\.seg")
 
 
@@ -104,6 +107,47 @@ def read_segment(path, world):
             "bytes": len(data), "rows": records}
 
 
+def expand_history(stored):
+    records = {}
+    bytes_read = 0
+    for key, body in stored.items():
+        owner, kind, identifier = key
+        if kind != "PACKED_HISTORY":
+            require(records.setdefault(key, body) == body, "Conflicting original history record")
+            bytes_read += len(body)
+            continue
+        require(len(body) > PACK_HEADER.size, "Truncated packed history header")
+        magic, size = PACK_HEADER.unpack_from(body)
+        require(magic == b"CCP1" and 4 + PACK_ROW_HEADER.size < size <= MAX_SEGMENT_BYTES,
+                "Unknown packed history or unbounded decompression")
+        stream = zlib.decompressobj()
+        payload = stream.decompress(body[PACK_HEADER.size:], size + 1)
+        require(len(payload) == size and stream.eof and not stream.unused_data and not stream.unconsumed_tail
+                and str(UUID(bytes=md5(payload, usedforsecurity=False).digest(), version=3)) == identifier,
+                "Packed history does not match its original encoded identity")
+        count = int.from_bytes(payload[:4], "big")
+        require(1 <= count <= MAX_SEGMENT_ROWS, "Packed history row bound")
+        offset = 4
+        seen = set()
+        for _ in range(count):
+            require(offset + PACK_ROW_HEADER.size <= len(payload), "Truncated original history row")
+            row_id, length = PACK_ROW_HEADER.unpack_from(payload, offset)
+            offset += PACK_ROW_HEADER.size
+            row_key = (owner, "HISTORY", str(UUID(bytes=row_id)))
+            require(row_key not in seen and 1 <= length <= MAX_RECORD_BYTES and offset + length <= len(payload),
+                    "Invalid original packed row contents")
+            seen.add(row_key)
+            data = payload[offset:offset + length]
+            offset += length
+            require(records.setdefault(row_key, data) == data, "Conflicting original packed history record")
+            bytes_read += length
+        require(offset == len(payload) and len(records) <= 4096 and bytes_read <= 24 * 1024 * 1024,
+                "Trailing data or unbounded expanded history")
+    if any(kind == "PACKED_HISTORY" for _, kind, _ in stored):
+        require(len(records) <= 4096 and bytes_read <= 24 * 1024 * 1024, "Unbounded expanded history")
+    return records
+
+
 def verify_archive(world_path, world):
     """Return verified raw history and both manifests' accounting, without a game JVM."""
     directory = world_path / ARCHIVE_PATH
@@ -143,8 +187,9 @@ def verify_archive(world_path, world):
     for segment in decoded.values():
         require(all(history.get(key) == data for key, data in segment["rows"].items()),
                 "Unacknowledged or conflicting native archive segment")
-    return history, {"bytes": sum(sizes.values()), "segmentFiles": len(segment_names),
-                     "recordsByOwner": dict(Counter(key[0] for key in history)),
+    expanded = expand_history(history)
+    return expanded, {"bytes": sum(sizes.values()), "segmentFiles": len(segment_names),
+                     "storedRecords": len(history), "recordsByOwner": dict(Counter(key[0] for key in expanded)),
                      "current": {"revision": current["revision"], "sha256": digest, "segments": len(body["segments"])},
                      "previous": {"revision": previous["revision"], "sha256": previous_digest,
                                   "segments": len(previous_body["segments"])}}

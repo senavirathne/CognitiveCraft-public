@@ -19,8 +19,8 @@ public final class LeaseArchive {
             settledJobs=Set.copyOf(settledJobs);
         }
     }
-    private record Index(long revision,Map<UUID,Lease> ids,Map<UUID,List<Lease>> groups) {
-        private Index {ids=Map.copyOf(ids);groups=Map.copyOf(groups);}
+    private record Index(long revision,Map<UUID,Lease> ids,Map<UUID,List<Lease>> groups,Map<UUID,Row> evidence) {
+        private Index {ids=Map.copyOf(ids);groups=Map.copyOf(groups);evidence=Map.copyOf(evidence);}
     }
     private final class Reader implements ResourceLeaseService.History {
         private volatile Index index;
@@ -178,13 +178,20 @@ public final class LeaseArchive {
             return previous;
         }
         var ids=new HashMap<UUID,Lease>();var grouped=new HashMap<UUID,List<Lease>>();
+        var evidence=new HashMap<UUID,Row>();
         try {
             for(Row row:w.historyView().rows(ArchiveFormat.Owner.LEASES,ArchiveFormat.Kind.HISTORY)) {
-                Lease lease=ResourceLeaseCodec.decode(StrictJson.object(new String(row.payload(),StandardCharsets.UTF_8)));
-                if(!row.id().equals(lease.id()) || lease.state()==State.ACTIVE || !lease.resource().world().equals(hot.world())
-                        || !Arrays.equals(row.payload(),ResourceLeaseCodec.encode(lease).getBytes(StandardCharsets.UTF_8)))
-                    throw new IOException("Invalid exact retired lease history");
+                Lease lease;
+                if(previous!=null && row.equals(previous.evidence().get(row.id())))lease=previous.ids().get(row.id());
+                else {
+                    byte[] payload=row.payload();
+                    lease=ResourceLeaseCodec.decode(StrictJson.object(new String(payload,StandardCharsets.UTF_8)));
+                    if(!row.id().equals(lease.id()) || lease.state()==State.ACTIVE || !lease.resource().world().equals(hot.world())
+                            || !Arrays.equals(payload,ResourceLeaseCodec.encode(lease).getBytes(StandardCharsets.UTF_8)))
+                        throw new IOException("Invalid exact retired lease history");
+                }
                 Lease prior=ids.putIfAbsent(lease.id(),lease);if(prior!=null && !prior.equals(lease))throw new IOException("Conflicting lease ID");
+                evidence.put(row.id(),row);
                 grouped.computeIfAbsent(lease.group(),ignored->new ArrayList<>()).add(lease);
             }
             var groups=new HashMap<UUID,List<Lease>>();
@@ -196,7 +203,7 @@ public final class LeaseArchive {
             }
             for(Lease lease:hot.leases())if(ids.containsKey(lease.id()) && !ids.get(lease.id()).equals(lease))
                 throw new IOException("Hot/archive lease conflict");
-            return new Index(w.snapshot().revision(),ids,groups);
+            return new Index(w.snapshot().revision(),ids,groups,evidence);
         }catch(StrictJson.Invalid | RuntimeException invalid){throw new IOException("Unreadable lease domain history",invalid);}
     }
     /** Trusted server diagnostics only; no identities or player command are exposed. */

@@ -36,20 +36,23 @@ public final class JobHistory {
         final Map<UUID,Allocation> allocations;
         final Map<UUID,UUID> receipts,attempts,executions;
         final Map<UUID,Snapshot> components;
+        final Map<UUID,Decoded> decoded;
         final Map<Contracts.TrustedContext,List<Job>> rootsByOrigin;
         final Roots roots;
         Index(long revision,Map<UUID,Job> jobs,Map<UUID,Job> submissions,Map<UUID,Allocation> allocations,
-              Map<UUID,UUID> receipts,Map<UUID,UUID> attempts,Map<UUID,UUID> executions,Map<UUID,Snapshot> components,Roots roots) {
+              Map<UUID,UUID> receipts,Map<UUID,UUID> attempts,Map<UUID,UUID> executions,Map<UUID,Snapshot> components,
+              Map<UUID,Decoded> decoded,Roots roots) {
             this.revision=revision;this.jobs=Map.copyOf(jobs);this.submissions=Map.copyOf(submissions);
             this.allocations=Map.copyOf(allocations);this.receipts=Map.copyOf(receipts);this.attempts=Map.copyOf(attempts);
             this.executions=Map.copyOf(executions);
-            this.components=Map.copyOf(components);this.roots=roots;
+            this.components=Map.copyOf(components);this.decoded=Map.copyOf(decoded);this.roots=roots;
             var groups=new HashMap<Contracts.TrustedContext,List<Job>>();
             for(Job job:jobs.values())if(job.parent()==null)groups.computeIfAbsent(job.origin(),ignored->new ArrayList<>()).add(job);
             groups.replaceAll((origin,values)->values.stream().sorted(Comparator.comparing(j->j.id().toString())).toList());
             this.rootsByOrigin=Map.copyOf(groups);
         }
     }
+    private record Decoded(ArchiveFormat.Row evidence,Snapshot component) { }
     private final Supplier<Snapshot> hot;
     private final ArchiveWriter writer;
     private volatile Index index;
@@ -98,9 +101,16 @@ public final class JobHistory {
             Index previous=index;
             if(previous!=null && previous.revision==writer.snapshot().revision()){validateHot(captured,previous);return;}
             var jobs=new LinkedHashMap<UUID,Job>();var allocations=new LinkedHashMap<UUID,Allocation>();
+            var decoded=new HashMap<UUID,Decoded>();
             for(var row:writer.historyView().rows(ArchiveFormat.Owner.JOBS,ArchiveFormat.Kind.HISTORY)) {
-                if(!row.id().equals(JobHistoryCodec.id(row.payload())))throw new IllegalArgumentException("Job component identity");
-                Snapshot component=JobHistoryCodec.decode(row.payload(),captured.worldId());
+                var prior=previous==null?null:previous.decoded.get(row.id());
+                if(prior==null || !prior.evidence().equals(row)) {
+                    byte[] payload=row.payload();
+                    if(!row.id().equals(JobHistoryCodec.id(payload)))throw new IllegalArgumentException("Job component identity");
+                    prior=new Decoded(row,JobHistoryCodec.decode(payload,captured.worldId()));
+                }
+                decoded.put(row.id(),prior);
+                var component=prior.component();
                 for(Job job:component.jobs())exact(jobs,job.id(),job);
                 for(Allocation allocation:component.allocations())exact(allocations,allocation.id(),allocation);
                 if(jobs.size()>JOBS || allocations.size()>ALLOCATIONS)throw new IllegalArgumentException("Job history index capacity");
@@ -118,7 +128,7 @@ public final class JobHistory {
             }
             if(artifacts.size()>RetentionRoots.MAX_ROOTS)throw new IllegalArgumentException("History artifact roots capacity");
             Map<UUID,Snapshot> components=components(captured.worldId(),jobs.values(),allocations.values());
-            Index next=new Index(writer.snapshot().revision(),jobs,submissions,allocations,receipts,attempts,executions,components,
+            Index next=new Index(writer.snapshot().revision(),jobs,submissions,allocations,receipts,attempts,executions,components,decoded,
                     new Roots(artifacts,runs,jobs.keySet(),true));
             validateHot(captured,next);index=next;
         }catch(StrictJson.Invalid | RuntimeException invalid){failed=true;throw new IOException("Invalid Job domain history",invalid);}

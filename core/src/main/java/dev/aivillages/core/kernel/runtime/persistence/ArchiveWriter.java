@@ -35,6 +35,7 @@ public final class ArchiveWriter implements AutoCloseable {
     public record Result(Status status,Acknowledgement acknowledgement) {
         public boolean acknowledged(){return status==Status.ACKNOWLEDGED || status==Status.DUPLICATE;}
     }
+    private record PackedTail(Ref reference,List<Row> rows) { }
     public static final class CleanupCandidate {
         private final ArchiveWriter writer; private final String digest,identity; private final long revision;
         private CleanupCandidate(ArchiveWriter writer,String digest,String identity,long revision) {
@@ -50,6 +51,7 @@ public final class ArchiveWriter implements AutoCloseable {
     private volatile ArchiveHistory history;private volatile boolean fenced,closed;private volatile long epoch;
     private volatile String currentDigest;
     private WorldRetentionManager.Owner accountingOwner;
+    private boolean packHistory;
     private ArchiveWriter(Path world,UUID worldId,PersistencePolicy policy,FileChannel channel,FileLock lock,Faults faults,Clock clock,ArchiveHistory history)throws IOException {
         this.world=world;this.root=world.resolve(ArchiveHistory.RELATIVE_PATH);this.worldId=worldId;this.policy=policy;
         this.channel=channel;this.lock=lock;this.faults=faults;this.clock=clock;this.history=history;fenced=history.state()!=ArchiveHistory.State.READY;
@@ -88,6 +90,8 @@ public final class ArchiveWriter implements AutoCloseable {
     }
     public boolean readOnly(){return fenced || closed;}
     public long retentionRevision(){return epoch;}
+    /** Enable lossless closed-history packing for the integrated writer. All readers support both formats. */
+    public synchronized void packClosedHistory(){packHistory=true;}
     public Optional<Row> lookup(Key key)throws IOException {if(readOnly())throw new IOException("Fenced archive");return history.lookup(key);}
     public boolean authentic(Acknowledgement ack,Owner owner,Guard guard) {
         return !readOnly() && ack!=null && ack.writer==this && ack.owner==owner && ack.guard.equals(guard)
@@ -114,12 +118,40 @@ public final class ArchiveWriter implements AutoCloseable {
             if(old.isEmpty())rows.add(row);
         }
         if(rows.isEmpty())return result(Status.DUPLICATE,owner,guard);
-        byte[] bytes=encode(new Segment(worldId,owner,guard,rows));
+        var packed=packHistory?PackedHistory.pack(rows):Optional.<Row>empty();
+        var stored=packed.map(List::of).orElse(rows);
+        var tail=packed.isPresent()?packedTail(expected,owner,packed.get()):null;
+        if(tail!=null) {
+            var combined=new ArrayList<>(tail.rows());
+            combined.addAll(stored);
+            stored=List.copyOf(combined);
+        }
+        int newReferences=tail==null?1:0;
+        byte[] bytes=encode(new Segment(worldId,owner,guard,stored));
         int ordinarySegments=Math.min(segmentCapacity()*policy.pressurePercent()/100,segmentCapacity()-4*policy.reservations());
-        if(snapshot().segments().size()>=ordinarySegments || history.records()+rows.size()>DEFAULT_RECORD_QUOTA*policy.pressurePercent()/100
+        if(snapshot().segments().size()+newReferences>ordinarySegments
+                || history.records()+(packed.isPresent()?1:rows.size())>DEFAULT_RECORD_QUOTA*policy.pressurePercent()/100
                 || history.bytes()+bytes.length+3L*MANIFEST_BYTES>policy.ordinaryBytes()
-                || !capacity(bytes.length,reserved(snapshot().slots()),1,futureFiles(snapshot().slots(),null,null)))return result(Status.BACKPRESSURE,owner,guard);
-        return publish(expected,owner,guard,rows,snapshot().slots(),snapshot().migrations(),fences);
+                || !capacity(bytes.length,reserved(snapshot().slots()),newReferences,1,futureFiles(snapshot().slots(),null,null)))
+            return result(Status.BACKPRESSURE,owner,guard);
+        var acknowledged=publish(expected,owner,guard,stored,snapshot().slots(),snapshot().migrations(),fences,
+                tail==null?null:tail.reference());
+        if(packed.isPresent())discardSupersededPackedCopy(expected);
+        return acknowledged;
+    }
+    private PackedTail packedTail(Manifest expected,Owner owner,Row added)throws IOException {
+        for(var ref:expected.segments().reversed()) {
+            if(ref.owner()!=owner)continue;
+            if(ref.records()==SEGMENT_ROWS || ref.bytes()+21L+added.size()>SEGMENT_BYTES)return null;
+            var rows=loadSegment(ref).rows();
+            return rows.stream().allMatch(row->row.kind()==Kind.PACKED_HISTORY)?new PackedTail(ref,rows):null;
+        }
+        return null;
+    }
+    private Segment loadSegment(Ref ref)throws IOException {
+        byte[] bytes=ArchiveHistory.read(root.resolve(ref.digest()+".seg"),SEGMENT_BYTES);
+        if(bytes.length!=ref.bytes() || !sha256(bytes).equals(ref.digest()))throw new IOException("Packed history source changed");
+        return ArchiveFormat.segment(bytes,worldId);
     }
     public synchronized Result reserve(Manifest expected,Slot requested,Guard guard,Fences fences)throws IOException {
         Owner owner=requested.owner();Status denied=preflight(expected,owner,guard,fences);if(denied!=null)return result(denied,owner,guard);
@@ -141,7 +173,7 @@ public final class ArchiveWriter implements AutoCloseable {
     }
     /** One bounded record per phase, all bytes charged before issuing a new physical effect by its caller. */
     public synchronized Result record(Manifest expected,UUID reservation,Kind kind,byte[] opaque,Guard guard,Fences fences)throws IOException {
-        if(kind==Kind.HISTORY)throw new IllegalArgumentException("Reservation metadata kind");
+        if(kind==Kind.HISTORY || kind==Kind.PACKED_HISTORY)throw new IllegalArgumentException("Reservation metadata kind");
         Slot slot=snapshot().slots().stream().filter(s->s.id().equals(reservation)).findFirst().orElseThrow(()->new IllegalArgumentException("Original reservation missing"));
         Owner owner=slot.owner();Status denied=preflight(expected,owner,guard,fences);if(denied!=null)return result(denied,owner,guard);
         byte[] identity=ByteBuffer.allocate(40).putLong(slot.root().getMostSignificantBits()).putLong(slot.root().getLeastSignificantBits())
@@ -181,8 +213,12 @@ public final class ArchiveWriter implements AutoCloseable {
         return publish(expected,owner,guard,List.of(),snapshot().slots(),migrations,fences);
     }
     private boolean capacity(long nextBytes,long reserved,int newFiles,int futureFiles) {
+        return capacity(nextBytes,reserved,newFiles,newFiles,futureFiles);
+    }
+    private boolean capacity(long nextBytes,long reserved,int newReferences,int newFiles,int futureFiles) {
         return history.bytes()+nextBytes+reserved+SEGMENT_BYTES+3L*MANIFEST_BYTES+2L*ArchiveRequirement.MAX_BYTES<=policy.archiveBytes()
-                && snapshot().segments().size()+newFiles+futureFiles<=segmentCapacity();
+                && snapshot().segments().size()+newReferences+futureFiles<=segmentCapacity()
+                && (!packHistory || history.protectedSegments().size()+history.redundantSegments().size()+newFiles+futureFiles<=segmentCapacity());
     }
     // Preserve the existing physical-file quota, including both requirement publication cuts.
     private int segmentCapacity(){return Math.min(policy.segments(),policy.files()-6);}
@@ -199,9 +235,14 @@ public final class ArchiveWriter implements AutoCloseable {
         return new UUID(b.getLong(),b.getLong()).equals(slot.root()) && new UUID(b.getLong(),b.getLong()).equals(slot.attempt()) && b.getLong()==slot.generation();
     }
     private Result publish(Manifest expected,Owner owner,Guard guard,List<Row> rows,List<Slot> slots,List<Migration> migrations,Fences fences)throws IOException {
+        return publish(expected,owner,guard,rows,slots,migrations,fences,null);
+    }
+    private Result publish(Manifest expected,Owner owner,Guard guard,List<Row> rows,List<Slot> slots,List<Migration> migrations,
+                           Fences fences,Ref replaced)throws IOException {
         publishingOwner=owner;
         try {
             var refs=new ArrayList<>(expected.segments());byte[] segment=null;
+            if(replaced!=null && !refs.remove(replaced))throw new IOException("Missing original packed segment");
             if(!rows.isEmpty()) {
                 segment=encode(new Segment(worldId,owner,guard,rows));String digest=sha256(segment);
                 if(refs.stream().noneMatch(r->r.digest().equals(digest)))refs.add(new Ref(digest,owner,segment.length,rows.size(),clock.millis()));
@@ -232,6 +273,33 @@ public final class ArchiveWriter implements AutoCloseable {
             history=verified;currentDigest=sha256(bytes);epoch=Math.addExact(epoch,1);return result(Status.ACKNOWLEDGED,owner,guard);
         }catch(IOException | RuntimeException uncertain){fenced=true;throw uncertain;}
         finally{publishingOwner=null;}
+    }
+    /**
+     * Rotate a redundant storage copy only after a newer current and its durable previous
+     * have both been read back. The preserved original rows still have their own UUIDs.
+     */
+    private void discardSupersededPackedCopy(Manifest previous)throws IOException {
+        if(policy.deleteFiles()==0 || history.redundantSegments().isEmpty())return;
+        try {
+            for(String digest:history.redundantSegments().stream().sorted().toList()) {
+                Path file=root.resolve(digest+".seg");
+                byte[] bytes=ArchiveHistory.read(file,SEGMENT_BYTES);
+                if(!sha256(bytes).equals(digest))throw new IOException("Superseded packed copy changed");
+                if(ArchiveFormat.segment(bytes,worldId).rows().stream().anyMatch(row->row.kind()!=Kind.PACKED_HISTORY))continue;
+                at(Point.BEFORE_CLEANUP);
+                if(!sha256(ArchiveHistory.read(root.resolve(ArchiveHistory.CURRENT),MANIFEST_BYTES)).equals(currentDigest)
+                        || !ArchiveFormat.manifest(ArchiveHistory.read(root.resolve(ArchiveHistory.PREVIOUS),MANIFEST_BYTES),worldId).equals(previous)
+                        || Files.exists(root.resolve(ArchiveHistory.PENDING),LinkOption.NOFOLLOW_LINKS)
+                        || !Arrays.equals(ArchiveHistory.read(file,SEGMENT_BYTES),bytes))
+                    throw new IOException("Packed history rotation lost its current or previous proof");
+                Files.delete(file);
+                forceDirectory();
+                at(Point.AFTER_CLEANUP);
+                history=history.withoutRedundantCopy(digest,bytes.length);
+                epoch=Math.addExact(epoch,1);
+                return;
+            }
+        }catch(IOException | RuntimeException uncertain){fenced=true;throw uncertain;}
     }
     private void forceDirectory()throws IOException {try(var dir=FileChannel.open(root,StandardOpenOption.READ)){dir.force(true);}}
     private static void writeNew(Path path,byte[] bytes)throws IOException {
