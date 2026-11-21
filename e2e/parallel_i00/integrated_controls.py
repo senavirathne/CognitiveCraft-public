@@ -206,8 +206,17 @@ def menu_stock(menu):
                  for player in (False, True))
 
 
-def submit_root(h, command, player="PlayerA"):
-    feedback = h.command(player, command, r"activity=|accepted=false", 45)
+def submit_root(h, command, player="PlayerA", *, wait_for_publication=False):
+    def submit():
+        feedback = h.command(player, command, r"activity=|accepted=false", 45)
+        if not wait_for_publication or "accepted=false reason=BUDGET_EXHAUSTED" not in feedback:
+            return feedback
+        h.event("i00-zero-work-refusal", {"player": player, "command": command, "feedback": feedback})
+        tick = h.snapshot()["tick"]
+        h.wait(lambda: h.snapshot()["tick"] > tick, "Next native owner publication tick", 15)
+        return None
+
+    feedback = h.wait(submit, "Original contender admission with no earlier accepted Job", 12) if wait_for_publication else submit()
     match = re.search(r"activity=(" + UUID_PATTERN + ")", feedback)
     require(match and "accepted=true" in feedback, "Original public activity was not admitted: " + feedback)
     return match.group(1), feedback
@@ -446,13 +455,13 @@ def contention(h):
                 for player, amount, destination in (("PlayerA", 12, DESTINATION), ("PlayerB", 16, PEER_DESTINATION))}
     h.actions_active = True
     verified_clock(h, "tick rate 2")
-    a, af = submit_root(h, commands["PlayerA"])
+    a, af = submit_root(h, commands["PlayerA"], wait_for_publication=True)
     claimed = h.wait(lambda: (frame if (frame := h.snapshot()) and any(
                     lease["owner"]["job"] == a and lease["state"] == "ACTIVE"
                     and lease["resource"]["item"] == "cognitivecraft:recipe_source"
                     for lease in frame["knownPlayers"]["PlayerA"]["leases"]) else None),
                     "A holds its actual imminent source claim before B is considered", 70)
-    b, bf = submit_root(h, commands["PlayerB"], "PlayerB")
+    b, bf = submit_root(h, commands["PlayerB"], "PlayerB", wait_for_publication=True)
     overlapping = h.wait(lambda: (frame if (frame := h.snapshot()) and
                          frame["knownPlayers"]["PlayerA"]["jobs"][a]["state"] == "ACTIVE"
                          and b in frame["knownPlayers"]["PlayerB"]["jobs"]

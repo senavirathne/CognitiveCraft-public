@@ -52,8 +52,8 @@ public final class PickupEvidenceStore {
     private final Thread thread=Thread.currentThread();private final UUID process=UUID.randomUUID();
     private final HarvestEvidenceStore harvest;private final Storage storage;private final NativePort port;private final Clock clock;private final long timeoutMillis;
     private final ConcurrentLinkedQueue<Written> completed=new ConcurrentLinkedQueue<>();
-    private final Map<String,Prepared> created=new HashMap<>();private final Set<String> started=new HashSet<>();
-    private final Map<String,Acknowledged> acknowledged=new HashMap<>();private final ArrayDeque<Long> acknowledgementNanos=new ArrayDeque<>();
+    private final Map<Key,Prepared> created=new HashMap<>();private final Set<Key> started=new HashSet<>();
+    private final Map<Key,Acknowledged> acknowledged=new HashMap<>();private final ArrayDeque<Long> acknowledgementNanos=new ArrayDeque<>();
     private Snapshot state,pending;private long deadline;private boolean fenced;
     private DepositEvidenceStore successor;
     public void attachDeposit(DepositEvidenceStore successor){thread();if(this.successor!=null)throw new IllegalStateException("Pickup successor already attached");this.successor=Objects.requireNonNull(successor);}
@@ -84,8 +84,8 @@ public final class PickupEvidenceStore {
         }
         if(pending!=null&&clock.millis()>deadline)fenced=true;
     }
-    private static Entry find(Snapshot snapshot,String token) {
-        for(Entry entry:snapshot.entries())if(entry.token().equals(token))return entry;
+    private static Entry find(Snapshot snapshot,Key key) {
+        for(Entry entry:snapshot.entries())if(entry.intent().key().equals(key))return entry;
         return null;
     }
     private boolean ancestry(Entry entry) {
@@ -96,12 +96,12 @@ public final class PickupEvidenceStore {
     }
     public Status prepare(Intent intent,HarvestEvidenceStore.Acknowledged original) {
         thread();Objects.requireNonNull(intent);if(fenced)return new Status(Code.FENCED,null);
-        Entry existing=find(state,intent.key().token());
+        Entry existing=find(state,intent.key());
         if(existing!=null) {
             if(!existing.intent().equals(intent))return new Status(Code.STALE,null);
             if(!ancestry(existing))return new Status(Code.RECOVERY_REQUIRED,null);
             if(existing.verification()!=null)return new Status(Code.RESOLVED,null);
-            Prepared prepared=created.get(existing.token());
+            Prepared prepared=created.get(existing.intent().key());
             if(prepared==null)return new Status(Code.RECOVERY_REQUIRED,null);
             return new Status(existing.result()!=null?Code.RESULT_ACKNOWLEDGED:Code.PREPARED,prepared);
         }
@@ -119,7 +119,7 @@ public final class PickupEvidenceStore {
         var entries=new ArrayList<>(state.entries());entries.add(entry);Snapshot next;
         try{next=new Snapshot(state.world(),state.epoch(),Math.addExact(state.revision(),1),entries);}
         catch(IllegalArgumentException collision){return new Status(Code.STALE,null);}
-        var prepared=new Prepared(this,intent,original);created.put(entry.token(),prepared);publish(next);return new Status(Code.PENDING,null);
+        var prepared=new Prepared(this,intent,original);created.put(intent.key(),prepared);publish(next);return new Status(Code.PENDING,null);
     }
     private static boolean sameActor(Intent a,Intent b) {
         ActorRef x=a.harvest().intent().actor(),y=b.harvest().intent().actor();return x.entityId().equals(y.entityId())&&x.dimension().equals(y.dimension());
@@ -127,15 +127,16 @@ public final class PickupEvidenceStore {
     public Status perform(Prepared prepared) {
         thread();if(prepared==null||prepared.owner!=this||!prepared.process.equals(process))return new Status(Code.STALE,null);
         if(fenced)return new Status(Code.FENCED,null);
-        Entry entry=find(state,prepared.intent.key().token());
-        if(entry==null||!entry.intent().equals(prepared.intent)||created.get(entry.token())!=prepared)return new Status(Code.STALE,null);
+        Key key=prepared.intent.key();
+        Entry entry=find(state,key);
+        if(entry==null||!entry.intent().equals(prepared.intent)||created.get(key)!=prepared)return new Status(Code.STALE,null);
         if(!ancestry(entry))return new Status(Code.RECOVERY_REQUIRED,null);
         if(entry.verification()!=null)return new Status(Code.RESOLVED,null);
         if(entry.result()!=null)return new Status(Code.RESULT_ACKNOWLEDGED,prepared);
-        if(pending!=null||started.contains(entry.token()))return new Status(Code.PENDING,prepared);
+        if(pending!=null||started.contains(key))return new Status(Code.PENDING,prepared);
         if(!harvest.links(prepared.harvest,entry.intent())||clock.millis()>entry.intent().conditions().actionDeadlineEpochMillis()
                 ||!port.current(entry.intent()))return new Status(Code.STALE,prepared);
-        started.add(entry.token());
+        started.add(key);
         try {
             var observed=new Entry(entry.intent(),Objects.requireNonNull(port.execute(entry.intent())));NativePickup.encode(observed);
             var entries=new ArrayList<>(state.entries());entries.set(entries.indexOf(entry),observed);
@@ -143,20 +144,21 @@ public final class PickupEvidenceStore {
         }catch(RuntimeException unknown){fenced=true;throw unknown;}
     }
     public Acknowledged acknowledged(Key key) {
-        thread();Objects.requireNonNull(key);if(fenced||pending!=null)return null;Entry entry=find(state,key.token());
-        if(entry==null||!entry.intent().key().equals(key)||entry.verification()!=null||entry.result()==null
-                ||entry.result().live()!=Live.COMPLETE||entry.result().receipt()==null||!created.containsKey(entry.token())||!ancestry(entry))return null;
-        return acknowledged.computeIfAbsent(entry.token(),ignored->new Acknowledged(this,entry));
+        thread();Objects.requireNonNull(key);if(fenced||pending!=null)return null;Entry entry=find(state,key);
+        if(entry==null||entry.verification()!=null||entry.result()==null
+                ||entry.result().live()!=Live.COMPLETE||entry.result().receipt()==null||!created.containsKey(key)||!ancestry(entry))return null;
+        return acknowledged.computeIfAbsent(key,ignored->new Acknowledged(this,entry));
     }
     public boolean owns(Acknowledged proof) {
         thread();return proof!=null&&proof.owner==this&&proof.process.equals(process)&&!fenced&&pending==null
-                &&find(state,proof.entry.token())==proof.entry&&proof.entry.verification()==null&&created.containsKey(proof.entry.token())&&ancestry(proof.entry);
+                &&find(state,proof.entry.intent().key())==proof.entry&&proof.entry.verification()==null
+                &&created.containsKey(proof.entry.intent().key())&&ancestry(proof.entry);
     }
     public SavedPickup savedPickup(Key key) {
         thread();
         if (fenced || pending != null) return null;
-        var entry = find(state, key.token());
-        if (entry == null || !entry.intent().key().equals(key) || entry.verification() == null
+        var entry = find(state, key);
+        if (entry == null || entry.verification() == null
                 || entry.verification().outcome() != Reconciliation.SAVED_COMPLETE || !ancestry(entry)
                 || NativePickup.classify(entry, port.restored(entry)) != Reconciliation.SAVED_COMPLETE) return null;
         return new SavedPickup(this, entry);
@@ -164,11 +166,11 @@ public final class PickupEvidenceStore {
     public boolean ownsSavedPickup(SavedPickup proof) {
         thread();
         return proof != null && proof.owner == this && !fenced && pending == null
-                && find(state, proof.entry.token()) == proof.entry && ancestry(proof.entry);
+                && find(state, proof.entry.intent().key()) == proof.entry && ancestry(proof.entry);
     }
     public Reconciled reconcile(Key key) {
-        thread();Objects.requireNonNull(key);Entry entry=find(state,key.token());if(entry==null&&pending!=null)entry=find(pending,key.token());
-        if(entry==null||!entry.intent().key().equals(key))return null;
+        thread();Objects.requireNonNull(key);Entry entry=find(state,key);if(entry==null&&pending!=null)entry=find(pending,key);
+        if(entry==null)return null;
         if(fenced||pending!=null||!ancestry(entry))return new Reconciled(this,entry,null,Reconciliation.UNPROVEN);
         if(entry.verification()!=null)return new Reconciled(this,entry,null,entry.verification().outcome());
         Observation observation=port.restored(entry);return new Reconciled(this,entry,observation,NativePickup.classify(entry,observation));
@@ -176,7 +178,7 @@ public final class PickupEvidenceStore {
     /** Reobserve the whole native cohort and publish verification before releasing any retained owner. */
     public Code verify(Reconciled proof) {
         thread();if(fenced)return Code.FENCED;if(proof==null||proof.owner!=this)return Code.STALE;
-        Entry current=find(state,proof.entry.token());
+        Entry current=find(state,proof.entry.intent().key());
         if(current==null||!current.intent().equals(proof.entry.intent())||!Objects.equals(current.result(),proof.entry.result())||!ancestry(current))return Code.STALE;
         if(current.verification()!=null)return current.verification().outcome()==proof.result?Code.RESOLVED:Code.STALE;
         if(current!=proof.entry)return Code.STALE;if(pending!=null)return Code.PENDING;

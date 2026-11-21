@@ -41,6 +41,10 @@ public final class WorkerDispatcher {
                                     Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
             return new Start(null,Reason.UNSUPPORTED_PRIMITIVE);
         }
+        default Start startAcquisition(Jobs.Job job,ValidatedRequest bound,ArtifactRef artifact,UUID run,
+                                       Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
+            return start(bound,artifact,run,limits,usage);
+        }
         default Start continueActivity(Jobs.Job job, ValidatedRequest bound, ArtifactRef artifact, UUID run,
                                        Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
             return new Start(null, Reason.UNSUPPORTED_PRIMITIVE);
@@ -111,6 +115,10 @@ public final class WorkerDispatcher {
                 if(job.activity().current().exactChoice())
                     return handle(executor.startAdmittedActivity(bound,ref,new RunCorrelation(id,ref,null),limits,usage,job));
                 return start(bound,ref,id,limits,usage);
+            }
+            public Start startAcquisition(Jobs.Job job,ValidatedRequest bound,ArtifactRef ref,UUID id,
+                                          Budgets.ExecutionLimits limits,Budgets.Ledger usage) {
+                return handle(executor.startAdmittedActivity(bound,ref,new RunCorrelation(id,ref,null),limits,usage,job));
             }
             public Start continueActivity(Jobs.Job job, ValidatedRequest bound, ArtifactRef ref, UUID id,
                                           Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
@@ -482,6 +490,8 @@ public final class WorkerDispatcher {
                             started=l.continuation ? execution.continueActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
                                     : step!=null && step.journaledProduction()
                                     ?execution.startActivity(job,l.bound,l.artifact,l.run,limits,l.usage)
+                                    : step!=null && step.integrated() && LogAcquisition.is(l.bound.request().capability())
+                                    ?execution.startAcquisition(job,l.bound,l.artifact,l.run,limits,l.usage)
                                     :execution.start(l.bound,l.artifact,l.run,limits,l.usage);
                         }
                         catch(RuntimeException failed){started=new Start(null,Reason.ACTION_FAILED);}

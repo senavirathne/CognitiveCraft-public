@@ -130,12 +130,39 @@ class EnduranceHarness(JobHarness):
         self.event("i00-external-resupply", {"point": list(SOURCE), "item": LOG, "count": 64,
                                             "gameTick": self.observation()["gameTick"]})
 
+    def verify_prelude_custody(self):
+        from .walkthrough import completed_admission_deposit
+
+        admission = next(row for row in self.admissions if row["item"] == "minecraft:oak_log")
+        job = admission["view"]["responsibility"]
+        deposit = completed_admission_deposit(self.root, job["id"])
+        require(deposit and deposit["intent"]["key"]["attempt"] == job["attempts"][-1]["id"],
+                "The oak method admission has no original native deposit")
+        save = self.save_checkpoint()
+        cold = native_process(self)
+        self.stop("server")
+        self.start("server")
+        reconnect_players(self, list(self.players))
+
+        def verified():
+            row = completed_admission_deposit(self.root, job["id"])
+            return row if row and row["intent"] == deposit["intent"] and row["result"] == deposit["result"] \
+                and (row.get("verification") or {}).get("outcome") == "SAVED_COMPLETE" else None
+
+        actual = self.wait(verified, "Saved original oak admission checked in a replacement JVM", 65)
+        warm = native_process(self)
+        require(cold["namespaceProcess"]["start"] < warm["namespaceProcess"]["start"],
+                "Admission custody requires a replacement native process")
+        atomic(self.root / "prelude-custody.json", {"job": job["id"], "before": deposit, "verified": actual,
+               "save": save, "cold": cold, "warm": warm})
+
     def prepare_continuous_world(self):
         from campaigns.crafting.oracle import candidates
         atomic(self.root / "oracle-candidates.json", candidates(SDK / "minecraft-client.jar"))
-        self.bootstrap(["minecraft:oak_log", PLANK])
+        self.bootstrap([PLANK, "minecraft:oak_log"])
         require(len(self.admissions) == 2 and all(row["status"] == "PASS" for row in self.admissions)
                 and METHOD in self.hashes, "Valid native prelude did not admit the required saved methods")
+        self.verify_prelude_custody()
         folder = self.root / "pinned-original"
         folder.mkdir()
         self.family = "I00-pinned-original"

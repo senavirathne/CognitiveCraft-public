@@ -270,7 +270,7 @@ def review(root, source, jar):
         stop = collection["beforeStopObservation"]
         verify_cold_backend(restart, second)
         require(sum(event["kind"] == "crafting-backend-unavailable" for event in events) >= 2
-                and collection["afterRestartCalls"]["generationCalls"] == restart["generationCalls"]
+                and collection["afterRestartCalls"]["generationCalls"] == restart["brokerStats"]["calls"]
                 and collection["beforeStopCalls"]["generationCalls"] >= len(NEW_PLANKS),
                 "Missing verified unavailable inference after restart")
         frames = read(root / "screenshots.json")["captures"]

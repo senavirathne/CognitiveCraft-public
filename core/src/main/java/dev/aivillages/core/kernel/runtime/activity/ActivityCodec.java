@@ -9,7 +9,7 @@ import static dev.aivillages.core.kernel.runtime.activity.ActivityPayload.*;
 
 /** Strict bounded optional Job-schema-4 payload. Archive rows use the identical representation. */
 public final class ActivityCodec {
-    private static final int CHUNK=768, MAX_CHUNKS=(EXACT_CHOICE_BYTES*4/3+CHUNK-1)/CHUNK;
+    private static final int CHUNK=768, MAX_CHUNKS=(4*((EXACT_CHOICE_BYTES+2)/3)+CHUNK-1)/CHUNK;
     private ActivityCodec(){}
     public static Map<String,Object> encode(ActivityPayload p) {
         var row=new LinkedHashMap<String,Object>();row.put("schema",1L);row.put("mode",p.mode().name());row.put("policy",p.policy().name());

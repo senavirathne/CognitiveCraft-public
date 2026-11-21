@@ -44,7 +44,7 @@ DIRECT_INGREDIENTS = {
 
 
 def requires_exact_choice(case):
-    if case["mode"] != "recipe":
+    if case["mode"] != "recipe" or "grid" not in case:
         return False
     ingredients = {item for item in case["grid"] if item}
     return ingredients != DIRECT_INGREDIENTS.get(case["output"]) or bool(case.get("missingAdapter"))

@@ -12,7 +12,7 @@ import static dev.aivillages.core.kernel.Jobs.*;
 /** Immutable data embedded in the root Job. No second lifecycle, inventory or writer. */
 public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UUID currentStep,
                               List<Step> steps, List<Checkpoint> checkpoints, Blocker blocker,ProductionControl production) {
-    public static final int SCHEMA=1, MAX_STEPS=8, CHOICE_BYTES=768, EXACT_CHOICE_BYTES=24_576;
+    public static final int SCHEMA=1, MAX_STEPS=8, CHOICE_BYTES=768, EXACT_CHOICE_BYTES=RecipeChoice.MAX_BYTES;
     public enum GoalMode { ACQUIRE_NEW, MAKE_NEW, SUPPLY }
     public enum Policy { ORIGINAL_ACTOR_SETTLED_EFFECTS }
     public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION, SETTLED_CANCELLED_CUSTODY }
@@ -69,7 +69,7 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         public Choice {
             Objects.requireNonNull(base64);Objects.requireNonNull(sha256);
             int maximum=exactRecipe?EXACT_CHOICE_BYTES:CHOICE_BYTES;
-            if(base64.length()>maximum*4/3)throw new IllegalArgumentException("Recipe choice byte bound");
+            if(base64.length()>4*((maximum+2)/3))throw new IllegalArgumentException("Recipe choice byte bound");
             byte[] bytes=Base64.getDecoder().decode(base64);
             if(bytes.length==0 || bytes.length>maximum || !Base64.getEncoder().encodeToString(bytes).equals(base64)
                     || !digest(bytes).equals(sha256))throw new IllegalArgumentException("Recipe choice identity");

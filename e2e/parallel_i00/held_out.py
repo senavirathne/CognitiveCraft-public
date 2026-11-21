@@ -12,6 +12,7 @@ from .campaign import admissions
 from .campaign_review import HELD_OUT_PROFILE as PROFILE
 from .frozen_campaign import HELD_OUT_COUNT, HELD_OUT_SHA256, held_out
 from .gameplay import NativeGameplay, point, witness_identity
+from .integrated_controls import verified_clock
 from .native_evidence import (closed_job, exact_withdrawals, item_at, raw_slices, request_job, require_command,
                               require_native_primitive, stock_at, terminal_job, trace_offsets, verify_frames, verify_installation)
 from campaigns.crafting.generator import BIRCH, OAK
@@ -110,7 +111,7 @@ def run_case(h, case, folder):
         probe = h.probe({"id": case["id"], "recipe": output, "grid": [material]})
         h.assert_backend_stopped()
         require(output in h.artifacts, "No genuine admitted method for held-out " + output)
-        h.clock("tick freeze")
+        verified_clock(h, "tick freeze")
         try:
             h.console(["tp " + actor + " " + coord(binding["actorPose"])])
 
@@ -123,7 +124,7 @@ def run_case(h, case, folder):
             row.update(principal=h.players[player], actor=actor, citizen=citizen, before=before,
                        clientBefore=h.client_snapshot(player), vanillaProbe=probe, modelCallsBefore=h.model_calls(), methodPin=h.artifacts[output])
         finally:
-            h.clock("tick unfreeze")
+            verified_clock(h, "tick unfreeze")
         request = request_job(h, player, h.recipe_command(citizen, output, quantity, source, destination))
         row["request"] = request
         require(request["accepted"] and request["root"], "No real held-out Job admission")

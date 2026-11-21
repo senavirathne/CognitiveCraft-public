@@ -133,7 +133,7 @@ public final class BoundedSkillExecutor {
         var attempt=root.current();
         var step=root.activity()==null?null:root.activity().current();
         if(root.state()!=Jobs.State.ACTIVE || attempt==null || !attempt.open() || step==null
-                || !step.exactChoice() && !(continuing && LogAcquisition.is(request.request().capability()))
+                || !step.exactChoice() && !(step.integrated() && LogAcquisition.is(request.request().capability()))
                 || !attempt.id().equals(correlation.runId()) || !attempt.id().equals(step.attempt())
                 || !step.artifact().equals(artifact) || !attempt.bound().request().equals(request.request())
                 || !attempt.bound().context().equals(request.context()) || !attempt.allowance().equals(limits.total()))
@@ -268,7 +268,7 @@ public final class BoundedSkillExecutor {
             cursors.push(new Cursor(program.body(), Map.of(), 1));
         }
     }
-    private record Pending(ActionHandle handle, Type type, String into, long startedMillis) { }
+    private record Pending(ActionHandle handle, Type type, String into, long startedMillis, boolean observation) { }
 
     public final class Run {
         private final ValidatedRequest request;
@@ -278,6 +278,7 @@ public final class BoundedSkillExecutor {
         private final Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned;
         private final boolean trial;
         private final Jobs.Job activity;
+        private final boolean integratedAcquisition;
         private final Deque<Frame> stack = new ArrayDeque<>();
         private final List<CropDelivery.CropReceipt> receipts = new ArrayList<>();
         private final List<Trace> trace = new ArrayList<>();
@@ -299,6 +300,7 @@ public final class BoundedSkillExecutor {
             this.pinned = Collections.unmodifiableMap(new LinkedHashMap<>(pinned));
             this.trial = trial;
             this.activity=activity;
+            integratedAcquisition=activity!=null && LogAcquisition.is(request.request().capability());
             lastTick = tickClock.getAsLong();
             Program program = pinned.get(correlation.artifact()).program();
             Frame frame = new Frame(correlation.artifact(), program, request.request().arguments(), null);
@@ -349,7 +351,14 @@ public final class BoundedSkillExecutor {
                 }
             }
             lastTick = now;
-            if (pending != null) { poll(elapsed); return snapshot(); }
+            if (pending != null) {
+                boolean readOnly=integratedAcquisition && pending.observation();
+                poll(elapsed);
+                // Every observation still polls on its own native tick. After a completed read,
+                // prepare the next instruction without an additional idle tick. Physical results
+                // keep the existing turn boundary for claim, custody and receipt publication.
+                if (!readOnly || pending!=null || terminal!=null) return snapshot();
+            }
             int performed = 0;
             try {
                 while (terminal == null && pending == null && performed < settings.instructionsPerTick()) {
@@ -409,7 +418,8 @@ public final class BoundedSkillExecutor {
                             || !arguments(signature.parameters(), args)) throw new InvalidRun();
                     ActionHandle handle = gateway.start(request, correlation, requirement, args, usage);
                     if (handle == null || !handle.runId().equals(correlation.runId())) throw new InvalidRun();
-                    pending = new Pending(handle, call.resultType(), call.into(), clock.millis());
+                    boolean observation=integratedAcquisition && signature.effects().equals(Set.of(Effect.OBSERVE));
+                    pending = new Pending(handle, call.resultType(), call.into(), clock.millis(), observation);
                     pendingEffects = 0;
                     record("action", frame.ref);
                 }

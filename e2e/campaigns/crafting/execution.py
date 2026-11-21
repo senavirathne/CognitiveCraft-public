@@ -219,8 +219,8 @@ def execute_recovery(h, case):
         h.actions_active = False
         result["stoppedWorldFiles"] = h.world_hashes()
         h.start("server")
-        h.clock("tick unfreeze"); h.clock("tick rate 20")
         reconnect_players(h, ["PlayerA"])
+        h.clock("tick unfreeze"); h.clock("tick rate 20")
         warm = read(h.root / "server/process.json")
         require(warm["start"] > cold["start"] and warm["releaseSha256"] == cold["releaseSha256"],
                 "Recovery did not use a new server JVM and identical release")
@@ -269,7 +269,7 @@ def execute_dynamic(h, case):
         first["competitor"] = {"request": competitor, "result": other}
         first["competitionWitnessed"] = request["accepted"] and competitor["accepted"]
         return request, first
-    target = h.destination if event == "fill-destination" else h.source
+    target = {"fill-destination": h.destination, "break-facility": h.facility}.get(event, h.source)
     h.walk("PlayerA", target)
     if event != "break-facility":
         h.action("PlayerA", "open", pos=target)
@@ -288,7 +288,6 @@ def execute_dynamic(h, case):
     except TimeoutError as error:
         raise BoundaryMissed(str(error)) from error
     if event == "break-facility":
-        h.walk("PlayerA", h.facility)
         h.action("PlayerA", "break", pos=h.facility)
         h.wait(lambda: TABLE not in h.snapshot()["blocks"].get(",".join(map(str, h.facility)), ""),
                "Ordinary player destroyed the real facility", 60)

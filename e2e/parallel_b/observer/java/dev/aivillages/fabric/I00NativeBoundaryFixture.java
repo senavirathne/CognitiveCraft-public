@@ -2,8 +2,10 @@ package dev.aivillages.fabric;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonParser;
+import dev.aivillages.core.kernel.BootstrapController;
 import dev.aivillages.core.kernel.Contracts.ContainerValue;
 import dev.aivillages.core.kernel.Contracts.FacilityValue;
+import dev.aivillages.core.kernel.CraftingTablePlacement;
 import dev.aivillages.core.kernel.Jobs;
 import dev.aivillages.core.kernel.ResourceDelivery.Stage;
 import net.fabricmc.api.ModInitializer;
@@ -38,9 +40,6 @@ public final class I00NativeBoundaryFixture implements ModInitializer {
     }
     private Cut cut;
     private int idle;
-    private static boolean stoppedAtMeasuredBoundary;
-
-    public static boolean atMeasuredStop() {return stoppedAtMeasuredBoundary;}
 
     @Override public void onInitialize() {
         String directory=System.getenv("COGNITIVECRAFT_E2E_DIR");
@@ -85,9 +84,7 @@ public final class I00NativeBoundaryFixture implements ModInitializer {
                 if(clock.isFrozen() || clock.tickrate()!=20.0f)throw new IllegalStateException("Original native clock changed before the measured cut");
                 server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),"tick freeze");
                 if(!clock.isFrozen() || !witnesses(server,cut,job,scope))throw new IllegalStateException("Native boundary changed during freeze");
-                // Native saves and client/console activity continue. The next
-                // application tick belongs to the replacement JVM for this test.
-                stoppedAtMeasuredBoundary=true;
+                // Native saves and client commands continue while application ticks stay frozen.
                 var evidence=Map.ofEntries(Map.entry("token",cut.token()),Map.entry("root",job.id()),Map.entry("submission",job.submissionId()),
                         Map.entry("principal",cut.principal()),Map.entry("boundary",cut.boundary()),Map.entry("tick",server.overworld().getGameTime()),
                         Map.entry("jobRevision",job.revision()),Map.entry("rate",clock.tickrate()),Map.entry("frozen",clock.isFrozen()),
@@ -100,7 +97,7 @@ public final class I00NativeBoundaryFixture implements ModInitializer {
     }
 
     private static boolean witnesses(MinecraftServer server,Cut cut,Jobs.Job job,List<Jobs.Job> scope) {
-        if(cut.campaign())return campaignWitness(cut,job,scope);
+        if(cut.campaign())return campaignWitness(server,cut,job,scope);
         if(job.activity()==null)return false;
         var original=job.request().request().arguments();
         if(!(original.get("table") instanceof FacilityValue facility) || !(original.get("destination") instanceof ContainerValue destination))return false;
@@ -127,7 +124,17 @@ public final class I00NativeBoundaryFixture implements ModInitializer {
         };
     }
 
-    private static boolean campaignWitness(Cut cut,Jobs.Job root,List<Jobs.Job> current) {
+    private static boolean campaignWitness(MinecraftServer server,Cut cut,Jobs.Job root,List<Jobs.Job> current) {
+        var request=root.request().request();
+        if(cut.boundary().equals("after-placement") && CraftingTablePlacement.is(request.capability())) {
+            var target=CraftingTablePlacement.target(request);
+            if(!server.overworld().getBlockState(new BlockPos(target.x(),target.y(),target.z())).is(Blocks.CRAFTING_TABLE))return false;
+            var principal=server.getPlayerList().getPlayer(cut.principal());
+            var run=AiVillages.kernel().status(principal,root.submissionId());
+            return run.phase()==BootstrapController.Phase.EXECUTING
+                    && run.resourceReceipts().stream().filter(r->r.stage()==Stage.PLACE && r.item().id().equals(TABLE))
+                        .mapToLong(r->r.quantity()).sum()==1;
+        }
         var owners=new ArrayList<Jobs.Job>();
         owners.add(root);
         for(int n=0;n<owners.size();n++) {

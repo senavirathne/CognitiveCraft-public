@@ -110,6 +110,12 @@ def trial(folder, case, seed):
         start, initial = fixture(h, IDENTICAL if placement else MIXED)
         actor = h.entities["PlayerA"]
         row.update(start=start, initialSave=initial, actor=actor, principal=h.players["PlayerA"], pins=h.artifacts)
+        if cut in (MUTATED, PUBLISHED):
+            offset = len(h.server_log())
+            h.console(["save-off"])
+            h.wait(lambda: "Automatic saving is now disabled" in h.server_log()[offset:],
+                   "Vanilla automatic saves disabled before the measured unsaved choice", 25)
+            row["noAutomaticSave"] = {"stdoutOffset": offset, "time": time.time()}
         arm = {"id": str(uuid4()), "boundary": cut, "phase": OPERATIONS[operation],
                "method": h.artifacts["placement" if placement else STICK]}
         request_file = folder / "server/i00-choice-cut.json"
@@ -185,6 +191,12 @@ def check_stop(folder, row, cut, jar):
     world = folder / "stopped-world"
     require(world_hashes(world) == stop["hashes"], "Stopped native world bytes differ")
     if cut in (MUTATED, PUBLISHED):
+        disabled = row["noAutomaticSave"]
+        log = (folder / "server/stdout.log").read_text(errors="replace")[disabled["stdoutOffset"]:]
+        require(disabled["time"] < native["time"] / 1000
+                and "Automatic saving is now disabled" in log
+                and not any(e["time"] < ended["time"] and "save-on" in e["data"].get("commands", []) for e in events),
+                "The unflushed native participant window lacks its actual save-off witness")
         def terrain(files):
             return {entry["path"]: entry["sha256"] for entry in files
                     if entry["path"].endswith(("/region/r.0.0.mca", "/entities/r.0.0.mca"))}

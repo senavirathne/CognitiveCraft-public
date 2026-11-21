@@ -3,6 +3,7 @@ package dev.aivillages.core.kernel;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import dev.aivillages.core.kernel.production.*;
+import dev.aivillages.core.kernel.runtime.activity.ActivityPayload;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -48,5 +49,25 @@ final class GeneralizedRecipeChoiceTest {
         var bound=new ValidatedRequest(new CapabilityRequest(cap,args),request.context(),request.observation());
         assertEquals(choice.digest(),RecipeChoicePlan.propose(UUID.randomUUID(),0,bound,choice).choiceDigest());
         assertFalse(((RecipeTransaction.ChoiceAuthority)(c,a,t,p)->true).permitsFacility(bound.context(),((ActorValue)args.get("actor")).value(),facility.reference(),RecipeTransaction.ChoicePhase.CRAFT));
+    }
+
+    @Test void activityPreservesCanonicalRecipeAboveItsFormerDecodedLimit() {
+        var plank = new RecipeChoice.ItemKey("minecraft:birch_planks", "{\"fixture\":\"" + "p".repeat(880) + "\"}");
+        var table = new RecipeChoice.ItemKey("minecraft:crafting_table", "{}");
+        var source = RecipeChoiceTest.SOURCE;
+        var grid = Collections.nCopies(4, plank);
+        var batches = new ArrayList<RecipeChoice.Batch>();
+        for (int batch = 0; batch < 4; batch++) {
+            var slots = new ArrayList<RecipeChoice.Binding>();
+            for (int slot = 0; slot < 4; slot++)
+                slots.add(new RecipeChoice.Binding(slot, source, 4 * batch + slot, 1, plank));
+            batches.add(new RecipeChoice.Batch(grid, slots));
+        }
+        var choice = new RecipeChoice(new CapabilityId(CraftingTableProduction.ID.name(), 2), CraftingTableProduction.RECIPE,
+                "a".repeat(64), RecipeChoice.RUNTIME, 0, 2, 2, batches, table, 1, 4, List.of());
+        assertTrue(choice.canonicalBytes().length > 24_576);
+        var durableChoice = ActivityPayload.Choice.of(choice);
+        assertEquals(choice.digest(), durableChoice.sha256());
+        assertArrayEquals(choice.canonicalBytes(), durableChoice.recipe().canonicalBytes());
     }
 }
