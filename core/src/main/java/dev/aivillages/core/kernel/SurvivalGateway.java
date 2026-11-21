@@ -25,6 +25,7 @@ public final class SurvivalGateway implements GatewayPort {
     /** One composition-owned exact recipe adapter. The admitted interpreter still drives every operation. */
     public interface ExactRecipeEffects {
         boolean owns(UUID run);
+        ContainerRef additionalInput(ValidatedRequest request,RunCorrelation run);
         Reason observe(ValidatedRequest request,RunCorrelation run,Budgets.Ledger usage);
         Reason observePlacement(ValidatedRequest request,RunCorrelation run,PlacementTransaction.Preflight captured);
         ExactRecipeResult poll(ValidatedRequest request,RunCorrelation run,ActionHandle operation,
@@ -186,6 +187,7 @@ public final class SurvivalGateway implements GatewayPort {
         default PlacementTransaction.Mutation withdrawTableItem(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String source) {return PlacementTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
         default PlacementTransaction.Mutation placeTable(ActorRef actor,PlacementTransaction.Preflight captured,String custody,String source) {return PlacementTransaction.Mutation.blocked(Reason.UNSUPPORTED_PRIMITIVE);}
         default Movement moveRecipe(ActorRef actor,Cell target,int maximum) {return move(actor,target,maximum);}
+        default Movement moveRecipeInputs(ActorRef actor,Cell target,Cell additional,int maximum) {return new Movement(false,true,0,0);}
         /** Explicit placement MOVE keeps the approved block out of the worker's standing footprint. */
         default Movement movePlacement(ActorRef actor,Cell target,FacilityRef approved,int maximum) {return moveRecipe(actor,target,maximum);}
         default RecipeTransaction.Preflight recipePreflight(ValidatedRequest request) {return RecipeTransaction.Preflight.unsupported();}
@@ -961,8 +963,19 @@ public final class SurvivalGateway implements GatewayPort {
             action.terminalBound = "travel-or-navigation-allowance";
             finish(action, Reason.BUDGET_EXHAUSTED, null, null); return;
         }
+        Cell additional = null;
+        if(action.operation==Operation.MOVE_TO_INPUT && exactRecipes!=null && exactRecipes.owns(action.run.id)) {
+            var input=exactRecipes.additionalInput(action.run.request,action.run.correlation);
+            if(input!=null) {
+                additional=new Cell(input.dimension(),input.x(),input.y(),input.z());
+                var denied=allows(action,Effect.MOVE,additional)?world.permit(action.run.request,Effect.MOVE,additional):Reason.AUTHORITY_DENIED;
+                if(denied!=null) {finish(action,denied,null,null);return;}
+            }
+        }
         action.movementStarted = true;
-        Movement movement = action.selectedDrop!=null
+        Movement movement = additional!=null
+                ? world.moveRecipeInputs(action.run.actor,target,additional,limits.navigationCallsPerPoll())
+                : action.selectedDrop!=null
                 ? world.approachResourceDrop(action.run.actor,action.selectedDrop,action.selectedDropQuantity,limits.navigationCallsPerPoll(),action.run.item)
                 : action.operation==Operation.APPROACH_OAK_LOG
                 ? world.approachResource(action.run.actor,target,limits.navigationCallsPerPoll(),action.run.item)

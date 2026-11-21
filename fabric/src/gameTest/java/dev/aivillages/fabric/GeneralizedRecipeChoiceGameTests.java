@@ -32,6 +32,49 @@ import net.minecraft.world.level.storage.LevelResource;
 public final class GeneralizedRecipeChoiceGameTests {
     private static final Gson JSON=new Gson();
     private static void evidence(String name,Object value){try{var root=Path.of(System.getProperty("cognitivecraft.parallelB.evidence"));Files.createDirectories(root);Files.writeString(root.resolve(name+".json"),JSON.toJson(value));}catch(java.io.IOException e){throw new IllegalStateException(e);}}
+
+    @GameTest(maxTicks=200,padding=16)
+    public void mixedRecipeMovesIntoNativeReachOfBothBoundInputs(GameTestHelper h) {
+        for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
+        h.setBlock(3,1,3,Blocks.CHEST);
+        h.setBlock(4,1,2,Blocks.BARREL);
+        var primary=h.absolutePos(new BlockPos(3,1,3));
+        var secondary=h.absolutePos(new BlockPos(4,1,2));
+        BootstrapGameTests.forceFixtureChunks(h,primary);
+        var worker=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,4);
+        worker.setNoAi(false);
+        var world=new FabricGatewayWorld(h.getLevel());
+        var dimension=h.getLevel().dimension().identifier().toString();
+        var actor=new ActorRef(UUID.randomUUID(),worker.getUUID(),dimension);
+        var run=UUID.randomUUID();
+        var first=new SurvivalGateway.Cell(dimension,primary.getX(),primary.getY(),primary.getZ());
+        var second=new SurvivalGateway.Cell(dimension,secondary.getX(),secondary.getY(),secondary.getZ());
+        var from=(Container)h.getLevel().getBlockEntity(primary);
+        var extra=(Container)h.getLevel().getBlockEntity(secondary);
+        from.setItem(0,new ItemStack(Items.ACACIA_PLANKS));
+        extra.setItem(26,new ItemStack(Items.BAMBOO_PLANKS));
+        boolean[] started={false};
+        long[] travel={0};
+        h.succeedWhen(()->{
+            if(!started[0]) {
+                h.assertTrue(worker.onGround(),"Waiting for the original worker to land");
+                h.assertTrue(world.recipeReach(worker,primary) && !world.recipeReach(worker,secondary),
+                        "The original stance must reach only the primary source");
+                h.assertTrue(world.acquire(actor,run),"Original worker control");
+                started[0]=true;
+            }
+            var movement=world.moveRecipeInputs(actor,first,second,1);
+            travel[0]+=movement.travelBlocks();
+            h.assertTrue(!movement.impossible() && travel[0]<=32,"The common approach stopped within the travel allowance");
+            h.assertTrue(movement.reached(),"Waiting for the common approach");
+            h.assertTrue(world.recipeReach(worker,primary) && world.recipeReach(worker,secondary),
+                    "Native MOVE must end in reach of both original sources");
+            h.assertTrue(from.countItem(Items.ACACIA_PLANKS)==1 && extra.countItem(Items.BAMBOO_PLANKS)==1
+                    && worker.getInventory().isEmpty(),"Movement changed input custody");
+            world.release(actor,run);
+        });
+    }
+
     @GameTest(maxTicks=2400,padding=16)
     public void loadedAlternativesMixedGridsFacilitiesObserversAndReload(GameTestHelper h) {
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);

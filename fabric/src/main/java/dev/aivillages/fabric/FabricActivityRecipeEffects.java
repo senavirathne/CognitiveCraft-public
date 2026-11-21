@@ -165,6 +165,14 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     }
 
     @Override public boolean owns(UUID run){thread(); return live.containsKey(run);}
+    @Override public ContainerRef additionalInput(ValidatedRequest bound,RunCorrelation correlation) {
+        thread();
+        var run=bound(bound,correlation);
+        if(run==null || run.choice==null || run.sources.containers().size()==1)return null;
+        var primary=((ContainerValue)bound.request().arguments().get("source")).value();
+        return run.sources.containers().stream().filter(source->!source.equals(primary)).findFirst().orElseThrow();
+    }
+
     @Override public Reason observePlacement(ValidatedRequest bound,RunCorrelation correlation,PlacementTransaction.Preflight captured) {
         thread();
         var run=bound(bound,correlation);

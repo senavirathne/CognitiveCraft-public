@@ -99,14 +99,28 @@ public final class HarvestEvidenceStore {
     /** Historical/restored rows cannot mint a live continuation capability. */
     public Acknowledged acknowledged(Key key) {
         thread();Objects.requireNonNull(key);if(fenced || pending!=null)return null;
-        Entry entry=find(state,key.token());
-        if(entry==null || !entry.intent().key().equals(key) || entry.verification()!=null || entry.result()==null
+        return liveAcknowledgement(find(state,key));
+    }
+    /** A log pickup requires one original H for this exact step and attempt. */
+    public Acknowledged singleAcknowledgedHarvest(UUID step,UUID attempt,long generation) {
+        thread();if(fenced || pending!=null)return null;
+        Entry original=null;
+        for(var entry:state.entries()) {
+            var key=entry.intent().key();
+            if(!key.step().equals(step) || !key.attempt().equals(attempt) || key.generation()!=generation)continue;
+            if(original!=null)return null;
+            original=entry;
+        }
+        return liveAcknowledgement(original);
+    }
+    private Acknowledged liveAcknowledgement(Entry entry) {
+        if(entry==null || entry.verification()!=null || entry.result()==null
                 || entry.result().live()!=Live.COMPLETE || entry.result().receipt()==null || !created.containsKey(entry.token()))return null;
         return acknowledged.computeIfAbsent(entry.token(),ignored->new Acknowledged(this,entry));
     }
     public boolean owns(Acknowledged proof) {
         thread();return proof!=null && proof.owner==this && proof.process.equals(process) && !fenced && pending==null
-                && proof.entry.verification()==null && find(state,proof.entry.token())==proof.entry
+                && proof.entry.verification()==null && find(state,proof.entry.intent().key())==proof.entry
                 && created.containsKey(proof.entry.token());
     }
     public boolean links(Acknowledged proof,NativePickup.Intent pickup) {
@@ -216,6 +230,10 @@ public final class HarvestEvidenceStore {
     private static boolean sameSource(Source a,Source b){return a.dimension().equals(b.dimension()) && a.x()==b.x() && a.y()==b.y() && a.z()==b.z();}
     private static Entry find(Snapshot snapshot,String token) {
         for(Entry entry:snapshot.entries())if(entry.token().equals(token))return entry;
+        return null;
+    }
+    private static Entry find(Snapshot snapshot,Key key) {
+        for(Entry entry:snapshot.entries())if(entry.intent().key().equals(key))return entry;
         return null;
     }
     private Status status(Code code,Prepared prepared){return new Status(code,prepared);}

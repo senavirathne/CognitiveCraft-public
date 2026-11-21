@@ -41,6 +41,14 @@ final class HarvestEvidenceStoreTest {
         assertEquals(HarvestEvidenceStore.Code.PENDING,s.store.perform(prepared).code());assertEquals(1,s.port.calls);
         assertEquals(HarvestEvidenceStore.Code.PENDING,s.store.perform(prepared).code());s.ack();
         assertEquals(HarvestEvidenceStore.Code.RESULT_ACKNOWLEDGED,s.store.perform(prepared).code());assertEquals(1,s.port.calls);
+        var key=s.intent.key();
+        var first=s.store.singleAcknowledgedHarvest(key.step(),key.attempt(),key.generation());
+        assertNotNull(first);
+        assertSame(s.store.acknowledged(key),first);
+        assertNull(s.store.singleAcknowledgedHarvest(key.step(),key.attempt(),key.generation()+1));
+        var reopened=new HarvestEvidenceStore(s.store.snapshot(),(a,b)->CompletableFuture.completedFuture(b),s.port,s.clock,100,false);
+        assertNull(reopened.singleAcknowledgedHarvest(key.step(),key.attempt(),key.generation()));
+        assertFalse(reopened.owns(first));
     }
     @Test void anotherProcessCannotExecuteRestoredPreparedEvidenceOrReuseTheOldCapability() {
         var s=new Scene();var old=s.prepare();var reopened=new HarvestEvidenceStore(s.store.snapshot(),(a,b)->CompletableFuture.completedFuture(b),s.port,s.clock,100,false);

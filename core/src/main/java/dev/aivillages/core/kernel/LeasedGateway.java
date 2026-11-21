@@ -204,10 +204,10 @@ public final class LeasedGateway implements GatewayPort {
         Result group=prepare(request,correlation);
         if(!group.usable())return group;
         var pending=new HashSet<UUID>();
-        // An atomic native withdrawal has already removed these units. Only the saved trusted
-        // receipts' own consumption acknowledgements may temporarily cover their exact claims.
+        // A native harvest or withdrawal has already removed these units. Only the original
+        // receipt's pending consumption acknowledgement can cover its exact affected claims.
         for(Action action:actions.values())if(action.run.correlation.equals(correlation) && action.saved!=null
-                && !action.current.terminal() && action.ingredientConsumption!=null) {
+                && !action.current.terminal() && action.consuming!=null) {
             pending.add(action.consuming.id());
             for(var ingredient:action.ingredients)pending.add(ingredient.getKey().id());
         }
@@ -351,7 +351,7 @@ public final class LeasedGateway implements GatewayPort {
     private boolean harvestSource(Run run,Ref ref) {
         var source=sourceResource(run.request.context().scope().worldId(),run.request);
         return leases.snapshot().leases().stream().anyMatch(l->l.id().equals(ref.id())
-                && l.owner().equals(run.binding.owner()) && l.resource().equals(source) && l.resource().logBlocks());
+                && l.owner().equals(run.binding.owner()) && l.resource().equals(source));
     }
     private boolean pendingHarvestSource(RunCorrelation correlation,Ref ref) {
         for(Action action:actions.values())if(action.run.correlation.equals(correlation) && !action.current.terminal()

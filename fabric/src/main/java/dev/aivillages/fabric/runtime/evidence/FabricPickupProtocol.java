@@ -98,14 +98,9 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var job=jobs.query(owner.job(),request.bound().context());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new IllegalStateException("Original owner stopping");
             phases[0]=System.nanoTime();
-            NativeHarvest.Entry h=null;
-            for(var entry:harvest.evidence().snapshot().entries()) {
-                var key=entry.intent().key();
-                if(!key.step().equals(job.id()) || !key.attempt().equals(attempt.id()) || key.generation()!=attempt.generation())continue;
-                if(h!=null)throw new IllegalStateException("Original first-H required");
-                h=entry;
-            }
-            if(h==null)throw new IllegalStateException("Original first-H required");
+            var original=harvest.evidence().singleAcknowledgedHarvest(job.id(),attempt.id(),attempt.generation());
+            if(original==null)throw new IllegalStateException("Original first-H required");
+            var h=original.entry();
             if(!h.intent().run().equals(request.correlation().runId()) || !h.intent().actor().equals(request.actor())
                     || !h.intent().item().equals(request.item().id()) || h.result()==null || h.result().drops().size()!=1)
                 throw new IllegalStateException("Original pickup custody");
@@ -113,7 +108,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
             if(!output.entity().equals(request.drop()) || output.quantity()!=request.expected())
                 throw new IllegalStateException("Original pickup output");
             phases[1]=System.nanoTime();
-            var lineage=harvest.preparePickupLineage(harvest.evidence().acknowledged(h.intent().key()),preflight);
+            var lineage=harvest.preparePickupLineage(original,preflight);
             if(lineage==null)throw new IllegalStateException("Original pickup lineage");
             phases[2]=System.nanoTime();
             var claims=new ArrayList<Claim>();
