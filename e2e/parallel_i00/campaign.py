@@ -5,20 +5,24 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
+import shutil
 import traceback
 import runpy
+from uuid import uuid4
 
 from .frozen_campaign import ORIGINAL_SHA256, controls_for, material_controls, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
-from .native_evidence import exact_withdrawals, raw_slices, require_command, verify_installation
-from campaigns.crafting.harness import CraftingHarness
+from .native_evidence import exact_withdrawals, jsonl, raw_slices, require_command, verify_installation
+from campaigns.crafting.harness import CraftingHarness, observer_inputs
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
-from campaigns.crafting.run import needed_artifacts, require_case_fence, run_case
+from campaigns.crafting.run import needed_artifacts, run_case
+from parallel_b.guards import clean_owners
 from runtime import digest
-from suite import atomic, read, require
+from suite import atomic, read, reconnect_players, require
 
 PROFILE = "I00_ORIGINAL_334"
+CASES_PER_WORLD = 16
 
 
 def schedule_file(root, index, count):
@@ -47,10 +51,102 @@ def requires_exact_choice(case):
 
 
 class OriginalCampaign(NativeGameplay):
+    acquisition_methods = ("oak-acquisition", "birch-acquisition")
+    admission_order = tuple(name for name in NativeGameplay.admission_order
+                            if name not in {"oak-acquisition", "birch-acquisition"}) + acquisition_methods
+
     def command_text(self, case):
         if not requires_exact_choice(case):
             return CraftingHarness.command_text(self, case)
         return super().command_text(case)
+
+    def arm_recovery(self, case):
+        control = {"token": str(uuid4()), "principal": self.players["PlayerA"],
+                   "boundary": case["boundary"], "campaignOutput": case["output"]}
+        atomic(self.root / "server/i00-native-boundary.json", control)
+        self.event("i00-campaign-cut-armed", control)
+        return control
+
+    def recovery_cut(self, control, request):
+        def reached():
+            row = read(self.root / "server/i00-native-boundary-reached.json")
+            return row if row and row["token"] == control["token"] else None
+
+        mark = self.wait(reached, "Actual original campaign native interruption boundary", 155)
+        key = "submission" if request["kind"] == "run" else "root"
+        require(mark[key] == request["identity"] and mark["principal"] == control["principal"]
+                and mark["boundary"] == control["boundary"] and mark["frozen"] and mark["rate"] == 20,
+                "Actual boundary belongs to a different native request")
+        self.event("i00-campaign-cut-frozen", mark)
+        return mark
+
+    def certify_admission(self, row):
+        if row["capability"] not in self.acquisition_methods:
+            return
+        from .walkthrough import completed_admission_deposit
+        job = row["result"]["views"][0]["responsibility"]
+        self.wait(lambda: clean_owners(self.snapshot()["knownPlayers"]["PlayerA"]), "Closed original log admission", 40)
+        deposit = completed_admission_deposit(self.root, job["id"])
+        require(deposit and deposit["intent"]["key"]["attempt"] == job["attempts"][-1]["id"],
+                "Missing the original log admission's native deposit")
+        saved = self.save_checkpoint()
+        cold = read(self.root / "server/process.json")
+        self.stop("server")
+        self.start("server")
+        reconnect_players(self, ["PlayerA"])
+
+        def verified():
+            actual = completed_admission_deposit(self.root, job["id"])
+            return actual if actual and actual["intent"] == deposit["intent"] and actual["result"] == deposit["result"] \
+                and (actual.get("verification") or {}).get("outcome") == "SAVED_COMPLETE" else None
+
+        witness = self.wait(verified, "Original log admission custody verified before fixture changes", 65)
+        warm = read(self.root / "server/process.json")
+        require(warm["start"] > cold["start"] and cold["releaseSha256"] == warm["releaseSha256"],
+                "Log admission did not reopen in a new matching server")
+        atomic(self.root / f"admission-custody-{row['capability']}.json",
+               {"before": deposit, "saved": saved, "verified": witness, "cold": cold, "warm": warm})
+        self.command("PlayerA", "/aivillage kernel inference true", "admission=true")
+
+
+def save_admission_world(root, scheduled):
+    h = OriginalCampaign(root, profile=PROFILE)
+    try:
+        h.bootstrap({output for case in scheduled for output in needed_artifacts(case)}, after_admission=h.certify_admission)
+        h.wait(lambda: clean_owners(h.snapshot()["knownPlayers"]["PlayerA"]), "Closed original admission Jobs", 40)
+        h.save_checkpoint()
+        h.stop("server")
+        atomic(root / "admission-world.json", {"worldHashes": h.world_hashes(), "subjects": h.subjects,
+               "artifacts": h.artifacts, "nativeAdmissionsCountedAsCampaign": 0})
+        return read(root / "admission-world.json")
+    finally:
+        h.finish()
+
+
+def open_world(folder, seed_root, seed):
+    h = OriginalCampaign(folder, profile=PROFILE)
+    try:
+        world_path = "server/game/world"
+        shutil.copytree(seed_root / world_path, folder / world_path, ignore=shutil.ignore_patterns("session.lock"))
+        require(h.world_hashes() == seed["worldHashes"], "Saved admission world changed while being copied")
+        atomic(folder / "admission-continuation.json", {"seedRecordSha256": digest(seed_root / "admission-world.json"),
+               "copiedWorldHashes": h.world_hashes(), "nativeAdmissionsCountedAsCampaign": 0})
+        h.subjects, h.artifacts = seed["subjects"], seed["artifacts"].copy()
+        observer_inputs(folder)
+        h.start("server")
+        h.start("PlayerA")
+        h.use_actor(0)
+        h.console(["op PlayerA"])
+        h.recipes = h.wait(lambda: read(folder / "oracle-recipes.json"), "Live vanilla recipe catalogue", 30)["recipes"]
+        h.assert_backend_stopped()
+        return h
+    except Exception:
+        h.finish()
+        raise
+
+
+def isolated(case):
+    return case["mode"] in {"recovery", "facility"} or bool(case.get("dynamic"))
 
 
 def run(root, index, count):
@@ -58,19 +154,32 @@ def run(root, index, count):
     cases, controls = schedule_file(root, index, count)
     statuses = {case["id"]: "NOT_EXECUTED_REQUIRED" for case in cases}
     supplemental = {row["id"]: "NOT_EXECUTED_REQUIRED" for row in controls}
-    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": statuses, "materialControls": supplemental}
+    result = {"profile": PROFILE, "status": "FAIL_REQUIRED_CASES", "cases": statuses,
+              "materialControls": supplemental, "caseWorlds": {}}
     scheduled = cases + [row["definition"] for row in controls]
     h = None
     try:
-        h = OriginalCampaign(root, profile=PROFILE)
-        h.bootstrap({output for case in scheduled for output in needed_artifacts(case)})
+        seed_root = root / "seed"
+        seed = save_admission_world(seed_root, scheduled)
+        group = used = 0
         for case in scheduled:
+            if h and (used == CASES_PER_WORLD or isolated(case)):
+                h.finish()
+                h = None
+            if not h:
+                group += 1
+                used = 0
+                h = open_world(root / "worlds" / f"{group:03d}", seed_root, seed)
             row = run_case(h, case, integrated_recipe=requires_exact_choice(case))
+            result["caseWorlds"][case["id"]] = h.root.relative_to(root.resolve()).as_posix()
+            used += 1
             (supplemental if case["id"] in supplemental else statuses)[case["id"]] = row["status"]
             atomic(root / "campaign.json", result)
             print("I00_ORIGINAL_CASE " + json.dumps({"id": case["id"], "status": row["status"],
                                                       "reason": row.get("reason")}), flush=True)
-            require_case_fence(row, case["id"])
+            if isolated(case) or row["status"] == "BLOCKED_CAPACITY" or row.get("cleanupFenced") is not True:
+                h.finish()
+                h = None
         if all(status in PASS_STATUSES for status in statuses.values()) and all(status == "PASS" for status in supplemental.values()):
             result["status"] = "COLLECTED_PENDING_INDEPENDENT_REVIEW"
     except Exception as error:
@@ -98,6 +207,30 @@ def admissions(root):
     return value["artifacts"]
 
 
+def review_admission_custody(seed, pins, jar):
+    from .walkthrough import DEPOSIT_JOURNAL, completed_admission_deposit
+    methods = set(OriginalCampaign.acquisition_methods) & pins.keys()
+    if not methods:
+        return
+    events = list(jsonl(seed / "supervisor.jsonl"))
+    admissions_rows = read(seed / "admissions.json")["rows"]
+    for method in methods:
+        row = next(item for item in admissions_rows if item["capability"] == method and item["status"] == "PASS")
+        job = row["result"]["views"][0]["responsibility"]
+        record = read(seed / f"admission-custody-{method}.json")
+        before, verified = record["before"], record["verified"]
+        require(verified == completed_admission_deposit(seed, job["id"])
+                and verified["intent"] == before["intent"] and verified["result"] == before["result"]
+                and verified["intent"]["key"]["attempt"] == job["attempts"][-1]["id"]
+                and verified["verification"]["outcome"] == "SAVED_COMPLETE",
+                "Original log admission is missing its exact native saved deposit")
+        require(record["warm"]["start"] > record["cold"]["start"]
+                and record["warm"]["releaseSha256"] == record["cold"]["releaseSha256"] == jar
+                and any(event["kind"] == "acknowledged-world-checkpoint" and event["data"] == record["saved"] for event in events)
+                and any(file["path"] == DEPOSIT_JOURNAL.removeprefix("server/game/world/") for file in record["saved"]["files"]),
+                "Missing the original saved log admission and replacement JVM evidence")
+
+
 def review_case(case, row, root, pins, recipes, validate):
     require(row["case"] == case, "Native case deviates from the frozen definition")
     require(row["status"] in PASS_STATUSES and row["attempted"] is True and row["terminalObserved"] is True,
@@ -105,6 +238,14 @@ def review_case(case, row, root, pins, recipes, validate):
     integrated = requires_exact_choice(case)
     problems = validate(row, root, integrated_recipe=integrated)
     require(not problems, "; ".join(problems))
+    if case["mode"] == "recovery":
+        mark = row["execution"]["nativeClock"]
+        request = row["request"]
+        key = "submission" if request["kind"] == "run" else "root"
+        require(mark == read(root / "server/i00-native-boundary-reached.json")
+                and mark[key] == request["identity"] and mark["principal"] == row["bindings"]["player"]
+                and mark["boundary"] == case["boundary"] and mark["rate"] == 20 and mark["frozen"],
+                "Missing actual original campaign boundary under the normal clock")
     if integrated:
         events = "clients/PlayerA/events.jsonl"
         path = raw_slices(root, row, {events})[events]
@@ -160,23 +301,44 @@ def review(root, source, jar):
         require(scheduled["cases"] == expected and scheduled["frozenScheduleSha256"] == ORIGINAL_SHA256
                 and scheduled["materialControls"] == controls,
                 "Changed or incomplete frozen case schedule")
-        manifest = read(root / "metadata.json")
+        seed = root / "seed"
+        manifest = read(seed / "metadata.json")
         result.update(witness_identity(manifest, source, jar, PROFILE), shardIndex=scheduled["shardIndex"],
                       shardCount=scheduled["shardCount"], requiredCases=len(expected))
-        verify_installation(root, manifest, ("PlayerA",))
-        catalogue = read(root / "oracle-recipes.json")
-        require(catalogue["worldEffects"] == 0 and catalogue["minecraft"] == "26.3" and catalogue["serverPid"],
-                "Missing native read-only recipe catalogue")
-        pins = admissions(root)
+        verify_installation(seed, manifest, ("PlayerA",))
+        pins = admissions(seed)
+        review_admission_custody(seed, pins, jar)
+        seed_path = seed / "admission-world.json"
+        seal = read(seed_path)
+        from .walkthrough_review import world_hashes
+        require(seal["artifacts"] == pins and seal["nativeAdmissionsCountedAsCampaign"] == 0
+                and seal["worldHashes"] == world_hashes(seed / "server/game/world"), "Saved genuine admission world differs")
+        case_worlds = read(root / "campaign.json")["caseWorlds"]
+        verified_worlds = {}
         frozen_verifier = runpy.run_path(str(ROOT / "scripts/campaign-crafting/verify.py"))["validate_case"]
         for case, control in ([(case, None) for case in expected] + [(row["definition"], row) for row in controls]):
             results = result["materialControls"] if control else result["cases"]
             try:
-                path = evidence_path(root, f"cases/{case['id']}/result.json")
+                require(case["id"] in case_worlds, "Required case was not executed")
+                world_name = case_worlds[case["id"]]
+                world = evidence_path(root, world_name)
+                if world_name not in verified_worlds:
+                    child = read(world / "metadata.json")
+                    witness_identity(child, source, jar, PROFILE)
+                    verify_installation(world, child, ("PlayerA",))
+                    link = read(world / "admission-continuation.json")
+                    catalogue = read(world / "oracle-recipes.json")
+                    require(link == {"seedRecordSha256": digest(seed_path), "copiedWorldHashes": seal["worldHashes"],
+                                     "nativeAdmissionsCountedAsCampaign": 0}, "World belongs to a different saved admission")
+                    require(catalogue["worldEffects"] == 0 and catalogue["minecraft"] == "26.3" and catalogue["serverPid"],
+                            "Missing native read-only recipe catalogue")
+                    verified_worlds[world_name] = child, catalogue["recipes"]
+                child, recipes = verified_worlds[world_name]
+                path = evidence_path(world, f"cases/{case['id']}/result.json")
                 require(path.is_file(), "Required case was not executed")
                 row = read(path)
-                require(row["metadata"] == manifest, "Case belongs to a different native producer")
-                verified = review_case(case, row, root, pins, catalogue["recipes"], frozen_verifier)
+                require(row["metadata"] == child, "Case belongs to a different native producer")
+                verified = review_case(case, row, world, pins, recipes, frozen_verifier)
                 if control:
                     verified.update(review_material(control, row))
                 results.append(verified)

@@ -85,9 +85,13 @@ class NativeGameplay(CraftingHarness):
                 atomic(self.root / "kernel-startup-failure.json", {"reason": failure, "nativeLog": "server/game/logs/latest.log"})
                 raise RuntimeError("Native I00 kernel startup failed\n" + failure)
             state = self.snapshot()
-            return state if ready_kernel(state) else None
+            return state if ready_kernel(state) and type(state.get("brokerStats", {}).get("calls")) is int else None
 
         self.wait(active, "Initialized I00 native kernel with both measured model counters", 60)
+
+    def model_calls(self):
+        state = self.snapshot()
+        return {"needleCalls": state["needleCalls"], "generationCalls": state["brokerStats"]["calls"]}
 
     def compose(self, *args):
         command = ["docker", "compose", "-p", self.project, "-f", str(ROOT / "e2e/compose.yml"),

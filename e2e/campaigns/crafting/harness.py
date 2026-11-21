@@ -360,7 +360,7 @@ class CraftingHarness(Harness):
         self.actions_active = not clean_owners((self.snapshot() or {}).get("knownPlayers", {}).get("PlayerA", {}))
         return {"completed": completed, "terminal": True, "views": rows, "receipts": self.receipts_for(request)}
 
-    def bootstrap(self, required=None):
+    def bootstrap(self, required=None, *, after_admission=None):
         # Startup failures are infrastructure results, before attempted gameplay.
         instruments(ROOT / "fabric/build/libs/ai-villages-0.1.0.jar", ROOT / "build/e2e-driver/observer.jar")
         observer_inputs(self.root)
@@ -403,6 +403,7 @@ class CraftingHarness(Harness):
         for output in selected:
             row = {"capability": output, "status": "NOT_EXECUTED"}
             self.family = "ADMISSION-" + output.split(":")[-1]
+            request = result = None
             try:
                 fixture_blocks = {}
                 recipe = self.recipes.get(output)
@@ -458,10 +459,12 @@ class CraftingHarness(Harness):
                 if recipe:
                     row.update(case=case, nativeProbe=probe, source=self.source, destination=self.destination)
             except Exception as error:
-                row.update(status="BLOCKED_ADMISSION", error=repr(error))
+                row.update(status="BLOCKED_ADMISSION", error=repr(error), request=request, result=result)
                 self.cleanup()
             self.admissions.append(row)
             atomic(self.root / "admissions.json", {"rows": self.admissions, "artifacts": self.artifacts})
+            if after_admission and row["status"] == "PASS":
+                after_admission(row)
         self.command("PlayerA", "/aivillage kernel inference false", "admission=false")
         if selected:
             self.compose("stop", "ollama")

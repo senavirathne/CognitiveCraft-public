@@ -48,6 +48,10 @@ def definitions():
     return rows
 
 
+def case_folder(root, case):
+    return root / "cases" / case["id"].replace(":", "-")
+
+
 def relevant(items):
     return {item: n for item, n in items.items() if item in (ACACIA, BAMBOO, STICK, TABLE, AXE)}
 
@@ -211,9 +215,10 @@ def saved_markers(world, entry, actor):
 def review_case(folder, case, source, jar, pins):
     metadata = read(folder / "metadata.json")
     witness_identity(metadata, source, jar, PROFILE)
-    verify_installation(folder, metadata, ("PlayerA", "PlayerB"))
     row = read(folder / "result.json")
-    require(row["case"] == case and row["status"] == COLLECTED, row.get("reason", "Missing exact native interruption"))
+    require(row and row["case"] == case and row["status"] == COLLECTED,
+            (row or {}).get("reason", "Missing exact native interruption"))
+    verify_installation(folder, metadata, ("PlayerA", "PlayerB"))
     cut, operation = case["requestedBoundary"], case["operation"]
     placement = operation.startswith("table-")
     positive = cut == SAVED and operation in {"recipe-craft", "recipe-deposit", "table-place"}
@@ -295,7 +300,7 @@ def main():
     if args.mode == "run":
         root.mkdir(parents=True, exist_ok=False)
         seed = launch_seed(root / "seed", METHODS)
-        rows = [trial(root / "cases" / row["id"], row, seed) for row in cases]
+        rows = [trial(case_folder(root, row), row, seed) for row in cases]
         if any(row["status"] != COLLECTED for row in rows):
             raise SystemExit(1)
         return
@@ -305,7 +310,7 @@ def main():
         pins = admissions(root / "seed")
         for case in cases:
             try:
-                report["cases"].append(review_case(root / "cases" / case["id"], case, args.source, args.jar_sha256, pins))
+                report["cases"].append(review_case(case_folder(root, case), case, args.source, args.jar_sha256, pins))
             except Exception as error:
                 report["cases"].append({"id": case["id"], "status": "FAIL_REVIEW", "reason": str(error), "trace": traceback.format_exc()})
         if all(row["status"].startswith("PASS_NATIVE_") for row in report["cases"]):

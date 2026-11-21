@@ -14,6 +14,7 @@ import traceback
 
 from .endurance_plan import COUNT, LIMITS, LOG, METHOD, PLANK, RESTART_AFTER, SHARED, SHARED_TARGETS, SOURCE, TERMINAL, TEST_TARGETS, WAREHOUSE, workload
 from .identity import PRODUCTION, ROOT, candidate, sha256 as file_digest, verify_metadata
+from .gameplay import startup_failure
 
 sys.path[:0] = [str(ROOT / "e2e/parallel_a"), str(ROOT / "e2e")]
 from baseline import interruption, native_process, same_native_alive
@@ -59,6 +60,20 @@ class EnduranceHarness(JobHarness):
         super().stop(component, hard)
         if component == "server":
             self.recreate = True
+
+    def start(self, component):
+        super().start(component)
+        if component != "server":
+            return
+        log = self.root / "server/game/logs/latest.log"
+
+        def ready():
+            if log.is_file() and (failure := startup_failure(log.read_text(errors="replace"))):
+                raise RuntimeError(failure)
+            state = self.snapshot()
+            return state and not state.get("kernelLoading") and "brokerStats" in state
+
+        self.wait(ready, "Ready native endurance Jobs owner and inference counters", 60)
 
     def observation(self):
         return read(self.root / "server/secondary-snapshot.json")

@@ -158,7 +158,7 @@ def boundary_matches(case, request, h):
     stages = Counter()
     for row in rows:
         stages[row["stage"]] += row["quantity"]
-    active = values[0].get("phase") == "EXECUTING" or values[0].get("state") in {"RUNNING", "READY", "WAITING"}
+    active = values[0].get("phase") == "EXECUTING" or values[0].get("state") in {"ACTIVE", "RUNNING", "READY", "WAITING"}
     stage = case["boundary"]
     if stage == "before-withdrawal":
         return active and not stages["WITHDRAW"]
@@ -177,16 +177,20 @@ def execute_recovery(h, case):
     # that durable state, not an unjustified cross-file atomic-save assumption.
     initial_checkpoint = h.save_checkpoint()
     initial_physical = h.snapshot()
-    h.clock("tick rate 2")
+    native = h.arm_recovery(case) if hasattr(h, "arm_recovery") else None
+    if not native:
+        h.clock("tick rate 2")
     request = h.submit_command(h.command_text(case))
     if not request["accepted"]:
         h.clock("tick rate 20")
         return request, h.finish_request(request)
     try:
-        h.wait(lambda: boundary_matches(case, request, h), "Requested physical interruption boundary", 240)
+        clock_cut = h.recovery_cut(native, request) if native else None
+        h.wait(lambda: boundary_matches(case, request, h), "Requested physical interruption boundary", 12 if native else 240)
     except TimeoutError as error:
         raise BoundaryMissed(str(error)) from error
-    h.clock("tick freeze")
+    if not native:
+        h.clock("tick freeze")
     if not boundary_matches(case, request, h):
         raise BoundaryMissed("Execution advanced beyond the requested boundary before the vanilla freeze")
     before = h.snapshot()
@@ -195,6 +199,8 @@ def execute_recovery(h, case):
     result = {"boundary": {"requested": case["boundary"], "snapshot": before,
                            "client": client, "views": h.views(request), "receipts": h.receipts_for(request)},
               "initialCheckpoint": initial_checkpoint}
+    if clock_cut:
+        result["nativeClock"] = clock_cut
     if case["interruption"] == "cancel":
         command = "job-cancel" if request["kind"] == "job" else "cancel"
         result["cancellation"] = h.command("PlayerA", "/aivillage kernel " + command + " " + request["identity"],

@@ -270,11 +270,17 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
             phases[5]=System.nanoTime();
             phase="exclusion";
             if(store.conflicts(request.actor(),request.source().dimension(),request.source().x(),request.source().y(),request.source().z(),"",
-                    request.bound(),request.correlation().runId(),true))throw new Refused(Reason.INTERRUPTED);
+                    request.bound(),request.correlation().runId()))throw new Refused(Reason.INTERRUPTED);
             var ticket=new NativeTicket(request,original,intent,null);ticket.authority=job;tickets.add(ticket);
             phases[6]=System.nanoTime();
             return ticket;
-        }catch(Refused refused){refused(phase,refused.reason.name(),"");return new NativeTicket(request,original,null,refused.reason);}
+        }catch(Refused refused){
+            refused(phase,refused.reason.name(),"");
+            if(Boolean.getBoolean("cognitivecraft.navigation.trace"))
+                System.out.println("CognitiveCraft HARVEST refused run="+request.correlation().runId()
+                        +" phase="+phase+" reason="+refused.reason);
+            return new NativeTicket(request,original,null,refused.reason);
+        }
         catch(RuntimeException invalid){refused(phase,invalid.getClass().getSimpleName(),invalid.getMessage());return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
     }
     @Override public Progress poll(Ticket value) {
@@ -380,7 +386,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         var value=incoming.request().arguments().get("actor");
         UUID cropRun=effect==Effect.HARVEST || effect==Effect.PICKUP || effect==Effect.TRANSFER ? controlledRun : null;
         return value instanceof ActorValue actor && store.conflicts(actor.value(),target.dimension(),target.x(),target.y(),target.z(),allowed,
-                incoming,cropRun,effect==Effect.HARVEST);
+                incoming,cropRun);
     }
     /** Closed legacy crop custody is accounting by the Jobs owner. It creates no saved H/P/D proof. */
     private boolean originalCropBatchClosed(NativeHarvest.Entry entry) {

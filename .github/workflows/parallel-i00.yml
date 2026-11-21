@@ -572,7 +572,7 @@ jobs:
           observer=b
           case "$I00_TRACK" in
             endurance) observer=endurance ;;
-            recipe-*|table-*) observer=joint ;;
+            original-*|recipe-*|table-*) observer=joint ;;
           esac
           python3 -m e2e.parallel_i00.bundle verify --jar-sha256 "$I00_JAR_SHA256" --observer "$observer"
           python3 e2e/runtime.py prepare

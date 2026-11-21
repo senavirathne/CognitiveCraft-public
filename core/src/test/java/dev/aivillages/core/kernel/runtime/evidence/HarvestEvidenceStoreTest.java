@@ -76,13 +76,18 @@ final class HarvestEvidenceStoreTest {
         var store=new HarvestEvidenceStore(empty,storage,port,clock,100,false);
         store.prepare(intent);store.tick();store.perform(store.prepare(intent).prepared());
         var cell=intent.source();
-        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),false));
+        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run()));
         store.tick();
-        assertFalse(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),false));
-        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),true));
-        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,UUID.randomUUID(),false));
+        assertFalse(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run()));
+        var old=intent.key();var c=intent.conditions();
+        var conditions=new NativeDeposit.Conditions(c.citizen(),c.jobRevision(),c.deadlineEpochMillis(),c.actionDeadlineEpochMillis(),
+                c.effectsRemaining()-1,c.observedTick()+1,c.maximumReachMilli(),c.observedReachMilli(),c.claims(),crop.result().usage());
+        var sameCell=new Intent(new NativeDeposit.Key(old.world(),old.root(),old.step(),old.attempt(),old.generation(),2),
+                intent.origin(),intent.run(),UUID.randomUUID(),actor,intent.area(),intent.destination(),intent.item(),cell,conditions,intent.actorBefore());
+        assertEquals(HarvestEvidenceStore.Code.RECOVERY_REQUIRED,store.prepare(sameCell).code());
+        assertTrue(store.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,UUID.randomUUID()));
         var reopened=new HarvestEvidenceStore(store.snapshot(),storage,port,clock,100,false);
-        assertTrue(reopened.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run(),false));
+        assertTrue(reopened.conflicts(actor,cell.dimension(),cell.x(),cell.y(),cell.z(),"",request,intent.run()));
         assertTrue(reopened.protectedJobs().contains(intent.key().step()));
     }
 }

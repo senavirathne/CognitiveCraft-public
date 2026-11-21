@@ -190,17 +190,17 @@ public final class HarvestEvidenceStore {
             snapshot.entries().stream().filter(this::unresolved).forEach(e->{ids.add(e.intent().key().root());ids.add(e.intent().key().step());});return Set.copyOf(ids);
     }
     public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect) {
-        return conflicts(actor,dimension,x,y,z,allowedEffect,null,null,false);
+        return conflicts(actor,dimension,x,y,z,allowedEffect,null,null);
     }
     /** The native gateway supplies its currently held run for an ordinary crop effect. */
     public boolean conflicts(ActorRef actor,String dimension,int x,int y,int z,String allowedEffect,
-                             ValidatedRequest request,UUID nativeRun,boolean harvesting) {
+                             ValidatedRequest request,UUID nativeRun) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
             Source source=entry.intent().source();
             boolean atSource=source.dimension().equals(dimension) && source.x()==x && source.y()==y && source.z()==z;
             boolean overlaps=sameActor(entry.intent().actor(),actor) || atSource;
             if(overlaps && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect))
-                    && !(request!=null && (!harvesting || !atSource) && cropRequest(entry,actor,request,nativeRun))
+                    && !(request!=null && cropRequest(entry,actor,request,nativeRun))
                     && unresolved(entry))return true;
         }
         return false;

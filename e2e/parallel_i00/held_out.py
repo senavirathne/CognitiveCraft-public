@@ -47,6 +47,9 @@ def validate(case, row):
     material = case["bindings"]["material"]
     output = binding["goal"]["outputItem"]
     before, after = row["before"], row["after"]
+    pose = next(subject for subject in before["actors"] if subject["uuid"] == actor)
+    require(pose["alive"] and not pose["noAI"] and math.dist(pose["pos"], binding["actorPose"]) < 1,
+            "Frozen actor pose differs in the pre-request native frame")
     require(before["knownPlayers"][player]["uuid"] == after["knownPlayers"][player]["uuid"] == row["principal"],
             "Foreign or drifted held-out principal")
     for client in (row["clientBefore"], row["clientAfter"]):
@@ -97,20 +100,30 @@ def run_case(h, case, folder):
         require(all(clean_owners(p) for p in h.snapshot()["knownPlayers"].values()), "Previous held-out owners remain unsettled")
         h.console(["fill 63 208 63 84 211 78 minecraft:air", "fill 62 207 62 85 207 80 minecraft:stone",
                    "kill @e[type=minecraft:item,x=63,y=207,z=63,dx=21,dy=5,dz=15]", "clear " + player,
-                   "tp " + player + " 66.5 208 69.5", "tp " + actor + " " + coord(binding["actorPose"])])
+                   "tp " + player + " 66.5 208 69.5"])
         for _, entity in [*h.subjects, (h.citizens["PlayerB"], h.entities["PlayerB"])]:
             h.actor_stock({}, entity)
         h.stock(source, binding["startingSource"])
         h.stock(destination, {})
         if binding["setupBlocks"]:
             h.console(["setblock " + coord(block["position"]) + " " + block["block"] for block in binding["setupBlocks"]])
-        h.wait(lambda: any(a["uuid"] == actor and math.dist(a["pos"], binding["actorPose"]) < 1 for a in h.snapshot()["actors"]),
-               "Frozen actor position observed before gameplay", 30)
         probe = h.probe({"id": case["id"], "recipe": output, "grid": [material]})
         h.assert_backend_stopped()
         require(output in h.artifacts, "No genuine admitted method for held-out " + output)
-        row.update(principal=h.players[player], actor=actor, citizen=citizen, before=h.snapshot(),
-                   clientBefore=h.client_snapshot(player), vanillaProbe=probe, modelCallsBefore=h.model_calls(), methodPin=h.artifacts[output])
+        h.clock("tick freeze")
+        try:
+            h.console(["tp " + actor + " " + coord(binding["actorPose"])])
+
+            def posed():
+                frame = h.snapshot()
+                return frame if any(a["uuid"] == actor and math.dist(a["pos"], binding["actorPose"]) < 1
+                                    for a in frame["actors"]) else None
+
+            before = h.wait(posed, "Frozen actor position observed before gameplay", 30)
+            row.update(principal=h.players[player], actor=actor, citizen=citizen, before=before,
+                       clientBefore=h.client_snapshot(player), vanillaProbe=probe, modelCallsBefore=h.model_calls(), methodPin=h.artifacts[output])
+        finally:
+            h.clock("tick unfreeze")
         request = request_job(h, player, h.recipe_command(citizen, output, quantity, source, destination))
         row["request"] = request
         require(request["accepted"] and request["root"], "No real held-out Job admission")
