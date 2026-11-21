@@ -5,7 +5,10 @@ on:
     paths:
       - .github/workflows/parallel-i00.yml
       - .github/i00-candidate.json
-      - 'core/src/main/java/dev/aivillages/core/kernel/runtime/persistence/**'
+      - 'core/src/**'
+      - 'fabric/src/**'
+      - 'e2e/**'
+      - 'scripts/campaign-crafting/**'
 permissions:
   contents: read
   actions: read
