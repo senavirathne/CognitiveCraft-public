@@ -39,7 +39,7 @@ public final class NativePickup {
             Objects.requireNonNull(actorTrail);Objects.requireNonNull(dropTrail);
             var h=harvest.intent();var r=harvest.result();var old=h.key();
             if(r==null || r.live()!=NativeHarvest.Live.COMPLETE || r.receipt()==null || harvest.verification()!=null
-                    || old.ordinal()!=1 || !old.root().equals(old.step()) || key.ordinal()!=2
+                    || old.ordinal()!=1 || key.ordinal()!=2
                     || !key.world().equals(old.world()) || !key.root().equals(old.root()) || !key.step().equals(old.step())
                     || !key.attempt().equals(old.attempt()) || key.generation()!=old.generation()
                     || operation.equals(h.operation()) || requested<1 || requested>64

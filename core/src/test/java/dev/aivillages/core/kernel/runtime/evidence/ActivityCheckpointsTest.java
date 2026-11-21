@@ -14,13 +14,17 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Synthetic owner contracts only. Never counted as native gameplay or save evidence. */
 final class ActivityCheckpointsTest {
     static final class Scene {
-        final Entry entry=NativeJoinedDepositTest.entry();
+        final Entry entry;
         final JobLifecycleStore jobs;final DepositEvidenceStore deposits;final ActivityCheckpoints checkpoints;
         final CompletableFuture<DepositJournal.Snapshot> held=new CompletableFuture<>();
         DepositJournal.Snapshot next;boolean liveAcknowledged,savedAvailable,hold;int writes,mutations;
         Scene(){this(false,false);}
         Scene(boolean live,boolean saved) {this(live,saved,false);}
         Scene(boolean live,boolean saved,boolean interruptedProduction) {
+            this(live,saved,interruptedProduction,false);
+        }
+        Scene(boolean live,boolean saved,boolean interruptedProduction,boolean child) {
+            entry=NativeJoinedDepositTest.entry(child);
             liveAcknowledged=live;savedAvailable=saved;var intent=entry.intent();var key=intent.key();var receipt=entry.result().receipt();
             var args=new HashMap<String,Value>();args.put("actor",new ActorValue(receipt.actor()));args.put("amount",new IntValue(2));
             args.put("source",new AreaValue(receipt.source()));args.put("destination",new ContainerValue(receipt.destination()));
@@ -49,7 +53,19 @@ final class ActivityCheckpointsTest {
             }
             var job=new Job(key.root(),key.root(),10,request,null,List.of(),List.of(),interruptedProduction?State.INTERRUPTED:State.WAITING,
                     interruptedProduction?Outcomes.Reason.INTERRUPTED:null,null,limits,attempt.usage(),attempt.generation(),List.of(attempt),List.of(),null,activity);
-            var snapshot=new Snapshot(key.world(),1,List.of(job),List.of());var clock=Clock.fixed(Instant.ofEpochMilli(100),ZoneOffset.UTC);
+            List<Job> owners=List.of(job);
+            if(child) {
+                var parentArguments=Map.<String,Value>of("actor",new ActorValue(receipt.actor()),"amount",new IntValue(1),
+                        "source",new ContainerValue(receipt.destination()),"destination",new ContainerValue(
+                                new ContainerRef(receipt.actor().dimension(),12,64,10)));
+                var parentRequest=new ValidatedRequest(new CapabilityRequest(OakPlankProduction.ID,parentArguments),intent.origin(),observation);
+                var root=new Job(key.root(),key.root(),10,parentRequest,null,List.of(key.step()),List.of(key.step()),State.READY,
+                        null,null,limits,attempt.usage(),0,List.of(),List.of());
+                var nested=new Job(key.step(),key.step(),10,bound,key.root(),List.of(),List.of(),State.SUCCEEDED,
+                        null,null,limits,attempt.usage(),attempt.generation(),List.of(attempt),List.of());
+                owners=List.of(root,nested);
+            }
+            var snapshot=new Snapshot(key.world(),1,owners,List.of());var clock=Clock.fixed(Instant.ofEpochMilli(100),ZoneOffset.UTC);
             jobs=new JobLifecycleStore(snapshot,(a,b)->CompletableFuture.completedFuture(b),JobLifecycleStore.privateJobs((a,c)->true),c->{},PlanningGoals.catalog(),
                     new RequestEnvironment(){public boolean enrolled(ActorRef a,TrustedContext c){return true;}public boolean loaded(Cuboid a,ObservationRef o){return true;}public boolean available(ContainerRef c,ObservationRef o){return true;}},clock,Settings.defaults(),false);
             var port=new DepositEvidenceStore.NativePort(){
@@ -59,7 +75,7 @@ final class ActivityCheckpointsTest {
                 public NativePickup.Observation restoredLineage(Entry e){return NativeJoinedDepositTest.saved(entry);}
             };
             deposits=new DepositEvidenceStore(new DepositJournal.Snapshot(key.world(),UUID.randomUUID(),1,List.of(entry)),(a,b)->{writes++;next=b;return hold?held:CompletableFuture.completedFuture(b);},port,clock,30_000,false);
-            checkpoints=new ActivityCheckpoints(jobs,deposits,e->liveAcknowledged&&e.equals(entry));
+            checkpoints=new ActivityCheckpoints(jobs,deposits,e->liveAcknowledged&&e.equals(entry),child);
         }
         Job job(){return jobs.query(entry.intent().key().root(),entry.intent().origin());}
     }
@@ -68,6 +84,20 @@ final class ActivityCheckpointsTest {
         s.checkpoints.step();assertTrue(s.checkpoints.ready(s.job()));assertNull(s.deposits.snapshot().entries().getFirst().verification());
         assertEquals(0,s.writes);assertEquals(0,s.mutations);assertFalse(s.deposits.conflicts(Kind.ACTOR,s.entry.intent().actor().dimension(),s.entry.intent().actor().address(),""));
         assertTrue(s.deposits.protectedJobs().contains(s.job().id()),"Unsaved replay obligations remain retained");
+    }
+    @Test void nestedCompletedLogClosesLiveExclusionWithoutChangingParentCreditOrSavedProof(){
+        var live=new Scene(true,false,false,true);
+        var before=live.job();
+        assertNotEquals(live.entry.intent().key().root(),live.entry.intent().key().step());
+        assertFalse(live.deposits.settled(live.entry));
+        live.checkpoints.step();
+        assertTrue(live.deposits.settled(live.entry));
+        assertEquals(before,live.job());
+        assertNull(live.deposits.snapshot().entries().getFirst().verification());
+        assertEquals(0,live.writes);
+        var reopened=new Scene(false,false,false,true);
+        reopened.checkpoints.step();
+        assertFalse(reopened.deposits.settled(reopened.entry));
     }
     @Test void equalLiveCountsWithoutOriginalAcknowledgementCannotSettle(){
         var s=new Scene();s.checkpoints.step();assertFalse(s.checkpoints.ready(s.job()));assertEquals(0,s.writes);assertEquals(0,s.mutations);

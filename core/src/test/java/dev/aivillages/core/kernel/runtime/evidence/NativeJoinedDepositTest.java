@@ -11,7 +11,11 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Causal data/store contracts; these synthetic records contribute no native case passes. */
 final class NativeJoinedDepositTest {
     static Entry entry() {
-        var p=NativePickupTest.completed(NativePickupTest.intent(NativePickupTest.harvest(1),4),0);var h=p.intent().harvest().intent();var key=p.intent().key();
+        return entry(false);
+    }
+    static Entry entry(boolean child) {
+        var p=NativePickupTest.completed(NativePickupTest.intent(NativePickupTest.harvest(NativePickupTest.LOG,1,child),4),0);
+        var h=p.intent().harvest().intent();var key=p.intent().key();
         var actor=p.result().actor();var empty=Collections.nCopies(27,new Slot("minecraft:air",0));
         var chest=new Participant(Kind.CHEST,actor.dimension(),"10,64,10",UUID.randomUUID(),5,empty);
         var old=p.intent().conditions();var conditions=new Conditions(old.citizen(),old.jobRevision()+1,old.deadlineEpochMillis(),15_000,old.effectsRemaining()-1,40,2500,1000,old.claims(),p.result().usage());

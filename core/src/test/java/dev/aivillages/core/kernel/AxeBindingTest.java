@@ -100,6 +100,21 @@ class AxeBindingTest {
         f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"replaced-workspace",SITE_WORK));
         var changed=f.finish(binding);assertEquals(Outcomes.Reason.STALE_OBSERVATION,changed.reason());assertNull(changed.request());
     }
+    @Test void selectedWorkspaceWaitsForLiveOccupancyToClearWithinTheOriginalResolution() {
+        var f=new Fixture();f.tables.clear();
+        var site=f.table(12);
+        var initial=new ProvisioningSiteSample(ObservationStatus.PRESENT,"original-empty-workspace",SITE_WORK);
+        f.sites.put(site,initial);
+        var binding=f.provision();LanguageRequests.Resolution selection;
+        do{selection=binding.poll();}while(!selection.message().contains("Approved empty workspace selected"));
+        f.sites.put(site,new ProvisioningSiteSample(ObservationStatus.ABSENT,initial.fingerprint(),SITE_WORK,true));
+        LanguageRequests.Resolution waiting;
+        do{waiting=binding.poll();}while(waiting.message().contains("Input stock validated"));
+        assertTrue(waiting.message().contains("selected workspace to clear"));assertNull(waiting.request());
+        f.sites.put(site,initial);
+        var resolved=f.finish(binding);
+        assertEquals(site,((FacilityValue)resolved.request().arguments().get("table")).value());
+    }
     @Test void unknownWorkspaceEvidenceDoesNotProveAMissingOrUsableSite() {
         var f=new Fixture();f.tables.clear();
         f.sites.put(f.table(12),new ProvisioningSiteSample(ObservationStatus.PRESENT,"empty-workspace",SITE_WORK));

@@ -62,11 +62,15 @@ public final class WorldReferenceDiscovery {
     public record FacilityTarget(FacilityRef facility,FacilitySample evidence) { }
     public static final int SITE_WORK=64;
     /** An observed empty placement workspace; never an observation that a table already exists. */
-    public record ProvisioningSiteSample(ObservationStatus status,String fingerprint,int work) {
+    public record ProvisioningSiteSample(ObservationStatus status,String fingerprint,int work,boolean occupied) {
+        public ProvisioningSiteSample(ObservationStatus status,String fingerprint,int work) {
+            this(status,fingerprint,work,false);
+        }
         public ProvisioningSiteSample {
             Objects.requireNonNull(status);
             if(fingerprint==null || fingerprint.isBlank() || fingerprint.length()>128 || work<1 || work>SITE_WORK)
                 throw new IllegalArgumentException("Bounded observed provisioning site required");
+            if(occupied && status!=ObservationStatus.ABSENT)throw new IllegalArgumentException("Occupied workspace is not available");
         }
     }
     public record ProvisioningSiteTarget(FacilityRef site,ProvisioningSiteSample evidence) { }

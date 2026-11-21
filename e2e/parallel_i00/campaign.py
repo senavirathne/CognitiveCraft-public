@@ -17,7 +17,7 @@ from campaigns.crafting.harness import CraftingHarness, observer_inputs
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
 from campaigns.crafting.run import needed_artifacts, run_case
-from parallel_b.guards import clean_owners
+from parallel_b.guards import clean_owners, stopped_process
 from runtime import digest
 from suite import atomic, read, reconnect_players, require
 
@@ -79,6 +79,16 @@ class OriginalCampaign(NativeGameplay):
                 "Actual boundary belongs to a different native request")
         self.event("i00-campaign-cut-frozen", mark)
         return mark
+
+    def fence_measured_case(self, case, row):
+        if not isolated(case):
+            self.cleanup()
+            return False
+        process = read(self.root / "server/process.json")
+        self.stop("server")
+        self.actions_active = False
+        row["stoppedIsolation"] = {"server": process, "worldHashes": self.world_hashes()}
+        return True
 
     def certify_admission(self, row):
         if row["capability"] not in self.acquisition_methods:
@@ -238,6 +248,17 @@ def review_case(case, row, root, pins, recipes, validate):
     integrated = requires_exact_choice(case)
     problems = validate(row, root, integrated_recipe=integrated)
     require(not problems, "; ".join(problems))
+    if isolated(case):
+        from .walkthrough_review import world_hashes
+
+        isolation = row["stoppedIsolation"]
+        terminal, = [event["data"] for event in jsonl(root / "supervisor.jsonl")
+                     if event["kind"] == "process-stop-witness" and event["time"] >= row["evidenceCutoffBeforeCleanup"]
+                     and event["data"].get("process") == isolation["server"] and not event["data"]["hard"]]
+        require(terminal["component"] == "server" and stopped_process(terminal["state"], hard=False)
+                and terminal["state"]["ExitCode"] == 0
+                and isolation["worldHashes"] == world_hashes(root / "server/game/world"),
+                "The isolated measured world was not sealed after the physical outcome")
     if case["mode"] == "recovery":
         mark = row["execution"]["nativeClock"]
         request = row["request"]
@@ -255,6 +276,21 @@ def review_case(case, row, root, pins, recipes, validate):
     balanced, _ = (recipe_balance(before, after, row["independentExpectation"])
                    if row.get("independentExpectation") else composition_balance(before, after, recipes))
     require(balanced and delta(before, after) == row["physicalDelta"], "Native world quantities do not independently reconcile")
+    if case.get("dynamic") == "fill-destination":
+        added = row["execution"]["dynamic"]["externalFill"]
+        item = case["output"]
+        def menu(frame, player_inventory):
+            return sum(slot["count"] for slot in frame["slots"]
+                       if slot["item"] == item and slot["playerInventory"] == player_inventory)
+        opening, closing = added["before"], added["after"]
+        original = sum(receipt["quantity"] for receipt in row["execution"]["receipts"]
+                       if receipt["stage"] == "DEPOSIT" and receipt["item"]["id"] == item)
+        require(opening["play"] and closing["play"] and opening["uuid"] == closing["uuid"] == row["bindings"]["player"]
+                and opening["menu"] == closing["menu"] > 0
+                and menu(opening, True)-menu(closing, True) == added["quantity"] > 0
+                and menu(closing, False)-menu(opening, False) == added["quantity"]
+                and row["delivered"] == original < row["requested"],
+                "External fill and original native delivery are not physically attributable")
     if integrated and not case.get("dynamic"):
         output = case["output"]
         # Every frozen ordinary recipe is a valid positive, including the

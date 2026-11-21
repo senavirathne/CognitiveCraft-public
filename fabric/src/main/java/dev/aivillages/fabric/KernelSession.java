@@ -649,7 +649,8 @@ public final class KernelSession implements AutoCloseable {
         }
         if(loaded.harvests()!=null) {
             harvestProtocol=new FabricHarvestProtocol(server.overworld(),jobs,leases,loaded.harvests(),loaded.initialHarvests(),
-                    loaded.harvestsReadOnly(),worker,clock,harvestEvidenceEnabled);
+                    loaded.harvestsReadOnly(),worker,clock,harvestEvidenceEnabled,exactProductionEnabled && pickupEvidenceEnabled
+                    && loaded.exactRecipes()!=null && !loaded.exactRecipes().fenced());
             gateway.harvestProtocol(harvestProtocol);
         }
         if(loaded.pickups()!=null) {

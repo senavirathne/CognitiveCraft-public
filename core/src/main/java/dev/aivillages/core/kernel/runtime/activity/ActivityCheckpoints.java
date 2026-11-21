@@ -13,23 +13,24 @@ public final class ActivityCheckpoints {
     private final JobLifecycleStore jobs;
     private final DepositEvidenceStore deposits;
     private final Predicate<Entry> currentProcessAcknowledgement;
-    private final boolean verifyClosedLogAdmissions;
+    private final boolean verifyClosedLogJobs;
     private final Predicate<Entry> savedSuccessor;
     private final Map<Key,Entry> settledHere=new HashMap<>();
+    private enum ClosedLog { NONE, ADMISSION, CHILD }
     private final Thread thread=Thread.currentThread();private int cursor;
     public ActivityCheckpoints(JobLifecycleStore jobs,DepositEvidenceStore deposits,Predicate<Entry> currentProcessAcknowledgement) {
         this(jobs, deposits, currentProcessAcknowledgement, false);
     }
     public ActivityCheckpoints(JobLifecycleStore jobs, DepositEvidenceStore deposits,
-                               Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogAdmissions) {
-        this(jobs, deposits, currentProcessAcknowledgement, verifyClosedLogAdmissions, entry -> false);
+                               Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogJobs) {
+        this(jobs, deposits, currentProcessAcknowledgement, verifyClosedLogJobs, entry -> false);
     }
     public ActivityCheckpoints(JobLifecycleStore jobs, DepositEvidenceStore deposits,
-                               Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogAdmissions,
+                               Predicate<Entry> currentProcessAcknowledgement, boolean verifyClosedLogJobs,
                                Predicate<Entry> savedSuccessor) {
         this.jobs=Objects.requireNonNull(jobs);this.deposits=Objects.requireNonNull(deposits);
         this.currentProcessAcknowledgement=Objects.requireNonNull(currentProcessAcknowledgement);
-        this.verifyClosedLogAdmissions = verifyClosedLogAdmissions;
+        this.verifyClosedLogJobs = verifyClosedLogJobs;
         this.savedSuccessor = Objects.requireNonNull(savedSuccessor);
         deposits.attachLiveSettlements(this::settledHere);
     }
@@ -46,9 +47,11 @@ public final class ActivityCheckpoints {
             cursor%=entries.size();Entry entry=entries.get(cursor++);
             if(entry.verification()!=null || settledHere(entry))continue;
             boolean activityCheckpoint = matches(entry);
-            if (!activityCheckpoint && (!verifyClosedLogAdmissions || !closedLogAdmission(entry))) continue;
+            ClosedLog closed = !activityCheckpoint && verifyClosedLogJobs ? closedLog(entry) : ClosedLog.NONE;
+            if (!activityCheckpoint && closed==ClosedLog.NONE) continue;
             if(currentProcessAcknowledgement.test(entry)) {
-                if(activityCheckpoint && settledHere.size()<MAX_ENTRIES)settledHere.put(entry.intent().key(),entry);
+                if((activityCheckpoint || closed==ClosedLog.CHILD) && settledHere.size()<MAX_ENTRIES)
+                    settledHere.put(entry.intent().key(),entry);
                 continue;
             }
             // There is no current-process acknowledgement after restart. Counts alone cannot close it.
@@ -56,35 +59,46 @@ public final class ActivityCheckpoints {
             if(proof!=null && proof.result()==Reconciliation.SAVED_COMPLETE) {
                 deposits.verify(proof);return;
             }
-            if (activityCheckpoint && verifyClosedLogAdmissions && settledHere.size() < MAX_ENTRIES && savedSuccessor.test(entry))
+            if (activityCheckpoint && verifyClosedLogJobs && settledHere.size() < MAX_ENTRIES && savedSuccessor.test(entry))
                 settledHere.put(entry.intent().key(), entry);
         }
     }
-    /** I00 can reuse a legacy admission's participants after the original saved cohort verifies. */
-    private boolean closedLogAdmission(Entry entry) {
+    /** A completed legacy child can release the same-process exclusion after its exact delivery. */
+    private ClosedLog closedLog(Entry entry) {
         try {
             var intent = entry.intent();
             var key = intent.key();
-            if (!key.root().equals(key.step()) || key.ordinal() != 3 || intent.pickupPrefix() == null
-                    || entry.result() == null || entry.result().live() != Live.COMPLETE) return false;
-            var job = jobs.query(key.root(), intent.origin());
-            if (job.activity() != null || job.parent() != null || job.state() != State.SUCCEEDED
+            if (key.ordinal() != 3 || intent.pickupPrefix() == null
+                    || entry.result() == null || entry.result().live() != Live.COMPLETE) return ClosedLog.NONE;
+            var job = jobs.query(key.step(), intent.origin());
+            if (job.activity() != null || job.state() != State.SUCCEEDED
                     || !job.origin().equals(intent.origin()) || job.generation() != key.generation()
-                    || job.allowance().deadlineEpochMillis() != intent.conditions().deadlineEpochMillis()
                     || !LogAcquisition.is(job.request().request().capability())
                     || !(job.request().request().arguments().get("amount") instanceof Contracts.IntValue amount)
-                    || amount.value() != 1) return false;
+                    || amount.value() != 1) return ClosedLog.NONE;
             var attempt = job.current();
             if (attempt == null || !attempt.id().equals(key.attempt()) || attempt.open() || attempt.uncertain()
                     || attempt.terminal().status() != Outcomes.ExecutionStatus.SUCCEEDED
-                    || attempt.effects() != 3 || attempt.credited() != 1) return false;
+                    || Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis())
+                        != intent.conditions().deadlineEpochMillis()
+                    || attempt.effects() != 3 || attempt.credited() != 1) return ClosedLog.NONE;
             var pickup = intent.pickupPrefix().pickup();
             var harvest = pickup.intent().harvest();
-            return attempt.resourceReceipts().equals(List.of(harvest.result().receipt(), pickup.result().receipt(), entry.result().receipt()))
-                    && attempt.executions().stream().anyMatch(execution -> execution.runId().equals(intent.run())
-                    && ResourceDelivery.completed(attempt.bound(), execution.runId(), attempt.receipts(), attempt.resourceReceipts()));
+            if (!attempt.resourceReceipts().equals(List.of(harvest.result().receipt(), pickup.result().receipt(), entry.result().receipt()))
+                    || attempt.executions().stream().noneMatch(execution -> execution.runId().equals(intent.run())
+                    && ResourceDelivery.completed(attempt.bound(), execution.runId(), attempt.receipts(), attempt.resourceReceipts())))
+                return ClosedLog.NONE;
+            var ancestor=job;
+            for (int depth=0; ancestor.parent()!=null; depth++) {
+                if (depth==8) return ClosedLog.NONE;
+                var parent=jobs.query(ancestor.parent(),intent.origin());
+                if (!parent.origin().equals(intent.origin()) || !parent.children().contains(ancestor.id())) return ClosedLog.NONE;
+                ancestor=parent;
+            }
+            if (!ancestor.id().equals(key.root())) return ClosedLog.NONE;
+            return job.parent()==null ? ClosedLog.ADMISSION : ClosedLog.CHILD;
         } catch (SecurityException | IllegalArgumentException | NullPointerException unavailable) {
-            return false;
+            return ClosedLog.NONE;
         }
     }
     private boolean matches(Entry entry) {

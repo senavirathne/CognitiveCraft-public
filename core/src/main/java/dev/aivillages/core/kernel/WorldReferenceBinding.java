@@ -383,6 +383,8 @@ public final class WorldReferenceBinding implements LanguageRequests.ResolutionH
             if(siteEvidence!=null) {
                 if(allowance.remaining()<SITE_WORK)return fail(Reason.BUDGET_EXHAUSTED,"Workspace revalidation work exhausted");
                 allowance.debit(SITE_WORK);var current=world.tableSite(actor,inputBox(),destination,table);
+                if(current.occupied() && current.fingerprint().equals(siteEvidence.fingerprint()))
+                    return LanguageRequests.Resolution.pending("Waiting for the selected workspace to clear");
                 if(current.status()!=ObservationStatus.PRESENT || !current.equals(siteEvidence))return fail(Reason.STALE_OBSERVATION,"Selected empty workspace changed");
             }else {
                 allowance.debit(1);var current=world.facility(actor,table);

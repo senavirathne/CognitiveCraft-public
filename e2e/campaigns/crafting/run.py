@@ -184,6 +184,8 @@ def run_case(h, case, *, integrated_recipe=False):
         key = ",".join(map(str, destination))
         output = case.get("output", OAK)
         delivered = after["containers"].get(key, {}).get(output, 0) - before["containers"].get(key, {}).get(output, 0)
+        if case.get("dynamic") == "fill-destination" and result.get("dynamic", {}).get("externalFill"):
+            delivered -= result["dynamic"]["externalFill"]["quantity"]
         requested = row.get("requested", case.get("quantity", 1))
         if case["mode"] == "facility" and output == TABLE:
             target = ",".join(map(str, facility))
@@ -321,15 +323,19 @@ def run_case(h, case, *, integrated_recipe=False):
         row["screenshots"] = [x for x in h.screenshots if x["family"] == case["id"]]
         atomic(folder / "result.json", row)
         h.records = None
+        stopped = False
         try:
-            h.cleanup()
+            if hasattr(h, "fence_measured_case"):
+                stopped = h.fence_measured_case(case, row)
+            else:
+                h.cleanup()
             row["cleanupFenced"] = True
         except Exception as error:
             row.update(cleanupFenced=False, cleanupError=repr(error))
-        if h.legacy_entity:
+        if not stopped and h.legacy_entity:
             with contextlib.suppress(Exception):
                 h.command("PlayerA", "/aivillage stop BreadWorker", "stop: BreadWorker")
-        if request and request["kind"] == "job":
+        if not stopped and request and request["kind"] == "job":
             with contextlib.suppress(Exception):
                 h.cancel_job("PlayerA", request["identity"])
         row["rawLogs"] = log_slices(h.root, folder, raw_offsets)

@@ -261,9 +261,13 @@ def execute_recovery(h, case):
 def execute_dynamic(h, case):
     event = case["dynamic"]
     if event == "competing-actors":
-        request = h.submit_command(h.command_text(case))
-        h.use_actor(1)
-        competitor = h.submit_command(h.command_text(case))
+        h.clock("tick rate 2")
+        try:
+            request = h.submit_command(h.command_text(case))
+            h.use_actor(1)
+            competitor = h.submit_command(h.command_text(case))
+        finally:
+            h.clock("tick rate 20")
         first = h.finish_request(request)
         other = h.finish_request(competitor)
         first["competitor"] = {"request": competitor, "result": other}
@@ -287,12 +291,14 @@ def execute_dynamic(h, case):
         witness = h.wait(first_batch, "First withdrawal before second batch", 160)
     except TimeoutError as error:
         raise BoundaryMissed(str(error)) from error
+    external_fill = None
     if event == "break-facility":
         h.action("PlayerA", "break", pos=h.facility)
         h.wait(lambda: TABLE not in h.snapshot()["blocks"].get(",".join(map(str, h.facility)), ""),
                "Ordinary player destroyed the real facility", 60)
     else:
-        slots = h.client_snapshot("PlayerA")["slots"]
+        menu_before = h.client_snapshot("PlayerA")
+        slots = menu_before["slots"]
         eligible = [s for s in slots if s["count"] and s["playerInventory"] == (event == "fill-destination") and
                     s["item"] == (case["output"] if event == "fill-destination" else LOG)]
         if not eligible:
@@ -301,6 +307,13 @@ def execute_dynamic(h, case):
             h.action("PlayerA", "menu-click", slot=slot["slot"], quick=True)
         h.wait(lambda: h.container(target, case["output"]) == 64 if event == "fill-destination" else
                h.container(target, LOG) == 0, "Actual connected inventory mutation", 30)
+        if event == "fill-destination":
+            menu_after = h.client_snapshot("PlayerA")
+            moved = sum(s["count"] for s in eligible)
+            require(menu_before["menu"] == menu_after["menu"] and not any(
+                s["playerInventory"] and s["item"] == case["output"] for s in menu_after["slots"]),
+                "Original player did not transfer all selected output stock")
+            external_fill = {"before": menu_before, "after": menu_after, "quantity": moved}
         h.action("PlayerA", "close-menu")
     mutation = h.snapshot()
     live = h.views(request)
@@ -315,6 +328,8 @@ def execute_dynamic(h, case):
     result = h.finish_request(request, 200)
     result["dynamic"] = {"event": event, "boundary": witness, "mutation": mutation,
                          "client": h.client_snapshot("PlayerA"), "witnessed": True}
+    if external_fill is not None:
+        result["dynamic"]["externalFill"] = external_fill
     return request, result
 
 

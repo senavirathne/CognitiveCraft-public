@@ -21,6 +21,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -249,6 +250,7 @@ public final class BootstrapGameTests {
         final AtomicInteger journalWritesFinished = new AtomicInteger();
         final AtomicInteger journalWriteFailures = new AtomicInteger();
         long coldStartedNanos, warmStartedNanos, maxTickNanos, peakHeapBytes;
+        List<String> lastReuseCropStates = List.of();
         final String dimension;
 
         /** Test-only offset advances a storage deadline after physical work has stopped. */
@@ -355,6 +357,31 @@ public final class BootstrapGameTests {
             return ready && access.actor(actor).loaded();
         }
 
+        private void assertMatureReuseCrops() {
+            for (int x = CROP_B.getX(); x <= CROP_B_MAX.getX(); x++)
+                for (int z = CROP_B.getZ(); z <= CROP_B_MAX.getZ(); z++) {
+                    var pos = absolute(new BlockPos(x, CROP_B.getY(), z));
+                    var state = h.getLevel().getBlockState(pos);
+                    h.assertTrue(state.is(Blocks.WHEAT) && state.getValue(CropBlock.AGE) == 7,
+                            "Expected six mature crops in the reuse fixture, saw " + state + " at " + pos);
+                }
+        }
+
+        private void traceReuseCrops() {
+            if (!Boolean.getBoolean("cognitivecraft.gametest.trace")) return;
+            var states = new ArrayList<String>();
+            for (int x = CROP_B.getX(); x <= CROP_B_MAX.getX(); x++)
+                for (int z = CROP_B.getZ(); z <= CROP_B_MAX.getZ(); z++) {
+                    var pos = absolute(new BlockPos(x, CROP_B.getY(), z));
+                    states.add(pos.toShortString() + "=" + h.getLevel().getBlockState(pos)
+                            + "/" + h.getLevel().getBlockState(pos.below()));
+                }
+            if (states.equals(lastReuseCropStates)) return;
+            lastReuseCropStates = List.copyOf(states);
+            System.out.println("IMP-007 reuse crops tick=" + h.getLevel().getGameTime()
+                    + " position=" + villager.position() + " states=" + states);
+        }
+
         void advance() {
             if (controller != null && stage != 4) {
                 long start = System.nanoTime();
@@ -426,6 +453,7 @@ public final class BootstrapGameTests {
                         stage = 9;
                         return;
                     }
+                    if ("cold".equals(restartPhase)) assertMatureReuseCrops();
                     closing = CompletableFuture.runAsync(() -> {
                         closeStores();
                         if ("cold".equals(restartPhase)) try {
@@ -464,12 +492,9 @@ public final class BootstrapGameTests {
                                         && h.getLevel().getBlockState(absolute(CROP_A_MAX)).isAir(),
                                 "Cold physical effects did not survive world reload");
                         h.assertTrue(h.getLevel().getBlockEntity(absolute(CHEST_B))
-                                        instanceof Container
-                                        && h.getLevel().getBlockState(absolute(CROP_B))
-                                                .is(Blocks.WHEAT)
-                                        && h.getLevel().getBlockState(absolute(CROP_B_MAX))
-                                                .is(Blocks.WHEAT),
-                                "Changed-binding fixture did not survive world reload");
+                                        instanceof Container,
+                                "Changed-binding destination did not survive world reload");
+                        assertMatureReuseCrops();
                     }
                     h.assertTrue(stores.repository().resolve(admitted).usable(),
                             "Admitted ref lost on reload");
@@ -489,12 +514,15 @@ public final class BootstrapGameTests {
                             "Waiting for changed-binding chunks to tick");
                     h.assertTrue(villager.onGround(),
                             "Waiting for relocated actor to land before offline navigation");
+                    assertMatureReuseCrops();
+                    traceReuseCrops();
                     warmStartedNanos = System.nanoTime();
                     var submitted = controller.submit(request(6, CROP_B, CROP_B_MAX, CHEST_B), owner);
                     if (!submitted.accepted()) fail("Reuse rejected: " + submitted.reason());
                     runId = submitted.id(); stage = 7;
                 }
                 case 7 -> {
+                    traceReuseCrops();
                     var status = controller.status(runId, owner);
                     h.assertTrue(status.phase() == BootstrapController.Phase.TERMINAL
                             && status.marker() != null, "Executing admitted method offline");

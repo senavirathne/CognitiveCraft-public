@@ -95,8 +95,8 @@ final class FabricTablePlacement {
                 !checked.pending() && (checked.reason()==Reason.TARGET_UNAVAILABLE || checked.reason()==Reason.ACTOR_UNAVAILABLE
                         || checked.reason()==Reason.BUDGET_EXHAUSTED)?ObservationStatus.UNKNOWN:ObservationStatus.ABSENT;
         return new dev.aivillages.core.kernel.WorldReferenceDiscovery.ProvisioningSiteSample(status,
-                status==ObservationStatus.PRESENT?checked.fingerprint():status==ObservationStatus.UNKNOWN?"unknown-site":"ineligible-site",
-                dev.aivillages.core.kernel.WorldReferenceDiscovery.SITE_WORK);
+                status==ObservationStatus.PRESENT || checked.pending()?checked.fingerprint():status==ObservationStatus.UNKNOWN?"unknown-site":"ineligible-site",
+                dev.aivillages.core.kernel.WorldReferenceDiscovery.SITE_WORK,checked.pending());
     }
     PlacementTransaction.Preflight preflight(ValidatedRequest bound){
         if(!CraftingTablePlacement.valid(bound.request()))return PlacementTransaction.Preflight.blocked(Reason.REQUEST_INVALID);

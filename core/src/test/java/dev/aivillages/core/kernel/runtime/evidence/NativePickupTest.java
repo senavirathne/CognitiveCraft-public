@@ -13,6 +13,9 @@ final class NativePickupTest {
     static final String DIM="minecraft:overworld",LOG="minecraft:oak_log";
     static NativeHarvest.Entry harvest(int quantity) {return harvest(LOG,quantity);}
     static NativeHarvest.Entry harvest(String item,int quantity) {
+        return harvest(item,quantity,false);
+    }
+    static NativeHarvest.Entry harvest(String item,int quantity,boolean child) {
         UUID world=UUID.randomUUID(),job=UUID.randomUUID();var actor=new ActorRef(UUID.randomUUID(),UUID.randomUUID(),DIM);
         var origin=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(world,UUID.randomUUID()));
         var empty=new ArrayList<NativeDeposit.Slot>();for(int n=0;n<8;n++)empty.add(new NativeDeposit.Slot("minecraft:air",0));
@@ -22,7 +25,7 @@ final class NativePickupTest {
         var claims=List.of(new NativeDeposit.Claim(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),1));
         var conditions=new NativeDeposit.Conditions(actor.citizenId(),4,100_000,10_000,64,10,2500,1000,claims,usage);
         var source=new NativeHarvest.Source(DIM,2,64,2,UUID.randomUUID(),3,item+"[axis=y]");
-        var i=new NativeHarvest.Intent(new NativeDeposit.Key(world,job,job,UUID.randomUUID(),1,1),origin,UUID.randomUUID(),UUID.randomUUID(),
+        var i=new NativeHarvest.Intent(new NativeDeposit.Key(world,job,child?UUID.randomUUID():job,UUID.randomUUID(),1,1),origin,UUID.randomUUID(),UUID.randomUUID(),
                 actor,new Cuboid(DIM,2,64,2,2,64,2),new ContainerRef(DIM,10,64,10),item,source,conditions,participant);
         var d=new NativeHarvest.Drop(DIM,UUID.randomUUID(),UUID.randomUUID(),0,item,quantity);
         var after=new NativeHarvest.Source(DIM,source.x(),source.y(),source.z(),source.incarnation(),4,"minecraft:air");

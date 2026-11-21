@@ -29,7 +29,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
     public enum Point { PREPARED_MARKED,BEFORE_MUTATION,AFTER_MUTATION,RESULT_ACKNOWLEDGED,VERIFICATION_ACKNOWLEDGED }
     private final Thread thread=Thread.currentThread();
     private final ServerLevel level;private final JobLifecycleStore jobs;private final ResourceLeaseService leases;private final Clock clock;
-    private final boolean enabled;
+    private final boolean enabled, compoundChildren;
     private final HarvestEvidenceStore store;
     private final HarvestPreflightScope preflight=new HarvestPreflightScope();
     private final Set<NativeTicket> tickets=Collections.newSetFromMap(new IdentityHashMap<>());
@@ -78,8 +78,11 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         public NativeHarvest.Entry harvest(){return original.entry();}
         HarvestEvidenceStore.Acknowledged acknowledged(){return original;}
     }
-    private NativeBirth beginMembershipBirth(NativeHarvest.Intent intent,Villager actor) {
-        if(!intent.item().equals("minecraft:wheat") && (intent.key().ordinal()!=1 || !intent.key().root().equals(intent.key().step())
+    private NativeBirth beginMembershipBirth(NativeHarvest.Intent intent,Villager actor,Jobs.Job owner) {
+        var key=intent.key();
+        boolean originalChild=compoundChildren && owner.parent()!=null && owner.id().equals(key.step())
+                && owner.request().request().arguments().get("amount") instanceof IntValue quantity && quantity.value()==1;
+        if(!intent.item().equals("minecraft:wheat") && (key.ordinal()!=1 || !key.root().equals(key.step()) && !originalChild
                 || intent.actorBefore().slots().stream().anyMatch(slot->slot.count()!=0)))return null;
         if(membershipBirths.size()==NativeHarvest.MAX_ENTRIES||membershipBirths.containsKey(intent.key().token()))throw new IllegalStateException("Original H membership quota/identity");
         var birth=new NativeBirth(intent,actor);membershipBirths.put(intent.key().token(),birth);return birth;
@@ -182,8 +185,13 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
 
     public FabricHarvestProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,HarvestJournal journal,
                                  HarvestJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled) {
+        this(level,jobs,leases,journal,initial,readOnly,worker,clock,enabled,false);
+    }
+    public FabricHarvestProtocol(ServerLevel level,JobLifecycleStore jobs,ResourceLeaseService leases,HarvestJournal journal,
+                                 HarvestJournal.Snapshot initial,boolean readOnly,Executor worker,Clock clock,boolean enabled,
+                                 boolean compoundChildren) {
         this.level=Objects.requireNonNull(level);this.jobs=Objects.requireNonNull(jobs);this.leases=Objects.requireNonNull(leases);
-        this.clock=Objects.requireNonNull(clock);this.enabled=enabled;
+        this.clock=Objects.requireNonNull(clock);this.enabled=enabled;this.compoundChildren=compoundChildren;
         NativeDeposit.initializeCaptureSchema();NativeHarvest.initializeCaptureSchema();DepositStackOwners.initialize();
         HarvestSourceState.initializeCaptureSchema();
         NativeCaptureSchema.link(Pair.class,NativeTicket.class,PickupLineage.class);
@@ -335,7 +343,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         mark(pair,new Marker(intent.key().token(),intent.digest(),MarkerPhase.PREPARED,""));observer.accept(Point.PREPARED_MARKED);
         if(!nativeCurrent(intent))throw new IllegalStateException("Harvest changed after prepared marker");
         mark(pair,new Marker(intent.key().token(),intent.digest(),MarkerPhase.MUTATING,""));observer.accept(Point.BEFORE_MUTATION);
-        NativeBirth birth=beginMembershipBirth(intent,pair.actor);
+        NativeBirth birth=beginMembershipBirth(intent,pair.actor,ticket.authority);
         Observed observed=null;RuntimeException failure=null;
         try(var scope=HarvestBirthScope.open(drop->born(birth,drop))){observed=ticket.original.execute();}catch(RuntimeException error){failure=error;}
         observer.accept(Point.AFTER_MUTATION);
