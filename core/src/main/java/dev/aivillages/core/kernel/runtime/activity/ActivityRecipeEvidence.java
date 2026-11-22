@@ -119,6 +119,20 @@ public final class ActivityRecipeEvidence {
                 && boundReceipt(attempt.bound(),attempt.id(),receipt);
     }
 
+    public static boolean physicallySeparated(RecipeChoice choice,int batch) {
+        return choice.batch(batch).withdrawals().stream().map(RecipeChoice.Binding::source).distinct().count()==2;
+    }
+
+    /** One acknowledged phase can include two separately reached native withdrawals. */
+    public static long provedEffects(Job job,ActivityPayload.Step step,List<Receipt> receipts) {
+        var production=job.activity().production();
+        if(!step.exactChoice() || production==null || !production.allowsSeparateSticks())return receipts.size();
+        var choice=step.choice().recipe();
+        long additional=receipts.stream().filter(r->r.stage()==Stage.WITHDRAW && r.choice()!=null
+                && physicallySeparated(choice,r.choice().batch())).count();
+        return receipts.size()+additional;
+    }
+
     public static long quantity(Job job,Attempt attempt,ActivityPayload.Step step,List<Receipt> receipts) {
         if(receipts.isEmpty())return 0;
         RecipeChoice choice=step.choice().recipe();

@@ -470,7 +470,8 @@ public final class KernelSession implements AutoCloseable {
                         && loaded.roots().snapshot().complete() && !historyGenerationUnavailable),jobHistoryEnabled);
         leasedGateway.tick();
         broker.step();
-        controller.tick();
+        boolean executionClockRunning=productionActivities==null || !server.tickRateManager().isFrozen();
+        controller.tick(executionClockRunning);
         planner.tick();
         prerequisites.tick();
         dispatchGateway.tick();
@@ -484,7 +485,7 @@ public final class KernelSession implements AutoCloseable {
                             +":"+c.scope().domainId())).toList();
             dispatchRevision=jobs.snapshot().revision();
         }
-        if(!dispatchScopes.isEmpty()) {
+        if(executionClockRunning && !dispatchScopes.isEmpty()) {
             dispatchScopeCursor%=dispatchScopes.size();
             dispatcher.step(dispatchScopes.get(dispatchScopeCursor));
             dispatchScopeCursor=(dispatchScopeCursor+1)%dispatchScopes.size();

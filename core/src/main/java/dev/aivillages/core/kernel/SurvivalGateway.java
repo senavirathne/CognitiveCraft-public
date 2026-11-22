@@ -30,13 +30,13 @@ public final class SurvivalGateway implements GatewayPort {
         Reason observePlacement(ValidatedRequest request,RunCorrelation run,PlacementTransaction.Preflight captured);
         ExactRecipeResult poll(ValidatedRequest request,RunCorrelation run,ActionHandle operation,
                                ResourceDelivery.Stage phase,Budgets.Ledger usage,long deadline);
-        boolean possibleEffect(ActionHandle operation);
+        int possibleEffects(ActionHandle operation);
         void release(UUID run);
     }
-    public record ExactRecipeResult(boolean pending,boolean committed,ResourceDelivery.Receipt receipt,Reason reason) {
+    public record ExactRecipeResult(boolean pending,int effects,ResourceDelivery.Receipt receipt,Reason reason) {
         public ExactRecipeResult {
-            if(pending && (receipt!=null || reason!=null) || !pending && (receipt==null)==(reason==null)
-                    || receipt!=null && !committed)throw new IllegalArgumentException("Exact native effect result");
+            if(effects<0 || effects>2 || pending && (receipt!=null || reason!=null) || !pending && (receipt==null)==(reason==null)
+                    || receipt!=null && effects==0)throw new IllegalArgumentException("Exact native effect result");
         }
     }
     private ExactRecipeEffects exactRecipes;
@@ -577,7 +577,7 @@ public final class SurvivalGateway implements GatewayPort {
 
     boolean nativeResultPending(ActionHandle handle){thread();return nativeResultPending(get(handle));}
     private boolean nativeResultPending(Active a) {
-        return exactRecipes!=null && exactRecipes.possibleEffect(a.handle)
+        return exactRecipes!=null && exactRecipes.possibleEffects(a.handle)>0
                 || a.pendingReceiptStart>=0 && (a.harvestTicket!=null && a.harvestOutcome!=null && a.harvestOutcome.harvest().removed()
                 || a.pickupTicket!=null && a.pickupOutcome!=null && a.pickupOutcome.pickup().collected()>0
                 || a.depositTicket!=null && a.depositOutcome!=null && a.depositOutcome.deposited()>0);
@@ -862,9 +862,9 @@ public final class SurvivalGateway implements GatewayPort {
             default -> null;
         };
         if(phase==null) {finish(action,Reason.UNSUPPORTED_PRIMITIVE,null,null);return;}
-        if(!exactRecipes.possibleEffect(action.handle) && !effectAllowance(action))return;
+        if(exactRecipes.possibleEffects(action.handle)==0 && !effectAllowance(action))return;
         var result=exactRecipes.poll(run.request,run.correlation,action.handle,phase,action.usage,action.deadlineMillis);
-        if(result.committed())action.effects=1;
+        action.effects=Math.max(action.effects,result.effects());
         if(result.pending())return;
         if(result.receipt()==null) {finish(action,result.reason(),null,null);return;}
         run.resourceReceipts.add(result.receipt());action.resourceReceipts.add(result.receipt());
@@ -1478,7 +1478,7 @@ public final class SurvivalGateway implements GatewayPort {
     }
     private void finish(Active action, Reason reason, Value result, ObservationSnapshot snapshot) {
         if (action.current.terminal()) return;
-        if(exactRecipes!=null && exactRecipes.possibleEffect(action.handle))action.effects=1;
+        if(exactRecipes!=null)action.effects=Math.max(action.effects,exactRecipes.possibleEffects(action.handle));
         if(nativeResultPending(action))reason=Reason.INTERRUPTED;
         if(action.pickupTicket!=null && pickupProtocol!=null){pickupProtocol.forget(action.pickupTicket);action.pickupTicket=null;}
         if(action.depositTicket!=null && depositProtocol!=null){depositProtocol.forget(action.depositTicket);action.depositTicket=null;}

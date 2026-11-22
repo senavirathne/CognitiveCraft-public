@@ -24,6 +24,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,required=True)
     parser.add_argument('--built',action='store_true')
+    parser.add_argument('--keep-going',action='store_true')
     parser.add_argument('--entrypoint',action='append')
     parser.add_argument('--extra-mod',type=Path,action='append',default=[])
     args=parser.parse_args();root=args.root.resolve();root.mkdir(parents=True,exist_ok=False)
@@ -58,6 +59,7 @@ def main():
               'javaVersion':subprocess.run([headless.executable('java'),'-version'],capture_output=True,text=True,check=True).stderr,
               'ci':{k:os.environ[k] for k in ['GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_SHA','GITHUB_REF_NAME'] if k in os.environ},'phases':[]}
     (root/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')
+    failures=[]
     for index,entry in enumerate(entries):
         phase=root/f'{index:02d}-{entry.rsplit(".",1)[1]}';game=phase/'game';mods=game/'mods';mods.mkdir(parents=True)
         report=phase/'native-results.xml';evidence=phase/'evidence';evidence.mkdir()
@@ -78,16 +80,25 @@ def main():
         identity={'entrypoint':entry,'command':command,'port':port,'testJarSha256':sha(selected),'result':'NOT_EXECUTED'}
         metadata['phases'].append(identity);(root/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')
         with (phase/'stdout.log').open('w') as output:
-            result=subprocess.run(command,cwd=game,stdout=output,stderr=subprocess.STDOUT,timeout=500)
+            try:
+                code=subprocess.run(command,cwd=game,stdout=output,stderr=subprocess.STDOUT,timeout=500).returncode
+            except subprocess.TimeoutExpired:
+                if not args.keep_going:raise
+                output.write('\nNative host phase exceeded the existing 500-second deadline.\n')
+                code=124
         cases=[c for c in ET.parse(report).getroot().iter('testcase') if c.get('name','').startswith('ai_villages_tests:')] if report.exists() else []
-        passed=result.returncode==0 and bool(cases) and not any(c.find(t) is not None for c in cases for t in ['failure','error','skipped'])
-        identity.update(result='PASS' if passed else 'FAIL',exit=result.returncode,nativeCases=len(cases),report=str(report.relative_to(root)))
+        passed=code==0 and bool(cases) and not any(c.find(t) is not None for c in cases for t in ['failure','error','skipped'])
+        identity.update(result='PASS' if passed else 'FAIL',exit=code,nativeCases=len(cases),report=str(report.relative_to(root)))
         (root/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')
-        if not passed:raise RuntimeError('Real native host phase failed: '+entry+'; '+str(phase/'stdout.log'))
+        if not passed:
+            reason='Real native host phase failed: '+entry+'; '+str(phase/'stdout.log')
+            if not args.keep_going:raise RuntimeError(reason)
+            failures.append(reason)
         if sha(release)!=production_hash:raise ValueError('Host qualification changed the production JAR')
-        print(entry,'PASS',len(cases),'actual Minecraft test(s)',flush=True)
+        print(entry,identity['result'],len(cases),'actual Minecraft test(s)',flush=True)
     files=[{'path':str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':sha(p)} for p in sorted(root.rglob('*')) if p.is_file()]
     (root/'manifest.json').write_text(json.dumps({'source':metadata,'files':files},indent=2)+'\n')
+    if failures:raise RuntimeError('\n'.join(failures))
     print('NATIVE_HOST_QUALIFICATION PASS; connected-client/autonomous/recovery claims=false',flush=True)
 
 

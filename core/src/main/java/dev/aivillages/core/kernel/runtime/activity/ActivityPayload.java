@@ -249,12 +249,17 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             var m=production.memory();
             var budget=ProductionActivityPlanner.budget(job);
             var additional=production.additionalSource();
-            if(additional!=null && (production.acquisition()!=null
-                    || !RecipeProduction.is(job.request().request().capability())
-                    || RecipeProduction.of(job.request().request().capability()).axe()
+            var capability=job.request().request().capability();
+            if(additional!=null && (!RecipeProduction.is(capability)
+                    || RecipeProduction.of(capability).axe()!=production.allowsSeparateSticks()
+                    || !production.allowsSeparateSticks() && production.acquisition()!=null
                     || !(job.request().request().arguments().get("source") instanceof ContainerValue source)
-                    || !source.value().dimension().equals(additional.dimension()) || source.value().equals(additional)))
+                    || !source.value().dimension().equals(additional.dimension()) || source.value().equals(additional)
+                    || production.allowsSeparateSticks() && new ContainerValue(additional).equals(job.request().request().arguments().get("destination"))))
                 throw new IllegalArgumentException("Invalid original supplemental recipe source");
+            if(production.groupedOriginalPlanks() && (!capability.equals(BirchPlankProduction.ID) || goal<=32
+                    || job.request().request().arguments().get("source").equals(job.request().request().arguments().get("destination"))))
+                throw new IllegalArgumentException("Invalid original grouped plank order");
             if(production.exactLegacyMaterials() && !ResourceComposition.explicitAcquisition(job.request().request().capability())
                     || production.allowsHeldSticks() && !job.request().request().capability().equals(WoodenAxeProduction.ID)
                     || steps.size()>production.decisions() || production.acquisition()!=null

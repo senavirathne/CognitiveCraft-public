@@ -1141,6 +1141,7 @@ public final class JobLifecycleStore {
         var report = evidence.observation().report();
         var prefix = report.resourceReceipts();
         if (attempt.effects() > report.effects() || attempt.receiptCount() > prefix.size()
+                || report.effects() != ActivityRecipeEvidence.provedEffects(job,step,prefix)
                 || !attempt.resourceReceipts().equals(prefix.subList(0, attempt.resourceReceipts().size()))
                 || report.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS, 0L) != report.effects())
             return reject(Reason.STALE_OBSERVATION, work);

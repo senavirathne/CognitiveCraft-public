@@ -22,11 +22,7 @@ public final class PlacementEffectGameTests {
     public void placementMoveRequiresTheSameCenterRayAsTheMutation(GameTestHelper h){
         gatewayPlacement(h,true,false);
     }
-    @GameTest(maxTicks=1000,padding=16)
-    public void explicitHeldTablePlacesExactlyOneOriginalUnitAndPreservesContainerStock(GameTestHelper h){
-        gatewayPlacement(h,false,true);
-    }
-    private void gatewayPlacement(GameTestHelper h,boolean overhead,boolean held){
+    static void gatewayPlacement(GameTestHelper h,boolean overhead,boolean held){
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         // Adjacent source is the harder case: its closest approach is the reserved site.
         h.setBlock(2,1,2,Blocks.CHEST);if(overhead)h.setBlock(2,2,3,Blocks.STONE);
@@ -185,7 +181,8 @@ public final class PlacementEffectGameTests {
             if(!v.onGround()){h.assertTrue(false,"Waiting for native placement actor");return;}
             if(phase[0]>0)return;
             h.assertTrue(world.acquire(actor,run),"Native placement actor control");from.setItem(0,new ItemStack(Items.CRAFTING_TABLE,3));v.getInventory().setItem(0,new ItemStack(Items.CRAFTING_TABLE,7));
-            var initial=world.placementPreflight(bound);h.assertTrue(initial.reason()==null && initial.availableItems()==3,"Known exact approved site");
+            var initial=world.placementPreflight(bound);h.assertTrue(initial.reason()==null && initial.availableItems()==3,
+                    "Known exact approved site: "+initial+" actualStock="+from.countItem(Items.CRAFTING_TABLE)+" worker="+v.position());
             h.getLevel().setBlock(targetPos,Blocks.STONE.defaultBlockState(),3);h.assertTrue(world.placementPreflight(bound).reason()==Reason.TARGET_INVALID,"Occupied target accepted");h.getLevel().setBlock(targetPos,Blocks.AIR.defaultBlockState(),3);
             h.assertTrue(world.withdrawTableItem(actor,initial,initial.custodyFingerprint(),initial.sourceFingerprint()).reason()==Reason.STALE_OBSERVATION,"Target replace-and-restore accepted");
             h.getLevel().setBlock(targetPos.below(),Blocks.AIR.defaultBlockState(),3);h.assertTrue(world.placementPreflight(bound).reason()==Reason.TARGET_INVALID,"Unsupported site accepted");h.getLevel().setBlock(targetPos.below(),Blocks.STONE.defaultBlockState(),3);

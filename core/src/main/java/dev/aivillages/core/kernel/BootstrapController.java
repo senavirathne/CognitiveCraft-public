@@ -360,6 +360,9 @@ public final class BootstrapController {
 
     /** At most one persistence event and one engine slice per server tick. */
     public void tick() {
+        tick(true);
+    }
+    public void tick(boolean executionClockRunning) {
         thread();
         if (jobs != null) {
             jobs.tick();
@@ -411,8 +414,8 @@ public final class BootstrapController {
         if (written != null) return; // A completion and an engine slice are separate ticks.
         if (active != null && active.actorLost && !writing && !active.finishing)
             terminate(active, "INTERRUPTED", Reason.INTERRUPTED);
-        else if (active != null && jobs != null && active.cancelPending && !active.finishing)
-            return; // Wait for the durable Jobs cancellation delivery before another engine slice.
+        else if (!executionClockRunning || active != null && jobs != null && active.cancelPending && !active.finishing)
+            return; // Durable completion and cancellation acknowledgements are still serviced above.
         else if (active != null && !writing && active.phase == Phase.RESEARCHING)
             advanceResearch(active);
         else if (active != null && !writing && active.phase == Phase.EXECUTING)

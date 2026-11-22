@@ -118,7 +118,9 @@ class OriginalCampaign(NativeGameplay):
         self.enroll("PlayerA", "Reserve")
         require(self.entities["PlayerA"] == self.offline_worker, "Offline reuse enrollment resolved to the wrong worker")
         self.action("PlayerA", "use", pos=RECOVERY_GATE)
-        self.wait(lambda: "open=true" in self.block(RECOVERY_GATE), "Connected player releases the original reserve worker")
+        gate = ",".join(map(str, RECOVERY_GATE))
+        self.wait(lambda: "open=true" in self.snapshot()["blocks"].get(gate, ""),
+                  "Connected player releases the original reserve worker")
 
     def compete_for_stock(self, case):
         first = self.submit_command(self.command_text(case))

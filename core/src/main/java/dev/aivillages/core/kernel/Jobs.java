@@ -279,8 +279,8 @@ public final class Jobs {
                     && (report == null || report.terminal() == null))
                 throw new IllegalArgumentException("Complete native report required");
             if (kind == StoppedKind.CONTINUABLE && (report == null || report.terminal() != null
-                    || report.effects() < 2 || !report.receipts().isEmpty()
-                    || report.resourceReceipts().size() != report.effects()))
+                    || !report.receipts().isEmpty() || report.resourceReceipts().size() < 2
+                    || report.resourceReceipts().size() > report.effects()))
                 throw new IllegalArgumentException("Saved native prefix required for continuation");
             if (kind == StoppedKind.NO_EFFECT && (report.effects() != 0 || !report.receipts().isEmpty()
                     || !report.resourceReceipts().isEmpty() || report.terminal().status() == ExecutionStatus.SUCCEEDED))

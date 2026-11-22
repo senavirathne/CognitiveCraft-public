@@ -15,6 +15,50 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Owner/codec tests with synthetic participants; no native save or continuation qualification. */
 final class ActivityAssignmentWindowTest {
+    @Test void theOriginalSeparatedStickAuthoritySurvivesTheJobsJournal(@TempDir Path world) throws Exception {
+        var actor=new ActorRef(UUID.randomUUID(),UUID.randomUUID(),"minecraft:overworld");
+        var principal=UUID.randomUUID();
+        var owner=new TrustedContext(new PrincipalRef(principal),new ScopeRef(UUID.randomUUID(),principal));
+        var source=new ContainerRef(actor.dimension(),0,65,1);
+        var sticks=new ContainerRef(actor.dimension(),7,65,1);
+        var destination=new ContainerRef(actor.dimension(),6,65,8);
+        var table=new FacilityRef(actor.dimension(),5,65,4);
+        var area=new Cuboid(actor.dimension(),0,65,0,5,65,0);
+        var request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(actor),"amount",new IntValue(1),
+                "source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(table)));
+        var clock=Clock.fixed(Instant.ofEpochMilli(100),ZoneOffset.UTC);
+        var observation=new ObservationRef(UUID.randomUUID(),1,actor.dimension());
+        var allowance=ResourceComposition.allowance(clock.millis());
+        var stock=ActivityPayload.OriginalStock.CONTAINERS_AND_SEPARATE_STICKS;
+        var root=UUID.randomUUID();
+        try(var journal=JobJournal.open(world,owner.scope().worldId())) {
+            var store=new JobLifecycleStore(journal.snapshot(),(before,after)->{
+                try {return CompletableFuture.completedFuture(journal.replace(before,after));}
+                catch(java.io.IOException failure){return CompletableFuture.failedFuture(failure);}
+            },JobLifecycleStore.privateJobs((worker,caller)->worker.equals(actor) && caller.equals(owner)),
+                    cancellation->fail("Unexpected cancellation"),PlanningGoals.catalog(),new RequestEnvironment() {
+                        public boolean enrolled(ActorRef worker,TrustedContext caller){return worker.equals(actor) && caller.equals(owner);}
+                        public boolean loaded(Cuboid bounds,ObservationRef witness){return true;}
+                        public boolean available(ContainerRef address,ObservationRef witness){return true;}
+                    },clock,Settings.defaults(),false);
+            assertFalse(store.createProductionActivity(UUID.randomUUID(),request,owner,observation,allowance,4,area,destination,stock).accepted());
+            var admitted=store.createProductionActivity(root,request,owner,observation,allowance,4,area,sticks,stock);
+            assertTrue(admitted.accepted(),admitted.toString());
+            store.tick();
+            assertEquals(request,store.query(root,owner).request().request());
+        }
+        try(var journal=JobJournal.open(world,owner.scope().worldId())) {
+            assertFalse(journal.readOnly());
+            var persisted=journal.snapshot().jobs().getFirst();
+            assertEquals(root,persisted.id());
+            assertEquals(request,persisted.request().request());
+            assertEquals(allowance,persisted.allowance());
+            assertEquals(area,persisted.activity().production().acquisition());
+            assertEquals(List.of(source,sticks),ActivityRecipeEvidence.authorizedSources(persisted));
+            assertTrue(persisted.activity().production().allowsSeparateSticks());
+        }
+    }
+
     @Test void anAbsentWindowKeepsTheOriginalOptionalPayloadRepresentation() throws Exception {
         var scene=new ActivityCheckpointsTest.Scene(false,true,true);
         var payload=scene.job().activity();var encoded=ActivityCodec.encode(payload);

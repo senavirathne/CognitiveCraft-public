@@ -138,9 +138,10 @@ public final class BoundedSkillExecutor {
                 || !step.artifact().equals(artifact) || !attempt.bound().request().equals(request.request())
                 || !attempt.bound().context().equals(request.context()) || !attempt.allowance().equals(limits.total()))
             return new Rejected(Reason.STALE_OBSERVATION);
-        if (continuing && (attempt.uncertain() || attempt.effects() != attempt.resourceReceipts().size()
+        if (continuing && (attempt.uncertain()
+                || attempt.effects() != ActivityRecipeEvidence.provedEffects(root,step,attempt.resourceReceipts())
                 || !attempt.usage().equals(usage.snapshot()) || step.assignmentExpiresTick() == null
-                || step.savedPrefixEffects() == null || step.savedPrefixEffects() != attempt.effects()
+                || step.savedPrefixEffects() == null || step.savedPrefixEffects() != attempt.resourceReceipts().size()
                 || tickClock.getAsLong() >= step.assignmentExpiresTick())) return new Rejected(Reason.STALE_OBSERVATION);
         return start(request,artifact,correlation,limits,usage,null,root,continuing);
     }
