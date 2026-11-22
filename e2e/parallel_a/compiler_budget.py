@@ -1,5 +1,5 @@
 """Keep owned compiler and test-writer bursts on one of A10's existing two cores."""
-import hashlib,json,os,uuid
+import hashlib,json,os,time,uuid
 from pathlib import Path
 
 def birth(pid):
@@ -62,6 +62,16 @@ def configure(pid,start_ticks,cpus,require_observers=False,server_cpu=None,appli
             'addedCores':0,'priorityPolicy':'Owned C1/C2, observers, selected A04/A06 application writers and A06 auxiliary threads use original core1, niceness >=10; server priority is unchanged',
             'serverAffinityPolicy':'ORIGINAL_TWO_CORES' if server_cpu is None else 'RESERVED_CORE_WITHIN_ORIGINAL_TWO_CORE_BUDGET'}
 
+def configure_live(pid,start_ticks,cpus,**options):
+    # Short-lived JVM workers can exit while /proc is being read. Reinspect the
+    # same native birth and require the full affinity proof on the completed scan.
+    for attempt in range(4):
+        try:
+            return configure(pid,start_ticks,cpus,**options)
+        except (FileNotFoundError,ProcessLookupError):
+            if attempt==3:raise
+            time.sleep(0.025)
+
 def prepare(h,writer_fixtures=False):
     from baseline import native_process
     from suite import atomic
@@ -69,7 +79,7 @@ def prepare(h,writer_fixtures=False):
     expected=hashlib.sha256((Path(__file__).resolve().parents[2]/'fabric/build/libs/ai-villages-0.1.0.jar').read_bytes()).hexdigest()
     if namespace['kind']!='server' or namespace['releaseSha256']!=expected:raise ValueError('Frozen owned server JAR required')
     if owned['containerResources']['cpusetCpus']!='0-1':raise ValueError('Original Docker server CPU set required')
-    value=configure(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True,
+    value=configure_live(owned['hostJvmPid'],owned['startTicks'],[0,1],require_observers=True,
                     server_cpu=0 if h.a10_profile in ('A04','A05','A06') else None,
                     application_writers=h.a10_profile in ('A04','A06'),require_writer_fixtures=writer_fixtures,
                     require_storage_writer=h.a10_profile=='A06',isolate_auxiliary=h.a10_profile=='A06')

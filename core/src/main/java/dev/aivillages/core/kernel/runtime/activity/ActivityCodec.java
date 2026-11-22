@@ -106,6 +106,7 @@ public final class ActivityCodec {
             var source=p.additionalSource();
             row.put("additionalSource",Map.of("dimension",source.dimension(),"x",source.x(),"y",source.y(),"z",source.z()));
         }
+        if(p.originalStock()!=null)row.put("originalStock",p.originalStock().name());
         if(p.plan()!=null) {
             var covered=new TreeMap<String,List<String>>();
             p.coveredActions().forEach((id,actions)->covered.put(id.toString(),actions));
@@ -126,7 +127,7 @@ public final class ActivityCodec {
         return row;
     }
     private static ProductionControl production(Map<String,Object> row)throws StrictJson.Invalid {
-        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered","additionalSource"));
+        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered","additionalSource","originalStock"));
         Cuboid area=null;
         if(row.containsKey("acquisition")) {
             var a=object(row.get("acquisition"));exact(a,"dimension","minX","minY","minZ","maxX","maxY","maxZ");
@@ -158,7 +159,8 @@ public final class ActivityCodec {
             var source=object(row.get("additionalSource"));exact(source,"dimension","x","y","z");
             additional=new ContainerRef(string(source,"dimension","$"),integer(source,"x"),integer(source,"y"),integer(source,"z"));
         }
-        return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"),plan,covered,additional);
+        var originalStock=row.containsKey("originalStock")?OriginalStock.valueOf(string(row,"originalStock","$")):null;
+        return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"),plan,covered,additional,originalStock);
     }
     private static int integer(Map<String,Object> row,String name){return Math.toIntExact(number(row,name,"$"));}
     private static List<String> chunks(String text) {

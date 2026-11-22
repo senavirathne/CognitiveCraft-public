@@ -18,7 +18,7 @@ public record RecipeChoicePlan(UUID root,long revision,ValidatedRequest request,
         if(!(request.request().arguments().get("actor") instanceof ActorValue actor)
                 || !(request.request().arguments().get("destination") instanceof ContainerValue destination)
                 || !actor.value().dimension().equals(destination.value().dimension())
-                || choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!b.source().dimension().equals(actor.value().dimension())))
+                || choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!b.dimension().equals(actor.value().dimension())))
             throw new IllegalArgumentException("Bound native actor/source/destination dimensions required");
         Objects.requireNonNull(sources);sources.validate(request);var expected=proposals(request,choice,sources);
         if(choice.facility()!=null && (!(request.request().arguments().get("table") instanceof FacilityValue table)
@@ -35,7 +35,8 @@ public record RecipeChoicePlan(UUID root,long revision,ValidatedRequest request,
         record Key(ContainerRef source,int slot,RecipeChoice.ItemKey item){}
         var counts=new LinkedHashMap<Key,Long>();
         for(var batch:choice.batches())for(var b:batch.bindings()) {
-            if(!sources.containers().contains(b.source()))throw new IllegalArgumentException("Unapproved alternative source");
+            if(!sources.allows(b))throw new IllegalArgumentException("Unapproved alternative source or actor custody");
+            if(b.heldBy()!=null)continue;
             counts.merge(new Key(b.source(),b.sourceSlot(),b.item()),1L,Math::addExact);
         }
         return counts.entrySet().stream().map(e->{var k=e.getKey();String key="choice-stock:2:"+request.context().scope().worldId()+":"+

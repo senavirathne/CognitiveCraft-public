@@ -306,8 +306,14 @@ def review(root, source, jar):
             and all(l["state"] == "INTERRUPTED" and l["owner"]["job"] == original["job"]["id"] for l in original["leases"]),
             "Unresolved native root or lease was not retained")
     cut = load(root / "pinned-original/result.json")
-    require(cut["job"] == original["job"]["id"] and cut["oldNativeGoneAfterKill"] is True
+    require(cut["job"] == original["job"]["id"] and cut["oldNativeGoneAfterKill"] is True and cut["saved"] is False
             and cut["after"]["responsibility"]["state"] == "INTERRUPTED", "Pin lacks an actual interrupted process and Job")
+    worker = load(root / "pinned-original/separate-worker.json")
+    pinned_actor = cut["beforeCustody"]["actorEntity"]
+    require(worker["worker"]["uuid"] == pinned_actor and worker["worker"]["alive"] and not worker["worker"]["noAI"]
+            and cut["afterCustody"]["actorEntity"] == pinned_actor
+            and original["job"]["attempts"][-1]["worker"]["entityId"] == pinned_actor
+            and pinned_actor not in worker["measuredWorkers"].values(), "Pin lacks its own original native actor")
     seen = {key: set() for key in ("root", "receipts", "journal", "submission")}
     commands = observed_intakes(root / "supervisor.jsonl")
     if set((root / "activities").glob("*/result.json")) != {
@@ -320,6 +326,7 @@ def review(root, source, jar):
         row = load(root / "activities" / f"{case['index']:04d}" / "result.json")
         require(row["ticket"] == load(root / "activities" / f"{case['index']:04d}" / "intake.json"), "Original public intake changed")
         ticket = row["ticket"]
+        require(worker["measuredWorkers"].get(ticket["player"]) == ticket["actor"], "Measured activity changed its original worker")
         require((ticket["player"], ticket["command"], ticket["feedback"]) in commands,
                 "Original accepted feedback absent from the connected command transcript")
         delivered, duration, ticks, distance = validate_row(root, row, case, original["directoryId"], seen, allowed)

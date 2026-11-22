@@ -1,11 +1,13 @@
 package dev.aivillages.core.kernel.production;
 
 import java.util.*;
+import dev.aivillages.core.kernel.RecipeProduction;
 import dev.aivillages.core.kernel.StrictJson;
 import static dev.aivillages.core.kernel.Contracts.*;
 
 /** Explicit supplied source policy, not a grant. Native current authority is required for every source. */
-public record RecipeSources(List<ContainerRef> containers) {
+public record RecipeSources(List<ContainerRef> containers,ActorRef heldSticks) {
+    public RecipeSources(List<ContainerRef> containers){this(containers,null);}
     public RecipeSources {
         containers=List.copyOf(containers);
         if(containers.isEmpty() || containers.size()>2 || containers.stream().distinct().count()!=containers.size()
@@ -13,5 +15,9 @@ public record RecipeSources(List<ContainerRef> containers) {
         containers=containers.stream().sorted(Comparator.comparing(c->StrictJson.canonical(RecipeChoice.container(c)))).toList();
     }
     public static RecipeSources single(ValidatedRequest request){if(!(request.request().arguments().get("source") instanceof ContainerValue c))throw new IllegalArgumentException("Explicit source required");return new RecipeSources(List.of(c.value()));}
-    public void validate(ValidatedRequest request){var first=single(request).containers().getFirst();if(!containers.contains(first) || containers.stream().anyMatch(c->!c.dimension().equals(first.dimension())))throw new IllegalArgumentException("Supplied policy must contain the bound request source");}
+    public void validate(ValidatedRequest request){var first=single(request).containers().getFirst();if(!containers.contains(first) || containers.stream().anyMatch(c->!c.dimension().equals(first.dimension()))
+            || heldSticks!=null && (!new ActorValue(heldSticks).equals(request.request().arguments().get("actor"))
+                || !heldSticks.dimension().equals(first.dimension()) || !RecipeProduction.choiceDefinition(request.request().capability()).axe()))
+        throw new IllegalArgumentException("Supplied policy must contain the bound source and original held inputs");}
+    public boolean allows(RecipeChoice.Binding binding){return binding.heldBy()!=null?binding.heldBy().equals(heldSticks):containers.contains(binding.source());}
 }

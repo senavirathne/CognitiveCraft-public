@@ -1,7 +1,7 @@
 import os,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
-from compiler_budget import configure
+from compiler_budget import configure,configure_live
 
 class CompilerBudgetTest(unittest.TestCase):
     def native(self,nice=0,extra='C1 CompilerThre',extra_threads=()):
@@ -82,6 +82,14 @@ class CompilerBudgetTest(unittest.TestCase):
         changed=self.native()
         with self.assertRaises(ValueError):configure(40,99,[0,1],require_observers=True)
         self.assertEqual([],changed)
+    def test_exiting_thread_reinspects_the_same_native_birth_with_all_requirements(self):
+        with patch('compiler_budget.configure',side_effect=[FileNotFoundError(),ProcessLookupError(),{'status':'PASS'}]) as scan, \
+                patch('compiler_budget.time.sleep') as delay:
+            self.assertEqual({'status':'PASS'},configure_live(40,99,[0,1],require_observers=True))
+        self.assertEqual(3,scan.call_count)
+        self.assertTrue(all(call.args==(40,99,[0,1]) and call.kwargs=={'require_observers':True}
+                            for call in scan.call_args_list))
+        self.assertEqual(2,delay.call_count)
     def test_reused_native_pid_is_refused_before_any_priority_mutation(self):
         changed=self.native()
         with patch('compiler_budget.birth',return_value=100),self.assertRaises(ValueError):configure(40,99,[0,1])

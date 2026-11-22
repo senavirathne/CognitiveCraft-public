@@ -29,7 +29,14 @@ public final class PlanningModel {
     }
     public record Policy(ActorRef originalActor,Set<ActorRef> allowedExecutors,Set<ContainerRef> allowedSources,
                          Set<ContainerRef> allowedDestinations,Set<Cuboid> allowedAcquisition,ContainerRef staging,
-                         FacilityRef approvedTableSite,boolean allowProvision,boolean allowCustodyReturn,long maximumReturns,long carryingUnits) {
+                         FacilityRef approvedTableSite,boolean allowProvision,boolean allowCustodyReturn,long maximumReturns,long carryingUnits,
+                         boolean useHeldSticks) {
+        public Policy(ActorRef originalActor,Set<ActorRef> allowedExecutors,Set<ContainerRef> allowedSources,
+                      Set<ContainerRef> allowedDestinations,Set<Cuboid> allowedAcquisition,ContainerRef staging,
+                      FacilityRef approvedTableSite,boolean allowProvision,boolean allowCustodyReturn,long maximumReturns,long carryingUnits) {
+            this(originalActor,allowedExecutors,allowedSources,allowedDestinations,allowedAcquisition,staging,
+                    approvedTableSite,allowProvision,allowCustodyReturn,maximumReturns,carryingUnits,false);
+        }
         public Policy {
             Objects.requireNonNull(originalActor);Objects.requireNonNull(staging);allowedExecutors=Set.copyOf(allowedExecutors);allowedSources=Set.copyOf(allowedSources);allowedDestinations=Set.copyOf(allowedDestinations);allowedAcquisition=Set.copyOf(allowedAcquisition);
             if(!allowedExecutors.contains(originalActor) || allowedExecutors.size()>4 || allowedSources.isEmpty() || allowedSources.size()>4
@@ -37,7 +44,9 @@ public final class PlanningModel {
                     || carryingUnits<1 || carryingUnits>512 || maximumReturns<0 || maximumReturns>4 || !allowCustodyReturn && maximumReturns!=0)
                 throw new IllegalArgumentException("Finite explicit actor/source/destination/return policy required");
         }
-        public Map<String,Object> value(){var v=new TreeMap<String,Object>();v.put("actor",originalActor.toString());v.put("executors",allowedExecutors.stream().map(Object::toString).sorted().toList());v.put("sources",allowedSources.stream().map(Object::toString).sorted().toList());v.put("destinations",allowedDestinations.stream().map(Object::toString).sorted().toList());v.put("acquisition",allowedAcquisition.stream().map(Object::toString).sorted().toList());v.put("staging",staging.toString());v.put("site",String.valueOf(approvedTableSite));v.put("provision",allowProvision);v.put("returns",allowCustodyReturn);v.put("maximumReturns",maximumReturns);v.put("carry",carryingUnits);return v;}
+        public boolean plannedHeldInput(Stock stock){return useHeldSticks && originalActor.equals(stock.location().actor())
+                    && stock.item().id().equals(ResourceDelivery.STICK.id());}
+        public Map<String,Object> value(){var v=new TreeMap<String,Object>();v.put("actor",originalActor.toString());v.put("executors",allowedExecutors.stream().map(Object::toString).sorted().toList());v.put("sources",allowedSources.stream().map(Object::toString).sorted().toList());v.put("destinations",allowedDestinations.stream().map(Object::toString).sorted().toList());v.put("acquisition",allowedAcquisition.stream().map(Object::toString).sorted().toList());v.put("staging",staging.toString());v.put("site",String.valueOf(approvedTableSite));v.put("provision",allowProvision);v.put("returns",allowCustodyReturn);v.put("maximumReturns",maximumReturns);v.put("carry",carryingUnits);if(useHeldSticks)v.put("useHeldSticks",true);return v;}
     }
     public record Goal(Mode mode,RecipeChoice.ItemKey item,long demand,ContainerRef destination,Policy policy) {
         public Goal {Objects.requireNonNull(mode);Objects.requireNonNull(item);Objects.requireNonNull(destination);Objects.requireNonNull(policy);if(item.empty() || demand<1 || demand>64 || !policy.allowedDestinations.contains(destination))throw new IllegalArgumentException("Bounded exact authorized goal required");}

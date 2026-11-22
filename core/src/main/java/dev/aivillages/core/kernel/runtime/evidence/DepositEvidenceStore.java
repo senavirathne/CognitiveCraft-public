@@ -48,6 +48,19 @@ public final class DepositEvidenceStore {
         thread();if(entry.verification()!=null)return true;
         try{return liveSettlements.test(entry);}catch(RuntimeException unavailable){return false;}
     }
+    boolean joinedPickupSettled(NativePickup.Entry pickup) {
+        thread();
+        if(fenced || pending!=null)return false;
+        var key=pickup.intent().key();
+        for(var entry:state.entries()) {
+            var candidate=entry.intent().key();
+            if(candidate.ordinal()!=3 || !candidate.attempt().equals(key.attempt()) || candidate.generation()!=key.generation()
+                    || !candidate.step().equals(key.step()) || !candidate.root().equals(key.root()) || !candidate.world().equals(key.world()))continue;
+            var prefix=entry.intent().pickupPrefix();
+            return prefix!=null && prefix.pickup().equals(pickup) && settled(entry);
+        }
+        return false;
+    }
     public DepositEvidenceStore(Snapshot initial,Storage storage,NativePort nativePort,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.storage=Objects.requireNonNull(storage);this.nativePort=Objects.requireNonNull(nativePort);this.clock=Objects.requireNonNull(clock);
         if(timeoutMillis<1 || timeoutMillis>30_000)throw new IllegalArgumentException("Deposit acknowledgement deadline");
@@ -150,9 +163,9 @@ public final class DepositEvidenceStore {
     }
     public boolean conflicts(Kind kind,String dimension,String address,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
-            for(Participant participant:List.of(entry.intent().actor(),entry.intent().chest()))
-                if(participant.kind()==kind && participant.dimension().equals(dimension) && participant.address().equals(address)
-                        && !settled(entry) && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect)))return true;
+            Participant participant=kind==Kind.ACTOR?entry.intent().actor():entry.intent().chest();
+            if(participant.kind()==kind && participant.dimension().equals(dimension) && participant.address().equals(address)
+                    && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect)) && !settled(entry))return true;
         }
         return false;
     }

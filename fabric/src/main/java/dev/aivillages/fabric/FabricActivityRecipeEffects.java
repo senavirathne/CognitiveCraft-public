@@ -695,6 +695,14 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                         && run.choice.facility().reference().equals(target)
                         && permitsAt(run,phase==ChoicePhase.CRAFT?Effect.CRAFT:Effect.OBSERVE,target.dimension(),target.x(),target.y(),target.z());
             }
+            public boolean permitsHeldSticks(TrustedContext caller,ActorRef actor,ChoicePhase phase) {
+                if(!run.bound.context().equals(caller) || !actor.equals(run.actor) || !actor.equals(run.sources.heldSticks()))return false;
+                var nativeActor=world.recipeActor(actor);
+                if(nativeActor==null || !world.holds(actor,run.attempt))return false;
+                var pos=nativeActor.blockPosition();
+                return permitsAt(run,phase==ChoicePhase.CRAFT?Effect.CRAFT:Effect.OBSERVE,
+                        actor.dimension(),pos.getX(),pos.getY(),pos.getZ());
+            }
         };
     }
     private boolean permits(Run run,Stage phase) {
@@ -705,6 +713,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         }
         var permission=permission(run);
         ChoicePhase nativePhase=ChoicePhase.valueOf(phase.name());
+        if(run.sources.heldSticks()!=null && !permission.permitsHeldSticks(run.bound.context(),run.actor,nativePhase))return false;
         if(!permission.permits(run.bound.context(),run.actor,run.destination,nativePhase))return false;
         for(var box:run.sources.containers())if(!permission.permits(run.bound.context(),run.actor,box,nativePhase))return false;
         return run.choice.facility()==null || permission.permitsFacility(run.bound.context(),run.actor,run.choice.facility().reference(),nativePhase);
@@ -724,7 +733,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         var intent=entry.intent();
         if(choice==null)return placementReceipt(bound,entry);
         long quantity=switch(intent.phase()) {
-            case WITHDRAW->choice.batch(intent.batch()).bindings().size();
+            case WITHDRAW->choice.batch(intent.batch()).withdrawals().size();
             case CRAFT->choice.resultCount();
             case DEPOSIT->choice.deliveryForBatch(intent.batch());
             default->throw new IllegalStateException("Exact recipe receipt phase");

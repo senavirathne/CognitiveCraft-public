@@ -17,16 +17,22 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public enum Policy { ORIGINAL_ACTOR_SETTLED_EFFECTS }
     public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION, SETTLED_CANCELLED_CUSTODY }
     public enum Evidence { LIVE_RECEIPTS }
+    public enum OriginalStock { CONTAINERS, CONTAINERS_AND_HELD_STICKS }
     public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
                                     String blocker, long nextCheckMillis,ActivityPlan plan,
-                                    Map<UUID,List<String>> coveredActions,ContainerRef additionalSource) {
+                                    Map<UUID,List<String>> coveredActions,ContainerRef additionalSource,
+                                    OriginalStock originalStock) {
         public static final int MAX_DECISIONS=32;
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null,null);
         }
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
                                  ActivityPlan plan,Map<UUID,List<String>> coveredActions) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null,null);
+        }
+        public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
+                                 ActivityPlan plan,Map<UUID,List<String>> coveredActions,ContainerRef additionalSource) {
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,additionalSource,null);
         }
         public ProductionControl {
             Objects.requireNonNull(memory);Objects.requireNonNull(blocker);
@@ -44,19 +50,26 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             if(acquisition!=null && Math.multiplyExact(Math.multiplyExact((long)acquisition.maxX()-acquisition.minX()+1,
                     (long)acquisition.maxY()-acquisition.minY()+1),(long)acquisition.maxZ()-acquisition.minZ()+1)>256)
                 throw new IllegalArgumentException("Bounded original acquisition area");
+            if(originalStock!=null && (acquisition==null || additionalSource!=null))
+                throw new IllegalArgumentException("Exact legacy materials require an original acquisition area and one stock source");
         }
+        public boolean exactLegacyMaterials(){return originalStock!=null;}
+        public boolean allowsHeldSticks(){return originalStock==OriginalStock.CONTAINERS_AND_HELD_STICKS;}
         public static ProductionControl initial(Cuboid source){return initial(source,null);}
         public static ProductionControl initial(Cuboid source,ContainerRef additionalSource){
-            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource);
+            return initial(source,additionalSource,null);
+        }
+        public static ProductionControl initial(Cuboid source,ContainerRef additionalSource,OriginalStock originalStock){
+            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource,originalStock);
         }
         public ProductionControl next(PlanningModel.Memory next,String reason,long checkAt){
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource,originalStock);
         }
         public ProductionControl prepared(PlanningModel.Memory next,ActivityPlan pinned,UUID proposal,List<String> tokens) {
             if(plan!=null && !plan.equals(pinned))throw new IllegalArgumentException("Original pinned production plan changed");
             var actions=new HashMap<>(coveredActions);
             if(actions.putIfAbsent(proposal,List.copyOf(tokens))!=null)throw new IllegalArgumentException("Duplicate authoritative proposal");
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource,originalStock);
         }
     }
     public ActivityPayload(GoalMode mode,Policy policy,int plannedSteps,UUID currentStep,List<Step> steps,
@@ -231,7 +244,9 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
                     || !(job.request().request().arguments().get("source") instanceof ContainerValue source)
                     || !source.value().dimension().equals(additional.dimension()) || source.value().equals(additional)))
                 throw new IllegalArgumentException("Invalid original supplemental recipe source");
-            if(steps.size()>production.decisions() || production.acquisition()!=null
+            if(production.exactLegacyMaterials() && !ResourceComposition.explicitAcquisition(job.request().request().capability())
+                    || production.allowsHeldSticks() && !job.request().request().capability().equals(WoodenAxeProduction.ID)
+                    || steps.size()>production.decisions() || production.acquisition()!=null
                     && !production.acquisition().dimension().equals(job.responsible().dimension())
                     || !steps.stream().map(Step::proposal).collect(java.util.stream.Collectors.toSet()).containsAll(production.coveredActions().keySet())
                     || production.plan()!=null && steps.size()!=production.coveredActions().size()

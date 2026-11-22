@@ -75,6 +75,82 @@ public final class GeneralizedRecipeChoiceGameTests {
         });
     }
 
+    @GameTest(maxTicks=200,padding=16)
+    public void originalHeldSticksStayInTheirNativeSlotUntilAuthorizedCraft(GameTestHelper h) {
+        for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
+        h.setBlock(2,1,2,Blocks.CHEST);h.setBlock(2,1,4,Blocks.CHEST);h.setBlock(3,1,3,Blocks.CRAFTING_TABLE);
+        var sourcePos=h.absolutePos(new BlockPos(2,1,2));
+        var destinationPos=h.absolutePos(new BlockPos(2,1,4));
+        var tablePos=h.absolutePos(new BlockPos(3,1,3));
+        BootstrapGameTests.forceFixtureChunks(h,sourcePos);
+        var worker=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,2,1,3);
+        worker.setNoAi(false);
+        var world=new FabricGatewayWorld(h.getLevel());
+        String dimension=h.getLevel().dimension().identifier().toString();
+        var actor=new ActorRef(UUID.randomUUID(),worker.getUUID(),dimension);
+        var run=UUID.randomUUID();
+        var source=new ContainerRef(dimension,sourcePos.getX(),sourcePos.getY(),sourcePos.getZ());
+        var destination=new ContainerRef(dimension,destinationPos.getX(),destinationPos.getY(),destinationPos.getZ());
+        var table=new FacilityRef(dimension,tablePos.getX(),tablePos.getY(),tablePos.getZ());
+        var owner=new TrustedContext(new PrincipalRef(UUID.randomUUID()),new ScopeRef(UUID.randomUUID(),UUID.randomUUID()));
+        var capability=new CapabilityId(WoodenAxeProduction.ID.name(),2);
+        var request=new ValidatedRequest(new CapabilityRequest(capability,Map.of("actor",new ActorValue(actor),
+                "source",new ContainerValue(source),"destination",new ContainerValue(destination),
+                "table",new FacilityValue(table),"amount",new IntValue(1))),owner,
+                new ObservationRef(UUID.randomUUID(),h.getLevel().getGameTime(),dimension));
+        var allowHeld=new AtomicBoolean(false);
+        ChoiceAuthority authority=new ChoiceAuthority() {
+            public boolean permits(TrustedContext c,ActorRef a,ContainerRef target,ChoicePhase phase) {
+                return owner.equals(c) && actor.equals(a) && (source.equals(target) || destination.equals(target));
+            }
+            public boolean permitsFacility(TrustedContext c,ActorRef a,FacilityRef target,ChoicePhase phase) {
+                return owner.equals(c) && actor.equals(a) && table.equals(target);
+            }
+            public boolean permitsHeldSticks(TrustedContext c,ActorRef a,ChoicePhase phase) {
+                return allowHeld.get() && owner.equals(c) && actor.equals(a);
+            }
+        };
+        var from=(Container)h.getLevel().getBlockEntity(sourcePos);
+        var to=(Container)h.getLevel().getBlockEntity(destinationPos);
+        h.succeedWhen(()->{
+            h.assertTrue(worker.onGround() && world.recipeReach(worker,sourcePos) && world.recipeReach(worker,destinationPos)
+                    && world.recipeReach(worker,tablePos),"Waiting for the real controlled actor position");
+            h.assertTrue(world.acquire(actor,run),"Acquiring original worker control");
+            from.setItem(0,new ItemStack(Items.OAK_PLANKS,3));from.setItem(1,new ItemStack(Items.STICK,2));
+            var template=world.selectActivityChoice(request,authority,RecipeSources.single(request));
+            var original=template.batch(0);
+            var bindings=original.bindings().stream().map(b->b.item().id().equals("minecraft:stick")
+                    ?new RecipeChoice.Binding(b.gridSlot(),null,0,b.expectedCount(),b.item(),actor):b).toList();
+            var choice=new RecipeChoice(capability,template.recipe(),template.semanticFingerprint(),template.runtimeCompatibility(),
+                    template.reloadEpoch(),3,3,List.of(new RecipeChoice.Batch(original.grid(),bindings)),template.result(),1,1,List.of(),template.facility());
+            var policy=new RecipeSources(List.of(source),actor);
+            from.setItem(1,ItemStack.EMPTY);
+            worker.getInventory().setItem(0,new ItemStack(Items.STICK,2));
+            h.assertTrue(world.validateActivityChoice(request,choice,authority,policy)==Reason.AUTHORITY_DENIED,
+                    "Held custody requires original authorization before preparation");
+            allowHeld.set(true);
+            h.assertTrue(world.validateActivityChoice(request,choice,authority,policy)==null && RecipeChoice.fromCanonical(choice.canonical()).equals(choice),
+                    "Exact actor slot must survive native validation and canonical decoding");
+            var prepared=world.prepareChoice(request,choice,0,run,authority,policy);
+            var withdrawn=world.executeChoice(prepared,ChoicePhase.WITHDRAW);
+            h.assertTrue(withdrawn.observation().kind()==ChoiceObservationKind.APPLIED && from.countItem(Items.OAK_PLANKS)==0
+                            && worker.getInventory().getItem(0).getCount()==2 && worker.getInventory().countItem(Items.OAK_PLANKS)==3,
+                    "Only container items move during withdrawal");
+            allowHeld.set(false);
+            var denied=world.executeChoice(withdrawn.continuation(),ChoicePhase.CRAFT);
+            h.assertTrue(denied.observation().reason()==Reason.AUTHORITY_DENIED && denied.observation().participants().isEmpty()
+                    && worker.getInventory().getItem(0).getCount()==2,"Revoked held authority cannot expose or consume custody");
+            allowHeld.set(true);
+            var crafted=world.executeChoice(withdrawn.continuation(),ChoicePhase.CRAFT);
+            h.assertTrue(crafted.observation().kind()==ChoiceObservationKind.APPLIED && worker.getInventory().countItem(Items.STICK)==0,
+                    "Original craft consumes the exact held units");
+            var delivered=world.executeChoice(crafted.continuation(),ChoicePhase.DEPOSIT);
+            h.assertTrue(delivered.observation().kind()==ChoiceObservationKind.APPLIED && to.countItem(Items.WOODEN_AXE)==1
+                    && worker.getInventory().isEmpty(),"One exact new axe deposits once");
+            world.release(actor,run);
+        });
+    }
+
     @GameTest(maxTicks=2400,padding=16)
     public void loadedAlternativesMixedGridsFacilitiesObserversAndReload(GameTestHelper h) {
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);

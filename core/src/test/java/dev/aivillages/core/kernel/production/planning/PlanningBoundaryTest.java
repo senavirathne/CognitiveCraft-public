@@ -155,6 +155,25 @@ final class PlanningBoundaryTest {
         var missing=new ValidatedPlan(plan.world(),plan.root(),plan.owner(),plan.context(),plan.goal(),plan.budgetInitialDigest(),plan.originalDeadlineMillis(),plan.actions(),Map.of());assertEquals(Feasibility.UNKNOWN,planner.revalidate(f.snapshot(),missing).feasibility());}
     @Test void returnOfKnownActorCustodyUsesFinitePolicyAndCreatesNoGoalCredit(){var f=new PlannerFixtures().goal(Mode.MAKE_NEW,STICK,1);f.returns=true;f.returnLimit=1;f.stock.add(f.actorStock("held-planks",0,PLANK,2));var result=coordinator.next(f.snapshot(),null,Memory.empty());assertEquals(DecisionKind.PROPOSE,result.kind(),result.blocker());assertEquals(Kind.RETURN_CUSTODY,result.proposal().kind());assertEquals(2,result.proposal().quantities().nativeDelivery());assertEquals(0,result.proposal().quantities().goalAllocationUpperBound());assertEquals(0,result.proposal().quantities().newPhysicalOutput());assertEquals(f.source,result.proposal().destination());assertNull(result.proposal().requestedInvocation(),"A must use the explicit transfer adapter, never replay a producer from its start");f.returnsUsed=1;assertEquals(Feasibility.INFEASIBLE,planner.analyse(f.snapshot()).feasibility());assertNull(coordinator.next(f.snapshot(),null,Memory.empty()).proposal());}
     @Test void actorCustodyWithoutReturnPolicyCannotBeConsumedAsContainerInput(){var f=new PlannerFixtures().goal(Mode.MAKE_NEW,STICK,1);f.stock.add(f.actorStock("held",0,PLANK,2));assertEquals(Feasibility.INFEASIBLE,planner.analyse(f.snapshot()).feasibility());assertNull(coordinator.next(f.snapshot(),null,Memory.empty()).proposal());}
+    @Test void explicitOriginalHeldSticksBindPhysicalSlotsWithoutCreatingContainerClaims(){
+        var fixture=new PlannerFixtures().goal(Mode.MAKE_NEW,AXE,2).existingTable();
+        fixture.stock.add(fixture.stock("planks",1,PLANK,6));
+        fixture.stock.add(fixture.actorStock("sticks",0,STICK,4));
+        assertEquals(Feasibility.INFEASIBLE,planner.analyse(fixture.snapshot()).feasibility());
+        fixture.useHeldSticks=true;
+        var missing=coordinator.next(fixture.snapshot(),null,Memory.empty());
+        assertNotNull(missing.neededChoice());
+        var next=fixture.withChoice(missing);
+        assertNotNull(next.proposal(),next.blocker());
+        var offer=next.proposal().nativeChoice();var choice=offer.choice();
+        assertEquals(fixture.actor,offer.sources().heldSticks());
+        assertEquals(List.of(4,3,2,1),choice.batches().stream().flatMap(batch->batch.bindings().stream())
+                .filter(b->fixture.actor.equals(b.heldBy()) && b.sourceSlot()==0).map(RecipeChoice.Binding::expectedCount).toList());
+        assertEquals(List.of(3,3),choice.batches().stream().map(batch->batch.withdrawals().size()).toList());
+        var plan=ResourceComposition.proposeChoice(fixture.root,fixture.revision,offer.request(),choice,offer.sources());
+        assertEquals(1,plan.stock().size());assertEquals(6,plan.stock().getFirst().units());
+        assertThrows(IllegalArgumentException.class,()->ResourceComposition.proposeChoice(fixture.root,fixture.revision,offer.request(),choice));
+    }
     @Test void memoryCannotMoveBetweenRootsGoalsPrincipalsOrRenewBudget(){var f=new PlannerFixtures().goal(Mode.ACQUIRE_NEW,LOG,1).logSource(1);var first=coordinator.next(f.snapshot(),null,Memory.empty());f.root=id("different-root");assertEquals("DECISION_MEMORY_SCOPE_MISMATCH",coordinator.next(f.snapshot(),null,first.memory()).blocker());f.root=first.proposal().root();f.demand=2;assertEquals("ORIGINAL_GOAL_CHANGED",coordinator.next(f.snapshot(),null,first.memory()).blocker());f.demand=1;f.context=new TrustedContext(new PrincipalRef(id("other-principal")),f.context.scope());assertEquals("DECISION_MEMORY_SCOPE_MISMATCH",coordinator.next(f.snapshot(),null,first.memory()).blocker());}
     @Test void scopeMismatchAndFutureOrForeignSettlementEvidenceRefuse(){var f=new PlannerFixtures().goal(Mode.ACQUIRE_NEW,LOG,1).logSource(1);var a=planner.analyse(f.snapshot());f.context=new TrustedContext(new PrincipalRef(id("foreign-principal")),f.context.scope());assertEquals(Feasibility.INFEASIBLE,planner.revalidate(f.snapshot(),a.plan()).feasibility());f.progress.add(new SettledProgress(id("other-root"),"fixture:action","fixture:step",id("attempt"),"fixture:effect",List.of("fixture:receipt"),List.of("fixture:settlement"),SettlementKind.ACCEPTED_EFFECT,1,0,0));assertThrows(IllegalArgumentException.class,f::snapshot);}
     @Test void privateCountsUnsupportedVersionsAndOverflowRefuse(){var f=new PlannerFixtures();assertThrows(IllegalArgumentException.class,()->new Stock("fixture:private",new Location(f.source,null,0),LOG,1,1,0,null,List.of(),Eligibility.NONE,Availability.PRESENT,false,true,0,0));assertThrows(IllegalArgumentException.class,()->new MethodPin(OakPlankProduction.ID,"0".repeat(64),"0".repeat(64),true,2,1));assertThrows(ArithmeticException.class,()->new Cost(Long.MAX_VALUE,1,1).times(2));assertThrows(ArithmeticException.class,()->new Quantities(1,1,Long.MAX_VALUE,1,0,0,0,0,0));

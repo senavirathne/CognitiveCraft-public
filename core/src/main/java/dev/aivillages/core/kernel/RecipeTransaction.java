@@ -32,6 +32,7 @@ public final class RecipeTransaction {
     @FunctionalInterface public interface ChoiceAuthority {
         boolean permits(TrustedContext caller,ActorRef actor,ContainerRef target,ChoicePhase phase);
         default boolean permitsFacility(TrustedContext caller,ActorRef actor,FacilityRef target,ChoicePhase phase){return false;}
+        default boolean permitsHeldSticks(TrustedContext caller,ActorRef actor,ChoicePhase phase){return false;}
     }
     public record ObservedSlot(int slot,dev.aivillages.core.kernel.production.RecipeChoice.ItemKey item,int count) {
         public ObservedSlot {Objects.requireNonNull(item);if(slot<0 || slot>127 || count<0 || count>64)throw new IllegalArgumentException("Bounded observed slot");}

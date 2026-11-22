@@ -56,6 +56,16 @@ final class FabricProductionActivities {
                 ?Outcomes.Reason.TARGET_INVALID:null;
     }
 
+    /** The explicit legacy area has already passed command authority and size checks. */
+    boolean hasExplicitLogs(CapabilityId capability,Cuboid area) {
+        var item=LogAcquisition.item(ResourceComposition.explicitLogMethod(capability));
+        for(long x=area.minX();x<=area.maxX();x++)for(long y=area.minY();y<=area.maxY();y++)for(long z=area.minZ();z<=area.maxZ();z++) {
+            var cell=new SurvivalGateway.Cell(area.dimension(),(int)x,(int)y,(int)z);
+            if(world.resourceBlock(cell,item).eligible())return true;
+        }
+        return false;
+    }
+
     void step(java.util.function.Predicate<Jobs.Job> previousCheckpointSettled) {
         if(!jobs.ready() || !leases.ready() || level.getGameTime()%4!=0)return;
         var rows=jobs.snapshot().jobs();
@@ -126,6 +136,11 @@ final class FabricProductionActivities {
                         && new FacilityValue(table).equals(root.request().request().arguments().get("table"))
                         && allowed(request,Effect.CRAFT,new ContainerRef(table.dimension(),table.x(),table.y(),table.z()));
             }
+            public boolean permitsHeldSticks(TrustedContext caller,ActorRef worker,RecipeTransaction.ChoicePhase phase) {
+                if(!root.activity().production().allowsHeldSticks() || !root.origin().equals(caller) || !actor.equals(worker))return false;
+                var nativeActor=world.recipeActor(worker);
+                return nativeActor!=null && allowed(request,Effect.OBSERVE,position(nativeActor));
+            }
         };
     }
 
@@ -185,13 +200,16 @@ final class FabricProductionActivities {
         var authorizedSources=ActivityRecipeEvidence.authorizedSources(job);
         var policy=new Policy(actor,Set.of(actor),Set.copyOf(authorizedSources),Set.of(destination),
                 allowedArea==null?Set.of():Set.of(allowedArea),source,facility==null?null:facility.reference(),
-                facility!=null,false,0,16);
+                facility!=null,false,0,16,job.activity().production().allowsHeldSticks());
         var goal=new Goal(Mode.MAKE_NEW,defaultKey(production.output()),((IntValue)request.arguments().get("amount")).value(),
                 destination,policy);
         var profiles=new ArrayList<RecipeProfile>();
+        boolean exactLegacy=job.activity().production().exactLegacyMaterials();
         var capabilities=production.axe()?List.of(OakPlankProduction.ID,BirchPlankProduction.ID,StickProduction.ID,
-                CraftingTableProduction.ID,WoodenAxeProduction.ID):List.of(capability);
+                CraftingTableProduction.ID,WoodenAxeProduction.ID)
+                : exactLegacy && production.table()?List.of(OakPlankProduction.ID,capability):List.of(capability);
         for(var id:capabilities) {
+            if(exactLegacy && production.axe() && id.equals(BirchPlankProduction.ID))continue;
             var target=id.equals(capability)?destination:source;
             long travel=FabricProductionTravel.recipe(position(nativeActor),source,target,
                     id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
@@ -206,7 +224,10 @@ final class FabricProductionActivities {
                 continue;
             }
             var method=pin(job,id,profile.semanticFingerprint(),2);
-            profiles.add(new RecipeProfile(profile.recipe(),profile.capability(),profile.cells(),profile.result(),
+            var cells=exactLegacy?profile.cells().stream().map(cell->cell.stream()
+                    .filter(input->ResourceComposition.explicitRecipeInput(id,input.id())).toList()).toList():profile.cells();
+            if(cells.stream().anyMatch(List::isEmpty))continue;
+            profiles.add(new RecipeProfile(profile.recipe(),profile.capability(),cells,profile.result(),
                     profile.semanticFingerprint(),method,profile.allowance(),profile.reloadEpoch()));
         }
         var box=world.inspectRecipeContainer(destination,production.output());
@@ -214,6 +235,7 @@ final class FabricProductionActivities {
                 && box.capacity()>=goal.demand()-job.fulfilled();
         var stock=new ArrayList<>(stock(job,source,nativeActor,"source:"));
         if(authorizedSources.size()>1)stock.addAll(stock(job,authorizedSources.getLast(),nativeActor,"additional-source:"));
+        if(policy.useHeldSticks() && allowed(bound,Effect.OBSERVE,position(nativeActor)))stock.addAll(heldSticks(job,nativeActor));
         var acquisition=acquisition(job);
         long revision=job.generation(); // Native values below carry their own current observation data.
         return new Snapshot(SCHEMA,job.origin().scope().worldId(),job.id(),job.revision(),job.origin(),
@@ -221,6 +243,20 @@ final class FabricProductionActivities {
                 goal,destination,job.fulfilled(),ProductionActivityPlanner.budget(job),clock.millis(),revision,
                 stock,acquisition,profiles,facility,List.of(),Set.of(Kind.PRODUCE,Kind.ACQUIRE,Kind.PLACE_TABLE),
                 progress(job),true,false,0);
+    }
+
+    private List<Stock> heldSticks(Jobs.Job job,Villager actor) {
+        var inventory=actor.getInventory();
+        if(inventory.getContainerSize()>8)throw new IllegalStateException("Bounded original actor inventory required");
+        var projected=new ArrayList<Stock>();
+        for(int slot=0;slot<inventory.getContainerSize();slot++) {
+            var stack=inventory.getItem(slot);
+            if(FabricRecipeTransactions.plain(stack,net.minecraft.world.item.Items.STICK))
+                projected.add(new Stock("held-stick:"+slot,new Location(null,job.responsible(),slot),
+                        FabricConcreteRecipeChoices.itemKey(level,stack),stack.getCount(),stack.getCount(),0,
+                        null,List.of(),Eligibility.NONE,Availability.PRESENT,true,true,0,job.generation()));
+        }
+        return List.copyOf(projected);
     }
 
     private List<Stock> stock(Jobs.Job job,ContainerRef source,Villager actor,String slotPrefix) {
@@ -277,6 +313,8 @@ final class FabricProductionActivities {
         var area=job.activity().production().acquisition();
         var actor=world.recipeActor(job.responsible());
         if(area==null || actor==null)return List.of();
+        var exact=job.activity().production().exactLegacyMaterials()
+                ? ResourceComposition.explicitLogMethod(job.request().request().capability()):null;
         long oak=0,birch=0;
         var targets=new ArrayList<ContainerRef>();
         boolean complete=true;
@@ -284,8 +322,8 @@ final class FabricProductionActivities {
             var position=new ContainerRef(area.dimension(),x,y,z);
             if(!world.loadedForDiscovery(pos(position)) || !allowed(job.request(),Effect.HARVEST,position)) {complete=false;continue;}
             var target=new SurvivalGateway.Cell(area.dimension(),x,y,z);
-            if(world.resourceBlock(target,ResourceDelivery.OAK_LOG).eligible()){oak++;targets.add(position);}
-            if(world.resourceBlock(target,ResourceDelivery.BIRCH_LOG).eligible()){birch++;targets.add(position);}
+            if((exact==null || exact.equals(OakLogDelivery.ID)) && world.resourceBlock(target,ResourceDelivery.OAK_LOG).eligible()){oak++;targets.add(position);}
+            if((exact==null || exact.equals(BirchLogDelivery.ID)) && world.resourceBlock(target,ResourceDelivery.BIRCH_LOG).eligible()){birch++;targets.add(position);}
         }
         // Overlapping acquisition options are forbidden by the original B contract.
         if(oak>0 && birch>0 || !complete || oak==0 && birch==0)return List.of();

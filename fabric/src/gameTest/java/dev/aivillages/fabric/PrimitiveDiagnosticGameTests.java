@@ -256,7 +256,11 @@ public final class PrimitiveDiagnosticGameTests {
         }
         void step() {
             if(phase==10)return;
-            java.util.concurrent.locks.LockSupport.parkNanos(phase<=1?50_000_000:1_000_000);
+            // The real Jobs writer acknowledges progress on a worker thread.
+            // Keep the bounded wheat job on vanilla tick cadence while the test
+            // deliberately stalls the unrelated diagnostics writer.
+            boolean nativeJob=phase>=4&&phase<=5 || phase>=7&&phase<=8;
+            java.util.concurrent.locks.LockSupport.parkNanos(phase<=1 || nativeJob?50_000_000:1_000_000);
             if(diagnostics!=null)diagnostics.beginTick();
             if(session!=null&&(phase>=2&&phase<=5||phase>=7&&phase<=8))session.tick();
             if(gapSession!=null&&phase>=2&&phase<=5)gapSession.tick();

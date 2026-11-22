@@ -66,7 +66,7 @@ public final class HarvestEvidenceStore {
     }
     private boolean liveCrop(Entry entry,UUID run){
         return run!=null && entry.intent().run().equals(run) && completeCrop(entry) && created.containsKey(entry.token())
-                && find(state,entry.token())==entry;
+                && find(state,entry.intent().key())==entry;
     }
     private boolean nextCropHarvest(Entry previous,Intent next){
         if(!next.item().equals("minecraft:wheat") || !liveCrop(previous,next.run()))return false;
@@ -83,6 +83,11 @@ public final class HarvestEvidenceStore {
     }
     private void thread(){if(Thread.currentThread()!=thread)throw new IllegalStateException("Harvest game-thread owner");}
     public Snapshot snapshot(){thread();return state;}
+    boolean containsOriginal(Entry expected) {
+        thread();
+        var entry=find(state,expected.intent().key());
+        return entry==expected || expected.equals(entry);
+    }
     public boolean fenced(){thread();return fenced;}
     public boolean pending(){thread();return pending!=null;}
     public UUID process(){return process;}

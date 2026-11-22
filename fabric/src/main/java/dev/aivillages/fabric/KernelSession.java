@@ -1464,10 +1464,14 @@ public final class KernelSession implements AutoCloseable {
                 "table",new FacilityValue(new FacilityRef(dimension,tx,ty,tz)))),owner,player);
     }
     public BootstrapController.Submission composeAxes(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,FacilityRef table,Cuboid oakSource) {
+        return composeAxes(player,actorId,amount,source,destination,table,oakSource,false);
+    }
+    BootstrapController.Submission composeAxes(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,
+                                                FacilityRef table,Cuboid oakSource,boolean useHeldSticks) {
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
         if(amount<1||amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
         var request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),"source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(table)));
-        return composeRequest(request,owner,player,oakSource);
+        return composeRequest(request,owner,player,oakSource,useHeldSticks);
     }
     public BootstrapController.Submission provisionAxe(ServerPlayer player,UUID actorId,ContainerRef source,ContainerRef destination,FacilityRef target,Cuboid oakSource){
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);UUID id=UUID.randomUUID();
@@ -1482,6 +1486,11 @@ public final class KernelSession implements AutoCloseable {
             var denied=gatewayWorld().permit(bound,Effect.HARVEST,new SurvivalGateway.Cell(oakSource.dimension(),(int)x,(int)y,(int)z));
             if(denied!=null)return new BootstrapController.Submission(id,false,denied);
         }
+        boolean shortage=checked.axe().counts().getOrDefault("missing_planks",0L)>0
+                || checked.axe().counts().getOrDefault("missing_sticks",0L)>0
+                || checked.placement().counts().getOrDefault("table_items",0L)==0;
+        if(checked.axe().counts().getOrDefault("output_capacity",0L)>=1 && explicitGathering(request,oakSource,shortage))
+            return publishExplicitComposition(id,bound,oakSource,ActivityPayload.OriginalStock.CONTAINERS);
         jobs.tick();var change=jobs.stageComposition(id,request,owner,bound.observation(),ResourceComposition.allowance(clock.millis()));
         if(change.accepted())prerequisites.stageFacility(id,oakSource);
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
@@ -1508,9 +1517,15 @@ public final class KernelSession implements AutoCloseable {
         return new FabricPrerequisiteRuntime.FacilityObservation(false,preview,observe(placement,actor),null);
     }
     private BootstrapController.Submission composeRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,Cuboid oakSource) {
+        return composeRequest(request,owner,player,oakSource,false);
+    }
+    private BootstrapController.Submission composeRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,Cuboid oakSource,
+                                                          boolean useHeldSticks) {
         UUID id=UUID.randomUUID();var actor=((ActorValue)request.arguments().get("actor")).value();
         if(player==null||!player.getUUID().equals(owner.principal().id())||!controls(actor,owner))return new BootstrapController.Submission(id,false,Reason.AUTHORITY_DENIED);
         if(villager(actor)==null||villager(actor).level()!=player.level())return new BootstrapController.Submission(id,false,Reason.ACTOR_UNAVAILABLE);
+        if(useHeldSticks && (productionActivities==null || activityCheckpoints==null))
+            return new BootstrapController.Submission(id,false,Reason.UNSUPPORTED_PRIMITIVE);
         try {
             if(oakSource!=null && (!oakSource.dimension().equals(actor.dimension())||sourceCells(oakSource)>256))return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);
             var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
@@ -1520,12 +1535,30 @@ public final class KernelSession implements AutoCloseable {
             }
             var preflight=gatewayWorld().recipePreflight(bound);
             if(preflight.reason()!=null)return new BootstrapController.Submission(id,false,preflight.reason());
-            if(preflight.outputCapacity()<((IntValue)request.arguments().get("amount")).value())return new BootstrapController.Submission(id,false,Reason.TARGET_UNAVAILABLE);
+            long amount=((IntValue)request.arguments().get("amount")).value();
+            if(preflight.outputCapacity()<amount)return new BootstrapController.Submission(id,false,Reason.TARGET_UNAVAILABLE);
+            var definition=RecipeProduction.of(request.capability());
+            boolean shortage=preflight.availableInputs()<definition.inputs(amount)
+                    || definition.axe() && preflight.availableSecondary()<definition.secondaryInputs(amount);
+            if(useHeldSticks)return publishExplicitComposition(id,bound,oakSource,ActivityPayload.OriginalStock.CONTAINERS_AND_HELD_STICKS);
+            if(explicitGathering(request,oakSource,shortage))return publishExplicitComposition(id,bound,oakSource,ActivityPayload.OriginalStock.CONTAINERS);
             jobs.tick();
             var change=jobs.stageComposition(id,request,owner,bound.observation(),ResourceComposition.allowance(clock.millis()));
             if(change.accepted())prerequisites.stage(id,oakSource);
             return new BootstrapController.Submission(id,change.accepted(),change.reason());
         }catch(IllegalArgumentException|ArithmeticException invalid){return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);}
+    }
+    private boolean explicitGathering(CapabilityRequest request,Cuboid area,boolean shortage) {
+        return shortage && area!=null && productionActivities!=null && activityCheckpoints!=null
+                && ResourceComposition.explicitAcquisition(request.capability())
+                && productionActivities.hasExplicitLogs(request.capability(),area);
+    }
+    private BootstrapController.Submission publishExplicitComposition(UUID id,ValidatedRequest original,Cuboid area,
+                                                                        ActivityPayload.OriginalStock originalStock) {
+        jobs.tick();
+        var change=jobs.createProductionActivity(id,original.request(),original.context(),original.observation(),
+                ResourceComposition.allowance(clock.millis()),ActivityPayload.MAX_STEPS,area,null,originalStock);
+        return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
     private Cuboid compositionOakEnvelope(ActorRef actor) {
         var v=villager(actor);if(v==null)return null;var at=v.blockPosition();

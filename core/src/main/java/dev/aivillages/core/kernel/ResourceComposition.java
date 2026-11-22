@@ -15,6 +15,17 @@ public final class ResourceComposition {
                 || need.bound().request().capability().equals(CraftingTableProduction.ID) && need.item().equals(ResourceDelivery.CRAFTING_TABLE.id()))
                 && need.allocation()==Prerequisites.AllocationPolicy.MATERIAL_ONLY;
     }
+    public static boolean explicitAcquisition(CapabilityId root) {
+        return root.equals(BirchPlankProduction.ID) || root.equals(CraftingTableProduction.ID) || root.equals(WoodenAxeProduction.ID);
+    }
+    public static CapabilityId explicitLogMethod(CapabilityId root) {
+        if(!explicitAcquisition(root))throw new IllegalArgumentException("Original explicit gathering capability");
+        return root.equals(BirchPlankProduction.ID) ? BirchLogDelivery.ID : OakLogDelivery.ID;
+    }
+    public static boolean explicitRecipeInput(CapabilityId recipe,String item) {
+        var definition=RecipeProduction.of(recipe);
+        return definition.input().id().equals(item) || definition.axe() && ResourceDelivery.STICK.id().equals(item);
+    }
     /** An exact MAKE root delivers its demand; material children deposit whole batches. */
     public static BatchQuantities.Role quantityRole(Prerequisites.Need need,String item) {
         return make(need) && item.equals(need.item()) ? BatchQuantities.Role.ROOT : BatchQuantities.Role.MATERIAL_CHILD;

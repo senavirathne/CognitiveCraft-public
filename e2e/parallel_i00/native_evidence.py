@@ -158,7 +158,7 @@ def exact_withdrawals(job, receipts):
         require(0 <= batch_index < len(choice_batches) and (step["id"], batch_index) not in by_batch,
                 "Unknown or duplicate exact-choice withdrawal")
         by_batch.add((step["id"], batch_index))
-        bindings = choice_batches[batch_index]["bindings"]
-        require(len(bindings) == receipt["quantity"], "Aggregate native withdrawal does not cover every exact grid input")
+        bindings = [binding for binding in choice_batches[batch_index]["bindings"] if "source" in binding]
+        require(len(bindings) == receipt["quantity"], "Native withdrawal differs from the exact container inputs")
         totals.update(binding["item"]["id"] for binding in bindings)
     return dict(totals)

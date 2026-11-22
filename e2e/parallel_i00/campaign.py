@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 from collections import Counter
 import json
 from pathlib import Path
@@ -12,7 +13,7 @@ from uuid import uuid4
 
 from .frozen_campaign import ORIGINAL_SHA256, controls_for, material_controls, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
-from .native_evidence import exact_withdrawals, jsonl, raw_slices, require_command, verify_installation
+from .native_evidence import exact_withdrawals, jsonl, raw_slices, require_command, stock_at, verify_installation
 from campaigns.crafting.harness import CraftingHarness, observer_inputs
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
@@ -57,7 +58,10 @@ class OriginalCampaign(NativeGameplay):
 
     def command_text(self, case):
         if not requires_exact_choice(case):
-            return CraftingHarness.command_text(self, case)
+            command = CraftingHarness.command_text(self, case)
+            if case.get("distribution") == "held":
+                command += " use-held-sticks"
+            return command
         return super().command_text(case)
 
     def arm_recovery(self, case):
@@ -241,6 +245,37 @@ def review_admission_custody(seed, pins, jar):
                 "Missing the original saved log admission and replacement JVM evidence")
 
 
+def review_held_sticks(case, row, root):
+    item = "minecraft:stick"
+    quantity = case["quantity"]
+    bindings = row["bindings"]
+    request, job = row["request"], row["execution"]["views"][0]
+    require(request["kind"] == "job" and request["identity"] == job["id"]
+            and request["command"].endswith(" use-held-sticks") and job["state"] == "SUCCEEDED"
+            and job["fulfilled"] == quantity and row["delivered"] == quantity,
+            "Original owner did not explicitly authorize and complete held-input work")
+    raw = "clients/PlayerA/events.jsonl"
+    require_command(raw_slices(root, row, {raw})[raw], request["command"], request["feedback"], "PlayerA")
+    source = ",".join(map(str, bindings["source"]))
+    require(stock_at(row["before"], bindings["actor"]).get(item, 0) == 2 * quantity
+            and not stock_at(row["after"], bindings["actor"]).get(item, 0)
+            and not row["before"]["containers"][source].get(item, 0),
+            "Originally held actor units do not reconcile with the real before and after stock")
+    expected_actor = {"entity": bindings["actor"], "citizen": bindings["citizen"], "dimension": "minecraft:overworld"}
+    count = 2 * quantity
+    for step in job["activity"]["steps"]:
+        choice = json.loads(base64.b64decode(step["choice"]["base64"], validate=True))
+        for batch in choice["batches"]:
+            for selected in batch["bindings"]:
+                if selected["item"]["id"] == item:
+                    require(selected.get("heldBy") == expected_actor and selected["sourceSlot"] == 0
+                            and selected["expectedCount"] == count,
+                            "Exact held slot lost its original actor or expected physical count")
+                    count -= 1
+    require(count == 0 and exact_withdrawals(job, row["execution"]["receipts"]) == {"minecraft:oak_planks": 3 * quantity},
+            "Held inputs were counted as storage withdrawals or left unconsumed")
+
+
 def review_case(case, row, root, pins, recipes, validate):
     require(row["case"] == case, "Native case deviates from the frozen definition")
     require(row["status"] in PASS_STATUSES and row["attempted"] is True and row["terminalObserved"] is True,
@@ -276,6 +311,8 @@ def review_case(case, row, root, pins, recipes, validate):
     balanced, _ = (recipe_balance(before, after, row["independentExpectation"])
                    if row.get("independentExpectation") else composition_balance(before, after, recipes))
     require(balanced and delta(before, after) == row["physicalDelta"], "Native world quantities do not independently reconcile")
+    if case.get("distribution") == "held":
+        review_held_sticks(case, row, root)
     if case.get("dynamic") == "fill-destination":
         added = row["execution"]["dynamic"]["externalFill"]
         item = case["output"]

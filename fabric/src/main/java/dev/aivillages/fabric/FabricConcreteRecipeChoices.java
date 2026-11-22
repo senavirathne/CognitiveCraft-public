@@ -133,9 +133,18 @@ final class FabricConcreteRecipeChoices {
 
     private void validateChoice(ValidatedRequest request,RecipeChoice choice,ChoiceAuthority authority,RecipeSources sources,Villager villager) {
         sources.validate(request);checkRequest(request,choice);var current=view(choice.capability());
+        requireBoundInputs(request,choice,authority,sources,ChoicePhase.PREPARE);
         facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
-        if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);
         wholeChoiceCapacity(request,authority,choice,current,sources,villager,ChoicePhase.PREPARE);
+    }
+    private void requireBoundInputs(ValidatedRequest request,RecipeChoice choice,ChoiceAuthority authority,RecipeSources sources,ChoicePhase phase) {
+        if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.allows(b)))
+            throw refuse(Reason.AUTHORITY_DENIED);
+        requireHeldAuthority(request,authority,sources,phase);
+    }
+    private void requireHeldAuthority(ValidatedRequest request,ChoiceAuthority authority,RecipeSources sources,ChoicePhase phase) {
+        if(sources.heldSticks()!=null && (authority==null || !authority.permitsHeldSticks(request.context(),actor(request),phase)))
+            throw refuse(Reason.AUTHORITY_DENIED);
     }
     private CraftingInput input(RecipeChoice choice,int index) {
         return CraftingInput.of(choice.width(),choice.height(),choice.batch(index).grid().stream().map(this::stack).toList());
@@ -239,13 +248,7 @@ final class FabricConcreteRecipeChoices {
         var held=FabricRecipeTransactions.copy(v.getInventory());
         for(int batch=0;batch<choice.batches().size();batch++) {
             nativeMatch(choice,batch,recipe);
-            for(var binding:choice.batch(batch).bindings()) {
-                var inputs=inputCopies.get(binding.source());
-                var actual=inputs.get(binding.sourceSlot());
-                if(actual.getCount()!=binding.expectedCount() || !itemKey(level,actual).equals(binding.item()))throw refuse(Reason.STALE_OBSERVATION);
-                held=FabricRecipeTransactions.insert(held,v.getInventory(),actual.copyWithCount(1));if(held==null)throw refuse(Reason.TARGET_UNAVAILABLE);
-                inputs.set(binding.sourceSlot(),actual.copyWithCount(actual.getCount()-1));
-            }
+            held=withdrawInputs(held,v.getInventory(),inputCopies,choice.batch(batch));
             held=consumeHeld(held,choice,batch);var result=recipe.recipe().assemble(input(choice,batch));
             held=FabricRecipeTransactions.insert(held,v.getInventory(),result.copy());if(held==null)throw refuse(Reason.TARGET_UNAVAILABLE);
             int delivery=Math.toIntExact(choice.deliveryForBatch(batch));
@@ -259,21 +262,14 @@ final class FabricConcreteRecipeChoices {
     Context prepare(ValidatedRequest request,RecipeChoice choice,int batch,UUID run,ChoiceAuthority authority,RecipeSources sources) {
         thread();sources.validate(request);
         var v=nativeActor(request,run);checkRequest(request,choice);var recipe=view(choice.capability());nativeMatch(choice,batch,recipe);
+        requireBoundInputs(request,choice,authority,sources,ChoicePhase.PREPARE);
         facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
         var target=container(request,"destination");
         // A new preparation can revalidate immutable choices after a semantic-equivalent reload.
         var boxes=sourceContainers(request,authority,sources,ChoicePhase.PREPARE,true);
         var to=permitted(request,authority,target,ChoicePhase.PREPARE,false);
-        if(choice.batches().stream().flatMap(b->b.bindings().stream()).anyMatch(b->!sources.containers().contains(b.source())))throw refuse(Reason.AUTHORITY_DENIED);
-        var sourceCopies=copies(boxes);var custody=FabricRecipeTransactions.copy(v.getInventory());
-        for(var binding:choice.batch(batch).bindings()) {
-            var sourceCopy=sourceCopies.get(binding.source());
-            if(binding.sourceSlot()>=sourceCopy.size())throw refuse(Reason.STALE_OBSERVATION);
-            var value=sourceCopy.get(binding.sourceSlot());
-            if(value.getCount()!=binding.expectedCount() || !itemKey(level,value).equals(binding.item()))throw refuse(Reason.STALE_OBSERVATION);
-            sourceCopy.set(binding.sourceSlot(),value.copyWithCount(value.getCount()-1));
-            custody=FabricRecipeTransactions.insert(custody,v.getInventory(),value.copyWithCount(1));if(custody==null)throw refuse(Reason.TARGET_UNAVAILABLE);
-        }
+        var sourceCopies=copies(boxes);
+        var custody=withdrawInputs(FabricRecipeTransactions.copy(v.getInventory()),v.getInventory(),sourceCopies,choice.batch(batch));
         var afterCraft=consumeHeld(custody,choice,batch);var output=recipe.recipe().assemble(input(choice,batch));
         if(FabricRecipeTransactions.insert(afterCraft,v.getInventory(),output.copy())==null)throw refuse(Reason.TARGET_UNAVAILABLE);
         var destinationCopy=sourceCopies.containsKey(target)?sourceCopies.get(target):FabricRecipeTransactions.copy(to);
@@ -288,6 +284,7 @@ final class FabricConcreteRecipeChoices {
         thread();
         var actor = nativeActor(request, run);
         checkRequest(request, choice);
+        requireBoundInputs(request,choice,authority,sources,ChoicePhase.DEPOSIT);
         if ((choice.facility() == null) != (restoredFacility == null)
                 || choice.facility() != null && !choice.facility().reference().equals(restoredFacility.reference()))
             throw refuse(Reason.STALE_OBSERVATION);
@@ -305,9 +302,36 @@ final class FabricConcreteRecipeChoices {
         if(!request.request().capability().equals(choice.capability()) || !(request.request().arguments().get("amount") instanceof IntValue amount)
                 || amount.value()!=choice.demand())throw refuse(Reason.REQUEST_INVALID);
     }
+    private ItemStack boundUnit(List<ItemStack> inventory,RecipeChoice.Binding binding,boolean exactCount) {
+        int slot=binding.sourceSlot();
+        if(slot>=inventory.size())throw refuse(Reason.STALE_OBSERVATION);
+        var actual=inventory.get(slot);
+        if(actual.getCount()<binding.expectedCount() || exactCount && actual.getCount()!=binding.expectedCount()
+                || !itemKey(level,actual).equals(binding.item()))throw refuse(Reason.STALE_OBSERVATION);
+        inventory.set(slot,actual.copyWithCount(actual.getCount()-1));
+        return actual.copyWithCount(1);
+    }
+    private List<ItemStack> withdrawInputs(List<ItemStack> held,Container inventory,Map<ContainerRef,List<ItemStack>> sources,
+                                           RecipeChoice.Batch batch) {
+        // Validate recorded actor slots against the pre-withdraw image. They stay
+        // in place until craft. Only actual storage withdrawals move items here.
+        if(batch.usesHeldInputs()) {
+            var heldSnapshot=new ArrayList<>(held);
+            for(var binding:batch.bindings())if(binding.heldBy()!=null)boundUnit(heldSnapshot,binding,true);
+        }
+        for(var binding:batch.withdrawals()) {
+            var unit=boundUnit(sources.get(binding.source()),binding,true);
+            held=FabricRecipeTransactions.insert(held,inventory,unit);
+            if(held==null)throw refuse(Reason.TARGET_UNAVAILABLE);
+        }
+        return held;
+    }
     private List<ItemStack> consumeHeld(List<ItemStack> held,RecipeChoice choice,int batch) {
         var next=new ArrayList<ItemStack>();held.forEach(s->next.add(s.copy()));
-        for(var key:choice.batch(batch).grid())if(!key.empty()) {
+        var inputs=choice.batch(batch);
+        for(var binding:inputs.bindings())if(binding.heldBy()!=null)boundUnit(next,binding,false);
+        for(var binding:inputs.withdrawals()) {
+            var key=binding.item();
             int slot=-1;for(int i=0;i<next.size();i++)if(!next.get(i).isEmpty() && itemKey(level,next.get(i)).equals(key)){slot=i;break;}
             if(slot<0)throw refuse(Reason.RESOURCE_MISSING);var value=next.get(slot);next.set(slot,value.copyWithCount(value.getCount()-1));
         }
@@ -348,6 +372,7 @@ final class FabricConcreteRecipeChoices {
             if(c.authority==null || c.sources.containers().stream().anyMatch(s->!c.authority.permits(c.request.context(),actor(c.request),s,phase))
                     || !c.authority.permits(c.request.context(),actor(c.request),container(c.request,"destination"),phase))
                 throw refuse(Reason.AUTHORITY_DENIED);
+            requireHeldAuthority(c.request,c.authority,c.sources,phase);
             var v=nativeActor(c.request,c.run);checkRequest(c.request,c.choice);
             if(v!=c.nativeActor)throw refuse(Reason.STALE_OBSERVATION);
             before=state(c);
@@ -364,13 +389,7 @@ final class FabricConcreteRecipeChoices {
             var expected=new HashMap<>(before.participants());
             if(phase==ChoicePhase.WITHDRAW) {
                 if(!fingerprints(boxes).equals(c.sourceFingerprints))throw refuse(Reason.STALE_OBSERVATION);
-                for(var binding:c.choice.batch(c.batch).bindings()) {
-                    var sourceCopy=sourceCopies.get(binding.source());
-                    var value=sourceCopy.get(binding.sourceSlot());
-                    if(value.getCount()!=binding.expectedCount() || !itemKey(level,value).equals(binding.item()))throw refuse(Reason.STALE_OBSERVATION);
-                    custody=FabricRecipeTransactions.insert(custody,v.getInventory(),value.copyWithCount(1));if(custody==null)throw refuse(Reason.TARGET_UNAVAILABLE);
-                    sourceCopy.set(binding.sourceSlot(),value.copyWithCount(value.getCount()-1));
-                }
+                custody=withdrawInputs(custody,v.getInventory(),sourceCopies,c.choice.batch(c.batch));
                 if(!c.used.compareAndSet(false,true))throw refuse(Reason.STALE_OBSERVATION);
                 for(var source:c.sources.containers())expected.put(participant(source,boxes.get(source)),observe(sourceCopies.get(source)));expected.put("actor:"+v.getUUID(),observe(custody));
                 writesStarted=true;for(var source:c.sources.containers())FabricRecipeTransactions.apply(boxes.get(source),sourceCopies.get(source));FabricRecipeTransactions.apply(v.getInventory(),custody);

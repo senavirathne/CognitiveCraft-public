@@ -26,9 +26,16 @@ public final class ActivityRecipeEvidence {
             throw new IllegalArgumentException("Exact choice and authoritative quantity disagree");
         var request=new ValidatedRequest(new CapabilityRequest(choice.capability(),operation.arguments()),
                 invocation.context(),invocation.observation());
+        if(root.activity().production()!=null && root.activity().production().exactLegacyMaterials()
+                && choice.batches().stream().flatMap(batch->batch.bindings().stream())
+                .anyMatch(binding->!ResourceComposition.explicitRecipeInput(operation.capability(),binding.item().id())))
+            throw new IllegalArgumentException("Choice changed the original explicit recipe materials");
         var sources=sources(request,choice);
         if(!authorizedSources(root).containsAll(sources.containers()))
             throw new IllegalArgumentException("Exact choice source outside the original authority");
+        if(sources.heldSticks()!=null && (root.activity().production()==null
+                || !root.activity().production().allowsHeldSticks() || !root.responsible().equals(sources.heldSticks())))
+            throw new IllegalArgumentException("Exact choice held inputs outside the original actor authority");
         RecipeChoicePlan.propose(root.id(),root.revision(),request,choice,sources);
         return request;
     }
@@ -43,8 +50,12 @@ public final class ActivityRecipeEvidence {
         var explicit=((ContainerValue)invocation.request().arguments().get("source")).value();
         var sources=new LinkedHashSet<ContainerRef>();
         sources.add(explicit);
-        choice.batches().forEach(b->b.bindings().forEach(binding->sources.add(binding.source())));
-        return new RecipeSources(List.copyOf(sources));
+        var holders=new LinkedHashSet<ActorRef>();
+        for(var batch:choice.batches())for(var binding:batch.bindings()) {
+            if(binding.source()!=null)sources.add(binding.source());else holders.add(binding.heldBy());
+        }
+        if(holders.size()>1)throw new IllegalArgumentException("One original actor owns held inputs");
+        return new RecipeSources(List.copyOf(sources),holders.isEmpty()?null:holders.getFirst());
     }
 
     public static boolean permittedInvocation(Job root,CapabilityRequest invocation,long credit) {
@@ -61,10 +72,17 @@ public final class ActivityRecipeEvidence {
         if(CraftingTablePlacement.is(invocation.capability()))
             return staging.equals(invocation.arguments().get("source"))
                     && Objects.equals(original.arguments().get("table"),invocation.arguments().get("target"));
+        var control=root.activity().production();
+        if(control!=null && control.exactLegacyMaterials()) {
+            var operation=invocation.capability();
+            if(LogAcquisition.is(operation) && !ResourceComposition.explicitLogMethod(original.capability()).equals(operation))return false;
+            if(RecipeProduction.is(operation) && (original.capability().equals(BirchPlankProduction.ID)
+                    || !Set.of(OakPlankProduction.ID,StickProduction.ID,CraftingTableProduction.ID).contains(operation)))return false;
+        }
         return staging.value().equals(ResourceDelivery.destinationAddress(invocation))
-                && (LogAcquisition.is(invocation.capability()) ? root.activity().production()!=null
-                    && root.activity().production().acquisition()!=null
-                    && new AreaValue(root.activity().production().acquisition()).equals(invocation.arguments().get("source"))
+                && (LogAcquisition.is(invocation.capability()) ? control!=null
+                    && control.acquisition()!=null
+                    && new AreaValue(control.acquisition()).equals(invocation.arguments().get("source"))
                     : staging.equals(invocation.arguments().get("source")));
     }
 
@@ -113,7 +131,7 @@ public final class ActivityRecipeEvidence {
                     || previous!=null && !previous.choice().custodyAfter().equals(receipt.choice().custodyBefore()))
                 throw new IllegalArgumentException("Exact-choice phase lineage");
             long physical=switch(phase) {
-                case WITHDRAW -> choice.batch(batch).bindings().size();
+                case WITHDRAW -> choice.batch(batch).withdrawals().size();
                 case CRAFT -> choice.resultCount();
                 case DEPOSIT -> choice.deliveryForBatch(batch);
                 default -> throw new IllegalStateException("Exact-choice phase");

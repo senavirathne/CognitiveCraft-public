@@ -124,7 +124,18 @@ final class FabricRecipeParticipants {
         var recipe=choice.batch(batch);
         int delivery=Math.toIntExact(choice.deliveryForBatch(batch));
         switch(phase) {
-            case WITHDRAW -> recipe.bindings().forEach(b->change(expectedActor,b.item(),1));
+            case WITHDRAW -> {
+                if(recipe.usesHeldInputs()) {
+                    var held=new ArrayList<>(before.getFirst().slots());
+                    for(var binding:recipe.bindings())if(binding.heldBy()!=null) {
+                        if(binding.sourceSlot()>=held.size())return false;
+                        var slot=held.get(binding.sourceSlot());
+                        if(slot.count()!=binding.expectedCount() || !slot.item().equals(binding.item()))return false;
+                        held.set(binding.sourceSlot(),slot.count()==1?Slot.EMPTY:new Slot(slot.item(),slot.count()-1));
+                    }
+                }
+                recipe.withdrawals().forEach(b->change(expectedActor,b.item(),1));
+            }
             case CRAFT -> {
                 recipe.grid().stream().filter(item->!item.empty()).forEach(item->change(expectedActor,item,-1));
                 change(expectedActor,choice.result(),choice.resultCount());
@@ -144,7 +155,7 @@ final class FabricRecipeParticipants {
                 if(!expected.equals(totals(actual.slots())))return false;
             } else {
                 var expected=new ArrayList<>(prior.slots());
-                if(phase==Stage.WITHDRAW)for(var binding:recipe.bindings()) {
+                if(phase==Stage.WITHDRAW)for(var binding:recipe.withdrawals()) {
                     if(!binding.source().equals(prior.container()))continue;
                     if(binding.sourceSlot()>=expected.size())return false;
                     var slot=expected.get(binding.sourceSlot());

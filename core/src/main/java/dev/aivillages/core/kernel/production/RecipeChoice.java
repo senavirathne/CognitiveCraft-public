@@ -38,13 +38,26 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
         public Map<String,Object> value(){return Map.of("id",id,"components",components);}
     }
     /** One actual unit for one ordered grid cell. Counts are before this unit is removed. */
-    public record Binding(int gridSlot,ContainerRef source,int sourceSlot,int expectedCount,ItemKey item) {
+    public record Binding(int gridSlot,ContainerRef source,int sourceSlot,int expectedCount,ItemKey item,ActorRef heldBy) {
+        public Binding(int gridSlot,ContainerRef source,int sourceSlot,int expectedCount,ItemKey item) {
+            this(gridSlot,source,sourceSlot,expectedCount,item,null);
+        }
         public Binding {
-            Objects.requireNonNull(source);Objects.requireNonNull(item);
-            if(gridSlot<0 || gridSlot>8 || sourceSlot<0 || sourceSlot>127 || expectedCount<1 || expectedCount>64 || item.empty())
+            Objects.requireNonNull(item);
+            if((source==null)==(heldBy==null) || gridSlot<0 || gridSlot>8 || sourceSlot<0 || sourceSlot>127
+                    || expectedCount<1 || expectedCount>64 || item.empty()
+                    || heldBy!=null && (sourceSlot>=8 || !item.id().equals("minecraft:stick")))
                 throw new IllegalArgumentException("Bounded exact source/grid binding");
         }
-        public Map<String,Object> value(){return Map.of("gridSlot",gridSlot,"source",container(source),"sourceSlot",sourceSlot,"expectedCount",expectedCount,"item",item.value());}
+        public String dimension(){return heldBy==null?source.dimension():heldBy.dimension();}
+        public Map<String,Object> value(){return Map.of("gridSlot",gridSlot,heldBy==null?"source":"heldBy",
+                heldBy==null?container(source):Map.of("citizen",heldBy.citizenId().toString(),"entity",heldBy.entityId().toString(),"dimension",heldBy.dimension()),
+                "sourceSlot",sourceSlot,"expectedCount",expectedCount,"item",item.value());}
+        @Override public String toString() {
+            // Persisted B decision signatures used the original binding's record format.
+            return "Binding[gridSlot="+gridSlot+", source="+source+", sourceSlot="+sourceSlot
+                    +", expectedCount="+expectedCount+", item="+item+(heldBy==null?"":", heldBy="+heldBy)+"]";
+        }
     }
     public record Batch(List<ItemKey> grid,List<Binding> bindings) {
         public Batch {
@@ -60,6 +73,8 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
             int gridSize=grid.size();
             if(bindings.stream().anyMatch(b->b.gridSlot()>=gridSize))throw new IllegalArgumentException("Foreign grid slot");
         }
+        public boolean usesHeldInputs(){return bindings.stream().anyMatch(b->b.heldBy()!=null);}
+        public List<Binding> withdrawals(){return usesHeldInputs()?bindings.stream().filter(b->b.source()!=null).toList():bindings;}
         public Map<String,Object> value(){return Map.of("grid",grid.stream().map(ItemKey::value).toList(),"bindings",bindings.stream().map(Binding::value).toList());}
     }
     public record ItemAmount(ItemKey item,long count) {
@@ -78,8 +93,11 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
                 || resultCount!=definition.outputPerBatch() || remainders.size()>9)
             throw new IllegalArgumentException("Unsupported concrete recipe choice contract");
         if(batches.stream().anyMatch(b->b.grid().size()!=width*height))throw new IllegalArgumentException("Ordered grid shape mismatch");
-        var dimensions=batches.stream().flatMap(b->b.bindings().stream()).map(b->b.source().dimension()).distinct().toList();
+        var dimensions=batches.stream().flatMap(b->b.bindings().stream()).map(Binding::dimension).distinct().toList();
         if(dimensions.size()!=1)throw new IllegalArgumentException("Cross-dimension recipe inputs");
+        if(batches.stream().anyMatch(batch->batch.withdrawals().isEmpty()
+                || !definition.axe() && batch.bindings().size()!=batch.withdrawals().size()))
+            throw new IllegalArgumentException("Each supported batch needs actual stock withdrawal");
         if(definition.axe() ? facility==null || width!=3 || height!=3 || !facility.reference().dimension().equals(dimensions.getFirst()) : facility!=null)
             throw new IllegalArgumentException("Exact native facility context required only for axes");
         // Exact source-count transitions are verified natively at each preparation.
@@ -108,9 +126,19 @@ public record RecipeChoice(CapabilityId capability,String recipe,String semantic
                 var batch=object(raw);keys(batch,"grid","bindings");var grid=list(batch.get("grid")).stream().map(RecipeChoice::item).toList();
                 var bindings=new ArrayList<Binding>();
                 for(var b:list(batch.get("bindings"))) {
-                    var value=object(b);keys(value,"gridSlot","source","sourceSlot","expectedCount","item");var source=object(value.get("source"));keys(source,"dimension","x","y","z");
-                    bindings.add(new Binding(integer(value,"gridSlot"),new ContainerRef(string(source,"dimension"),integer(source,"x"),integer(source,"y"),integer(source,"z")),
-                            integer(value,"sourceSlot"),integer(value,"expectedCount"),item(value.get("item"))));
+                    var value=object(b);
+                    ContainerRef source=null;ActorRef heldBy=null;
+                    if(value.containsKey("heldBy")) {
+                        keys(value,"gridSlot","heldBy","sourceSlot","expectedCount","item");
+                        var owner=object(value.get("heldBy"));keys(owner,"citizen","entity","dimension");
+                        heldBy=new ActorRef(UUID.fromString(string(owner,"citizen")),UUID.fromString(string(owner,"entity")),string(owner,"dimension"));
+                    } else {
+                        keys(value,"gridSlot","source","sourceSlot","expectedCount","item");
+                        var cell=object(value.get("source"));keys(cell,"dimension","x","y","z");
+                        source=new ContainerRef(string(cell,"dimension"),integer(cell,"x"),integer(cell,"y"),integer(cell,"z"));
+                    }
+                    bindings.add(new Binding(integer(value,"gridSlot"),source,integer(value,"sourceSlot"),
+                            integer(value,"expectedCount"),item(value.get("item")),heldBy));
                 }
                 batches.add(new Batch(grid,bindings));
             }

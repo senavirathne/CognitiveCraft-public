@@ -345,7 +345,15 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         mark(pair,new Marker(intent.key().token(),intent.digest(),MarkerPhase.MUTATING,""));observer.accept(Point.BEFORE_MUTATION);
         NativeBirth birth=beginMembershipBirth(intent,pair.actor,ticket.authority);
         Observed observed=null;RuntimeException failure=null;
-        try(var scope=HarvestBirthScope.open(drop->born(birth,drop))){observed=ticket.original.execute();}catch(RuntimeException error){failure=error;}
+        var activity=ticket.authority.activity();
+        boolean settleAtSource=compoundChildren && LogAcquisition.log(ticket.request.item())
+                && (activity!=null && activity.production()!=null || !intent.key().root().equals(intent.key().step()));
+        try(var scope=HarvestBirthScope.open(drop->{
+            // Keep the original drop in its recorded source column while gravity settles it.
+            if(settleAtSource && BuiltInRegistries.ITEM.getKey(drop.getItem().getItem()).toString().equals(intent.item()))
+                drop.setDeltaMovement(new Vec3(0,drop.getDeltaMovement().y,0));
+            born(birth,drop);
+        })){observed=ticket.original.execute();}catch(RuntimeException error){failure=error;}
         observer.accept(Point.AFTER_MUTATION);
         Pair after=Objects.requireNonNull(pair(ticket.request,true));var drops=new ArrayList<Drop>();var nativeDrops=new ArrayList<ItemEntity>();
         if(observed!=null)for(var actual:observed.harvest().drops()) {

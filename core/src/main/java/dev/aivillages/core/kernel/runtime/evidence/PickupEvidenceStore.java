@@ -60,11 +60,14 @@ public final class PickupEvidenceStore {
     public boolean settled(Entry entry) {
         thread();if(fenced || pending!=null || !ancestry(entry))return false;
         if(entry.verification()!=null)return true;
-        return successor!=null && !successor.fenced() && !successor.pending() && successor.snapshot().entries().stream().anyMatch(d->
-                d.intent().pickupPrefix()!=null && d.intent().pickupPrefix().pickup().equals(entry) && successor.settled(d));
+        return successor!=null && successor.joinedPickupSettled(entry);
     }
     public boolean settledHarvest(NativeHarvest.Entry original) {
-        thread();return !fenced && pending==null && state.entries().stream().anyMatch(e->e.intent().harvest().equals(original) && settled(e));
+        thread();
+        var key=original.intent().key();
+        if(fenced || pending!=null || key.ordinal()!=1)return false;
+        var pickup=find(state,new Key(key.world(),key.root(),key.step(),key.attempt(),key.generation(),2));
+        return pickup!=null && pickup.intent().harvest().equals(original) && settled(pickup);
     }
     public PickupEvidenceStore(Snapshot initial,HarvestEvidenceStore harvest,Storage storage,NativePort port,Clock clock,long timeoutMillis,boolean readOnly) {
         state=Objects.requireNonNull(initial);this.harvest=Objects.requireNonNull(harvest);this.storage=Objects.requireNonNull(storage);
@@ -91,8 +94,7 @@ public final class PickupEvidenceStore {
     private boolean ancestry(Entry entry) {
         if(harvest.fenced()||harvest.pending())return false;
         var expected=entry.intent().harvest();
-        for(var row:harvest.snapshot().entries())if(row==expected || row.equals(expected))return true;
-        return false;
+        return harvest.containsOriginal(expected);
     }
     public Status prepare(Intent intent,HarvestEvidenceStore.Acknowledged original) {
         thread();Objects.requireNonNull(intent);if(fenced)return new Status(Code.FENCED,null);

@@ -156,6 +156,18 @@ class EnduranceHarness(JobHarness):
         atomic(self.root / "prelude-custody.json", {"job": job["id"], "before": deposit, "verified": actual,
                "save": save, "cold": cold, "warm": warm})
 
+    def enroll_pinned_worker(self):
+        existing = {actor["uuid"] for actor in self.snapshot()["actors"]}
+        self.console(["summon minecraft:villager 64.5 208 73.5 {PersistenceRequired:1b}",
+                      "tp PlayerA 64.5 208 74.5"])
+        work = self.wait(lambda: next((actor for actor in self.snapshot()["actors"]
+                                       if actor["uuid"] not in existing and actor["alive"]
+                                       and not actor["baby"] and not actor["noAI"]), None),
+                         "Separate native actor for the original unresolved reference")
+        self.enroll("PlayerA", "Reserve")
+        require(self.entities["PlayerA"] == work["uuid"], "Unresolved reference reused a prelude actor")
+        return work
+
     def prepare_continuous_world(self):
         from campaigns.crafting.oracle import candidates
         atomic(self.root / "oracle-candidates.json", candidates(SDK / "minecraft-client.jar"))
@@ -167,8 +179,12 @@ class EnduranceHarness(JobHarness):
         folder.mkdir()
         self.family = "I00-pinned-original"
         # A genuine retained original is deliberately outside the 1,000 count.
-        original = interruption(self, True, folder)
+        pinned_worker = self.enroll_pinned_worker()
+        original = interruption(self, False, folder)
         self.companion_region()
+        require(original["beforeCustody"]["actorEntity"] == pinned_worker["uuid"]
+                and pinned_worker["uuid"] not in self.entities.values(), "Measured work reused the unresolved actor")
+        atomic(folder / "separate-worker.json", {"worker": pinned_worker, "measuredWorkers": self.entities.copy()})
         boxes = (SOURCE, *WAREHOUSE, *TEST_TARGETS, SHARED, *SHARED_TARGETS)
         self.console(["tp PlayerB 337.5 208 71.5", "spawnpoint PlayerB 337 208 71",
                       "tp " + self.entities["PlayerB"] + " 337.5 208 73.5", "give PlayerB " + LOG + " 1",

@@ -182,6 +182,32 @@ final class ActivityRuntimeTest {
         var s=new Scene();var legacy=s.create(1);assertNull(JobCodec.job(StrictJson.object(JobCodec.job(legacy))).activity());
         assertEquals(1L,StrictJson.object(JobCodec.job(legacy)).get("schema"));assertEquals(4L,StrictJson.object(JobCodec.job(f.job())).get("schema"));
     }
+    @Test void explicitGatheringKeepsItsLegacyMaterialAndBoundAreaAcrossTheJobCodec() throws Exception {
+        var scene=new Scene();
+        var id=UUID.randomUUID();
+        var source=new ContainerRef(scene.actor.dimension(),4,64,4);
+        var destination=new ContainerRef(scene.actor.dimension(),6,64,4);
+        var area=new Cuboid(scene.actor.dimension(),0,64,4,3,64,4);
+        var args=Map.<String,Value>of("actor",new ActorValue(scene.actor),"source",new ContainerValue(source),
+                "destination",new ContainerValue(destination),"amount",new IntValue(2));
+        var rootRequest=new CapabilityRequest(CraftingTableProduction.ID,args);
+        var root=new ValidatedRequest(rootRequest,scene.owner,observation());
+        var control=ActivityPayload.ProductionControl.initial(area,null,ActivityPayload.OriginalStock.CONTAINERS);
+        var payload=ActivityPayload.initial(rootRequest.capability(),8).planning(control);
+        var job=new Job(id,id,0,root,null,List.of(),List.of(),State.WAITING,null,null,
+                ResourceComposition.allowance(scene.clock.millis()),Map.of(),0,List.of(),List.of(),null,payload);
+        var reopened=JobCodec.job(StrictJson.object(JobCodec.job(job)));
+        assertEquals(job,reopened);
+        var gather=Map.<String,Value>of("actor",new ActorValue(scene.actor),"source",new AreaValue(area),
+                "destination",new ContainerValue(source),"amount",new IntValue(1));
+        assertTrue(ActivityRecipeEvidence.permittedInvocation(reopened,new CapabilityRequest(OakLogDelivery.ID,gather),0));
+        assertFalse(ActivityRecipeEvidence.permittedInvocation(reopened,new CapabilityRequest(BirchLogDelivery.ID,gather),0));
+        var foreignArea=new HashMap<>(gather);
+        foreignArea.put("source",new AreaValue(new Cuboid(scene.actor.dimension(),1,64,4,4,64,4)));
+        assertFalse(ActivityRecipeEvidence.permittedInvocation(reopened,new CapabilityRequest(OakLogDelivery.ID,foreignArea),0));
+        assertTrue(ResourceComposition.explicitRecipeInput(CraftingTableProduction.ID,"minecraft:oak_planks"));
+        assertFalse(ResourceComposition.explicitRecipeInput(CraftingTableProduction.ID,"minecraft:birch_planks"));
+    }
     @Test void newJournalReopensSameRootAndExcludesDuplicateWriter(@TempDir Path world)throws Exception {
         var f=new Fixture();f.prepare("one");f.finish();var snapshot=f.s.store.snapshot();
         try(var disk=JobJournal.open(world,f.s.world)) {
