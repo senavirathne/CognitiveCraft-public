@@ -1468,10 +1468,14 @@ public final class KernelSession implements AutoCloseable {
     }
     BootstrapController.Submission composeAxes(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,
                                                 FacilityRef table,Cuboid oakSource,boolean useHeldSticks) {
+        return composeAxes(player,actorId,amount,source,destination,table,oakSource,useHeldSticks,null);
+    }
+    BootstrapController.Submission composeAxes(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,
+                                                FacilityRef table,Cuboid oakSource,boolean useHeldSticks,ContainerRef stickSource) {
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
         if(amount<1||amount>4)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.REQUEST_INVALID);
         var request=new CapabilityRequest(WoodenAxeProduction.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(amount),"source",new ContainerValue(source),"destination",new ContainerValue(destination),"table",new FacilityValue(table)));
-        return composeRequest(request,owner,player,oakSource,useHeldSticks);
+        return composeRequest(request,owner,player,oakSource,useHeldSticks,stickSource);
     }
     public BootstrapController.Submission provisionAxe(ServerPlayer player,UUID actorId,ContainerRef source,ContainerRef destination,FacilityRef target,Cuboid oakSource){
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);UUID id=UUID.randomUUID();
@@ -1521,11 +1525,16 @@ public final class KernelSession implements AutoCloseable {
     }
     private BootstrapController.Submission composeRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,Cuboid oakSource,
                                                           boolean useHeldSticks) {
+        return composeRequest(request,owner,player,oakSource,useHeldSticks,null);
+    }
+    private BootstrapController.Submission composeRequest(CapabilityRequest request,TrustedContext owner,ServerPlayer player,Cuboid oakSource,
+                                                          boolean useHeldSticks,ContainerRef stickSource) {
         UUID id=UUID.randomUUID();var actor=((ActorValue)request.arguments().get("actor")).value();
         if(player==null||!player.getUUID().equals(owner.principal().id())||!controls(actor,owner))return new BootstrapController.Submission(id,false,Reason.AUTHORITY_DENIED);
         if(villager(actor)==null||villager(actor).level()!=player.level())return new BootstrapController.Submission(id,false,Reason.ACTOR_UNAVAILABLE);
-        if(useHeldSticks && (productionActivities==null || activityCheckpoints==null))
+        if((useHeldSticks || stickSource!=null) && (productionActivities==null || activityCheckpoints==null))
             return new BootstrapController.Submission(id,false,Reason.UNSUPPORTED_PRIMITIVE);
+        if(useHeldSticks && stickSource!=null)return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);
         try {
             if(oakSource!=null && (!oakSource.dimension().equals(actor.dimension())||sourceCells(oakSource)>256))return new BootstrapController.Submission(id,false,Reason.REQUEST_INVALID);
             var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
@@ -1540,6 +1549,15 @@ public final class KernelSession implements AutoCloseable {
             var definition=RecipeProduction.of(request.capability());
             boolean shortage=preflight.availableInputs()<definition.inputs(amount)
                     || definition.axe() && preflight.availableSecondary()<definition.secondaryInputs(amount);
+            if(stickSource!=null) {
+                var denied=gatewayWorld().permit(bound,Effect.WITHDRAW,
+                        new SurvivalGateway.Cell(stickSource.dimension(),stickSource.x(),stickSource.y(),stickSource.z()));
+                if(denied!=null)return new BootstrapController.Submission(id,false,denied);
+                jobs.tick();
+                var change=jobs.createProductionActivity(id,request,owner,bound.observation(),ResourceComposition.allowance(clock.millis()),
+                        ActivityPayload.MAX_STEPS,oakSource,stickSource,ActivityPayload.OriginalStock.CONTAINERS_AND_SEPARATE_STICKS);
+                return new BootstrapController.Submission(id,change.accepted(),change.reason());
+            }
             if(useHeldSticks)return publishExplicitComposition(id,bound,oakSource,ActivityPayload.OriginalStock.CONTAINERS_AND_HELD_STICKS);
             if(explicitGathering(request,oakSource,shortage))return publishExplicitComposition(id,bound,oakSource,ActivityPayload.OriginalStock.CONTAINERS);
             jobs.tick();
@@ -1579,8 +1597,14 @@ public final class KernelSession implements AutoCloseable {
     public BootstrapController.Submission makeTables(ServerPlayer player,UUID actorId,int amount,
             int sx,int sy,int sz,int dx,int dy,int dz) {return makeRecipe(CraftingTableProduction.ID,player,actorId,amount,sx,sy,sz,dx,dy,dz);}
     public BootstrapController.Submission placeTable(ServerPlayer player,UUID actorId,ContainerRef source,FacilityRef target) {
+        return placeTable(player,actorId,source,target,false);
+    }
+    BootstrapController.Submission placeTable(ServerPlayer player,UUID actorId,ContainerRef source,FacilityRef target,
+                                               boolean heldTable) {
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
-        return submitRequest(new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(citizen.actor()),"amount",new IntValue(1),"source",new ContainerValue(source),"target",new FacilityValue(target))),owner,player);
+        if(heldTable && productionActivities==null)return new BootstrapController.Submission(UUID.randomUUID(),false,Reason.UNSUPPORTED_PRIMITIVE);
+        return submitRequest(new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(citizen.actor()),
+                "amount",new IntValue(1),"source",new ContainerValue(source),"target",new FacilityValue(target)),heldTable),owner,player);
     }
     public BootstrapController.Submission composeTables(ServerPlayer player,UUID actorId,int amount,ContainerRef source,ContainerRef destination,Cuboid oakSource) {
         ready();var owner=caller(player);var citizen=citizens.query(actorId,owner);
@@ -1770,9 +1794,11 @@ public final class KernelSession implements AutoCloseable {
                 source.x()+4,source.y()+1,source.z()+4);
         boolean observedDestination=worldAccess.inspectRecipeContainer(destination,RecipeProduction.of(request.capability()).output())
                 .status()==ObservationStatus.PRESENT;
+        boolean grouped=!gather && additionalSource==null && request.capability().equals(BirchPlankProduction.ID)
+                && ((IntValue)request.arguments().get("amount")).value()>32 && !source.equals(destination);
         jobs.tick();
         var change=jobs.createProductionActivity(id,request,owner,observation,OakPlankProduction.executionLimits(clock.millis()).total(),
-                ActivityPayload.MAX_STEPS,acquisition,additionalSource,null,observedDestination);
+                ActivityPayload.MAX_STEPS,acquisition,additionalSource,null,observedDestination,grouped);
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
     private boolean activitySettled(Jobs.Job job) {

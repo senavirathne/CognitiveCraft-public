@@ -17,22 +17,22 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public enum Policy { ORIGINAL_ACTOR_SETTLED_EFFECTS }
     public enum Blocker { AWAITING_PROPOSAL, NONE, INTEGRATION_PENDING, NEEDS_ATTENTION, SETTLED_CANCELLED_CUSTODY }
     public enum Evidence { LIVE_RECEIPTS }
-    public enum OriginalStock { CONTAINERS, CONTAINERS_AND_HELD_STICKS }
+    public enum OriginalStock { CONTAINERS, CONTAINERS_AND_HELD_STICKS, CONTAINERS_AND_SEPARATE_STICKS }
     public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
                                     String blocker, long nextCheckMillis,ActivityPlan plan,
                                     Map<UUID,List<String>> coveredActions,ContainerRef additionalSource,
-                                    OriginalStock originalStock,boolean observedDestination) {
+                                    OriginalStock originalStock,boolean observedDestination,boolean groupedOriginalPlanks) {
         public static final int MAX_DECISIONS=32;
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null,null,false);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null,null,false,false);
         }
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
                                  ActivityPlan plan,Map<UUID,List<String>> coveredActions) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null,null,false);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null,null,false,false);
         }
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
                                  ActivityPlan plan,Map<UUID,List<String>> coveredActions,ContainerRef additionalSource) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,additionalSource,null,false);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,additionalSource,null,false,false);
         }
         public ProductionControl {
             Objects.requireNonNull(memory);Objects.requireNonNull(blocker);
@@ -50,30 +50,37 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             if(acquisition!=null && Math.multiplyExact(Math.multiplyExact((long)acquisition.maxX()-acquisition.minX()+1,
                     (long)acquisition.maxY()-acquisition.minY()+1),(long)acquisition.maxZ()-acquisition.minZ()+1)>256)
                 throw new IllegalArgumentException("Bounded original acquisition area");
-            if(originalStock!=null && (acquisition==null || additionalSource!=null))
-                throw new IllegalArgumentException("Exact legacy materials require an original acquisition area and one stock source");
+            if(originalStock!=null && (acquisition==null
+                    || (originalStock==OriginalStock.CONTAINERS_AND_SEPARATE_STICKS)!=(additionalSource!=null)))
+                throw new IllegalArgumentException("Legacy material policy disagrees with the original stock authority");
+            if(groupedOriginalPlanks && (acquisition!=null || additionalSource!=null || originalStock!=null))
+                throw new IllegalArgumentException("Grouped planks require one originally authorized source");
         }
         public boolean exactLegacyMaterials(){return originalStock!=null;}
         public boolean allowsHeldSticks(){return originalStock==OriginalStock.CONTAINERS_AND_HELD_STICKS;}
+        public boolean allowsSeparateSticks(){return originalStock==OriginalStock.CONTAINERS_AND_SEPARATE_STICKS;}
         public static ProductionControl initial(Cuboid source){return initial(source,null);}
         public static ProductionControl initial(Cuboid source,ContainerRef additionalSource){
             return initial(source,additionalSource,null);
         }
         public static ProductionControl initial(Cuboid source,ContainerRef additionalSource,OriginalStock originalStock){
-            return initial(source,additionalSource,originalStock,false);
+            return initial(source,additionalSource,originalStock,false,false);
         }
         public static ProductionControl initial(Cuboid source,ContainerRef additionalSource,OriginalStock originalStock,
-                                                boolean observedDestination){
-            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource,originalStock,observedDestination);
+                                                boolean observedDestination,boolean groupedOriginalPlanks){
+            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource,originalStock,
+                    observedDestination,groupedOriginalPlanks);
         }
         public ProductionControl next(PlanningModel.Memory next,String reason,long checkAt){
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource,originalStock,observedDestination);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource,originalStock,
+                    observedDestination,groupedOriginalPlanks);
         }
         public ProductionControl prepared(PlanningModel.Memory next,ActivityPlan pinned,UUID proposal,List<String> tokens) {
             if(plan!=null && !plan.equals(pinned))throw new IllegalArgumentException("Original pinned production plan changed");
             var actions=new HashMap<>(coveredActions);
             if(actions.putIfAbsent(proposal,List.copyOf(tokens))!=null)throw new IllegalArgumentException("Duplicate authoritative proposal");
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource,originalStock,observedDestination);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource,originalStock,
+                    observedDestination,groupedOriginalPlanks);
         }
     }
     public ActivityPayload(GoalMode mode,Policy policy,int plannedSteps,UUID currentStep,List<Step> steps,

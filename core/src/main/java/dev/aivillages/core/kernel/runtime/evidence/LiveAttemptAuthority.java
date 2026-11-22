@@ -10,6 +10,15 @@ public final class LiveAttemptAuthority {
     private LiveAttemptAuthority() { }
 
     public static boolean unchanged(Jobs.Job before, Jobs.Job current) {
+        return unchanged(before,current,0);
+    }
+
+    /** The exact caller already owns a prepared native operation that has begun without a receipt. */
+    public static boolean retainsPendingOperation(Jobs.Job before,Jobs.Job current) {
+        return unchanged(before,current,1);
+    }
+
+    private static boolean unchanged(Jobs.Job before, Jobs.Job current,int pendingEffects) {
         if (!live(before) || !live(current)) return false;
         if (before == current) return true;
         if (current.revision() < before.revision() || !before.id().equals(current.id())
@@ -28,7 +37,8 @@ public final class LiveAttemptAuthority {
                 && oldAttempt.worker().equals(attempt.worker()) && oldAttempt.bound().equals(attempt.bound())
                 && oldAttempt.allowance().equals(attempt.allowance()) && oldAttempt.executions().equals(attempt.executions())
                 && oldAttempt.receipts().equals(attempt.receipts()) && oldAttempt.resourceReceipts().equals(attempt.resourceReceipts())
-                && oldAttempt.effects() == attempt.effects() && oldAttempt.credited() == attempt.credited()
+                && attempt.effects()>=oldAttempt.effects() && attempt.effects()-oldAttempt.effects()<=pendingEffects
+                && oldAttempt.credited() == attempt.credited()
                 && oldAttempt.cancellationDeliveries() == attempt.cancellationDeliveries()
                 && usageProgress(before.usage(), current.usage(), current.allowance())
                 && usageProgress(oldAttempt.usage(), attempt.usage(), attempt.allowance());

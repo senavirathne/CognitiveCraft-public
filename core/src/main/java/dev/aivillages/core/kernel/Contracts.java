@@ -130,11 +130,20 @@ public final class Contracts {
     }
 
     /** Untrusted fields only: no principal, authority, budget or completion assertion. */
-    public record CapabilityRequest(CapabilityId capability, Map<String, Value> arguments) {
+    public record CapabilityRequest(CapabilityId capability, Map<String, Value> arguments,Boolean heldPlacement) {
+        public CapabilityRequest(CapabilityId capability,Map<String,Value> arguments) {
+            this(capability,arguments,null);
+        }
+        public CapabilityRequest(CapabilityId capability,Map<String,Value> arguments,boolean heldTable) {
+            this(capability,arguments,heldTable?Boolean.TRUE:null);
+        }
         public CapabilityRequest {
             Objects.requireNonNull(capability);
             arguments = Map.copyOf(arguments);
+            if(heldPlacement!=null && (!heldPlacement || !CraftingTablePlacement.is(capability)))
+                throw new IllegalArgumentException("Held input is limited to explicit table placement");
         }
+        public boolean heldTable(){return heldPlacement!=null;}
     }
     public record ValidatedRequest(CapabilityRequest request, TrustedContext context,
                                    ObservationRef observation) {

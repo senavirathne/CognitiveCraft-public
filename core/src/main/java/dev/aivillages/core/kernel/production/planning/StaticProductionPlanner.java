@@ -24,8 +24,11 @@ public final class StaticProductionPlanner {
         State(Map<RecipeChoice.ItemKey,Long> pool,Map<String,Long> acquired,long eligible,boolean table,Cost cost,List<Action> actions){
             this(pool,acquired,eligible,table,cost,actions,null);
         }
-        State grouped(Snapshot snapshot,NativeRun prior,Action action,int acquisition){
-            return new State(pool,acquired,eligible,table,cost,actions,NativeRun.next(snapshot,prior,action,acquisition));
+        State grouped(Snapshot snapshot,State prior,Action action,int acquisition){
+            var route=NativeRun.next(snapshot,prior.nativeRun,action,acquisition);
+            boolean samePlankGroup=snapshot.goal().policy().groups(action.capability()) && prior.nativeRun!=null
+                    && route.segments()==prior.nativeRun.segments();
+            return new State(pool,acquired,eligible,table,samePlankGroup?prior.cost:cost,actions,route);
         }
     }
     private static String stateKey(State s){return StrictJson.canonical(Map.of("pool",s.pool.entrySet().stream().filter(e->e.getValue()>0).sorted(Comparator.comparing(e->itemOrder(e.getKey()))).map(e->Map.of("item",e.getKey().value(),"n",e.getValue())).toList(),"acquired",new TreeMap<>(s.acquired),"eligible",s.eligible,"table",s.table));}
@@ -136,7 +139,7 @@ public final class StaticProductionPlanner {
             if(state.eligible>=s.remainingDemand())return new Analysis(Feasibility.FEASIBLE,"FEASIBLE_CURRENT_SNAPSHOT",pin(s,state.actions),state.cost,residual(s,state,exactChildren),expansions);
             if(state.actions.size()>=MAX_ACTIONS){limited=true;continue;}
             for(var action:candidates(s,state,relevant,plankBound,truncated)){State next;try{next=apply(state,action,exactChildren);}catch(ArithmeticException overflow){limited=true;continue;}
-                if(next!=null && grouped){next=next.grouped(s,state.nativeRun,action,maximumAcquisition);if(next.nativeRun.segments()>maximumSegments){nativePruned=true;continue;}}
+                if(next!=null && grouped){next=next.grouped(s,state,action,maximumAcquisition);if(next.nativeRun.segments()>maximumSegments){nativePruned=true;continue;}}
                 if(next!=null && s.budget().fits(next.cost)){if(queue.size()<4096)queue.add(next);else limited=true;}else if(next!=null)budgetPruned=true;}
         }
         if(!queue.isEmpty() || limited || truncated[0])return new Analysis(Feasibility.UNKNOWN,"BOUNDED_SEARCH_EXHAUSTED",null,Cost.ZERO,initial.pool,expansions);
@@ -157,7 +160,9 @@ public final class StaticProductionPlanner {
             if(!legal(s,state,action))return new Analysis(Feasibility.UNKNOWN,"CURRENT_ACTION_BINDING_OR_COST_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
             if(action.kind()==Kind.ACQUIRE){var a=s.acquisition().stream().filter(x->x.key().equals(action.sourceKey())).findFirst().orElse(null);if(a==null || !a.permitted() || !a.reachable() || a.availability()!=Availability.PRESENT || !s.goal().policy().allowedAcquisition().contains(a.source()) || state.acquired.getOrDefault(a.key(),0L)>=a.availableUnits())return new Analysis(Feasibility.UNKNOWN,"CURRENT_ACQUISITION_SOURCE_UNAVAILABLE",null,Cost.ZERO,state.pool,index);}
             if(action.kind()==Kind.PRODUCE && s.recipe(action.recipe()).map(RecipeProfile::axe).orElse(false) && !state.table || action.kind()==Kind.PLACE_TABLE && !canPlace(s))return new Analysis(Feasibility.UNKNOWN,"CURRENT_FACILITY_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
-            state=apply(state,action,exactChildren);if(state==null)return new Analysis(Feasibility.UNKNOWN,"REMOVED_CHECKPOINT_MATERIAL_REQUIRES_REPLAN",null,Cost.ZERO,Map.of(),index);
+            var next=apply(state,action,exactChildren);
+            if(next==null)return new Analysis(Feasibility.UNKNOWN,"REMOVED_CHECKPOINT_MATERIAL_REQUIRES_REPLAN",null,Cost.ZERO,Map.of(),index);
+            state=s.goal().policy().groupPlankBatches()?next.grouped(s,state,action,1):next;
             if(!s.budget().fits(state.cost))return new Analysis(Feasibility.INFEASIBLE,"CUMULATIVE_REMAINING_PLAN_BUDGET_INSUFFICIENT",null,Cost.ZERO,state.pool,index);}
         return state.eligible>=s.remainingDemand()?new Analysis(Feasibility.FEASIBLE,"PINNED_SEQUENCE_REVALIDATED_WITHOUT_INFERENCE",plan,state.cost,residual(s,state,exactChildren),index):new Analysis(Feasibility.UNKNOWN,"AUTHORITATIVE_PROGRESS_REQUIRES_REPLAN",null,Cost.ZERO,state.pool,index);
     }

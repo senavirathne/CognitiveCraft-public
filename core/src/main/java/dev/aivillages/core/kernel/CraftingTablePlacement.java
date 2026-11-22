@@ -32,6 +32,8 @@ public final class CraftingTablePlacement {
                 && r.item().equals(ResourceDelivery.CRAFTING_TABLE) && r.quantity()==1 && r.source().equals(ResourceLeases.point(source))
                 && r.sourceBlock().inside(r.source()) && r.destination().equals(address(bound.request()))
                 && r.placement().target().equals(target(bound.request()))
+                && (bound.request().heldTable()? PlacementTransaction.HeldTable.matches(r.placement().sourceIdentity(),r.actor())
+                        : !r.placement().sourceIdentity().startsWith("held-table:"))
                 && (r.stage()==ResourceDelivery.Stage.WITHDRAW || r.stage()==ResourceDelivery.Stage.PLACE);
     }
     public static long quantity(ValidatedRequest bound,UUID run,List<ResourceDelivery.Receipt> receipts){

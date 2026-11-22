@@ -158,6 +158,13 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     FabricConcreteRecipeChoices.Result executeChoice(FabricConcreteRecipeChoices.Context context, ChoicePhase phase) {
         return recipeTransactions.executeChoice(context,phase);
     }
+    FabricConcreteRecipeChoices.Context prepareSeparatedChoice(ValidatedRequest request,RecipeChoice choice,int batch,UUID run,
+            ChoiceAuthority authority,RecipeSources sources,ContainerRef physicalSource) {
+        return recipeTransactions.prepareSeparatedChoice(request,choice,batch,run,authority,sources,physicalSource);
+    }
+    FabricConcreteRecipeChoices.Result withdrawChoiceSource(FabricConcreteRecipeChoices.Context context,ContainerRef source,boolean last) {
+        return recipeTransactions.withdrawChoiceSource(context,source,last);
+    }
     FabricConcreteRecipeChoices.Context continueRecipeDeposit(ValidatedRequest request, RecipeChoice choice, int batch, UUID run,
             ChoiceAuthority authority, RecipeSources sources, RecipeChoice.FacilityBinding currentFacility) {
         return recipeTransactions.continueRecipeDeposit(request, choice, batch, run, authority, sources, currentFacility);

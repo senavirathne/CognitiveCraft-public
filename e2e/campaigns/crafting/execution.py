@@ -9,13 +9,13 @@ import time
 
 from suite import UUID_PATTERN, atomic, read, require, reconnect_players
 from .generator import LOG, OAK, BIRCH, STICK, AXE, TABLE
-from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS, RECOVERY_REUSE, fixture_observation
+from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS, RECOVERY_REUSE, SECONDARY_STICKS, fixture_observation
 from .invariants import totals, recipe_balance, composition_balance, delta, physical_custody, interruption_verification
 from .oracle import requirements, rotated_cells
 from .recipe_model import rules, demands
 
 
-def shortage(case, state, source, recipes, *, facility=None, blueprint_origin=None):
+def shortage(case, state, source, recipes, *, facility=None, blueprint_origin=None, actor=None):
     """Use actual source stock, observed acquisition cells and exported recipe ratios."""
     source_stock = state["containers"].get(",".join(map(str, source)), {}).copy()
     acquisition = Counter()
@@ -26,6 +26,19 @@ def shortage(case, state, source, recipes, *, facility=None, blueprint_origin=No
             if item and item[0] in {LOG, "minecraft:birch_log"}:
                 acquisition[item[0]] += 1
     stock = Counter(source_stock); stock.update(acquisition)
+    held = {}
+    separate = {}
+    if case.get("distribution") == "split-containers":
+        quantity = state["containers"].get(",".join(map(str, SECONDARY_STICKS)), {}).get(STICK, 0)
+        if quantity:
+            separate[STICK] = quantity
+            stock.update(separate)
+    held_item = (STICK if case.get("distribution") == "held" else TABLE if case.get("facility") == "held-item" else None)
+    if held_item and actor:
+        actual = next(row for row in state["actors"] if row["uuid"] == actor)["inventory"].get(held_item, 0)
+        if actual:
+            held[held_item] = actual
+            stock.update(held)
     output, quantity = case.get("output", AXE), case.get("quantity", 1)
     goals, projection = [], {}
     if case["mode"] == "blueprint":
@@ -56,9 +69,14 @@ def shortage(case, state, source, recipes, *, facility=None, blueprint_origin=No
                 goals.append({"item": TABLE, "quantity": 1, "consumeExisting": True})
             projection["placementRequired"] = not present
         goals.append({"item": output, "quantity": quantity, "consumeExisting": False})
-    return {**demands(rules(recipes), goals, stock), **projection,
+    result = {**demands(rules(recipes), goals, stock), **projection,
             "sourceStock": source_stock, "observedAcquisitionStock": dict(acquisition),
             "stockScope": "Explicit input container plus the approved loaded acquisition area"}
+    if held:
+        result.update(heldStock=held,stockScope="Explicit input container, approved area, and the original actor's selected held input")
+    if separate:
+        result.update(separateStock=separate,stockScope="Explicit primary inputs, separately authorized sticks, and approved area")
+    return result
 
 
 def check_artifacts(h, result):
@@ -177,6 +195,8 @@ def execute_recovery(h, case):
     # that durable state, not an unjustified cross-file atomic-save assumption.
     initial_checkpoint = h.save_checkpoint()
     initial_physical = h.snapshot()
+    automatic_save = (h.constrain_unflushed_recovery() if case["boundary"] == "before-checkpoint"
+                      and case["interruption"] == "restart" and hasattr(h, "constrain_unflushed_recovery") else None)
     native = h.arm_recovery(case) if hasattr(h, "arm_recovery") else None
     if not native:
         h.clock("tick rate 2")
@@ -199,6 +219,8 @@ def execute_recovery(h, case):
     result = {"boundary": {"requested": case["boundary"], "snapshot": before,
                            "client": client, "views": h.views(request), "receipts": h.receipts_for(request)},
               "initialCheckpoint": initial_checkpoint}
+    if automatic_save:
+        result["automaticSavePaused"] = automatic_save
     if clock_cut:
         result["nativeClock"] = clock_cut
     if case["interruption"] == "cancel":
@@ -259,7 +281,8 @@ def execute_recovery(h, case):
         reuse_actor = h.entities["PlayerA"]
         if reuse_actor != original_actor:
             before_custody, after_custody = physical_custody(fence), physical_custody(reuse_after)
-            require(before_custody["actors"][original_actor] == after_custody["actors"][original_actor]
+            require(all(after_custody["actors"].get(worker) == stock for worker, stock in before_custody["actors"].items()
+                        if worker != reuse_actor)
                     and all(before_custody[field].get(",".join(map(str, point))) ==
                             after_custody[field].get(",".join(map(str, point)))
                             for field in ("blocks", "containers") for point in original_bindings)

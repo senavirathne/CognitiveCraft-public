@@ -4,6 +4,7 @@ import java.util.*;
 import dev.aivillages.core.kernel.*;
 import dev.aivillages.core.kernel.Contracts.*;
 import dev.aivillages.core.kernel.Outcomes.Reason;
+import dev.aivillages.core.kernel.production.RecipeSources;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -40,6 +41,13 @@ final class FabricRecipeTransactions {
             int batch,UUID run,RecipeTransaction.ChoiceAuthority authority,dev.aivillages.core.kernel.production.RecipeSources sources) {return concrete.prepare(request,choice,batch,run,authority,sources);}
     FabricConcreteRecipeChoices.Result executeChoice(FabricConcreteRecipeChoices.Context context,RecipeTransaction.ChoicePhase phase) {
         return concrete.execute(context,phase);
+    }
+    FabricConcreteRecipeChoices.Context prepareSeparatedChoice(ValidatedRequest request,dev.aivillages.core.kernel.production.RecipeChoice choice,
+            int batch,UUID run,RecipeTransaction.ChoiceAuthority authority,RecipeSources sources,ContainerRef physicalSource) {
+        return concrete.prepare(request,choice,batch,run,authority,sources,physicalSource);
+    }
+    FabricConcreteRecipeChoices.Result withdrawChoiceSource(FabricConcreteRecipeChoices.Context context,ContainerRef source,boolean last) {
+        return concrete.withdrawFrom(context,source,last);
     }
     FabricConcreteRecipeChoices.Context continueRecipeDeposit(ValidatedRequest request, dev.aivillages.core.kernel.production.RecipeChoice choice,
             int batch, UUID run, RecipeTransaction.ChoiceAuthority authority, dev.aivillages.core.kernel.production.RecipeSources sources,

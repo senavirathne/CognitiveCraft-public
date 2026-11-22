@@ -73,7 +73,7 @@ public final class ActivityCodec {
             if(integrated!=s.containsKey("goalCredit"))throw new IllegalArgumentException("Activity invocation and credit must accompany one another");
             CapabilityRequest invocation=null;
             if(integrated) {
-                if(!(RequestCodec.decode(StrictJson.canonical(object(s.get("invocation")))) instanceof RequestCodec.Valid valid))
+                if(!(RequestCodec.decodeStored(StrictJson.canonical(object(s.get("invocation")))) instanceof RequestCodec.Valid valid))
                     throw new IllegalArgumentException("Invalid persisted activity invocation");
                 invocation=valid.request();
             }
@@ -108,6 +108,7 @@ public final class ActivityCodec {
         }
         if(p.originalStock()!=null)row.put("originalStock",p.originalStock().name());
         if(p.observedDestination())row.put("observedDestination",true);
+        if(p.groupedOriginalPlanks())row.put("groupedOriginalPlanks",true);
         if(p.plan()!=null) {
             var covered=new TreeMap<String,List<String>>();
             p.coveredActions().forEach((id,actions)->covered.put(id.toString(),actions));
@@ -128,7 +129,8 @@ public final class ActivityCodec {
         return row;
     }
     private static ProductionControl production(Map<String,Object> row)throws StrictJson.Invalid {
-        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered","additionalSource","originalStock","observedDestination"));
+        fields(row,Set.of("decisions","blocker","checkAt"),Set.of("acquisition","memory","plan","covered","additionalSource","originalStock",
+                "observedDestination","groupedOriginalPlanks"));
         Cuboid area=null;
         if(row.containsKey("acquisition")) {
             var a=object(row.get("acquisition"));exact(a,"dimension","minX","minY","minZ","maxX","maxY","maxZ");
@@ -163,8 +165,10 @@ public final class ActivityCodec {
         var originalStock=row.containsKey("originalStock")?OriginalStock.valueOf(string(row,"originalStock","$")):null;
         if(row.containsKey("observedDestination") && !Boolean.TRUE.equals(row.get("observedDestination")))
             throw new IllegalArgumentException("Expected positive original destination observation");
+        if(row.containsKey("groupedOriginalPlanks") && !Boolean.TRUE.equals(row.get("groupedOriginalPlanks")))
+            throw new IllegalArgumentException("Expected explicit plank grouping");
         return new ProductionControl(area,integer(row,"decisions"),memory,string(row,"blocker","$"),number(row,"checkAt","$"),
-                plan,covered,additional,originalStock,row.containsKey("observedDestination"));
+                plan,covered,additional,originalStock,row.containsKey("observedDestination"),row.containsKey("groupedOriginalPlanks"));
     }
     private static int integer(Map<String,Object> row,String name){return Math.toIntExact(number(row,name,"$"));}
     private static List<String> chunks(String text) {

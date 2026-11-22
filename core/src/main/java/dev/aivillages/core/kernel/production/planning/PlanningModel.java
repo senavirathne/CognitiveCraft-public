@@ -30,12 +30,19 @@ public final class PlanningModel {
     public record Policy(ActorRef originalActor,Set<ActorRef> allowedExecutors,Set<ContainerRef> allowedSources,
                          Set<ContainerRef> allowedDestinations,Set<Cuboid> allowedAcquisition,ContainerRef staging,
                          FacilityRef approvedTableSite,boolean allowProvision,boolean allowCustodyReturn,long maximumReturns,long carryingUnits,
-                         boolean useHeldSticks) {
+                         boolean useHeldSticks,boolean groupPlankBatches) {
         public Policy(ActorRef originalActor,Set<ActorRef> allowedExecutors,Set<ContainerRef> allowedSources,
                       Set<ContainerRef> allowedDestinations,Set<Cuboid> allowedAcquisition,ContainerRef staging,
                       FacilityRef approvedTableSite,boolean allowProvision,boolean allowCustodyReturn,long maximumReturns,long carryingUnits) {
             this(originalActor,allowedExecutors,allowedSources,allowedDestinations,allowedAcquisition,staging,
-                    approvedTableSite,allowProvision,allowCustodyReturn,maximumReturns,carryingUnits,false);
+                    approvedTableSite,allowProvision,allowCustodyReturn,maximumReturns,carryingUnits,false,false);
+        }
+        public Policy(ActorRef originalActor,Set<ActorRef> allowedExecutors,Set<ContainerRef> allowedSources,
+                      Set<ContainerRef> allowedDestinations,Set<Cuboid> allowedAcquisition,ContainerRef staging,
+                      FacilityRef approvedTableSite,boolean allowProvision,boolean allowCustodyReturn,long maximumReturns,long carryingUnits,
+                      boolean useHeldSticks) {
+            this(originalActor,allowedExecutors,allowedSources,allowedDestinations,allowedAcquisition,staging,
+                    approvedTableSite,allowProvision,allowCustodyReturn,maximumReturns,carryingUnits,useHeldSticks,false);
         }
         public Policy {
             Objects.requireNonNull(originalActor);Objects.requireNonNull(staging);allowedExecutors=Set.copyOf(allowedExecutors);allowedSources=Set.copyOf(allowedSources);allowedDestinations=Set.copyOf(allowedDestinations);allowedAcquisition=Set.copyOf(allowedAcquisition);
@@ -46,10 +53,18 @@ public final class PlanningModel {
         }
         public boolean plannedHeldInput(Stock stock){return useHeldSticks && originalActor.equals(stock.location().actor())
                     && stock.item().id().equals(ResourceDelivery.STICK.id());}
-        public Map<String,Object> value(){var v=new TreeMap<String,Object>();v.put("actor",originalActor.toString());v.put("executors",allowedExecutors.stream().map(Object::toString).sorted().toList());v.put("sources",allowedSources.stream().map(Object::toString).sorted().toList());v.put("destinations",allowedDestinations.stream().map(Object::toString).sorted().toList());v.put("acquisition",allowedAcquisition.stream().map(Object::toString).sorted().toList());v.put("staging",staging.toString());v.put("site",String.valueOf(approvedTableSite));v.put("provision",allowProvision);v.put("returns",allowCustodyReturn);v.put("maximumReturns",maximumReturns);v.put("carry",carryingUnits);if(useHeldSticks)v.put("useHeldSticks",true);return v;}
+        public boolean groups(CapabilityId capability) {
+            return groupPlankBatches && capability.version()==2 && capability.name().equals(BirchPlankProduction.ID.name());
+        }
+        public Map<String,Object> value(){var v=new TreeMap<String,Object>();v.put("actor",originalActor.toString());v.put("executors",allowedExecutors.stream().map(Object::toString).sorted().toList());v.put("sources",allowedSources.stream().map(Object::toString).sorted().toList());v.put("destinations",allowedDestinations.stream().map(Object::toString).sorted().toList());v.put("acquisition",allowedAcquisition.stream().map(Object::toString).sorted().toList());v.put("staging",staging.toString());v.put("site",String.valueOf(approvedTableSite));v.put("provision",allowProvision);v.put("returns",allowCustodyReturn);v.put("maximumReturns",maximumReturns);v.put("carry",carryingUnits);if(useHeldSticks)v.put("useHeldSticks",true);if(groupPlankBatches)v.put("groupPlankBatches",true);return v;}
     }
     public record Goal(Mode mode,RecipeChoice.ItemKey item,long demand,ContainerRef destination,Policy policy) {
-        public Goal {Objects.requireNonNull(mode);Objects.requireNonNull(item);Objects.requireNonNull(destination);Objects.requireNonNull(policy);if(item.empty() || demand<1 || demand>64 || !policy.allowedDestinations.contains(destination))throw new IllegalArgumentException("Bounded exact authorized goal required");}
+        public Goal {Objects.requireNonNull(mode);Objects.requireNonNull(item);Objects.requireNonNull(destination);Objects.requireNonNull(policy);if(item.empty() || demand<1 || demand>64 || !policy.allowedDestinations.contains(destination))throw new IllegalArgumentException("Bounded exact authorized goal required");
+            if(policy.groupPlankBatches() && (mode!=Mode.MAKE_NEW || !item.id().equals(ResourceDelivery.BIRCH_PLANKS.id())
+                    || demand<=32 || policy.allowedSources().size()!=1 || policy.staging().equals(destination)
+                    || !policy.allowedAcquisition().isEmpty() || policy.useHeldSticks() || policy.carryingUnits()>16))
+                throw new IllegalArgumentException("Grouped native planks require the original large one-source order");
+        }
         public String digest(){return PlanningModel.digest(Map.of("mode",mode.name(),"item",item.value(),"demand",demand,"destination",RecipeChoice.container(destination),"policy",policy.value()));}
     }
     public record Owner(UUID originalOwner,ActorRef executor,long executionGeneration,boolean canPropose,

@@ -177,15 +177,25 @@ public final class BoundedSkillExecutor {
         if (!arguments(root.artifact().descriptor().parameters(), request.request().arguments()))
             return new Rejected(Reason.REQUEST_INVALID);
         RecipeActivityContinuation.Point resume = null;
-        if (continuing) try {
-            int prefix = activity.current().resourceReceipts().size();
-            resume = activity.activity().current().exactChoice()
-                    ? RecipeActivityContinuation.afterCraft(root.program(), request.request(), prefix)
-                    : RecipeActivityContinuation.afterPickup(root.program(), request.request(), prefix);
+        Program program=root.program();
+        var step=activity==null?null:activity.activity().current();
+        try {
+            if(step!=null && step.exactChoice() && step.choice().recipe().groupedPlanks()) {
+                var grouped=RecipeActivityContinuation.groupedPlanks(program,request.request());
+                program=grouped.program();
+                if(continuing) {
+                    if(activity.current().resourceReceipts().size()!=2)return new Rejected(Reason.STALE_OBSERVATION);
+                    resume=grouped.afterCraft();
+                }
+            } else if(continuing) {
+                int prefix=activity.current().resourceReceipts().size();
+                resume=step.exactChoice()?RecipeActivityContinuation.afterCraft(program,request.request(),prefix)
+                        :RecipeActivityContinuation.afterPickup(program,request.request(),prefix);
+            }
         } catch (IllegalArgumentException | ArithmeticException unsupported) {
             return new Rejected(Reason.ARTIFACT_INCOMPATIBLE);
         }
-        return new Started(new Run(request, correlation, limits, usage, pinned, permit != null, activity, resume));
+        return new Started(new Run(request,correlation,limits,usage,pinned,permit!=null,activity,program,resume));
     }
 
     private Reason pin(ArtifactRef ref, boolean trialRoot, ActorRef actor, TrustedContext context,
@@ -294,7 +304,7 @@ public final class BoundedSkillExecutor {
         private Run(ValidatedRequest request, RunCorrelation correlation,
                     Budgets.ExecutionLimits limits, Budgets.Ledger usage,
                     Map<ArtifactRef, SkillCompiler.CompiledSkill> pinned, boolean trial, Jobs.Job activity,
-                    RecipeActivityContinuation.Point resume) {
+                    Program program,RecipeActivityContinuation.Point resume) {
             this.request = request; this.correlation = correlation;
             this.limits = limits; this.usage = usage;
             this.pinned = Collections.unmodifiableMap(new LinkedHashMap<>(pinned));
@@ -302,7 +312,6 @@ public final class BoundedSkillExecutor {
             this.activity=activity;
             integratedAcquisition=activity!=null && LogAcquisition.is(request.request().capability());
             lastTick = tickClock.getAsLong();
-            Program program = pinned.get(correlation.artifact()).program();
             Frame frame = new Frame(correlation.artifact(), program, request.request().arguments(), null);
             stack.push(frame);
             if (resume != null) {

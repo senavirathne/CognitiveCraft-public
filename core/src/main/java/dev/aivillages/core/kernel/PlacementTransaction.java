@@ -7,10 +7,32 @@ import static dev.aivillages.core.kernel.Outcomes.Reason;
 /** Immutable witnesses only. Native inventory and block state remain authoritative. */
 public final class PlacementTransaction {
     private PlacementTransaction() { }
+    public record HeldTable(int inputSlot,int placementSlot,int inputCount) {
+        public HeldTable {
+            if(inputSlot<0 || inputSlot>=8 || placementSlot<0 || placementSlot>=8 || inputSlot==placementSlot
+                    || inputCount<1 || inputCount>64)throw new IllegalArgumentException("Exact held table slots");
+        }
+        public String identity(ActorRef actor) {
+            return "held-table:"+actor.entityId()+":"+inputSlot+":"+placementSlot;
+        }
+        public static boolean matches(String identity,ActorRef actor) {
+            String prefix="held-table:"+actor.entityId()+":";
+            if(!identity.startsWith(prefix) || identity.length()!=prefix.length()+3)return false;
+            int offset=prefix.length();
+            char source=identity.charAt(offset),destination=identity.charAt(offset+2);
+            return identity.charAt(offset+1)==':' && source>='0' && source<='7'
+                    && destination>='0' && destination<='7' && source!=destination;
+        }
+    }
     /** PRESENT describes known structural witnesses; pending fences a live entity obstruction. */
     public record Preflight(ObservationStatus status,long availableItems,int sourceSlots,String sourceIdentity,
                             String sourceFingerprint,String custodyFingerprint,String siteFingerprint,
-                            FacilityRef target,ContainerRef source,Reason reason,boolean pending) {
+                            FacilityRef target,ContainerRef source,Reason reason,boolean pending,HeldTable heldTable) {
+        public Preflight(ObservationStatus status,long availableItems,int sourceSlots,String sourceIdentity,
+                         String sourceFingerprint,String custodyFingerprint,String siteFingerprint,
+                         FacilityRef target,ContainerRef source,Reason reason,boolean pending) {
+            this(status,availableItems,sourceSlots,sourceIdentity,sourceFingerprint,custodyFingerprint,siteFingerprint,target,source,reason,pending,null);
+        }
         public Preflight(ObservationStatus status,long availableItems,int sourceSlots,String sourceIdentity,
                          String sourceFingerprint,String custodyFingerprint,String siteFingerprint,
                          FacilityRef target,ContainerRef source,Reason reason) {
@@ -22,6 +44,8 @@ public final class PlacementTransaction {
                     || !RecipeTransaction.text(sourceFingerprint) || !RecipeTransaction.text(custodyFingerprint)
                     || !RecipeTransaction.text(siteFingerprint))throw new IllegalArgumentException("Bounded placement witness");
             if(pending && (status!=ObservationStatus.PRESENT || reason!=null))throw new IllegalArgumentException("Known temporary site obstruction");
+            if(heldTable!=null && (status!=ObservationStatus.PRESENT || availableItems!=1 || reason!=null))
+                throw new IllegalArgumentException("A held table requires a known placement witness");
             if(status==ObservationStatus.PRESENT && reason==null && (target==null || source==null || !source.dimension().equals(target.dimension()) || sourceIdentity.isBlank()
                     || !RecipeTransaction.hash(sourceFingerprint) || !RecipeTransaction.hash(custodyFingerprint)
                     || !RecipeTransaction.hash(siteFingerprint)))throw new IllegalArgumentException("Exact placement witness");

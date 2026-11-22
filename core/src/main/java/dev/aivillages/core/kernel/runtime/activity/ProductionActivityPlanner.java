@@ -59,6 +59,7 @@ public final class ProductionActivityPlanner {
                 || !frame.goal().destination().equals(ResourceDelivery.destinationAddress(request))
                 || !frame.goal().policy().allowedSources().equals(Set.copyOf(ActivityRecipeEvidence.authorizedSources(root)))
                 || frame.goal().policy().useHeldSticks()!=root.activity().production().allowsHeldSticks()
+                || frame.goal().policy().groupPlankBatches()!=root.activity().production().groupedOriginalPlanks()
                 || frame.budget().absoluteDeadlineMillis()!=root.allowance().deadlineEpochMillis()
                 || remaining.deadlineEpochMillis()!=root.allowance().deadlineEpochMillis()
                 || !frame.budget().equals(budget(root)))

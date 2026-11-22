@@ -216,11 +216,12 @@ final class FabricProductionActivities {
         var authorizedSources=ActivityRecipeEvidence.authorizedSources(job);
         var policy=new Policy(actor,Set.of(actor),Set.copyOf(authorizedSources),Set.of(destination),
                 allowedArea==null?Set.of():Set.of(allowedArea),source,facility==null?null:facility.reference(),
-                facility!=null,false,0,16,job.activity().production().allowsHeldSticks());
+                facility!=null,false,0,16,job.activity().production().allowsHeldSticks(),job.activity().production().groupedOriginalPlanks());
         var goal=new Goal(Mode.MAKE_NEW,defaultKey(production.output()),((IntValue)request.arguments().get("amount")).value(),
                 destination,policy);
         var profiles=new ArrayList<RecipeProfile>();
         boolean exactLegacy=job.activity().production().exactLegacyMaterials();
+        boolean separateSticks=job.activity().production().allowsSeparateSticks();
         var capabilities=production.axe()?List.of(OakPlankProduction.ID,BirchPlankProduction.ID,StickProduction.ID,
                 CraftingTableProduction.ID,WoodenAxeProduction.ID)
                 : exactLegacy && production.table()?List.of(OakPlankProduction.ID,capability):List.of(capability);
@@ -231,8 +232,10 @@ final class FabricProductionActivities {
                     id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
                     facility==null?null:facility.reference());
             if(id.equals(WoodenAxeProduction.ID) && facility!=null && facility.availability()==Availability.PRESENT
-                    && goal.demand()>=4 && clearTableFloor(nativeActor,source,target,facility.reference()))
+                    && !separateSticks && goal.demand()>=4 && clearTableFloor(nativeActor,actor,source,target,facility.reference()))
                 travel=FabricProductionTravel.existingTableOnClearFloor(position(nativeActor),source,target,facility.reference());
+            if(id.equals(WoodenAxeProduction.ID) && facility!=null && separateSticks)
+                travel=Math.addExact(travel,FabricProductionTravel.separateStickLeg(source,authorizedSources.getLast(),facility.reference()));
             RecipeProfile profile;
             try {
                 profile=world.describeChoice(new CapabilityId(id.name(),2),new Cost(travel,4,100+6*travel));
@@ -252,8 +255,8 @@ final class FabricProductionActivities {
         var box=world.inspectRecipeContainer(destination,production.output());
         boolean writable=allowed(bound,Effect.TRANSFER,destination) && box.status()==ObservationStatus.PRESENT
                 && box.capacity()>=goal.demand()-job.fulfilled();
-        var stock=new ArrayList<>(stock(job,source,nativeActor,"source:"));
-        if(authorizedSources.size()>1)stock.addAll(stock(job,authorizedSources.getLast(),nativeActor,"additional-source:"));
+        var stock=new ArrayList<>(stock(job,source,nativeActor,"source:",false));
+        if(authorizedSources.size()>1)stock.addAll(stock(job,authorizedSources.getLast(),nativeActor,"additional-source:",separateSticks));
         if(policy.useHeldSticks() && allowed(bound,Effect.OBSERVE,position(nativeActor)))stock.addAll(heldSticks(job,nativeActor));
         var acquisition=acquisition(job);
         long revision=job.generation(); // Native values below carry their own current observation data.
@@ -264,7 +267,7 @@ final class FabricProductionActivities {
                 progress(job),true,false,0);
     }
 
-    private boolean clearTableFloor(Villager actor,ContainerRef source,ContainerRef target,FacilityRef facility) {
+    private boolean clearTableFloor(Villager actor,ActorRef worker,ContainerRef source,ContainerRef target,FacilityRef facility) {
         var points=List.of(actor.blockPosition(),pos(source),pos(target),new BlockPos(facility.x(),facility.y(),facility.z()));
         int y=points.getFirst().getY();
         if(points.stream().anyMatch(p->p.getY()!=y))return false;
@@ -276,7 +279,7 @@ final class FabricProductionActivities {
         var participants=points.subList(1,4);
         for(var cell:BlockPos.betweenClosed(minX,y,minZ,maxX,y,maxZ)) {
             var floor=cell.below();
-            if(!world.loadedForDiscovery(floor) || !world.loadedForDiscovery(cell.above())
+            if(!world.discoverable(worker,floor,Effect.OBSERVE) || !world.discoverable(worker,cell.above(),Effect.OBSERVE)
                     || !level.getBlockState(cell.above()).isAir())return false;
             var ground=level.getBlockState(floor);
             if(!ground.isCollisionShapeFullBlock(level,floor) || !ground.getFluidState().isEmpty()
@@ -300,13 +303,14 @@ final class FabricProductionActivities {
         return List.copyOf(projected);
     }
 
-    private List<Stock> stock(Jobs.Job job,ContainerRef source,Villager actor,String slotPrefix) {
+    private List<Stock> stock(Jobs.Job job,ContainerRef source,Villager actor,String slotPrefix,boolean sticksOnly) {
         var box=world.recipeContainer(source);
         if(box==null || !allowed(job.request(),Effect.WITHDRAW,source))
             throw new IllegalStateException("Current authorized stock unavailable");
         var totals=new HashMap<String,Long>();
         for(int slot=0;slot<box.getContainerSize();slot++) {
             var stack=box.getItem(slot);
+            if(sticksOnly && !stack.is(net.minecraft.world.item.Items.STICK))continue;
             if(!stack.isEmpty() && ResourceLeases.supportedStockItem(FabricConcreteRecipeChoices.itemKey(level,stack).id()))
                 totals.merge(FabricConcreteRecipeChoices.itemKey(level,stack).id(),(long)stack.getCount(),Math::addExact);
         }
@@ -321,7 +325,7 @@ final class FabricProductionActivities {
         long travel=travel(actor,source,source,null);
         for(int slot=0;slot<box.getContainerSize();slot++) {
             var stack=box.getItem(slot);
-            if(stack.isEmpty())continue;
+            if(stack.isEmpty() || sticksOnly && !stack.is(net.minecraft.world.item.Items.STICK))continue;
             var item=FabricConcreteRecipeChoices.itemKey(level,stack);
             if(!ResourceLeases.supportedStockItem(item.id()))continue;
             long available=Math.min(stack.getCount(),free.get(item.id()));

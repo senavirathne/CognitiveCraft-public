@@ -14,7 +14,7 @@ from uuid import uuid4
 from .frozen_campaign import ORIGINAL_SHA256, controls_for, material_controls, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
 from .native_evidence import exact_withdrawals, jsonl, raw_slices, require_command, stock_at, verify_installation
-from campaigns.crafting.harness import CraftingHarness, RECOVERY_REUSE, observer_inputs
+from campaigns.crafting.harness import CraftingHarness, RECOVERY_REUSE, SECONDARY_STICKS, coord, observer_inputs
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
 from campaigns.crafting.run import needed_artifacts, run_case
@@ -24,6 +24,7 @@ from suite import atomic, read, reconnect_players, require
 
 PROFILE = "I00_ORIGINAL_334"
 CASES_PER_WORLD = 16
+RECOVERY_GATE = [64, 208, 74]
 
 
 def schedule_file(root, index, count):
@@ -49,6 +50,7 @@ def requires_exact_choice(case):
         return False
     ingredients = {item for item in case["grid"] if item}
     return (ingredients != DIRECT_INGREDIENTS.get(case["output"]) or bool(case.get("missingAdapter"))
+            or case["output"] == "minecraft:birch_planks" and case["quantity"] > 32
             or case.get("dynamic") == "competing-actors")
 
 
@@ -57,11 +59,37 @@ class OriginalCampaign(NativeGameplay):
     admission_order = tuple(name for name in NativeGameplay.admission_order
                             if name not in {"oak-acquisition", "birch-acquisition"}) + acquisition_methods
 
+    def prepare(self, case, expected=None):
+        state = super().prepare(case, expected)
+        if case["mode"] != "recovery" or case["interruption"] != "restart":
+            return state
+        earlier = {actor["uuid"] for actor in state["actors"]}
+        self.console(["fill 63 208 74 66 208 78 minecraft:oak_fence",
+                      "fill 64 208 75 65 208 77 minecraft:air",
+                      "setblock " + coord(RECOVERY_GATE) + " minecraft:oak_fence_gate[facing=north]",
+                      "summon minecraft:villager 64.5 208 76.5 {PersistenceRequired:1b}"])
+
+        def reserved():
+            frame = self.snapshot()
+            workers = [actor for actor in frame["actors"] if actor["uuid"] not in earlier]
+            if len(workers) == 1 and workers[0]["alive"] and not workers[0]["noAI"] and not workers[0]["baby"]:
+                return frame, workers[0]["uuid"]
+
+        state, self.offline_worker = self.wait(reserved, "Unenrolled ordinary worker reserved before the restart fixture save")
+        return state
+
+    def constrain_unflushed_recovery(self):
+        return self.command("PlayerA", "/save-off", "Automatic saving is now disabled", 25)
+
     def command_text(self, case):
         if not requires_exact_choice(case):
             command = CraftingHarness.command_text(self, case)
             if case.get("distribution") == "held":
                 command += " use-held-sticks"
+            if case.get("distribution") == "split-containers":
+                command += " sticks-from " + coord(SECONDARY_STICKS)
+            if case.get("facility") == "held-item":
+                command += " use-held-table"
             return command
         return super().command_text(case)
 
@@ -86,7 +114,11 @@ class OriginalCampaign(NativeGameplay):
         return mark
 
     def select_recovery_reuse_actor(self, case):
-        self.use_actor(1 - case["actor"])
+        self.walk("PlayerA", [64, 208, 73], reach=1)
+        self.enroll("PlayerA", "Reserve")
+        require(self.entities["PlayerA"] == self.offline_worker, "Offline reuse enrollment resolved to the wrong worker")
+        self.action("PlayerA", "use", pos=RECOVERY_GATE)
+        self.wait(lambda: "open=true" in self.block(RECOVERY_GATE), "Connected player releases the original reserve worker")
 
     def compete_for_stock(self, case):
         first = self.submit_command(self.command_text(case))
@@ -355,11 +387,16 @@ def review_case(case, row, root, pins, recipes, validate):
                     and before["containers"][source] == {"minecraft:oak_planks": 3, "minecraft:stick": 2}
                     and not before["containers"][destination] and "minecraft:crafting_table" in before["blocks"][facility]
                     and after["containers"][destination].get("minecraft:wooden_axe") == 1
-                    and stock_at(old, reuse["originalActor"]) == stock_at(after, reuse["originalActor"]),
+                    and all(stock_at(old, worker["uuid"]) == stock_at(after, worker["uuid"])
+                            for worker in old["actors"] if worker["uuid"] != reuse["reuseActor"])
+                    and reuse["reuseActor"] not in {actor["actor"]["entityId"] for actor in
+                                                   old["knownPlayers"]["PlayerA"]["citizens"]["citizens"]},
                     "Offline reuse lost its distinct actor, saved stock or original custody")
             events = "clients/PlayerA/events.jsonl"
-            require_command(raw_slices(root, row, {events})[events], reuse["request"]["command"],
-                            reuse["request"]["feedback"], "PlayerA")
+            path = raw_slices(root, row, {events})[events]
+            require_command(path, reuse["request"]["command"], reuse["request"]["feedback"], "PlayerA")
+            if case["boundary"] == "before-checkpoint":
+                require_command(path, "/save-off", row["execution"]["automaticSavePaused"], "PlayerA")
     if integrated:
         events = "clients/PlayerA/events.jsonl"
         path = raw_slices(root, row, {events})[events]
@@ -369,8 +406,59 @@ def review_case(case, row, root, pins, recipes, validate):
     balanced, _ = (recipe_balance(before, after, row["independentExpectation"])
                    if row.get("independentExpectation") else composition_balance(before, after, recipes))
     require(balanced and delta(before, after) == row["physicalDelta"], "Native world quantities do not independently reconcile")
+    if case["mode"] == "recipe" and case["output"] == "minecraft:birch_planks" and case["quantity"] > 32:
+        job = row["execution"]["views"][0]
+        choices = [json.loads(base64.b64decode(step["choice"]["base64"], validate=True))
+                   for step in job["activity"]["steps"]]
+        require(job["fulfilled"] == case["quantity"] and job["allowance"]["maxima"]["TRAVEL_BLOCKS"] == 128
+                and job["usage"]["TRAVEL_BLOCKS"] <= 128 and any(choice.get("groupedPlanks") is True for choice in choices)
+                and all(1 <= len(choice["batches"]) <= 4
+                        and bool(choice.get("groupedPlanks")) == (len(choice["batches"]) > 1) for choice in choices)
+                and sum(len(choice["batches"]) for choice in choices) == (case["quantity"] + 3) // 4,
+                "The original large order did not retain its native batches, attribution and travel cap")
     if case.get("distribution") == "held":
         review_held_sticks(case, row, root)
+    if case.get("distribution") == "split-containers":
+        request, execution = row["request"], row["execution"]
+        job = execution["views"][0]
+        required = case["quantity"]
+        box = ",".join(map(str, SECONDARY_STICKS))
+        source = ",".join(map(str, row["bindings"]["source"]))
+        primary = dict(zip(("x", "y", "z"), row["bindings"]["source"], strict=True), dimension="minecraft:overworld")
+        secondary = dict(zip(("x", "y", "z"), SECONDARY_STICKS, strict=True), dimension="minecraft:overworld")
+        require(request["kind"] == "job" and request["command"].endswith(" sticks-from " + coord(SECONDARY_STICKS))
+                and request["identity"] == job["id"] and job["state"] == "SUCCEEDED" and job["fulfilled"] == required
+                and row["before"]["containers"][box].get("minecraft:stick") == 2 * required
+                and not row["before"]["containers"][source].get("minecraft:stick")
+                and not row["after"]["containers"][box].get("minecraft:stick")
+                and job["usage"]["COMMITTED_EFFECTS"] >= 4 * required
+                and exact_withdrawals(job, execution["receipts"]) == {"minecraft:oak_planks": 3 * required, "minecraft:stick": 2 * required},
+                "The separately authorized native stock or attributable result did not reconcile")
+        for step in job["activity"]["steps"]:
+            choice = json.loads(base64.b64decode(step["choice"]["base64"], validate=True))
+            for batch in choice["batches"]:
+                require(all(binding.get("source") == (secondary if binding["item"]["id"] == "minecraft:stick" else primary)
+                            for binding in batch["bindings"]), "A chosen ingredient came from the wrong original slot owner")
+        events = "clients/PlayerA/events.jsonl"
+        require_command(raw_slices(root, row, {events})[events], request["command"], request["feedback"], "PlayerA")
+    if case.get("facility") == "held-item":
+        item = "minecraft:crafting_table"
+        binding = row["bindings"]
+        source = ",".join(map(str, binding["source"]))
+        facility = ",".join(map(str, binding["facility"]))
+        receipts = row["execution"]["receipts"]
+        require(row["request"]["command"].endswith(" use-held-table") and row["delivered"] == 1
+                and stock_at(row["before"], binding["actor"]).get(item) == 1
+                and not stock_at(row["after"], binding["actor"]).get(item)
+                and row["before"]["containers"][source] == row["after"]["containers"][source]
+                and item in row["after"]["blocks"][facility] and item in row["clientAfter"]["blocks"][facility]
+                and [receipt["stage"] for receipt in receipts] == ["WITHDRAW", "PLACE"]
+                and all(receipt["placement"]["sourceIdentity"] == "held-table:" + binding["actor"] + ":0:1"
+                        for receipt in receipts)
+                and receipts[0]["placement"]["custodyAfter"] == receipts[1]["placement"]["custodyBefore"],
+                "Physical held table, exact slots and placed block did not reconcile")
+        events = "clients/PlayerA/events.jsonl"
+        require_command(raw_slices(root, row, {events})[events], row["request"]["command"], row["request"]["feedback"], "PlayerA")
     if case.get("dynamic") == "break-facility":
         req = row["request"]
         mark = row["execution"]["dynamic"]["nativeClock"]
@@ -390,7 +478,7 @@ def review_case(case, row, root, pins, recipes, validate):
         observed = [owner_view["jobs"][identifier] for identifier in ids]
         require(owner_view["online"] and owner_view["uuid"] == row["bindings"]["player"]
                 and [job["id"] for job in observed] == ids
-                and len({job["responsible"]["entityId"] for job in observed}) == 2
+                and len({job["request"]["request"]["arguments"]["actor"]["value"]["entityId"] for job in observed}) == 2
                 and all(job["state"] in {"READY", "WAITING", "ACTIVE"} and job["fulfilled"] == 0 for job in observed)
                 and [job["id"] for job in views] == ids and {job["state"] for job in views} == {"SUCCEEDED", "CANCELLED"}
                 and sum(job["fulfilled"] for job in views) == row["requested"] == row["delivered"]

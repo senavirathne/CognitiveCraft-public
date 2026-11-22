@@ -134,7 +134,8 @@ def run_case(h, case, *, integrated_recipe=False):
                              "actor": h.entities["PlayerA"], "citizen": h.citizens["PlayerA"],
                              "player": h.players["PlayerA"]})
         feasibility = shortage(case, before, source, h.recipes, facility=facility,
-                               blueprint_origin=getattr(h, "blueprint_origin", None)) if case["mode"] != "recipe" else {"feasible": True}
+                               blueprint_origin=getattr(h, "blueprint_origin", None),
+                               actor=h.entities["PlayerA"]) if case["mode"] != "recipe" else {"feasible": True}
         if case["mode"] == "facility":
             if case["facility"] in {"occupied", "unsupported-floor", "entity-collision", "actor-collision"}:
                 feasibility["feasible"] = False

@@ -18,12 +18,25 @@ public final class RequestCodec {
     public record Invalid(Outcomes.Reason reason, String path) implements Decoded { }
 
     public static Decoded decode(String json) {
+        return decode(json,false);
+    }
+
+    /** The stored flag records an earlier explicit player choice, never a model proposal. */
+    public static Decoded decodeStored(String json) {
+        return decode(json,true);
+    }
+
+    private static Decoded decode(String json,boolean stored) {
         if (json == null || json.length() > MAX_BYTES
                 || json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_BYTES)
             return new Invalid(Outcomes.Reason.REQUEST_INVALID, "$");
         try {
             Map<String, Object> root = StrictJson.object(json);
-            Outcomes.exact(root, "schema", "capability", "version", "arguments");
+            boolean held=stored && root.containsKey("heldTable");
+            if(held) {
+                Outcomes.exact(root,"schema","capability","version","arguments","heldTable");
+                if(!Outcomes.bool(root,"heldTable","$"))throw new StrictJson.Invalid("$.heldTable","EXPECTED_EXPLICIT_CUSTODY");
+            } else Outcomes.exact(root, "schema", "capability", "version", "arguments");
             if (Outcomes.number(root, "schema", "$") != SCHEMA)
                 throw new StrictJson.Invalid("$.schema", "UNKNOWN_SCHEMA");
             CapabilityId id = new CapabilityId(Outcomes.string(root, "capability", "$"),
@@ -76,7 +89,7 @@ public final class RequestCodec {
                 };
                 typed.put(entry.getKey(), parsed);
             }
-            return new Valid(new CapabilityRequest(id, typed));
+            return new Valid(new CapabilityRequest(id, typed,held));
         } catch (StrictJson.Invalid invalid) {
             return new Invalid(Outcomes.Reason.REQUEST_INVALID, invalid.path());
         } catch (IllegalArgumentException | ArithmeticException invalid) {
@@ -115,9 +128,10 @@ public final class RequestCodec {
             } else throw new IllegalArgumentException("Unsupported value");
             arguments.put(entry.getKey(), fields);
         }
-        return StrictJson.canonical(Map.of("schema", (long) SCHEMA,
-                "capability", request.capability().name(),
-                "version", (long) request.capability().version(), "arguments", arguments));
+        Map<String,Object> record=new LinkedHashMap<>(Map.of("schema",(long)SCHEMA,"capability",request.capability().name(),
+                "version",(long)request.capability().version(),"arguments",arguments));
+        if(request.heldTable())record.put("heldTable",true);
+        return StrictJson.canonical(record);
     }
 
     private static Map<String, Object> map(Object value, String path) throws StrictJson.Invalid {

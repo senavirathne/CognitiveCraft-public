@@ -121,24 +121,26 @@ final class FabricRecipeParticipants {
     static boolean applied(RecipeChoice choice,int batch,Stage phase,List<Capture> before,List<Capture> after) {
         if(before.size()!=after.size() || before.isEmpty())return false;
         var expectedActor=totals(before.getFirst().slots());
-        var recipe=choice.batch(batch);
-        int delivery=Math.toIntExact(choice.deliveryForBatch(batch));
+        var recipes=choice.phaseBatches(batch);
+        var withdrawals=recipes.stream().flatMap(recipe->recipe.withdrawals().stream()).toList();
+        int delivery=Math.toIntExact(choice.phaseDelivery(batch));
         switch(phase) {
             case WITHDRAW -> {
-                if(recipe.usesHeldInputs()) {
+                if(recipes.getFirst().usesHeldInputs()) {
                     var held=new ArrayList<>(before.getFirst().slots());
-                    for(var binding:recipe.bindings())if(binding.heldBy()!=null) {
+                    for(var binding:recipes.getFirst().bindings())if(binding.heldBy()!=null) {
                         if(binding.sourceSlot()>=held.size())return false;
                         var slot=held.get(binding.sourceSlot());
                         if(slot.count()!=binding.expectedCount() || !slot.item().equals(binding.item()))return false;
                         held.set(binding.sourceSlot(),slot.count()==1?Slot.EMPTY:new Slot(slot.item(),slot.count()-1));
                     }
                 }
-                recipe.withdrawals().forEach(b->change(expectedActor,b.item(),1));
+                withdrawals.forEach(b->change(expectedActor,b.item(),1));
             }
             case CRAFT -> {
-                recipe.grid().stream().filter(item->!item.empty()).forEach(item->change(expectedActor,item,-1));
-                change(expectedActor,choice.result(),choice.resultCount());
+                recipes.stream().flatMap(recipe->recipe.grid().stream()).filter(item->!item.empty())
+                        .forEach(item->change(expectedActor,item,-1));
+                change(expectedActor,choice.result(),Math.toIntExact(choice.phaseProduction(batch)));
             }
             case DEPOSIT -> change(expectedActor,choice.result(),-delivery);
             default -> {return false;}
@@ -155,7 +157,7 @@ final class FabricRecipeParticipants {
                 if(!expected.equals(totals(actual.slots())))return false;
             } else {
                 var expected=new ArrayList<>(prior.slots());
-                if(phase==Stage.WITHDRAW)for(var binding:recipe.withdrawals()) {
+                if(phase==Stage.WITHDRAW)for(var binding:withdrawals) {
                     if(!binding.source().equals(prior.container()))continue;
                     if(binding.sourceSlot()>=expected.size())return false;
                     var slot=expected.get(binding.sourceSlot());
@@ -169,12 +171,29 @@ final class FabricRecipeParticipants {
     }
 
     /** A table uses one ordinary item unit. The actual cell transition is checked separately. */
-    static boolean placement(ItemKey table,Stage phase,List<Capture> before,List<Capture> after) {
+    static boolean placement(ItemKey table,Stage phase,List<Capture> before,List<Capture> after,
+                             dev.aivillages.core.kernel.PlacementTransaction.HeldTable held) {
         int expectedParticipants=phase==Stage.WITHDRAW?2:1;
         if(before.size()!=expectedParticipants || after.size()!=expectedParticipants)return false;
         for(int index=0;index<expectedParticipants;index++) {
             var prior=before.get(index);var actual=after.get(index);
             if(prior.inventory()!=actual.inventory() || !prior.evidence().incarnation().equals(actual.evidence().incarnation()))return false;
+            if(held!=null) {
+                var expected=new ArrayList<>(prior.slots());
+                if(index==0) {
+                    int source=phase==Stage.WITHDRAW?held.inputSlot():held.placementSlot();
+                    int count=phase==Stage.WITHDRAW?held.inputCount():1;
+                    var slot=expected.get(source);
+                    if(!slot.item().equals(table) || slot.count()!=count)return false;
+                    expected.set(source,count==1?Slot.EMPTY:new Slot(table,count-1));
+                    if(phase==Stage.WITHDRAW) {
+                        if(expected.get(held.placementSlot()).count()!=0)return false;
+                        expected.set(held.placementSlot(),new Slot(table,1));
+                    }
+                }
+                if(!expected.equals(actual.slots()))return false;
+                continue;
+            }
             var expected=totals(prior.slots());
             change(expected,table,phase==Stage.WITHDRAW && index==0?1:-1);
             if(!expected.equals(totals(actual.slots())))return false;

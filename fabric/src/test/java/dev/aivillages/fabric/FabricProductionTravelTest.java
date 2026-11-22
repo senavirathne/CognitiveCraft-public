@@ -89,4 +89,30 @@ class FabricProductionTravelTest {
         assertEquals(31,FabricProductionTravel.existingTableOnClearFloor(start,source,destination,table));
         assertTrue(4*FabricProductionTravel.existingTableOnClearFloor(start,source,destination,table)<=128);
     }
+    @Test void largeBirchGoalQuotesFourNativeGroupsWithoutChangingTheOriginalCounter() {
+        var start=at(80,208,67);var source=at(68,208,72);var destination=at(76,208,70);
+        var actor=new ActorRef(UUID.randomUUID(),UUID.randomUUID(),source.dimension());
+        UUID world=UUID.randomUUID(),principal=UUID.randomUUID(),root=UUID.randomUUID();
+        var context=new TrustedContext(new PrincipalRef(principal),new ScopeRef(world,principal));
+        var original=new java.util.EnumMap<Counter,Long>(PlanningModel.zeroCounts());
+        original.put(Counter.TRAVEL,128L);original.put(Counter.EFFECTS,64L);original.put(Counter.ELAPSED_TICKS,1800L);
+        var budget=new Budget(original,PlanningModel.zeroCounts(),100_000);
+        var log=item("birch_log");var planks=item("birch_planks");
+        var policy=new Policy(actor,Set.of(actor),Set.of(source),Set.of(destination),Set.of(),source,null,false,false,0,16,false,true);
+        var snapshot=new Snapshot(PlanningModel.SCHEMA,world,root,1,context,new Owner(principal,actor,0,true,false,false,false),
+                new Goal(Mode.MAKE_NEW,planks,63,destination,policy),destination,0,budget,1000,0,
+                List.of(new Stock("source:26",new Location(source,null,26),log,16,16,0,null,List.of(),Eligibility.NONE,
+                        Availability.PRESENT,true,true,10,1)),List.of(),
+                List.of(profile(BirchPlankProduction.ID,List.of(log),planks,FabricProductionTravel.recipe(start,source,destination,null,null))),
+                null,List.of(),Set.of(Kind.PRODUCE),List.of(),true,false,0);
+        var decision=new PlanningCoordinator().nextActivity(snapshot,null,Memory.empty(),1,8,true);
+        assertEquals(Feasibility.FEASIBLE,decision.analysis().feasibility(),decision.blocker());
+        assertEquals(4,PlanningCoordinator.remainingSegments(snapshot,decision.analysis().plan(),1));
+        assertEquals(4,decision.neededChoice().batches());
+        var choice=PlanningChoiceBuilder.build(snapshot,decision.neededChoice()).choice();
+        assertTrue(choice.groupedPlanks());
+        assertEquals(16,choice.phaseDelivery(0));
+        assertEquals(4,choice.phaseBatches(0).size());
+        assertEquals(128,budget.remaining(Counter.TRAVEL));
+    }
 }

@@ -153,12 +153,14 @@ def exact_withdrawals(job, receipts):
                 and attempt["generation"] == witness["generation"] and receipt in attempt["resourceReceipts"]
                 and choice["exactRecipe"] is True and hashlib.sha256(body).hexdigest() == choice["sha256"] == witness["choiceDigest"],
                 "Withdrawal not bound to its original certified exact choice and unchanged attempt")
-        choice_batches = json.loads(body)["batches"]
+        selected = json.loads(body)
+        choice_batches = selected["batches"]
+        phase_batches = [choice_batches] if selected.get("groupedPlanks") is True else [[batch] for batch in choice_batches]
         batch_index = witness["batch"]
-        require(0 <= batch_index < len(choice_batches) and (step["id"], batch_index) not in by_batch,
+        require(0 <= batch_index < len(phase_batches) and (step["id"], batch_index) not in by_batch,
                 "Unknown or duplicate exact-choice withdrawal")
         by_batch.add((step["id"], batch_index))
-        bindings = [binding for binding in choice_batches[batch_index]["bindings"] if "source" in binding]
+        bindings = [binding for batch in phase_batches[batch_index] for binding in batch["bindings"] if "source" in binding]
         require(len(bindings) == receipt["quantity"], "Native withdrawal differs from the exact container inputs")
         totals.update(binding["item"]["id"] for binding in bindings)
     return dict(totals)

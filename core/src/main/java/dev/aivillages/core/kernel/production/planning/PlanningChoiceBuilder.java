@@ -45,7 +45,9 @@ public final class PlanningChoiceBuilder {
             batches.add(new RecipeChoice.Batch(grid,bindings));}
         if(actualSources.size()>2)return null;
         RecipeChoice.FacilityBinding facility=null;if(p.axe()){if(s.facility()==null || s.facility().availability()!=Availability.PRESENT || !s.facility().permitted() || !s.facility().reachable())return null;facility=new RecipeChoice.FacilityBinding(s.facility().reference(),s.facility().identity());}
-        var choice=new RecipeChoice(p.capability(),p.recipe(),p.semanticFingerprint(),RecipeChoice.RUNTIME,p.reloadEpoch(),width,width,batches,p.result(),p.yield(),request.nativeAmount(),List.of(),facility);var policy=new RecipeSources(new ArrayList<>(actualSources),heldBy);
+        var choice=new RecipeChoice(p.capability(),p.recipe(),p.semanticFingerprint(),RecipeChoice.RUNTIME,p.reloadEpoch(),width,width,batches,
+                p.result(),p.yield(),request.nativeAmount(),List.of(),facility,s.goal().policy().groups(p.capability()) && batches.size()>1);
+        var policy=new RecipeSources(new ArrayList<>(actualSources),heldBy);
         var args=new HashMap<String,Value>();args.put("actor",new ActorValue(s.owner().executor()));args.put("amount",new IntValue(request.nativeAmount()));args.put("source",new ContainerValue(primary==null?policy.containers().getFirst():primary));args.put("destination",new ContainerValue(request.destination()));if(facility!=null)args.put("table",new FacilityValue(facility.reference()));
         return new ProposedChoice(new CapabilityRequest(p.capability(),args),choice,policy);
     }

@@ -8,6 +8,18 @@ import static dev.aivillages.core.kernel.SkillIr.*;
 final class RecipeActivityContinuation {
     private RecipeActivityContinuation() { }
     record Point(int rootPosition,int batchPosition,long batchesRemaining) { }
+    record GroupedProgram(Program program,Point afterCraft) { }
+
+    /** Only the original parameter-only method can run a native grouped plank choice. */
+    static GroupedProgram groupedPlanks(Program program,CapabilityRequest original) {
+        if(!original.capability().equals(BirchPlankProduction.ID))throw unsupported();
+        var originalCut=afterCraft(program,original,2);
+        if(originalCut.batchesRemaining()<2 || originalCut.batchesRemaining()>4)throw unsupported();
+        var loop=(Repeat)program.body().get(1);
+        var grouped=new Program(program.capability(),program.dependencies(),List.of(
+                program.body().getFirst(),new Repeat(new IntegerExpr(1),1,loop.body()),program.body().getLast()));
+        return new GroupedProgram(grouped,new Point(originalCut.rootPosition(),originalCut.batchPosition(),1));
+    }
 
     /** Only a unique completed craft in an otherwise parameter-only recipe loop is reconstructible here.
      * Native saved-prefix proof, the original method pin, Jobs ownership and remaining limits are separate requirements.

@@ -31,7 +31,7 @@ public final class NativeDeposit {
             catch(ClassNotFoundException impossible){throw new IllegalStateException("Compiled native evidence schema unavailable",impossible);}
         }
     }
-    public enum Kind { ACTOR, CHEST }
+    public enum Kind { ACTOR, CHEST, BARREL }
     public enum MarkerPhase { PREPARED, MUTATING, RESULT }
     public enum Live { NO_EFFECT, COMPLETE, PARTIAL, UNRECEIPTED_EFFECT }
     public enum Reconciliation { WAIT_WORLD, UNPROVEN, PREPARED_NO_EFFECT, SAVED_COMPLETE,
@@ -108,7 +108,8 @@ public final class NativeDeposit {
         public Intent {
             Objects.requireNonNull(key);Objects.requireNonNull(origin);Objects.requireNonNull(run);Objects.requireNonNull(operation);
             Objects.requireNonNull(actor);Objects.requireNonNull(chest);Objects.requireNonNull(conditions);
-            if(!key.world.equals(origin.scope().worldId()) || actor.kind!=Kind.ACTOR || chest.kind!=Kind.CHEST
+            if(!key.world.equals(origin.scope().worldId()) || actor.kind!=Kind.ACTOR || chest.kind==Kind.ACTOR
+                    || chest.kind==Kind.BARREL && pickupPrefix==null
                     || !actor.dimension.equals(chest.dimension) || !Set.of("minecraft:oak_log","minecraft:birch_log").contains(item)
                     || actorSlot<0 || actorSlot>=actor.slots.size() || chestSlot<0 || chestSlot>=chest.slots.size()
                     || capacity<1 || capacity>64)throw new IllegalArgumentException("Deposit intent binding");
@@ -122,7 +123,7 @@ public final class NativeDeposit {
         public Result(String intent,Live live,Participant actor,Participant chest,String failure){this(intent,live,actor,chest,failure,null,Map.of());}
         public Result {
             hash(intent);Objects.requireNonNull(live);Objects.requireNonNull(actor);Objects.requireNonNull(chest);usage=Map.copyOf(usage);
-            if(actor.kind!=Kind.ACTOR || chest.kind!=Kind.CHEST || failure==null || failure.length()>256 || usage.values().stream().anyMatch(n->n<0)
+            if(actor.kind!=Kind.ACTOR || chest.kind==Kind.ACTOR || failure==null || failure.length()>256 || usage.values().stream().anyMatch(n->n<0)
                     || live==Live.COMPLETE && receipt==null || (live==Live.NO_EFFECT || live==Live.UNRECEIPTED_EFFECT) && receipt!=null)
                 throw new IllegalArgumentException("Deposit observed result");
             if(receipt!=null)DepositReceiptCodec.encode(receipt);

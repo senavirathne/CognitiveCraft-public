@@ -21,7 +21,7 @@ public final class DepositParticipantState {
     private volatile boolean active,valid=true,restored,quarantined;
     private Thread gameThread;
     private int metadataDepth;
-    private boolean trackedStacks;
+    private List<ItemStack> trackedStacks=List.of();
     private Dynamic<?> original,originalExtra;
     private String previous="";
     public boolean active(){return active;}
@@ -38,9 +38,17 @@ public final class DepositParticipantState {
     }
     public void track(List<ItemStack> slots){activate();bindStacks(slots);}
     private void bindStacks(List<ItemStack> slots) {
-        if(!trackedStacks && slots.isEmpty())return;
-        DepositStackOwners.bind(this,slots);
-        trackedStacks=!slots.isEmpty();
+        int index=0;
+        boolean unchanged=true;
+        for(ItemStack stack:slots)if(!stack.isEmpty()) {
+            if(index>=trackedStacks.size() || stack!=trackedStacks.get(index))unchanged=false;
+            index++;
+        }
+        if(unchanged && index==trackedStacks.size())return;
+        var actual=new ArrayList<ItemStack>(index);
+        for(ItemStack stack:slots)if(!stack.isEmpty())actual.add(stack);
+        DepositStackOwners.bind(this,actual);
+        trackedStacks=List.copyOf(actual);
     }
     /** Initial deserialization may use its native worker; do not bind the future game thread here. */
     public void trackLoaded(List<ItemStack> slots) {

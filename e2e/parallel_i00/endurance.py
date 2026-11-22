@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import gzip
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -23,7 +24,7 @@ from freeze_plan import CLIENT_IMAGE, JAVA_IMAGE
 from generalization_support import coord
 from jobs import JobHarness
 from runtime import SDK
-from suite import UUID_PATTERN, atomic, read, reconnect_players, require
+from suite import Harness, UUID_PATTERN, atomic, read, reconnect_players, require
 
 COMPOSE = ("e2e/compose.yml", "e2e/parallel_a/compose-leases.yml", "e2e/parallel_a/compose-jobs.yml",
            "e2e/parallel_a/compose-freeze.yml", "e2e/parallel_i00/compose-endurance.yml")
@@ -78,6 +79,39 @@ class EnduranceHarness(JobHarness):
 
     def observation(self):
         return read(self.root / "server/secondary-snapshot.json")
+
+    def enroll(self, player="PlayerA", name="Ada"):
+        if name != "Hana" or self.family != "pinned-original":
+            return super().enroll(player, name)
+
+        def companion():
+            state = self.observation() or {}
+            candidates = [actor for actor in state.get("actors", [])
+                          if actor["uuid"] not in self.entities.values() and actor["alive"]
+                          and not actor["baby"] and not actor["noAI"] and not actor["controlled"]
+                          and 319 <= actor["pos"][0] < 341 and 63 <= actor["pos"][2] < 80]
+            require(len(candidates) <= 1, "The endurance arena contains duplicate unclaimed workers")
+            return candidates[0] if candidates else None
+
+        def approached():
+            actor = companion()
+            if not actor:
+                return None
+            client = self.client_snapshot(player)
+            if not client or not client["play"]:
+                return None
+            if math.dist(client["pos"], actor["pos"]) <= 2.7 and any(
+                    entity["uuid"] == actor["uuid"] for entity in client.get("entities", [])):
+                return actor
+            self.walk(player, [math.floor(v) for v in actor["pos"]], reach=1.5)
+            return None
+
+        actor = self.wait(approached, "Connected player reaches the independently observed endurance worker", 60)
+        self.event("i00-endurance-companion-enrollment", {"actor": actor, "player": player,
+                   "playerPosition": self.client_snapshot(player)["pos"]})
+        citizen = Harness.enroll(self, player, name)
+        require(self.entities[player] == actor["uuid"], "Enrollment resolved to a different native worker")
+        return citizen
 
     @contextmanager
     def pause_before_dispatch(self):

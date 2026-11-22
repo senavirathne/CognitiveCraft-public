@@ -411,6 +411,8 @@ public final class BootstrapController {
         if (written != null) return; // A completion and an engine slice are separate ticks.
         if (active != null && active.actorLost && !writing && !active.finishing)
             terminate(active, "INTERRUPTED", Reason.INTERRUPTED);
+        else if (active != null && jobs != null && active.cancelPending && !active.finishing)
+            return; // Wait for the durable Jobs cancellation delivery before another engine slice.
         else if (active != null && !writing && active.phase == Phase.RESEARCHING)
             advanceResearch(active);
         else if (active != null && !writing && active.phase == Phase.EXECUTING)

@@ -74,6 +74,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         final ActorRef actor;
         final RecipeChoice choice;
         final RecipeSources sources;
+        final boolean separateSticks;
         final ContainerRef destination;
         final FacilityRef site;
         final String digest;
@@ -89,6 +90,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             root=job.id(); step=job.activity().current().id(); attempt=job.current().id(); generation=job.current().generation();
             this.bound=bound; this.exact=exact; this.correlation=correlation; this.choice=choice;
             actor=job.current().worker(); sources=choice==null?RecipeSources.single(bound):ActivityRecipeEvidence.sources(exact,choice);
+            separateSticks=job.activity().production()!=null && job.activity().production().allowsSeparateSticks();
             destination=ResourceDelivery.destinationAddress(bound.request());
             site=choice==null?CraftingTablePlacement.target(bound.request()):null;
             digest=choice==null?fingerprint(RequestCodec.encode(bound.request())):choice.digest();
@@ -114,11 +116,13 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         CompletableFuture<NativeRecipeJournal.Entry> result;
         boolean possibleEffect;
         Reason blocked;
+        SplitWithdrawal split;
         Pending(NativeRecipeJournal.Intent intent,Jobs.Job owner,List<ContainerRef> containers,long actionDeadline,
                 CompletableFuture<NativeRecipeJournal.Entry> prepared) {
             this.intent=intent; this.owner=owner; this.containers=containers; this.actionDeadline=actionDeadline; this.prepared=prepared;
         }
     }
+    private record SplitWithdrawal(Captured original,Captured intermediate,ContainerRef remaining) { }
 
     FabricActivityRecipeEffects(FabricGatewayWorld world,JobLifecycleStore jobs,JobHistory history,ResourceLeaseService leases,
                                 NativeRecipeJournal journal,AuthorityPolicy authority,Clock clock,Executor writer) {
@@ -168,7 +172,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     @Override public ContainerRef additionalInput(ValidatedRequest bound,RunCorrelation correlation) {
         thread();
         var run=bound(bound,correlation);
-        if(run==null || run.choice==null || run.sources.containers().size()==1)return null;
+        if(run==null || run.choice==null || run.sources.containers().size()==1 || run.separateSticks)return null;
         var primary=((ContainerValue)bound.request().arguments().get("source")).value();
         return run.sources.containers().stream().filter(source->!source.equals(primary)).findFirst().orElseThrow();
     }
@@ -202,7 +206,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         if(run.pending!=null)return advance(run,operation,phase,usage);
         var phases=run.site==null?PHASES:PLACEMENT;
         int batch=run.observedPhases/phases.size();
-        if(batch>=(run.choice==null?1:run.choice.batches().size()) || phase!=phases.get(run.observedPhases%phases.size()))
+        if(batch>=(run.choice==null?1:run.choice.phaseBatchCount()) || phase!=phases.get(run.observedPhases%phases.size()))
             return refusal(Reason.REQUEST_INVALID,false);
         if(publicationPending())return waiting(false);
         var owner=current(run);
@@ -216,7 +220,11 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             List<ContainerRef> containers=containers(run,phase);
             usage.debit(Budgets.Kind.OBSERVATIONS,32L+54L*containers.size());
             if(run.site==null) {
-                if(phase==Stage.WITHDRAW)run.context=world.prepareChoice(run.exact,run.choice,batch,correlation.runId(),permission(run),run.sources);
+                if(phase==Stage.WITHDRAW) {
+                    var split=separateSources(run,batch);
+                    run.context=split.isEmpty()?world.prepareChoice(run.exact,run.choice,batch,correlation.runId(),permission(run),run.sources):
+                            world.prepareSeparatedChoice(run.exact,run.choice,batch,correlation.runId(),permission(run),run.sources,split.getFirst());
+                }
                 if (run.savedCraft != null && phase == Stage.DEPOSIT) {
                     var step = owner.activity().current();
                     if (!continuable(owner, owner.current(), step, journal.entries(run.attempt)))
@@ -236,7 +244,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
             if(run.observedPhases>0 && !journal.entries(run.attempt).getLast().result().after().getFirst()
                     .equals(captured.evidence().getFirst()))return refusal(Reason.STALE_OBSERVATION,false);
             NativeRecipeJournal.Participant deliveryTarget = null;
-            if (phase == Stage.CRAFT && batch == run.choice.batches().size() - 1)
+            if (phase == Stage.CRAFT && batch == run.choice.phaseBatchCount() - 1)
                 deliveryTarget = participants.deliveryTarget(run.destination, true).evidence();
             var intent=new NativeRecipeJournal.Intent(id(operation.id(),"journal"),run.root,run.step,run.attempt,run.generation,
                     operation.id(),run.correlation.artifact().sha256(),run.digest,batch,phase,
@@ -246,6 +254,12 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         } catch(FabricConcreteRecipeChoices.Refused denied){return refusal(denied.reason,false);}
         catch(Budgets.Exhausted exhausted){return refusal(Reason.BUDGET_EXHAUSTED,false);}
         catch(RuntimeException unavailable){return refusal(Reason.TARGET_UNAVAILABLE,false);}
+    }
+
+    private static List<ContainerRef> separateSources(Run run,int batch) {
+        if(!run.separateSticks || run.choice==null || run.sources.containers().size()!=2)return List.of();
+        var inputs=run.choice.batch(batch).withdrawals().stream().map(RecipeChoice.Binding::source).distinct().toList();
+        return inputs.size()==2?run.sources.containers():List.of();
     }
 
     private Captured capture(Run run,List<ContainerRef> containers) {
@@ -261,8 +275,9 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         try { pending.prepared.join(); }
         catch(CompletionException failed){run.pending=null;return refusal(journal.fenced()?Reason.STORAGE_UNAVAILABLE:Reason.STORAGE_LIMIT_REACHED,false);}
         if(pending.result==null) {
-            if(publicationPending())return waiting(false);
-            apply(run,pending,usage);
+            if(publicationPending())return waiting(pending.possibleEffect);
+            if(pending.split==null)apply(run,pending,usage);
+            else continueWithdrawal(run,pending,usage);
             return waiting(pending.possibleEffect);
         }
         if(!pending.result.isDone())return waiting(pending.possibleEffect);
@@ -313,11 +328,74 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         try {
             before.mark(mutating);
             pending.possibleEffect=true;
-            observed=run.site==null?performRecipe(run,pending,before):performPlacement(run,pending,before);
+            var split=intent.phase()==Stage.WITHDRAW?separateSources(run,intent.batch()):List.<ContainerRef>of();
+            if(split.isEmpty())observed=run.site==null?performRecipe(run,pending,before):performPlacement(run,pending,before);
+            else {
+                var first=world.withdrawChoiceSource(run.context,split.getFirst(),false);
+                var intermediate=capture(run,pending.containers);
+                if(first.observation().kind()==ChoiceObservationKind.APPLIED) {
+                    run.context=first.continuation();
+                    pending.split=new SplitWithdrawal(before,intermediate,split.getLast());
+                    return;
+                }
+                observed=first.observation().kind()==ChoiceObservationKind.PRECHECK_NO_EFFECT
+                        && intent.before().equals(intermediate.evidence())
+                        ?new NativeResult(NativeRecipeJournal.Status.NO_EFFECT,intermediate,first.observation().reason(),null)
+                        :new NativeResult(NativeRecipeJournal.Status.UNCERTAIN,intermediate,Reason.INTERRUPTED,null);
+            }
             pending.possibleEffect=observed.status()!=NativeRecipeJournal.Status.NO_EFFECT;
             pending.blocked=observed.blocked();
         } catch(RuntimeException unavailable){pending.blocked=Reason.INTERRUPTED;}
         finally {charge.settle(pending.possibleEffect);}
+        publishObservation(pending,observed,usage);
+    }
+
+    private void continueWithdrawal(Run run,Pending pending,Budgets.Ledger usage) {
+        var split=pending.split;var source=split.remaining();
+        var current=current(run);
+        if(current==null || !LiveAttemptAuthority.retainsPendingOperation(pending.owner,current) || clock.millis()>pending.actionDeadline
+                || !permits(run,Stage.WITHDRAW) || !permitsAt(run,Effect.MOVE,source.dimension(),source.x(),source.y(),source.z())) {
+            publishObservation(pending,null,usage);
+            return;
+        }
+        try {
+            if(!usage.canDebit(Budgets.Kind.TRAVEL_BLOCKS,1) || !usage.canDebit(Budgets.Kind.OBSERVATIONS,1))
+                throw new Budgets.Exhausted();
+            var cell=new SurvivalGateway.Cell(source.dimension(),source.x(),source.y(),source.z());
+            var movement=world.moveRecipe(run.actor,cell,1);
+            usage.debit(Budgets.Kind.TRAVEL_BLOCKS,movement.travelBlocks());
+            usage.debit(Budgets.Kind.OBSERVATIONS,movement.chargedWork());
+            if(movement.impossible() || movement.chargedWork()>1 || movement.travelBlocks()>1) {
+                publishObservation(pending,null,usage);
+                return;
+            }
+            if(!movement.reached())return;
+            var intermediate=capture(run,pending.containers);
+            if(!split.intermediate().evidence().equals(intermediate.evidence())) {
+                publishObservation(pending,null,usage);
+                return;
+            }
+            var charge=usage.beginPhysicalEffect();
+            boolean secondMayHaveWritten=true;
+            NativeResult completed=null;
+            try {
+                var last=world.withdrawChoiceSource(run.context,source,true);
+                var after=capture(run,pending.containers);
+                secondMayHaveWritten=last.observation().kind()!=ChoiceObservationKind.PRECHECK_NO_EFFECT
+                        || !after.evidence().equals(intermediate.evidence());
+                if(last.observation().kind()==ChoiceObservationKind.APPLIED && FabricRecipeParticipants.applied(run.choice,
+                        pending.intent.batch(),Stage.WITHDRAW,split.original().inventories(),after.inventories())) {
+                    run.context=last.continuation();
+                    completed=new NativeResult(NativeRecipeJournal.Status.APPLIED,after,null,null);
+                }
+            } finally {charge.settle(secondMayHaveWritten);}
+            publishObservation(pending,completed,usage);
+        } catch(RuntimeException uncertain){publishObservation(pending,null,usage);}
+    }
+
+    private void publishObservation(Pending pending,NativeResult observed,Budgets.Ledger usage) {
+        var intent=pending.intent;
+        String digest=intent.digest();
         if(observed==null || observed.status()==NativeRecipeJournal.Status.UNCERTAIN) {
             pending.blocked=Reason.INTERRUPTED;
             submitResult(pending,new NativeRecipeJournal.Result(intent.token(),digest,NativeRecipeJournal.Status.UNCERTAIN,List.of(),usage.snapshot()));
@@ -325,7 +403,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         }
         var result=new NativeRecipeJournal.Result(intent.token(),digest,observed.status(),observed.after().evidence(),
                 usage.snapshot(),observed.placement());
-        var marker=new Marker(effect,digest,MarkerPhase.RESULT,result.digest());
+        var marker=new Marker(fingerprint(intent.token().toString()),digest,MarkerPhase.RESULT,result.digest());
         try {observed.after().mark(marker);}
         catch(RuntimeException invalid){pending.blocked=Reason.INTERRUPTED;submitResult(pending,new NativeRecipeJournal.Result(intent.token(),digest,NativeRecipeJournal.Status.UNCERTAIN,List.of(),usage.snapshot()));return;}
         submitResult(pending,result);
@@ -361,7 +439,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                         && before.block().block().isAir() && before.block().evidence().equals(after.block().evidence())
                 : actual.withdrawn()==0 && actual.consumed()==1 && actual.placed() && after.block().placedFrom(before.block());
         if(actual.reason()!=null || !expected
-                || !FabricRecipeParticipants.placement(table,pending.intent.phase(),before.inventories(),after.inventories()))
+                || !FabricRecipeParticipants.placement(table,pending.intent.phase(),before.inventories(),after.inventories(),run.placement.heldTable()))
             return new NativeResult(NativeRecipeJournal.Status.UNCERTAIN,after,Reason.INTERRUPTED,null);
         var evidence=new NativeRecipeJournal.Placement(run.placement.sourceIdentity(),run.placement.siteFingerprint(),
                 actual.custodyBefore(),actual.custodyAfter(),withdrawing?"minecraft:air":"minecraft:crafting_table",actual.facilityIdentity());
@@ -471,7 +549,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
                 || world.level().getGameTime() >= step.assignmentExpiresTick()
                 || clock.millis() >= attempt.allowance().deadlineEpochMillis()) return false;
         var choice = step.choice().recipe();
-        if (rows.size() != choice.batches().size() * PHASES.size() - 1 || partial(job, attempt, step, rows) == null) return false;
+        if (rows.size() != choice.phaseBatchCount() * PHASES.size() - 1 || partial(job, attempt, step, rows) == null) return false;
         try {
             var target = rows.getLast().intent().deliveryTarget();
             if (target == null || !restored(step, rows)) return false;
@@ -502,7 +580,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private List<ResourceDelivery.Receipt> partial(Jobs.Job job,Jobs.Attempt attempt,ActivityPayload.Step step,
                                                   List<NativeRecipeJournal.Entry> rows) {
         var choice=step.choice().recipe();
-        if(rows.isEmpty() || rows.size()>=choice.batches().size()*PHASES.size())return null;
+        if(rows.isEmpty() || rows.size()>=choice.phaseBatchCount()*PHASES.size())return null;
         var receipts=new ArrayList<ResourceDelivery.Receipt>();
         for(var row:rows) {
             if(!matching(job,attempt,step,row.intent()) || row.result()==null
@@ -515,7 +593,7 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
 
     private List<ResourceDelivery.Receipt> complete(Jobs.Job job,Jobs.Attempt attempt,ActivityPayload.Step step,List<NativeRecipeJournal.Entry> rows) {
         var choice=step.exactChoice()?step.choice().recipe():null;
-        if(rows.size()!=(choice==null?PLACEMENT.size():choice.batches().size()*PHASES.size()))return null;
+        if(rows.size()!=(choice==null?PLACEMENT.size():choice.phaseBatchCount()*PHASES.size()))return null;
         List<ResourceDelivery.Receipt> receipts=new ArrayList<>();
         for(var row:rows) {
             if(row.result()==null || row.result().status()!=NativeRecipeJournal.Status.APPLIED
@@ -733,9 +811,9 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         var intent=entry.intent();
         if(choice==null)return placementReceipt(bound,entry);
         long quantity=switch(intent.phase()) {
-            case WITHDRAW->choice.batch(intent.batch()).withdrawals().size();
-            case CRAFT->choice.resultCount();
-            case DEPOSIT->choice.deliveryForBatch(intent.batch());
+            case WITHDRAW->choice.phaseBatches(intent.batch()).stream().mapToLong(plan->plan.withdrawals().size()).sum();
+            case CRAFT->choice.phaseProduction(intent.batch());
+            case DEPOSIT->choice.phaseDelivery(intent.batch());
             default->throw new IllegalStateException("Exact recipe receipt phase");
         };
         var witness=new ResourceDelivery.ChoiceWitness(intent.root(),intent.step(),intent.attempt(),intent.generation(),intent.choice(),

@@ -164,12 +164,13 @@ public final class DepositEvidenceStore {
     public boolean conflicts(Kind kind,String dimension,String address,String allowedEffect) {
         thread();for(Snapshot snapshot:pending==null?List.of(state):List.of(state,pending))for(Entry entry:snapshot.entries()) {
             Participant participant=kind==Kind.ACTOR?entry.intent().actor():entry.intent().chest();
-            if(participant.kind()==kind && participant.dimension().equals(dimension) && participant.address().equals(address)
+            if(participant.dimension().equals(dimension) && participant.address().equals(address)
                     && (allowedEffect==null || allowedEffect.isEmpty() || !entry.token().equals(allowedEffect)) && !settled(entry))return true;
         }
         return false;
     }
-    private static boolean sameAddress(Participant a,Participant b){return a.kind()==b.kind() && a.dimension().equals(b.dimension()) && a.address().equals(b.address());}
+    private static boolean sameAddress(Participant a,Participant b){return (a.kind()==Kind.ACTOR)==(b.kind()==Kind.ACTOR)
+            && a.dimension().equals(b.dimension()) && a.address().equals(b.address());}
     private static Entry find(Snapshot snapshot,String token) {
         for(Entry entry:snapshot.entries())if(entry.token().equals(token))return entry;
         return null;

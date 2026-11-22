@@ -16,13 +16,17 @@ import net.minecraft.world.level.gamerules.GameRules;
 public final class PlacementEffectGameTests {
     @GameTest(maxTicks=1000,padding=16)
     public void actorOnApprovedSiteUsesExplicitMovementBeforeWithdrawalAndPlacement(GameTestHelper h){
-        gatewayPlacement(h,false);
+        gatewayPlacement(h,false,false);
     }
     @GameTest(maxTicks=1000,padding=16)
     public void placementMoveRequiresTheSameCenterRayAsTheMutation(GameTestHelper h){
-        gatewayPlacement(h,true);
+        gatewayPlacement(h,true,false);
     }
-    private void gatewayPlacement(GameTestHelper h,boolean overhead){
+    @GameTest(maxTicks=1000,padding=16)
+    public void explicitHeldTablePlacesExactlyOneOriginalUnitAndPreservesContainerStock(GameTestHelper h){
+        gatewayPlacement(h,false,true);
+    }
+    private void gatewayPlacement(GameTestHelper h,boolean overhead,boolean held){
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
         // Adjacent source is the harder case: its closest approach is the reserved site.
         h.setBlock(2,1,2,Blocks.CHEST);if(overhead)h.setBlock(2,2,3,Blocks.STONE);
@@ -31,7 +35,9 @@ public final class PlacementEffectGameTests {
         String dim=h.getLevel().dimension().identifier().toString();var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dim);
         UUID principal=UUID.randomUUID(),run=UUID.randomUUID();var owner=new TrustedContext(new PrincipalRef(principal),new ScopeRef(UUID.randomUUID(),principal));
         var source=new ContainerRef(dim,sourcePos.getX(),sourcePos.getY(),sourcePos.getZ());var target=new FacilityRef(dim,targetPos.getX(),targetPos.getY(),targetPos.getZ());
-        var bound=new ValidatedRequest(new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(actor),"source",new ContainerValue(source),"target",new FacilityValue(target),"amount",new IntValue(1))),owner,new ObservationRef(UUID.randomUUID(),0,dim));
+        var request=new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(actor),
+                "source",new ContainerValue(source),"target",new FacilityValue(target),"amount",new IntValue(1)),held);
+        var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),0,dim));
         var world=new FabricGatewayWorld(h.getLevel());var clock=java.time.Clock.systemUTC();
         var gateway=new SurvivalGateway(world,(a,e,c)->true,new SurvivalGateway.Limits(8,512,64,16,256,1,200,32),clock);
         var usage=new Budgets.Ledger(OakPlankProduction.executionLimits(clock.millis()).total(),clock);
@@ -40,7 +46,14 @@ public final class PlacementEffectGameTests {
         h.succeedWhen(()->{
             if(phase[0]<0){
                 if(!v.onGround()){h.assertTrue(false,"Waiting for native actor landing");return;}
-                from.setItem(0,new ItemStack(Items.CRAFTING_TABLE));
+                if(held){
+                    from.setItem(0,new ItemStack(Items.COBBLESTONE));
+                    v.getInventory().setItem(0,new ItemStack(Items.CRAFTING_TABLE,2));
+                    String encoded=RequestCodec.encode(request);
+                    h.assertTrue(RequestCodec.decode(encoded) instanceof RequestCodec.Invalid
+                            && RequestCodec.decodeStored(encoded).equals(new RequestCodec.Valid(request)),
+                            "Only the persisted explicit player choice may encode held authority");
+                }else from.setItem(0,new ItemStack(Items.CRAFTING_TABLE));
                 h.assertTrue(v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos))==!overhead,"Expected initial approved-cell occupancy");
                 if(overhead)h.assertTrue(!world.recipeReach(v,targetPos),"Fixture must block the actual placement center ray");phase[0]=0;
             }
@@ -53,13 +66,22 @@ public final class PlacementEffectGameTests {
             if(!result.terminal()){h.assertTrue(false,"Waiting for explicit native "+op);return;}
             h.assertTrue(result.reason()==null,"Native self-occupied placement stopped at "+op+": "+result.reason());
             receipts.addAll(result.resourceReceipts());
-            if(phase[0]==0)h.assertTrue(result.committedEffects()==0 && result.resourceReceipts().isEmpty() && from.countItem(Items.CRAFTING_TABLE)==1 && v.getInventory().isEmpty()
+            if(phase[0]==0)h.assertTrue(result.committedEffects()==0 && result.resourceReceipts().isEmpty()
+                    && from.countItem(held?Items.COBBLESTONE:Items.CRAFTING_TABLE)==1
+                    && v.getInventory().countItem(Items.CRAFTING_TABLE)==(held?2:0)
                     && v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos))==!overhead,"Structural observation moved the actor or mutated custody");
+            if(held && op==GatewayPrimitives.Operation.WITHDRAW_TABLE_ITEM)
+                h.assertTrue(from.countItem(Items.COBBLESTONE)==1 && v.getInventory().getItem(0).getCount()==1
+                        && v.getInventory().getItem(1).is(Items.CRAFTING_TABLE) && v.getInventory().getItem(1).getCount()==1,
+                        "Actual original held unit moved into its previously empty placement slot");
             if(op==GatewayPrimitives.Operation.MOVE_TO_INPUT || op==GatewayPrimitives.Operation.MOVE_TO_PLACEMENT)
                 h.assertTrue(!v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos)),"MOVE ended inside approved block");
             if(op==GatewayPrimitives.Operation.MOVE_TO_PLACEMENT)h.assertTrue(world.recipeReach(v,targetPos),"MOVE accepted a ray the placement guard rejects");
             if(phase[0]+1<operations.size()){phase[0]++;active[0]=null;h.assertTrue(false,"Next explicit placement operation");return;}
-            h.assertTrue(ResourceDelivery.quantity(bound,run,receipts)==1 && from.isEmpty() && v.getInventory().isEmpty() && h.getLevel().getBlockState(targetPos).is(Blocks.CRAFTING_TABLE),"Self-occupied placement failed native conservation");
+            h.assertTrue(ResourceDelivery.quantity(bound,run,receipts)==1
+                    && (held?from.countItem(Items.COBBLESTONE)==1 && v.getInventory().getItem(0).getCount()==1
+                                && v.getInventory().getItem(1).isEmpty():from.isEmpty() && v.getInventory().isEmpty())
+                    && h.getLevel().getBlockState(targetPos).is(Blocks.CRAFTING_TABLE),"Self-occupied placement failed native conservation");
             gateway.releaseRun(run);
             System.out.println((overhead?"RB006B_CENTER_RAY":"RB006B_SELF_OCCUPANCY")+" nativeNavigation=true structuralObservation=true noImplicitMove=true safeInput=true safeFace=true consumed=1 placed=1 depletedSource=true");
         });

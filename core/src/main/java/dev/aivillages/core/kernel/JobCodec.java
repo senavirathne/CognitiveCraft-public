@@ -162,7 +162,7 @@ final class JobCodec {
     }
     static ValidatedRequest bound(Map<String,Object> row) throws StrictJson.Invalid {
         exact(row,"request","principal","world","domain","observation");
-        var decoded = RequestCodec.decode(StrictJson.canonical(row.get("request")));
+        var decoded = RequestCodec.decodeStored(StrictJson.canonical(row.get("request")));
         if (!(decoded instanceof RequestCodec.Valid valid)) throw new StrictJson.Invalid("$","BOUND_REQUEST");
         var observation = object(row,"observation","$"); exact(observation,"id","revision","dimension");
         return new ValidatedRequest(valid.request(),

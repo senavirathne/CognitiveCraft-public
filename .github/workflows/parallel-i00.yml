@@ -538,7 +538,7 @@ jobs:
 
   coverage:
     name: Native I00 coverage ${{ matrix.track }}
-    needs: [build, walkthrough]
+    needs: [build]
     if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.full == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 350

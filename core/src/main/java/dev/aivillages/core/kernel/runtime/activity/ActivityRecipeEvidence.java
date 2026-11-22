@@ -33,9 +33,17 @@ public final class ActivityRecipeEvidence {
         var sources=sources(request,choice);
         if(!authorizedSources(root).containsAll(sources.containers()))
             throw new IllegalArgumentException("Exact choice source outside the original authority");
+        var production=root.activity().production();
+        if(production!=null && production.allowsSeparateSticks()
+                && choice.batches().stream().flatMap(batch->batch.bindings().stream())
+                .anyMatch(binding->production.additionalSource().equals(binding.source()) && !binding.item().id().equals(STICK.id())))
+            throw new IllegalArgumentException("The separate original source may supply only sticks");
         if(sources.heldSticks()!=null && (root.activity().production()==null
                 || !root.activity().production().allowsHeldSticks() || !root.responsible().equals(sources.heldSticks())))
             throw new IllegalArgumentException("Exact choice held inputs outside the original actor authority");
+        if(choice.groupedPlanks() && (root.activity().production()==null || !root.activity().production().groupedOriginalPlanks()
+                || !root.request().request().capability().equals(operation.capability())))
+            throw new IllegalArgumentException("Grouped planks outside the original admitted order");
         RecipeChoicePlan.propose(root.id(),root.revision(),request,choice,sources);
         return request;
     }
@@ -114,7 +122,7 @@ public final class ActivityRecipeEvidence {
     public static long quantity(Job job,Attempt attempt,ActivityPayload.Step step,List<Receipt> receipts) {
         if(receipts.isEmpty())return 0;
         RecipeChoice choice=step.choice().recipe();
-        if(receipts.size()>choice.batches().size()*PHASES.size())throw new IllegalArgumentException("Exact-choice receipt bound");
+        if(receipts.size()>choice.phaseBatchCount()*PHASES.size())throw new IllegalArgumentException("Exact-choice receipt bound");
         var operations=new HashSet<UUID>();
         var tokens=new HashSet<UUID>();
         var batchIds=new HashSet<UUID>();
@@ -131,9 +139,9 @@ public final class ActivityRecipeEvidence {
                     || previous!=null && !previous.choice().custodyAfter().equals(receipt.choice().custodyBefore()))
                 throw new IllegalArgumentException("Exact-choice phase lineage");
             long physical=switch(phase) {
-                case WITHDRAW -> choice.batch(batch).withdrawals().size();
-                case CRAFT -> choice.resultCount();
-                case DEPOSIT -> choice.deliveryForBatch(batch);
+                case WITHDRAW -> choice.phaseBatches(batch).stream().mapToLong(plan->plan.withdrawals().size()).sum();
+                case CRAFT -> choice.phaseProduction(batch);
+                case DEPOSIT -> choice.phaseDelivery(batch);
                 default -> throw new IllegalStateException("Exact-choice phase");
             };
             if(receipt.quantity()!=physical)throw new IllegalArgumentException("Exact-choice physical quantity");

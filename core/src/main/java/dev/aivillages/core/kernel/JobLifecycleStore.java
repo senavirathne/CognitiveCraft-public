@@ -498,19 +498,27 @@ public final class JobLifecycleStore {
     public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
                                            Budgets.Limits allowance,int plannedSteps,Cuboid acquisition,ContainerRef additionalSource,
                                            ActivityPayload.OriginalStock originalStock) {
-        return createProductionActivity(id,goal,caller,observation,allowance,plannedSteps,acquisition,additionalSource,originalStock,false);
+        return createProductionActivity(id,goal,caller,observation,allowance,plannedSteps,acquisition,additionalSource,originalStock,false,false);
     }
     public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
                                            Budgets.Limits allowance,int plannedSteps,Cuboid acquisition,ContainerRef additionalSource,
-                                           ActivityPayload.OriginalStock originalStock,boolean observedDestination) {
+                                           ActivityPayload.OriginalStock originalStock,boolean observedDestination,boolean groupedOriginalPlanks) {
         if(goal==null || !RecipeProduction.is(goal.capability()))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         try {
-            if(additionalSource!=null && (acquisition!=null || RecipeProduction.of(goal.capability()).axe()
+            boolean split=originalStock==ActivityPayload.OriginalStock.CONTAINERS_AND_SEPARATE_STICKS;
+            if(split && (!goal.capability().equals(WoodenAxeProduction.ID) || additionalSource==null
+                    || new ContainerValue(additionalSource).equals(goal.arguments().get("destination"))))
+                return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+            if(additionalSource!=null && (!split && (acquisition!=null || RecipeProduction.of(goal.capability()).axe())
                     || !(goal.arguments().get("source") instanceof ContainerValue source)
                     || !source.value().dimension().equals(additionalSource.dimension()) || source.value().equals(additionalSource)))
                 return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
+            if(groupedOriginalPlanks && (!goal.capability().equals(BirchPlankProduction.ID)
+                    || !(goal.arguments().get("amount") instanceof IntValue amount) || amount.value()<=32
+                    || Objects.equals(goal.arguments().get("source"),goal.arguments().get("destination"))))
+                return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
             var payload=ActivityPayload.initial(goal.capability(),plannedSteps)
-                    .planning(ActivityPayload.ProductionControl.initial(acquisition,additionalSource,originalStock,observedDestination));
+                    .planning(ActivityPayload.ProductionControl.initial(acquisition,additionalSource,originalStock,observedDestination,groupedOriginalPlanks));
             return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,payload);
         } catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
     }
@@ -606,6 +614,7 @@ public final class JobLifecycleStore {
                 && Objects.equals(previous.additionalSource(),next.additionalSource())
                 && previous.originalStock()==next.originalStock()
                 && previous.observedDestination()==next.observedDestination()
+                && previous.groupedOriginalPlanks()==next.groupedOriginalPlanks()
                 && (previous.plan()==null || previous.plan().equals(next.plan()))
                 && next.coveredActions().entrySet().containsAll(previous.coveredActions().entrySet());
     }

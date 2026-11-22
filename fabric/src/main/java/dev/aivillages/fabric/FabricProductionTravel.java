@@ -37,6 +37,10 @@ final class FabricProductionTravel {
     private static long interactionLeg(ContainerRef from,ContainerRef to) {
         return Math.max(0,distance(from,to)-2);
     }
+    static long separateStickLeg(ContainerRef source,ContainerRef sticks,FacilityRef facility) {
+        var table=point(facility);
+        return Math.addExact(distance(source,sticks),distance(sticks,table))-distance(source,table);
+    }
     static long acquisition(ContainerRef start,ContainerRef staging,List<ContainerRef> eligible) {
         if(eligible.isEmpty() || eligible.size()>256)throw new IllegalArgumentException("Bounded actual acquisition targets required");
         long worst=0;

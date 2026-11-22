@@ -135,6 +135,17 @@ public final class I00NativeBoundaryFixture implements ModInitializer {
                     && run.resourceReceipts().stream().filter(r->r.stage()==Stage.PLACE && r.item().id().equals(TABLE))
                         .mapToLong(r->r.quantity()).sum()==1;
         }
+        if(cut.boundary().equals("after-withdrawal")) {
+            var principal=server.getPlayerList().getPlayer(cut.principal());
+            try {
+                var run=AiVillages.kernel().status(principal,root.submissionId());
+                if(run.phase()==BootstrapController.Phase.EXECUTING)
+                    return run.resourceReceipts().stream().anyMatch(r->r.stage()==Stage.WITHDRAW)
+                            && run.resourceReceipts().stream().noneMatch(r->r.stage()==Stage.CRAFT);
+            }catch(SecurityException | IllegalStateException noLiveSubmission) {
+                // Jobs-owned compositions expose their committed receipts below.
+            }
+        }
         var owners=new ArrayList<Jobs.Job>();
         owners.add(root);
         for(int n=0;n<owners.size();n++) {

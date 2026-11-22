@@ -26,6 +26,7 @@ POSITIONS = [([70, 208, 69], [77, 208, 71], [75, 208, 73]),
              ([68, 208, 72], [76, 208, 70], [79, 208, 74])]
 LO, HI = [70, 208, 65], [77, 208, 65]
 RECOVERY_REUSE = ((67, 208, 76), (71, 208, 76), (73, 208, 76))
+SECONDARY_STICKS = (81, 208, 76)
 
 
 def coord(value):
@@ -257,7 +258,7 @@ class CraftingHarness(Harness):
         if self.held:
             self.actor_stock(self.held)
         if self.distributed:
-            self.stock([81, 208, 76], self.distributed, "barrel")
+            self.stock(SECONDARY_STICKS, self.distributed, "barrel")
         if case["mode"] == "recovery" and case["interruption"] == "restart":
             reuse_source, reuse_destination, reuse_facility = RECOVERY_REUSE
             self.stock(reuse_source, {OAK: 3, STICK: 2}, "barrel")

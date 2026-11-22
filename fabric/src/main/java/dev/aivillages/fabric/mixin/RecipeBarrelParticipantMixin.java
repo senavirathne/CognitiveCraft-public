@@ -28,7 +28,7 @@ public abstract class RecipeBarrelParticipantMixin implements DepositParticipant
 
     @Inject(method="loadAdditional",at=@At("TAIL"))
     private void cognitivecraft$loadRecipeParticipant(ValueInput input,CallbackInfo ignored){
-        cognitivecraft$recipeParticipant.load(input,Kind.CHEST);
+        cognitivecraft$recipeParticipant.load(input,Kind.BARREL);
         if(cognitivecraft$recipeParticipant.active() && cognitivecraft$recipeParticipant.valid())
             cognitivecraft$recipeParticipant.trackLoaded(new ArrayList<>(getItems()));
     }

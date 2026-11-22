@@ -246,12 +246,13 @@ final class FabricConcreteRecipeChoices {
         var to=permitted(request,authority,target,phase,false);
         var inputCopies=copies(boxes);var destination=inputCopies.containsKey(target)?inputCopies.get(target):FabricRecipeTransactions.copy(to);
         var held=FabricRecipeTransactions.copy(v.getInventory());
-        for(int batch=0;batch<choice.batches().size();batch++) {
-            nativeMatch(choice,batch,recipe);
-            held=withdrawInputs(held,v.getInventory(),inputCopies,choice.batch(batch));
-            held=consumeHeld(held,choice,batch);var result=recipe.recipe().assemble(input(choice,batch));
-            held=FabricRecipeTransactions.insert(held,v.getInventory(),result.copy());if(held==null)throw refuse(Reason.TARGET_UNAVAILABLE);
-            int delivery=Math.toIntExact(choice.deliveryForBatch(batch));
+        for(int batch=0;batch<choice.phaseBatchCount();batch++) {
+            matchPhase(choice,batch,recipe);
+            held=withdrawPhase(held,v.getInventory(),inputCopies,choice,batch);
+            var crafted=craftPhase(held,v.getInventory(),choice,batch,recipe);
+            held=crafted.held();
+            var result=crafted.outputs().getFirst();
+            int delivery=Math.toIntExact(choice.phaseDelivery(batch));
             if(!FabricRecipeTransactions.remove(held,result.getItem(),delivery)
                     || FabricRecipeTransactions.insert(destination,to,result.copyWithCount(delivery))==null)throw refuse(Reason.TARGET_UNAVAILABLE);
         }
@@ -260,20 +261,27 @@ final class FabricConcreteRecipeChoices {
         return prepare(request,choice,batch,run,authority,RecipeSources.single(request));
     }
     Context prepare(ValidatedRequest request,RecipeChoice choice,int batch,UUID run,ChoiceAuthority authority,RecipeSources sources) {
+        return prepare(request,choice,batch,run,authority,sources,null);
+    }
+    Context prepare(ValidatedRequest request,RecipeChoice choice,int batch,UUID run,ChoiceAuthority authority,
+                    RecipeSources sources,ContainerRef physicalSource) {
         thread();sources.validate(request);
-        var v=nativeActor(request,run);checkRequest(request,choice);var recipe=view(choice.capability());nativeMatch(choice,batch,recipe);
+        var v=nativeActor(request,run);checkRequest(request,choice);var recipe=view(choice.capability());matchPhase(choice,batch,recipe);
         requireBoundInputs(request,choice,authority,sources,ChoicePhase.PREPARE);
         facility(request,authority,ChoicePhase.PREPARE,choice.facility(),false);
         var target=container(request,"destination");
         // A new preparation can revalidate immutable choices after a semantic-equivalent reload.
-        var boxes=sourceContainers(request,authority,sources,ChoicePhase.PREPARE,true);
+        var boxes=sourceContainers(request,authority,sources,ChoicePhase.PREPARE,physicalSource==null);
+        if(physicalSource!=null) {
+            checkSeparateSource(choice,batch,sources,physicalSource);
+            permitted(request,authority,physicalSource,ChoicePhase.PREPARE,true);
+        }
         var to=permitted(request,authority,target,ChoicePhase.PREPARE,false);
         var sourceCopies=copies(boxes);
-        var custody=withdrawInputs(FabricRecipeTransactions.copy(v.getInventory()),v.getInventory(),sourceCopies,choice.batch(batch));
-        var afterCraft=consumeHeld(custody,choice,batch);var output=recipe.recipe().assemble(input(choice,batch));
-        if(FabricRecipeTransactions.insert(afterCraft,v.getInventory(),output.copy())==null)throw refuse(Reason.TARGET_UNAVAILABLE);
+        var custody=withdrawPhase(FabricRecipeTransactions.copy(v.getInventory()),v.getInventory(),sourceCopies,choice,batch);
+        var output=craftPhase(custody,v.getInventory(),choice,batch,recipe).outputs().getFirst();
         var destinationCopy=sourceCopies.containsKey(target)?sourceCopies.get(target):FabricRecipeTransactions.copy(to);
-        if(FabricRecipeTransactions.insert(destinationCopy,to,output.copyWithCount(Math.toIntExact(choice.deliveryForBatch(batch))))==null)throw refuse(Reason.TARGET_UNAVAILABLE);
+        if(FabricRecipeTransactions.insert(destinationCopy,to,output.copyWithCount(Math.toIntExact(choice.phaseDelivery(batch))))==null)throw refuse(Reason.TARGET_UNAVAILABLE);
         return new Context(UUID.randomUUID().toString(),choice,batch,request,run,authority,recipe,
                 fingerprint(v.getInventory()),sources,fingerprints(boxes),
                 FabricRecipeTransactions.identity(target,to),ChoicePhase.WITHDRAW,v,boxes,to,choice.facility());
@@ -289,7 +297,7 @@ final class FabricConcreteRecipeChoices {
                 || choice.facility() != null && !choice.facility().reference().equals(restoredFacility.reference()))
             throw refuse(Reason.STALE_OBSERVATION);
         var recipe = view(choice.capability());
-        nativeMatch(choice, batch, recipe);
+        matchPhase(choice, batch, recipe);
         facility(request, authority, ChoicePhase.DEPOSIT, restoredFacility, false);
         var target = container(request, "destination");
         var boxes = sourceContainers(request, authority, sources, ChoicePhase.DEPOSIT, false);
@@ -302,6 +310,34 @@ final class FabricConcreteRecipeChoices {
         if(!request.request().capability().equals(choice.capability()) || !(request.request().arguments().get("amount") instanceof IntValue amount)
                 || amount.value()!=choice.demand())throw refuse(Reason.REQUEST_INVALID);
     }
+    private void matchPhase(RecipeChoice choice,int phaseBatch,View recipe) {
+        int first=choice.groupedPlanks()?0:phaseBatch;
+        int count=choice.phaseBatches(phaseBatch).size();
+        for(int batch=first;batch<first+count;batch++)nativeMatch(choice,batch,recipe);
+    }
+    private List<ItemStack> withdrawPhase(List<ItemStack> held,Container inventory,Map<ContainerRef,List<ItemStack>> sources,
+                                          RecipeChoice choice,int phaseBatch) {
+        return withdrawPhase(held,inventory,sources,choice,phaseBatch,null);
+    }
+    private List<ItemStack> withdrawPhase(List<ItemStack> held,Container inventory,Map<ContainerRef,List<ItemStack>> sources,
+                                          RecipeChoice choice,int phaseBatch,ContainerRef physicalSource) {
+        for(var selected:choice.phaseBatches(phaseBatch))held=withdrawInputs(held,inventory,sources,selected,physicalSource);
+        return held;
+    }
+    private record Crafted(List<ItemStack> held,List<ItemStack> outputs) { }
+    private Crafted craftPhase(List<ItemStack> held,Container inventory,RecipeChoice choice,int phaseBatch,View recipe) {
+        int first=choice.groupedPlanks()?0:phaseBatch;
+        int count=choice.phaseBatches(phaseBatch).size();
+        var outputs=new ArrayList<ItemStack>(count);
+        for(int batch=first;batch<first+count;batch++) {
+            held=consumeHeld(held,choice,batch);
+            var result=recipe.recipe().assemble(input(choice,batch));
+            held=FabricRecipeTransactions.insert(held,inventory,result.copy());
+            if(held==null)throw refuse(Reason.TARGET_UNAVAILABLE);
+            outputs.add(result);
+        }
+        return new Crafted(held,outputs);
+    }
     private ItemStack boundUnit(List<ItemStack> inventory,RecipeChoice.Binding binding,boolean exactCount) {
         int slot=binding.sourceSlot();
         if(slot>=inventory.size())throw refuse(Reason.STALE_OBSERVATION);
@@ -312,7 +348,7 @@ final class FabricConcreteRecipeChoices {
         return actual.copyWithCount(1);
     }
     private List<ItemStack> withdrawInputs(List<ItemStack> held,Container inventory,Map<ContainerRef,List<ItemStack>> sources,
-                                           RecipeChoice.Batch batch) {
+                                           RecipeChoice.Batch batch,ContainerRef physicalSource) {
         // Validate recorded actor slots against the pre-withdraw image. They stay
         // in place until craft. Only actual storage withdrawals move items here.
         if(batch.usesHeldInputs()) {
@@ -320,6 +356,7 @@ final class FabricConcreteRecipeChoices {
             for(var binding:batch.bindings())if(binding.heldBy()!=null)boundUnit(heldSnapshot,binding,true);
         }
         for(var binding:batch.withdrawals()) {
+            if(physicalSource!=null && !physicalSource.equals(binding.source()))continue;
             var unit=boundUnit(sources.get(binding.source()),binding,true);
             held=FabricRecipeTransactions.insert(held,inventory,unit);
             if(held==null)throw refuse(Reason.TARGET_UNAVAILABLE);
@@ -364,6 +401,18 @@ final class FabricConcreteRecipeChoices {
         return new ChoiceObservation(c.token,c.choice.digest(),c.batch,phase,kind,rows,reason,basis);
     }
     Result execute(Context c,ChoicePhase phase) {
+        return execute(c,phase,null,true);
+    }
+    Result withdrawFrom(Context c,ContainerRef source,boolean last) {
+        return execute(c,ChoicePhase.WITHDRAW,Objects.requireNonNull(source),last);
+    }
+    private void checkSeparateSource(RecipeChoice choice,int batch,RecipeSources sources,ContainerRef box) {
+        if(!RecipeProduction.choiceDefinition(choice.capability()).axe() || sources.containers().size()!=2
+                || !sources.containers().contains(box) || choice.batch(batch).usesHeldInputs()
+                || choice.batch(batch).withdrawals().stream().map(RecipeChoice.Binding::source).distinct().count()!=2)
+            throw refuse(Reason.REQUEST_INVALID);
+    }
+    private Result execute(Context c,ChoicePhase phase,ContainerRef physicalSource,boolean lastSource) {
         thread();
         State before=new State(Map.of());boolean writesStarted=false;
         try {
@@ -376,12 +425,16 @@ final class FabricConcreteRecipeChoices {
             var v=nativeActor(c.request,c.run);checkRequest(c.request,c.choice);
             if(v!=c.nativeActor)throw refuse(Reason.STALE_OBSERVATION);
             before=state(c);
-            var current=view(c.choice.capability());nativeMatch(c.choice,c.batch,current);
+            var current=view(c.choice.capability());matchPhase(c.choice,c.batch,current);
             facility(c.request,c.authority,phase,c.currentFacility,phase==ChoicePhase.CRAFT);
             if(current.manager()!=c.recipe.manager() || current.recipe()!=c.recipe.recipe())throw refuse(Reason.ARTIFACT_INCOMPATIBLE);
             if(!fingerprint(v.getInventory()).equals(c.custody))throw refuse(Reason.STALE_OBSERVATION);
             var target=container(c.request,"destination");
-            var boxes=sourceContainers(c.request,c.authority,c.sources,phase,phase==ChoicePhase.WITHDRAW);
+            var boxes=sourceContainers(c.request,c.authority,c.sources,phase,phase==ChoicePhase.WITHDRAW && physicalSource==null);
+            if(physicalSource!=null) {
+                checkSeparateSource(c.choice,c.batch,c.sources,physicalSource);
+                permitted(c.request,c.authority,physicalSource,phase,true);
+            }
             var to=permitted(c.request,c.authority,target,phase,phase==ChoicePhase.DEPOSIT);
             if(boxes.entrySet().stream().anyMatch(e->e.getValue()!=c.nativeSources.get(e.getKey())) || to!=c.nativeDestination
                     || !FabricRecipeTransactions.identity(target,to).equals(c.destinationIdentity))throw refuse(Reason.STALE_OBSERVATION);
@@ -389,18 +442,22 @@ final class FabricConcreteRecipeChoices {
             var expected=new HashMap<>(before.participants());
             if(phase==ChoicePhase.WITHDRAW) {
                 if(!fingerprints(boxes).equals(c.sourceFingerprints))throw refuse(Reason.STALE_OBSERVATION);
-                custody=withdrawInputs(custody,v.getInventory(),sourceCopies,c.choice.batch(c.batch));
+                custody=withdrawPhase(custody,v.getInventory(),sourceCopies,c.choice,c.batch,physicalSource);
                 if(!c.used.compareAndSet(false,true))throw refuse(Reason.STALE_OBSERVATION);
                 for(var source:c.sources.containers())expected.put(participant(source,boxes.get(source)),observe(sourceCopies.get(source)));expected.put("actor:"+v.getUUID(),observe(custody));
-                writesStarted=true;for(var source:c.sources.containers())FabricRecipeTransactions.apply(boxes.get(source),sourceCopies.get(source));FabricRecipeTransactions.apply(v.getInventory(),custody);
+                writesStarted=true;
+                for(var source:c.sources.containers())if(physicalSource==null || physicalSource.equals(source))
+                    FabricRecipeTransactions.apply(boxes.get(source),sourceCopies.get(source));
+                FabricRecipeTransactions.apply(v.getInventory(),custody);
             } else if(phase==ChoicePhase.CRAFT) {
-                custody=consumeHeld(custody,c.choice,c.batch);var result=current.recipe().assemble(input(c.choice,c.batch));
-                custody=FabricRecipeTransactions.insert(custody,v.getInventory(),result.copy());if(custody==null)throw refuse(Reason.TARGET_UNAVAILABLE);
+                var crafted=craftPhase(custody,v.getInventory(),c.choice,c.batch,current);
+                custody=crafted.held();
                 if(!c.used.compareAndSet(false,true))throw refuse(Reason.STALE_OBSERVATION);
                 expected.put("actor:"+v.getUUID(),observe(custody));
-                writesStarted=true;FabricRecipeTransactions.apply(v.getInventory(),custody);result.onCraftedBySystem(level);
+                writesStarted=true;FabricRecipeTransactions.apply(v.getInventory(),custody);
+                for(var result:crafted.outputs())result.onCraftedBySystem(level);
             } else if(phase==ChoicePhase.DEPOSIT) {
-                int quantity=Math.toIntExact(c.choice.deliveryForBatch(c.batch));var actual=stack(c.choice.result());
+                int quantity=Math.toIntExact(c.choice.phaseDelivery(c.batch));var actual=stack(c.choice.result());
                 if(!FabricRecipeTransactions.remove(custody,actual.getItem(),quantity))throw refuse(Reason.STALE_OBSERVATION);
                 var destination=FabricRecipeTransactions.insert(FabricRecipeTransactions.copy(to),to,actual.copyWithCount(quantity));
                 if(destination==null)throw refuse(Reason.TARGET_UNAVAILABLE);
@@ -411,7 +468,8 @@ final class FabricConcreteRecipeChoices {
             State after=state(c);
             if(!expected.equals(after.participants()))return new Result(null,observation(c,phase,ChoiceObservationKind.PARTIAL_UNCERTAIN,before,after,
                     Reason.STALE_OBSERVATION,"Participant state diverged during the actual native call; no continuation or replay permission"));
-            var next=phase==ChoicePhase.WITHDRAW?ChoicePhase.CRAFT:phase==ChoicePhase.CRAFT?ChoicePhase.DEPOSIT:null;
+            var next=phase==ChoicePhase.WITHDRAW?(lastSource?ChoicePhase.CRAFT:ChoicePhase.WITHDRAW):
+                    phase==ChoicePhase.CRAFT?ChoicePhase.DEPOSIT:null;
             var continuation=next==null?null:new Context(c.token,c.choice,c.batch,c.request,c.run,c.authority,c.recipe,
                     fingerprint(v.getInventory()),c.sources,fingerprints(boxes),c.destinationIdentity,next,
                     c.nativeActor,c.nativeSources,c.nativeDestination,c.currentFacility);
